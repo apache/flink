@@ -142,19 +142,19 @@ public class TableEnvHiveConnectorTest {
 		} else {
 			suffix = "stored as " + format;
 		}
-		hiveShell.execute("create table db1.src (i int,s string) " + suffix);
-		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
+		hiveShell.execute("create table db1.src (i int,s string,ts timestamp) " + suffix);
+		hiveShell.execute("create table db1.dest (i int,s string,ts timestamp) " + suffix);
 
 		// prepare source data with Hive
 		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
-		hiveShell.execute("insert into table db1.src values (1,'a'),(2,'b')");
+		hiveShell.execute("insert into table db1.src values (1,'a','2018-08-20 00:00:00.1'),(2,'b','2019-08-26 00:00:00.1')");
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
 		tableEnv.execute("test_" + format);
 
 		// verify data on hive side
-		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
+		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta\t2018-08-20 00:00:00.1", "2\tb\t2019-08-26 00:00:00.1"));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -304,6 +304,14 @@ public class TableEnvHiveConnectorTest {
 			results = HiveTestUtils.collectTable(tableEnv,
 					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
 			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
+
+			hiveShell.execute("create table db1.ts (a array<timestamp>)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "ts").addRow(new Object[]{
+					new Object[]{Timestamp.valueOf("2015-04-28 15:23:00"), Timestamp.valueOf("2016-06-03 17:05:52")}})
+					.commit();
+			results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.ts, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[2015-04-28T15:23, 2016-06-03T17:05:52]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 			hiveShell.execute("drop function hiveudtf");

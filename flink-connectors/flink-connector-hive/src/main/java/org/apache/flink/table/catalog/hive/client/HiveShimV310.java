@@ -183,13 +183,13 @@ public class HiveShimV310 extends HiveShimV235 {
 	}
 
 	@Override
-	public Timestamp toFlinkTimestamp(Object hiveTimestamp) {
+	public LocalDateTime toFlinkTimestamp(Object hiveTimestamp) {
 		initTimestampClz();
 		Preconditions.checkArgument(hiveTimestampClz.isAssignableFrom(hiveTimestamp.getClass()),
 				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
 				hiveTimestampClz.getName(), hiveTimestamp.getClass().getName());
 		try {
-			return Timestamp.valueOf((LocalDateTime) hiveTimestampLocalDateTime.get(hiveTimestamp));
+			return (LocalDateTime) hiveTimestampLocalDateTime.get(hiveTimestamp);
 		} catch (IllegalAccessException e) {
 			throw new FlinkHiveException("Failed to convert to Flink timestamp", e);
 		}

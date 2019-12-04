@@ -31,7 +31,6 @@ import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;

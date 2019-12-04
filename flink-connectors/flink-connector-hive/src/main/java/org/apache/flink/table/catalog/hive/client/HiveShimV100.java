@@ -357,11 +357,11 @@ public class HiveShimV100 implements HiveShim {
 	}
 
 	@Override
-	public Timestamp toFlinkTimestamp(Object hiveTimestamp) {
+	public LocalDateTime toFlinkTimestamp(Object hiveTimestamp) {
 		Preconditions.checkArgument(hiveTimestamp instanceof Timestamp,
 				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
 				Timestamp.class.getName(), hiveTimestamp.getClass().getName());
-		return (Timestamp) hiveTimestamp;
+		return ((Timestamp) hiveTimestamp).toLocalDateTime();
 	}
 
 	void ensureSupportedFlinkTimestamp(Object flinkTimestamp) {

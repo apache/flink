@@ -254,6 +254,9 @@ public class DataFormatConverters {
 				}
 				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				if (dataType.getConversionClass().equals(LocalDateTime.class)) {
+					return new LocalDateTimeConverter(((TimestampType) logicalType).getPrecision());
+				}
 				return new TimestampConverter(((TimestampType) logicalType).getPrecision());
 			default:
 				throw new RuntimeException("Not support dataType: " + dataType);

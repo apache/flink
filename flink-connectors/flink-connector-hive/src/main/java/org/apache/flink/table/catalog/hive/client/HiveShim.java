@@ -45,7 +45,7 @@ import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -218,7 +218,7 @@ public interface HiveShim extends Serializable {
 	Object toHiveTimestamp(Object flinkTimestamp);
 
 	/**
-	 * Converts a hive timestamp instance to java.sql.Timestamp which is expected by DataFormatConverter.
+	 * Converts a hive timestamp instance to LocalDateTime which is expected by DataFormatConverter.
 	 */
-	Timestamp toFlinkTimestamp(Object hiveTimestamp);
+	LocalDateTime toFlinkTimestamp(Object hiveTimestamp);
 }
