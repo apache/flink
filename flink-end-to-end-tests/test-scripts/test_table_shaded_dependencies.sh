@@ -39,6 +39,8 @@ function checkCodeDependencies {
       grep -v "^\s*\-> scala" |\
       `# flink dependencies` \
       grep -v "^\s*\-> org.apache.flink" |\
+      `# flink-core dependencies` \
+      grep -v "^\s*\-> com.esotericsoftware.kryo" |\
       `# janino dependencies` \
       grep -v "^\s*\-> org.codehaus.janino" |\
       grep -v "^\s*\-> org.codehaus.commons" |\
