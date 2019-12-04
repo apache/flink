@@ -87,7 +87,6 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -270,7 +269,7 @@ public class HiveInspectors {
 
 			// flink expects a specific array type (e.g. Integer[] instead of Object[]), so we have to get the element class
 			ObjectInspector elementInspector = listInspector.getListElementObjectInspector();
-			Object[] result = (Object[]) Array.newInstance(getClassFromObjectInspector(elementInspector), list.size());
+			Object[] result = (Object[]) Array.newInstance(HiveTypeUtil.toFlinkType(elementInspector).getConversionClass(), list.size());
 			for (int i = 0; i < list.size(); i++) {
 				result[i] = toFlinkObject(elementInspector, list.get(i), hiveShim);
 			}
@@ -403,59 +402,6 @@ public class HiveInspectors {
 						structType.getAllStructFieldNames(), fieldInspectors);
 			default:
 				throw new CatalogException("Unsupported Hive type category " + type.getCategory());
-		}
-	}
-
-	// given a Hive ObjectInspector, get the class for corresponding Flink object
-	private static Class<?> getClassFromObjectInspector(ObjectInspector inspector) {
-		switch (inspector.getCategory()) {
-			case PRIMITIVE: {
-				PrimitiveObjectInspector primitiveOI = (PrimitiveObjectInspector) inspector;
-				switch (HiveTypeUtil.HivePrimitiveCategory.valueOf(primitiveOI.getPrimitiveCategory().name())) {
-					case STRING:
-					case CHAR:
-					case VARCHAR:
-						return String.class;
-					case INT:
-						return Integer.class;
-					case LONG:
-						return Long.class;
-					case BYTE:
-						return Byte.class;
-					case SHORT:
-						return Short.class;
-					case FLOAT:
-						return Float.class;
-					case DOUBLE:
-						return Double.class;
-					case DECIMAL:
-						return BigDecimal.class;
-					case BOOLEAN:
-						return Boolean.class;
-					case BINARY:
-						return byte[].class;
-					case DATE:
-						return Date.class;
-					case TIMESTAMP:
-						return LocalDateTime.class;
-					case INTERVAL_DAY_TIME:
-					case INTERVAL_YEAR_MONTH:
-					default:
-						throw new IllegalArgumentException(
-								"Unsupported primitive type " + primitiveOI.getPrimitiveCategory().name());
-
-				}
-			}
-			case LIST:
-				ListObjectInspector listInspector = (ListObjectInspector) inspector;
-				Class elementClz = getClassFromObjectInspector(listInspector.getListElementObjectInspector());
-				return Array.newInstance(elementClz, 0).getClass();
-			case MAP:
-				return Map.class;
-			case STRUCT:
-				return Row.class;
-			default:
-				throw new IllegalArgumentException("Unsupported type " + inspector.getCategory().name());
 		}
 	}
 
