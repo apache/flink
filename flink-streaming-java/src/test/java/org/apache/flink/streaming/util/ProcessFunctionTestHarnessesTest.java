@@ -32,7 +32,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.streaming.runtime.operators.windowing.StreamRecordMatchers.isStreamRecord;
+import static org.apache.flink.streaming.util.StreamRecordMatchers.isStreamRecord;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 

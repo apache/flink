@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.windowing;
+package org.apache.flink.streaming.util;
 
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowedValue;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.hamcrest.Description;
