@@ -232,6 +232,7 @@ public abstract class Transformation<T> {
 	 * @param preferredResources The preferred resource of this transformation.
 	 */
 	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 		this.minResources = checkNotNull(minResources);
 		this.preferredResources = checkNotNull(preferredResources);
 	}
