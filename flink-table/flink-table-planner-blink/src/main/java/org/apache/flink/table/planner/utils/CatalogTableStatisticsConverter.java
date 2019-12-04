@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util;
+package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
