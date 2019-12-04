@@ -53,6 +53,10 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	private static final int HIGH_BIT = 0x1 << 7;
 
 	private static final int HIGH_BIT14 = 0x1 << 14;
+
+	private static final int HIGH_BIT21 = 0x1 << 21;
+
+	private static final int HIGH_BIT28 = 0x1 << 28;
 	
 	private static final int HIGH_BIT2 = 0x1 << 13;
 	
@@ -742,7 +746,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	// --------------------------------------------------------------------------------------------
 	//                           Static Helpers for String Serialization
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static String readString(DataInput in) throws IOException {
 		// the length we read is offset by one, because a length of zero indicates a null value
 		int len = in.readUnsignedByte();
@@ -782,38 +786,38 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		int bytePosition = 0;
 
 		while (charPosition < len) {
-			// there is at least `char count - char position` bytes left in case if all the
-			// remaining characters are 7 bit.
-			int remainingBytesEstimation = len - charPosition;
-			int c;
 			if (bytePosition == bufSize) {
-				// need to expand the buffer as we are already reached the end.
-				// we also reuse the old buffer, as it's capacity must be enough in any case.
-				in.readFully(buf, 0, remainingBytesEstimation);
+				// there is at least `char count - char position` bytes left in case if all the
+				// remaining characters are 7 bit.
+				int minRemainingChars = len - charPosition;
+				// need to refill the buffer as we already reached its end.
+				// we also reuse the old buffer, as it's capacity must always be >= minRemainingChars.
+				in.readFully(buf, 0, minRemainingChars);
 				bytePosition = 0;
-				bufSize = remainingBytesEstimation;
+				bufSize = minRemainingChars;
 			}
-			c = buf[bytePosition++] & 255;
+			int c = buf[bytePosition++] & 255;
 			// non 7-bit path
 			if (c >= HIGH_BIT) {
 				int shift = 7;
 				int curr;
 				c = c & 0x7f;
 				if (bytePosition == bufSize) {
-					// need to expand the buffer, also reusing the buffer again.
-					in.readFully(buf, 0, remainingBytesEstimation);
+					int minRemainingChars = len - charPosition;
+					in.readFully(buf, 0, minRemainingChars);
 					bytePosition = 0;
-					bufSize = remainingBytesEstimation;
+					bufSize = minRemainingChars;
 				}
 
 				while ((curr = buf[bytePosition++] & 255) >= HIGH_BIT) {
 					c |= (curr & 0x7f) << shift;
 					shift += 7;
 					if (bytePosition == bufSize) {
-						// may need to expand the buffer if char bytes are split between the buffers.
-						in.readFully(buf, 0, remainingBytesEstimation);
+						int minRemainingChars = len - charPosition;
+						// may need to refill the buffer if char bytes are split between the buffers.
+						in.readFully(buf, 0, minRemainingChars);
 						bytePosition = 0;
-						bufSize = remainingBytesEstimation;
+						bufSize = minRemainingChars;
 					}
 				}
 				c |= curr << shift;
@@ -825,46 +829,25 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 
 	public static final void writeString(CharSequence cs, DataOutput out) throws IOException {
 		if (cs != null) {
-			// the length we write is offset by one, because a length of zero indicates a null value
-			int position = 0;
 			int strlen = cs.length();
 
+			// the length we write is offset by one, because a length of zero indicates a null value
 			int lenToWrite = strlen + 1;
 			if (lenToWrite < 0) {
 				throw new IllegalArgumentException("CharSequence is too long.");
 			}
 
-			// on average, for strings shorter than 6 characters the cost of allocating the buffer
-			// is higher than writing it directly. See benchmarks in https://github.com/apache/flink/pull/10358 for
-			// examples.
-			if (strlen < 6) {
-				// write the length, variable-length encoded
-				while (lenToWrite >= HIGH_BIT) {
-					out.write(lenToWrite | HIGH_BIT);
-					lenToWrite >>>= 7;
-				}
-				out.write(lenToWrite);
 
-				// write the char data, variable length encoded
-				// manually unrolled: on benchmarks it performs better than a while-loop
-				for (int i = 0; i < cs.length(); i++) {
-					int c = cs.charAt(i);
-					if (c < HIGH_BIT) {
-						out.write((byte) c);
-					} else if (c < HIGH_BIT14) {
-						out.write((byte) (c | HIGH_BIT));
-						out.write((byte) ((c >>> 7)));
-					} else {
-						out.write((byte) (c | HIGH_BIT));
-						out.write((byte) ((c >>> 7) | HIGH_BIT));
-						out.write((byte) ((c >>> 14)));
-					}
-				}
+			// buffer size needed to contain all the characters
+			int buflen = 0;
+			if (strlen < 8) {
+				// for small strings it's much faster to over-allocate a buffer sized for the worst-case scenario
+				// when all the chars are encoded as 3-byte sequences, than iterating over the source string.
+				buflen = strlen * 3;
 			} else {
-				int buflen = 5; // worst-case when we have a giant string with 5 bytes variable-length size encoding
 				for (int i = 0; i < strlen; i++) {
 					char c = cs.charAt(i);
-					if ((c >= 0x0001) && (c <= 0x007F)) {
+					if ((c & 0xff80) == 0) {
 						buflen++;
 					} else if (c > 0x07FF) {
 						buflen += 3;
@@ -872,32 +855,61 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 						buflen += 2;
 					}
 				}
-				byte[] buffer = new byte[buflen];
-				// write the length, variable-length encoded
-				while (lenToWrite >= HIGH_BIT) {
-					buffer[position++] = (byte) (lenToWrite | HIGH_BIT);
-					lenToWrite >>>= 7;
-				}
-				buffer[position++] = (byte) lenToWrite;
-
-				// write the char data, variable length encoded
-				for (int i = 0; i < strlen; i++) {
-					int c = cs.charAt(i);
-
-					// manual loop unroll, as it performs much better on jdk8
-					if (c < HIGH_BIT) {
-						buffer[position++] = (byte)c;
-					} else if (c < HIGH_BIT14) {
-						buffer[position++] = (byte)(c | HIGH_BIT);
-						buffer[position++] = (byte)((c >>> 7));
-					} else {
-						buffer[position++] = (byte)(c | HIGH_BIT);
-						buffer[position++] = (byte)((c >>> 7) | HIGH_BIT);
-						buffer[position++] = (byte)((c >>> 14));
-					}
-				}
-				out.write(buffer, 0, position);
 			}
+			byte[] buffer;
+			int position = 0;
+			// string is prefixed by it's variable length encoded size, which can take 1-5 bytes.
+			if (lenToWrite < HIGH_BIT) {
+				buflen += 1;
+				buffer = new byte[buflen];
+				buffer[position++] = (byte) lenToWrite;
+			} else if (lenToWrite < HIGH_BIT14) {
+				buflen += 2;
+				buffer = new byte[buflen];
+				buffer[position++] = (byte)(lenToWrite | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 7));
+			} else if (lenToWrite < HIGH_BIT21) {
+				buflen += 3;
+				buffer = new byte[buflen];
+				buffer[position++] = (byte)(lenToWrite | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 7) | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 14));
+			} else if (lenToWrite < HIGH_BIT28) {
+				buflen += 4;
+				buffer = new byte[buflen];
+				buffer[position++] = (byte)(lenToWrite | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 7) | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 14) | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 21));
+			} else {
+				buflen += 5;
+				buffer = new byte[buflen];
+				buffer[position++] = (byte)(lenToWrite | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 7) | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 14) | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 21) | HIGH_BIT);
+				buffer[position++] = (byte)((lenToWrite >>> 28));
+			}
+
+
+			// write the char data, variable length encoded
+			for (int i = 0; i < strlen; i++) {
+				int c = cs.charAt(i);
+
+				// manual loop unroll, as it performs much better on jdk8
+				if (c < HIGH_BIT) {
+					buffer[position++] = (byte)c;
+				} else if (c < HIGH_BIT14) {
+					buffer[position++] = (byte)(c | HIGH_BIT);
+					buffer[position++] = (byte)((c >>> 7));
+				} else {
+					buffer[position++] = (byte)(c | HIGH_BIT);
+					buffer[position++] = (byte)((c >>> 7) | HIGH_BIT);
+					buffer[position++] = (byte)((c >>> 14));
+				}
+			}
+			out.write(buffer, 0, position);
+
 		} else {
 			out.write(0);
 		}
