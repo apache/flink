@@ -32,8 +32,7 @@ public class FunctionDefinitionUtil {
 			func = Thread.currentThread().getContextClassLoader().loadClass(catalogFunction.getClassName()).newInstance();
 		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
 			throw new IllegalStateException(
-				String.format("Failed instantiating '%s'", catalogFunction.getClassName())
-			);
+				String.format("Failed instantiating '%s'", catalogFunction.getClassName()), e);
 		}
 
 		UserDefinedFunction udf = (UserDefinedFunction) func;
