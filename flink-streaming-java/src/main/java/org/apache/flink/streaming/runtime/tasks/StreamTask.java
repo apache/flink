@@ -73,6 +73,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -261,6 +262,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
 			StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor actionExecutor) {
+		this(environment, timerService, uncaughtExceptionHandler, actionExecutor, new TaskMailboxImpl(Thread.currentThread()));
+	}
+
+	protected StreamTask(
+			Environment environment,
+			@Nullable TimerService timerService,
+			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
+			StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor actionExecutor,
+			TaskMailbox mailbox) {
 
 		super(environment);
 
@@ -270,7 +280,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-		this.mailboxProcessor = new MailboxProcessor(this::processInput);
+		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
 
