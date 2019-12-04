@@ -50,7 +50,6 @@ import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.StringUtils;
@@ -295,19 +294,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						return null;
 					});
 		}
-	}
-
-	private void printUsage() {
-		System.out.println("Usage:");
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.setWidth(200);
-		formatter.setLeftPadding(5);
-
-		formatter.setSyntaxPrefix("   Optional");
-		Options options = new Options();
-		addGeneralOptions(options);
-		addRunOptions(options);
-		formatter.printHelp(" ", options);
 	}
 
 	@Override
@@ -620,7 +606,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						LOG);
 					try {
 						runInteractiveCli(
-							clusterClient,
 							yarnApplicationStatusMonitor,
 							acceptInteractiveInput);
 					} finally {
@@ -817,22 +802,20 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
 		} catch (CliArgsException e) {
-			retCode = handleCliArgsException(e);
+			retCode = handleCliArgsException(e, LOG);
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-			retCode = handleError(strippedThrowable);
+			retCode = handleError(strippedThrowable, LOG);
 		}
 
 		System.exit(retCode);
 	}
 
 	private static void runInteractiveCli(
-			ClusterClient<?> clusterClient,
 			YarnApplicationStatusMonitor yarnApplicationStatusMonitor,
 			boolean readConsoleInput) {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 			boolean continueRepl = true;
-			int numTaskmanagers = 0;
 			boolean isLastStatusUnknown = true;
 			long unknownStatusSince = System.nanoTime();
 
@@ -920,27 +903,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			throw new RuntimeException("Error writing the properties file", e);
 		}
 		propertiesFile.setReadable(true, false); // readable for all.
-	}
-
-	private static int handleCliArgsException(CliArgsException e) {
-		LOG.error("Could not parse the command line arguments.", e);
-
-		System.out.println(e.getMessage());
-		System.out.println();
-		System.out.println("Use the help option (-h or --help) to get help on the command.");
-		return 1;
-	}
-
-	private static int handleError(Throwable t) {
-		LOG.error("Error while running the Flink Yarn session.", t);
-
-		System.err.println();
-		System.err.println("------------------------------------------------------------");
-		System.err.println(" The program finished with the following exception:");
-		System.err.println();
-
-		t.printStackTrace();
-		return 1;
 	}
 
 	public static File getYarnPropertiesLocation(@Nullable String yarnPropertiesFileLocation) {
