@@ -58,6 +58,7 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -166,6 +167,8 @@ public class StreamExecutionEnvironment {
 	private final Configuration configuration;
 
 	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -1627,6 +1630,24 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListener() {
+		this.jobListeners.clear();
+	}
+
+	/**
 	 * Triggers the program asynchronously. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
@@ -1696,7 +1717,11 @@ public class StreamExecutionEnvironment {
 
 		return executorFactory
 			.getExecutor(configuration)
-			.execute(streamGraph, configuration);
+			.execute(streamGraph, configuration)
+			.thenApply(jobClient -> {
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient));
+				return jobClient;
+			});
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

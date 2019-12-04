@@ -29,13 +29,14 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.core.execution.JobClient
+import org.apache.flink.core.execution.{JobClient, JobListener}
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.util.Preconditions.checkNotNull
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
@@ -678,6 +679,22 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @return The result of the job execution, containing elapsed time and accumulators.
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
+
+  /**
+   * Register a [[JobListener]] in this environment. The [[JobListener]] will be
+   * notified on specific job status changed.
+   */
+  @PublicEvolving
+  def registerJobListener(jobListener: JobListener): Unit = {
+    javaEnv.registerJobListener(jobListener)
+  }
+
+  /**
+   * Clear all registered [[JobListener]]s.
+   */
+  @PublicEvolving def clearJobListener(): Unit = {
+    javaEnv.clearJobListener()
+  }
 
   /**
    * Triggers the program execution asynchronously. The environment will execute all parts of
