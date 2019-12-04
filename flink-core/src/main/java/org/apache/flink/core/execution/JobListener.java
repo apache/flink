@@ -29,7 +29,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 public interface JobListener {
 
 	/**
-	 * Callback on job submission succeeded.
+	 * Callback on job submission succeeded or failed.
 	 *
 	 * <p><b>ATTENTION:</b> the lifecycle of the passed {@link JobClient} has already
 	 * been handled. Never call {@link JobClient#close()} on the passed {@link JobClient}.
@@ -37,12 +37,14 @@ public interface JobListener {
 	 * finished so that you should take care of the failure case.
 	 *
 	 * @param jobClient to communicate with the job
+	 * @param throwable the cause if submission failed
 	 */
-	void onJobSubmitted(JobClient jobClient);
+	void onJobSubmitted(JobClient jobClient, Throwable throwable);
 
 	/**
-	 * Callback on job execution finished. It is only called back when you call {@code #execute}
-	 * instead of {@code executeAsync} methods of execution environments.
+	 * Callback on job execution finished, successfully or unsuccessfully. It is only called
+	 * back when you call {@code #execute} instead of {@code executeAsync} methods of execution
+	 * environments.
 	 */
 	void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable);
 

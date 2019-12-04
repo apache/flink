@@ -817,7 +817,11 @@ public class ExecutionEnvironment {
 
 			return lastJobExecutionResult;
 		} catch (Throwable t) {
-			CompletableFuture.runAsync(() -> jobListeners.forEach(jobListener -> jobListener.onJobExecuted(null, t)));
+			CompletableFuture.runAsync(() -> {
+				jobListeners.forEach(jobListener -> {
+					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+				});
+			});
 			ExceptionUtils.rethrowException(t);
 
 			// never reached, only make javac happy
@@ -899,7 +903,9 @@ public class ExecutionEnvironment {
 			.getExecutor(configuration)
 			.execute(plan, configuration);
 
-		jobClientFuture.thenAcceptAsync(jobClient -> jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient)));
+		jobClientFuture.whenCompleteAsync((jobClient, throwable) -> {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, throwable));
+		});
 
 		return jobClientFuture;
 	}

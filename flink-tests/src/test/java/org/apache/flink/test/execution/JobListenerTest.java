@@ -46,7 +46,7 @@ public class JobListenerTest extends TestLogger {
 
 		env.registerJobListener(new JobListener() {
 			@Override
-			public void onJobSubmitted(JobClient jobClient) {
+			public void onJobSubmitted(JobClient jobClient, Throwable throwable) {
 				submissionLatch.trigger();
 			}
 
@@ -72,7 +72,7 @@ public class JobListenerTest extends TestLogger {
 
 		env.registerJobListener(new JobListener() {
 			@Override
-			public void onJobSubmitted(JobClient jobClient) {
+			public void onJobSubmitted(JobClient jobClient, Throwable throwable) {
 				submissionLatch.trigger();
 			}
 
