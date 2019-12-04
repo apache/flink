@@ -32,7 +32,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.streaming.util.StreamRecordMatchers.isStreamRecord;
+import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
@@ -56,7 +56,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(1)));
+		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(1)));
 	}
 
 	@Test
@@ -72,7 +72,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(1)));
+		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(1)));
 	}
 
 	@Test
@@ -95,7 +95,8 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processElement2("0", 1);
 		harness.processElement1(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
+		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), StreamRecordMatchers
+				.streamRecord(1)));
 	}
 
 	@Test
@@ -119,7 +120,8 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processElement1(0, 1);
 		harness.processElement2(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
+		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), StreamRecordMatchers
+				.streamRecord(1)));
 	}
 
 	@Test
@@ -143,7 +145,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processBroadcastElement("0", 1);
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
+		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), streamRecord(1)));
 	}
 
 	@Test
@@ -171,7 +173,8 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processBroadcastElement("0", 1);
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
+		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), StreamRecordMatchers
+				.streamRecord(1)));
 	}
 
 }

@@ -33,25 +33,25 @@ import org.hamcrest.TypeSafeMatcher;
  */
 public class StreamRecordMatchers {
 
-	public static <T> Matcher<StreamRecord<? extends T>> isStreamRecord(
+	public static <T> Matcher<StreamRecord<? extends T>> streamRecord(
 		T value) {
 
-		return isStreamRecord(Matchers.equalTo(value));
+		return streamRecord(Matchers.equalTo(value));
 	}
 
-	public static <T> Matcher<StreamRecord<? extends T>> isStreamRecord(
+	public static <T> Matcher<StreamRecord<? extends T>> streamRecord(
 		T value,
 		long timestamp) {
 
-		return isStreamRecord(Matchers.equalTo(value), Matchers.equalTo(timestamp));
+		return streamRecord(Matchers.equalTo(value), Matchers.equalTo(timestamp));
 	}
 
-	public static <T> Matcher<StreamRecord<? extends T>> isStreamRecord(
+	public static <T> Matcher<StreamRecord<? extends T>> streamRecord(
 		Matcher<? super T> valueMatcher) {
 		return new StreamRecordMatcher<>(valueMatcher, Matchers.anything());
 	}
 
-	public static <T> Matcher<StreamRecord<? extends T>> isStreamRecord(
+	public static <T> Matcher<StreamRecord<? extends T>> streamRecord(
 		Matcher<? super T> valueMatcher, Matcher<? super Long> timestampMatcher) {
 		return new StreamRecordMatcher<>(valueMatcher, timestampMatcher);
 	}
