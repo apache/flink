@@ -146,7 +146,7 @@ public class HiveInspectors {
 					inspector instanceof BinaryObjectInspector) {
 				conversion = IdentityConversion.INSTANCE;
 			} else if (inspector instanceof TimestampObjectInspector) {
-				conversion = o -> HiveReflectionUtils.toHiveTimestamp(hiveShim, o);
+				conversion = hiveShim::toHiveTimestamp;
 			} else if (inspector instanceof HiveCharObjectInspector) {
 				conversion = o -> new HiveChar((String) o, ((CharType) dataType).getLength());
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
@@ -243,15 +243,13 @@ public class HiveInspectors {
 					inspector instanceof FloatObjectInspector ||
 					inspector instanceof DoubleObjectInspector ||
 					inspector instanceof DateObjectInspector ||
-					inspector instanceof TimestampObjectInspector ||
 					inspector instanceof BinaryObjectInspector) {
 
 				PrimitiveObjectInspector poi = (PrimitiveObjectInspector) inspector;
-				Object javaObject = poi.getPrimitiveJavaObject(data);
-				if (inspector instanceof TimestampObjectInspector) {
-					javaObject = HiveReflectionUtils.toFlinkTimestamp(hiveShim, javaObject);
-				}
-				return javaObject;
+				return poi.getPrimitiveJavaObject(data);
+			} else if (inspector instanceof TimestampObjectInspector) {
+				PrimitiveObjectInspector poi = (PrimitiveObjectInspector) inspector;
+				return hiveShim.toFlinkTimestamp(poi.getPrimitiveJavaObject(data));
 			} else if (inspector instanceof HiveCharObjectInspector) {
 				HiveCharObjectInspector oi = (HiveCharObjectInspector) inspector;
 
