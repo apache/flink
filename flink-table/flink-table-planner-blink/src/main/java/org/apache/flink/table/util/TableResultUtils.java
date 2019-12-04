@@ -28,14 +28,18 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableImpl;
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
 
@@ -64,15 +68,15 @@ public class TableResultUtils {
 	@SuppressWarnings("unchecked")
 	public static List<Row> tableResultToList(Table table) throws Exception {
 		final TableEnvironment tEnv = ((TableImpl) table).getTableEnvironment();
-
 		final String id = new AbstractID().toString();
-		final DataType rowDataType = table.getSchema().toRowDataType();
+		final TableSchema schema = buildNewTableSchema(table);
+		final DataType rowDataType = schema.toRowDataType();
 		final TypeSerializer<Row> serializer =
-			TypeInfoLogicalTypeConverter
-				.fromLogicalTypeToTypeInfo(rowDataType.getLogicalType())
+			(TypeSerializer<Row>) TypeInfoDataTypeConverter
+				.fromDataTypeToTypeInfo(rowDataType)
 				.createSerializer(new ExecutionConfig());
 		final Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
-		final TableResultSink sink = new TableResultSink(table, outputFormat);
+		final TableResultSink sink = new TableResultSink(schema, outputFormat);
 
 		final String sinkName = "tableResultSink_" + id;
 		final String jobName = "tableResultToList_" + id;
@@ -80,12 +84,37 @@ public class TableResultUtils {
 		tEnv.registerTableSink(sinkName, sink);
 		tEnv.insertInto(sinkName, table);
 
-		JobExecutionResult executionResult = tEnv.execute(jobName);
-		ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
-		List<Row> deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
+		final JobExecutionResult executionResult = tEnv.execute(jobName);
+		final ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
+		final List<Row> deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
 
 		tEnv.dropTemporaryTable(sinkName);
 		return deserializedList;
+	}
+
+	private static TableSchema buildNewTableSchema(Table table) {
+		final TableSchema oldSchema = table.getSchema();
+		final TableSchema.Builder schemaBuilder = TableSchema.builder();
+		for (int i = 0; i < oldSchema.getFieldCount(); i++) {
+			// change to default conversion class
+			final DataType fieldType = LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+				LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(
+					oldSchema.getFieldDataType(i).orElseThrow(
+						() -> new IndexOutOfBoundsException(
+							"Table schema field index out of bound. This is impossible."))));
+			final String fieldName = oldSchema.getFieldName(i).orElseThrow(
+				() -> new IndexOutOfBoundsException("Table schema field index out of bound. This is impossible."));
+			if (fieldType.getLogicalType() instanceof TimestampType) {
+				final TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
+				if (!timestampType.getKind().equals(TimestampKind.REGULAR)) {
+					// converts `TIME ATTRIBUTE(ROWTIME)`/`TIME ATTRIBUTE(PROCTIME)` to `TIMESTAMP(3)` for sink
+					schemaBuilder.field(fieldName, DataTypes.TIMESTAMP(3));
+					continue;
+				}
+			}
+			schemaBuilder.field(fieldName, fieldType);
+		}
+		return schemaBuilder.build();
 	}
 
 	/**
@@ -96,8 +125,8 @@ public class TableResultUtils {
 		private DataType rowType;
 		private Utils.CollectHelper<Row> outputFormat;
 
-		TableResultSink(Table table, Utils.CollectHelper<Row> outputFormat) {
-			this.schema = table.getSchema();
+		TableResultSink(TableSchema schema, Utils.CollectHelper<Row> outputFormat) {
+			this.schema = schema;
 			this.rowType = schema.toRowDataType();
 			this.outputFormat = outputFormat;
 		}
