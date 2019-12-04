@@ -1031,14 +1031,6 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def test(): Unit = {
-    testSqlApi(
-      s"${timestampTz("1970-01-01 00:00:00.123456789", 9)} > " +
-        s"${timestampTz("1970-01-01 00:00:00.123456788", 9)}",
-      "true")
-  }
-
-  @Test
   def testHighPrecisionTimestamp(): Unit = {
     // EXTRACT should support millisecond/microsecond/nanosecond
     testSqlApi(

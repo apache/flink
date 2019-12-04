@@ -156,7 +156,7 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              val ins = reduced.getField(reducedIdx).asInstanceOf[SqlTimestamp].toInstant
+              val ins = reducedValue.asInstanceOf[SqlTimestamp].toInstant
               val dt = LocalDateTime.ofInstant(ins, config.getLocalTimeZone)
               toTimestampString(dt)
             } else {
@@ -234,7 +234,7 @@ class ExpressionReducer(
       true)
   }
 
-  def toTimestampString(ldt: LocalDateTime): TimestampString = {
+  private def toTimestampString(ldt: LocalDateTime): TimestampString = {
     new TimestampString(
       ldt.getYear,
       ldt.getMonthValue,

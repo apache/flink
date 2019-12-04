@@ -52,10 +52,10 @@ object LongHashJoinGenerator {
              TIME_WITHOUT_TIME_ZONE => true
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val timestampType = keyType.getTypeAt(0).asInstanceOf[TimestampType]
-          if (SqlTimestamp.isCompact(timestampType.getPrecision)) true else false
+          SqlTimestamp.isCompact(timestampType.getPrecision)
         case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
           val lzTs = keyType.getTypeAt(0).asInstanceOf[LocalZonedTimestampType]
-          if (SqlTimestamp.isCompact(lzTs.getPrecision)) true else false
+          SqlTimestamp.isCompact(lzTs.getPrecision)
         case _ => false
       }
       // TODO decimal and multiKeys support.
@@ -73,6 +73,7 @@ object LongHashJoinGenerator {
     val term = singleType.getTypeRoot match {
       case FLOAT => s"Float.floatToIntBits($getCode)"
       case DOUBLE => s"Double.doubleToLongBits($getCode)"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$getCode.getMillisecond()"
       case _ => getCode
     }
     s"return $term;"
