@@ -81,8 +81,12 @@ public class MailboxProcessor implements Closeable {
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
+		this(mailboxDefaultAction, new TaskMailboxImpl(Thread.currentThread()));
+	}
+
+	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction, TaskMailbox mailbox) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
-		mailbox = new TaskMailboxImpl(Thread.currentThread());
+		this.mailbox = mailbox;
 		mainMailboxExecutor = new MailboxExecutorImpl(mailbox, TaskMailbox.MIN_PRIORITY);
 		mailboxLoopRunning = true;
 		suspendedDefaultAction = null;
