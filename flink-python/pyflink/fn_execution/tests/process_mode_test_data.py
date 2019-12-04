@@ -30,7 +30,7 @@ manifest = """
     }, {
       "name": "python-package1-0.0.0.tar.gz",
       "permissions": 444,
-      "sha256": "e9514d5dd605546c8b17fb4213e12c79a4369e7d20804ecb2e20e41e1d1d79e9"
+      "sha256": "52e324d57abe35c97ba85c6c8e01c575aec71d9f820577b1b2dfbcb9ca6c986c"
     }, {
       "name": "python-package2-0.0.0.tar.gz",
       "permissions": 444,
@@ -82,7 +82,7 @@ file_data["requirements.txt"] = """
 """
 file_data["python-package1-0.0.0.tar.gz"] = """
 {
-  "data": "H4sICNhVXl0C/2Rpc3QvcHl0aG9uLXBhY2thZ2UxLTAuMC4wLnRhcgDtmF2Pk0AUhrnmV0z2ajcRdoABkia9MH5nlW5sVi+MISMMOFm+AkMVf71TELsSm5baYjXnaZqZOQwl9Mz7zoGiEZ/zTCtocE9jZmhYl59r5ahgiWvbXes4bYtN0rUdimHZpkvk18IKNmziYgXZygTUlaAlQso3+TfEXxjfNk9Oi6IdN7m+kb79Ryh+m//bmxfaK+/54nj5dwjZmn/TtQf5d2zXUBCG/J+cN0zQkAqqvWNlxfNshgwdqx5N2QwN1ob6c0q7SNRlnaa0bGbozrvxFu899WWeMjk7ZpvQ41r+RDkcayylPNlEX/OAZdWD056yKih5Idqr9cHbhIooL9NNRAFOo/8u6vdRncWxxrMovz5Y/6P83zRNywX/P8P8h6xgWciyoPETnt1Xuvgq/tj/MTYG+XcsbIP/TwF4KPj/CP0fVBiOrv9MyyIY9A/1H9R/Z6b/5eLu7ZNny722/f31L4/9qn9imBbofwoqJupCLxp1p+Wr+ywKdVTluH22yAs/YSuWjFtpwIn1f1Bextf/xHVg/4f6H/hL+u92hSCKj3KNnfp3rcH7X9cy4P3vJHyQ1u6vrf2jKmjsf6p5EqI5agfyuYDJPm4H1SrzS7bi6yeANgjO8b/rv2iUSfRvkH7/JyZZHzdcE0P9Pwk8LfJSoDbhIs+TSlU3fb3tXmY0ZfOLwUq5eIR+dKv5gzMinoV93VhdXl2BSwAAAAAAAJwX3wEf81Z/ACgAAA=="
+  "data": "H4sICNefrV0C/2Rpc3QvcHl0aG9uLXBhY2thZ2UxLTAuMC4wLnRhcgDtmVtv2jAYhnPtX2H1CrRCY+ckIXEx7axuUA11u5imyICTRc1JiVnHfv1MKKWjYxwKEdPehws7xkmUfH5f+3PyqfqWpa1cjG5EKFnLbOvfhXFQTI3nOPPSdavS5Pa8nGMwy3Esi3ke9wyTObbnGNQxamBSKlFQavzUryG8ldG6frpbEGx4yNmDLMp/hPyP8b+6fNN613vdP1z8XdteG3+ug/17/F3Hcw1qIv5H54NUYiyUaH2SRRllaYeytkl6IpEdujI2yH2XapCQwSRJRDHt0OveZa//uUfeZonUvUO5bHo+0ZcoVo9bMhFRvGx9H41kWj447aUsR0WUq+pui8arWKggK5JliwGOo/95q79ovXi6/nfyf246Dof/n078fT9KI+X77Xx6BP83bX4Xf5NxT7dz7toO/L8OxjKgeTwpG+KcDpsdQjWFVJMipYI+o0MCk4X/t2UYtqI0yPabCHb3f861XcD/Ty/+Y5nLdCzT0dSPo/SmbKsf6un+b7KV+LsW4/D/OoC9w/930P9eGwM75//csrD+Q/6P/P/k9D/oX3988Wqw1bS/tf6tR+s/m3EG/ddBqXO9XKf15C8pP9k4HZBtBgzZaVW5vrfKcj+W32W82ygEB9D/Xu9+4/qfP9L/rBv0X1v87yONKRX61/qfzwqjIDzIPTbv/7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="
 }
 """
 file_data["python-package2-0.0.0.tar.gz"] = """
