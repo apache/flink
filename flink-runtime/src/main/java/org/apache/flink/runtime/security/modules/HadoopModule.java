@@ -115,7 +115,7 @@ public class HadoopModule implements SecurityModule {
 							Credentials.class);
 						addCredentialsMethod.invoke(loginUser, credentials);
 					} catch (NoSuchMethodException e) {
-						LOG.warn("Could not find method implementations in the shaded jar. Exception: {}", e);
+						LOG.warn("Could not find method implementations in the shaded jar.", e);
 					} catch (InvocationTargetException e) {
 						throw e.getTargetException();
 					}
@@ -129,7 +129,7 @@ public class HadoopModule implements SecurityModule {
 					Method loginUserFromSubjectMethod = UserGroupInformation.class.getMethod("loginUserFromSubject", Subject.class);
 					loginUserFromSubjectMethod.invoke(null, (Subject) null);
 				} catch (NoSuchMethodException e) {
-					LOG.warn("Could not find method implementations in the shaded jar. Exception: {}", e);
+					LOG.warn("Could not find method implementations in the shaded jar.", e);
 				} catch (InvocationTargetException e) {
 					throw e.getTargetException();
 				}
