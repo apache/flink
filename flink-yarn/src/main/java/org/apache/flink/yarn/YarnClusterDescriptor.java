@@ -857,6 +857,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				localResources,
 				homeDir,
 				"");
+		paths.add(remotePathJar);
+		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
 
 		// set the right configuration values for the TaskManager
 		configuration.setInteger(
@@ -866,28 +868,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		configuration.setString(
 				TaskManagerOptions.TOTAL_PROCESS_MEMORY,
 				clusterSpecification.getTaskManagerMemoryMB() + "m");
-
-		// Upload the flink configuration
-		// write out configuration file
-		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
-		tmpConfigurationFile.deleteOnExit();
-		BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
-
-		String flinkConfigKey = "flink-conf.yaml";
-		Path remotePathConf = setupSingleLocalResource(
-			flinkConfigKey,
-				fs,
-				appId,
-				new Path(tmpConfigurationFile.getAbsolutePath()),
-				localResources,
-				homeDir,
-				"");
-		envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
-
-		paths.add(remotePathJar);
-		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
-		paths.add(remotePathConf);
-		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
 			for (String userClassPath : userClassPaths) {
@@ -907,7 +887,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				}
 
 				final String jobGraphFilename = "job.graph";
-				flinkConfiguration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
+				configuration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
 
 				Path pathFromYarnURL = setupSingleLocalResource(
 						jobGraphFilename,
@@ -924,6 +904,25 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				throw e;
 			}
 		}
+
+		// Upload the flink configuration
+		// write out configuration file
+		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+		tmpConfigurationFile.deleteOnExit();
+		BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
+
+		String flinkConfigKey = "flink-conf.yaml";
+		Path remotePathConf = setupSingleLocalResource(
+			flinkConfigKey,
+			fs,
+			appId,
+			new Path(tmpConfigurationFile.getAbsolutePath()),
+			localResources,
+			homeDir,
+			"");
+		envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
+		paths.add(remotePathConf);
+		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
 		final Path yarnFilesDir = getYarnFilesDir(appId);
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
@@ -1047,7 +1046,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// Set up resource type requirements for ApplicationMaster
 		Resource capability = Records.newRecord(Resource.class);
 		capability.setMemory(clusterSpecification.getMasterMemoryMB());
-		capability.setVirtualCores(flinkConfiguration.getInteger(YarnConfigOptions.APP_MASTER_VCORES));
+		capability.setVirtualCores(configuration.getInteger(YarnConfigOptions.APP_MASTER_VCORES));
 
 		final String customApplicationName = customName != null ? customName : applicationName;
 
@@ -1057,7 +1056,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		appContext.setResource(capability);
 
 		// Set priority for application
-		int priorityNum = flinkConfiguration.getInteger(YarnConfigOptions.APPLICATION_PRIORITY);
+		int priorityNum = configuration.getInteger(YarnConfigOptions.APPLICATION_PRIORITY);
 		if (priorityNum >= 0) {
 			Priority priority = Priority.newInstance(priorityNum);
 			appContext.setPriority(priority);
