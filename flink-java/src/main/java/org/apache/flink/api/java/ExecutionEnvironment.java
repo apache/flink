@@ -58,8 +58,10 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
@@ -135,6 +137,8 @@ public class ExecutionEnvironment {
 	private final Configuration configuration;
 
 	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
 
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
@@ -819,13 +823,42 @@ public class ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		final JobClient jobClient = executeAsync(jobName);
 
-		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-			lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
-		} else {
-			lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+		try {
+			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+			} else {
+				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+			}
+
+			jobListeners.forEach(
+					jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
+
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
 		}
 
 		return lastJobExecutionResult;
+	}
+
+	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
 	}
 
 	/**
@@ -876,7 +909,17 @@ public class ExecutionEnvironment {
 			.getExecutor(configuration)
 			.execute(plan, configuration);
 
-		return jobClientFuture.get();
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.rethrow(t);
+
+			// make javac happy, this code path will not be reached
+			return null;
+		}
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
