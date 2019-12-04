@@ -57,7 +57,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 	private transient GenericUDFUtils.ConversionHelper conversionHelper;
 	private transient HiveObjectConversion[] conversions;
 	private transient boolean allIdentityConverter;
-	private transient HiveShim hiveShim;
+	private HiveShim hiveShim;
 
 	public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper, HiveShim hiveShim) {
 		super(hiveFunctionWrapper);
