@@ -80,7 +80,12 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 					}
 				});
 			} else {
-				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobGraph.getJobID()));
+				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
+					@Override
+					protected void doClose() {
+						clusterClient.close();
+					}
+				});
 			}
 		}
 	}

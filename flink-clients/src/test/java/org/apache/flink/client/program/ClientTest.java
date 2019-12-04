@@ -398,11 +398,7 @@ public class ClientTest extends TestLogger {
 
 						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
 						return CompletableFuture.completedFuture(
-							new ClusterClientJobClientAdapter<MiniClusterClient.MiniClusterId>(clusterClient, jobID) {
-								@Override
-								protected void doClose() {
-									// we don't close the cluster client since it is possibly shared
-								}});
+							new ClusterClientJobClientAdapter<>(clusterClient, jobID));
 					};
 				}
 			};

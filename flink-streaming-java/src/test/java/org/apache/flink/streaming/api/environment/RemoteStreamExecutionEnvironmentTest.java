@@ -169,13 +169,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 						final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(config);
 						assertEquals(expectedSavepointRestoreSettings, savepointRestoreSettings);
 
-						return CompletableFuture.completedFuture(
-								new ClusterClientJobClientAdapter(clusterClient, jobID) {
-									@Override
-									protected void doClose() {
-										// we don't close the cluster client since it is possibly shared
-									}
-								});
+						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobID));
 					};
 				}
 			};
