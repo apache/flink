@@ -226,8 +226,8 @@ public class ClientTest extends TestLogger {
 		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 		try {
-			final ClusterClient<MiniClusterClient.MiniClusterId> client
-				= new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+			final ClusterClient<MiniClusterClient.MiniClusterId> client =
+				new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
 			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock);
 			fail("Creating the local execution environment should not be possible");
