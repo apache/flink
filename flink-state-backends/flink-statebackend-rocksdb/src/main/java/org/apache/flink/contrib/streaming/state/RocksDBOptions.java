@@ -96,7 +96,7 @@ public class RocksDBOptions {
 	public static final ConfigOption<Double> WRITE_BUFFER_RATIO = ConfigOptions
 		.key("state.backend.rocksdb.write-buffer.ratio")
 		.doubleType()
-		.defaultValue(0.8)
+		.defaultValue(0.5)
 		.withDescription(String.format("This option would only take effect when %s is configured, " +
 			"all RocksDB instances would share the same write buffer manager with the ratio of a LRUCache.", BOUNDED_MEMORY_SIZE));
 

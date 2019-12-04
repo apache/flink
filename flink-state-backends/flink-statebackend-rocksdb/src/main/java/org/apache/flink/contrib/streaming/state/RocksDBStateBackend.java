@@ -53,6 +53,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.LRUCache;
@@ -70,11 +71,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -558,39 +557,23 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		Function<String, ColumnFamilyOptions> createColumnOptions;
 
 		if (isBoundedMemoryEnabled()) {
-			LRUCache lruCache = null;
-			WriteBufferManager writeBufferManager = null;
-			boolean initialized = false;
+			RocksDBSharedObjects rocksDBSharedObjects;
 			MemoryManager memoryManager = env.getMemoryManager();
 			// only initialized LRUCache and write buffer manager once.
 			// we would not dispose the cache and write buffer manager during disposing state backend
 			// as the same objects are shared by every RocksDB instance per slot.
-			while (memoryManager.getStateBackendSharedObjects().get() == null) {
+			while ((rocksDBSharedObjects = (RocksDBSharedObjects) memoryManager.getStateBackendSharedObject()) == null) {
 				if (memoryManager.getLazyInitializeSharedObjectHelper().compareAndSet(false, true)) {
-					lruCache = new LRUCache(getTotalMemoryPerSlot(), -1, false, getHighPriPoolRatio());
-					writeBufferManager = new WriteBufferManager((long) (getTotalMemoryPerSlot() * getWriteBufferRatio()), lruCache);
+					Cache lruCache = new LRUCache(getTotalMemoryPerSlot(), -1, false, getHighPriPoolRatio());
+					WriteBufferManager writeBufferManager = new WriteBufferManager((long) (getTotalMemoryPerSlot() * getWriteBufferRatio()), lruCache);
 
-					Deque<AutoCloseable> autoCloseables = new ArrayDeque<>(2);
-					autoCloseables.push(lruCache);
-					autoCloseables.push(writeBufferManager);
-					memoryManager.getStateBackendSharedObjects().set(autoCloseables);
-					initialized = true;
+					rocksDBSharedObjects = new RocksDBSharedObjects(lruCache, writeBufferManager);
+					memoryManager.setStateBackendSharedObject(rocksDBSharedObjects);
 				}
 			}
 
-			if (!initialized) {
-				Deque<AutoCloseable> autoCloseables = memoryManager.getStateBackendSharedObjects().get();
-				for (AutoCloseable autoCloseable : autoCloseables) {
-					if (autoCloseable instanceof LRUCache) {
-						lruCache = (LRUCache) autoCloseable;
-					} else if (autoCloseable instanceof WriteBufferManager) {
-						writeBufferManager = (WriteBufferManager) autoCloseable;
-					}
-				}
-			}
-
-			LRUCache blockCache = checkNotNull(lruCache);
-			dbOptions.setWriteBufferManager(checkNotNull(writeBufferManager));
+			Cache blockCache = checkNotNull(rocksDBSharedObjects.getCache());
+			dbOptions.setWriteBufferManager(checkNotNull(rocksDBSharedObjects.getWriteBufferManager()));
 
 			createColumnOptions = stateName -> {
 				ColumnFamilyOptions columnOptions = getColumnOptions();

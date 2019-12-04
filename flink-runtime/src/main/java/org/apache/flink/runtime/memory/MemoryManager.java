@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
-import java.util.Deque;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -85,7 +84,7 @@ public class MemoryManager {
 	private final Map<Object, Map<MemoryType, Long>> reservedMemory;
 
 	/** Reserved closeable shared objects for state backends fetched from this memory manager. */
-	private final AtomicReference<Deque<AutoCloseable>> stateBackendSharedObjects;
+	private volatile AutoCloseable stateBackendSharedObject;
 
 	/** Helper to ensure the shared objects only initialized once. */
 	private final AtomicBoolean lazyInitializeSharedObjectHelper;
@@ -109,7 +108,7 @@ public class MemoryManager {
 		this.allocatedSegments = new ConcurrentHashMap<>();
 		this.reservedMemory = new ConcurrentHashMap<>();
 		this.budgetByType = new KeyedBudgetManager<>(memorySizeByType, pageSize);
-		this.stateBackendSharedObjects = new AtomicReference<>();
+		this.stateBackendSharedObject = null;
 		this.lazyInitializeSharedObjectHelper = new AtomicBoolean(false);
 		verifyIntTotalNumberOfPages(memorySizeByType, budgetByType.maxTotalNumberOfPages());
 
@@ -164,10 +163,7 @@ public class MemoryManager {
 				segments.clear();
 			}
 			allocatedSegments.clear();
-			Deque<AutoCloseable> autoCloseables = getStateBackendSharedObjects().get();
-			while (autoCloseables != null && !autoCloseables.isEmpty()) {
-				IOUtils.closeQuietly(autoCloseables.pop());
-			}
+			IOUtils.closeQuietly(stateBackendSharedObject);
 		}
 	}
 
@@ -633,8 +629,12 @@ public class MemoryManager {
 		return segment.isOffHeap() ? MemoryType.OFF_HEAP : MemoryType.HEAP;
 	}
 
-	public AtomicReference<Deque<AutoCloseable>> getStateBackendSharedObjects() {
-		return stateBackendSharedObjects;
+	public AutoCloseable getStateBackendSharedObject() {
+		return stateBackendSharedObject;
+	}
+
+	public void setStateBackendSharedObject(AutoCloseable sharedObject) {
+		this.stateBackendSharedObject = sharedObject;
 	}
 
 	public AtomicBoolean getLazyInitializeSharedObjectHelper() {
