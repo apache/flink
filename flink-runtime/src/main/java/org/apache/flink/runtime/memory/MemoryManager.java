@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.util.KeyedBudgetManager;
 import org.apache.flink.runtime.util.KeyedBudgetManager.AcquisitionResult;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -36,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
+import java.util.Deque;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -46,6 +48,7 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapUnsafeMemory;
@@ -81,6 +84,12 @@ public class MemoryManager {
 	/** Reserved memory per memory owner. */
 	private final Map<Object, Map<MemoryType, Long>> reservedMemory;
 
+	/** Reserved closeable shared objects for state backends fetched from this memory manager. */
+	private final AtomicReference<Deque<AutoCloseable>> stateBackendSharedObjects;
+
+	/** Helper to ensure the shared objects only initialized once. */
+	private final AtomicBoolean lazyInitializeSharedObjectHelper;
+
 	private final KeyedBudgetManager<MemoryType> budgetByType;
 
 	/** Flag whether the close() has already been invoked. */
@@ -100,6 +109,8 @@ public class MemoryManager {
 		this.allocatedSegments = new ConcurrentHashMap<>();
 		this.reservedMemory = new ConcurrentHashMap<>();
 		this.budgetByType = new KeyedBudgetManager<>(memorySizeByType, pageSize);
+		this.stateBackendSharedObjects = new AtomicReference<>();
+		this.lazyInitializeSharedObjectHelper = new AtomicBoolean(false);
 		verifyIntTotalNumberOfPages(memorySizeByType, budgetByType.maxTotalNumberOfPages());
 
 		LOG.debug(
@@ -153,6 +164,10 @@ public class MemoryManager {
 				segments.clear();
 			}
 			allocatedSegments.clear();
+			Deque<AutoCloseable> autoCloseables = getStateBackendSharedObjects().get();
+			while (autoCloseables != null && !autoCloseables.isEmpty()) {
+				IOUtils.closeQuietly(autoCloseables.pop());
+			}
 		}
 	}
 
@@ -616,6 +631,14 @@ public class MemoryManager {
 
 	private static MemoryType getSegmentType(MemorySegment segment) {
 		return segment.isOffHeap() ? MemoryType.OFF_HEAP : MemoryType.HEAP;
+	}
+
+	public AtomicReference<Deque<AutoCloseable>> getStateBackendSharedObjects() {
+		return stateBackendSharedObjects;
+	}
+
+	public AtomicBoolean getLazyInitializeSharedObjectHelper() {
+		return lazyInitializeSharedObjectHelper;
 	}
 
 	/** Memory segment allocation request. */

@@ -60,6 +60,7 @@ public class DummyEnvironment implements Environment {
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
 	private TaskStateManager taskStateManager;
+	private MemoryManager memoryManager;
 	private final GlobalAggregateManager aggregateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 	private ClassLoader userClassLoader;
@@ -148,7 +149,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public MemoryManager getMemoryManager() {
-		return null;
+		return memoryManager;
 	}
 
 	@Override
@@ -234,5 +235,9 @@ public class DummyEnvironment implements Environment {
 	}
 	public void setTaskStateManager(TaskStateManager taskStateManager) {
 		this.taskStateManager = taskStateManager;
+	}
+
+	public void setMemoryManager(MemoryManager memoryManager) {
+		this.memoryManager = memoryManager;
 	}
 }
