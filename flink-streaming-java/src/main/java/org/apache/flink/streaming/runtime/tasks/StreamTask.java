@@ -148,10 +148,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * All interaction with the {@code StreamOperator} must be synchronized on this lock object to
-	 * ensure that we don't have concurrent method calls that void consistent checkpoints.
+	 * All actions outside of the task {@link #mailboxProcessor mailbox} (i.e. performed by another thread) must be executed through this executor
+	 * to ensure that we don't have concurrent method calls that void consistent checkpoints.
+	 * <p>CheckpointLock is superseded by {@link MailboxExecutor}, with
+	 * {@link StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor SynchronizedStreamTaskActionExecutor}
+	 * to provide lock to {@link SourceStreamTask} (will be pushed down later). </p>
+	 * {@link StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor SynchronizedStreamTaskActionExecutor}
+	 * will be replaced <b>here</b> with {@link StreamTaskActionExecutor} once {@link #getCheckpointLock()} pushed down to {@link SourceStreamTask}.
 	 */
-	private final Object lock = new Object();
+	private final StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor actionExecutor;
 
 	/**
 	 * The input processor. Initialized in {@link #init()} method.
@@ -232,6 +237,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this(env, timerService, FatalExitExceptionHandler.INSTANCE);
 	}
 
+	protected StreamTask(
+			Environment environment,
+			@Nullable TimerService timerService,
+			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+		this(environment, timerService, uncaughtExceptionHandler, StreamTaskActionExecutor.synchronizedExecutor());
+	}
+
 	/**
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
@@ -242,11 +254,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param environment The task environment for this task.
 	 * @param timerService Optionally, a specific timer service to use.
 	 * @param uncaughtExceptionHandler to handle uncaught exceptions in the async operations thread pool
+	 * @param actionExecutor a mean to wrap all actions performed by this task thread. Currently, only SynchronizedActionExecutor can be used to preserve locking semantics.
 	 */
 	protected StreamTask(
 			Environment environment,
 			@Nullable TimerService timerService,
-			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
+			StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor actionExecutor) {
 
 		super(environment);
 
@@ -255,6 +269,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
+		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailboxProcessor = new MailboxProcessor(this::processInput);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
@@ -420,14 +435,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		// we need to make sure that any triggers scheduled in open() cannot be
 		// executed before all operators are opened
-		synchronized (lock) {
-
+		actionExecutor.runThrowing(() -> {
 			// both the following operations are protected by the lock
 			// so that we avoid race conditions in the case that initializeState()
 			// registers a timer, that fires before the open() is called.
 
 			initializeStateAndOpen();
-		}
+		});
 	}
 
 	@Override
@@ -465,7 +479,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// we close the operators by trying to acquire the checkpoint scope lock
 		// we also need to make sure that no triggers fire concurrently with the close logic
 		// at the same time, this makes sure that during any "regular" exit where still
-		synchronized (lock) {
+		actionExecutor.runThrowing(() -> {
 			// this is part of the main logic, so if this fails, the task is considered failed
 			closeAllOperators();
 
@@ -478,7 +492,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// only set the StreamTask to not running after all operators have been closed!
 			// See FLINK-7430
 			isRunning = false;
-		}
+		});
 		// processes the remaining mails; no new mails can be enqueued
 		mailboxProcessor.drain();
 
@@ -539,9 +553,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		if (operatorChain != null) {
 			// beware: without synchronization, #performCheckpoint() may run in
 			//         parallel and this call is not thread-safe
-			synchronized (lock) {
-				operatorChain.releaseOutputs();
-			}
+			actionExecutor.run(() -> operatorChain.releaseOutputs());
 		} else {
 			// failed to allocate operatorChain, clean up record writers
 			recordWriter.close();
@@ -695,7 +707,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @return The checkpoint lock object.
 	 */
 	public Object getCheckpointLock() {
-		return lock;
+		return actionExecutor.getMutex();
 	}
 
 	public CheckpointStorageWorkerView getCheckpointStorage() {
@@ -797,9 +809,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		getEnvironment().declineCheckpoint(checkpointId, cause);
 
 		// notify all downstream operators that they should not wait for a barrier from us
-		synchronized (lock) {
-			operatorChain.broadcastCheckpointCancelMarker(checkpointId);
-		}
+		actionExecutor.runThrowing(() -> operatorChain.broadcastCheckpointCancelMarker(checkpointId));
 	}
 
 	private boolean performCheckpoint(
@@ -813,8 +823,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		final long checkpointId = checkpointMetaData.getCheckpointId();
 
-		synchronized (lock) {
-			if (isRunning) {
+		if (isRunning) {
+			actionExecutor.runThrowing(() -> {
 
 				if (checkpointOptions.getCheckpointType().isSynchronous()) {
 					setSynchronousSavepointId(checkpointId);
@@ -843,9 +853,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				//           impact progress of the streaming topology
 				checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics);
 
-				return true;
-			}
-			else {
+			});
+
+			return true;
+		} else {
+			actionExecutor.runThrowing(() -> {
 				// we cannot perform our checkpoint - let the downstream operators know that they
 				// should not wait for any input from this operator
 
@@ -853,9 +865,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
 				recordWriter.broadcastEvent(message);
+			});
 
-				return false;
-			}
+			return false;
 		}
 	}
 
@@ -882,8 +894,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void notifyCheckpointComplete(long checkpointId) {
 		try {
-			boolean success = false;
-			synchronized (lock) {
+			boolean success = actionExecutor.call(() -> {
 				if (isRunning) {
 					LOG.debug("Notification of complete checkpoint for task {}", getName());
 
@@ -892,11 +903,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 							operator.notifyCheckpointComplete(checkpointId);
 						}
 					}
-					success = true;
+					return true;
 				} else {
 					LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
+					return true;
 				}
-			}
+			});
 			getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
 			if (success && isSynchronousSavepointId(checkpointId)) {
 				finishTask();
