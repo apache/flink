@@ -194,6 +194,11 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	}
 
 	@Override
+	public ClusterClient<T> duplicate() throws Exception {
+		return new RestClusterClient<>(configuration, clusterId);
+	}
+
+	@Override
 	public Configuration getFlinkConfiguration() {
 		return new Configuration(configuration);
 	}

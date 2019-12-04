@@ -40,6 +40,11 @@ public class TestingJobClient implements JobClient {
 	}
 
 	@Override
+	public JobClient duplicate() {
+		return this;
+	}
+
+	@Override
 	public CompletableFuture<JobStatus> getJobStatus() {
 		return CompletableFuture.completedFuture(JobStatus.FINISHED);
 	}

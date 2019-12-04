@@ -59,6 +59,11 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 	}
 
 	@Override
+	public ClusterClient<MiniClusterId> duplicate() {
+		return this;
+	}
+
+	@Override
 	public Configuration getFlinkConfiguration() {
 		return new Configuration(configuration);
 	}

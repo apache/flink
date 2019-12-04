@@ -126,7 +126,7 @@ public class ClientTest extends TestLogger {
 	 */
 	@Test
 	public void testDetachedMode() throws Exception{
-		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+		final ClusterClient<MiniClusterClient.MiniClusterId> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestExecuteTwice.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
@@ -226,7 +226,8 @@ public class ClientTest extends TestLogger {
 		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 		try {
-			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+			final ClusterClient<MiniClusterClient.MiniClusterId> client
+				= new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
 			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock);
 			fail("Creating the local execution environment should not be possible");
@@ -368,11 +369,11 @@ public class ClientTest extends TestLogger {
 
 	private static final class TestExecutorServiceLoader implements ExecutorServiceLoader {
 
-		private final ClusterClient<?> clusterClient;
+		private final ClusterClient<MiniClusterClient.MiniClusterId> clusterClient;
 
 		private final Plan plan;
 
-		TestExecutorServiceLoader(final ClusterClient<?> clusterClient, final Plan plan) {
+		TestExecutorServiceLoader(final ClusterClient<MiniClusterClient.MiniClusterId> clusterClient, final Plan plan) {
 			this.clusterClient = checkNotNull(clusterClient);
 			this.plan = checkNotNull(plan);
 		}
@@ -396,7 +397,12 @@ public class ClientTest extends TestLogger {
 						jobGraph.setClasspaths(accessor.getClasspaths());
 
 						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
-						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobID));
+						return CompletableFuture.completedFuture(
+							new ClusterClientJobClientAdapter<MiniClusterClient.MiniClusterId>(clusterClient, jobID) {
+								@Override
+								protected void doClose() {
+									// we don't close the cluster client since it is possibly shared
+								}});
 					};
 				}
 			};

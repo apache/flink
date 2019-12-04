@@ -40,6 +40,12 @@ public interface JobClient extends AutoCloseable {
 	JobID getJobID();
 
 	/**
+	 * Return a duplicated {@link JobClient} of this one. The duplicated one will have its
+	 * own lifecycle.
+	 */
+	JobClient duplicate() throws Exception;
+
+	/**
 	 * Requests the {@link JobStatus} of the associated job.
 	 */
 	CompletableFuture<JobStatus> getJobStatus();

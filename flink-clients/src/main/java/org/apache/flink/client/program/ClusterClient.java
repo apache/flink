@@ -44,6 +44,12 @@ public interface ClusterClient<T> extends AutoCloseable {
 	void close();
 
 	/**
+	 * Return a duplicated {@link ClusterClient} of this one. The duplicated one will have its
+	 * own lifecycle.
+	 */
+	ClusterClient<T> duplicate() throws Exception;
+
+	/**
 	 * Returns the cluster id identifying the cluster to which the client is connected.
 	 *
 	 * @return cluster id of the connected cluster

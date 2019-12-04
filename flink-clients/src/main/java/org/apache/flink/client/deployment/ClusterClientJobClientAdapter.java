@@ -61,6 +61,11 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	}
 
 	@Override
+	public JobClient duplicate() throws Exception {
+		return new ClusterClientJobClientAdapter<>(clusterClient.duplicate(), jobID);
+	}
+
+	@Override
 	public CompletableFuture<JobStatus> getJobStatus() {
 		return clusterClient.getJobStatus(jobID);
 	}
@@ -118,6 +123,6 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	 * are executed at most once guarded by {@link #running} flag.
 	 */
 	protected void doClose() {
-
+		clusterClient.close();
 	}
 }

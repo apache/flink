@@ -63,6 +63,11 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
 	}
 
 	@Override
+	public ClusterClient<T> duplicate() throws Exception {
+		return this;
+	}
+
+	@Override
 	public T getClusterId() {
 		throw new UnsupportedOperationException();
 	}
