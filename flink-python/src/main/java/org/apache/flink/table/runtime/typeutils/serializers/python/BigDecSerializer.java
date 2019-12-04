@@ -30,8 +30,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 
 /**
- * We create the BigDecSerializer instead of using the BigDecSerializer of flink-core module
- * for performance reasons in Python deserialization.
+ * We create the BigDecSerializer instead of using the BigDecSerializer of flink-core module for
+ * performance reasons in Python deserialization.
  */
 @Internal
 public class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> {

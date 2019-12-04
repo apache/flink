@@ -202,18 +202,25 @@ class DoubleCoderImpl(StreamCoderImpl):
 class DecimalCoderImpl(StreamCoderImpl):
 
     def __init__(self, precision, scale):
-        decimal.getcontext().prec = precision
+        self.context = decimal.Context(prec=precision)
         self.scale_format = decimal.Decimal(10) ** -scale
 
     def encode_to_stream(self, value, out_stream, nested):
+        user_context = decimal.getcontext()
+        decimal.setcontext(self.context)
         value = value.quantize(self.scale_format)
         bytes_value = str(value).encode("utf-8")
         out_stream.write_bigendian_int32(len(bytes_value))
         out_stream.write(bytes_value, False)
+        decimal.setcontext(user_context)
 
     def decode_from_stream(self, in_stream, nested):
+        user_context = decimal.getcontext()
+        decimal.setcontext(self.context)
         size = in_stream.read_bigendian_int32()
-        return decimal.Decimal(in_stream.read(size).decode("utf-8")).quantize(self.scale_format)
+        value = decimal.Decimal(in_stream.read(size).decode("utf-8")).quantize(self.scale_format)
+        decimal.setcontext(user_context)
+        return value
 
 
 class BinaryCoderImpl(StreamCoderImpl):

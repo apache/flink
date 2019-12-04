@@ -105,9 +105,13 @@ class CodersTest(unittest.TestCase):
         self.check_coder(coder, {'flink': 1, 'pyflink': 2, 'coder': None})
 
     def test_decimal_coder(self):
-        from decimal import Decimal
-        coder = DecimalCoder()
-        self.check_coder(coder, Decimal('1.001'), Decimal('0.00001'), Decimal('1.23E-8'))
+        import decimal
+        coder = DecimalCoder(38, 18)
+        self.check_coder(coder, decimal.Decimal('0.00001'), decimal.Decimal('1.23E-8'))
+        coder = DecimalCoder(4, 3)
+        decimal.getcontext().prec = 2
+        self.check_coder(coder, decimal.Decimal('1.001'))
+        self.assertEqual(decimal.getcontext().prec, 2)
 
 
 if __name__ == '__main__':
