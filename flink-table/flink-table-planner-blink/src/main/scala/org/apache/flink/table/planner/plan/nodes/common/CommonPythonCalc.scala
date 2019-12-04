@@ -37,7 +37,7 @@ import scala.collection.mutable
 
 trait CommonPythonCalc {
 
-  private def loadClass(className: String): Class[_] = {
+  def loadClass(className: String): Class[_] = {
     try {
       Class.forName(className, false, Thread.currentThread.getContextClassLoader)
     } catch {

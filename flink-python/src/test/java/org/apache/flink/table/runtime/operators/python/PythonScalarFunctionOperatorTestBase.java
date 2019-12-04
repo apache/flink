@@ -233,7 +233,10 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 			new int[]{0, 1}
 		);
 
-		return new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		return testHarness;
 	}
 
 	public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> getTestOperator(
