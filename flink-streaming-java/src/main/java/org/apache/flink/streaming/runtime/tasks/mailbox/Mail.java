@@ -23,6 +23,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
+import java.util.concurrent.Future;
+
 /**
  * An executable bound to a specific operator in the chain, such that it can be picked for downstream mailbox.
  */
@@ -62,8 +64,10 @@ public class Mail {
 		return priority;
 	}
 
-	public RunnableWithException getRunnable() {
-		return runnable;
+	public void tryCancel(boolean mayInterruptIfRunning) {
+		if (runnable instanceof Future) {
+			((Future<?>) runnable).cancel(mayInterruptIfRunning);
+		}
 	}
 
 	@Override
