@@ -57,18 +57,6 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 	}
 
 	@Override
-	public void executeFirst(
-		@Nonnull final RunnableWithException command,
-		final String descriptionFormat,
-		final Object... descriptionArgs) {
-		try {
-			mailbox.putFirst(new Mail(command, priority, descriptionFormat, descriptionArgs));
-		} catch (IllegalStateException mbex) {
-			throw new RejectedExecutionException(mbex);
-		}
-	}
-
-	@Override
 	public void yield() throws InterruptedException {
 		Mail mail = mailbox.take(priority);
 		try {
