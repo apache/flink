@@ -57,6 +57,9 @@ import java.util.List;
  *
  * <p>This class could be removed once the {@link TableSource} interface and {@link StreamTableSink} interface
  * are reworked.
+ *
+ * <p>NOTE: Please remove {@code com.esotericsoftware.kryo} item in the whitelist of checkCodeDependencies()
+ * method in {@code test_table_shaded_dependencies.sh} end-to-end test when this class is removed.
  */
 public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
