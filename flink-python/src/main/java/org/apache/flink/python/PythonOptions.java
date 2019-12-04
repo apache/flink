@@ -48,4 +48,24 @@ public class PythonOptions {
 		.withDescription("Sets the waiting timeout(in milliseconds) before processing a bundle for " +
 			"Python user-defined function execution. The timeout defines how long the elements of a bundle will be " +
 			"buffered before being processed. Lower timeouts lead to lower tail latencies, but may affect throughput.");
+
+	/**
+	 * The amount of memory to be allocated by the Python framework.
+	 */
+	public static final ConfigOption<String> PYTHON_FRAMEWORK_MEMORY_SIZE = ConfigOptions
+		.key("python.fn-execution.framework.memory.size")
+		.defaultValue("64mb")
+		.withDescription("The amount of memory to be allocated by the Python framework. The" +
+			" memory will be accounted as managed memory. The sum of the value of this" +
+			" configuration and \"python.fn-execution.buffer.memory.size\" represents the total" +
+			" memory of the Python worker.");
+
+	/**
+	 * The amount of memory to be allocated by the input/output buffer of the Python worker.
+	 */
+	public static final ConfigOption<String> PYTHON_DATA_BUFFER_MEMORY_SIZE = ConfigOptions
+		.key("python.fn-execution.buffer.memory.size")
+		.defaultValue("15mb")
+		.withDescription("The amount of memory to be allocated by the input buffer and output" +
+			" buffer of the Python worker. The memory will be accounted as managed memory.");
 }

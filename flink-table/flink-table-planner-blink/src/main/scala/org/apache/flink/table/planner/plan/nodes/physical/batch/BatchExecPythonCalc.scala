@@ -24,9 +24,11 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 
 /**
   * Batch physical RelNode for Python ScalarFunctions.
@@ -52,9 +54,22 @@ class BatchExecPythonCalc(
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    createPythonOneInputTransformation(
+    val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
       "BatchExecPythonCalc")
+    val config = planner.getTableConfig
+    // "python.fn-execution.framework.memory.size" should be synced with
+    // PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE
+    val pythonFrameworkMemorySize =  MemorySize.parse(config.getConfiguration.getString(
+      "python.fn-execution.framework.memory.size", "64mb")).getMebiBytes
+    // "python.fn-execution.buffer.memory.size" should be synced with
+    // PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE
+    val pythonBufferMemorySize = MemorySize.parse(config.getConfiguration.getString(
+      "python.fn-execution.buffer.memory.size", "15mb")).getMebiBytes
+    val resource = NodeResourceUtil.fromManagedMem(
+      pythonFrameworkMemorySize + pythonBufferMemorySize)
+    ret.setResources(resource, resource)
+    ret
   }
 }

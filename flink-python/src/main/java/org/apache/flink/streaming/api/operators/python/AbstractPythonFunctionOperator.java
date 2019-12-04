@@ -20,11 +20,14 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -89,6 +92,11 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 */
 	private transient Runnable bundleFinishedCallback;
 
+	/**
+	 * The size of the reserved memory from the MemoryManager.
+	 */
+	private transient long reservedMemory;
+
 	public AbstractPythonFunctionOperator() {
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
@@ -99,6 +107,30 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			this.bundleStarted = new AtomicBoolean(false);
 
 			Map<String, String> jobParams = getExecutionConfig().getGlobalJobParameters().toMap();
+
+			long requiredPythonWorkerMemory =
+				MemorySize.parse(
+					jobParams.getOrDefault(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.key(),
+						String.valueOf(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())))
+					.add(MemorySize.parse(jobParams.getOrDefault(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.key(),
+						String.valueOf(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue()))))
+					.getBytes();
+			MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
+			long availableManagedMemory = memoryManager.computeMemorySize(
+				getOperatorConfig().getManagedMemoryFraction());
+			if (requiredPythonWorkerMemory <= availableManagedMemory) {
+				memoryManager.reserveMemory(this, MemoryType.OFF_HEAP, requiredPythonWorkerMemory);
+				LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);
+				this.reservedMemory = requiredPythonWorkerMemory;
+				// TODO enforce the memory limit of Python worker
+			} else {
+				LOG.warn("Required Python worker memory {} exceeds the available managed off-heap " +
+					"memory {}. Skipping reserving off-heap memory from the MemoryManager. This does " +
+					"not affect the functionality. However, it may affect the stability of a job as " +
+					"the memory used by the Python worker is not managed by Flink.",
+					requiredPythonWorkerMemory, availableManagedMemory);
+				this.reservedMemory = -1;
+			}
 
 			this.maxBundleSize = Integer.valueOf(jobParams.getOrDefault(
 				PythonOptions.MAX_BUNDLE_SIZE.key(),
@@ -159,6 +191,11 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			if (pythonFunctionRunner != null) {
 				pythonFunctionRunner.close();
 				pythonFunctionRunner = null;
+			}
+			if (reservedMemory > 0) {
+				getContainingTask().getEnvironment().getMemoryManager().releaseMemory(
+					this, MemoryType.OFF_HEAP, reservedMemory);
+				reservedMemory = -1;
 			}
 		} finally {
 			super.dispose();
