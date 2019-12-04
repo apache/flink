@@ -422,6 +422,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	private void releaseFailedContainerAndRequestNewContainerIfRequired(ContainerId containerId, Throwable throwable) {
+		validateRunsInMainThread();
+
 		log.error("Could not start TaskManager in container {}.", containerId, throwable);
 
 		final ResourceID resourceId = new ResourceID(containerId.toString());
