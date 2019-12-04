@@ -51,7 +51,7 @@ public class JobListenerTest extends TestLogger {
 			}
 
 			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult) {
+			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
 				executionLatch.trigger();
 			}
 		});
@@ -77,7 +77,7 @@ public class JobListenerTest extends TestLogger {
 			}
 
 			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult) {
+			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
 				executionLatch.trigger();
 			}
 		});

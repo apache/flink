@@ -44,6 +44,6 @@ public interface JobListener {
 	 * Callback on job execution finished. It is only called back when you call {@code #execute}
 	 * instead of {@code executeAsync} methods of execution environments.
 	 */
-	void onJobExecuted(JobExecutionResult jobExecutionResult);
+	void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable);
 
 }
