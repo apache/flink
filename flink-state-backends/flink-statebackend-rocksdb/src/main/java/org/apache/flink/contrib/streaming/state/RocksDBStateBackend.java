@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
@@ -104,7 +105,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
 
 	/** The number of (re)tries for loading the RocksDB JNI library. */
-	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
+	@VisibleForTesting
+	static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
 	/** Flag whether the native library has been loaded. */
 	private static boolean rocksDbInitialized = false;
@@ -864,6 +866,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 				Throwable lastException = null;
 				for (int attempt = 1; attempt <= ROCKSDB_LIB_LOADING_ATTEMPTS; attempt++) {
+					File rocksLibFolder = null;
 					try {
 						// when multiple instances of this class and RocksDB exist in different
 						// class loaders, then we can see the following exception:
@@ -875,7 +878,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 						//  instances of the same JNI library being loaded in different class loaders, but
 						//  apparently not when coming from the same file path, so there we go)
 
-						final File rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+						rocksLibFolder = createRocksDBLibDir(tempDirParent);
 
 						// make sure the temp path exists
 						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
@@ -903,12 +906,26 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 						} catch (Throwable tt) {
 							LOG.debug("Failed to reset 'initialized' flag in RocksDB native code loader", tt);
 						}
+
+						FileUtils.deleteDirectoryQuietly(rocksLibFolder);
 					}
 				}
 
 				throw new IOException("Could not load the native RocksDB library", lastException);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	static File createRocksDBLibDir(File tempDirParent) {
+		final File rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+		// make sure the temp path exists
+		LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
+
+		// noinspection ResultOfMethodCallIgnored
+		rocksLibFolder.mkdirs();
+		rocksLibFolder.deleteOnExit();
+		return rocksLibFolder;
 	}
 
 	@VisibleForTesting
