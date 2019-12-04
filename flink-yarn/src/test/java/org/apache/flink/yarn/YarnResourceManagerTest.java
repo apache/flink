@@ -84,6 +84,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.verification.VerificationWithTimeout;
 
 import javax.annotation.Nullable;
 
@@ -119,6 +120,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -129,6 +131,8 @@ import static org.mockito.Mockito.when;
 public class YarnResourceManagerTest extends TestLogger {
 
 	private static final Time TIMEOUT = Time.seconds(10L);
+
+	private static final VerificationWithTimeout VERIFICATION_TIMEOUT = timeout(TIMEOUT.toMilliseconds());
 
 	private Configuration flinkConfig;
 
@@ -177,11 +181,6 @@ public class YarnResourceManagerTest extends TestLogger {
 	static class TestingYarnResourceManager extends YarnResourceManager {
 		AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient;
 		NMClientAsync mockNMClient;
-		/**
-		 * When runAsync is called, runAsyncCalledNum will increase one. This variable could be used to check whether
-		 * callback methods of AMRMClientAsync and NMClientAsync are executed in ResourceManager's main thread.
-		 */
-		int runAsyncCalledNum;
 
 		TestingYarnResourceManager(
 				RpcService rpcService,
@@ -217,7 +216,6 @@ public class YarnResourceManagerTest extends TestLogger {
 				jobManagerMetricGroup);
 			this.mockNMClient = mockNMClient;
 			this.mockResourceManagerClient = mockResourceManagerClient;
-			this.runAsyncCalledNum = 0;
 		}
 
 		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
@@ -240,13 +238,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
 			return mockNMClient;
 		}
-
-		@Override
-		protected void runAsync(final Runnable runnable) {
-			runAsyncCalledNum++;
-			runnable.run();
-		}
-
 	}
 
 	class Context {
@@ -371,6 +362,15 @@ public class YarnResourceManagerTest extends TestLogger {
 				stopResourceManager();
 			}
 		}
+
+		void verifyContainerHasBeenStarted(Container testingContainer) {
+			verify(mockResourceManagerClient, VERIFICATION_TIMEOUT).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
+			verify(mockNMClient, VERIFICATION_TIMEOUT).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
+		}
+
+		void verifyContainerHasBeenRequested() {
+			verify(mockResourceManagerClient, VERIFICATION_TIMEOUT).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+		}
 	}
 
 	private static Container mockContainer(String host, int port, int containerId, Resource resource) {
@@ -433,8 +433,8 @@ public class YarnResourceManagerTest extends TestLogger {
 					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
-				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockNMClient).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
+				verifyContainerHasBeenRequested();
+				verifyContainerHasBeenStarted(testingContainer);
 
 				// Remote task executor registers with YarnResourceManager.
 				TaskExecutorGateway mockTaskExecutorGateway = mock(TaskExecutorGateway.class);
@@ -524,23 +524,20 @@ public class YarnResourceManagerTest extends TestLogger {
 					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
-				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockNMClient).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
+				verifyContainerHasBeenRequested();
+				verifyContainerHasBeenStarted(testingContainer);
 
 				// Callback from YARN when container is Completed, pending request can not be fulfilled by pending
 				// containers, need to request new container.
 				ContainerStatus testingContainerStatus = mockContainerStatus(testingContainer.getId());
 
 				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
-				verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+				verify(mockResourceManagerClient, VERIFICATION_TIMEOUT.times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 
 				// Callback from YARN when container is Completed happened before global fail, pending request
 				// slot is already fulfilled by pending containers, no need to request new container.
 				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
 				verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-
-				assertEquals(3, resourceManager.runAsyncCalledNum);
 			});
 		}};
 	}
@@ -556,15 +553,12 @@ public class YarnResourceManagerTest extends TestLogger {
 					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
-				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
-				verify(mockNMClient).startContainerAsync(eq(testingContainer), any(ContainerLaunchContext.class));
+				verifyContainerHasBeenRequested();
+				verifyContainerHasBeenStarted(testingContainer);
 
 				resourceManager.onStartContainerError(testingContainer.getId(), new Exception("start error"));
-				verify(mockResourceManagerClient).releaseAssignedContainer(testingContainer.getId());
-				verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-
-				assertEquals(2, resourceManager.runAsyncCalledNum);
+				verify(mockResourceManagerClient, VERIFICATION_TIMEOUT).releaseAssignedContainer(testingContainer.getId());
+				verify(mockResourceManagerClient, VERIFICATION_TIMEOUT.times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 			});
 		}};
 	}
