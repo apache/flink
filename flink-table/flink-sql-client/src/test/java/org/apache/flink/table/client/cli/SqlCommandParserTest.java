@@ -77,6 +77,12 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("USE CATALOG default", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"default"}));
 		testValidSqlCommand("use default", new SqlCommandCall(SqlCommand.USE, new String[] {"default"}));
 		testInvalidSqlCommand("use catalog");
+		testValidSqlCommand("create database db1",
+				new SqlCommandCall(SqlCommand.CREATE_DATABASE, new String[] {"create database db1"}));
+		testValidSqlCommand("drop database db1",
+				new SqlCommandCall(SqlCommand.DROP_DATABASE, new String[] {"drop database db1"}));
+		testValidSqlCommand("alter database db1 set ('k1' = 'a')",
+				new SqlCommandCall(SqlCommand.ALTER_DATABASE, new String[] {"alter database db1 set ('k1' = 'a')"}));
 	}
 
 	private void testInvalidSqlCommand(String stmt) {
