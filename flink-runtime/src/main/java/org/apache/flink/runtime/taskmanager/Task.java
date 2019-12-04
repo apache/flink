@@ -51,7 +51,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.metrics.BackPressureGauge;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -61,7 +60,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -353,7 +351,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
 		this.metrics = metricGroup;
-		metricGroup.gauge(MetricNames.IS_BACKPRESSURED, new BackPressureGauge(this));
 
 		this.partitionProducerStateChecker = Preconditions.checkNotNull(partitionProducerStateChecker);
 		this.executor = Preconditions.checkNotNull(executor);
@@ -466,7 +463,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	}
 
 	@Override
-	public boolean isBackPressured() {
+	public boolean  isBackPressured() {
 		if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
 			return false;
 		}
