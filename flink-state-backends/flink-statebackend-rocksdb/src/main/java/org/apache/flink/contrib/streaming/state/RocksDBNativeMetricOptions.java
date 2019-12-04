@@ -441,7 +441,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 *
 	 * @return true is column family to expose variable, false otherwise.
 	 */
-	public boolean isColumnFaminlyAsVariable() {
+	public boolean isColumnFamilyAsVariable() {
 		return this.columnFamilyAsVariable;
 	}
 }
