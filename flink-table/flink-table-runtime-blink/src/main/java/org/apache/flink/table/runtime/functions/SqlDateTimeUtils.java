@@ -632,6 +632,8 @@ public class SqlDateTimeUtils {
 				if (type instanceof TimestampType) {
 					long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
 					return millis + nanoOfMillisecond;
+				} else {
+					throw new TableException(type + " is unsupported now.");
 				}
 			default:
 				// fall through
