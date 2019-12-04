@@ -29,13 +29,14 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.core.execution.JobClient
+import org.apache.flink.core.execution.{JobClient, JobListener}
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.util.Preconditions.checkNotNull
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
@@ -680,6 +681,22 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def execute(jobName: String) = javaEnv.execute(jobName)
 
   /**
+   * Register a [[JobListener]] in this environment. The [[JobListener]] will be
+   * notified on specific job status changed.
+   */
+  @PublicEvolving
+  def registerJobListener(jobListener: JobListener): Unit = {
+    javaEnv.registerJobListener(jobListener)
+  }
+
+  /**
+   * Clear all registered [[JobListener]]s.
+   */
+  @PublicEvolving def clearJobListeners(): Unit = {
+    javaEnv.clearJobListeners()
+  }
+
+  /**
    * Triggers the program execution asynchronously. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
@@ -692,11 +709,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * its usage. In other case, there may be resource leaks depending on the JobClient
    * implementation.
    *
-   * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
+   * @return [[JobClient]] that can be used to communicate with the submitted job,
    *         completed on submission succeeded.
    */
   @PublicEvolving
-  def executeAsync(): CompletableFuture[JobClient] = javaEnv.executeAsync()
+  def executeAsync(): JobClient = javaEnv.executeAsync()
 
   /**
    * Triggers the program execution asynchronously. The environment will execute all parts of
@@ -710,11 +727,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * its usage. In other case, there may be resource leaks depending on the JobClient
    * implementation.
    *
-   * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
+   * @return [[JobClient]] that can be used to communicate with the submitted job,
    *         completed on submission succeeded.
    */
   @PublicEvolving
-  def executeAsync(jobName: String): CompletableFuture[JobClient] = javaEnv.executeAsync(jobName)
+  def executeAsync(jobName: String): JobClient = javaEnv.executeAsync(jobName)
 
   /**
    * Creates the plan with which the system will execute the program, and

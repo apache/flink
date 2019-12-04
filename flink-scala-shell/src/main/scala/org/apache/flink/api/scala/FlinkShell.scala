@@ -132,7 +132,7 @@ object FlinkShell {
     }
   }
 
-  private def ensureYarnConfig(config: Config) = config.yarnConfig match {
+  def ensureYarnConfig(config: Config) = config.yarnConfig match {
     case Some(yarnConfig) => yarnConfig
     case None => YarnConfig()
   }
@@ -196,7 +196,7 @@ object FlinkShell {
     println(" good bye ..")
   }
 
-  private def fetchConnectionInfo(
+  def fetchConnectionInfo(
       config: Config,
       flinkConfig: Configuration): (Configuration, Option[ClusterClient[_]]) = {
 

@@ -58,6 +58,7 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -85,6 +86,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
@@ -166,6 +168,8 @@ public class StreamExecutionEnvironment {
 	private final Configuration configuration;
 
 	private final ClassLoader userClassloader;
+
+	protected final List<JobListener> jobListeners = new ArrayList<>();
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -1619,13 +1623,31 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		final JobClient jobClient = executeAsync(streamGraph).get();
+		final JobClient jobClient = executeAsync(streamGraph);
 
 		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
 			return jobClient.getJobExecutionResult(userClassloader).get();
 		} else {
 			return new DetachedJobExecutionResult(jobClient.getJobID());
 		}
+	}
+
+	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
 	}
 
 	/**
@@ -1636,11 +1658,11 @@ public class StreamExecutionEnvironment {
 	 * <p>The program execution will be logged and displayed with a generated
 	 * default name.
 	 *
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
 	@PublicEvolving
-	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+	public final JobClient executeAsync() throws Exception {
 		return executeAsync(DEFAULT_JOB_NAME);
 	}
 
@@ -1652,11 +1674,11 @@ public class StreamExecutionEnvironment {
 	 * <p>The program execution will be logged and displayed with the provided name
 	 *
 	 * @param jobName desired name of the job
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
 	@PublicEvolving
-	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+	public JobClient executeAsync(String jobName) throws Exception {
 		return executeAsync(getStreamGraph(checkNotNull(jobName)));
 	}
 
@@ -1666,11 +1688,11 @@ public class StreamExecutionEnvironment {
 	 * for example printing results or forwarding them to a message queue.
 	 *
 	 * @param streamGraph the stream graph representing the transformations
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
 	@Internal
-	public CompletableFuture<JobClient> executeAsync(StreamGraph streamGraph) throws Exception {
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
@@ -1684,9 +1706,21 @@ public class StreamExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		return executorFactory
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
+
+		// Need to call the JobListener in the job submission main thread, this is just for
+		// downstream project (e.g. Zeppelin needs to call InterpreterContext.get() which use ThreadLocal
+		// for more job submission context info)
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Exception e) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, e));
+			return null;
+		}
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
