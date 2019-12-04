@@ -270,7 +270,7 @@ public class HiveGenericUDFTest {
 			},
 			new DataType[] {
 				DataTypes.DATE(),
-				DataTypes.TIMESTAMP(9),
+				DataTypes.TIMESTAMP(),
 			}
 		);
 
