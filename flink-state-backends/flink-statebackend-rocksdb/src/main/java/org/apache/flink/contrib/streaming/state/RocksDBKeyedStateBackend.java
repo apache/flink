@@ -403,6 +403,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@VisibleForTesting
+	DBOptions getDbOptions() {
+		return dbOptions;
+	}
+
+	@VisibleForTesting
 	boolean isDisposed() {
 		return this.disposed;
 	}
