@@ -217,7 +217,7 @@ public class HiveStatsUtil {
 					hiveBoolStats.setNumFalses(booleanColStat.getFalseCount());
 				}
 				if (null != booleanColStat.getNullCount()) {
-					hiveBoolStats.setNumNulls(booleanColStat.getTrueCount());
+					hiveBoolStats.setNumNulls(booleanColStat.getNullCount());
 				}
 				return ColumnStatisticsData.booleanStats(hiveBoolStats);
 			}
