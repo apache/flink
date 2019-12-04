@@ -58,6 +58,7 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -85,6 +86,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
@@ -166,6 +168,8 @@ public class StreamExecutionEnvironment {
 	private final Configuration configuration;
 
 	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -1637,11 +1641,43 @@ public class StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		final JobClient jobClient = executeAsync(streamGraph);
 
-		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-			return jobClient.getJobExecutionResult(userClassloader).get();
-		} else {
-			return new DetachedJobExecutionResult(jobClient.getJobID());
+		try {
+			JobExecutionResult jobExecutionResult =
+					configuration.getBoolean(DeploymentOptions.ATTACHED) ?
+							jobClient.getJobExecutionResult(userClassloader).get()
+							: new DetachedJobExecutionResult(jobClient.getJobID());
+
+			jobListeners
+					.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
+
+			return jobExecutionResult;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
 		}
+	}
+
+	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
 	}
 
 	/**
@@ -1704,7 +1740,17 @@ public class StreamExecutionEnvironment {
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
 
-		return jobClientFuture.get();
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.rethrow(t);
+
+			// make javac happy, this code path will not be reached
+			return null;
+		}
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
