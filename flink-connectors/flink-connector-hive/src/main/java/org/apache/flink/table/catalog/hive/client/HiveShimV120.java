@@ -184,13 +184,9 @@ public class HiveShimV120 extends HiveShimV111 {
 			Object hmsLowDate = dateStatsClz.getMethod("getLowValue").invoke(dateStats);
 			Class hmsDateClz = hmsHighDate.getClass();
 			Method hmsDateDays = hmsDateClz.getMethod("getDaysSinceEpoch");
-			Long highDateDays = isSetHighValue ? (Long) hmsDateDays.invoke(hmsHighDate) : null;
-			Long lowDateDays = isSetLowValue ? (Long) hmsDateDays.invoke(hmsLowDate) : null;
-			return new CatalogColumnStatisticsDataDate(
-					isSetLowValue ? new Date(lowDateDays) : null,
-					isSetHighValue ? new Date(highDateDays) : null,
-					numDV,
-					numNull);
+			Date highDateDays = isSetHighValue ? new Date((Long) hmsDateDays.invoke(hmsHighDate)) : null;
+			Date lowDateDays = isSetLowValue ? new Date((Long) hmsDateDays.invoke(hmsLowDate)) : null;
+			return new CatalogColumnStatisticsDataDate(lowDateDays, highDateDays, numDV, numNull);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create Flink statistics for date column", e);
 		}
