@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
@@ -142,8 +143,8 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 	@Override
 	public TypeInformation getResultType() {
-		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
-			getHiveResultType(this.constantArguments, this.argTypes));
+		return TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(
+			getHiveResultType(this.constantArguments, this.argTypes).getLogicalType());
 	}
 
 	@Override

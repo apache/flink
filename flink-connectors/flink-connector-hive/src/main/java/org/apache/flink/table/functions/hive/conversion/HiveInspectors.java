@@ -437,7 +437,7 @@ public class HiveInspectors {
 					case DATE:
 						return Date.class;
 					case TIMESTAMP:
-						return LocalDateTime.class;
+						return Timestamp.class;
 					case INTERVAL_DAY_TIME:
 					case INTERVAL_YEAR_MONTH:
 					default:
