@@ -463,7 +463,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	}
 
 	@Override
-	public boolean  isBackPressured() {
+	public boolean isBackPressured() {
 		if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
 			return false;
 		}
