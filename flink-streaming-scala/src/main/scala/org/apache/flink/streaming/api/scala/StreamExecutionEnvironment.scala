@@ -692,8 +692,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Clear all registered [[JobListener]]s.
    */
-  @PublicEvolving def clearJobListener(): Unit = {
-    javaEnv.clearJobListener()
+  @PublicEvolving def clearJobListeners(): Unit = {
+    javaEnv.clearJobListeners()
   }
 
   /**

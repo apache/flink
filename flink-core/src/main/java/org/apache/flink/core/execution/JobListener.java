@@ -20,12 +20,17 @@ package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 
 import javax.annotation.Nullable;
 
 /**
  * A listener that is notified on specific job status changed, which should be firstly
  * registered by {@code #registerJobListener} of execution environments.
+ *
+ * <p>It is highly recommended NOT to perform any blocking operation inside
+ * the callbacks. If you block the thread the invoker of environment execute methods
+ * is possibly blocked.
  */
 @PublicEvolving
 public interface JobListener {
@@ -34,16 +39,11 @@ public interface JobListener {
 	 * Callback on job submission succeeded or failed.
 	 *
 	 * <p>Exactly one of the passed parameters is null, respectively for failure or success.
-	 *
-	 * <p><b>ATTENTION:</b> You are responsible for managing the lifecycle of the passed
-	 * {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient
-	 * implementation.
  	 *
-	 * @param jobClient to communicate with the job
+	 * @param jobContext to create a {@link JobClient} or to simply get the {@link JobID}
 	 * @param throwable the cause if submission failed
 	 */
-	void onJobSubmitted(@Nullable JobClient jobClient, @Nullable Throwable throwable);
+	void onJobSubmitted(@Nullable JobContext jobContext, @Nullable Throwable throwable);
 
 	/**
 	 * Callback on job execution finished, successfully or unsuccessfully. It is only called

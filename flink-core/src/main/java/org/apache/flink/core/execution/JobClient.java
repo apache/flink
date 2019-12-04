@@ -40,8 +40,11 @@ public interface JobClient extends AutoCloseable {
 	JobID getJobID();
 
 	/**
-	 * Return a duplicated {@link JobClient} of this one. The duplicated one will have its
-	 * own lifecycle.
+	 * Return a duplicated {@link JobClient} of this one.
+	 *
+	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
+	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
+	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 */
 	JobClient duplicate() throws Exception;
 

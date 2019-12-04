@@ -58,6 +58,7 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobContext;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
@@ -813,14 +814,12 @@ public class ExecutionEnvironment {
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
 
-			CompletableFuture.runAsync(() -> jobListeners.forEach(jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null)));
+			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
 
 			return lastJobExecutionResult;
 		} catch (Throwable t) {
-			CompletableFuture.runAsync(() -> {
-				jobListeners.forEach(jobListener -> {
-					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
-				});
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
 			});
 			ExceptionUtils.rethrowException(t);
 
@@ -843,7 +842,7 @@ public class ExecutionEnvironment {
 	 * Clear all registered {@link JobListener}s.
 	 */
 	@PublicEvolving
-	public void clearJobListener() {
+	public void clearJobListeners() {
 		this.jobListeners.clear();
 	}
 
@@ -903,23 +902,14 @@ public class ExecutionEnvironment {
 			.getExecutor(configuration)
 			.execute(plan, configuration);
 
-		jobClientFuture.whenCompleteAsync((jobClient, throwable) -> {
+		return jobClientFuture.whenComplete((jobClient, throwable) -> {
 			if (throwable != null) {
 				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, throwable));
 			} else {
-				jobListeners.forEach(jobListener -> {
-					try {
-						JobClient duplicatedJobClient = jobClient.duplicate();
-						jobListener.onJobSubmitted(duplicatedJobClient, null);
-					} catch (Exception e) {
-						Exception exception = new Exception("Fail to duplicate JobClient", e);
-						jobListener.onJobSubmitted(null, exception);
-					}
-				});
+				final JobContext jobContext = new JobContext(jobClient);
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobContext, null));
 			}
 		});
-
-		return jobClientFuture;
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

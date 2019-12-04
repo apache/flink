@@ -58,6 +58,7 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobContext;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -1623,19 +1624,17 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try (final JobClient jobClient = executeAsyncInternal(streamGraph).get()) {
+		try (final JobClient jobClient = executeAsync(streamGraph).get()) {
 			JobExecutionResult jobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
 
-			CompletableFuture.runAsync(() -> jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null)));
+			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
 
 			return jobExecutionResult;
 		} catch (Throwable t) {
-			CompletableFuture.runAsync(() -> {
-				jobListeners.forEach(jobListener -> {
-					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
-				});
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
 			});
 			ExceptionUtils.rethrowException(t);
 
@@ -1658,7 +1657,7 @@ public class StreamExecutionEnvironment {
 	 * Clear all registered {@link JobListener}s.
 	 */
 	@PublicEvolving
-	public void clearJobListener() {
+	public void clearJobListeners() {
 		this.jobListeners.clear();
 	}
 
@@ -1699,7 +1698,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
-		return executeAsyncInternal(getStreamGraph(checkNotNull(jobName)));
+		return executeAsync(getStreamGraph(checkNotNull(jobName)));
 	}
 
 	/**
@@ -1715,7 +1714,8 @@ public class StreamExecutionEnvironment {
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
-	private CompletableFuture<JobClient> executeAsyncInternal(StreamGraph streamGraph) throws Exception {
+	@Internal
+	public CompletableFuture<JobClient> executeAsync(StreamGraph streamGraph) throws Exception {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
@@ -1733,23 +1733,14 @@ public class StreamExecutionEnvironment {
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
 
-		jobClientFuture.whenCompleteAsync((jobClient, throwable) -> {
+		return jobClientFuture.whenComplete((jobClient, throwable) -> {
 			if (throwable != null) {
 				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, throwable));
 			} else {
-				jobListeners.forEach(jobListener -> {
-					try {
-						JobClient duplicatedJobClient = jobClient.duplicate();
-						jobListener.onJobSubmitted(duplicatedJobClient, null);
-					} catch (Exception e) {
-						Exception exception = new Exception("Fail to duplicate JobClient", e);
-						jobListener.onJobSubmitted(null, exception);
-					}
-				});
+				final JobContext jobContext = new JobContext(jobClient);
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobContext, null));
 			}
 		});
-
-		return jobClientFuture;
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

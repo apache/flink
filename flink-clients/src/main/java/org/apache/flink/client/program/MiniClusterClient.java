@@ -60,7 +60,7 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 
 	@Override
 	public ClusterClient<MiniClusterId> duplicate() {
-		return this;
+		return new MiniClusterClient(configuration, miniCluster);
 	}
 
 	@Override

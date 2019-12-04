@@ -46,6 +46,10 @@ public interface ClusterClient<T> extends AutoCloseable {
 	/**
 	 * Return a duplicated {@link ClusterClient} of this one. The duplicated one will have its
 	 * own lifecycle.
+	 *
+	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
+	 * the returned {@link ClusterClient}. This means calling {@link ClusterClient#close()} at the end of
+	 * its usage. In other case, there may be resource leaks depending on the ClusterClient implementation.
 	 */
 	ClusterClient<T> duplicate() throws Exception;
 
