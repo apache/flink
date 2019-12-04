@@ -437,11 +437,19 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	}
 
 	/**
+	 * @deprecated Typo in the method name, use {@link #isColumnFamilyAsVariable()}.
+	 */
+	@Deprecated
+	public boolean isColumnFaminlyAsVariable() {
+		return isColumnFamilyAsVariable();
+	}
+
+	/**
 	 *  {{@link RocksDBNativeMetricMonitor}} Whether to expose the column family as a variable..
 	 *
 	 * @return true is column family to expose variable, false otherwise.
 	 */
-	public boolean isColumnFaminlyAsVariable() {
+	public boolean isColumnFamilyAsVariable() {
 		return this.columnFamilyAsVariable;
 	}
 }

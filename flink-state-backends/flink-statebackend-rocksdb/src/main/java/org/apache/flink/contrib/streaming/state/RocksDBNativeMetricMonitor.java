@@ -74,7 +74,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	 */
 	void registerColumnFamily(String columnFamilyName, ColumnFamilyHandle handle) {
 
-		boolean columnFamilyAsVariable = options.isColumnFaminlyAsVariable();
+		boolean columnFamilyAsVariable = options.isColumnFamilyAsVariable();
 		MetricGroup group = columnFamilyAsVariable
 			? metricGroup.addGroup(COLUMN_FAMILY_KEY, columnFamilyName)
 			: metricGroup.addGroup(columnFamilyName);
