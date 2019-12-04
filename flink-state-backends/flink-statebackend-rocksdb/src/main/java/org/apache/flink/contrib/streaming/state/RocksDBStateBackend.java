@@ -24,10 +24,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -50,10 +52,15 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
+import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.LRUCache;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
+import org.rocksdb.TableFormatConfig;
+import org.rocksdb.WriteBufferManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,10 +77,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.BOUNDED_MEMORY_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.HIGH_PRI_POOL_RATIO;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TTL_COMPACT_FILTER_ENABLED;
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.WRITE_BUFFER_RATIO;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -111,6 +123,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
 
+	static final long UNDEFINED_VALUE = -1;
+
 	// ------------------------------------------------------------------------
 
 	// -- configuration values, set in the application / configuration
@@ -145,6 +159,18 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * whether the filter is active for particular state or not.
 	 */
 	private TernaryBoolean enableTtlCompactionFilter;
+
+	/**
+	 * Total memory for all rocksDB instances at this slot.
+	 * Currently, we would use a LRU cache to serve as the total memory usage.
+	 */
+	private long totalMemoryPerSlot;
+
+	/** The write buffer ratio which consumed by write-buffer manager from the shared cache. */
+	private double writeBufferRatio;
+
+	/** The high priority pool ratio which consumed by index&filter from the shared cache. */
+	private double highPriPoolRatio;
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
@@ -267,6 +293,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
+		this.totalMemoryPerSlot = UNDEFINED_VALUE;
+		this.writeBufferRatio = UNDEFINED_VALUE;
+		this.highPriPoolRatio = UNDEFINED_VALUE;
 	}
 
 	/**
@@ -312,6 +341,33 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableTtlCompactionFilter = original.enableTtlCompactionFilter
 			.resolveUndefined(config.getBoolean(TTL_COMPACT_FILTER_ENABLED));
 
+		configureBoundedMemory(
+			() -> (double) original.getTotalMemoryPerSlot(),
+			() -> {
+				if (config.getString(BOUNDED_MEMORY_SIZE) != null) {
+					setTotalMemoryPerSlot(config.getString(BOUNDED_MEMORY_SIZE));
+				} else {
+					// we still left total memory size per slot as undefined if no actual settings.
+					this.totalMemoryPerSlot = UNDEFINED_VALUE;
+				}
+			},
+			() -> setTotalMemoryPerSlot(String.valueOf(original.totalMemoryPerSlot)));
+
+		configureBoundedMemory(
+			original::getWriteBufferRatio,
+			() -> setWriteBufferRatio(config.getDouble(WRITE_BUFFER_RATIO)),
+			() -> setWriteBufferRatio(original.writeBufferRatio));
+
+		configureBoundedMemory(
+			original::getHighPriPoolRatio,
+			() -> setHighPriPoolRatio(config.getDouble(HIGH_PRI_POOL_RATIO)),
+			() -> setHighPriPoolRatio(original.highPriPoolRatio));
+
+		if (isBoundedMemoryEnabled()) {
+			Preconditions.checkArgument(this.writeBufferRatio + this.highPriPoolRatio < 1.0,
+				String.format("Illegal sum of writeBufferRatio %s and highPriPoolRatio %s, should be less than 1.0", this.writeBufferRatio, this.highPriPoolRatio));
+		}
+
 		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
 
 		this.priorityQueueStateType = priorityQueueTypeString.length() > 0 ?
@@ -353,6 +409,14 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				classLoader);
 		} catch (DynamicCodeLoadingException e) {
 			throw new FlinkRuntimeException(e);
+		}
+	}
+
+	private void configureBoundedMemory(Supplier<Double> getOriginalValue, Runnable parseFromConfig, Runnable setFromOriginal) {
+		if (getOriginalValue.get() == UNDEFINED_VALUE) {
+			parseFromConfig.run();
+		} else {
+			setFromOriginal.run();
 		}
 	}
 
@@ -491,14 +555,53 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
+		DBOptions dbOptions = getDbOptions();
+		Function<String, ColumnFamilyOptions> createColumnOptions;
+
+		if (isBoundedMemoryEnabled()) {
+			RocksDBSharedObjects rocksDBSharedObjects;
+			MemoryManager memoryManager = env.getMemoryManager();
+			// only initialized LRUCache and write buffer manager once.
+			// we would not dispose the cache and write buffer manager during disposing state backend
+			// as the same objects are shared by every RocksDB instance per slot.
+			while ((rocksDBSharedObjects = (RocksDBSharedObjects) memoryManager.getStateBackendSharedObject()) == null) {
+				if (memoryManager.getLazyInitializeSharedObjectHelper().compareAndSet(false, true)) {
+					Cache lruCache = new LRUCache(getTotalMemoryPerSlot(), -1, false, getHighPriPoolRatio());
+					WriteBufferManager writeBufferManager = new WriteBufferManager((long) (getTotalMemoryPerSlot() * getWriteBufferRatio()), lruCache);
+
+					rocksDBSharedObjects = new RocksDBSharedObjects(lruCache, writeBufferManager);
+					memoryManager.setStateBackendSharedObject(rocksDBSharedObjects);
+				}
+			}
+
+			Cache blockCache = checkNotNull(rocksDBSharedObjects.getCache());
+			dbOptions.setWriteBufferManager(checkNotNull(rocksDBSharedObjects.getWriteBufferManager()));
+
+			createColumnOptions = stateName -> {
+				ColumnFamilyOptions columnOptions = getColumnOptions();
+				TableFormatConfig tableFormatConfig = columnOptions.tableFormatConfig();
+				Preconditions.checkArgument(tableFormatConfig instanceof BlockBasedTableConfig,
+					"We currently only support BlockBasedTableConfig When bounding total memory.");
+				BlockBasedTableConfig blockBasedTableConfig = (BlockBasedTableConfig) tableFormatConfig;
+				blockBasedTableConfig.setBlockCache(blockCache);
+				blockBasedTableConfig.setCacheIndexAndFilterBlocks(true);
+				blockBasedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
+				blockBasedTableConfig.setPinL0FilterAndIndexBlocksInCache(true);
+				columnOptions.setTableFormatConfig(blockBasedTableConfig);
+				return columnOptions;
+			};
+		} else {
+			createColumnOptions = stateName -> getColumnOptions();
+		}
+
 		ExecutionConfig executionConfig = env.getExecutionConfig();
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
 			env.getUserClassLoader(),
 			instanceBasePath,
-			getDbOptions(),
-			stateName -> getColumnOptions(),
+			dbOptions,
+			createColumnOptions,
 			kvStateRegistry,
 			keySerializer,
 			numberOfKeyGroups,
@@ -705,6 +808,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	/**
+	 * Gets whether bounding memory is enabled for this state backend.
+	 */
+	public boolean isBoundedMemoryEnabled() {
+		return totalMemoryPerSlot > 0;
+	}
+
+	/**
 	 * Enable compaction filter to cleanup state with TTL is enabled.
 	 *
 	 * <p>Note: User can still decide in state TTL configuration in state descriptor
@@ -851,6 +961,34 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	@Deprecated
 	public void setNumberOfTransferingThreads(int numberOfTransferingThreads) {
 		setNumberOfTransferThreads(numberOfTransferingThreads);
+	}
+
+	public void setTotalMemoryPerSlot(String totalMemoryPerSlotStr) {
+		long totalMemoryPerSlot = MemorySize.parseBytes(totalMemoryPerSlotStr);
+		Preconditions.checkArgument(totalMemoryPerSlot > 0, String.format("Illegal total memory per slot %s for RocksDBs.", totalMemoryPerSlot));
+		this.totalMemoryPerSlot = totalMemoryPerSlot;
+	}
+
+	public long getTotalMemoryPerSlot() {
+		return totalMemoryPerSlot;
+	}
+
+	public void setWriteBufferRatio(double writeBufferRatio) {
+		Preconditions.checkArgument(writeBufferRatio > 0 && writeBufferRatio < 1.0, String.format("Illegal write buffer ratio %s for RocksDBs.", writeBufferRatio));
+		this.writeBufferRatio = writeBufferRatio;
+	}
+
+	public double getWriteBufferRatio() {
+		return writeBufferRatio;
+	}
+
+	public void setHighPriPoolRatio(double highPriPoolRatio) {
+		Preconditions.checkArgument(highPriPoolRatio > 0 && highPriPoolRatio < 1.0, String.format("Illegal high priority pool ratio %s for RocksDBs.", highPriPoolRatio));
+		this.highPriPoolRatio = highPriPoolRatio;
+	}
+
+	public double getHighPriPoolRatio() {
+		return highPriPoolRatio;
 	}
 
 	// ------------------------------------------------------------------------

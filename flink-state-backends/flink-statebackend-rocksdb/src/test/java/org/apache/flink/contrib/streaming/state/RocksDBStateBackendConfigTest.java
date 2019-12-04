@@ -632,6 +632,56 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	// ------------------------------------------------------------------------
+	//  RocksDB Memory Control
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testDefaultMemoryControlParameters() {
+		StateBackend storageBackend = new MemoryStateBackend();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(storageBackend);
+		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getTotalMemoryPerSlot());
+		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getHighPriPoolRatio(), 0.0);
+		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getWriteBufferRatio(), 0.0);
+
+		RocksDBStateBackend configure = rocksDbBackend.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
+		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, configure.getTotalMemoryPerSlot());
+		assertEquals(RocksDBOptions.HIGH_PRI_POOL_RATIO.defaultValue(), configure.getHighPriPoolRatio(), 0.0);
+		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), configure.getWriteBufferRatio(), 0.0);
+	}
+
+	@Test
+	public void testConfigureIllegalMemoryControlParameters() {
+		StateBackend storageBackend = new MemoryStateBackend();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(storageBackend);
+
+		verifySetParameter(() -> rocksDbBackend.setTotalMemoryPerSlot("-1B"));
+		verifySetParameter(() -> rocksDbBackend.setHighPriPoolRatio(-0.1));
+		verifySetParameter(() -> rocksDbBackend.setHighPriPoolRatio(1.1));
+		verifySetParameter(() -> rocksDbBackend.setWriteBufferRatio(-0.1));
+		verifySetParameter(() -> rocksDbBackend.setWriteBufferRatio(1.1));
+
+		rocksDbBackend.setTotalMemoryPerSlot("128MB");
+		rocksDbBackend.setWriteBufferRatio(0.6);
+		rocksDbBackend.setHighPriPoolRatio(0.6);
+		try {
+			// sum of writeBufferRatio and highPriPoolRatio larger than 1.0
+			rocksDbBackend.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
+			fail("No expected IllegalArgumentException.");
+		} catch (IllegalArgumentException expected) {
+			// expected exception
+		}
+	}
+
+	private void verifySetParameter(Runnable setter) {
+		try {
+			setter.run();
+			fail("No expected IllegalArgumentException.");
+		} catch (IllegalArgumentException expected) {
+			// expected exception
+		}
+	}
+
+	// ------------------------------------------------------------------------
 	//  Contained Non-partitioned State Backend
 	// ------------------------------------------------------------------------
 

@@ -86,4 +86,24 @@ public class RocksDBOptions {
 				"The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
 				DefaultConfigurableOptionsFactory.class.getName()));
 
+	public static final ConfigOption<String> BOUNDED_MEMORY_SIZE = ConfigOptions
+		.key("state.backend.rocksdb.per-slot.total.memory")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("The total memory size shared among all RocksDB instances per slot. " +
+			"This option has no default value which means no bounded memory limit.");
+
+	public static final ConfigOption<Double> WRITE_BUFFER_RATIO = ConfigOptions
+		.key("state.backend.rocksdb.write-buffer.ratio")
+		.doubleType()
+		.defaultValue(0.5)
+		.withDescription(String.format("This option would only take effect when %s is configured, " +
+			"all RocksDB instances would share the same write buffer manager with the ratio of a LRUCache.", BOUNDED_MEMORY_SIZE));
+
+	public static final ConfigOption<Double> HIGH_PRI_POOL_RATIO = ConfigOptions
+		.key("state.backend.rocksdb.high-pri-pool.ratio")
+		.doubleType()
+		.defaultValue(0.1)
+		.withDescription(String.format("This option would only take effect when %s is configured, " +
+			"all RocksDB instances would share the high priority ratio for index, filter, and compression dictionary blocks in a LRUCache.", BOUNDED_MEMORY_SIZE));
 }
