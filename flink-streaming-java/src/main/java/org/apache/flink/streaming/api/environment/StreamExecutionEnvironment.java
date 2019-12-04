@@ -1623,7 +1623,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try (final JobClient jobClient = executeAsync(streamGraph).get()) {
+		try (final JobClient jobClient = executeAsyncInternal(streamGraph).get()) {
 			JobExecutionResult jobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
@@ -1699,7 +1699,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
-		return executeAsync(getStreamGraph(checkNotNull(jobName)));
+		return executeAsyncInternal(getStreamGraph(checkNotNull(jobName)));
 	}
 
 	/**
@@ -1715,8 +1715,7 @@ public class StreamExecutionEnvironment {
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
-	@Internal
-	public CompletableFuture<JobClient> executeAsync(StreamGraph streamGraph) throws Exception {
+	private CompletableFuture<JobClient> executeAsyncInternal(StreamGraph streamGraph) throws Exception {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
@@ -1735,7 +1734,19 @@ public class StreamExecutionEnvironment {
 			.execute(streamGraph, configuration);
 
 		jobClientFuture.whenCompleteAsync((jobClient, throwable) -> {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, throwable));
+			if (throwable != null) {
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, throwable));
+			} else {
+				jobListeners.forEach(jobListener -> {
+					try {
+						JobClient duplicatedJobClient = jobClient.duplicate();
+						jobListener.onJobSubmitted(duplicatedJobClient, null);
+					} catch (Exception e) {
+						Exception exception = new Exception("Fail to duplicate JobClient", e);
+						jobListener.onJobSubmitted(null, exception);
+					}
+				});
+			}
 		});
 
 		return jobClientFuture;

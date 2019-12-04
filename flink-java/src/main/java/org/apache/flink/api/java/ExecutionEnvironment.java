@@ -904,7 +904,19 @@ public class ExecutionEnvironment {
 			.execute(plan, configuration);
 
 		jobClientFuture.whenCompleteAsync((jobClient, throwable) -> {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, throwable));
+			if (throwable != null) {
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, throwable));
+			} else {
+				jobListeners.forEach(jobListener -> {
+					try {
+						JobClient duplicatedJobClient = jobClient.duplicate();
+						jobListener.onJobSubmitted(duplicatedJobClient, null);
+					} catch (Exception e) {
+						Exception exception = new Exception("Fail to duplicate JobClient", e);
+						jobListener.onJobSubmitted(null, exception);
+					}
+				});
+			}
 		});
 
 		return jobClientFuture;
