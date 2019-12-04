@@ -19,7 +19,6 @@
 package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobID;
 
 /**
  * A listener that is notified on specific job status changed.
@@ -30,8 +29,11 @@ public interface JobListener {
 	/**
 	 * Callback on job submission succeeded.
 	 *
-	 * @param jobID of the submitted job
+	 * <p><b>ATTENTION:</b> the lifecycle of the passed {@link JobClient} has already
+	 * been handled. Never call {@link JobClient#close()} on the passed {@link JobClient}.
+	 *
+	 * @param jobClient to communicate with the job
 	 */
-	void onJobSubmitted(JobID jobID);
+	void onJobSubmitted(JobClient jobClient);
 
 }

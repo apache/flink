@@ -1715,15 +1715,13 @@ public class StreamExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		CompletableFuture<JobClient> jobClient = executorFactory
+		return executorFactory
 			.getExecutor(configuration)
-			.execute(streamGraph, configuration);
-
-		jobClient.thenAcceptAsync(innerJobClient -> {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(innerJobClient.getJobID()));
-		});
-
-		return jobClient;
+			.execute(streamGraph, configuration)
+			.thenApply(jobClient -> {
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient));
+				return jobClient;
+			});
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

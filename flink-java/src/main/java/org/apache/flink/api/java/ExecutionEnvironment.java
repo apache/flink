@@ -886,15 +886,13 @@ public class ExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		CompletableFuture<JobClient> jobClient = executorFactory
+		return executorFactory
 			.getExecutor(configuration)
-			.execute(plan, configuration);
-
-		jobClient.thenAcceptAsync(innerJobClient -> {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(innerJobClient.getJobID()));
-		});
-
-		return jobClient;
+			.execute(plan, configuration)
+			.thenApply(jobClient -> {
+				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient));
+				return jobClient;
+			});
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

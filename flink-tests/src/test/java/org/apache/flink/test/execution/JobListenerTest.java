@@ -18,9 +18,9 @@
 
 package org.apache.flink.test.execution;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -43,7 +43,7 @@ public class JobListenerTest extends TestLogger {
 
 		env.registerJobListener(new JobListener() {
 			@Override
-			public void onJobSubmitted(JobID jobID) {
+			public void onJobSubmitted(JobClient jobClient) {
 				latch.trigger();
 			}
 		});
@@ -61,7 +61,7 @@ public class JobListenerTest extends TestLogger {
 
 		env.registerJobListener(new JobListener() {
 			@Override
-			public void onJobSubmitted(JobID jobID) {
+			public void onJobSubmitted(JobClient jobClient) {
 				latch.trigger();
 			}
 		});
