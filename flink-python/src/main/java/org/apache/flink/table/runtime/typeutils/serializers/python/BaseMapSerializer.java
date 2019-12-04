@@ -32,18 +32,18 @@ import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
 /**
- * A {@link TypeSerializer} for {@link BinaryMap}. It should be noted that the header will not be encoded.
- * Currently Python doesn't support BinaryMap natively, so we can't use BaseArraySerializer in blink directly.
+ * A {@link TypeSerializer} for {@link BaseMap}. It should be noted that the header will not be
+ * encoded. Currently Python doesn't support BinaryMap natively, so we can't use BaseArraySerializer
+ * in blink directly.
  */
 @Internal
-public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
+public class BaseMapSerializer extends org.apache.flink.table.runtime.typeutils.BaseMapSerializer {
 
 	private static final long serialVersionUID = 1L;
 
@@ -51,16 +51,16 @@ public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
 
 	private final LogicalType valueType;
 
-	private final TypeSerializer<K> keyTypeSerializer;
+	private final TypeSerializer keyTypeSerializer;
 
-	private final TypeSerializer<V> valueTypeSerializer;
+	private final TypeSerializer valueTypeSerializer;
 
 	private final int keySize;
 
 	private final int valueSize;
 
-	public BinaryMapSerializer(LogicalType keyType, LogicalType valueType
-		, TypeSerializer<K> keyTypeSerializer, TypeSerializer<V> valueTypeSerializer) {
+	public BaseMapSerializer(LogicalType keyType, LogicalType valueType
+		, TypeSerializer keyTypeSerializer, TypeSerializer valueTypeSerializer) {
 		super(keyType, valueType, null);
 		this.keyType = keyType;
 		this.valueType = valueType;
@@ -81,13 +81,13 @@ public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
 			if (keyArray.isNullAt(i)) {
 				throw new IllegalArgumentException("The key of BinaryMap must not be null.");
 			}
-			K key = (K) TypeGetterSetters.get(keyArray, i, keyType);
+			Object key = TypeGetterSetters.get(keyArray, i, keyType);
 			keyTypeSerializer.serialize(key, target);
 			if (valueArray.isNullAt(i)) {
 				target.writeBoolean(true);
 			} else {
 				target.writeBoolean(false);
-				V value = (V) TypeGetterSetters.get(valueArray, i, valueType);
+				Object value = TypeGetterSetters.get(valueArray, i, valueType);
 				valueTypeSerializer.serialize(value, target);
 			}
 		}
@@ -101,13 +101,13 @@ public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
 		BinaryArrayWriter keyWriter = new BinaryArrayWriter(keyArray, size, keySize);
 		BinaryArrayWriter valueWriter = new BinaryArrayWriter(valueArray, size, valueSize);
 		for (int i = 0; i < size; i++) {
-			K key = keyTypeSerializer.deserialize(source);
+			Object key = keyTypeSerializer.deserialize(source);
 			BinaryWriter.write(keyWriter, i, key, keyType, keyTypeSerializer);
 			boolean isNull = source.readBoolean();
 			if (isNull) {
 				valueWriter.setNullAt(i);
 			} else {
-				V value = valueTypeSerializer.deserialize(source);
+				Object value = valueTypeSerializer.deserialize(source);
 				BinaryWriter.write(valueWriter, i, value, valueType, valueTypeSerializer);
 			}
 		}
@@ -128,18 +128,18 @@ public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
 
 	@Override
 	public TypeSerializer<BaseMap> duplicate() {
-		return new BinaryMapSerializer<>(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
+		return new BaseMapSerializer(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
 	}
 
 	@Override
 	public TypeSerializerSnapshot<BaseMap> snapshotConfiguration() {
-		return new BinaryMapSerializerSnapshot(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
+		return new BaseMapSerializerSnapshot(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
 	}
 
 	/**
-	 * {@link TypeSerializerSnapshot} for {@link BinaryMapSerializer}.
+	 * {@link TypeSerializerSnapshot} for {@link BaseMapSerializer}.
 	 */
-	public static final class BinaryMapSerializerSnapshot implements TypeSerializerSnapshot<BaseMap> {
+	public static final class BaseMapSerializerSnapshot implements TypeSerializerSnapshot<BaseMap> {
 		private static final int CURRENT_VERSION = 3;
 
 		private LogicalType previousKeyType;
@@ -149,11 +149,11 @@ public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
 		private TypeSerializer previousValueSerializer;
 
 		@SuppressWarnings("unused")
-		public BinaryMapSerializerSnapshot() {
+		public BaseMapSerializerSnapshot() {
 			// this constructor is used when restoring from a checkpoint/savepoint.
 		}
 
-		BinaryMapSerializerSnapshot(LogicalType keyT, LogicalType valueT, TypeSerializer keySer, TypeSerializer valueSer) {
+		BaseMapSerializerSnapshot(LogicalType keyT, LogicalType valueT, TypeSerializer keySer, TypeSerializer valueSer) {
 			this.previousKeyType = keyT;
 			this.previousValueType = valueT;
 
@@ -190,17 +190,17 @@ public class BinaryMapSerializer<K, V> extends BaseMapSerializer {
 
 		@Override
 		public TypeSerializer<BaseMap> restoreSerializer() {
-			return new BinaryMapSerializer(
+			return new BaseMapSerializer(
 				previousKeyType, previousValueType, previousKeySerializer, previousValueSerializer);
 		}
 
 		@Override
 		public TypeSerializerSchemaCompatibility<BaseMap> resolveSchemaCompatibility(TypeSerializer<BaseMap> newSerializer) {
-			if (!(newSerializer instanceof BinaryMapSerializer)) {
+			if (!(newSerializer instanceof BaseMapSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			BinaryMapSerializer newBaseMapSerializer = (BinaryMapSerializer) newSerializer;
+			BaseMapSerializer newBaseMapSerializer = (BaseMapSerializer) newSerializer;
 			if (!previousKeyType.equals(newBaseMapSerializer.keyType) ||
 				!previousValueType.equals(newBaseMapSerializer.valueType) ||
 				!previousKeySerializer.equals(newBaseMapSerializer.keyTypeSerializer) ||

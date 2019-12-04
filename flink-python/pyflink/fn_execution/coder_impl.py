@@ -125,7 +125,7 @@ class MapCoderImpl(StreamCoderImpl):
         map_value = {}
         for _ in range(size):
             key = self._key_coder.decode_from_stream(in_stream, nested)
-            is_null = not not in_stream.read_byte()
+            is_null = in_stream.read_byte()
             if is_null:
                 map_value[key] = None
             else:
@@ -134,7 +134,7 @@ class MapCoderImpl(StreamCoderImpl):
         return map_value
 
     def __repr__(self):
-        return 'MapCoderImpl[%s]' % ' : '.join([str(self._key_coder), str(self._value_coder)])
+        return 'MapCoderImpl[%s]' % ' : '.join([repr(self._key_coder), repr(self._value_coder)])
 
 
 class BigIntCoderImpl(StreamCoderImpl):

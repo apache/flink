@@ -22,18 +22,19 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.table.dataformat.BaseMap;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.FloatType;
 
 /**
- * Test for {@link BinaryMapSerializerTest}.
+ * Test for {@link BaseMapSerializerTest}.
  */
-public class BinaryMapSerializerTest extends SerializerTestBase<BinaryMap> {
+public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 	@Override
-	protected TypeSerializer<BinaryMap> createSerializer() {
-		return new BinaryMapSerializer(
+	protected TypeSerializer<BaseMap> createSerializer() {
+		return new BaseMapSerializer(
 			new BigIntType(), new FloatType(), LongSerializer.INSTANCE, FloatSerializer.INSTANCE);
 	}
 
@@ -43,12 +44,12 @@ public class BinaryMapSerializerTest extends SerializerTestBase<BinaryMap> {
 	}
 
 	@Override
-	protected Class<BinaryMap> getTypeClass() {
-		return BinaryMap.class;
+	protected Class<BaseMap> getTypeClass() {
+		return BaseMap.class;
 	}
 
 	@Override
-	protected BinaryMap[] getTestData() {
+	protected BaseMap[] getTestData() {
 		BinaryArray keyBinary = BinaryArray.fromPrimitiveArray(new long[]{10L});
 		BinaryArray valueBinary = BinaryArray.fromPrimitiveArray(new float[]{10.2F});
 		return new BinaryMap[]{BinaryMap.valueOf(keyBinary, valueBinary)};

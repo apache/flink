@@ -131,7 +131,7 @@ class MapCoder(FastCoder):
         return {}
 
     def __repr__(self):
-        return 'MapCoder[%s]' % ','.join([str(self._key_coder), str(self._value_coder)])
+        return 'MapCoder[%s]' % ','.join([repr(self._key_coder), repr(self._value_coder)])
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__
