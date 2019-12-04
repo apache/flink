@@ -29,12 +29,12 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.streaming.runtime.operators.windowing.StreamRecordMatchers.isStreamRecord;
+import static org.hamcrest.Matchers.contains;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link ProcessFunctionTestHarnessesTest}.
@@ -56,7 +56,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
 		harness.processElement(1, 10);
 
-		assertEquals(harness.getOutputValues(), Collections.singletonList(1));
+		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(1)));
 	}
 
 	@Test
@@ -72,13 +72,12 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
 		harness.processElement(1, 10);
 
-		assertEquals(harness.getOutputValues(), Collections.singletonList(1));
+		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(1)));
 	}
 
 	@Test
 	public void testHarnessForCoProcessFunction() throws Exception {
 		CoProcessFunction<Integer, String, Integer> function = new CoProcessFunction<Integer, String, Integer>() {
-
 
 			@Override
 			public void processElement1(Integer value, Context ctx, Collector<Integer> out) throws Exception {
@@ -96,12 +95,12 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processElement2("0", 1);
 		harness.processElement1(1, 10);
 
-		assertEquals(harness.getOutputValues(), Arrays.asList(0,1));
+		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
 	}
 
 	@Test
 	public void testHarnessForKeyedCoProcessFunction() throws Exception {
-		KeyedCoProcessFunction<Integer,Integer, Integer, Integer> function = new KeyedCoProcessFunction<Integer, Integer, Integer, Integer>() {
+		KeyedCoProcessFunction<Integer, Integer, Integer, Integer> function = new KeyedCoProcessFunction<Integer, Integer, Integer, Integer>() {
 
 			@Override
 			public void processElement1(Integer value, Context ctx, Collector<Integer> out) throws Exception {
@@ -120,7 +119,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processElement1(0, 1);
 		harness.processElement2(1, 10);
 
-		assertEquals(harness.getOutputValues(), Arrays.asList(0,1));
+		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
 	}
 
 	@Test
@@ -144,12 +143,12 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processBroadcastElement("0", 1);
 		harness.processElement(1, 10);
 
-		assertEquals(harness.getOutputValues(), Arrays.asList(0,1));
+		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
 	}
 
 	@Test
 	public void testHarnessForKeyedBroadcastProcessFunction() throws Exception {
-		KeyedBroadcastProcessFunction<Integer,Integer, String, Integer> function = new KeyedBroadcastProcessFunction<Integer, Integer, String, Integer>() {
+		KeyedBroadcastProcessFunction<Integer, Integer, String, Integer> function = new KeyedBroadcastProcessFunction<Integer, Integer, String, Integer>() {
 
 			@Override
 			public void processElement(Integer value, ReadOnlyContext ctx, Collector<Integer> out) throws Exception {
@@ -162,7 +161,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 			}
 		};
 
-		 final MapStateDescriptor<Integer, String> stateDescriptor =
+		final MapStateDescriptor<Integer, String> stateDescriptor =
 			new MapStateDescriptor<>(
 				"keys", BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -172,7 +171,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processBroadcastElement("0", 1);
 		harness.processElement(1, 10);
 
-		assertEquals(harness.getOutputValues(), Arrays.asList(0,1));
+		assertThat(harness.extractOutputStreamRecords(), contains(isStreamRecord(0), isStreamRecord(1)));
 	}
 
 }
