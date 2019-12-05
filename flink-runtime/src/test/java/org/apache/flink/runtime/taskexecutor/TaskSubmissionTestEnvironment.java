@@ -29,7 +29,6 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -194,12 +193,10 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, String metricQueryServiceAddress, Configuration configuration) {
 		final Configuration copiedConf = new Configuration(configuration);
 		copiedConf.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
-		final ResourceProfile defaultSlotResourceProfile =
-			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(copiedConf);
 
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(copiedConf, defaultSlotResourceProfile),
+			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConf)),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,
