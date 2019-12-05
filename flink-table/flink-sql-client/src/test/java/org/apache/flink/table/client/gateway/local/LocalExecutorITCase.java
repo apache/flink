@@ -47,6 +47,7 @@ import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
@@ -75,6 +76,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -326,6 +328,7 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
+
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		session.getSessionEnv().setExecution(ImmutableMap.of("result-mode", "changelog"));
 		// Open the session and get the sessionId.
@@ -530,6 +533,111 @@ public class LocalExecutorITCase extends TestLogger {
 		} finally {
 			executor.closeSession(sessionId);
 		}
+	}
+
+	@Test(timeout = 30_000L)
+	public void ensureExceptionOnFaultySourceInStreamingChangelogMode() throws Exception {
+		final String missingFileName = "missing-source";
+
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", "missing-source");
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "changelog");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "none");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		Optional<Throwable> throwableWithMessage = Optional.empty();
+		try {
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+			retrieveChangelogResult(executor, sessionId, desc.getResultId());
+		} catch (SqlExecutionException e) {
+			throwableWithMessage = findMissingFileException(e, missingFileName);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+		assertTrue(throwableWithMessage.isPresent());
+	}
+
+	@Test(timeout = 30_000L)
+	public void ensureExceptionOnFaultySourceInStreamingTableMode() throws Exception {
+		final String missingFileName = "missing-source";
+
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", missingFileName);
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "1");
+		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "none");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		Optional<Throwable> throwableWithMessage = Optional.empty();
+		try {
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+			retrieveTableResult(executor, sessionId, desc.getResultId());
+		} catch (SqlExecutionException e) {
+			throwableWithMessage = findMissingFileException(e, missingFileName);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+		assertTrue(throwableWithMessage.isPresent());
+	}
+
+	@Test(timeout = 30_000L)
+	public void ensureExceptionOnFaultySourceInBatch() throws Exception {
+		final String missingFileName = "missing-source";
+
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", missingFileName);
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "none");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		Optional<Throwable> throwableWithMessage = Optional.empty();
+		try {
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+			retrieveTableResult(executor, sessionId, desc.getResultId());
+		} catch (SqlExecutionException e) {
+			throwableWithMessage = findMissingFileException(e, missingFileName);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+		assertTrue(throwableWithMessage.isPresent());
+	}
+
+	private Optional<Throwable> findMissingFileException(SqlExecutionException e, String filename) {
+		Optional<Throwable> throwableWithMessage;
+
+		// for "batch" sources
+		throwableWithMessage = ExceptionUtils.findThrowableWithMessage(
+				e, "File " + filename + " does not exist or the user running Flink");
+
+		if (!throwableWithMessage.isPresent()) {
+			// for "streaming" sources (the Blink runner always uses a streaming source
+			throwableWithMessage = ExceptionUtils.findThrowableWithMessage(
+					e, "The provided file path " + filename + " does not exist");
+		}
+		return throwableWithMessage;
 	}
 
 	@Test(timeout = 30_000L)
@@ -997,6 +1105,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),
@@ -1006,6 +1115,7 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
+		replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),
@@ -1016,6 +1126,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createModifiedExecutor(
 			String yamlFile, ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
+		replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
 			Collections.emptyList(),
