@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory;
+import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
+
+import java.util.StringJoiner;
+
 /**
  * Collection of metric names.
  */
@@ -45,6 +50,28 @@ public class MetricNames {
 	public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
 	public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
 	public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
+
+	private static final String  SHUFFLE_NETTY_GROUP = new StringJoiner(TaskManagerScopeFormat.SCOPE_SEPARATOR)
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_SHUFFLE)
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_NETTY).toString();
+	private static final String SHUFFLE_NETTY_INPUT_GROUP = new StringJoiner(TaskManagerScopeFormat.SCOPE_SEPARATOR,
+		SHUFFLE_NETTY_GROUP, NettyShuffleMetricFactory.METRIC_GROUP_BUFFERS)
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_INPUT).toString();
+	private static final String SHUFFLE_NETTY_OUPUT_GROUP = new StringJoiner(TaskManagerScopeFormat.SCOPE_SEPARATOR,
+		SHUFFLE_NETTY_GROUP, NettyShuffleMetricFactory.METRIC_GROUP_BUFFERS)
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT).toString();
+	public static final String USAGE_SHUFFLE_NETTY_INPUT_FLOATING_BUFFERS = new StringJoiner(
+		TaskManagerScopeFormat.SCOPE_SEPARATOR,
+		SHUFFLE_NETTY_INPUT_GROUP,
+		NettyShuffleMetricFactory.METRIC_INPUT_FLOATING_BUFFERS_USAGE).toString();
+	public static final String USAGE_SHUFFLE_NETTY_INPUT_EXCLUSIVE_BUFFERS = new StringJoiner(
+		TaskManagerScopeFormat.SCOPE_SEPARATOR,
+		SHUFFLE_NETTY_INPUT_GROUP,
+		NettyShuffleMetricFactory.METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE).toString();
+	public static final String USAGE_SHUFFLE_NETTY_OUTPUT_POOL_USAGE = new StringJoiner(
+		TaskManagerScopeFormat.SCOPE_SEPARATOR,
+		SHUFFLE_NETTY_OUPUT_GROUP,
+		NettyShuffleMetricFactory.METRIC_OUTPUT_POOL_USAGE).toString();
 
 	public static final String NUM_RUNNING_JOBS = "numRunningJobs";
 	public static final String TASK_SLOTS_AVAILABLE = "taskSlotsAvailable";

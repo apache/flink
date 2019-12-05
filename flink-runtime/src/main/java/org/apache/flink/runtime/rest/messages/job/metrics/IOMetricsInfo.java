@@ -26,23 +26,23 @@ import java.util.Objects;
 /**
  * IO metrics information.
  */
-public final class IOMetricsInfo {
+public class IOMetricsInfo {
 
-	private static final String FIELD_NAME_BYTES_READ = "read-bytes";
+	protected static final String FIELD_NAME_BYTES_READ = "read-bytes";
 
-	private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
+	protected static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
 
-	private static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
+	protected static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
 
-	private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
+	protected static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
 
-	private static final String FIELD_NAME_RECORDS_READ = "read-records";
+	protected static final String FIELD_NAME_RECORDS_READ = "read-records";
 
-	private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
+	protected static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
 
-	private static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
+	protected static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
 
-	private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
+	protected static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
 
 	@JsonProperty(FIELD_NAME_BYTES_READ)
 	private final long bytesRead;

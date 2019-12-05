@@ -25,7 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubTaskIOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -86,7 +86,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 	private final long duration;
 
 	@JsonProperty(FIELD_NAME_METRICS)
-	private final IOMetricsInfo ioMetricsInfo;
+	private final SubTaskIOMetricsInfo subTaskIOMetricsInfo;
 
 	@JsonProperty(FIELD_NAME_TASKMANAGER_ID)
 	private final String taskmanagerId;
@@ -100,7 +100,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_START_TIME) long startTime,
 			@JsonProperty(FIELD_NAME_END_TIME) long endTime,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo ioMetricsInfo,
+			@JsonProperty(FIELD_NAME_METRICS) SubTaskIOMetricsInfo subTaskIOMetricsInfo,
 			@JsonProperty(FIELD_NAME_TASKMANAGER_ID) String taskmanagerId) {
 
 		this.subtaskIndex = subtaskIndex;
@@ -111,7 +111,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		this.startTimeCompatible = startTime;
 		this.endTime = endTime;
 		this.duration = duration;
-		this.ioMetricsInfo = Preconditions.checkNotNull(ioMetricsInfo);
+		this.subTaskIOMetricsInfo = Preconditions.checkNotNull(subTaskIOMetricsInfo);
 		this.taskmanagerId = Preconditions.checkNotNull(taskmanagerId);
 	}
 
@@ -147,8 +147,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		return duration;
 	}
 
-	public IOMetricsInfo getIoMetricsInfo() {
-		return ioMetricsInfo;
+	public SubTaskIOMetricsInfo getSubTaskIOMetricsInfo() {
+		return subTaskIOMetricsInfo;
 	}
 
 	public String getTaskmanagerId() {
@@ -174,13 +174,13 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			startTimeCompatible == that.startTimeCompatible &&
 			endTime == that.endTime &&
 			duration == that.duration &&
-			Objects.equals(ioMetricsInfo, that.ioMetricsInfo) &&
+			Objects.equals(subTaskIOMetricsInfo, that.subTaskIOMetricsInfo) &&
 			Objects.equals(taskmanagerId, that.taskmanagerId);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(subtaskIndex, status, attempt, host, startTime, startTimeCompatible, endTime, duration, ioMetricsInfo, taskmanagerId);
+		return Objects.hash(subtaskIndex, status, attempt, host, startTime, startTimeCompatible, endTime, duration, subTaskIOMetricsInfo, taskmanagerId);
 	}
 
 	public static SubtaskExecutionAttemptDetailsInfo create(AccessExecution execution, @Nullable MetricFetcher metricFetcher, JobID jobID, JobVertexID jobVertexID) {
@@ -206,7 +206,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			jobVertexID.toString()
 		);
 
-		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
+		final SubTaskIOMetricsInfo subTaskIOMetricsInfo = new SubTaskIOMetricsInfo(
 			ioMetrics.getNumBytesIn(),
 			ioMetrics.isNumBytesInComplete(),
 			ioMetrics.getNumBytesOut(),
@@ -214,7 +214,13 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			ioMetrics.getNumRecordsIn(),
 			ioMetrics.isNumRecordsInComplete(),
 			ioMetrics.getNumRecordsOut(),
-			ioMetrics.isNumRecordsOutComplete());
+			ioMetrics.isNumRecordsOutComplete(),
+			ioMetrics.getUsageOutPool(),
+			ioMetrics.isUsageOutPoolComplete(),
+			ioMetrics.getUsageInputExclusiveBuffers(),
+			ioMetrics.isUsageInputExclusiveBuffersComplete(),
+			ioMetrics.getUsageInputFloatingBuffers(),
+			ioMetrics.isUsageInputFloatingBuffersComplete());
 
 		return new SubtaskExecutionAttemptDetailsInfo(
 			execution.getParallelSubtaskIndex(),
@@ -224,7 +230,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			startTime,
 			endTime,
 			duration,
-			ioMetricsInfo,
+			subTaskIOMetricsInfo,
 			taskmanagerId
 		);
 	}

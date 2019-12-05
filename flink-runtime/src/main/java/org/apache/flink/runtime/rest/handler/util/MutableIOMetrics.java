@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.util;
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
@@ -30,6 +27,8 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 
 import javax.annotation.Nullable;
+
+import java.util.function.Consumer;
 
 /**
  * This class is a mutable version of the {@link IOMetrics} class that allows adding up IO-related metrics.
@@ -143,9 +142,24 @@ public class MutableIOMetrics extends IOMetrics {
 						(Long value) -> this.numRecordsOut += value
 					);
 
-					updateFloat(metrics, MetricNames.IO_NUM_RECORDS_OUT,
-						(String value) -> this.numRecordsOutComplete = false,
-						(Float value) -> this.numRecordsOut += value
+					updateFloat(metrics, MetricNames.USAGE_SHUFFLE_NETTY_INPUT_FLOATING_BUFFERS,
+						(String value) -> this.usageInputFloatingBuffersComplete = false,
+						(Float value) -> this.usageInputFloatingBuffers += value
+					);
+
+					updateFloat(metrics, MetricNames.USAGE_SHUFFLE_NETTY_INPUT_EXCLUSIVE_BUFFERS,
+						(String value) -> this.usageInputExclusiveBuffersComplete = false,
+						(Float value) -> this.usageInputExclusiveBuffers += value
+					);
+
+					updateFloat(metrics, MetricNames.USAGE_SHUFFLE_NETTY_OUTPUT_POOL_USAGE,
+						(String value) -> this.usageOutPoolComplete = false,
+						(Float value) -> this.usageOutPool += value
+					);
+
+					updateBoolean(metrics, MetricNames.IS_BACKPRESSURED,
+						(String value) -> this.isBackPressuredComplete = false,
+						(Boolean value) -> this.isBackPressured &= value
 					);
 				}
 				else {
@@ -153,6 +167,10 @@ public class MutableIOMetrics extends IOMetrics {
 					this.numBytesOutComplete = false;
 					this.numRecordsInComplete = false;
 					this.numRecordsOutComplete = false;
+					this.usageInputFloatingBuffersComplete = false;
+					this.usageInputExclusiveBuffersComplete = false;
+					this.usageOutPoolComplete = false;
+					this.isBackPressuredComplete = false;
 				}
 			}
 		}
