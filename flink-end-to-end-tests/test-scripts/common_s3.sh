@@ -48,8 +48,6 @@ AWS_SECRET_KEY=$IT_CASE_S3_SECRET_KEY
 
 S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/static/words"
 
-s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.jar"
-
 ###################################
 # Setup Flink s3 access.
 #
@@ -74,57 +72,4 @@ function s3_setup_with_provider {
   set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
 }
 
-###################################
-# Download s3 objects to folder by full path prefix.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - local path to save folder with files
-#   $2 - s3 key full path prefix
-#   $3 - s3 file name prefix w/o directory to filter files by name (optional)
-# Returns:
-#   None
-###################################
-function s3_get_by_full_path_and_filename_prefix {
-  local file_prefix="${3-}"
-  AWS_REGION=$AWS_REGION \
-  ${s3util} --action downloadByFullPathAndFileNamePrefix \
-    --localFolder "$1" --s3prefix "$2" --s3filePrefix "${file_prefix}" --bucket $IT_CASE_S3_BUCKET
-}
-
-###################################
-# Delete s3 objects by full path prefix.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - s3 key full path prefix
-# Returns:
-#   None
-###################################
-function s3_delete_by_full_path_prefix {
-  AWS_REGION=$AWS_REGION \
-  ${s3util} --action deleteByFullPathPrefix --s3prefix "$1" --bucket $IT_CASE_S3_BUCKET
-}
-
-###################################
-# Count number of lines in files of s3 objects filtered by prefix.
-# The lines has to be simple to comply with CSV format
-# because SQL is used to query the s3 objects.
-#
-# Globals:
-#   IT_CASE_S3_BUCKET
-# Arguments:
-#   $1 - s3 key prefix
-#   $2 - s3 bucket
-#   $3 - s3 file name prefix w/o directory to filter files by name (optional)
-# Returns:
-#   None
-###################################
-function s3_get_number_of_lines_by_prefix {
-  local file_prefix="${3-}"
-  AWS_REGION=$AWS_REGION \
-  ${s3util} --action numberOfLinesInFilesWithFullAndNamePrefix \
-    --s3prefix "$1" --s3filePrefix "${file_prefix}" --bucket $IT_CASE_S3_BUCKET
-}
+source "$(dirname "$0")"/common_s3_operations.sh
