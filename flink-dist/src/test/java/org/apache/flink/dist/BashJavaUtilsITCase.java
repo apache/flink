@@ -27,8 +27,10 @@ import static org.junit.Assert.assertNotNull;
 
 /**
  * Tests for BashJavaUtils.
+ *
+ * <p>This test requires the distribution to be assembled and is hence marked as an IT case which run after packaging.
  */
-public class BashJavaUtilsTest extends JavaBashTestBase {
+public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT = "src/test/bin/runBashJavaUtilsCmd.sh";
 
