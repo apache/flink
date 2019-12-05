@@ -331,25 +331,29 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
-    boolean isRename = true;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
         tableIdentifier = CompoundIdentifier()
     (
-        <RENAME> <TO> { isRename = true; }
+        <RENAME> <TO>
         newTableIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterTableRename(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        newTableIdentifier);
+        }
     |
-        <SET>   { isRename = false; }
+        <SET>
         propertyList = TableProperties()
+        {
+            return new SqlAlterTableProperties(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        propertyList);
+        }
     )
-    {
-        return new SqlAlterTable(startPos.plus(getPos()),
-            tableIdentifier,
-            newTableIdentifier,
-            propertyList,
-            isRename);
-    }
 }
 
 void TableColumn(TableCreationContext context) :

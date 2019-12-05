@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
@@ -189,17 +191,18 @@ public class SqlToOperationConverter {
 	private Operation convertAlterTable(SqlAlterTable sqlAlterTable) {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullTableName());
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		if (sqlAlterTable.isRename()) {
-			UnresolvedIdentifier newUnresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullNewTableName());
+		if (sqlAlterTable instanceof SqlAlterTableRename) {
+			UnresolvedIdentifier newUnresolvedIdentifier =
+					UnresolvedIdentifier.of(((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
 			ObjectIdentifier newTableIdentifier = catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
 			return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
-		} else {
+		} else if (sqlAlterTable instanceof SqlAlterTableProperties){
 			Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(tableIdentifier);
 			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
 				CatalogTable originalCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
 				Map<String, String> properties = new HashMap<>();
 				properties.putAll(originalCatalogTable.getProperties());
-				sqlAlterTable.getPropertyList().getList().forEach(p ->
+				((SqlAlterTableProperties) sqlAlterTable).getPropertyList().getList().forEach(p ->
 						properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
 								((SqlTableOption) p).getValueString()));
 				CatalogTable catalogTable = new CatalogTableImpl(
@@ -213,6 +216,7 @@ public class SqlToOperationConverter {
 						tableIdentifier.toString()));
 			}
 		}
+		return null;
 	}
 
 	/** Convert insert into statement. */

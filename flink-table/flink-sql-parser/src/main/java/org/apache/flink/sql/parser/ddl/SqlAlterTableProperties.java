@@ -18,48 +18,59 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName ...
+ * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*).
  */
-public abstract class SqlAlterTable extends SqlCall {
+public class SqlAlterTableProperties extends SqlAlterTable {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
+	private final SqlNodeList propertyList;
 
-	protected final SqlIdentifier tableIdentifier;
-
-	public SqlAlterTable(
-			SqlParserPos pos,
-			SqlIdentifier tableName) {
-		super(pos);
-		this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
+		super(pos, tableName);
+		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
 	}
 
 	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
+	public List<SqlNode> getOperandList() {
+		return ImmutableNullableList.of(tableIdentifier, propertyList);
 	}
 
-	public SqlIdentifier getTableName() {
-		return tableIdentifier;
+	public SqlNodeList getPropertyList() {
+		return propertyList;
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
+		super.unparse(writer, leftPrec, rightPrec);
+		writer.keyword("SET");
+		SqlWriter.Frame withFrame = writer.startList("(", ")");
+		for (SqlNode property : propertyList) {
+			printIndent(writer);
+			property.unparse(writer, leftPrec, rightPrec);
+		}
+		writer.newlineAndIndent();
+		writer.endList(withFrame);
+	}
+
+	private void printIndent(SqlWriter writer) {
+		writer.sep(",", false);
+		writer.newlineAndIndent();
+		writer.print("  ");
 	}
 
 	public String[] fullTableName() {
 		return tableIdentifier.names.toArray(new String[0]);
 	}
+
 }
