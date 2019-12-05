@@ -200,3 +200,42 @@ class TimeCoderImpl(StreamCoderImpl):
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
         return datetime.time(hours, minutes, seconds, milliseconds * 1000)
+
+
+class TimestampCoderImpl(StreamCoderImpl):
+
+    def __init__(self, precision):
+        self.precision = precision
+
+    def is_compact(self):
+        return self.precision <= 3
+
+    def encode_to_stream(self, value, out_stream, nested):
+        milliseconds, nanoseconds = self.timestamp_to_internal(value)
+        if self.is_compact():
+            assert nanoseconds == 0
+            out_stream.write_bigendian_int64(milliseconds)
+        else:
+            out_stream.write_bigendian_int64(milliseconds)
+            out_stream.write_bigendian_int32(nanoseconds)
+
+    def decode_from_stream(self, in_stream, nested):
+        if self.is_compact():
+            milliseconds = in_stream.read_bigendian_int64()
+            nanoseconds = 0
+        else:
+            milliseconds = in_stream.read_bigendian_int64()
+            nanoseconds = in_stream.read_bigendian_int32()
+        return self.internal_to_timestamp(milliseconds, nanoseconds)
+
+    def timestamp_to_internal(self, timestamp):
+        seconds = int(timestamp.replace(tzinfo=datetime.timezone.utc).timestamp())
+        microseconds_of_second = timestamp.microsecond
+        milliseconds = seconds * 1000 + microseconds_of_second // 1000
+        nanoseconds = microseconds_of_second % 1000 * 1000
+        return milliseconds, nanoseconds
+
+    def internal_to_timestamp(self, milliseconds, nanoseconds):
+        second, microsecond = (milliseconds // 1000,
+                               milliseconds % 1000 * 1000 + nanoseconds // 1000)
+        return datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond)

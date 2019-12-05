@@ -22,7 +22,7 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder
+    TimeCoder, TimestampCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -85,6 +85,13 @@ class CodersTest(unittest.TestCase):
         import datetime
         coder = TimeCoder()
         self.check_coder(coder, datetime.time(hour=11, minute=11, second=11, microsecond=123000))
+
+    def test_timestamp_coder(self):
+        import datetime
+        coder = TimestampCoder(3)
+        self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123000))
+        coder = TimestampCoder(6)
+        self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123456))
 
 
 if __name__ == '__main__':
