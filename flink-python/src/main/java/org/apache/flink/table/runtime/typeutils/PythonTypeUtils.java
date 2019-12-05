@@ -35,7 +35,9 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
@@ -45,9 +47,11 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -60,6 +64,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -220,6 +225,12 @@ public final class PythonTypeUtils {
 
 		@Override
 		protected TypeSerializer defaultMethod(LogicalType logicalType) {
+			if (logicalType instanceof LegacyTypeInformationType) {
+				Class<?> typeClass = ((LegacyTypeInformationType) logicalType).getTypeInformation().getTypeClass();
+				if (typeClass == BigDecimal.class) {
+					return BigDecSerializer.INSTANCE;
+				}
+			}
 			throw new UnsupportedOperationException(String.format(
 				"Python UDF doesn't support logical type %s currently.", logicalType.asSummaryString()));
 		}
@@ -274,6 +285,11 @@ public final class PythonTypeUtils {
 			TypeSerializer<?> keyTypeSerializer = keyType.accept(this);
 			TypeSerializer<?> valueTypeSerializer = valueType.accept(this);
 			return new BaseMapSerializer(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
+		}
+
+		@Override
+		public TypeSerializer visit(DecimalType decimalType) {
+			return new DecimalSerializer(decimalType.getPrecision(), decimalType.getScale());
 		}
 	}
 
@@ -397,6 +413,21 @@ public final class PythonTypeUtils {
 		}
 
 		@Override
+		public FlinkFnApi.Schema.FieldType visit(DecimalType decimalType) {
+			FlinkFnApi.Schema.FieldType.Builder builder =
+				FlinkFnApi.Schema.FieldType.newBuilder()
+					.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
+					.setNullable(decimalType.isNullable());
+
+			FlinkFnApi.Schema.DecimalType.Builder decimalTypeBuilder =
+				FlinkFnApi.Schema.DecimalType.newBuilder()
+					.setPrecision(decimalType.getPrecision())
+					.setScale(decimalType.getScale());
+			builder.setDecimalType(decimalTypeBuilder);
+			return builder.build();
+		}
+
+		@Override
 		public FlinkFnApi.Schema.FieldType visit(ArrayType arrayType) {
 			FlinkFnApi.Schema.FieldType.Builder builder =
 				FlinkFnApi.Schema.FieldType.newBuilder()
@@ -445,6 +476,23 @@ public final class PythonTypeUtils {
 
 		@Override
 		protected FlinkFnApi.Schema.FieldType defaultMethod(LogicalType logicalType) {
+			if (logicalType instanceof LegacyTypeInformationType) {
+				Class<?> typeClass = ((LegacyTypeInformationType) logicalType).getTypeInformation().getTypeClass();
+				if (typeClass == BigDecimal.class) {
+					FlinkFnApi.Schema.FieldType.Builder builder =
+						FlinkFnApi.Schema.FieldType.newBuilder()
+							.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
+							.setNullable(logicalType.isNullable());
+					// Because we can't get precision and scale from legacy BIG_DEC_TYPE_INFO,
+					// we set the precision and scale to default value compatible with python.
+					FlinkFnApi.Schema.DecimalType.Builder decimalTypeBuilder =
+						FlinkFnApi.Schema.DecimalType.newBuilder()
+							.setPrecision(38)
+							.setScale(18);
+					builder.setDecimalType(decimalTypeBuilder);
+					return builder.build();
+				}
+			}
 			throw new UnsupportedOperationException(String.format(
 				"Python UDF doesn't support logical type %s currently.", logicalType.asSummaryString()));
 		}
