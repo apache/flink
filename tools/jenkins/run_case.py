@@ -55,6 +55,15 @@ def end_server(flink_home):
 
 
 def get_scenarios(scenario_file_name, test_jar):
+    """
+    parser file which contains serval scenarios,it's content likes this:
+    classPath       scenarioName      jobparam1     jobparams2
+    org.apache.Test testScenario1     aaa           bbb
+    ……
+    :param scenario_file_name: scenario's file
+    :param test_jar:
+    :return: list of scenarios
+    """
     scenario_file = open(scenario_file_name)
     line = scenario_file.readline()
     params_name = []
@@ -89,16 +98,10 @@ def get_scenarios(scenario_file_name, test_jar):
 
 
 def get_avg(values):
-    sumvalues = 0
-    value_num = 0
-    for value in values:
-        if value > 0:
-            sumvalues = sumvalues + value
-            value_num = value_num + 1
-    if value_num > 0:
-        return sumvalues / value_num
+    if len(values) == 0:
+        return 0.0
     else:
-        return 0
+        return sum(values) * 1.0 / len(values)
 
 
 def run_cases(scenario_file_name, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10):
@@ -119,7 +122,7 @@ def run_cases(scenario_file_name, flink_home, am_seserver_dddress, inter_nums=10
                 total_qps.append(qps)
                 time.sleep(wait_minute)
         avg_qps = get_avg(total_qps)
-        logger.info("The avg qps of %'s  is %s" % (scenario_name, avg_qps))
+        logger.info("The avg qps of %s's  is %s" % (scenario_name, avg_qps))
 
 
 if __name__ == "__main__":

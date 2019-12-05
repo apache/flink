@@ -29,7 +29,7 @@ def timeout_callback(p):
     try:
         p.kill()
     except Exception as error:
-        print error
+        logger.error(error)
 
 
 def run_command(cmd, timeout=12000):
