@@ -65,30 +65,29 @@ public class TableResultUtils {
 	 * @param table		Flink table to convert
 	 * @return			Converted Java list
 	 */
-	@SuppressWarnings("unchecked")
-	public static List<Row> tableResultToList(Table table) throws Exception {
-		final TableEnvironment tEnv = ((TableImpl) table).getTableEnvironment();
-		final String id = new AbstractID().toString();
-		final TableSchema schema = buildNewTableSchema(table);
-		final DataType rowDataType = schema.toRowDataType();
-		final TypeSerializer<Row> serializer =
-			(TypeSerializer<Row>) TypeInfoDataTypeConverter
-				.fromDataTypeToTypeInfo(rowDataType)
-				.createSerializer(new ExecutionConfig());
-		final Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
-		final TableResultSink sink = new TableResultSink(schema, outputFormat);
+	public static List<Row> collectToList(Table table) throws Exception {
+		TableEnvironment tEnv = ((TableImpl) table).getTableEnvironment();
+		String id = new AbstractID().toString();
+		TableSchema schema = buildNewTableSchema(table);
+		DataType rowDataType = schema.toRowDataType();
 
-		final String tableName = table.toString();
-		final String sinkName = "tableResultSink_" + tableName + "_" + id;
-		final String jobName = "tableResultToList_" + tableName + "_" + id;
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Row> serializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
+			.fromDataTypeToTypeInfo(rowDataType)
+			.createSerializer(new ExecutionConfig());
+		Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
+		TableResultSink sink = new TableResultSink(schema, outputFormat);
 
-		tEnv.registerTableSink(sinkName, sink);
-		tEnv.insertInto(sinkName, table);
+		String tableName = table.toString();
+		String sinkName = "tableResultSink_" + tableName + "_" + id;
+		String jobName = "tableResultToList_" + tableName + "_" + id;
 
-		final List<Row> deserializedList;
+		List<Row> deserializedList;
 		try {
-			final JobExecutionResult executionResult = tEnv.execute(jobName);
-			final ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
+			tEnv.registerTableSink(sinkName, sink);
+			tEnv.insertInto(sinkName, table);
+			JobExecutionResult executionResult = tEnv.execute(jobName);
+			ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
 			deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
 		} finally {
 			tEnv.dropTemporaryTable(sinkName);
@@ -105,19 +104,18 @@ public class TableResultUtils {
 	 * for external output.
 	 */
 	private static TableSchema buildNewTableSchema(Table table) {
-		final TableSchema oldSchema = table.getSchema();
-		final TableSchema.Builder schemaBuilder = TableSchema.builder();
+		TableSchema oldSchema = table.getSchema();
+		DataType[] oldTypes = oldSchema.getFieldDataTypes();
+		String[] oldNames = oldSchema.getFieldNames();
+
+		TableSchema.Builder schemaBuilder = TableSchema.builder();
 		for (int i = 0; i < oldSchema.getFieldCount(); i++) {
 			// change to default conversion class
-			final DataType fieldType = LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
-				LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(
-					oldSchema.getFieldDataType(i).orElseThrow(
-						() -> new IndexOutOfBoundsException(
-							"Table schema field index out of bound. This is impossible."))));
-			final String fieldName = oldSchema.getFieldName(i).orElseThrow(
-				() -> new IndexOutOfBoundsException("Table schema field index out of bound. This is impossible."));
+			DataType fieldType = LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+				LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(oldTypes[i]));
+			String fieldName = oldNames[i];
 			if (fieldType.getLogicalType() instanceof TimestampType) {
-				final TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
+				TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
 				if (!timestampType.getKind().equals(TimestampKind.REGULAR)) {
 					// converts `TIME ATTRIBUTE(ROWTIME)`/`TIME ATTRIBUTE(PROCTIME)` to `TIMESTAMP(3)` for sink
 					schemaBuilder.field(fieldName, DataTypes.TIMESTAMP(3));
@@ -133,9 +131,9 @@ public class TableResultUtils {
 	 * A {@link AppendStreamTableSink} which stores rows into {@link Accumulator}s.
 	 */
 	private static class TableResultSink implements AppendStreamTableSink<Row> {
-		private TableSchema schema;
-		private DataType rowType;
-		private Utils.CollectHelper<Row> outputFormat;
+		private final TableSchema schema;
+		private final DataType rowType;
+		private final Utils.CollectHelper<Row> outputFormat;
 
 		TableResultSink(TableSchema schema, Utils.CollectHelper<Row> outputFormat) {
 			this.schema = schema;

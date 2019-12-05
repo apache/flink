@@ -99,7 +99,7 @@ public class HiveTableSourceTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test");
-		List<Row> rows = TableResultUtils.tableResultToList(src);
+		List<Row> rows = TableResultUtils.collectToList(src);
 
 		Assert.assertEquals(4, rows.size());
 		Assert.assertEquals("1,1,a,1000,1.11", rows.get(0).toString());
@@ -126,7 +126,7 @@ public class HiveTableSourceTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.complex_test");
-		List<Row> rows = TableResultUtils.tableResultToList(src);
+		List<Row> rows = TableResultUtils.collectToList(src);
 		Assert.assertEquals(1, rows.size());
 		assertArrayEquals(array, (Integer[]) rows.get(0).getField(0));
 		assertEquals(map, rows.get(0).getField(1));
@@ -155,7 +155,7 @@ public class HiveTableSourceTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt");
-		List<Row> rows = TableResultUtils.tableResultToList(src);
+		List<Row> rows = TableResultUtils.collectToList(src);
 
 		assertEquals(4, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
@@ -193,7 +193,7 @@ public class HiveTableSourceTest {
 		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
 				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		// second check execute results
-		List<Row> rows = TableResultUtils.tableResultToList(src);
+		List<Row> rows = TableResultUtils.collectToList(src);
 		assertEquals(2, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
@@ -223,7 +223,7 @@ public class HiveTableSourceTest {
 			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
-			List<Row> rows = TableResultUtils.tableResultToList(table);
+			List<Row> rows = TableResultUtils.collectToList(table);
 			assertEquals(2, rows.size());
 			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 			assertArrayEquals(new String[]{"2013,2", "2014,1"}, rowStrings);
@@ -257,7 +257,7 @@ public class HiveTableSourceTest {
 			assertTrue(logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan.contains(expectedExplain));
 
-			List<Row> rows = TableResultUtils.tableResultToList(table);
+			List<Row> rows = TableResultUtils.collectToList(table);
 			assertEquals(1, rows.size());
 			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 			assertArrayEquals(new String[]{"a"}, rowStrings);

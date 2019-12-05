@@ -25,7 +25,7 @@ import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
@@ -39,12 +39,12 @@ public class TableResultUtilsITCase extends BatchTestBase {
 
 	@Test
 	public void testTableResultToList() throws Exception {
-		final List<Row> sourceData = new ArrayList<>();
-		sourceData.add(row(1, 11L));
-		sourceData.add(row(1, 12L));
-		sourceData.add(row(2, 21L));
-		sourceData.add(row(2, 22L));
-		sourceData.add(row(3, 31L));
+		final List<Row> sourceData = Arrays.asList(
+			Row.of(1, 11L),
+			Row.of(1, 12L),
+			Row.of(2, 21L),
+			Row.of(2, 22L),
+			Row.of(3, 31L));
 		registerJavaCollection(
 			"T",
 			sourceData,
@@ -52,24 +52,16 @@ public class TableResultUtilsITCase extends BatchTestBase {
 			"a, b");
 
 		final String sql = "SELECT sum(b) FROM T GROUP BY a HAVING a < 3 ORDER BY a";
-		final List<Row> expected = new ArrayList<>();
-		expected.add(row(23L));
-		expected.add(row(43L));
+		final List<Row> expected = Arrays.asList(
+			Row.of(23L),
+			Row.of(43L));
 
 		final Table table = tEnv().sqlQuery(sql);
 		// run multiple times to make sure no errors will occur
 		// when the utility method is called a second time
 		for (int i = 0; i < 2; i++) {
-			final List<Row> actual = TableResultUtils.tableResultToList(table);
+			final List<Row> actual = TableResultUtils.collectToList(table);
 			assertEquals(expected, actual);
 		}
-	}
-
-	private static Row row(Object ...args) {
-		final Row row = new Row(args.length);
-		for (int i = 0; i < args.length; i++) {
-			row.setField(i, args[i]);
-		}
-		return row;
 	}
 }

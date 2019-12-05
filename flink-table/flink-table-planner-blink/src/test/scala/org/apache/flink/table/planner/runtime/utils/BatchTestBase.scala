@@ -286,7 +286,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableResultUtils.tableResultToList(table).asScala
+  def executeQuery(table: Table): Seq[Row] = TableResultUtils.collectToList(table).asScala
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)
