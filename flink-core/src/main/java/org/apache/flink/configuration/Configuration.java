@@ -757,7 +757,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	@Override
-	public <T> WritableConfig set(ConfigOption<T> option, T value) {
+	public <T> Configuration set(ConfigOption<T> option, T value) {
 		setValueInternal(option.key(), value);
 		return this;
 	}
