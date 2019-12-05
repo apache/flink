@@ -267,19 +267,19 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func27(f17)",
       "1990-10-14 12:10:10")
 
-    // Func28 needs a Long parameter, pass a Long
-    testAllApis(
-      Func28('f18),
-      "Func28(f18)",
-      "Func28(f18)",
-      "1970-01-01 08:00:00")
-
     // Func28 needs a Long parameter, pass a Instant
     testAllApis(
       Func28('f17),
       "Func28(f17)",
       "Func28(f17)",
       "1990-10-14 12:10:10")
+
+    testAllApis(
+      Func30('f17),
+      "Func30(f17)",
+      "Func30(f17)",
+      "1990-10-14 12:10:10"
+    )
 
     // Func29 declares return a Instant, but returns a Long actually
     // the framework helps convert Long to Instant
@@ -299,13 +299,6 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func27(f17)",
       "Func27(f17)",
       "1990-10-14 12:10:10")
-
-    // Func28 needs a Long parameter, pass a Long
-    testAllApis(
-      Func28('f18),
-      "Func28(f18)",
-      "Func28(f18)",
-      "1969-12-31 16:00:00")
 
     // Func28 needs a Long parameter, pass a Instant
     testAllApis(
@@ -564,6 +557,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func27" -> Func27,
     "Func28" -> Func28,
     "Func29" -> Func29,
+    "Func30" -> Func30,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,

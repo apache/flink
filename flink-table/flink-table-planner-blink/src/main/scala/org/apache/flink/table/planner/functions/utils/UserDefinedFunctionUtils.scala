@@ -735,8 +735,6 @@ object UserDefinedFunctionUtils {
         candidate == classOf[LocalDateTime] && expected == classOf[SqlTimestamp] ||
         candidate == classOf[SqlTimestamp] && expected == classOf[Instant] ||
         candidate == classOf[Instant] && expected == classOf[SqlTimestamp] ||
-        candidate == classOf[Instant] && (expected == classOf[Long] ||
-          expected == classOf[JLong]) ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
         candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||

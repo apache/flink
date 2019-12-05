@@ -440,6 +440,9 @@ object Func28 extends ScalarFunction {
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     BasicTypeInfo.INSTANT_TYPE_INFO
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(BasicTypeInfo.INSTANT_TYPE_INFO)
 }
 
 @SerialVersionUID(1L)
@@ -451,6 +454,20 @@ object Func29 extends ScalarFunction {
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     BasicTypeInfo.INSTANT_TYPE_INFO
 }
+
+@SerialVersionUID(1L)
+object Func30 extends ScalarFunction {
+  def eval(c: java.lang.Long): Instant = {
+    Instant.ofEpochMilli(c)
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    BasicTypeInfo.INSTANT_TYPE_INFO
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(BasicTypeInfo.INSTANT_TYPE_INFO)
+}
+
 
 /**
   * A scalar function that always returns TRUE if opened correctly.

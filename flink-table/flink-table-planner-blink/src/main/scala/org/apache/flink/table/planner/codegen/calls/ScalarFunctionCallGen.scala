@@ -29,9 +29,8 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUti
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-import java.lang.{Long => JLong}
 
 /**
   * Generates a call to user-defined [[ScalarFunction]].
@@ -67,28 +66,25 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       boxedTypeTermForType(returnType)
     }
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
-    val evalResult =
-      if (returnType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE
-          && (resultClass == classOf[Long] || resultClass == classOf[JLong])) {
-        // Convert Long to SqlTimestamp if the UDX's returnType is
-        // TIMESTAMP WITH LOCAL TIME ZONE but returns Long actually
-        s"""
-           |$SQL_TIMESTAMP.fromEpochMillis(
-           |  $functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")}))
-         """.stripMargin
-      } else {
-        s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
-      }
+    val evalResult = s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
     val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
       scalarFunction, arguments, operandTypes)
     val setResult = {
-      if (resultClass.isPrimitive) {
+      if (resultClass.isPrimitive && isInternalClass(resultExternalType)) {
         s"$resultTerm = $evalResult;"
       } else {
         val javaTerm = newName("javaResult")
         // it maybe a Internal class, so use resultClass is most safety.
-        val javaTypeTerm = resultClass.getCanonicalName
-        val internal = genToInternalIfNeeded(ctx, resultExternalType, javaTerm)
+        val boxedResultClass = boxedTypeForUnboxType(resultClass)
+        val javaTypeTerm = boxedResultClass.getCanonicalName
+        val resultExternalTypeWithResultClass =
+          if (resultExternalType.getLogicalType.supportsOutputConversion(boxedResultClass)) {
+            resultExternalType.bridgedTo(boxedResultClass)
+          } else {
+            resultExternalType
+          }
+        val internal = genToInternalIfNeeded(
+          ctx, resultExternalTypeWithResultClass, javaTerm)
         s"""
             |$javaTypeTerm $javaTerm = ($javaTypeTerm) $evalResult;
             |$resultTerm = $javaTerm == null ? null : ($internal);
@@ -148,24 +144,22 @@ object ScalarFunctionCallGen {
     }
 
     parameterClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
-      // Convert TIMESTAMP WITH LOCAL TIME ZONE to Long if the UDX need Long
-      // but the user pass TIMESTAMP WITH LOCAL TIME ZONE instead.
-      val newOperatorExpr =
-        if (operandExpr.resultType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE
-            && (paramClass == classOf[Long] || paramClass == classOf[JLong])) {
-          val longTerm = s"${operandExpr.resultTerm}.getMillisecond()"
-          operandExpr.copy(resultTerm = longTerm)
-        } else {
-          operandExpr
-        }
-
-      if (paramClass.isPrimitive) {
-        newOperatorExpr
+      if (paramClass.isPrimitive && isInternalClass(signatureTypes(i))) {
+        operandExpr
       } else {
+        val boxedParamClass = boxedTypeForUnboxType(paramClass)
+        val signatureType =
+          if (signatureTypes(i)
+              .getLogicalType
+              .supportsOutputConversion(boxedParamClass)) {
+            signatureTypes(i).bridgedTo(boxedParamClass)
+          } else {
+            signatureTypes(i)
+          }
         val externalResultTerm = genToExternalIfNeeded(
-          ctx, signatureTypes(i), newOperatorExpr.resultTerm)
+          ctx, signatureType, operandExpr.resultTerm)
         val exprOrNull = s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
-        newOperatorExpr.copy(resultTerm = exprOrNull)
+        operandExpr.copy(resultTerm = exprOrNull)
       }
     }
   }
