@@ -45,6 +45,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -283,8 +284,12 @@ public class OrcColumnarRowSplitReaderTest {
 			for (int i = 0; i < rowSize - 1; i++) {
 				col0.vector[i] = i;
 				col1.vector[i] = i;
-				col2.time[i] = i * 1000;
-				col2.nanos[i] = i;
+
+				Timestamp timestamp = Timestamp.valueOf(
+						padZero(4, i + 1000) + "-01-01 00:00:00." + i);
+				col2.time[i] = timestamp.getTime();
+				col2.nanos[i] = timestamp.getNanos();
+
 				col3.vector[i] = i;
 				col4.vector[i] = i;
 			}
@@ -352,7 +357,8 @@ public class OrcColumnarRowSplitReaderTest {
 					Assert.assertFalse(row.isNullAt(3));
 					Assert.assertFalse(row.isNullAt(4));
 					Assert.assertEquals(
-							SqlTimestamp.fromEpochMillis(cnt * 1000, (int) cnt),
+							SqlTimestamp.fromTimestamp(
+									Timestamp.valueOf(padZero(4, cnt + 1000) + "-01-01 00:00:00." + cnt)),
 							row.getTimestamp(0, 9));
 					Assert.assertEquals(cnt, row.getFloat(1), 0);
 					Assert.assertEquals(cnt, row.getDouble(2), 0);
@@ -379,6 +385,21 @@ public class OrcColumnarRowSplitReaderTest {
 		}
 		// check that all rows have been read
 		assertEquals(rowSize, cnt);
+	}
+
+	private static String padZero(int len, Object o) {
+		String str = o.toString();
+		int strLen = str.length();
+		if (strLen == len) {
+			return str;
+		} else if (strLen > len) {
+			throw new IllegalArgumentException();
+		}
+		StringBuilder builder = new StringBuilder(len);
+		for (int i = 0; i < len - strLen; i++) {
+			builder.append("0");
+		}
+		return builder.append(str).toString();
 	}
 
 	private OrcColumnarRowSplitReader createReader(
