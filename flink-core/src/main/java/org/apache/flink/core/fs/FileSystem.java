@@ -35,6 +35,8 @@ import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -294,7 +296,8 @@ public abstract class FileSystem {
 			factorySuppliers.add(() -> ServiceLoader.load(FileSystemFactory.class).iterator());
 
 			if (pluginManager != null) {
-				factorySuppliers.add(() -> pluginManager.load(FileSystemFactory.class));
+				factorySuppliers.add(() ->
+					Iterators.transform(pluginManager.load(FileSystemFactory.class), PluginFileSystemFactory::of));
 			}
 
 			final List<FileSystemFactory> fileSystemFactories = loadFileSystemFactories(factorySuppliers);
