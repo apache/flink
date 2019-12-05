@@ -36,6 +36,18 @@ import java.time.ZoneId;
  *
  * <p>For more advanced configuration, users can directly access the underlying key-value map via
  * {@link #getConfiguration()}. Currently, key-value options are only supported for the Blink planner.
+ * Users can configure also underlying execution parameters via this object. E.g.
+ *
+ * <pre>
+ * {@code
+ * tEnv.getConfig().addConfiguration(
+ *          new Configuration()
+ *              .set(CoreOptions.DEFAULT_PARALLELISM, 128)
+ *              .set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(800))
+ *              .set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(30))
+ *      );
+ * }
+ * </pre>
  *
  * <p>Note: Because options are read at different point in time when performing operations, it is
  * recommended to set configuration options early after instantiating a table environment.
