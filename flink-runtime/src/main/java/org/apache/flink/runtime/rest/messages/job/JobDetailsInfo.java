@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexIOMetricsInfo;
 import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
@@ -279,7 +279,7 @@ public class JobDetailsInfo implements ResponseBody {
 		private final Map<ExecutionState, Integer> tasksPerState;
 
 		@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS)
-		private final IOMetricsInfo jobVertexMetrics;
+		private final JobVertexIOMetricsInfo jobVertexMetrics;
 
 		@JsonCreator
 		public JobVertexDetailsInfo(
@@ -291,7 +291,7 @@ public class JobDetailsInfo implements ResponseBody {
 				@JsonProperty(FIELD_NAME_JOB_VERTEX_END_TIME) long endTime,
 				@JsonProperty(FIELD_NAME_JOB_VERTEX_DURATION) long duration,
 				@JsonProperty(FIELD_NAME_TASKS_PER_STATE) Map<ExecutionState, Integer> tasksPerState,
-				@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS) IOMetricsInfo jobVertexMetrics) {
+				@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS) JobVertexIOMetricsInfo jobVertexMetrics) {
 			this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
 			this.name = Preconditions.checkNotNull(name);
 			this.parallelism = parallelism;
@@ -344,7 +344,7 @@ public class JobDetailsInfo implements ResponseBody {
 		}
 
 		@JsonIgnore
-		public IOMetricsInfo getJobVertexMetrics() {
+		public JobVertexIOMetricsInfo getJobVertexMetrics() {
 			return jobVertexMetrics;
 		}
 

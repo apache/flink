@@ -37,7 +37,7 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexIOMetricsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -201,8 +201,11 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 				jobId.toString(),
 				ejv.getJobVertexId().toString());
 		}
-
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
+		final int taskSize = ejv.getTaskVertices().length;
+		final float outPoolUsageAvg = counts.getUsageOutPool() / (taskSize * 1.0f);
+		final float inputExclusiveBuffersUsageAvg = counts.getUsageInputExclusiveBuffers() / (taskSize * 1.0f);
+		final float inputFloatingBuffersUsageAvg = counts.getUsageInputFloatingBuffers() / (taskSize * 1.0f);
+		final JobVertexIOMetricsInfo jobVertexMetrics = new JobVertexIOMetricsInfo(
 			counts.getNumBytesIn(),
 			counts.isNumBytesInComplete(),
 			counts.getNumBytesOut(),
@@ -212,7 +215,13 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			counts.getNumRecordsOut(),
 			counts.isNumRecordsOutComplete(),
 			counts.isBackPressured(),
-			counts.isBackPressuredComplete());
+			counts.isBackPressuredComplete(),
+			outPoolUsageAvg,
+			counts.isUsageOutPoolComplete(),
+			inputExclusiveBuffersUsageAvg,
+			counts.isUsageInputExclusiveBuffersComplete(),
+			inputFloatingBuffersUsageAvg,
+			counts.isUsageInputFloatingBuffersComplete());
 
 		return new JobDetailsInfo.JobVertexDetailsInfo(
 			ejv.getJobVertexId(),
