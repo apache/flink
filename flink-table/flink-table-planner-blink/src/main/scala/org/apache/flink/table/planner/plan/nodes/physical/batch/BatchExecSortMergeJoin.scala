@@ -237,7 +237,6 @@ class BatchExecSortMergeJoin(
     val rightSortGen = newSortGen(rightAllKey, rightType)
 
     val operator = new SortMergeJoinOperator(
-      0.5,
       externalBufferMemory,
       flinkJoinType,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
