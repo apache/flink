@@ -151,9 +151,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 				case DOUBLE:
 				case DATE:
 				case TIME_WITHOUT_TIME_ZONE:
-				case TIMESTAMP_WITHOUT_TIME_ZONE:
 				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 					break;
+				// temporarily disable the vectorized reader for timestamp
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
 				case TIMESTAMP_WITH_TIME_ZONE:
 				case INTERVAL_YEAR_MONTH:
 				case INTERVAL_DAY_TIME:
@@ -172,9 +173,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			}
 		}
 
-		// temporarily disable the vectorized reader, until we figure out how to read timestamps with it
-//		LOG.info("Use flink orc ColumnarRow reader.");
-		return false;
+		LOG.info("Use flink orc ColumnarRow reader.");
+		return true;
 	}
 
 	@Override
