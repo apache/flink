@@ -23,6 +23,7 @@ import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.InfoLogLevel;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
@@ -31,6 +32,9 @@ import org.rocksdb.DBOptions;
  *
  * <p>Some of these settings are based on experiments by the Flink community, some follow
  * guides from the RocksDB project.
+ *
+ * <p>All of them effectively disable the RocksDB log by default because this file would grow
+ * indefinitely and will be deleted with the TM anyway.
  */
 public enum PredefinedOptions {
 
@@ -40,13 +44,22 @@ public enum PredefinedOptions {
 	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
+	 *
+	 * <p>The following options are set:
+	 * <ul>
+	 *     <li>setUseFsync(false)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
+	 * </ul>
 	 */
 	DEFAULT {
 
 		@Override
 		public DBOptions createDBOptions() {
 			return new DBOptions()
-					.setUseFsync(false);
+					.setUseFsync(false)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
@@ -71,6 +84,8 @@ public enum PredefinedOptions {
 	 *     <li>setUseFsync(false)</li>
 	 *     <li>setDisableDataSync(true)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
 	 * </ul>
 	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
@@ -84,7 +99,9 @@ public enum PredefinedOptions {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setMaxOpenFiles(-1);
+					.setMaxOpenFiles(-1)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
@@ -114,6 +131,8 @@ public enum PredefinedOptions {
 	 *     <li>setMaxWriteBufferNumber(4)</li>
 	 *     <li>setUseFsync(false)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
 	 *     <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)</li>
 	 *     <li>BlockBasedTableConfigsetBlockSize(128 KBytes)</li>
 	 * </ul>
@@ -129,7 +148,9 @@ public enum PredefinedOptions {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setMaxOpenFiles(-1);
+					.setMaxOpenFiles(-1)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
@@ -169,6 +190,8 @@ public enum PredefinedOptions {
 	 *     <li>setUseFsync(false)</li>
 	 *     <li>setDisableDataSync(true)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
 	 * </ul>
 	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
@@ -181,7 +204,9 @@ public enum PredefinedOptions {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setMaxOpenFiles(-1);
+					.setMaxOpenFiles(-1)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
