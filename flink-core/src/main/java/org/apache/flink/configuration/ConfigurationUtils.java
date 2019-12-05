@@ -162,7 +162,9 @@ public class ConfigurationUtils {
 		Map<String, String> configs = new HashMap<>();
 		String[] configStrs = dynamicConfigsStr.split(" ");
 
-		checkArgument(configStrs.length % 2 == 0);
+		checkArgument(
+			configStrs.length % 2 == 0,
+			"Dynamic option string contained odd number of arguments: #arguments=%s, (%s)", configStrs.length, dynamicConfigsStr);
 		for (int i = 0; i < configStrs.length; ++i) {
 			String configStr = configStrs[i];
 			if (i % 2 == 0) {
@@ -174,15 +176,19 @@ public class ConfigurationUtils {
 			}
 		}
 
-		checkArgument(configs.containsKey(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key()));
-		checkArgument(configs.containsKey(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key()));
-		checkArgument(configs.containsKey(TaskManagerOptions.TASK_HEAP_MEMORY.key()));
-		checkArgument(configs.containsKey(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key()));
-		checkArgument(configs.containsKey(TaskManagerOptions.SHUFFLE_MEMORY_MAX.key()));
-		checkArgument(configs.containsKey(TaskManagerOptions.SHUFFLE_MEMORY_MIN.key()));
-		checkArgument(configs.containsKey(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
+		checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.TASK_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
+		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MIN.key());
+		checkConfigContains(configs, TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
 
 		return configs;
+	}
+
+	private static void checkConfigContains(Map<String, String> configs, String key) {
+		checkArgument(configs.containsKey(key), "Key %s is missing present from dynamic configs.", key);
 	}
 
 	@VisibleForTesting
