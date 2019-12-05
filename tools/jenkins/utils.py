@@ -25,7 +25,7 @@ from threading import Timer
 
 
 def timeout_callback(p):
-    print 'exe time out call back'
+    logger.warning('exe time out call back')
     try:
         p.kill()
     except Exception as error:
@@ -47,7 +47,7 @@ def run_command(cmd, timeout=12000):
                 break
             else:
                 lines.append(buff)
-    except Exception, e:
+    except Exception as e:
         logger.error(traceback.format_exc())
         return 1, "", ""
     finally:

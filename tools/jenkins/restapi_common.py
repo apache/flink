@@ -22,7 +22,8 @@
 #
 # Note by AiHua Li:
 
-import urllib2
+import urllib
+import urllib.request
 import json
 from logger import logger
 
@@ -35,9 +36,9 @@ def execute_get(url):
     """
     result = ""
     try:
-        result = urllib2.urlopen(url, timeout=300).read()
-    except urllib2.URLError, e:
-        logger.error(e.reason)
+        result = urllib.request.urlopen(url, timeout=300).read()
+    except Exception as e:
+        logger.error(e)
     return result
 
 

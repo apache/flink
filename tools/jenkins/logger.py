@@ -20,6 +20,7 @@
 
 
 import logging
+import logging.handlers
 import os
 
 
@@ -38,7 +39,7 @@ class Logger(object):
         logs_dir = "%s/logs" % current_dir
         if not os.path.exists(logs_dir):
             os.path.mkdir(logs_dir)
-        self._logger.handlers.remove()
+
         self._logger.setLevel(logging.DEBUG)
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)

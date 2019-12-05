@@ -26,6 +26,7 @@
 import os
 from logger import logger
 from utils import run_command
+from restapi_common import execute_get
 
 
 def init_standalone_env(host_list, user, source_path, dest_path):
@@ -38,29 +39,29 @@ def init_standalone_env(host_list, user, source_path, dest_path):
 
 def get_host_list(slave_file):
     hostlist = []
-    slavefile = open(slave_file, "r")
-    line = slavefile.readline()
-    while line:
-        hostlist.append(line)
-        line = slavefile.readline()
-    slavefile.close()
+    data = ""
+    with open(slave_file) as file:
+        datas = file.read()
+    for data in datas.split("\n"):
+        if not(data == "" or data.startswith("#")):
+                hostlist.append(data)
     return hostlist
 
 
 def package(flink_home):
-    cmd = "cd %s; mvn clean install -B -U -DskipTests -Drat.skip=true -Dcheckstyle.skip=true --settings " % flink_home
+    cmd = "cd %s; mvn clean install -B -U -DskipTests -Drat.skip=true -Dcheckstyle.skip=true " % flink_home
     status, output = run_command(cmd)
     if output.find("BUILD SUCCESS") > 0:
-        return 0
+        return True
     else:
-        return 1
+        return False
 
 
 def get_target(flink_home):
     cmd = "ls -lt %s/flink-dist/target/flink-*-bin/ |grep -v tar.gz"
     status, output = run_command(cmd)
     if status == 0:
-        target_file = output.split("\n")
+        target_file = output.split("\n")[0]
         return target_file, "%s/flink-dist/target/%s-bin/%s" % (flink_home, target_file, target_file)
     else:
         return "", ""
@@ -69,6 +70,7 @@ def get_target(flink_home):
 def update_conf_slaves(dest_path, slave_file):
     cmd = "cp %s %s/conf/" % (slave_file, dest_path)
     run_command(cmd)
+
 
 def init_env():
     flink_home = os.getcwd()
@@ -91,3 +93,5 @@ def init_env():
 
 if __name__ == "__main__":
     init_env()
+
+

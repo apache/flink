@@ -44,9 +44,9 @@ def start_server(flink_home):
     cmd = "bash %s/bin/start_yarn.sh" % flink_home
     status, output = run_command(cmd)
     if status == 0:
-        return 0
+        return True
     else:
-        return 1
+        return False
 
 
 def end_server(flink_home):
@@ -64,36 +64,36 @@ def get_scenarios(scenario_file_name, test_jar):
     :param test_jar:
     :return: list of scenarios
     """
-    scenario_file = open(scenario_file_name)
-    line = scenario_file.readline()
     params_name = []
     scenarios = []
     scenario_names = []
     linenum = 0
-    while line:
+    with open(scenario_file_name) as file:
+        datas = file.read()
+    for data in datas.split("\n"):
+        if data.startswith("#") or data == "":
+            continue
         linenum = linenum + 1
         cmd = ""
         scenario_name = ""
         if linenum == 1:
-            params_name = line.split(" ")
+            params_name = data.split(" ")
             for index in range(0, len(params_name)):
                 params_name[index] = params_name.get(index).trip()
             if not params_name.contains("className"):
                 scenario_file.close()
                 return 1, []
         else:
-            params_value = line.split(" ")
+            params_value = data.split(" ")
             for index in len(params_name):
                 param = params_name.get(index)
                 if param == "className":
-                    cmd = "-c %s %s %s" % (params_value.get(index),test_jar,  cmd)
+                    cmd = "-c %s %s %s" % (params_value.get(index), test_jar,  cmd)
                 else:
                     cmd = "%s  --%s %s" % (cmd, param, params_value.get(index))
                 scenario_name = "%s_%s" % (scenario_name, param)
         scenario_names.append(scenario_name[1:])
         scenarios.append(cmd)
-        line = scenario_file.readline()
-    scenario_file.close()
     return 0, scenarios, scenario_names
 
 
