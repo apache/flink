@@ -321,7 +321,7 @@ class UserDefinedFunctionTests(object):
 
         def time_func(time_param):
             from datetime import time
-            assert time_param == time(hour=12, minute=0, second=0), \
+            assert time_param == time(hour=12, minute=0, second=0, microsecond=123000), \
                 'time_param is wrong value %s !' % time_param
             return time_param
 
@@ -359,21 +359,21 @@ class UserDefinedFunctionTests(object):
             "date_func", udf(date_func, [DataTypes.DATE()], DataTypes.DATE()))
 
         self.t_env.register_function(
-            "time_func", udf(time_func, [DataTypes.TIME()], DataTypes.TIME()))
+            "time_func", udf(time_func, [DataTypes.TIME(3)], DataTypes.TIME(3)))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
              DataTypes.BOOLEAN(), DataTypes.SMALLINT(), DataTypes.INT(),
              DataTypes.FLOAT(), DataTypes.DOUBLE(), DataTypes.BYTES(),
-             DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME()])
+             DataTypes.STRING(), DataTypes.DATE(), DataTypes.TIME(3)])
         self.t_env.register_table_sink("Results", table_sink)
 
         import datetime
         t = self.t_env.from_elements(
             [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
               bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
-              datetime.time(hour=12, minute=0, second=0))],
+              datetime.time(hour=12, minute=0, second=0, microsecond=123000))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -386,7 +386,7 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("i", DataTypes.BYTES()),
                  DataTypes.FIELD("j", DataTypes.STRING()),
                  DataTypes.FIELD("k", DataTypes.DATE()),
-                 DataTypes.FIELD("l", DataTypes.TIME())]))
+                 DataTypes.FIELD("l", DataTypes.TIME(3))]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
                  "tinyint_func(c), boolean_func(d),"
@@ -397,6 +397,7 @@ class UserDefinedFunctionTests(object):
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
+        # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
                            ["1,null,1,true,32767,-2147483648,1.23,1.98932,"
                             "[102, 108, 105, 110, 107],pyflink,2014-09-13,"

@@ -84,7 +84,7 @@ class CodersTest(unittest.TestCase):
     def test_time_coder(self):
         import datetime
         coder = TimeCoder()
-        self.check_coder(coder, datetime.time(hour=11, minute=11, second=11))
+        self.check_coder(coder, datetime.time(hour=11, minute=11, second=11, microsecond=123000))
 
 
 if __name__ == '__main__':
