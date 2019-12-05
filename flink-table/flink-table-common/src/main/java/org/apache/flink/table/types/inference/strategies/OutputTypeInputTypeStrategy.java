@@ -28,8 +28,8 @@ import java.util.List;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
- * Input type strategy that supplies the function's output {@link DataType} for each argument if
- * available.
+ * Input type strategy that supplies the function's output {@link DataType} for each unknown
+ * argument if available.
  */
 @Internal
 public final class OutputTypeInputTypeStrategy implements InputTypeStrategy {

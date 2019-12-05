@@ -203,7 +203,8 @@ public final class TypeInferenceUtil {
 
 		final AdaptedCallContext adaptedCallContext = adaptArguments(
 			typeInference,
-			callContext, surroundingInfo);
+			callContext,
+			surroundingInfo);
 
 		try {
 			validateInputTypes(

@@ -54,39 +54,39 @@ public class InputTypeStrategiesTest {
 			// no inference
 			TestSpec
 				.forInputStrategy(InputTypeStrategies.NOP)
-				.actualArgumentTypes(DataTypes.INT(), DataTypes.STRING())
+				.calledWithArgumentTypes(DataTypes.INT(), DataTypes.STRING())
 				.expectArgumentTypes(DataTypes.INT(), DataTypes.STRING()),
 
 			// incomplete inference
 			TestSpec
 				.forInputStrategy(InputTypeStrategies.NOP)
-				.actualArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
+				.calledWithArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
 				.expectErrorMessage("Invalid use of untyped NULL in arguments."),
 
 			// typed arguments help inferring a type
 			TestSpec
 				.forInputStrategy(InputTypeStrategies.NOP)
 				.typedArguments(DataTypes.INT(), DataTypes.STRING(), DataTypes.BOOLEAN())
-				.actualArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
+				.calledWithArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
 				.expectArgumentTypes(DataTypes.INT(), DataTypes.STRING(), DataTypes.BOOLEAN()),
 
 			// surrounding function helps inferring a type
 			TestSpec
 				.forInputStrategy(InputTypeStrategies.OUTPUT_TYPE)
 				.surroundingStrategy(InputTypeStrategies.explicit(DataTypes.BOOLEAN()))
-				.actualArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
+				.calledWithArgumentTypes(DataTypes.NULL(), DataTypes.STRING(), DataTypes.NULL())
 				.expectArgumentTypes(DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.BOOLEAN()),
 
 			// enrich data type with conversion class of INT
 			TestSpec
 				.forInputStrategy(createBridgingInputTypeStrategy())
-				.actualArgumentTypes(DataTypes.STRING(), DataTypes.INT())
+				.calledWithArgumentTypes(DataTypes.STRING(), DataTypes.INT())
 				.expectArgumentTypes(DataTypes.STRING(), DataTypes.INT().bridgedTo(int.class)),
 
 			// enrich data type with conversion class of varying INT
 			TestSpec
 				.forInputStrategy(createBridgingInputTypeStrategy())
-				.actualArgumentTypes(DataTypes.INT(), DataTypes.INT(), DataTypes.INT())
+				.calledWithArgumentTypes(DataTypes.INT(), DataTypes.INT(), DataTypes.INT())
 				.expectArgumentTypes(
 					DataTypes.INT().bridgedTo(int.class),
 					DataTypes.INT().bridgedTo(int.class),
@@ -95,7 +95,7 @@ public class InputTypeStrategiesTest {
 			// check function without arguments
 			TestSpec
 				.forInputStrategy(createBridgingInputTypeStrategy())
-				.actualArgumentTypes()
+				.calledWithArgumentTypes()
 				.expectArgumentTypes()
 		);
 	}
@@ -190,7 +190,7 @@ public class InputTypeStrategiesTest {
 			return this;
 		}
 
-		TestSpec actualArgumentTypes(DataType... dataTypes) {
+		TestSpec calledWithArgumentTypes(DataType... dataTypes) {
 			this.actualArgumentTypes = Arrays.asList(dataTypes);
 			return this;
 		}
