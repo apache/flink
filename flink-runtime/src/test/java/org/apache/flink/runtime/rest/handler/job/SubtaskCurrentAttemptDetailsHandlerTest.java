@@ -41,7 +41,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubTaskIOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -74,12 +74,20 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 		final long bytesOut = 10L;
 		final long recordsIn = 20L;
 		final long recordsOut = 30L;
+		final float usageInputFloatingBuffers = 0.1f;
+		final float usageInputExclusiveBuffers = 0.1f;
+		final float usageOutPool = 0.2f;
+		final boolean isBackPressured = false;
 
 		final IOMetrics ioMetrics = new IOMetrics(
 			bytesIn,
 			bytesOut,
 			recordsIn,
-			recordsOut);
+			recordsOut,
+			usageInputFloatingBuffers,
+			usageInputExclusiveBuffers,
+			usageOutPool,
+			isBackPressured);
 
 		final long[] timestamps = new long[ExecutionState.values().length];
 		timestamps[ExecutionState.DEPLOYING.ordinal()] = deployingTs;
@@ -145,7 +153,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(request, executionVertex);
 
 		// Verify
-		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
+		final SubTaskIOMetricsInfo subTaskIOMetricsInfo = new SubTaskIOMetricsInfo(
 			bytesIn,
 			true,
 			bytesOut,
@@ -153,6 +161,14 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			recordsIn,
 			true,
 			recordsOut,
+			true,
+			isBackPressured,
+			true,
+			usageOutPool,
+			true,
+			usageInputExclusiveBuffers,
+			true,
+			usageInputFloatingBuffers,
 			true
 		);
 
@@ -164,7 +180,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			deployingTs,
 			finishedTs,
 			finishedTs - deployingTs,
-			ioMetricsInfo,
+			subTaskIOMetricsInfo,
 			assignedResourceLocation.getResourceID().getResourceIdString()
 		);
 

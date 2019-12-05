@@ -210,7 +210,9 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			counts.getNumRecordsIn(),
 			counts.isNumRecordsInComplete(),
 			counts.getNumRecordsOut(),
-			counts.isNumRecordsOutComplete());
+			counts.isNumRecordsOutComplete(),
+			counts.isBackPressured(),
+			counts.isBackPressuredComplete());
 
 		return new JobDetailsInfo.JobVertexDetailsInfo(
 			ejv.getJobVertexId(),

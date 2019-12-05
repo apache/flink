@@ -68,13 +68,16 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 		@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
 		@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
 		@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete,
+		@JsonProperty(FIELD_NAME_IS_BACKPRESSED) boolean isBackPressured,
+		@JsonProperty(FIELD_NAME_IS_BACKPRESSED_COMPLETE) boolean isBackPressuredComplete,
 		@JsonProperty(FIELD_NAME_OUT_POOL_USAGE) float outPoolUsage,
 		@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_COMPLETE) boolean outPoolUsageComplete,
 		@JsonProperty(FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE) float inputExclusiveBuffersUsage,
 		@JsonProperty(FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_COMPLETE) boolean inputExclusiveBuffersUsageComplete,
 		@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE) float inputFloatingBuffersUsage,
 		@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_COMPLETE) boolean inputFloatingBuffersUsageComplete) {
-		super(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
+		super(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete,
+			recordsWritten, recordsWrittenComplete, isBackPressured, isBackPressuredComplete);
 		this.outPoolUsage = outPoolUsage;
 		this.outPoolUsageComplete = outPoolUsageComplete;
 		this.inputExclusiveBuffersUsage = inputExclusiveBuffersUsage;
@@ -124,6 +127,8 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 			this.isRecordsReadComplete() == that.isRecordsReadComplete() &&
 			this.getRecordsWritten() == that.getRecordsWritten() &&
 			this.isRecordsWrittenComplete() == that.isRecordsWrittenComplete() &&
+			this.isBackPressured() == that.isBackPressured() &&
+			that.isBackPressuredComplete() == that.isBackPressuredComplete() &&
 			this.getOutPoolUsage() == that.getOutPoolUsage() &&
 			this.isOutPoolUsageComplete() == that.isOutPoolUsageComplete() &&
 			this.getInputExclusiveBuffersUsage() == that.getInputExclusiveBuffersUsage() &&
@@ -136,8 +141,9 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 	public int hashCode() {
 		return Objects.hash(this.getBytesRead(), this.isBytesReadComplete(), this.getBytesWritten(), this.isBytesWrittenComplete(),
 			this.getRecordsRead(), this.isRecordsReadComplete(), this.getRecordsWritten(), this.isRecordsWrittenComplete(),
-			this.getOutPoolUsage(), this.isOutPoolUsageComplete(), this.getInputExclusiveBuffersUsage(), this.isInputExclusiveBuffersUsageComplete(),
-			this.getInputFloatingBuffersUsage(), this.isInputFloatingBuffersUsageComplete());
+			this.isBackPressured(), this.isBackPressuredComplete(), this.getOutPoolUsage(), this.isOutPoolUsageComplete(),
+			this.getInputExclusiveBuffersUsage(), this.isInputExclusiveBuffersUsageComplete(), this.getInputFloatingBuffersUsage(),
+			this.isInputFloatingBuffersUsageComplete());
 	}
 
 }

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubTaskIOMetricsInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,15 +39,24 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 	@Override
 	protected JobVertexDetailsInfo getTestResponseInstance() throws Exception {
 		final Random random = new Random();
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			random.nextLong(),
+		final SubTaskIOMetricsInfo subTaskIOMetricsInfo = new SubTaskIOMetricsInfo(
+			Math.abs(random.nextLong()),
 			random.nextBoolean(),
-			random.nextLong(),
+			Math.abs(random.nextLong()),
 			random.nextBoolean(),
-			random.nextLong(),
+			Math.abs(random.nextLong()),
 			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean());
+			Math.abs(random.nextLong()),
+			random.nextBoolean(),
+			random.nextBoolean(),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean()
+		);
 		List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
 		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
 			0,
@@ -57,7 +66,7 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			System.currentTimeMillis(),
 			System.currentTimeMillis(),
 			1L,
-			jobVertexMetrics,
+			subTaskIOMetricsInfo,
 			"taskmanagerId1"));
 		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
 			1,
@@ -67,7 +76,7 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			System.currentTimeMillis(),
 			System.currentTimeMillis(),
 			1L,
-			jobVertexMetrics,
+			subTaskIOMetricsInfo,
 			"taskmanagerId2"));
 		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
 			2,
@@ -77,7 +86,7 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			System.currentTimeMillis(),
 			System.currentTimeMillis(),
 			1L,
-			jobVertexMetrics,
+			subTaskIOMetricsInfo,
 			"taskmanagerId3"));
 
 		return new JobVertexDetailsInfo(

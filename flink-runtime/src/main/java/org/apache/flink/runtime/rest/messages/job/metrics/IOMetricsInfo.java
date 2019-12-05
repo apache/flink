@@ -44,6 +44,10 @@ public class IOMetricsInfo {
 
 	protected static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
 
+	protected static final String FIELD_NAME_IS_BACKPRESSED = "is-backpressed";
+
+	protected static final String FIELD_NAME_IS_BACKPRESSED_COMPLETE = "is-backpressed-complete";
+
 	@JsonProperty(FIELD_NAME_BYTES_READ)
 	private final long bytesRead;
 
@@ -68,6 +72,12 @@ public class IOMetricsInfo {
 	@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
 	private final boolean recordsWrittenComplete;
 
+	@JsonProperty(FIELD_NAME_IS_BACKPRESSED)
+	private final boolean isBackPressured;
+
+	@JsonProperty(FIELD_NAME_IS_BACKPRESSED_COMPLETE)
+	private final boolean isBackPressuredComplete;
+
 	@JsonCreator
 	public IOMetricsInfo(
 			@JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
@@ -77,7 +87,9 @@ public class IOMetricsInfo {
 			@JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
 			@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
 			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
-			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete) {
+			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete,
+			@JsonProperty(FIELD_NAME_IS_BACKPRESSED) boolean isBackPressured,
+			@JsonProperty(FIELD_NAME_IS_BACKPRESSED_COMPLETE) boolean isBackPressuredComplete) {
 		this.bytesRead = bytesRead;
 		this.bytesReadComplete = bytesReadComplete;
 		this.bytesWritten = bytesWritten;
@@ -86,6 +98,8 @@ public class IOMetricsInfo {
 		this.recordsReadComplete = recordsReadComplete;
 		this.recordsWritten = recordsWritten;
 		this.recordsWrittenComplete = recordsWrittenComplete;
+		this.isBackPressured = isBackPressured;
+		this.isBackPressuredComplete = isBackPressuredComplete;
 	}
 
 	public long getBytesRead() {
@@ -120,6 +134,14 @@ public class IOMetricsInfo {
 		return recordsWrittenComplete;
 	}
 
+	public boolean isBackPressured() {
+		return isBackPressured;
+	}
+
+	public boolean isBackPressuredComplete() {
+		return isBackPressuredComplete;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -136,11 +158,14 @@ public class IOMetricsInfo {
 			recordsRead == that.recordsRead &&
 			recordsReadComplete == that.recordsReadComplete &&
 			recordsWritten == that.recordsWritten &&
-			recordsWrittenComplete == that.recordsWrittenComplete;
+			recordsWrittenComplete == that.recordsWrittenComplete &&
+			isBackPressured == that.isBackPressured &&
+			isBackPressuredComplete == that.isBackPressuredComplete;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
+		return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead,
+			recordsReadComplete, recordsWritten, recordsWrittenComplete, isBackPressured, isBackPressuredComplete);
 	}
 }

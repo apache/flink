@@ -184,7 +184,9 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				counts.getNumRecordsIn(),
 				counts.isNumRecordsInComplete(),
 				counts.getNumRecordsOut(),
-				counts.isNumRecordsOutComplete());
+				counts.isNumRecordsOutComplete(),
+				counts.isBackPressured(),
+				counts.isBackPressuredComplete());
 
 			Map<ExecutionState, Integer> statusCounts = new HashMap<>(ExecutionState.values().length);
 			for (ExecutionState state : ExecutionState.values()) {

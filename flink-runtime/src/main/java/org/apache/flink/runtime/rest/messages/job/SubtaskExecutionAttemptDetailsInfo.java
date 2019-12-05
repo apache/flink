@@ -215,6 +215,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			ioMetrics.isNumRecordsInComplete(),
 			ioMetrics.getNumRecordsOut(),
 			ioMetrics.isNumRecordsOutComplete(),
+			ioMetrics.isBackPressured(),
+			ioMetrics.isBackPressuredComplete(),
 			ioMetrics.getUsageOutPool(),
 			ioMetrics.isUsageOutPoolComplete(),
 			ioMetrics.getUsageInputExclusiveBuffers(),
