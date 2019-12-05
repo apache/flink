@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util;
+package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -28,10 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
@@ -56,7 +52,7 @@ import java.util.List;
  * to type information is not possible in flink planner, we have to put this class in blink planner.
  */
 @Experimental
-public class TableResultUtils {
+public class TableUtils {
 
 	/**
 	 * Convert Flink table to Java list.

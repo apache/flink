@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment, TableUtils}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAUL
 import org.apache.flink.table.planner.utils.{BaseRowTestUtil, TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
-import org.apache.flink.table.util.TableResultUtils
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
@@ -286,7 +285,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableResultUtils.collectToList(table).asScala
+  def executeQuery(table: Table): Seq[Row] = TableUtils.collectToList(table).asScala
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util;
+package org.apache.flink.table.api;
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 
@@ -33,9 +32,9 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.junit.Assert.assertEquals;
 
 /**
- * IT case for {@link TableResultUtils}.
+ * IT case for {@link TableUtils}.
  */
-public class TableResultUtilsITCase extends BatchTestBase {
+public class TableUtilsITCase extends BatchTestBase {
 
 	@Test
 	public void testTableResultToList() throws Exception {
@@ -60,7 +59,7 @@ public class TableResultUtilsITCase extends BatchTestBase {
 		// run multiple times to make sure no errors will occur
 		// when the utility method is called a second time
 		for (int i = 0; i < 2; i++) {
-			final List<Row> actual = TableResultUtils.collectToList(table);
+			final List<Row> actual = TableUtils.collectToList(table);
 			assertEquals(expected, actual);
 		}
 	}
