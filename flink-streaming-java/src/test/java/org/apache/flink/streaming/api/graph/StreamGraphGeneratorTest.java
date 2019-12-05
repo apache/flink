@@ -510,6 +510,22 @@ public class StreamGraphGeneratorTest {
 		}
 	}
 
+	@Test
+	public void testSetManagedMemoryWeight() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		source.getTransformation().setManagedMemoryWeight(123);
+		source.print().name("sink");
+
+		final StreamGraph streamGraph = env.getStreamGraph();
+		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+			final int expectedWeight = streamNode.getOperatorName().contains("source")
+				? 123
+				: Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT;
+			assertEquals(expectedWeight, streamNode.getManagedMemoryWeight());
+		}
+	}
+
 	private static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
