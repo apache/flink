@@ -105,9 +105,6 @@ object LongHashJoinGenerator {
       probeType: RowType,
       buildKeyMapping: Array[Int],
       probeKeyMapping: Array[Int],
-      managedMemorySize: Long,
-      maxMemorySize: Long,
-      perRequestSize: Long,
       buildRowSize: Int,
       buildRowCount: Long,
       reverseJoinFunction: Boolean,
@@ -175,7 +172,7 @@ object LongHashJoinGenerator {
          |    super(getContainingTask().getJobConfiguration(), getContainingTask(),
          |      $buildSerTerm, $probeSerTerm,
          |      getContainingTask().getEnvironment().getMemoryManager(),
-         |      ${managedMemorySize}L, ${maxMemorySize}L, ${perRequestSize}L,
+         |      computeMemorySize(),
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
          |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());
