@@ -1,6 +1,3 @@
-
-package org.apache.flink.api.java;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,6 +15,8 @@ package org.apache.flink.api.java;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
