@@ -31,7 +31,8 @@ FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
-           'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder']
+           'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
+           'TimestampCoder']
 
 
 class RowCoder(FastCoder):
@@ -208,6 +209,21 @@ class TimeCoder(DeterministicCoder):
         return datetime.time
 
 
+class TimestampCoder(DeterministicCoder):
+    """
+    Coder for Timestamp.
+    """
+
+    def __init__(self, precision):
+        self.precision = precision
+
+    def _create_impl(self):
+        return coder_impl.TimestampCoderImpl(self.precision)
+
+    def to_type_hint(self):
+        return datetime.datetime
+
+
 @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
 def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
     return RowCoder([from_proto(f.type) for f in schema_proto.fields])
@@ -244,5 +260,7 @@ def from_proto(field_type):
         return coder
     if field_type_name == type_name.ROW:
         return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields])
+    if field_type_name == type_name.DATETIME:
+        return TimestampCoder(field_type.date_time_type.precision)
     else:
         raise ValueError("field_type %s is not supported." % field_type)
