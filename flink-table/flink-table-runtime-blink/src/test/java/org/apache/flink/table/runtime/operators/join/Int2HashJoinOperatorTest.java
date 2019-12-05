@@ -266,7 +266,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			testHarness.getStreamConfig().setStreamOperatorFactory((StreamOperatorFactory<?>) operator);
 		}
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFractionOnHeap(0.99);
+		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();

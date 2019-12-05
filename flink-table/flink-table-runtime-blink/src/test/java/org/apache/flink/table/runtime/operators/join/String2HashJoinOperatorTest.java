@@ -84,7 +84,7 @@ public class String2HashJoinOperatorTest implements Serializable {
 		testHarness.setupOutputForSingletonOperatorChain();
 		testHarness.getStreamConfig().setStreamOperator(operator);
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFractionOnHeap(0.99);
+		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();

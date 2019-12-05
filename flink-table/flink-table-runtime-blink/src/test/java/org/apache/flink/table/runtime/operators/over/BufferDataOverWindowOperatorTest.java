@@ -198,7 +198,7 @@ public class BufferDataOverWindowOperatorTest {
 				StreamConfig conf = mock(StreamConfig.class);
 				when(conf.<BaseRow>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
-				when(conf.getManagedMemoryFractionOnHeap())
+				when(conf.getManagedMemoryFraction())
 						.thenReturn(0.99);
 				return conf;
 			}
