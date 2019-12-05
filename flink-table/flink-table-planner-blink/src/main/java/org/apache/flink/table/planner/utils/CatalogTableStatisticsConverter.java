@@ -38,23 +38,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Utility class for converting {@link CatalogTableStatistics} to {@link TableStats}.
+ * Utility class for converting {@link CatalogTableStatistics} and {@link CatalogColumnStatistics} to {@link TableStats}.
  */
 public class CatalogTableStatisticsConverter {
 
 	public static TableStats convertToTableStats(
 			CatalogTableStatistics tableStatistics,
 			CatalogColumnStatistics columnStatistics) {
-		if (tableStatistics == null || tableStatistics.equals(CatalogTableStatistics.UNKNOWN)) {
-			return TableStats.UNKNOWN;
+		long rowCount;
+		if (tableStatistics != null && tableStatistics.getRowCount() >= 0) {
+			rowCount = tableStatistics.getRowCount();
+		} else {
+			rowCount = TableStats.UNKNOWN.getRowCount();
 		}
 
-		long rowCount = tableStatistics.getRowCount();
-		Map<String, ColumnStats> columnStatsMap = null;
-		if (columnStatistics != null && !columnStatistics.equals(CatalogColumnStatistics.UNKNOWN)) {
+		Map<String, ColumnStats> columnStatsMap;
+		if (columnStatistics != null) {
 			columnStatsMap = convertToColumnStatsMap(columnStatistics.getColumnStatisticsData());
-		}
-		if (columnStatsMap == null) {
+		} else {
 			columnStatsMap = new HashMap<>();
 		}
 		return new TableStats(rowCount, columnStatsMap);

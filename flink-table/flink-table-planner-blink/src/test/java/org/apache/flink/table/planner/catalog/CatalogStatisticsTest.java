@@ -47,6 +47,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -62,35 +63,45 @@ import static org.junit.Assert.assertNull;
  */
 public class CatalogStatisticsTest {
 
+	private String databaseName = "default_database";
+
 	private TableSchema tableSchema = TableSchema.builder().fields(
 			new String[] { "b1", "l2", "s3", "d4", "dd5" },
 			new DataType[] { DataTypes.BOOLEAN(), DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.DATE(),
 					DataTypes.DOUBLE() }
 	).build();
 
+	private TableEnvironment tEnv;
+	private Catalog catalog;
+
+	@Before
+	public void setup() {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		tEnv = TableEnvironment.create(settings);
+		catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
+		assertNotNull(catalog);
+	}
+
 	@Test
 	public void testGetStatsFromCatalogForConnectorCatalogTable() throws Exception {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-		TableEnvironment tEnv = TableEnvironment.create(settings);
-		Catalog catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
-		assertNotNull(catalog);
 		catalog.createTable(
-				ObjectPath.fromString("default_database.T1"),
+				new ObjectPath(databaseName, "T1"),
+				ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
+				false);
+		catalog.createTable(
+				new ObjectPath(databaseName, "T2"),
 				ConnectorCatalogTable.source(new TestTableSource(true, tableSchema), true),
 				false);
 
-		alterTableStatistics(catalog);
+		alterTableStatistics(catalog, "T1");
+		assertStatistics(tEnv, "T1");
 
-		assertStatistics(tEnv);
+		alterTableStatisticsWithUnknownRowCount(catalog, "T2");
+		assertTableStatisticsWithUnknownRowCount(tEnv, "T2");
 	}
 
 	@Test
 	public void testGetStatsFromCatalogForCatalogTableImpl() throws Exception {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-		TableEnvironment tEnv = TableEnvironment.create(settings);
-		Catalog catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
-		assertNotNull(catalog);
-
 		Map<String, String> properties = new HashMap<>();
 		properties.put("connector.type", "filesystem");
 		properties.put("connector.property-version", "1");
@@ -106,19 +117,27 @@ public class CatalogStatisticsTest {
 		properties.putAll(descriptorProperties.asMap());
 
 		catalog.createTable(
-				ObjectPath.fromString("default_database.T1"),
+				new ObjectPath(databaseName, "T1"),
+				new CatalogTableImpl(tableSchema, properties, ""),
+				false);
+		catalog.createTable(
+				new ObjectPath(databaseName, "T2"),
 				new CatalogTableImpl(tableSchema, properties, ""),
 				false);
 
-		alterTableStatistics(catalog);
+		alterTableStatistics(catalog, "T1");
+		assertStatistics(tEnv, "T1");
 
-		assertStatistics(tEnv);
+		alterTableStatisticsWithUnknownRowCount(catalog, "T2");
+		assertTableStatisticsWithUnknownRowCount(tEnv, "T2");
 	}
 
-	private void alterTableStatistics(Catalog catalog) throws TableNotExistException, TablePartitionedException {
-		catalog.alterTableStatistics(ObjectPath.fromString("default_database.T1"),
+	private void alterTableStatistics(
+			Catalog catalog,
+			String tableName) throws TableNotExistException, TablePartitionedException {
+		catalog.alterTableStatistics(new ObjectPath(databaseName, tableName),
 				new CatalogTableStatistics(100, 10, 1000L, 2000L), true);
-		catalog.alterTableColumnStatistics(ObjectPath.fromString("default_database.T1"), createColumnStats(), true);
+		catalog.alterTableColumnStatistics(new ObjectPath(databaseName, "T1"), createColumnStats(), true);
 	}
 
 	private CatalogColumnStatistics createColumnStats() {
@@ -138,40 +157,60 @@ public class CatalogStatisticsTest {
 		return new CatalogColumnStatistics(colStatsMap);
 	}
 
-	private void assertStatistics(TableEnvironment tEnv) {
-		RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
+	private void assertStatistics(TableEnvironment tEnv, String tableName) {
+		RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from " + tableName));
 		FlinkRelMetadataQuery mq = FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
 		assertEquals(100.0, mq.getRowCount(t1), 0.0);
-		assertEquals(Arrays.asList(1.0, 8.0, 43.5, 12.0, 8.0), mq.getAverageColumnSizes(t1));
+		assertColumnStatistics(t1, mq);
+	}
+
+	private void assertColumnStatistics(RelNode rel, FlinkRelMetadataQuery mq) {
+		assertEquals(Arrays.asList(1.0, 8.0, 43.5, 12.0, 8.0), mq.getAverageColumnSizes(rel));
 
 		// boolean type
-		assertEquals(2.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null), 0.0);
-		assertEquals(5.0, mq.getColumnNullCount(t1, 0), 0.0);
-		assertNull(mq.getColumnInterval(t1, 0));
+		assertEquals(2.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(0), null), 0.0);
+		assertEquals(5.0, mq.getColumnNullCount(rel, 0), 0.0);
+		assertNull(mq.getColumnInterval(rel, 0));
 
 		// long type
-		assertEquals(23.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null), 0.0);
-		assertEquals(77.0, mq.getColumnNullCount(t1, 1), 0.0);
-		assertEquals(ValueInterval$.MODULE$.apply(-123L, 763322L, true, true), mq.getColumnInterval(t1, 1));
+		assertEquals(23.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(1), null), 0.0);
+		assertEquals(77.0, mq.getColumnNullCount(rel, 1), 0.0);
+		assertEquals(ValueInterval$.MODULE$.apply(-123L, 763322L, true, true), mq.getColumnInterval(rel, 1));
 
 		// string type
-		assertEquals(20.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(2), null), 0.0);
-		assertEquals(0.0, mq.getColumnNullCount(t1, 2), 0.0);
-		assertNull(mq.getColumnInterval(t1, 2));
+		assertEquals(20.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(2), null), 0.0);
+		assertEquals(0.0, mq.getColumnNullCount(rel, 2), 0.0);
+		assertNull(mq.getColumnInterval(rel, 2));
 
 		// date type
-		assertEquals(100.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(3), null), 0.0);
-		assertEquals(0.0, mq.getColumnNullCount(t1, 3), 0.0);
+		assertEquals(100.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(3), null), 0.0);
+		assertEquals(0.0, mq.getColumnNullCount(rel, 3), 0.0);
 		assertEquals(
 				ValueInterval$.MODULE$.apply(
 						java.sql.Date.valueOf(DateTimeUtils.unixDateToString(71)),
 						java.sql.Date.valueOf(DateTimeUtils.unixDateToString(17923)), true, true),
-				mq.getColumnInterval(t1, 3));
+				mq.getColumnInterval(rel, 3));
 
 		// double type
-		assertEquals(73.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(4), null), 0.0);
-		assertEquals(27.0, mq.getColumnNullCount(t1, 4), 0.0);
-		assertEquals(ValueInterval$.MODULE$.apply(-123.35, 7633.22, true, true), mq.getColumnInterval(t1, 4));
+		assertEquals(73.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(4), null), 0.0);
+		assertEquals(27.0, mq.getColumnNullCount(rel, 4), 0.0);
+		assertEquals(ValueInterval$.MODULE$.apply(-123.35, 7633.22, true, true), mq.getColumnInterval(rel, 4));
+	}
+
+	private void alterTableStatisticsWithUnknownRowCount(
+			Catalog catalog,
+			String tableName) throws TableNotExistException, TablePartitionedException {
+		catalog.alterTableStatistics(new ObjectPath(databaseName, tableName),
+				new CatalogTableStatistics(CatalogTableStatistics.UNKNOWN.getRowCount(), 1, 10000, 200000), true);
+		catalog.alterTableColumnStatistics(new ObjectPath(databaseName, tableName), createColumnStats(), true);
+	}
+
+	private void assertTableStatisticsWithUnknownRowCount(TableEnvironment tEnv, String tableName) {
+		RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from " + tableName));
+		FlinkRelMetadataQuery mq = FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
+		// 1E8 is default value defined in FlinkPreparingTableBase
+		assertEquals(1E8, mq.getRowCount(t1), 0.0);
+		assertColumnStatistics(t1, mq);
 	}
 
 }
