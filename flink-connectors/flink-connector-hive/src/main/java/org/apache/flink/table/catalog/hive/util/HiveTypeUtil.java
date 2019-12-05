@@ -70,31 +70,18 @@ public class HiveTypeUtil {
 	}
 
 	/**
-	 * Convert Flink data type to Hive data type name and ensures precision of timestamps is supported by Hive.
+	 * Convert Flink DataType to Hive TypeInfo. For types with a precision parameter, e.g. timestamp, the supported
+	 * precisions in Hive and Flink can be different. Therefore the conversion will fail for those types if the precision
+	 * is not supported by Hive and checkPrecision is true.
 	 *
-	 * @param type a Flink data type
-	 * @return the corresponding Hive data type name
-	 */
-	static String toHiveTypeName(DataType type) {
-		checkNotNull(type, "type cannot be null");
-
-		return toHiveTypeInfo(type, true).getTypeName();
-	}
-
-	/**
-	 * Convert Flink data type to Hive data type, without enforcing timestamp precision check.
-	 *
-	 * @param dataType a Flink data type
+	 * @param dataType a Flink DataType
+	 * @param checkPrecision whether to fail the conversion if the precision of the DataType is not supported by Hive
 	 * @return the corresponding Hive data type
 	 */
-	public static TypeInfo toHiveTypeInfo(DataType dataType) {
-		return toHiveTypeInfo(dataType, false);
-	}
-
-	private static TypeInfo toHiveTypeInfo(DataType dataType, boolean checkTSPrecision) {
+	public static TypeInfo toHiveTypeInfo(DataType dataType, boolean checkPrecision) {
 		checkNotNull(dataType, "type cannot be null");
 		LogicalType logicalType = dataType.getLogicalType();
-		return logicalType.accept(new TypeInfoLogicalTypeVisitor(dataType, checkTSPrecision));
+		return logicalType.accept(new TypeInfoLogicalTypeVisitor(dataType, checkPrecision));
 	}
 
 	/**
@@ -185,12 +172,12 @@ public class HiveTypeUtil {
 
 	private static class TypeInfoLogicalTypeVisitor extends LogicalTypeDefaultVisitor<TypeInfo> {
 		private final DataType dataType;
-		// whether to check timestamp precision
-		private final boolean enforceTSPrecision;
+		// whether to check type precision
+		private final boolean checkPrecision;
 
-		TypeInfoLogicalTypeVisitor(DataType dataType, boolean enforceTSPrecision) {
+		TypeInfoLogicalTypeVisitor(DataType dataType, boolean checkPrecision) {
 			this.dataType = dataType;
-			this.enforceTSPrecision = enforceTSPrecision;
+			this.checkPrecision = checkPrecision;
 		}
 
 		@Override
@@ -281,7 +268,7 @@ public class HiveTypeUtil {
 
 		@Override
 		public TypeInfo visit(TimestampType timestampType) {
-			if (enforceTSPrecision && timestampType.getPrecision() != 9) {
+			if (checkPrecision && timestampType.getPrecision() != 9) {
 				throw new CatalogException("HiveCatalog currently only supports timestamp of precision 9");
 			}
 			return TypeInfoFactory.timestampTypeInfo;

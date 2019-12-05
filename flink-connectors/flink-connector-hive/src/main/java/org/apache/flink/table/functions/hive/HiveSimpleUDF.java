@@ -74,7 +74,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 		List<TypeInfo> typeInfos = new ArrayList<>();
 
 		for (DataType arg : argTypes) {
-			typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arg));
+			typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arg, false));
 		}
 
 		try {
@@ -124,7 +124,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 		try {
 			List<TypeInfo> argTypeInfo = new ArrayList<>();
 			for (DataType argType : argTypes) {
-				argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType));
+				argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));
 			}
 			Class returnType = hiveFunctionWrapper.createFunction()
 				.getResolver().getEvalMethod(argTypeInfo).getReturnType();

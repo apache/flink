@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions.hive.conversion;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -116,9 +115,9 @@ public class HiveInspectors {
 			if (constant == null) {
 				argumentInspectors[i] =
 					TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(
-						HiveTypeUtil.toHiveTypeInfo(argTypes[i]));
+						HiveTypeUtil.toHiveTypeInfo(argTypes[i], false));
 			} else {
-				PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) HiveTypeUtil.toHiveTypeInfo(argTypes[i]);
+				PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) HiveTypeUtil.toHiveTypeInfo(argTypes[i], false);
 				argumentInspectors[i] = hiveShim.getObjectInspectorForConstant(primitiveTypeInfo, constant);
 			}
 		}
@@ -369,10 +368,10 @@ public class HiveInspectors {
 	}
 
 	/**
-	 * Get Hive {@link ObjectInspector} for a Flink {@link TypeInformation}.
+	 * Get Hive {@link ObjectInspector} for a Flink {@link DataType}.
 	 */
 	public static ObjectInspector getObjectInspector(DataType flinkType) {
-		return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType));
+		return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType, true));
 	}
 
 	private static ObjectInspector getObjectInspector(TypeInfo type) {
