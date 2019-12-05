@@ -98,16 +98,6 @@ under the License.
 	<build>
 		<plugins>
 
-			<!-- this is merely an intermediate build artifact and should not be -->
-			<!-- deployed to maven central                                       -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-deploy-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
-
 			<!-- Relocate all OSS related classes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
