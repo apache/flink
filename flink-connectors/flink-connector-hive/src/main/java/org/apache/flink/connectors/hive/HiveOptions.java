@@ -29,8 +29,7 @@ public class HiveOptions {
 
 	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER =
 			key("table.exec.hive.fallback-mapred-reader")
-					// temporarily fall back by default, until we figure out how to read timestamp with vectorized reader
-					.defaultValue(true)
+					.defaultValue(false)
 					.withDescription(
 							"If it is false, using flink native vectorized reader to read orc files; " +
 									"If it is true, using hadoop mapred record reader to read orc files.");

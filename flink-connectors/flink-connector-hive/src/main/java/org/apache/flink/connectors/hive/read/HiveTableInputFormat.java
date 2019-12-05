@@ -172,8 +172,9 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			}
 		}
 
-		LOG.info("Use flink orc ColumnarRow reader.");
-		return true;
+		// temporarily disable the vectorized reader, until we figure out how to read timestamps with it
+//		LOG.info("Use flink orc ColumnarRow reader.");
+		return false;
 	}
 
 	@Override
