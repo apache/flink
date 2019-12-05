@@ -143,7 +143,7 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
-如果你想在 IDE 中使用`RocksDBStateBackend`，或者需要在作业中通过编程方式动态配置`RocksDBStateBackend`，必须添加以下依赖到 Flink 项目中。
+如果你想在 IDE 中使用 `RocksDBStateBackend`，或者需要在作业中通过编程方式动态配置 `RocksDBStateBackend`，必须添加以下依赖到 Flink 项目中。
 
 {% highlight xml %}
 <dependency>
