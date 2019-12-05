@@ -940,8 +940,8 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -955,8 +955,8 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -971,8 +971,8 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 *

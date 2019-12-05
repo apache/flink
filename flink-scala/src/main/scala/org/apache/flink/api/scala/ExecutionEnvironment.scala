@@ -545,8 +545,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates the program's [[org.apache.flink.api.common.Plan]].
    * The plan is a description of all data sources, data sinks,
-   * and operations and how they interact, as an isolated unit that can be executed with a
-   * [[org.apache.flink.api.common.PlanExecutor]]. Obtaining a plan and starting it with an
+   * and operations and how they interact, as an isolated unit that can be executed with an
+   * [[org.apache.flink.core.execution.Executor]]. Obtaining a plan and starting it with an
    * executor is an alternative way to run a program and is only possible if the program only
    * consists of distributed operations.
    */

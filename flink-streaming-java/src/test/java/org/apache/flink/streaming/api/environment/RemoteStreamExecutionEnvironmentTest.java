@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.RemoteExecutor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
@@ -37,11 +36,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.annotation.Nonnull;
 
@@ -57,9 +53,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link RemoteStreamEnvironment}.
  */
-@RunWith(PowerMockRunner.class)
-// TODO: I don't like that I have to do this
-@PrepareForTest({RemoteStreamEnvironment.class, RemoteExecutor.class})
 public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 
 	/**
