@@ -48,8 +48,29 @@ public class CatalogFunctionITCase extends CatalogFunctionTestBase {
 	}
 
 	@Test
+	public void testUseDefinedRegularCatalogFunction() throws Exception {
+		String functionDDL = "create function addOne as " +
+			"'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String dropFunctionDDL = "drop function addOne";
+		testUseDefinedCatalogFunction(functionDDL);
+		// delete the function
+		tableEnv.sqlUpdate(dropFunctionDDL);
+	}
+
+	@Test
+	public void testUseDefinedTemporaryCatalogFunction() throws Exception {
+		String functionDDL = "create temporary function addOne as " +
+			"'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String dropFunctionDDL = "drop temporary function addOne";
+		testUseDefinedCatalogFunction(functionDDL);
+		// delete the function
+		tableEnv.sqlUpdate(dropFunctionDDL);
+	}
+
 	// This test case only works for stream mode
-	public void testUseDefinedCatalogFunction() throws Exception {
+	private void testUseDefinedCatalogFunction(String createFunctionDDL) throws Exception {
 		List<Row> sourceData = Arrays.asList(
 			toRow(1, "1000", 2),
 			toRow(2, "1", 3),
@@ -64,14 +85,11 @@ public class CatalogFunctionITCase extends CatalogFunctionTestBase {
 		String sourceDDL = "create table t1(a int, b varchar, c int) with ('connector' = 'COLLECTION')";
 		String sinkDDL = "create table t2(a int, b varchar, c int) with ('connector' = 'COLLECTION')";
 
-		String functionDDL = "create function addOne as " +
-			"'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
-
 		String query = "select t1.a, t1.b, addOne(t1.a, 1) as c from t1";
 
 		tableEnv.sqlUpdate(sourceDDL);
 		tableEnv.sqlUpdate(sinkDDL);
-		tableEnv.sqlUpdate(functionDDL);
+		tableEnv.sqlUpdate(createFunctionDDL);
 		Table t2 = tableEnv.sqlQuery(query);
 		tableEnv.insertInto("t2", t2);
 		tableEnv.execute("job1");
@@ -79,5 +97,8 @@ public class CatalogFunctionITCase extends CatalogFunctionTestBase {
 		Row[] result = TestCollectionTableFactory.RESULT().toArray(new Row[0]);
 		Row[] expected = sourceData.toArray(new Row[0]);
 		assertArrayEquals(expected, result);
+
+		tableEnv.sqlUpdate("drop table t1");
+		tableEnv.sqlUpdate("drop table t2");
 	}
 }

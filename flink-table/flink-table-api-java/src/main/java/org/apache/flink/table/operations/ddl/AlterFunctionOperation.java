@@ -69,4 +69,8 @@ public class AlterFunctionOperation implements AlterOperation  {
 			Collections.emptyList(),
 			Operation::asSummaryString);
 	}
+
+	public String getFunctionName() {
+		return this.functionIdentifier.getObjectName();
+	}
 }

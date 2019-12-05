@@ -32,6 +32,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -56,7 +57,15 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
@@ -729,46 +738,126 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private void createCatalogFunction(CreateFunctionOperation createFunctionOperation) {
-		Catalog catalog = getCatalogOrThrowException(createFunctionOperation.getFunctionIdentifier().getCatalogName());
 		String exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString());
 		try {
-			catalog.createFunction(
-				createFunctionOperation.getFunctionIdentifier().toObjectPath(),
-				createFunctionOperation.getCatalogFunction(),
-				createFunctionOperation.isIgnoreIfExists());
+			CatalogFunction function = createFunctionOperation.getCatalogFunction();
+			if (function.isTemporary()) {
+				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
+					createFunctionOperation.getFunctionIdentifier());
+				if (!exist) {
+					FunctionDefinition functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
+						createFunctionOperation.getFunctionName(),
+						function);
+					registerFunctionInFunctionCatalog(
+						createFunctionOperation.getFunctionIdentifier(),
+						functionDefinition);
+				} else if (!createFunctionOperation.isIgnoreIfExists()) {
+					throw new ValidationException(
+						String.format("Temporary catalog function %s is already defined",
+						createFunctionOperation.getFunctionIdentifier().asSerializableString()));
+				}
+			} else {
+				Catalog catalog = getCatalogOrThrowException(
+					createFunctionOperation.getFunctionIdentifier().getCatalogName());
+				catalog.createFunction(
+					createFunctionOperation.getFunctionIdentifier().toObjectPath(),
+					createFunctionOperation.getCatalogFunction(),
+					createFunctionOperation.isIgnoreIfExists());
+			}
+		} catch (ValidationException e) {
+			throw e;
 		} catch (FunctionAlreadyExistException e) {
-			throw new ValidationException(exMsg, e);
+			throw new ValidationException(e.getMessage(), e);
 		} catch (Exception e) {
 			throw new TableException(exMsg, e);
 		}
 	}
 
 	private void alterCatalogFunction(AlterFunctionOperation alterFunctionOperation) {
-		Catalog catalog = getCatalogOrThrowException(alterFunctionOperation.getFunctionIdentifier().getCatalogName());
 		String exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString());
 		try {
-			catalog.alterFunction(
-				alterFunctionOperation.getFunctionIdentifier().toObjectPath(),
-				alterFunctionOperation.getCatalogFunction(),
-				alterFunctionOperation.isIfExists());
-		} catch (FunctionNotExistException e) {
-			throw new ValidationException(exMsg, e);
+			CatalogFunction function = alterFunctionOperation.getCatalogFunction();
+			if (function.isTemporary()) {
+				throw new ValidationException(
+					"Alter temporary catalog function is not supported");
+			} else {
+				Catalog catalog = getCatalogOrThrowException(
+					alterFunctionOperation.getFunctionIdentifier().getCatalogName());
+				catalog.alterFunction(
+					alterFunctionOperation.getFunctionIdentifier().toObjectPath(),
+					function,
+					alterFunctionOperation.isIfExists());
+			}
+		} catch (ValidationException e) {
+			throw e;
+		}  catch (FunctionNotExistException e) {
+			throw new ValidationException(e.getMessage(), e);
 		} catch (Exception e) {
 			throw new TableException(exMsg, e);
 		}
 	}
 
 	private void dropCatalogFunction(DropFunctionOperation dropFunctionOperation) {
-		Catalog catalog = getCatalogOrThrowException(dropFunctionOperation.getFunctionIdentifier().getCatalogName());
+
 		String exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString());
 		try {
-			catalog.dropFunction(
-				dropFunctionOperation.getFunctionIdentifier().toObjectPath(),
-				dropFunctionOperation.isIfExists());
-		} catch (FunctionNotExistException e) {
-			throw new ValidationException(exMsg, e);
+			if (dropFunctionOperation.isTemporary()) {
+				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
+					dropFunctionOperation.getFunctionIdentifier());
+				if (exist) {
+					functionCatalog.dropTempCatalogFunction(
+						dropFunctionOperation.getFunctionIdentifier(),
+						dropFunctionOperation.isIfExists());
+				} else if (!dropFunctionOperation.isIfExists()) {
+					throw new ValidationException(
+						String.format("Temporary catalog function %s is not found",
+						dropFunctionOperation.getFunctionIdentifier().asSerializableString()));
+				}
+			} else {
+				Catalog catalog = getCatalogOrThrowException
+					(dropFunctionOperation.getFunctionIdentifier().getCatalogName());
+
+				catalog.dropFunction(
+					dropFunctionOperation.getFunctionIdentifier().toObjectPath(),
+					dropFunctionOperation.isIfExists());
+			}
+		} catch (ValidationException e) {
+			throw e;
+		}  catch (FunctionNotExistException e) {
+			throw new ValidationException(e.getMessage(), e);
 		} catch (Exception e) {
 			throw new TableException(exMsg, e);
+		}
+	}
+
+	private <T, ACC> void  registerFunctionInFunctionCatalog(
+		ObjectIdentifier functionIdentifier, FunctionDefinition functionDefinition) {
+		if (functionDefinition instanceof ScalarFunctionDefinition) {
+			ScalarFunctionDefinition scalarFunction = (ScalarFunctionDefinition) functionDefinition;
+			functionCatalog.registerTempCatalogScalarFunction(functionIdentifier, scalarFunction.getScalarFunction());
+		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
+			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
+			AggregateFunction<T, ACC > aggregateFunction =
+				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
+			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+				.getReturnTypeOfAggregateFunction(aggregateFunction);
+			TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
+
+			functionCatalog.registerTempCatalogAggregateFunction(
+				functionIdentifier,
+				aggregateFunction,
+				typeInfo,
+				accTypeInfo);
+		} else if (functionDefinition instanceof TableFunctionDefinition) {
+			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
+			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
+			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+				.getReturnTypeOfTableFunction(tableFunction);
+			functionCatalog.registerTempCatalogTableFunction(
+				functionIdentifier,
+				tableFunction,
+				typeInfo);
 		}
 	}
 

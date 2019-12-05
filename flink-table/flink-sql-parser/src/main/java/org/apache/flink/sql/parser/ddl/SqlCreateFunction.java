@@ -117,6 +117,10 @@ public class SqlCreateFunction extends SqlCreate implements ExtendedSqlNode {
 		return isSystemFunction;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
 	public SqlCharStringLiteral getFunctionClassName() {
 		return this.functionClassName;
 	}

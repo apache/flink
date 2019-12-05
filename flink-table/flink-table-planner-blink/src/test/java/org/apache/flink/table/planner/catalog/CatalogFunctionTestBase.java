@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -98,6 +99,47 @@ public abstract class CatalogFunctionTestBase {
 	}
 
 	@Test
+	public void testCreateTemporaryCatalogFunction() {
+		String ddl1 = "create temporary function default_catalog.default_database.f4" +
+			" as 'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String ddl2 = "create temporary function if not exists default_catalog.default_database.f4" +
+			" as 'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String ddl3 = "drop temporary function default_catalog.default_database.f4";
+
+		String ddl4 = "drop temporary function if exists default_catalog.default_database.f4";
+
+		tableEnv.sqlUpdate(ddl1);
+		assertTrue(Arrays.asList(tableEnv.listFunctions()).contains("f4"));
+
+		tableEnv.sqlUpdate(ddl2);
+		assertTrue(Arrays.asList(tableEnv.listFunctions()).contains("f4"));
+
+		tableEnv.sqlUpdate(ddl3);
+		assertFalse(Arrays.asList(tableEnv.listFunctions()).contains("f4"));
+
+		tableEnv.sqlUpdate(ddl1);
+		try {
+			tableEnv.sqlUpdate(ddl1);
+		} catch (Exception e) {
+			assertTrue(e instanceof ValidationException);
+			assertEquals(e.getMessage(), "Temporary catalog function " +
+				"`default_catalog`.`default_database`.`f4` is already defined");
+		}
+
+		tableEnv.sqlUpdate(ddl3);
+		tableEnv.sqlUpdate(ddl4);
+		try {
+			tableEnv.sqlUpdate(ddl3);
+		} catch (Exception e) {
+			assertTrue(e instanceof ValidationException);
+			assertEquals(e.getMessage(),
+				"Temporary catalog function `default_catalog`.`default_database`.`f4` is not found");
+		}
+	}
+
+	@Test
 	public void testAlterFunction() throws Exception {
 		String create = "create function f3 as 'org.apache.flink.function.TestFunction'";
 		String alter = "alter function f3 as 'org.apache.flink.function.TestFunction2'";
@@ -128,9 +170,8 @@ public abstract class CatalogFunctionTestBase {
 			tableEnv.sqlUpdate(alterUndefinedFunction);
 			fail();
 		} catch (Exception e){
-			assertEquals(e.getMessage(), "Could not execute ALTER FUNCTION: " +
-				"(catalogFunction: [Optional[This is a user-defined function]], " +
-				"identifier: [`default_catalog`.`default_database`.`f4`], ifExists: [false])");
+			assertEquals(e.getMessage(),
+				"Function default_database.f4 does not exist in Catalog default_catalog.");
 		}
 
 		try {
@@ -144,10 +185,23 @@ public abstract class CatalogFunctionTestBase {
 			tableEnv.sqlUpdate(alterFunctionInWrongDB);
 			fail();
 		} catch (Exception e) {
-			assertEquals(e.getMessage(), "Could not execute ALTER FUNCTION: " +
-				"(catalogFunction: [Optional[This is a user-defined function]], " +
-				"identifier: [`default_catalog`.`db1`.`f4`], ifExists: [false])");
+			assertEquals(e.getMessage(),
+				"Function db1.f4 does not exist in Catalog default_catalog.");
 		}
+	}
+
+	@Test
+	public void testAlterTemporaryFunction() {
+		String alterTemporary = "ALTER TEMPORARY FUNCTION default_catalog.default_database.f4" +
+			" as 'org.apache.flink.function.TestFunction'";
+
+		try {
+			tableEnv.sqlUpdate(alterTemporary);
+			fail();
+		} catch (Exception e) {
+			assertTrue(e.getMessage().equals("Alter temporary catalog function is not supported"));
+		}
+
 	}
 
 	@Test
@@ -162,8 +216,8 @@ public abstract class CatalogFunctionTestBase {
 			tableEnv.sqlUpdate(dropUndefinedFunction);
 			fail();
 		} catch (Exception e){
-			assertEquals(e.getMessage(), "Could not execute DROP FUNCTION:" +
-				" (identifier: [`default_catalog`.`default_database`.`f4`], IfExists: [false])");
+			assertEquals(e.getMessage(),
+				"Function default_database.f4 does not exist in Catalog default_catalog.");
 		}
 
 		try {
@@ -177,9 +231,65 @@ public abstract class CatalogFunctionTestBase {
 			tableEnv.sqlUpdate(dropFunctionInWrongDB);
 			fail();
 		} catch (Exception e) {
-			assertEquals(e.getMessage(), "Could not execute DROP FUNCTION:" +
-				" (identifier: [`default_catalog`.`db1`.`f4`], IfExists: [false])");
+			assertEquals(e.getMessage(), "Function db1.f4 does not exist in Catalog default_catalog.");
 		}
+	}
+
+	@Test
+	public void testDropTemporaryFunctionNonExits() {
+		String dropUndefinedFunction = "DROP TEMPORARY FUNCTION default_catalog.default_database.f4";
+		String dropFunctionInWrongCatalog = "DROP TEMPORARY FUNCTION catalog1.default_database.f4";
+		String dropFunctionInWrongDB = "DROP TEMPORARY FUNCTION default_catalog.db1.f4";
+
+		try {
+			tableEnv.sqlUpdate(dropUndefinedFunction);
+			fail();
+		} catch (Exception e){
+			assertEquals(e.getMessage(),
+				"Temporary catalog function `default_catalog`.`default_database`.`f4` is not found");
+		}
+
+		try {
+			tableEnv.sqlUpdate(dropFunctionInWrongCatalog);
+			fail();
+		} catch (Exception e) {
+			assertEquals(e.getMessage(),
+				"Temporary catalog function `catalog1`.`default_database`.`f4` is not found");
+		}
+
+		try {
+			tableEnv.sqlUpdate(dropFunctionInWrongDB);
+			fail();
+		} catch (Exception e) {
+			assertEquals(e.getMessage(), "Temporary catalog function `default_catalog`.`db1`.`f4` is not found");
+		}
+	}
+
+	@Test
+	public void testCreateAlterDropTemporaryCatalogFunctionsWithDifferentIdentifier() {
+		String createNoCatalogDB = "create temporary function f4" +
+			" as 'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String dropNoCatalogDB = "drop temporary function f4";
+
+		tableEnv.sqlUpdate(createNoCatalogDB);
+		tableEnv.sqlUpdate(dropNoCatalogDB);
+
+		String createNonExistsCatalog = "create temporary function catalog1.default_database.f4" +
+			" as 'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String dropNonExistsCatalog = "drop temporary function catalog1.default_database.f4";
+
+		tableEnv.sqlUpdate(createNonExistsCatalog);
+		tableEnv.sqlUpdate(dropNonExistsCatalog);
+
+		String createNonExistsDB = "create temporary function default_catalog.db1.f4" +
+			" as 'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+
+		String dropNonExistsDB = "drop temporary function default_catalog.db1.f4";
+
+		tableEnv.sqlUpdate(createNonExistsDB);
+		tableEnv.sqlUpdate(dropNonExistsDB);
 	}
 
 	protected Row toRow(Object ... objects) {

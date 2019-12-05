@@ -28,7 +28,8 @@ import org.junit.BeforeClass;
 /**
  * Tests for {@link CatalogFunction} in batch table environment.
  */
-public class CatalogFunctionITCase extends CatalogFunctionTestBase {
+public class
+CatalogFunctionITCase extends CatalogFunctionTestBase {
 
 	@BeforeClass
 	public static void setup() {
