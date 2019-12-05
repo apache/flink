@@ -137,7 +137,7 @@ public class CatalogStatisticsTest {
 			String tableName) throws TableNotExistException, TablePartitionedException {
 		catalog.alterTableStatistics(new ObjectPath(databaseName, tableName),
 				new CatalogTableStatistics(100, 10, 1000L, 2000L), true);
-		catalog.alterTableColumnStatistics(new ObjectPath(databaseName, "T1"), createColumnStats(), true);
+		catalog.alterTableColumnStatistics(new ObjectPath(databaseName, tableName), createColumnStats(), true);
 	}
 
 	private CatalogColumnStatistics createColumnStats() {
