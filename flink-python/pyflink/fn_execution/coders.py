@@ -20,6 +20,7 @@ from abc import ABC
 
 
 import datetime
+import decimal
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder
 
@@ -32,7 +33,7 @@ FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
            'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
-           'TimestampCoder', 'ArrayCoder', 'MapCoder']
+           'TimestampCoder', 'ArrayCoder', 'MapCoder', 'DecimalCoder']
 
 
 class RowCoder(FastCoder):
@@ -238,6 +239,22 @@ class DoubleCoder(DeterministicCoder):
         return float
 
 
+class DecimalCoder(DeterministicCoder):
+    """
+    Coder for Decimal.
+    """
+
+    def __init__(self, precision, scale):
+        self.precision = precision
+        self.scale = scale
+
+    def _create_impl(self):
+        return coder_impl.DecimalCoderImpl(self.precision, self.scale)
+
+    def to_type_hint(self):
+        return decimal.Decimal
+
+
 class BinaryCoder(DeterministicCoder):
     """
     Coder for Byte Array.
@@ -343,5 +360,8 @@ def from_proto(field_type):
     elif field_type_name == type_name.MAP:
         return MapCoder(from_proto(field_type.map_type.key_type),
                         from_proto(field_type.map_type.value_type))
+    elif field_type_name == type_name.DECIMAL:
+        return DecimalCoder(field_type.decimal_type.precision,
+                            field_type.decimal_type.scale)
     else:
         raise ValueError("field_type %s is not supported." % field_type)
