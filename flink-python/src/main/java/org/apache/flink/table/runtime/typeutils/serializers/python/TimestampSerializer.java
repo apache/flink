@@ -25,29 +25,30 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.runtime.typeutils.SqlTimestampSerializer;
 
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
- * Uses SqlTimestampSerializer to serialize Timestamp. It not only deals with Daylight saving time
- * problem and precision problem, but also makes the serialized value consistent between the legacy
- * planner and the blink planner.
+ * Uses similar serialization/deserialization of SqlTimestampSerializer in blink to serialize Timestamp.
+ * It not only deals with Daylight saving time problem and precision problem, but also makes the
+ * serialized value consistent between the legacy planner and the blink planner.
  */
 @Internal
 public class TimestampSerializer extends TypeSerializerSingleton<Timestamp> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final transient SqlTimestampSerializer sqlTimestampSerializer;
+	// the number of milliseconds in a day
+	private static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
 
 	private final int precision;
 
 	public TimestampSerializer(int precision) {
 		this.precision = precision;
-		this.sqlTimestampSerializer = new SqlTimestampSerializer(precision);
 	}
 
 	@Override
@@ -82,7 +83,7 @@ public class TimestampSerializer extends TypeSerializerSingleton<Timestamp> {
 
 	@Override
 	public int getLength() {
-		return sqlTimestampSerializer.getLength();
+		return isCompact() ? 8 : 12;
 	}
 
 	@Override
@@ -90,12 +91,46 @@ public class TimestampSerializer extends TypeSerializerSingleton<Timestamp> {
 		if (record == null) {
 			throw new IllegalArgumentException("The Timestamp record must not be null.");
 		}
-		sqlTimestampSerializer.serialize(SqlTimestamp.fromTimestamp(record), target);
+		LocalDateTime dateTime = record.toLocalDateTime();
+		long epochDay = dateTime.toLocalDate().toEpochDay();
+		long nanoOfDay = dateTime.toLocalTime().toNanoOfDay();
+
+		long millisecond = epochDay * MILLIS_PER_DAY + nanoOfDay / 1_000_000;
+		int nanoOfMillisecond = (int) (nanoOfDay % 1_000_000);
+
+		if (isCompact()) {
+			assert nanoOfMillisecond == 0;
+			target.writeLong(millisecond);
+		} else {
+			target.writeLong(millisecond);
+			target.writeInt(nanoOfMillisecond);
+		}
+	}
+
+	private boolean isCompact() {
+		return precision <= 3;
 	}
 
 	@Override
 	public Timestamp deserialize(DataInputView source) throws IOException {
-		return sqlTimestampSerializer.deserialize(source).toTimestamp();
+		long millisecond;
+		int nanoOfMillisecond = 0;
+		if (isCompact()) {
+			millisecond = source.readLong();
+		} else {
+			millisecond = source.readLong();
+			nanoOfMillisecond = source.readInt();
+		}
+		int date = (int) (millisecond / MILLIS_PER_DAY);
+		int time = (int) (millisecond % MILLIS_PER_DAY);
+		if (time < 0) {
+			--date;
+			time += MILLIS_PER_DAY;
+		}
+		long nanoOfDay = time * 1_000_000L + nanoOfMillisecond;
+		LocalDate localDate = LocalDate.ofEpochDay(date);
+		LocalTime localTime = LocalTime.ofNanoOfDay(nanoOfDay);
+		return Timestamp.valueOf(LocalDateTime.of(localDate, localTime));
 	}
 
 	@Override
