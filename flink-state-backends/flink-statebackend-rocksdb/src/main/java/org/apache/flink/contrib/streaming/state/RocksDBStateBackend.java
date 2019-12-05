@@ -118,7 +118,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private static boolean rocksDbInitialized = false;
 
 	private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
-	private static final long UNDEFINED_BATCH_SIZE = -1;
+	private static final long UNDEFINED_WRITE_BATCH_SIZE = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -285,7 +285,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 		this.memoryConfiguration = new RocksDBMemoryConfiguration();
-		this.writeBatchSize = UNDEFINED_BATCH_SIZE;
+		this.writeBatchSize = UNDEFINED_WRITE_BATCH_SIZE;
 	}
 
 	/**
@@ -328,7 +328,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			this.numberOfTransferThreads = original.numberOfTransferThreads;
 		}
 
-		if (original.writeBatchSize == UNDEFINED_BATCH_SIZE) {
+		if (original.writeBatchSize == UNDEFINED_WRITE_BATCH_SIZE) {
 			this.writeBatchSize = config.get(WRITE_BATCH_SIZE).getBytes();
 		} else {
 			this.writeBatchSize = original.writeBatchSize;
@@ -912,7 +912,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Gets the max batch size will be used in {@link RocksDBWriteBatchWrapper}.
 	 */
 	public long getWriteBatchSize() {
-		return writeBatchSize == UNDEFINED_BATCH_SIZE ?
+		return writeBatchSize == UNDEFINED_WRITE_BATCH_SIZE ?
 			WRITE_BATCH_SIZE.defaultValue().getBytes() : writeBatchSize;
 	}
 
