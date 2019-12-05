@@ -38,7 +38,9 @@ import java.util.UUID;
  */
 public class TableUtil {
 	/**
-	 * Return a lower temp table name in lower case and use "-" as connector character.
+	 * Return a temp table named with prefix `temp_`, follow by a random UUID.
+	 *
+	 * <p>UUID hyphens ("-") will be replaced by underscores ("_").
 	 *
 	 * @return tableName
 	 */
@@ -66,6 +68,17 @@ public class TableUtil {
 	}
 
 	/**
+	 * Find the index of <code>targetCol</code> from the <code>tableSchema</code>.
+	 *
+	 * @param tableSchema the TableSchema among which to find the targetCol.
+	 * @param targetCol   the targetCols to find.
+	 * @return the index of the targetCol.
+	 */
+	public static int findColIndex(TableSchema tableSchema, String targetCol) {
+		return findColIndex(tableSchema.getFieldNames(), targetCol);
+	}
+
+	/**
 	 * Find the indices of <code>targetCols</code> in string array <code>tableCols</code>. If
 	 * <code>targetCols</code> is
 	 * null, it will be replaced by the <code>tableCols</code>
@@ -87,17 +100,6 @@ public class TableUtil {
 			indices[i] = findColIndex(tableCols, targetCols[i]);
 		}
 		return indices;
-	}
-
-	/**
-	 * Find the index of <code>targetCol</code> from the <code>tableSchema</code>.
-	 *
-	 * @param tableSchema the TableSchema among which to find the targetCol.
-	 * @param targetCol   the targetCols to find.
-	 * @return the index of the targetCol.
-	 */
-	public static int findColIndex(TableSchema tableSchema, String targetCol) {
-		return findColIndex(tableSchema.getFieldNames(), targetCol);
 	}
 
 	/**
@@ -148,7 +150,7 @@ public class TableUtil {
 	 * @param dataType the dataType to determine.
 	 * @return whether it is number type
 	 */
-	public static boolean isNumber(TypeInformation dataType) {
+	public static boolean isSupportedNumericType(TypeInformation dataType) {
 		return Types.DOUBLE == dataType
 			|| Types.LONG == dataType
 			|| Types.BYTE == dataType
@@ -208,7 +210,7 @@ public class TableUtil {
 		if (selectedCols != null && selectedCols.length != 0) {
 			for (String selectedCol : selectedCols) {
 				if (null != selectedCol) {
-					if (!isNumber(findColType(tableSchema, selectedCol))) {
+					if (!isSupportedNumericType(findColType(tableSchema, selectedCol))) {
 						throw new IllegalArgumentException("col type must be number " + selectedCol);
 					}
 				}
@@ -315,7 +317,7 @@ public class TableUtil {
 		TypeInformation<?>[] inColTypes = tableSchema.getFieldTypes();
 
 		for (int i = 0; i < inColNames.length; i++) {
-			if (isNumber(inColTypes[i])) {
+			if (isSupportedNumericType(inColTypes[i])) {
 				if (null == excludeColsList || !excludeColsList.contains(inColNames[i])) {
 					numericCols.add(inColNames[i]);
 				}
@@ -420,8 +422,9 @@ public class TableUtil {
 	}
 
 	/**
-	 * which method Convert column names array to SQL clause. For example, columns {a, b, c} will be converted
-	 * into "`a`,`b`,`c`".
+	 * Convert column name array to SQL clause.
+	 *
+	 * <p>For example, columns "{a, b, c}" will be converted into a SQL-compatible select string section: "`a`, `b`, `c`".
 	 *
 	 * @param colNames columns to convert
 	 * @return converted SQL clause.

@@ -67,13 +67,13 @@ public class TableUtilTest {
 
 	@Test
 	public void isNumberIsStringTest() {
-		Assert.assertTrue(TableUtil.isNumber(Types.INT));
-		Assert.assertTrue(TableUtil.isNumber(Types.DOUBLE));
-		Assert.assertTrue(TableUtil.isNumber(Types.LONG));
-		Assert.assertTrue(TableUtil.isNumber(Types.BYTE));
-		Assert.assertTrue(TableUtil.isNumber(Types.FLOAT));
-		Assert.assertTrue(TableUtil.isNumber(Types.SHORT));
-		Assert.assertFalse(TableUtil.isNumber(Types.STRING));
+		Assert.assertTrue(TableUtil.isSupportedNumericType(Types.INT));
+		Assert.assertTrue(TableUtil.isSupportedNumericType(Types.DOUBLE));
+		Assert.assertTrue(TableUtil.isSupportedNumericType(Types.LONG));
+		Assert.assertTrue(TableUtil.isSupportedNumericType(Types.BYTE));
+		Assert.assertTrue(TableUtil.isSupportedNumericType(Types.FLOAT));
+		Assert.assertTrue(TableUtil.isSupportedNumericType(Types.SHORT));
+		Assert.assertFalse(TableUtil.isSupportedNumericType(Types.STRING));
 		Assert.assertTrue(TableUtil.isString(Types.STRING));
 	}
 
