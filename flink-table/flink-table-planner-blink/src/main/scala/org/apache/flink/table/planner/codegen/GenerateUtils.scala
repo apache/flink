@@ -35,7 +35,7 @@ import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
 import java.math.{BigDecimal => JBigDecimal}
 
-import org.apache.flink.table.util.TimestampStringUtils.fromTimestampString
+import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 
 import scala.collection.mutable
 
@@ -371,7 +371,7 @@ object GenerateUtils {
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val fieldTerm = newName("timestamp")
-        val ldt = fromTimestampString(literalValue.asInstanceOf[TimestampString])
+        val ldt = toLocalDateTime(literalValue.asInstanceOf[TimestampString])
         val ts = SqlTimestamp.fromLocalDateTime(ldt)
         val fieldTimestamp =
           s"""
@@ -384,7 +384,7 @@ object GenerateUtils {
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val fieldTerm = newName("timestampWithLocalZone")
         val ins =
-          fromTimestampString(literalValue.asInstanceOf[TimestampString])
+          toLocalDateTime(literalValue.asInstanceOf[TimestampString])
           .atZone(ctx.tableConfig.getLocalTimeZone).toInstant
         val ts = SqlTimestamp.fromInstant(ins)
         val fieldTimestampWithLocalZone =

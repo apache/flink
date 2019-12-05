@@ -63,7 +63,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
-import static org.apache.flink.table.util.TimestampStringUtils.toTimestampString;
+import static org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime;
 
 /**
  * Visit expression to generator {@link RexNode}.
@@ -139,7 +139,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				TimestampType timestampType = (TimestampType) type;
 				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
 				return relBuilder.getRexBuilder().makeTimestampLiteral(
-					toTimestampString(datetime), timestampType.getPrecision());
+					fromLocalDateTime(datetime), timestampType.getPrecision());
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
 				TimeZone timeZone = TimeZone.getTimeZone(this.relBuilder.getCluster()
@@ -150,7 +150,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 					.getLocalTimeZone());
 				Instant instant = extractValue(valueLiteral, java.time.Instant.class);
 				return this.relBuilder.getRexBuilder().makeTimestampWithLocalTimeZoneLiteral(
-					toTimestampString(LocalDateTime.ofInstant(instant, timeZone.toZoneId())),
+					fromLocalDateTime(LocalDateTime.ofInstant(instant, timeZone.toZoneId())),
 					lzTs.getPrecision());
 			case INTERVAL_YEAR_MONTH:
 				return this.relBuilder.getRexBuilder().makeIntervalLiteral(

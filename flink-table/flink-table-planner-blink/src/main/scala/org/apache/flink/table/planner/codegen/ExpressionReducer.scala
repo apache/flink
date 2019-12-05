@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.util.TimestampStringUtils.toTimestampString
+import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -156,7 +156,7 @@ class ExpressionReducer(
             val value = if (reducedValue != null) {
               val ins = reducedValue.asInstanceOf[SqlTimestamp].toInstant
               val dt = LocalDateTime.ofInstant(ins, config.getLocalTimeZone)
-              toTimestampString(dt)
+              fromLocalDateTime(dt)
             } else {
               reducedValue
             }
@@ -175,7 +175,7 @@ class ExpressionReducer(
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
               val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
-              toTimestampString(dt)
+              fromLocalDateTime(dt)
             } else {
               reducedValue
             }

@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
  */
 public class TimestampStringUtils {
 
-	public static TimestampString toTimestampString(LocalDateTime ldt) {
+	public static TimestampString fromLocalDateTime(LocalDateTime ldt) {
 		return new TimestampString(
 			ldt.getYear(),
 			ldt.getMonthValue(),
@@ -37,7 +37,7 @@ public class TimestampStringUtils {
 			ldt.getSecond()).withNanos(ldt.getNano());
 	}
 
-	public static LocalDateTime fromTimestampString(TimestampString timestampString) {
+	public static LocalDateTime toLocalDateTime(TimestampString timestampString) {
 		final String v = timestampString.toString();
 		final int year = Integer.valueOf(v.substring(0, 4));
 		final int month = Integer.valueOf(v.substring(5, 7));

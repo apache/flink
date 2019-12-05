@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.util.TimestampStringUtils.fromTimestampString
+import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
@@ -338,11 +338,11 @@ class RexNodeToExpressionConverter(
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
-        fromTimestampString(v)
+        toLocalDateTime(v)
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
-        fromTimestampString(v).atZone(timeZone.toZoneId).toInstant
+        toLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
 
       case TINYINT =>
         // convert from BigDecimal to Byte
