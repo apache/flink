@@ -1,21 +1,22 @@
 #!/usr/bin/env python
-
+# -*- coding: utf-8 -*-
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
 # limitations under the License.
-#
+################################################################################
 
 # This file will be runned by jenkis to run the e2e perf test
 # Params:
@@ -25,13 +26,16 @@
 # inter_nums：the num of every scenario's running, default value is 10
 # wait_minute: interval time of two elections of qps,default value is 10s
 #
-# Note by AiHua Li:
-#
 
 
 import sys
 import time
 
+if sys.version_info < (3, 5):
+    print("Python versions prior to 3.5 are not supported.")
+    sys.exit(-1)
+
+from logger import logger
 from utils import run_command
 from restapi_common import get_avg_qps_by_restful_interface
 
@@ -39,7 +43,7 @@ from restapi_common import get_avg_qps_by_restful_interface
 def start_server(flink_home):
     cmd = "bash %s/bin/start_yarn.sh" % flink_home
     status, output = run_command(cmd)
-    if status ==0:
+    if status == 0:
         return 0
     else:
         return 1
@@ -105,7 +109,7 @@ def run_cases(scenario_file_name, flink_home, am_seserver_dddress, inter_nums=10
         total_qps = []
         status = start_server(flink_home)
         if status != 0:
-            print "start server failed"
+            logger.info("start server failed")
             return 1
         for inter_index in range(0, inter_nums):
             cmd = "bash %s/bin/flink run %s" % (flink_home, scenario)
@@ -115,17 +119,19 @@ def run_cases(scenario_file_name, flink_home, am_seserver_dddress, inter_nums=10
                 total_qps.append(qps)
                 time.sleep(wait_minute)
         avg_qps = get_avg(total_qps)
-        print "The avg qps of %'s  is %s" % (scenario_name, avg_qps)
-
+        logger.info("The avg qps of %'s  is %s" % (scenario_name, avg_qps))
 
 
 if __name__ == "__main__":
+    if len(sys.argv)<3:
+        logger.error("The param's number must be larger than 3")
+        sys.exit(1)
     am_seserver_dddress = sys.argv[1]
     scenario_file = sys.argv[2]
     flink_home = sys.argv[3]
-    if len(sys.argv)>=4:
+    if len(sys.argv) >= 4:
         inter_nums = sys.argv[4]
-    if len(sys.argv)>=5:
+    if len(sys.argv) >= 5:
         wait_minute = sys.argv[5]
 
     run_cases(scenario_file, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10)
