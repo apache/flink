@@ -206,7 +206,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Flag to mark this task as canceled. */
 	private volatile boolean canceled;
 
-	private volatile boolean disposed;
+	private boolean disposedOperators;
 
 	/** Thread pool for async snapshot workers. */
 	private ExecutorService asyncOperationsThreadPool;
@@ -411,7 +411,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void beforeInvoke() throws Exception {
-		disposed = false;
+		disposedOperators = false;
 		LOG.debug("Initializing {}.", getName());
 
 		asyncOperationsThreadPool = Executors.newCachedThreadPool(new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
@@ -516,8 +516,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		// make an attempt to dispose the operators such that failures in the dispose call
 		// still let the computation fail
-		tryDisposeAllOperators();
-		disposed = true;
+		disposeAllOperators(false);
+		disposedOperators = true;
 	}
 
 	private void cleanUpInvoke() throws Exception {
@@ -555,9 +555,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		// if the operators were not disposed before, do a hard dispose
-		if (!disposed) {
-			disposeAllOperators();
-		}
+		disposeAllOperators(true);
 
 		// release the output resources. this method should never fail.
 		if (operatorChain != null) {
@@ -625,18 +623,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	/**
-	 * Execute {@link StreamOperator#dispose()} of each operator in the chain of this
-	 * {@link StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
-	 */
-	private void tryDisposeAllOperators() throws Exception {
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-			if (operator != null) {
-				operator.dispose();
-			}
-		}
-	}
-
 	private void shutdownAsyncThreads() throws Exception {
 		if (!asyncOperationsThreadPool.isShutdown()) {
 			asyncOperationsThreadPool.shutdownNow();
@@ -646,22 +632,26 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/**
 	 * Execute @link StreamOperator#dispose()} of each operator in the chain of this
 	 * {@link StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
-	 *
-	 * <p>The difference with the {@link #tryDisposeAllOperators()} is that in case of an
-	 * exception, this method catches it and logs the message.
 	 */
-	private void disposeAllOperators() {
-		if (operatorChain != null) {
+	private void disposeAllOperators(boolean logOnlyErrors) throws Exception {
+		if (operatorChain != null && !disposedOperators) {
 			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-				try {
-					if (operator != null) {
+				if (operator == null) {
+					continue;
+				}
+				if (!logOnlyErrors) {
+					operator.dispose();
+				}
+				else {
+					try {
 						operator.dispose();
 					}
-				}
-				catch (Throwable t) {
-					LOG.error("Error during disposal of stream operator.", t);
+					catch (Exception e) {
+						LOG.error("Error during disposal of stream operator.", e);
+					}
 				}
 			}
+			disposedOperators = true;
 		}
 	}
 
