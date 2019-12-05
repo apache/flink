@@ -562,6 +562,12 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
+	public void setManagedMemoryWeight(int vertexID, int managedMemoryWeight) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setManagedMemoryWeight(managedMemoryWeight);
+		}
+	}
+
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
 		node.setStatePartitioner1(keySelector);
