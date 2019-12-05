@@ -285,8 +285,7 @@ public class OrcColumnarRowSplitReaderTest {
 				col0.vector[i] = i;
 				col1.vector[i] = i;
 
-				Timestamp timestamp = Timestamp.valueOf(
-						padZero(4, i + 1000) + "-01-01 00:00:00." + i);
+				Timestamp timestamp = toTimestamp(i);
 				col2.time[i] = timestamp.getTime();
 				col2.nanos[i] = timestamp.getNanos();
 
@@ -309,7 +308,7 @@ public class OrcColumnarRowSplitReaderTest {
 		// second test read.
 		FileInputSplit split = createSplits(new Path(file), 1)[0];
 
-		long cnt = 0;
+		int cnt = 0;
 		Map<String, Object> partSpec = new HashMap<>();
 		partSpec.put("f5", true);
 		partSpec.put("f6", new Date(562423));
@@ -357,8 +356,7 @@ public class OrcColumnarRowSplitReaderTest {
 					Assert.assertFalse(row.isNullAt(3));
 					Assert.assertFalse(row.isNullAt(4));
 					Assert.assertEquals(
-							SqlTimestamp.fromTimestamp(
-									Timestamp.valueOf(padZero(4, cnt + 1000) + "-01-01 00:00:00." + cnt)),
+							SqlTimestamp.fromTimestamp(toTimestamp(cnt)),
 							row.getTimestamp(0, 9));
 					Assert.assertEquals(cnt, row.getFloat(1), 0);
 					Assert.assertEquals(cnt, row.getDouble(2), 0);
@@ -387,19 +385,15 @@ public class OrcColumnarRowSplitReaderTest {
 		assertEquals(rowSize, cnt);
 	}
 
-	private static String padZero(int len, Object o) {
-		String str = o.toString();
-		int strLen = str.length();
-		if (strLen == len) {
-			return str;
-		} else if (strLen > len) {
-			throw new IllegalArgumentException();
-		}
-		StringBuilder builder = new StringBuilder(len);
-		for (int i = 0; i < len - strLen; i++) {
-			builder.append("0");
-		}
-		return builder.append(str).toString();
+	private static Timestamp toTimestamp(int i) {
+		return new Timestamp(
+						i + 1000,
+						(i % 12) + 1,
+						(i % 28) + 1,
+						i % 24,
+						i % 60,
+						i % 60,
+						i * 1_000 + i);
 	}
 
 	private OrcColumnarRowSplitReader createReader(
