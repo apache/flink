@@ -55,7 +55,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class FunctionCatalog implements FunctionLookup {
-
 	private final CatalogManager catalogManager;
 	private final ModuleManager moduleManager;
 
@@ -192,6 +191,17 @@ public class FunctionCatalog implements FunctionLookup {
 			oi,
 			definition
 		);
+	}
+
+	/**
+	 * Check whether a temporary catalog function is already registered.
+	 * @param functionIdentifier the object identifier of function
+	 * @return whether the temporary catalog function exists in the function catalog
+	 */
+	public boolean hasTemporaryCatalogFunction(ObjectIdentifier functionIdentifier) {
+		ObjectIdentifier normalizedIdentifier =
+			FunctionIdentifier.normalizeObjectIdentifier(functionIdentifier);
+		return tempCatalogFunctions.containsKey(normalizedIdentifier);
 	}
 
 	/**

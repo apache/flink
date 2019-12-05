@@ -247,7 +247,9 @@ public class SqlToOperationConverter {
 	private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
 		FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
 		CatalogFunction catalogFunction = new CatalogFunctionImpl(
-			sqlCreateFunction.getFunctionClassName().getValueAs(String.class), language);
+			sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
+			language,
+			sqlCreateFunction.isTemporary());
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -263,7 +265,9 @@ public class SqlToOperationConverter {
 	private Operation convertAlterFunction(SqlAlterFunction sqlAlterFunction) {
 		FunctionLanguage language = parseLanguage(sqlAlterFunction.getFunctionLanguage());
 		CatalogFunction catalogFunction = new CatalogFunctionImpl(
-			sqlAlterFunction.getFunctionClassName().getValueAs(String.class), language);
+			sqlAlterFunction.getFunctionClassName().getValueAs(String.class),
+			language,
+			sqlAlterFunction.isTemporary());
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -281,6 +285,7 @@ public class SqlToOperationConverter {
 
 		return new DropFunctionOperation(
 			identifier,
+			sqlDropFunction.isTemporary(),
 			sqlDropFunction.getIfExists());
 	}
 

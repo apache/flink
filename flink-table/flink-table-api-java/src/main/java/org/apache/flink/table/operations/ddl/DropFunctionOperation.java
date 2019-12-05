@@ -32,12 +32,15 @@ import java.util.Map;
 public class DropFunctionOperation implements DropOperation {
 	private final ObjectIdentifier functionIdentifier;
 	private final boolean ifExists;
+	private final boolean isTemporary;
 
 	public DropFunctionOperation(
 			ObjectIdentifier functionIdentifier,
+			boolean isTemporary,
 			boolean ifExists) {
 		this.functionIdentifier = functionIdentifier;
 		this.ifExists = ifExists;
+		this.isTemporary = isTemporary;
 	}
 
 	public ObjectIdentifier getFunctionIdentifier() {
@@ -52,12 +55,21 @@ public class DropFunctionOperation implements DropOperation {
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("identifier", functionIdentifier);
-		params.put("IfExists", ifExists);
+		params.put("ifExists", ifExists);
+		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
 			"DROP FUNCTION",
 			params,
 			Collections.emptyList(),
 			Operation::asSummaryString);
+	}
+
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
+	public String getFunctionName() {
+		return this.functionIdentifier.getObjectName();
 	}
 }

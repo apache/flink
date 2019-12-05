@@ -69,4 +69,8 @@ public class CreateFunctionOperation implements CreateOperation {
 			Collections.emptyList(),
 			Operation::asSummaryString);
 	}
+
+	public String getFunctionName() {
+		return this.functionIdentifier.getObjectName();
+	}
 }

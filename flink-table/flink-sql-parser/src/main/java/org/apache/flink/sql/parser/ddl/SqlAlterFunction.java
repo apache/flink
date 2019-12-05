@@ -114,6 +114,10 @@ public class SqlAlterFunction extends SqlCall {
 		return this.functionClassName;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
 	public boolean isIfExists() {
 		return this.ifExists;
 	}
