@@ -32,9 +32,10 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
+import java.util.Arrays;
+import java.util.Collections;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link ProcessFunctionTestHarnessesTest}.
@@ -56,7 +57,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(1)));
+		assertEquals(harness.extractOutputValues(), Collections.singletonList(1));
 	}
 
 	@Test
@@ -72,7 +73,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(1)));
+		assertEquals(harness.extractOutputValues(), Collections.singletonList(1));
 	}
 
 	@Test
@@ -95,8 +96,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processElement2("0", 1);
 		harness.processElement1(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), StreamRecordMatchers
-				.streamRecord(1)));
+		assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
 	}
 
 	@Test
@@ -120,8 +120,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processElement1(0, 1);
 		harness.processElement2(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), StreamRecordMatchers
-				.streamRecord(1)));
+		assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
 	}
 
 	@Test
@@ -145,7 +144,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processBroadcastElement("0", 1);
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), streamRecord(1)));
+		assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
 	}
 
 	@Test
@@ -173,8 +172,7 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 		harness.processBroadcastElement("0", 1);
 		harness.processElement(1, 10);
 
-		assertThat(harness.extractOutputStreamRecords(), contains(streamRecord(0), StreamRecordMatchers
-				.streamRecord(1)));
+		assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
 	}
 
 }
