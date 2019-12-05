@@ -506,16 +506,17 @@ abstract class TableEnvImpl(
           alterTableOperation.getTableIdentifier.getCatalogName)
         val exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString)
         try {
-          if (alterTableOperation.isRename) {
-            catalog.renameTable(
-              alterTableOperation.getTableIdentifier.toObjectPath,
-              alterTableOperation.getNewTableIdentifier.getObjectName,
-              false)
-          } else {
-            catalog.alterTable(
-              alterTableOperation.getTableIdentifier.toObjectPath,
-              alterTableOperation.getCatalogTable,
-              false)
+          alterTableOperation match {
+            case alterTableRenameOp: AlterTableRenameOperation =>
+              catalog.renameTable(
+                alterTableRenameOp.getTableIdentifier.toObjectPath,
+                alterTableRenameOp.getNewTableIdentifier.getObjectName,
+                false)
+            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+              catalog.alterTable(
+                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
+                alterTablePropertiesOp.getCatalogTable,
+                false)
           }
         } catch {
           case ex: TableNotExistException => throw new ValidationException(exMsg, ex)

@@ -46,7 +46,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
-import org.apache.flink.table.operations.ddl.AlterTableOperation;
+import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -188,31 +189,30 @@ public class SqlToOperationConverter {
 	private Operation convertAlterTable(SqlAlterTable sqlAlterTable) {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullTableName());
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		ObjectIdentifier newTableIdentifer = null;
-		Map<String, String> properties = new HashMap<>();
-		CatalogTable catalogTable = null;
 		if (sqlAlterTable.isRename()) {
 			UnresolvedIdentifier newUnresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullNewTableName());
-			newTableIdentifer = catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
+			ObjectIdentifier newTableIdentifier = catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
+			return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
 		} else {
 			Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(tableIdentifier);
 			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
 				CatalogTable originalCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
+				Map<String, String> properties = new HashMap<>();
 				properties.putAll(originalCatalogTable.getProperties());
 				sqlAlterTable.getPropertyList().getList().forEach(p ->
-								properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+						properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
 								((SqlTableOption) p).getValueString()));
-				catalogTable = new CatalogTableImpl(
+				CatalogTable catalogTable = new CatalogTableImpl(
 						originalCatalogTable.getSchema(),
 						originalCatalogTable.getPartitionKeys(),
 						properties,
 						originalCatalogTable.getComment());
+				return new AlterTablePropertiesOperation(tableIdentifier, catalogTable);
 			} else {
 				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
 						tableIdentifier.toString()));
 			}
 		}
-		return new AlterTableOperation(tableIdentifier, newTableIdentifer, sqlAlterTable.isRename(), catalogTable);
 	}
 
 	/** Convert insert into statement. */

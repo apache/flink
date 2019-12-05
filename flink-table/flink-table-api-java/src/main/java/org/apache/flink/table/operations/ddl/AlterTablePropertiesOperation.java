@@ -18,20 +18,35 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.operations.OperationUtils;
+
+import java.util.stream.Collectors;
+
 
 /**
- * Abstract Operation to describe all ALTER TABLE statements such as rename table /set properties.
+ * Operation to describe a ALTER TABLE .. SET .. statement.
  */
-public abstract class AlterTableOperation implements AlterOperation {
-	protected final ObjectIdentifier tableIdentifier;
+public class AlterTablePropertiesOperation extends AlterTableOperation {
+	private final CatalogTable catalogTable;
 
-	public AlterTableOperation(ObjectIdentifier tableIdentifier) {
-		this.tableIdentifier = tableIdentifier;
+	public AlterTablePropertiesOperation(
+			ObjectIdentifier tableIdentifier,
+			CatalogTable catalogTable) {
+		super(tableIdentifier);
+		this.catalogTable = catalogTable;
 	}
 
-	public ObjectIdentifier getTableIdentifier() {
-		return tableIdentifier;
+	public CatalogTable getCatalogTable() {
+		return catalogTable;
 	}
 
+	@Override
+	public String asSummaryString() {
+		String description = catalogTable.getProperties().entrySet().stream()
+				.map(entry -> OperationUtils.formatParameter(entry.getKey(), entry.getValue()))
+				.collect(Collectors.joining(", "));
+		return String.format("ALTER TABLE %s SET (%s)", tableIdentifier.asSummaryString(), description);
+	}
 }

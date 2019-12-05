@@ -67,6 +67,8 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
+import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -505,15 +507,17 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			Catalog catalog = getCatalogOrThrowException(alterTableOperation.getTableIdentifier().getCatalogName());
 			String exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString());
 			try {
-				if (alterTableOperation.isRename()) {
+				if (alterTableOperation instanceof AlterTableRenameOperation) {
+					AlterTableRenameOperation alterTableRenameOp = (AlterTableRenameOperation) operation;
 					catalog.renameTable(
-							alterTableOperation.getTableIdentifier().toObjectPath(),
-							alterTableOperation.getNewTableIdentifier().getObjectName(),
+							alterTableRenameOp.getTableIdentifier().toObjectPath(),
+							alterTableRenameOp.getNewTableIdentifier().getObjectName(),
 							false);
-				} else {
+				} else if (alterTableOperation instanceof AlterTablePropertiesOperation){
+					AlterTablePropertiesOperation alterTablePropertiesOp = (AlterTablePropertiesOperation) operation;
 					catalog.alterTable(
-							alterTableOperation.getTableIdentifier().toObjectPath(),
-							alterTableOperation.getCatalogTable(),
+							alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
+							alterTablePropertiesOp.getCatalogTable(),
 							false);
 				}
 			} catch (TableAlreadyExistException | TableNotExistException e) {
