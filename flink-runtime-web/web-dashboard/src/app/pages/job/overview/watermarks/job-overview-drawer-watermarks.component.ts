@@ -19,7 +19,7 @@
 import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JobService, MetricsService } from 'services';
+import { JobService, MetricsService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-overview-drawer-watermarks',

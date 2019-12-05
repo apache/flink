@@ -17,10 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetailInterface } from '@flink-runtime-web/interfaces';
 import { first } from 'rxjs/operators';
-import { TaskManagerService } from 'services';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { TaskManagerService } from '@flink-runtime-web/services';
+import { MonacoEditorComponent } from '@flink-runtime-web/share/common/monaco-editor/monaco-editor.component';
 
 @Component({
   selector: 'flink-task-manager-stdout',
@@ -29,7 +29,7 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: false }) monacoEditorComponent: MonacoEditorComponent;
   stdout = '';
   taskManagerDetail: TaskManagerDetailInterface;
 

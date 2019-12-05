@@ -19,7 +19,7 @@
 import { curveLinear, line } from 'd3';
 import * as dagre from 'dagre';
 import { GraphEdge, graphlib } from 'dagre';
-import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
+import { NodesItemCorrectInterface, NodesItemLinkInterface } from '@flink-runtime-web/interfaces';
 import Graph = graphlib.Graph;
 
 export interface LayoutNode extends NodesItemCorrectInterface {

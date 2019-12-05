@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-/// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
-
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -43,7 +41,7 @@ import * as G2 from '@antv/g2';
 export class JobChartComponent implements AfterViewInit, OnDestroy {
   @Input() title: string;
   @Output() closed = new EventEmitter();
-  @ViewChild('chart') chart: ElementRef;
+  @ViewChild('chart', { static: false }) chart: ElementRef;
   size = 'small';
   displayMode: 'chart' | 'numeric' = 'chart';
   chartInstance: Chart;

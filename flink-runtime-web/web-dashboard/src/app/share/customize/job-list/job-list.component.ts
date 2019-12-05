@@ -18,11 +18,11 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { JobsItemInterface } from 'interfaces';
+import { JobsItemInterface } from '@flink-runtime-web/interfaces';
 import { Observable, Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JobService, StatusService } from 'services';
-import { deepFind, isNil } from 'utils';
+import { JobService, StatusService } from '@flink-runtime-web/services';
+import { deepFind, isNil } from '@flink-runtime-web/utils';
 
 @Component({
   selector: 'flink-job-list',
@@ -65,7 +65,7 @@ export class JobListComponent implements OnInit, OnDestroy {
   }
 
   navigateToJob(jid: string) {
-    this.router.navigate(['job', jid]).then();
+    this.router.navigate(['job', jid], { queryParamsHandling: 'merge' }).then();
   }
 
   constructor(

@@ -35,7 +35,7 @@ export class NavigationComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
 
   navigateTo(path: string) {
-    this.router.navigate([path], { relativeTo: this.activatedRoute }).then();
+    this.router.navigate([path], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' }).then();
   }
 
   constructor(private activatedRoute: ActivatedRoute, private router: Router, private cdr: ChangeDetectorRef) {}

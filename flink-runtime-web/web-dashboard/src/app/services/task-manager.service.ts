@@ -20,8 +20,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { BASE_URL } from 'config';
-import { TaskManagerListInterface, TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerListInterface, TaskManagerDetailInterface } from '@flink-runtime-web/interfaces';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
@@ -33,7 +33,7 @@ export class TaskManagerService {
    * Load TM list
    */
   loadManagers() {
-    return this.httpClient.get<TaskManagerListInterface>(`${BASE_URL}/taskmanagers`).pipe(
+    return this.httpClient.get<TaskManagerListInterface>(`${this.configService.BASE_URL}/taskmanagers`).pipe(
       map(data => data.taskmanagers || []),
       catchError(() => of([]))
     );
@@ -45,7 +45,7 @@ export class TaskManagerService {
    */
   loadManager(taskManagerId: string) {
     return this.httpClient
-      .get<TaskManagerDetailInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}`)
+      .get<TaskManagerDetailInterface>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`)
       .pipe(catchError(() => EMPTY));
   }
 
@@ -54,7 +54,9 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadLogs(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, { responseType: 'text' });
+    return this.httpClient.get(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/log`, {
+      responseType: 'text'
+    });
   }
 
   /**
@@ -62,8 +64,10 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadStdout(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, { responseType: 'text' });
+    return this.httpClient.get(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
+      responseType: 'text'
+    });
   }
 
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private configService: ConfigService) {}
 }

@@ -19,7 +19,7 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ShareModule } from 'share/share.module';
+import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { JobOverviewDrawerAccumulatorsComponent } from './accumulators/job-overview-drawer-accumulators.component';
 import { JobOverviewDrawerBackpressureComponent } from './backpressure/job-overview-drawer-backpressure.component';
 import { JobOverviewDrawerChartComponent } from './chart/job-overview-drawer-chart.component';

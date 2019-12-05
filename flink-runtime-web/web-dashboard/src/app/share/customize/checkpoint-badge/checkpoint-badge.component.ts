@@ -17,7 +17,7 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
-import { COLOR_MAP } from 'config';
+import { ConfigService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-checkpoint-badge',
@@ -29,6 +29,8 @@ export class CheckpointBadgeComponent {
   @Input() state: any;
 
   get colorMap(): any {
-    return COLOR_MAP;
+    return this.configService.COLOR_MAP;
   }
+
+  constructor(private configService: ConfigService) {}
 }

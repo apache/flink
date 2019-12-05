@@ -18,11 +18,11 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TaskmanagersItemInterface } from 'interfaces';
+import { TaskmanagersItemInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { StatusService, TaskManagerService } from 'services';
-import { deepFind } from 'utils';
+import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
+import { deepFind } from '@flink-runtime-web/utils';
 
 @Component({
   selector: 'flink-task-manager-list',
@@ -62,7 +62,9 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   }
 
   navigateTo(taskManager: TaskmanagersItemInterface) {
-    this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
+    this.router
+      .navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' })
+      .then();
   }
 
   constructor(

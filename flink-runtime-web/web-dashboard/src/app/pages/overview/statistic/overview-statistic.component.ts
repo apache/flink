@@ -17,10 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { OverviewInterface } from 'interfaces';
+import { OverviewInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { OverviewService, StatusService } from 'services';
+import { OverviewService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview-statistic',

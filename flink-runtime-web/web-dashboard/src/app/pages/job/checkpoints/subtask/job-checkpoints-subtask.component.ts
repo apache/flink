@@ -25,15 +25,19 @@ import {
   OnInit,
   SimpleChanges
 } from '@angular/core';
-import { CheckPointSubTaskInterface, JobDetailCorrectInterface, VerticesItemInterface } from 'interfaces';
+import {
+  CheckPointSubTaskInterface,
+  JobDetailCorrectInterface,
+  VerticesItemInterface
+} from '@flink-runtime-web/interfaces';
 import { first } from 'rxjs/operators';
-import { JobService } from 'services';
-import { deepFind } from 'utils';
+import { JobService } from '@flink-runtime-web/services';
+import { deepFind } from '@flink-runtime-web/utils';
 
 @Component({
-  selector       : 'flink-job-checkpoints-subtask',
-  templateUrl    : './job-checkpoints-subtask.component.html',
-  styleUrls      : [ './job-checkpoints-subtask.component.less' ],
+  selector: 'flink-job-checkpoints-subtask',
+  templateUrl: './job-checkpoints-subtask.component.html',
+  styleUrls: ['./job-checkpoints-subtask.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
@@ -83,8 +87,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
     }
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.jobService.jobDetail$.pipe(first()).subscribe(job => {

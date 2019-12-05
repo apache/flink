@@ -18,7 +18,7 @@
 
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ShareModule } from 'share/share.module';
+import { ShareModule } from '@flink-runtime-web/share/share.module';
 
 import { TaskManagerRoutingModule } from './task-manager-routing.module';
 import { TaskManagerListComponent } from './list/task-manager-list.component';

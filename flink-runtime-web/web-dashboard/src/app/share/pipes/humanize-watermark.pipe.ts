@@ -17,14 +17,16 @@
  */
 
 import { Pipe, PipeTransform } from '@angular/core';
-import { LONG_MIN_VALUE } from 'config';
+import { ConfigService } from '@flink-runtime-web/services';
 
 @Pipe({
   name: 'humanizeWatermark'
 })
 export class HumanizeWatermarkPipe implements PipeTransform {
+  constructor(private configService: ConfigService) {}
+
   transform(value: any): any {
-    if (isNaN(value) || value <= LONG_MIN_VALUE) {
+    if (isNaN(value) || value <= this.configService.LONG_MIN_VALUE) {
       return 'No Watermark';
     } else {
       return value;

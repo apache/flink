@@ -18,9 +18,9 @@
 
 import { formatDate } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { JobExceptionItemInterface } from 'interfaces';
+import { JobExceptionItemInterface } from '@flink-runtime-web/interfaces';
 import { distinctUntilChanged, flatMap } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-exceptions',

@@ -19,9 +19,9 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { fromEvent, merge } from 'rxjs';
-import { filter, first, map, startWith } from 'rxjs/operators';
-import { StatusService } from 'services';
-import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
+import { filter, first, map, startWith, tap } from 'rxjs/operators';
+import { StatusService } from '@flink-runtime-web/services';
+import { MonacoEditorService } from '@flink-runtime-web/share/common/monaco-editor/monaco-editor.service';
 
 @Component({
   selector: 'flink-root',
@@ -31,6 +31,7 @@ import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.se
 export class AppComponent implements OnInit {
   collapsed = false;
   visible = false;
+  hideMenu = true;
   online$ = merge(
     fromEvent(window, 'offline').pipe(map(() => false)),
     fromEvent(window, 'online').pipe(map(() => true))
@@ -68,6 +69,9 @@ export class AppComponent implements OnInit {
     this.router.events
       .pipe(
         filter(event => event instanceof NavigationEnd),
+        tap(() => {
+          this.hideMenu = !!this.activatedRoute.snapshot && !!this.activatedRoute.snapshot.queryParams.hideMenu;
+        }),
         filter(() => this.activatedRoute.firstChild && this.activatedRoute.firstChild.snapshot.data.collapse),
         first()
       )

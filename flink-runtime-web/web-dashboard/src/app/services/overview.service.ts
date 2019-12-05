@@ -20,19 +20,21 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { BASE_URL } from '../app.config';
-import { OverviewInterface } from 'interfaces';
+import { ConfigService } from './config.service';
+import { OverviewInterface } from '@flink-runtime-web/interfaces';
 
 @Injectable({
   providedIn: 'root'
 })
 export class OverviewService {
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private configService: ConfigService) {}
 
   /**
    * Get cluster overview status
    */
   loadOverview() {
-    return this.httpClient.get<OverviewInterface>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
+    return this.httpClient
+      .get<OverviewInterface>(`${this.configService.BASE_URL}/overview`)
+      .pipe(catchError(() => EMPTY));
   }
 }

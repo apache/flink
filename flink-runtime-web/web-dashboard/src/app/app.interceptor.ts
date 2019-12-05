@@ -21,7 +21,7 @@ import { Injectable, Injector } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd';
 import { throwError, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { StatusService } from 'services';
+import { StatusService } from '@flink-runtime-web/services';
 
 @Injectable()
 export class AppInterceptor implements HttpInterceptor {

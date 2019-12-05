@@ -17,10 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerDetailInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { TaskManagerService } from 'services';
+import { TaskManagerService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-task-manager-metrics',

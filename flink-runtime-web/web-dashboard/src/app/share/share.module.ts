@@ -19,18 +19,18 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NgZorroAntdModule } from 'ng-zorro-antd';
-import { ResizeComponent } from 'share/common/resize/resize.component';
-import { CheckpointBadgeComponent } from 'share/customize/checkpoint-badge/checkpoint-badge.component';
-import { JobChartComponent } from 'share/customize/job-chart/job-chart.component';
-import { PipeModule } from 'share/pipes/pipe.module';
-import { DagreModule } from 'share/common/dagre/dagre.module';
-import { FileReadDirective } from 'share/common/file-read/file-read.directive';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
-import { NavigationComponent } from 'share/common/navigation/navigation.component';
-import { JobBadgeComponent } from 'share/customize/job-badge/job-badge.component';
-import { JobListComponent } from 'share/customize/job-list/job-list.component';
-import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.component';
-import { RefreshDownloadComponent } from 'share/customize/refresh-download/refresh-download.component';
+import { ResizeComponent } from '@flink-runtime-web/share/common/resize/resize.component';
+import { CheckpointBadgeComponent } from '@flink-runtime-web/share/customize/checkpoint-badge/checkpoint-badge.component';
+import { JobChartComponent } from '@flink-runtime-web/share/customize/job-chart/job-chart.component';
+import { PipeModule } from '@flink-runtime-web/share/pipes/pipe.module';
+import { DagreModule } from '@flink-runtime-web/share/common/dagre/dagre.module';
+import { FileReadDirective } from '@flink-runtime-web/share/common/file-read/file-read.directive';
+import { MonacoEditorComponent } from '@flink-runtime-web/share/common/monaco-editor/monaco-editor.component';
+import { NavigationComponent } from '@flink-runtime-web/share/common/navigation/navigation.component';
+import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
+import { JobListComponent } from '@flink-runtime-web/share/customize/job-list/job-list.component';
+import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badge/task-badge.component';
+import { RefreshDownloadComponent } from '@flink-runtime-web/share/customize/refresh-download/refresh-download.component';
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 
 @NgModule({

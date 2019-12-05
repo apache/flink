@@ -20,7 +20,7 @@ import { Component, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 import { trigger, animate, style, transition } from '@angular/animations';
 
 @Component({
@@ -46,15 +46,7 @@ import { trigger, animate, style, transition } from '@angular/animations';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
-  listOfNavigation = [
-    { title: 'Detail', path: 'detail' },
-    { title: 'SubTasks', path: 'subtasks' },
-    { title: 'TaskManagers', path: 'taskmanagers' },
-    { title: 'Watermarks', path: 'watermarks' },
-    { title: 'Accumulators', path: 'accumulators' },
-    { title: 'BackPressure', path: 'backpressure' },
-    { title: 'Metrics', path: 'metrics' }
-  ];
+  listOfNavigation = this.jobService.listOfNavigation;
   fullScreen = false;
   private cachePath = this.listOfNavigation[0].path;
   private destroy$ = new Subject();
@@ -63,7 +55,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     if (this.fullScreen) {
       this.fullScreen = false;
     } else {
-      this.router.navigate(['../../'], { relativeTo: this.activatedRoute }).then();
+      this.router.navigate(['../../'], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' }).then();
     }
   }
 
@@ -75,12 +67,12 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));
-    combineLatest(this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$)
+    combineLatest([this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$])
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         const [nodes, nodeId] = data;
         if (!this.activatedRoute.firstChild) {
-          this.router.navigate([this.cachePath], { relativeTo: this.activatedRoute });
+          this.router.navigate([this.cachePath], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' });
         } else {
           this.cachePath = this.activatedRoute.firstChild.snapshot.data.path;
         }

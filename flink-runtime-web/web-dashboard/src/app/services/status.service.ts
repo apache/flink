@@ -21,8 +21,8 @@ import { Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Subject } from 'rxjs';
 import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
-import { BASE_URL } from '../app.config';
-import { ConfigurationInterface } from 'interfaces';
+import { ConfigService } from './config.service';
+import { ConfigurationInterface } from '@flink-runtime-web/interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -63,7 +63,7 @@ export class StatusService {
    */
   boot(router: Router): Promise<ConfigurationInterface> {
     return this.httpClient
-      .get<ConfigurationInterface>(`${BASE_URL}/config`)
+      .get<ConfigurationInterface>(`${this.configService.BASE_URL}/config`)
       .pipe(
         tap(data => {
           this.configuration = data;
@@ -86,5 +86,5 @@ export class StatusService {
       .toPromise();
   }
 
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private configService: ConfigService) {}
 }

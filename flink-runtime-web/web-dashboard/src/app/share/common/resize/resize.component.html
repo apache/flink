@@ -23,5 +23,5 @@
   [style.left.px]="mode === 'vertical' ? left : 0"
   [style.top.px]="mode === 'vertical' ? 0 : top"
   (mousedown)="startMove()">
-  <div class="resize-handle" [class.horizontal]="mode === 'horizontal'" [class.vertical]="mode === 'vertical'"><i nz-icon type="ellipsis"></i></div>
+  <div class="resize-handle" [class.horizontal]="mode === 'horizontal'" [class.vertical]="mode === 'vertical'"><i nz-icon nzType="ellipsis"></i></div>
 </div>

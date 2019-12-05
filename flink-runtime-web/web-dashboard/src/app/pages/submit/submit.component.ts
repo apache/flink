@@ -20,11 +20,11 @@ import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
-import { JarFilesItemInterface } from 'interfaces';
+import { JarFilesItemInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JarService, StatusService } from 'services';
-import { DagreComponent } from 'share/common/dagre/dagre.component';
+import { JarService, StatusService } from '@flink-runtime-web/services';
+import { DagreComponent } from '@flink-runtime-web/share/common/dagre/dagre.component';
 
 @Component({
   selector: 'flink-submit',
@@ -33,7 +33,7 @@ import { DagreComponent } from 'share/common/dagre/dagre.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SubmitComponent implements OnInit, OnDestroy {
-  @ViewChild(DagreComponent) dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent, { static: false }) dagreComponent: DagreComponent;
   expandedMap = new Map();
   isLoading = true;
   destroy$ = new Subject();
@@ -140,7 +140,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
         this.validateForm.get('allowNonRestoredState')!.value
       )
       .subscribe(data => {
-        this.router.navigate(['job', data.jobid]).then();
+        this.router.navigate(['job', data.jobid], { queryParamsHandling: 'merge' }).then();
       });
   }
 

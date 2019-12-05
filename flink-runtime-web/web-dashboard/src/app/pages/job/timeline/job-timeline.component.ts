@@ -29,29 +29,26 @@ import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
-import { JobDetailCorrectInterface, VerticesItemRangeInterface } from 'interfaces';
-import { JobService } from 'services';
-import { COLOR_MAP } from 'config';
-
-/// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
+import { JobDetailCorrectInterface, VerticesItemRangeInterface } from '@flink-runtime-web/interfaces';
+import { ConfigService, JobService } from '@flink-runtime-web/services';
 
 @Component({
-  selector       : 'flink-job-timeline',
-  templateUrl    : './job-timeline.component.html',
-  styleUrls      : [ './job-timeline.component.less' ],
+  selector: 'flink-job-timeline',
+  templateUrl: './job-timeline.component.html',
+  styleUrls: ['./job-timeline.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   destroy$ = new Subject();
   listOfVertex: VerticesItemRangeInterface[] = [];
-  listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [ number, number ] }> = [];
+  listOfSubTaskTimeLine: Array<{ name: string; status: string; range: [number, number] }> = [];
   mainChartInstance: Chart;
   subTaskChartInstance: Chart;
   jobDetail: JobDetailCorrectInterface;
   selectedName: string;
   isShowSubTaskTimeLine = false;
-  @ViewChild('mainTimeLine') mainTimeLine: ElementRef;
-  @ViewChild('subTaskTimeLine') subTaskTimeLine: ElementRef;
+  @ViewChild('mainTimeLine', { static: false }) mainTimeLine: ElementRef;
+  @ViewChild('subTaskTimeLine', { static: false }) subTaskTimeLine: ElementRef;
 
   updateSubTaskChart(vertexId: string) {
     this.listOfSubTaskTimeLine = [];
@@ -60,10 +57,10 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
         const listOfTimeLine: Array<{ status: string; startTime: number }> = [];
         for (const key in task.timestamps) {
           // @ts-ignore
-          const time = task.timestamps[ key ];
+          const time = task.timestamps[key];
           if (time > 0) {
             listOfTimeLine.push({
-              status   : key,
+              status: key,
               startTime: time
             });
           }
@@ -72,15 +69,15 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
         listOfTimeLine.forEach((item, index) => {
           if (index === listOfTimeLine.length - 1) {
             this.listOfSubTaskTimeLine.push({
-              name  : `${task.subtask} - ${task.host}`,
+              name: `${task.subtask} - ${task.host}`,
               status: item.status,
-              range : [ item.startTime, task.duration + listOfTimeLine[ 0 ].startTime ]
+              range: [item.startTime, task.duration + listOfTimeLine[0].startTime]
             });
           } else {
             this.listOfSubTaskTimeLine.push({
-              name  : `${task.subtask} - ${task.host}`,
+              name: `${task.subtask} - ${task.host}`,
               status: item.status,
-              range : [ item.startTime, listOfTimeLine[ index + 1 ].startTime ]
+              range: [item.startTime, listOfTimeLine[index + 1].startTime]
             });
           }
         });
@@ -89,9 +86,9 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
       this.subTaskChartInstance.source(this.listOfSubTaskTimeLine, {
         range: {
           alias: 'Time',
-          type : 'time',
-          mask : 'HH:mm:ss',
-          nice : false
+          type: 'time',
+          mask: 'HH:mm:ss',
+          nice: false
         }
       });
       this.subTaskChartInstance.render();
@@ -100,8 +97,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
       setTimeout(() => {
         try {
           (document.getElementById('subtask') as any).scrollIntoViewIfNeeded();
-        } catch (e) {
-        }
+        } catch (e) {}
       });
     });
   }
@@ -109,42 +105,42 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   setUpMainChart() {
     this.mainChartInstance = new G2.Chart({
       container: this.mainTimeLine.nativeElement,
-      forceFit : true,
-      animate  : false,
-      height   : 500,
-      padding  : [ 50, 50, 50, 50 ]
+      forceFit: true,
+      animate: false,
+      height: 500,
+      padding: [50, 50, 50, 50]
     });
     this.mainChartInstance.axis('id', false);
     this.mainChartInstance
-    .coord('rect')
-    .transpose()
-    .scale(1, -1);
+      .coord('rect')
+      .transpose()
+      .scale(1, -1);
     this.mainChartInstance
-    .interval()
-    .position('id*range')
-    // @ts-ignore
-    .color('status', (type: any) => COLOR_MAP[ type ])
-    .label('name', {
-      offset   : -20,
-      formatter: (text: string) => {
-        if (text.length <= 120) {
-          return text;
-        } else {
-          return text.slice(0, 120) + '...';
+      .interval()
+      .position('id*range')
+      // @ts-ignore
+      .color('status', (type: any) => this.configService.COLOR_MAP[type])
+      .label('name', {
+        offset: -20,
+        formatter: (text: string) => {
+          if (text.length <= 120) {
+            return text;
+          } else {
+            return text.slice(0, 120) + '...';
+          }
+        },
+        textStyle: {
+          fill: '#ffffff',
+          textAlign: 'right',
+          fontWeight: 'bold'
         }
-      },
-      textStyle: {
-        fill      : '#ffffff',
-        textAlign : 'right',
-        fontWeight: 'bold'
-      }
-    });
+      });
     this.mainChartInstance.tooltip({
       title: 'name'
     });
     this.mainChartInstance.on('click', (e: any) => {
       if (this.mainChartInstance.getSnapRecords(e).length) {
-        const data = (this.mainChartInstance.getSnapRecords(e)[ 0 ] as any)._origin;
+        const data = (this.mainChartInstance.getSnapRecords(e)[0] as any)._origin;
         this.selectedName = data.name;
         this.updateSubTaskChart(data.id);
       }
@@ -154,58 +150,57 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   setUpSubTaskChart() {
     this.subTaskChartInstance = new G2.Chart({
       container: this.subTaskTimeLine.nativeElement,
-      forceFit : true,
-      height   : 10,
-      animate  : false,
-      padding  : [ 50, 50, 50, 300 ]
+      forceFit: true,
+      height: 10,
+      animate: false,
+      padding: [50, 50, 50, 300]
     });
     this.subTaskChartInstance
-    .coord('rect')
-    .transpose()
-    .scale(1, -1);
+      .coord('rect')
+      .transpose()
+      .scale(1, -1);
     this.subTaskChartInstance
-    .interval()
-    .position('name*range')
-    // @ts-ignore
-    .color('status', (type: any) => COLOR_MAP[ type ]);
+      .interval()
+      .position('name*range')
+      // @ts-ignore
+      .color('status', (type: any) => this.configService.COLOR_MAP[type]);
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private configService: ConfigService, private cdr: ChangeDetectorRef) {}
 
   ngAfterViewInit() {
     this.setUpMainChart();
     this.setUpSubTaskChart();
     this.jobService.jobDetail$
-    .pipe(
-      filter(() => !!this.mainChartInstance),
-      distinctUntilChanged((pre, next) => pre.jid === next.jid),
-      takeUntil(this.destroy$)
-    )
-    .subscribe(data => {
-      this.jobDetail = data;
-      this.listOfVertex = data.vertices
-      .filter(v => v[ 'start-time' ] > -1)
-      .map(vertex => {
-        const endTime = vertex[ 'end-time' ] > -1 ? vertex[ 'end-time' ] : (vertex[ 'start-time' ] + vertex.duration);
-        return {
-          ...vertex,
-          range: [ vertex[ 'start-time' ], endTime ]
-        };
+      .pipe(
+        filter(() => !!this.mainChartInstance),
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.jobDetail = data;
+        this.listOfVertex = data.vertices
+          .filter(v => v['start-time'] > -1)
+          .map(vertex => {
+            const endTime = vertex['end-time'] > -1 ? vertex['end-time'] : vertex['start-time'] + vertex.duration;
+            return {
+              ...vertex,
+              range: [vertex['start-time'], endTime]
+            };
+          });
+        this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[0] - b.range[0]);
+        this.mainChartInstance.changeHeight(Math.max(this.listOfVertex.length * 50 + 100, 150));
+        this.mainChartInstance.source(this.listOfVertex, {
+          range: {
+            alias: 'Time',
+            type: 'time',
+            mask: 'HH:mm:ss',
+            nice: false
+          }
+        });
+        this.mainChartInstance.render();
+        this.cdr.markForCheck();
       });
-      this.listOfVertex = this.listOfVertex.sort((a, b) => a.range[ 0 ] - b.range[ 0 ]);
-      this.mainChartInstance.changeHeight(Math.max(this.listOfVertex.length * 50 + 100, 150));
-      this.mainChartInstance.source(this.listOfVertex, {
-        range: {
-          alias: 'Time',
-          type : 'time',
-          mask : 'HH:mm:ss',
-          nice : false
-        }
-      });
-      this.mainChartInstance.render();
-      this.cdr.markForCheck();
-    });
   }
 
   ngOnDestroy() {

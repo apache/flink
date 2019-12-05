@@ -17,8 +17,8 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
-import { COLOR_MAP } from 'config';
-import { TaskStatusInterface } from 'interfaces';
+import { TaskStatusInterface } from '@flink-runtime-web/interfaces';
+import { ConfigService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-task-badge',
@@ -28,9 +28,11 @@ import { TaskStatusInterface } from 'interfaces';
 })
 export class TaskBadgeComponent {
   @Input() tasks: TaskStatusInterface;
-  statusList = Object.keys(COLOR_MAP);
+  statusList = Object.keys(this.configService.COLOR_MAP);
 
   get colorMap() {
-    return COLOR_MAP;
+    return this.configService.COLOR_MAP;
   }
+
+  constructor(private configService: ConfigService) {}
 }

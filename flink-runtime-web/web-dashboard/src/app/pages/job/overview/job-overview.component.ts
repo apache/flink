@@ -26,12 +26,11 @@ import {
   ViewChild
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LONG_MIN_VALUE } from 'config';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
 import { catchError, filter, map, takeUntil } from 'rxjs/operators';
-import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
-import { JobService, MetricsService } from 'services';
-import { DagreComponent } from 'share/common/dagre/dagre.component';
+import { NodesItemCorrectInterface, NodesItemLinkInterface } from '@flink-runtime-web/interfaces';
+import { ConfigService, JobService, MetricsService } from '@flink-runtime-web/services';
+import { DagreComponent } from '@flink-runtime-web/share/common/dagre/dagre.component';
 
 @Component({
   selector: 'flink-job-overview',
@@ -40,7 +39,7 @@ import { DagreComponent } from 'share/common/dagre/dagre.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
-  @ViewChild(DagreComponent) dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent, { static: true }) dagreComponent: DagreComponent;
   nodes: NodesItemCorrectInterface[] = [];
   links: NodesItemLinkInterface[] = [];
   destroy$ = new Subject();
@@ -51,7 +50,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
 
   onNodeClick(node: NodesItemCorrectInterface) {
     if (!(this.selectedNode && this.selectedNode.id === node.id)) {
-      this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
+      this.router.navigate([node.id], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' }).then();
     }
   }
 
@@ -83,7 +82,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
                 minValue = value;
               }
             }
-            if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
+            if (!isNaN(minValue) && minValue > this.configService.LONG_MIN_VALUE) {
               lowWatermark = minValue;
             } else {
               lowWatermark = NaN;
@@ -108,6 +107,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     private router: Router,
     private activatedRoute: ActivatedRoute,
     public elementRef: ElementRef,
+    private configService: ConfigService,
     private metricService: MetricsService,
     private cdr: ChangeDetectorRef
   ) {}
