@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 
 import org.apache.hadoop.conf.Configuration;
@@ -205,8 +206,8 @@ public interface HiveShim extends Serializable {
 	Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName);
 
 	/**
-	 * Get the names of columns that compose a table's primary key. An empty list is returned if the table
+	 * Get the primary key of a Hive table and convert it to a UniqueConstraint. Return null if the table
 	 * doesn't have a primary key, or the constraint doesn't satisfy the desired trait, e.g. RELY.
 	 */
-	List<String> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait);
+	UniqueConstraint getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait);
 }

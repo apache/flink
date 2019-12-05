@@ -22,10 +22,10 @@ import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -53,7 +53,6 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -338,20 +337,23 @@ public class TableEnvHiveConnectorTest {
 			// test rely PK constraints
 			hiveShell.execute("create table db1.tbl1 (x tinyint,y smallint,z int, primary key (x,z) disable novalidate rely)");
 			CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl1"));
-			String pkCols = catalogTable.getProperties().get(CatalogConfig.PRIMARY_KEY_COLUMNS);
-			assertEquals("x,z", pkCols);
+			TableSchema tableSchema = catalogTable.getSchema();
+			assertTrue(tableSchema.getPrimaryKey().isPresent());
+			UniqueConstraint pk = tableSchema.getPrimaryKey().get();
+			assertEquals(2, pk.getColumns().size());
+			assertTrue(pk.getColumns().containsAll(Arrays.asList("x", "z")));
 
 			// test norely PK constraints
 			hiveShell.execute("create table db1.tbl2 (x tinyint,y smallint, primary key (x) disable norely)");
 			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl2"));
-			pkCols = catalogTable.getProperties().get(CatalogConfig.PRIMARY_KEY_COLUMNS);
-			assertNull(pkCols);
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
 
 			// test table w/o PK
 			hiveShell.execute("create table db1.tbl3 (x tinyint)");
 			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl3"));
-			pkCols = catalogTable.getProperties().get(CatalogConfig.PRIMARY_KEY_COLUMNS);
-			assertNull(pkCols);
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

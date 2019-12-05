@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
@@ -32,7 +33,6 @@ import org.apache.thrift.TException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -61,18 +61,21 @@ public class HiveShimV210 extends HiveShimV201 {
 	}
 
 	@Override
-	public List<String> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait) {
+	public UniqueConstraint getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait) {
 		try {
 			Class requestClz = Class.forName("org.apache.hadoop.hive.metastore.api.PrimaryKeysRequest");
 			Object request = requestClz.getDeclaredConstructor(String.class, String.class).newInstance(dbName, tableName);
 			List<?> constraints = (List<?>) HiveReflectionUtils.invokeMethod(client.getClass(), client,
 					"getPrimaryKeys", new Class[]{requestClz}, new Object[]{request});
+			if (constraints.isEmpty()) {
+				return null;
+			}
 			Class constraintClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLPrimaryKey");
 			Method colNameMethod = constraintClz.getDeclaredMethod("getColumn_name");
 			Method isEnableMethod = constraintClz.getDeclaredMethod("isEnable_cstr");
 			Method isValidateMethod = constraintClz.getDeclaredMethod("isValidate_cstr");
 			Method isRelyMethod = constraintClz.getDeclaredMethod("isRely_cstr");
-			List<String> res = new ArrayList<>();
+			List<String> colNames = new ArrayList<>();
 			for (Object constraint : constraints) {
 				boolean add = !HiveTableUtil.requireEnableConstraint(constraintTrait) || (boolean) isEnableMethod.invoke(constraint);
 				if (add) {
@@ -82,12 +85,14 @@ public class HiveShimV210 extends HiveShimV201 {
 					add = !HiveTableUtil.requireRelyConstraint(constraintTrait) || (boolean) isRelyMethod.invoke(constraint);
 				}
 				if (add) {
-					res.add((String) colNameMethod.invoke(constraint));
+					colNames.add((String) colNameMethod.invoke(constraint));
 				} else {
-					return Collections.emptyList();
+					return null;
 				}
 			}
-			return res;
+			// all pk constraints should have the same name, so let's use the name of the first one
+			String pkName = (String) HiveReflectionUtils.invokeMethod(constraintClz, constraints.get(0), "getPk_name", null, null);
+			return UniqueConstraint.primaryKey(pkName, colNames);
 		} catch (Exception e) {
 			throw new CatalogException("Failed to get PrimaryKey constraints", e);
 		}

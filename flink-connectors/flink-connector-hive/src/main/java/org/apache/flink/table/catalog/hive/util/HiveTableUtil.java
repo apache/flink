@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.commons.lang3.StringUtils;
@@ -54,7 +55,7 @@ public class HiveTableUtil {
 	 * Create a Flink's TableSchema from Hive table's columns and partition keys.
 	 */
 	public static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys,
-			Set<String> notNullColumns) {
+			Set<String> notNullColumns, UniqueConstraint primaryKey) {
 		List<FieldSchema> allCols = new ArrayList<>(cols);
 		allCols.addAll(partitionKeys);
 
@@ -71,9 +72,11 @@ public class HiveTableUtil {
 			}
 		}
 
-		return TableSchema.builder()
-				.fields(colNames, colTypes)
-				.build();
+		TableSchema.Builder builder = TableSchema.builder().fields(colNames, colTypes);
+		if (primaryKey != null) {
+			builder.primaryKey(primaryKey.getName(), primaryKey.getColumns().toArray(new String[0]));
+		}
+		return builder.build();
 	}
 
 	/**

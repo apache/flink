@@ -23,6 +23,7 @@ import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
@@ -528,8 +529,14 @@ public class HiveCatalog extends AbstractCatalog {
 			fields = hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
 		}
 		Set<String> notNullColumns = client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
+		UniqueConstraint primaryKey = isView ? null : client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(),
+				HiveTableUtil.relyConstraint((byte) 0));
+		// PK columns cannot be null
+		if (primaryKey != null) {
+			notNullColumns.addAll(primaryKey.getColumns());
+		}
 		TableSchema tableSchema =
-			HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys(), notNullColumns);
+				HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys(), notNullColumns, primaryKey);
 
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();
@@ -545,12 +552,6 @@ public class HiveCatalog extends AbstractCatalog {
 					properties,
 					comment);
 		} else {
-			List<String> primaryKey = client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(),
-					HiveTableUtil.relyConstraint((byte) 0));
-			// Need a better place to hold the PK constraints. Put it as a property for now.
-			if (!primaryKey.isEmpty()) {
-				properties.put(CatalogConfig.PRIMARY_KEY_COLUMNS, String.join(",", primaryKey));
-			}
 			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
 		}
 	}

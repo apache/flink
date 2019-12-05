@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -221,7 +222,7 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
 	}
 
-	public List<String> getPrimaryKey(String dbName, String tableName, byte trait) {
+	public UniqueConstraint getPrimaryKey(String dbName, String tableName, byte trait) {
 		return hiveShim.getPrimaryKey(client, dbName, tableName, trait);
 	}
 

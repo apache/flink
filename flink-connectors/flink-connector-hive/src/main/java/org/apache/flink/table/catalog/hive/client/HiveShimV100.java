@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -342,8 +343,8 @@ public class HiveShimV100 implements HiveShim {
 	}
 
 	@Override
-	public List<String> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait) {
+	public UniqueConstraint getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait) {
 		// PK constraints not supported until 2.1.0 -- HIVE-13290
-		return Collections.emptyList();
+		return null;
 	}
 }
