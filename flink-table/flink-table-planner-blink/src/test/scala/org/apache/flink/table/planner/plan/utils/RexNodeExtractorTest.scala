@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCa
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.expressions.{EqualTo, ExpressionBridge, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
@@ -33,7 +34,7 @@ import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.{SqlIdentifier, SqlPostfixOperator}
+import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
@@ -42,12 +43,8 @@ import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
 import java.math.BigDecimal
-import java.sql.Timestamp
 import java.time.ZoneId
 import java.util.{TimeZone, List => JList}
-
-import org.apache.flink.table.module.ModuleManager
-import org.apache.calcite.sql.parser.SqlParserPos
 
 import scala.collection.JavaConverters._
 
@@ -885,7 +882,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       val expected = Array[Expression](
         // timestamp_col = '2017-09-10 14:23:01.123456'
         unresolvedCall(EQUALS, unresolvedRef("timestamp_col"), valueLiteral(datetime)),
-        // instant_col = '2017-09-12'
+        // instant_col = '2017-09-10T06:23:01.123456Z'
         unresolvedCall(EQUALS, unresolvedRef("instant_col"), valueLiteral(instant))
       )
 

@@ -28,16 +28,14 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.util.TimestampStringUtils.toTimestampString
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
 import java.io.File
 import java.time.LocalDateTime
-import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -232,16 +230,6 @@ class ExpressionReducer(
       valueArg,
       targetType,
       true)
-  }
-
-  private def toTimestampString(ldt: LocalDateTime): TimestampString = {
-    new TimestampString(
-      ldt.getYear,
-      ldt.getMonthValue,
-      ldt.getDayOfMonth,
-      ldt.getHour,
-      ldt.getMinute,
-      ldt.getSecond).withNanos(ldt.getNano)
   }
 }
 

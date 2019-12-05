@@ -21,16 +21,15 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
-import org.apache.flink.table.dataformat.SqlTimestamp
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.utils.Logging
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.util.TimestampStringUtils.fromTimestampString
 import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
@@ -40,7 +39,6 @@ import org.apache.calcite.util.{TimestampString, Util}
 import java.util
 import java.util.{TimeZone, List => JList}
 
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -340,16 +338,11 @@ class RexNodeToExpressionConverter(
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
-        val millisecond = v.getMillisSinceEpoch
-        val nanoOfMillisecond = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(v.toString)
-        SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond).toLocalDateTime
+        fromTimestampString(v)
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
-        val millisecond = unixTimestampToLocalDateTime(v.getMillisSinceEpoch)
-          .atZone(timeZone.toZoneId).toInstant.toEpochMilli
-        val nanoOfMillisecond = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(v.toString)
-        SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond).toInstant
+        fromTimestampString(v).atZone(timeZone.toZoneId).toInstant
 
       case TINYINT =>
         // convert from BigDecimal to Byte

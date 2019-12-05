@@ -26,19 +26,16 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.utils.SortUtil
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.util.TimestampString
-
 import org.apache.commons.lang3.StringEscapeUtils
 import java.math.{BigDecimal => JBigDecimal}
 
+import org.apache.flink.table.util.TimestampStringUtils.fromTimestampString
 
 import scala.collection.mutable
 
@@ -374,29 +371,26 @@ object GenerateUtils {
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val fieldTerm = newName("timestamp")
-        val millis = literalValue.asInstanceOf[TimestampString].getMillisSinceEpoch
-        val nanoOfMillis = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(
-          literalValue.asInstanceOf[TimestampString].toString)
+        val ldt = fromTimestampString(literalValue.asInstanceOf[TimestampString])
+        val ts = SqlTimestamp.fromLocalDateTime(ldt)
         val fieldTimestamp =
           s"""
              |$SQL_TIMESTAMP $fieldTerm =
-             |  $SQL_TIMESTAMP.fromEpochMillis(${millis}L, $nanoOfMillis);
+             |  $SQL_TIMESTAMP.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
         generateNonNullLiteral(literalType, fieldTerm, literalType)
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val fieldTerm = newName("timestampWithLocalZone")
-        val millis = unixTimestampToLocalDateTime(
-              literalValue.asInstanceOf[TimestampString].getMillisSinceEpoch)
-            .atZone(ctx.tableConfig.getLocalTimeZone)
-            .toInstant.toEpochMilli
-        val nanoOfMillis = SqlDateTimeUtils.getNanoOfMillisSinceEpoch(
-          literalValue.asInstanceOf[TimestampString].toString)
+        val ins =
+          fromTimestampString(literalValue.asInstanceOf[TimestampString])
+          .atZone(ctx.tableConfig.getLocalTimeZone).toInstant
+        val ts = SqlTimestamp.fromInstant(ins)
         val fieldTimestampWithLocalZone =
           s"""
              |$SQL_TIMESTAMP $fieldTerm =
-             |  $SQL_TIMESTAMP.fromEpochMillis(${millis}L, $nanoOfMillis);
+             |  $SQL_TIMESTAMP.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
            """.stripMargin
         ctx.addReusableMember(fieldTimestampWithLocalZone)
         generateNonNullLiteral(literalType, fieldTerm, literalValue)

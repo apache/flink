@@ -39,7 +39,6 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.type.RelDataType;
@@ -51,13 +50,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
-import org.apache.calcite.util.TimestampString;
-import org.apache.calcite.util.TimestampWithTimeZoneString;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -67,6 +63,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.table.util.TimestampStringUtils.toTimestampString;
 
 /**
  * Visit expression to generator {@link RexNode}.
@@ -153,11 +150,8 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 					.getLocalTimeZone());
 				Instant instant = extractValue(valueLiteral, java.time.Instant.class);
 				return this.relBuilder.getRexBuilder().makeTimestampWithLocalTimeZoneLiteral(
-						new TimestampWithTimeZoneString(
-								toTimestampString(LocalDateTime.ofInstant(instant, ZoneId.of("UTC"))),
-								timeZone)
-								.withTimeZone(DateTimeUtils.UTC_ZONE)
-								.getLocalTimestampString(), lzTs.getPrecision());
+					toTimestampString(LocalDateTime.ofInstant(instant, timeZone.toZoneId())),
+					lzTs.getPrecision());
 			case INTERVAL_YEAR_MONTH:
 				return this.relBuilder.getRexBuilder().makeIntervalLiteral(
 						BigDecimal.valueOf(extractValue(valueLiteral, Integer.class)),
@@ -335,15 +329,5 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(date);
 		return cal;
-	}
-
-	private static TimestampString toTimestampString(LocalDateTime ldt) {
-		return new TimestampString(
-			ldt.getYear(),
-			ldt.getMonthValue(),
-			ldt.getDayOfMonth(),
-			ldt.getHour(),
-			ldt.getMinute(),
-			ldt.getSecond()).withNanos(ldt.getNano());
 	}
 }
