@@ -177,3 +177,26 @@ class DateCoderImpl(StreamCoderImpl):
 
     def internal_to_date(self, v):
         return datetime.date.fromordinal(v + self.EPOCH_ORDINAL)
+
+
+class TimeCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int32(self.time_to_internal(value))
+
+    def decode_from_stream(self, in_stream, nested):
+        value = in_stream.read_bigendian_int32()
+        return self.internal_to_time(value)
+
+    def time_to_internal(self, t):
+        milliseconds = (t.hour * 3600000
+                        + t.minute * 60000
+                        + t.second * 1000
+                        + t.microsecond // 1000)
+        return milliseconds
+
+    def internal_to_time(self, v):
+        seconds, milliseconds = divmod(v, 1000)
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        return datetime.time(hours, minutes, seconds, milliseconds * 1000)
