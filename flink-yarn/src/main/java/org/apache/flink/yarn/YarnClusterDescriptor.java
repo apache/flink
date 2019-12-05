@@ -494,17 +494,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			}
 		}
 
-		isReadyForDeployment(clusterSpecification);
-
-		// ------------------ Check if the specified queue exists --------------------
-
-		checkYarnQueues(yarnClient);
-
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
+
+		isReadyForDeployment(clusterSpecification);
+
+		// ------------------ Check if the specified queue exists --------------------
+
+		checkYarnQueues(yarnClient);
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
