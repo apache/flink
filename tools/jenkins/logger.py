@@ -35,7 +35,7 @@ class Logger(object):
 
     def init_logger(self, log_file_name, when='midnight', back_count=0):
         current_dir = os.getcwd()
-        logs_dir = "%s/logs"%current_dir
+        logs_dir = "%s/logs" % current_dir
         if not os.path.exists(logs_dir):
             os.path.mkdir(logs_dir)
         self._logger.handlers.remove()
@@ -45,34 +45,30 @@ class Logger(object):
         log_file_path = os.path.join(logs_dir, log_file_name)
         fmt_sh = logging.Formatter('[\033[1;%(colorcode)sm%(asctime)s] %(message)s\033[0m')
         sh.setFormatter(fmt_sh)
-        # log输出格式
         formatter = logging.Formatter('%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s')
-        fh = logging.handlers.TimedRotatingFileHandler(
-            filename=log_file_path,
-            when=when,
-            backupCount=back_count,
-            encoding='utf-8')
+        fh = logging.handlers.TimedRotatingFileHandler(filename=log_file_path, when=when, backupCount=back_count,
+                                                       encoding='utf-8')
         fh.setFormatter(formatter)
         sh.setFormatter(formatter)
 
         self._logger.addHandler(fh)
         self._logger.addHandler(sh)
 
-    def update_kwargs(self, kwargs, colorcode):
+    def update_colors(self, kwargs, colorcode):
         if not 'extra' in kwargs:
             kwargs['extra'] = {}
         kwargs['extra']['colorcode'] = colorcode
 
     def debug(self, msg, *args, **kwargs):
-        self.update_kwargs(kwargs, '1;30')# 黑色
+        self.update_colors(kwargs, '1;30') #black
         self._logger.debug(msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
-        self.update_kwargs(kwargs, '1;33')# 黄色
+        self.update_colors(kwargs, '1;33') #yellow
         self._logger.info(msg, *args, **kwargs)
 
     def error(self, msg, *args, **kwargs):
-        self.update_kwargs(kwargs, '1;30')# 黑色
+        self.update_colors(kwargs, '1;30')#black
         self._logger.error(msg, *args, **kwargs)
 
 
