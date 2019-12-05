@@ -74,17 +74,17 @@ public class YarnTaskExecutorRunner {
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		run(args);
+		runTaskManagerSecurely(args);
 	}
 
 	/**
 	 * The instance entry point for the YARN task executor. Obtains user group information and calls
-	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)}  as a
+	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
 	 */
-	private static void run(String[] args) {
+	private static void runTaskManagerSecurely(String[] args) {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
 
