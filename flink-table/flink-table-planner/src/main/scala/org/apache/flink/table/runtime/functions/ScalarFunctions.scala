@@ -116,6 +116,17 @@ object ScalarFunctions {
   }
 
   /**
+   * Returns exp(x).
+   */
+  def exp(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'exp(x)' must be > 0, but x = $x")
+    } else {
+      StrictMath.exp(x)
+    }
+  }
+
+  /**
     * Calculates the hyperbolic tangent of a big decimal number.
     */
   def tanh(x: JBigDecimal): Double = {
