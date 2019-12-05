@@ -64,7 +64,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, BoundedMultiInput {
 
-	private final double leftMemRatio;
 	private final long externalBufferMemory;
 	private final FlinkJoinType type;
 	private final boolean leftIsSmaller;
@@ -98,14 +97,13 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private transient JoinedRow joinedRow;
 
 	public SortMergeJoinOperator(
-			double leftMemRatio, long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
+			long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
 			GeneratedJoinCondition condFuncCode,
 			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
 			GeneratedNormalizedKeyComputer computer1, GeneratedRecordComparator comparator1,
 			GeneratedNormalizedKeyComputer computer2, GeneratedRecordComparator comparator2,
 			GeneratedRecordComparator genKeyComparator,
 			boolean[] filterNulls) {
-		this.leftMemRatio = leftMemRatio;
 		this.externalBufferMemory = externalBufferMemory;
 		this.type = type;
 		this.leftIsSmaller = leftIsSmaller;
@@ -147,20 +145,30 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 					totalMemory + ", please increase manage memory of task manager.");
 		}
 
-		long sortMemory1 = (long) (totalSortMem * leftMemRatio);
-		long sortMemory2 = totalSortMem - sortMemory1;
-
 		// sorter1
-		this.sorter1 = new BinaryExternalSorter(this.getContainingTask(),
-				memManager, sortMemory1,
-				ioManager, inputSerializer1, serializer1,
-				computer1.newInstance(cl), comparator1.newInstance(cl), conf);
+		this.sorter1 = new BinaryExternalSorter(
+				this.getContainingTask(),
+				memManager,
+				totalSortMem / 2,
+				ioManager,
+				inputSerializer1,
+				serializer1,
+				computer1.newInstance(cl),
+				comparator1.newInstance(cl),
+				conf);
 		this.sorter1.startThreads();
 
 		// sorter2
-		this.sorter2 = new BinaryExternalSorter(this.getContainingTask(),
-				memManager, sortMemory2, ioManager, inputSerializer2, serializer2,
-				computer2.newInstance(cl), comparator2.newInstance(cl), conf);
+		this.sorter2 = new BinaryExternalSorter(
+				this.getContainingTask(),
+				memManager,
+				totalSortMem / 2,
+				ioManager,
+				inputSerializer2,
+				serializer2,
+				computer2.newInstance(cl),
+				comparator2.newInstance(cl),
+				conf);
 		this.sorter2.startThreads();
 
 		keyComparator = genKeyComparator.newInstance(cl);
