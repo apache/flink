@@ -152,9 +152,6 @@ public class UserFunctionsTypeHelper {
 			throw new ValidationException(String.format(
 				"Function class %s is no proper class," +
 					" it is either abstract, an interface, or a primitive type.", clazz.getCanonicalName()));
-		} else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-			throw new ValidationException(String.format(
-				"The class %s is an inner class, but not statically accessible.", clazz.getCanonicalName()));
 		}
 	}
 
