@@ -44,7 +44,6 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameter
 import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.SubTaskIOMetricsInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;

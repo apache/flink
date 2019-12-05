@@ -20,10 +20,9 @@ package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubTaskIOMetricsInfo;
 
 import java.util.Random;
-import org.apache.flink.runtime.rest.messages.job.metrics.SubTaskIOMetricsInfo;
 
 /**
  * Tests (un)marshalling of the {@link SubtaskExecutionAttemptDetailsInfo}.

@@ -152,7 +152,9 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 		testPartitionTrackingForStateTransition(
 			execution -> {
 				execution.cancel();
-				execution.completeCancelling(Collections.emptyMap(), new IOMetrics(0, 0, 0, 0), false);
+				execution.completeCancelling(Collections.emptyMap(),
+					new IOMetrics(0, 0, 0, 0, 0.0f, 0.0f, 0.0f, false),
+					false);
 			},
 			PartitionReleaseResult.STOP_TRACKING);
 	}
@@ -173,7 +175,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 			execution -> execution.markFailed(
 				new Exception("Test exception"),
 				Collections.emptyMap(),
-				new IOMetrics(0, 0, 0, 0)),
+				new IOMetrics(0, 0, 0, 0, 0.0f, 0.0f, 0.0f, false)),
 			PartitionReleaseResult.STOP_TRACKING);
 	}
 

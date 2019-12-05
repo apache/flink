@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 
 import java.io.Serializable;
@@ -41,16 +40,11 @@ public class IOMetrics implements Serializable {
 	protected float usageOutPool;
 	protected boolean isBackPressured;
 
-	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut, Gauge<Float> inputFloatingBuffers,
-			Gauge<Float> inputExclusiveBuffers, Gauge<Float> outPool, Gauge<Boolean> backPressured) {
+	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
 		this.numRecordsOut = recordsOut.getCount();
 		this.numBytesIn = bytesIn.getCount();
 		this.numBytesOut = bytesOut.getCount();
-		this.usageInputFloatingBuffers = inputFloatingBuffers.getValue();
-		this.usageInputExclusiveBuffers = inputExclusiveBuffers.getValue();
-		this.usageOutPool = outPool.getValue();
-		this.isBackPressured = backPressured.getValue();
 	}
 
 	public IOMetrics(
