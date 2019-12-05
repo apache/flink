@@ -570,7 +570,7 @@ class TableEnvironment(object):
         | cat1.db1.tab1  | cat1.db1.tab1                           |
         +----------------+-----------------------------------------+
 
-        :param: catalog_name: The name of the catalog to set as the current default catalog.
+        :param catalog_name: The name of the catalog to set as the current default catalog.
         :type catalog_name: str
         :throws: :class:`pyflink.util.exceptions.CatalogException` thrown if a catalog with given
                  name could not be set as the default one.
@@ -635,7 +635,7 @@ class TableEnvironment(object):
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
 
-        :param: database_name: The name of the database to set as the current database.
+        :param database_name: The name of the database to set as the current database.
         :type database_name: str
         """
         self._j_tenv.useDatabase(database_name)
