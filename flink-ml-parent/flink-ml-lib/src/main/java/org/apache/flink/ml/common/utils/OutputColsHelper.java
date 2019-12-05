@@ -53,6 +53,8 @@ import java.util.HashSet;
  * <p>For example, if we have input data schema of ["id":INT, "f1":FLOAT, "f2":DOUBLE], and the operator outputs
  * a column "label" with type STRING, and we want to preserve the column "id", then we get the result
  * schema of ["id":INT, "label":STRING].
+ *
+ * <p>end user should not directly interact with this helper class. instead it will be indirectly used via concrete algorithms.
  */
 public class OutputColsHelper implements Serializable {
 	private String[] inputColNames;
