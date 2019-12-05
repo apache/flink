@@ -78,20 +78,32 @@ public class TableResultUtils {
 		final Utils.CollectHelper<Row> outputFormat = new Utils.CollectHelper<>(id, serializer);
 		final TableResultSink sink = new TableResultSink(schema, outputFormat);
 
-		final String sinkName = "tableResultSink_" + id;
-		final String jobName = "tableResultToList_" + id;
+		final String tableName = table.toString();
+		final String sinkName = "tableResultSink_" + tableName + "_" + id;
+		final String jobName = "tableResultToList_" + tableName + "_" + id;
 
 		tEnv.registerTableSink(sinkName, sink);
 		tEnv.insertInto(sinkName, table);
 
-		final JobExecutionResult executionResult = tEnv.execute(jobName);
-		final ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
-		final List<Row> deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
-
-		tEnv.dropTemporaryTable(sinkName);
+		final List<Row> deserializedList;
+		try {
+			final JobExecutionResult executionResult = tEnv.execute(jobName);
+			final ArrayList<byte[]> accResult = executionResult.getAccumulatorResult(id);
+			deserializedList = SerializedListAccumulator.deserializeList(accResult, serializer);
+		} finally {
+			tEnv.dropTemporaryTable(sinkName);
+		}
 		return deserializedList;
 	}
 
+	/**
+	 * Table schema should only contain logical information. Users should specify conversion classes in sinks.
+	 * As `tableResultToList` provides a default sink for users, we need to provide our conversion classes here,
+	 * which are the default conversion classes.
+	 *
+	 * <p>Also, proc time / event time are internal time attributes, so we have to change them to normal timestamps
+	 * for external output.
+	 */
 	private static TableSchema buildNewTableSchema(Table table) {
 		final TableSchema oldSchema = table.getSchema();
 		final TableSchema.Builder schemaBuilder = TableSchema.builder();
