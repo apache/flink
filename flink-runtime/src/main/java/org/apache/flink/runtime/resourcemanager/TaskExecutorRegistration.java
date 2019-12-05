@@ -57,17 +57,24 @@ public class TaskExecutorRegistration implements Serializable {
 	 */
 	private final ResourceProfile defaultSlotResourceProfile;
 
+	/**
+	 * The task executor total resource profile.
+	 */
+	private final ResourceProfile totalResourceProfile;
+
 	public TaskExecutorRegistration(
 			final String taskExecutorAddress,
 			final ResourceID resourceId,
 			final int dataPort,
 			final HardwareDescription hardwareDescription,
-			final ResourceProfile defaultSlotResourceProfile) {
+			final ResourceProfile defaultSlotResourceProfile,
+			final ResourceProfile totalResourceProfile) {
 		this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
 		this.resourceId = checkNotNull(resourceId);
 		this.dataPort = dataPort;
 		this.hardwareDescription = checkNotNull(hardwareDescription);
 		this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
+		this.totalResourceProfile = checkNotNull(totalResourceProfile);
 	}
 
 	public String getTaskExecutorAddress() {
@@ -88,5 +95,9 @@ public class TaskExecutorRegistration implements Serializable {
 
 	public ResourceProfile getDefaultSlotResourceProfile() {
 		return defaultSlotResourceProfile;
+	}
+
+	public ResourceProfile getTotalResourceProfile() {
+		return totalResourceProfile;
 	}
 }

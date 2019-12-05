@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -98,13 +97,6 @@ public class TaskExecutorResourceUtils {
 		final ResourceProfile resourceProfile =
 			generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots);
 		return Collections.nCopies(numberOfSlots, resourceProfile);
-	}
-
-	@VisibleForTesting
-	public static ResourceProfile generateDefaultSlotResourceProfile(Configuration configuration) {
-		return generateDefaultSlotResourceProfile(
-			resourceSpecFromConfig(configuration),
-			configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS));
 	}
 
 	public static ResourceProfile generateDefaultSlotResourceProfile(

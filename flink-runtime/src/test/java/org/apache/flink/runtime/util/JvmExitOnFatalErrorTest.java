@@ -32,7 +32,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
@@ -171,10 +170,9 @@ public class JvmExitOnFatalErrorTest {
 
 				final Configuration copiedConf = new Configuration(taskManagerConfig);
 				copiedConf.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1024m");
-				final ResourceProfile defaultSlotResourceProfile =
-					TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(copiedConf);
 
-				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig, defaultSlotResourceProfile);
+				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
+					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConf));
 
 				final Executor executor = Executors.newCachedThreadPool();
 

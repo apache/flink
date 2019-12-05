@@ -103,6 +103,7 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 			TASK_MANAGER_RESOURCE_ID,
 			TASK_MANAGER_DATA_PORT,
 			TASK_MANAGER_HARDWARE_DESCRIPTION,
+			ResourceProfile.ZERO,
 			ResourceProfile.ZERO
 		);
 		return new TaskExecutorToResourceManagerConnection(

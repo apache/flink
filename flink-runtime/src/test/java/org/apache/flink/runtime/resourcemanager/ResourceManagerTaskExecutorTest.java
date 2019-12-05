@@ -240,6 +240,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				taskExecutorResourceID,
 				dataPort,
 				hardwareDescription,
+				ResourceProfile.ZERO,
 				ResourceProfile.ZERO);
 
 			CompletableFuture<RegistrationResponse> firstFuture =
@@ -342,7 +343,13 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
 	private CompletableFuture<RegistrationResponse> registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, String taskExecutorAddress) {
 		return resourceManagerGateway.registerTaskExecutor(
-			new TaskExecutorRegistration(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, ResourceProfile.ZERO),
+			new TaskExecutorRegistration(
+				taskExecutorAddress,
+				taskExecutorResourceID,
+				dataPort,
+				hardwareDescription,
+				ResourceProfile.ZERO,
+				ResourceProfile.ZERO),
 			TIMEOUT);
 	}
 }

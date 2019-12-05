@@ -165,6 +165,7 @@ public class ResourceManagerTest extends TestLogger {
 			taskExecutorId,
 			dataPort,
 			hardwareDescription,
+			ResourceProfile.ZERO,
 			ResourceProfile.ZERO);
 		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
 			taskExecutorRegistration,
