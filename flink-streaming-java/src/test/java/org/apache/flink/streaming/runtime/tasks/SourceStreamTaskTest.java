@@ -229,7 +229,9 @@ public class SourceStreamTaskTest {
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
-			assertTrue(ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent());
+			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+				throw t;
+			}
 		}
 
 		expectedOutput.add(new StreamRecord<>("Hello"));
