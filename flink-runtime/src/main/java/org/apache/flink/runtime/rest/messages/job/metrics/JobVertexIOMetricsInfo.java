@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
@@ -86,26 +87,32 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 		this.inputFloatingBuffersUsageAvgComplete = inputFloatingBuffersUsageAvgComplete;
 	}
 
+	@JsonIgnore
 	public float getOutPoolUsageAvg() {
 		return outPoolUsageAvg;
 	}
 
+	@JsonIgnore
 	public boolean isOutPoolUsageAvgComplete() {
 		return outPoolUsageAvgComplete;
 	}
 
+	@JsonIgnore
 	public float getInputExclusiveBuffersUsageAvg() {
 		return inputExclusiveBuffersUsageAvg;
 	}
 
+	@JsonIgnore
 	public boolean isInputExclusiveBuffersUsageAvgComplete() {
 		return inputExclusiveBuffersUsageAvgComplete;
 	}
 
+	@JsonIgnore
 	public float getInputFloatingBuffersUsageAvg() {
 		return inputFloatingBuffersUsageAvg;
 	}
 
+	@JsonIgnore
 	public boolean isInputFloatingBuffersUsageAvgComplete() {
 		return inputFloatingBuffersUsageAvgComplete;
 	}

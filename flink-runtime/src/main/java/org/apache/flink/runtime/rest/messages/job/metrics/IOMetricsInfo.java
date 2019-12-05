@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
@@ -102,42 +103,52 @@ public class IOMetricsInfo {
 		this.isBackPressuredComplete = isBackPressuredComplete;
 	}
 
+	@JsonIgnore
 	public long getBytesRead() {
 		return bytesRead;
 	}
 
+	@JsonIgnore
 	public boolean isBytesReadComplete() {
 		return bytesReadComplete;
 	}
 
+	@JsonIgnore
 	public long getBytesWritten() {
 		return bytesWritten;
 	}
 
+	@JsonIgnore
 	public boolean isBytesWrittenComplete() {
 		return bytesWrittenComplete;
 	}
 
+	@JsonIgnore
 	public long getRecordsRead() {
 		return recordsRead;
 	}
 
+	@JsonIgnore
 	public boolean isRecordsReadComplete() {
 		return recordsReadComplete;
 	}
 
+	@JsonIgnore
 	public long getRecordsWritten() {
 		return recordsWritten;
 	}
 
+	@JsonIgnore
 	public boolean isRecordsWrittenComplete() {
 		return recordsWrittenComplete;
 	}
 
+	@JsonIgnore
 	public boolean isBackPressured() {
 		return isBackPressured;
 	}
 
+	@JsonIgnore
 	public boolean isBackPressuredComplete() {
 		return isBackPressuredComplete;
 	}
