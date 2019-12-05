@@ -1371,9 +1371,6 @@ under the License.
 						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
-						<!-- old version -->
-						<exclude>flink-runtime-web/web-dashboard/old-version/**</exclude>
-
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
 						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
