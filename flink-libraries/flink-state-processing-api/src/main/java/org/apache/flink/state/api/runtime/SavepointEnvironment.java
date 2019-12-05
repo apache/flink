@@ -81,6 +81,8 @@ public class SavepointEnvironment implements Environment {
 
 	private final IOManager ioManager;
 
+	private final MemoryManager memoryManager;
+
 	private final AccumulatorRegistry accumulatorRegistry;
 
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
@@ -97,6 +99,7 @@ public class SavepointEnvironment implements Environment {
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
 		this.ioManager = new IOManagerAsync();
+		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 	}
 
@@ -162,7 +165,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public MemoryManager getMemoryManager() {
-		throw new UnsupportedOperationException(ERROR_MSG);
+		return memoryManager;
 	}
 
 	@Override

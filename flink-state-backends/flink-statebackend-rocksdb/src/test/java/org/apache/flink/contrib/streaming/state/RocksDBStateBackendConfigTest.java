@@ -64,6 +64,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -637,36 +638,35 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testDefaultMemoryControlParameters() {
-		StateBackend storageBackend = new MemoryStateBackend();
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(storageBackend);
-		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getTotalMemoryPerSlot());
-		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getHighPriPoolRatio(), 0.0);
-		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, rocksDbBackend.getWriteBufferRatio(), 0.0);
+		RocksDBMemoryConfiguration memSettings = new RocksDBMemoryConfiguration();
+		assertFalse(memSettings.isUsingFixedMemoryPerSlot());
+		assertEquals(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue(), memSettings.getHighPriorityPoolRatio(), 0.0);
+		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), memSettings.getWriteBufferRatio(), 0.0);
 
-		RocksDBStateBackend configure = rocksDbBackend.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
-		assertEquals(RocksDBStateBackend.UNDEFINED_VALUE, configure.getTotalMemoryPerSlot());
-		assertEquals(RocksDBOptions.HIGH_PRI_POOL_RATIO.defaultValue(), configure.getHighPriPoolRatio(), 0.0);
-		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), configure.getWriteBufferRatio(), 0.0);
+		RocksDBMemoryConfiguration configured = RocksDBMemoryConfiguration.fromOtherAndConfiguration(memSettings, new Configuration());
+		assertFalse(configured.isUsingFixedMemoryPerSlot());
+		assertEquals(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue(), configured.getHighPriorityPoolRatio(), 0.0);
+		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), configured.getWriteBufferRatio(), 0.0);
 	}
 
 	@Test
 	public void testConfigureIllegalMemoryControlParameters() {
-		StateBackend storageBackend = new MemoryStateBackend();
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(storageBackend);
+		RocksDBMemoryConfiguration memSettings = new RocksDBMemoryConfiguration();
 
-		verifySetParameter(() -> rocksDbBackend.setTotalMemoryPerSlot("-1B"));
-		verifySetParameter(() -> rocksDbBackend.setHighPriPoolRatio(-0.1));
-		verifySetParameter(() -> rocksDbBackend.setHighPriPoolRatio(1.1));
-		verifySetParameter(() -> rocksDbBackend.setWriteBufferRatio(-0.1));
-		verifySetParameter(() -> rocksDbBackend.setWriteBufferRatio(1.1));
+		verifySetParameter(() -> memSettings.setFixedMemoryPerSlot("-1B"));
+		verifySetParameter(() -> memSettings.setHighPriorityPoolRatio(-0.1));
+		verifySetParameter(() -> memSettings.setHighPriorityPoolRatio(1.1));
+		verifySetParameter(() -> memSettings.setWriteBufferRatio(-0.1));
+		verifySetParameter(() -> memSettings.setWriteBufferRatio(1.1));
 
-		rocksDbBackend.setTotalMemoryPerSlot("128MB");
-		rocksDbBackend.setWriteBufferRatio(0.6);
-		rocksDbBackend.setHighPriPoolRatio(0.6);
+		memSettings.setFixedMemoryPerSlot("128MB");
+		memSettings.setWriteBufferRatio(0.6);
+		memSettings.setHighPriorityPoolRatio(0.6);
+
 		try {
 			// sum of writeBufferRatio and highPriPoolRatio larger than 1.0
-			rocksDbBackend.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
-			fail("No expected IllegalArgumentException.");
+			memSettings.validate();
+			fail("Expected an IllegalArgumentException.");
 		} catch (IllegalArgumentException expected) {
 			// expected exception
 		}

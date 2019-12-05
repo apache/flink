@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,22 +22,18 @@ import org.rocksdb.Cache;
 import org.rocksdb.WriteBufferManager;
 
 /**
- * Shared objects among RocksDB instances per slot.
+ * The set of resources that can be shared by all RocksDB instances in a slot.
+ * Sharing these resources helps RocksDB a predictable resource footprint.
  */
-public class RocksDBSharedObjects implements AutoCloseable {
+final class RocksDBSharedResources implements AutoCloseable {
 
 	private final Cache cache;
+
 	private final WriteBufferManager writeBufferManager;
 
-	RocksDBSharedObjects(Cache cache, WriteBufferManager writeBufferManager) {
+	RocksDBSharedResources(Cache cache, WriteBufferManager writeBufferManager) {
 		this.cache = cache;
 		this.writeBufferManager = writeBufferManager;
-	}
-
-	@Override
-	public void close() {
-		writeBufferManager.close();
-		cache.close();
 	}
 
 	public Cache getCache() {
@@ -46,5 +42,11 @@ public class RocksDBSharedObjects implements AutoCloseable {
 
 	public WriteBufferManager getWriteBufferManager() {
 		return writeBufferManager;
+	}
+
+	@Override
+	public void close() {
+		writeBufferManager.close();
+		cache.close();
 	}
 }
