@@ -83,7 +83,7 @@ public class PythonDriverEnvUtilsTest {
 		PythonDriverEnvUtils.PythonEnvironment env = PythonDriverEnvUtils.preparePythonEnvironment(
 			pyFilesList,
 			tmpDirPath);
-		String base = replaceUUID(env.storageDirectory);
+		String base = replaceUUID(env.tempDirectory);
 		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a.zip"));
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "module_dir"));
@@ -92,11 +92,11 @@ public class PythonDriverEnvUtilsTest {
 
 		Set<String> expectedInteralLibPatterns = new HashSet<>();
 		expectedInteralLibPatterns.add(
-			Pattern.quote(env.storageDirectory + File.separator) + UUID_PATTERN + "pyflink\\.zip");
+			Pattern.quote(env.tempDirectory + File.separator) + UUID_PATTERN + "pyflink\\.zip");
 		expectedInteralLibPatterns.add(
-			Pattern.quote(env.storageDirectory + File.separator) + UUID_PATTERN + "py4j-0\\.10\\.8\\.1-src\\.zip");
+			Pattern.quote(env.tempDirectory + File.separator) + UUID_PATTERN + "py4j-0\\.10\\.8\\.1-src\\.zip");
 		expectedInteralLibPatterns.add(
-			Pattern.quote(env.storageDirectory + File.separator) + UUID_PATTERN + "cloudpickle-1\\.2\\.2-src\\.zip");
+			Pattern.quote(env.tempDirectory + File.separator) + UUID_PATTERN + "cloudpickle-1\\.2\\.2-src\\.zip");
 
 		List<String> actualPaths = Arrays.asList(env.pythonPath.split(File.pathSeparator));
 		List<String> internalLibPaths = getMatchedPaths(expectedInteralLibPatterns, actualPaths)
@@ -112,7 +112,7 @@ public class PythonDriverEnvUtilsTest {
 	@Test
 	public void testStartPythonProcess() {
 		PythonDriverEnvUtils.PythonEnvironment pythonEnv = new PythonDriverEnvUtils.PythonEnvironment();
-		pythonEnv.storageDirectory = tmpDirPath;
+		pythonEnv.tempDirectory = tmpDirPath;
 		pythonEnv.pythonPath = tmpDirPath;
 		List<String> commands = new ArrayList<>();
 		String pyPath = String.join(File.separator, tmpDirPath, "verifier.py");

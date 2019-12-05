@@ -47,7 +47,7 @@ public final class PythonDriverEnvUtils {
 	 * Wraps Python exec environment.
 	 */
 	public static class PythonEnvironment {
-		public String storageDirectory;
+		public String tempDirectory;
 
 		public String pythonExec = "python";
 
@@ -79,7 +79,6 @@ public final class PythonDriverEnvUtils {
 		}
 	}
 
-
 	/**
 	 * Prepares PythonEnvironment to start python process.
 	 *
@@ -88,8 +87,8 @@ public final class PythonDriverEnvUtils {
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
 	public static PythonEnvironment preparePythonEnvironment(
-				List<Path> pythonLibFiles,
-				String tmpDir) throws IOException, InterruptedException {
+			List<Path> pythonLibFiles,
+			String tmpDir) throws IOException, InterruptedException {
 		PythonEnvironment env = new PythonEnvironment();
 
 		tmpDir = new File(tmpDir).getAbsolutePath();
@@ -99,8 +98,9 @@ public final class PythonDriverEnvUtils {
 		FileSystem fs = tmpDirPath.getFileSystem();
 		fs.mkdirs(tmpDirPath);
 
-		env.storageDirectory = tmpDir;
+		env.tempDirectory = tmpDir;
 
+		// 2. append the internal lib files to PYTHONPATH.
 		List<String> pythonPathList = new ArrayList<>();
 
 		List<File> internalLibs = extractBasicDependenciesFromResource(
@@ -108,7 +108,6 @@ public final class PythonDriverEnvUtils {
 			UUID.randomUUID().toString(),
 			true);
 
-		// 2. append the internal lib files to PYTHONPATH.
 		for (File file: internalLibs) {
 			pythonPathList.add(file.getAbsolutePath());
 			file.deleteOnExit();
@@ -184,7 +183,7 @@ public final class PythonDriverEnvUtils {
 		}
 
 		// Make sure that the python sub process will be killed when JVM exit
-		ShutDownPythonHook hook = new ShutDownPythonHook(process, pythonEnv.storageDirectory);
+		ShutDownPythonHook hook = new ShutDownPythonHook(process, pythonEnv.tempDirectory);
 		Runtime.getRuntime().addShutdownHook(hook);
 
 		return process;
