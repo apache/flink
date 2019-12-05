@@ -53,6 +53,7 @@ under the License.
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
+		<module>flink-connector-pulsar</module>
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-filesystem</module>
 		<module>flink-connector-kafka</module>
