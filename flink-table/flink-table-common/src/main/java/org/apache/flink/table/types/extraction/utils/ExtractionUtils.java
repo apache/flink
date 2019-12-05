@@ -532,7 +532,7 @@ public final class ExtractionUtils {
 		private final List<String> parameterNames = new ArrayList<>();
 
 		public ParameterExtractor(Constructor constructor) {
-			super(Opcodes.ASM6);
+			super(Opcodes.ASM7);
 			constructorDescriptor = getConstructorDescriptor(constructor);
 		}
 
