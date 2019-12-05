@@ -895,10 +895,14 @@ object ScalarOperators {
           case SqlTimeTypeInfo.DATE =>
             generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
 <<<<<<< HEAD
+<<<<<<< HEAD
               (l, r) => s"$l $op (java.lang.Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
 =======
               (l, r) => s"$l $op (Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
 >>>>>>> 5eb1bbd3cc7... [hotfix][FLINK-11120][table]fix the bug of timestampadd handles time
+=======
+              (l, r) => s"$l $op (java.lang.Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
+>>>>>>> a9cc354b34c... [hotfix][FLINK-11120][table]fix the bug of timestampadd handles time
             }
           case SqlTimeTypeInfo.TIMESTAMP =>
             generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
@@ -920,8 +924,12 @@ object ScalarOperators {
               s"% ${MILLIS_PER_DAY}L)) % ${MILLIS_PER_DAY}L)"
 =======
             s"((($l % ${MILLIS_PER_DAY} == 0) ? ${MILLIS_PER_DAY} : $l) " +
+<<<<<<< HEAD
               s"+ (Math.toIntExact($r % ${MILLIS_PER_DAY} == 0 ? 0 : $r))) % ${MILLIS_PER_DAY}"
 >>>>>>> 5eb1bbd3cc7... [hotfix][FLINK-11120][table]fix the bug of timestampadd handles time
+=======
+              s"+ (java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY} == 0 ? 0 : $r))) % ${MILLIS_PER_DAY}"
+>>>>>>> a9cc354b34c... [hotfix][FLINK-11120][table]fix the bug of timestampadd handles time
         }
 
       case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
