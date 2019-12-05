@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.rest.handler.util;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
@@ -44,9 +47,13 @@ public class MutableIOMetrics extends IOMetrics {
 	private boolean numBytesOutComplete = true;
 	private boolean numRecordsInComplete = true;
 	private boolean numRecordsOutComplete = true;
+	private boolean usageInputFloatingBuffersComplete = true;
+	private boolean usageInputExclusiveBuffersComplete = true;
+	private boolean usageOutPoolComplete = true;
+	private boolean isBackPressuredComplete = true;
 
 	public MutableIOMetrics() {
-		super(0, 0, 0, 0);
+		super(0, 0, 0, 0, 0.0f, 0.0f, 0.0f, false);
 	}
 
 	public boolean isNumBytesInComplete() {
@@ -63,6 +70,22 @@ public class MutableIOMetrics extends IOMetrics {
 
 	public boolean isNumRecordsOutComplete() {
 		return numRecordsOutComplete;
+	}
+
+	public boolean isUsageInputFloatingBuffersComplete() {
+		return usageInputFloatingBuffersComplete;
+	}
+
+	public boolean isUsageInputExclusiveBuffersComplete() {
+		return usageInputExclusiveBuffersComplete;
+	}
+
+	public boolean isUsageOutPoolComplete() {
+		return usageOutPoolComplete;
+	}
+
+	public boolean isBackPressuredComplete() {
+		return isBackPressuredComplete;
 	}
 
 	/**
@@ -83,6 +106,10 @@ public class MutableIOMetrics extends IOMetrics {
 				this.numBytesOut += ioMetrics.getNumBytesOut();
 				this.numRecordsIn += ioMetrics.getNumRecordsIn();
 				this.numRecordsOut += ioMetrics.getNumRecordsOut();
+				this.usageInputExclusiveBuffers += ioMetrics.getUsageInputExclusiveBuffers();
+				this.usageInputFloatingBuffers += ioMetrics.getUsageInputFloatingBuffers();
+				this.usageOutPool += ioMetrics.getUsageOutPool();
+				this.isBackPressured &= ioMetrics.isBackPressured();
 			}
 		} else { // execAttempt is still running, use MetricQueryService instead
 			if (fetcher != null) {
@@ -96,33 +123,30 @@ public class MutableIOMetrics extends IOMetrics {
 					 * In case a metric is missing for a parallel instance of a task, we set the complete flag as
 					 * false.
 					 */
-					if (metrics.getMetric(MetricNames.IO_NUM_BYTES_IN) == null){
-						this.numBytesInComplete = false;
-					}
-					else {
-						this.numBytesIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN));
-					}
+					updateLong(metrics, MetricNames.IO_NUM_BYTES_IN,
+						(String value) -> this.numBytesInComplete = false,
+						(Long value) -> this.numBytesIn += value
+					);
 
-					if (metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT) == null){
-						this.numBytesOutComplete = false;
-					}
-					else {
-						this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT));
-					}
+					updateLong(metrics, MetricNames.IO_NUM_BYTES_OUT,
+						(String value) -> this.numBytesOutComplete = false,
+						(Long value) -> this.numBytesOut += value
+					);
 
-					if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN) == null){
-						this.numRecordsInComplete = false;
-					}
-					else {
-						this.numRecordsIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN));
-					}
+					updateLong(metrics, MetricNames.IO_NUM_RECORDS_IN,
+						(String value) -> this.numRecordsInComplete = false,
+						(Long value) -> this.numRecordsIn += value
+					);
 
-					if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT) == null){
-						this.numRecordsOutComplete = false;
-					}
-					else {
-						this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT));
-					}
+					updateLong(metrics, MetricNames.IO_NUM_RECORDS_OUT,
+						(String value) -> this.numRecordsOutComplete = false,
+						(Long value) -> this.numRecordsOut += value
+					);
+
+					updateFloat(metrics, MetricNames.IO_NUM_RECORDS_OUT,
+						(String value) -> this.numRecordsOutComplete = false,
+						(Float value) -> this.numRecordsOut += value
+					);
 				}
 				else {
 					this.numBytesInComplete = false;
@@ -131,6 +155,36 @@ public class MutableIOMetrics extends IOMetrics {
 					this.numRecordsOutComplete = false;
 				}
 			}
+		}
+	}
+
+	private void updateLong(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<Long> noEmptyFunction) {
+		String value = metrics.getMetric(metricKey);
+		if (value == null){
+			emptyFunction.accept(value);
+		}
+		else {
+			noEmptyFunction.accept(Long.valueOf(value));
+		}
+	}
+
+	private void updateFloat(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<Float> noEmptyFunction) {
+		String value = metrics.getMetric(metricKey);
+		if (value == null){
+			emptyFunction.accept(value);
+		}
+		else {
+			noEmptyFunction.accept(Float.valueOf(value));
+		}
+	}
+
+	private void updateBoolean(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<Boolean> noEmptyFunction) {
+		String value = metrics.getMetric(metricKey);
+		if (value == null){
+			emptyFunction.accept(value);
+		}
+		else {
+			noEmptyFunction.accept(Boolean.valueOf(value));
 		}
 	}
 }

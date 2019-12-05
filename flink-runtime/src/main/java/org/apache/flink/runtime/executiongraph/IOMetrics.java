@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 
 import java.io.Serializable;
@@ -35,22 +36,40 @@ public class IOMetrics implements Serializable {
 	protected long numBytesIn;
 	protected long numBytesOut;
 
-	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut) {
+	protected float usageInputFloatingBuffers;
+	protected float usageInputExclusiveBuffers;
+	protected float usageOutPool;
+	protected boolean isBackPressured;
+
+	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut, Gauge<Float> inputFloatingBuffers,
+			Gauge<Float> inputExclusiveBuffers, Gauge<Float> outPool, Gauge<Boolean> backPressured) {
 		this.numRecordsIn = recordsIn.getCount();
 		this.numRecordsOut = recordsOut.getCount();
 		this.numBytesIn = bytesIn.getCount();
 		this.numBytesOut = bytesOut.getCount();
+		this.usageInputFloatingBuffers = inputFloatingBuffers.getValue();
+		this.usageInputExclusiveBuffers = inputExclusiveBuffers.getValue();
+		this.usageOutPool = outPool.getValue();
+		this.isBackPressured = backPressured.getValue();
 	}
 
 	public IOMetrics(
 			long numBytesIn,
 			long numBytesOut,
 			long numRecordsIn,
-			long numRecordsOut) {
+			long numRecordsOut,
+			float usageInputFloatingBuffers,
+			float usageInputExclusiveBuffers,
+			float usageOutPool,
+			boolean isBackPressured) {
 		this.numBytesIn = numBytesIn;
 		this.numBytesOut = numBytesOut;
 		this.numRecordsIn = numRecordsIn;
 		this.numRecordsOut = numRecordsOut;
+		this.usageInputFloatingBuffers = usageInputFloatingBuffers;
+		this.usageInputExclusiveBuffers = usageInputExclusiveBuffers;
+		this.usageOutPool = usageOutPool;
+		this.isBackPressured = isBackPressured;
 	}
 
 	public long getNumRecordsIn() {
@@ -67,5 +86,21 @@ public class IOMetrics implements Serializable {
 
 	public long getNumBytesOut() {
 		return numBytesOut;
+	}
+
+	public float getUsageInputFloatingBuffers() {
+		return usageInputFloatingBuffers;
+	}
+
+	public float getUsageInputExclusiveBuffers() {
+		return usageInputExclusiveBuffers;
+	}
+
+	public float getUsageOutPool() {
+		return usageOutPool;
+	}
+
+	public boolean isBackPressured() {
+		return isBackPressured;
 	}
 }
