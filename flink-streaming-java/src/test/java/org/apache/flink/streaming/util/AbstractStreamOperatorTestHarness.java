@@ -317,6 +317,18 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
+	 * Get the list of OUT values emitted by the operator.
+	 */
+	public List<OUT> extractOutputValues(){
+		List<StreamRecord<? extends OUT>> streamRecords = extractOutputStreamRecords();
+		List<OUT> outputValues = new ArrayList<>();
+		for (StreamRecord<? extends OUT> streamRecord : streamRecords) {
+			outputValues.add(streamRecord.getValue());
+		}
+		return outputValues;
+	}
+
+	/**
 	 * Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}.
 	 */
 	public void setup() {
