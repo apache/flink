@@ -174,6 +174,16 @@ public class CliResultViewTest {
 		}
 
 		@Override
+		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
 		public List<String> listTables(String sessionId) throws SqlExecutionException {
 			return null;
 		}
