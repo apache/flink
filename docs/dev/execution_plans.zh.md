@@ -29,7 +29,7 @@ useful to know how exactly Flink will execute your program.
 __Plan Visualization Tool__
 
 Flink provides a [visualization tool](https://flink.apache.org/visualizer/) for execution plans, which takes a JSON
-representation ofthe job execution plan and visualizes it as a graph with complete annotations of execution strategies.
+representation of the job execution plan and visualizes it as a graph with complete annotations of execution strategies.
 
 The following code shows how to print the execution plan JSON from your program:
 
