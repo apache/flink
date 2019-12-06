@@ -281,6 +281,26 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
+	private void runAndHandleCancel() throws Exception {
+		try {
+			run();
+		}
+		catch (InterruptedException e) {
+			if (!canceled) {
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		catch (Exception e) {
+			if (canceled) {
+				LOG.warn("Error while canceling task.", e);
+			}
+			else {
+				throw e;
+			}
+		}
+	}
+
 	/**
 	 * Runs the stream-tasks main processing loop.
 	 */
@@ -403,7 +423,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// let the task do its work
 			isRunning = true;
-			run();
+			runAndHandleCancel();
 
 			// if this left the run() method cleanly despite the fact that this was canceled,
 			// make sure the "clean shutdown" is not attempted
