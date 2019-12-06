@@ -315,26 +315,6 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testCancellationNotBlockedOnLock() throws Exception {
-		syncLatch = new OneShotLatch();
-
-		StreamConfig cfg = new StreamConfig(new Configuration());
-		Task task = createTask(CancelLockingTask.class, cfg, new Configuration());
-
-		// start the task and wait until it runs
-		// execution state RUNNING is not enough, we need to wait until the stream task's run() method
-		// is entered
-		task.startTaskThread();
-		syncLatch.await();
-
-		// cancel the execution - this should lead to smooth shutdown
-		task.cancelExecution();
-		task.getExecutingThread().join();
-
-		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-	}
-
-	@Test
 	public void testCancellationFailsWithBlockingLock() throws Exception {
 		syncLatch = new OneShotLatch();
 
@@ -1378,55 +1358,6 @@ public class StreamTaskTest extends TestLogger {
 				};
 			};
 		}
-	}
-
-	/**
-	 * A task that locks if cancellation attempts to cleanly shut down.
-	 */
-	public static class CancelLockingTask extends StreamTask<String, AbstractStreamOperator<String>> {
-
-		private final OneShotLatch latch = new OneShotLatch();
-
-		private LockHolder holder;
-
-		public CancelLockingTask(Environment env) {
-			super(env);
-		}
-
-		@Override
-		protected void init() {}
-
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			holder = new LockHolder(getCheckpointLock(), latch);
-			holder.start();
-			latch.await();
-
-			// we are at the point where cancelling can happen
-			syncLatch.trigger();
-
-			// just put this to sleep until it is interrupted
-			try {
-				Thread.sleep(100000000);
-			} catch (InterruptedException ignored) {
-				// restore interruption state
-				Thread.currentThread().interrupt();
-			}
-			controller.allActionsCompleted();
-		}
-
-		@Override
-		protected void cleanup() {
-			holder.close();
-		}
-
-		@Override
-		protected void cancelTask() {
-			holder.cancel();
-			// do not interrupt the lock holder here, to simulate spawned threads that
-			// we cannot properly interrupt on cancellation
-		}
-
 	}
 
 	/**
