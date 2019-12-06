@@ -53,14 +53,15 @@ public class MetricNames {
 
 	private static final String  SHUFFLE_NETTY_GROUP = new StringJoiner(OperatorScopeFormat.SCOPE_SEPARATOR)
 		.add(NettyShuffleMetricFactory.METRIC_GROUP_SHUFFLE)
-		.add(NettyShuffleMetricFactory.METRIC_GROUP_NETTY)
-		.add(NettyShuffleMetricFactory.METRIC_GROUP_BUFFERS).toString();
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_NETTY).toString();
 	private static final String SHUFFLE_NETTY_INPUT_GROUP = new StringJoiner(OperatorScopeFormat.SCOPE_SEPARATOR)
 		.add(SHUFFLE_NETTY_GROUP)
-		.add(NettyShuffleMetricFactory.METRIC_GROUP_INPUT).toString();
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_INPUT)
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_BUFFERS).toString();
 	private static final String SHUFFLE_NETTY_OUPUT_GROUP = new StringJoiner(OperatorScopeFormat.SCOPE_SEPARATOR)
 		.add(SHUFFLE_NETTY_GROUP)
-		.add(NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT).toString();
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT)
+		.add(NettyShuffleMetricFactory.METRIC_GROUP_BUFFERS).toString();
 	public static final String USAGE_SHUFFLE_NETTY_INPUT_FLOATING_BUFFERS = new StringJoiner(OperatorScopeFormat.SCOPE_SEPARATOR)
 		.add(SHUFFLE_NETTY_INPUT_GROUP)
 		.add(NettyShuffleMetricFactory.METRIC_INPUT_FLOATING_BUFFERS_USAGE).toString();
