@@ -18,15 +18,19 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
 import java.time.ZoneId;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API programs.
@@ -260,6 +264,32 @@ public class TableConfig {
 	 */
 	public long getMaxIdleStateRetentionTime() {
 		return maxIdleStateRetentionTime;
+	}
+
+	/**
+	 * Sets a custom user parameter that can be accessed via
+	 * {@link org.apache.flink.table.functions.FunctionContext#getJobParameter(String, String)}.
+	 *
+	 * <p>This will add an entry to the current value of {@link PipelineOptions#GLOBAL_JOB_PARAMETERS}.
+	 *
+	 * <p>It is also possible to set multiple parameters at once, which will override any previously set
+	 * parameters:
+	 * <pre>
+	 * {@code
+	 * Map<String, String> params = ...
+	 * TableConfig config = tEnv.getConfig;
+	 * config.getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+	 * }
+	 * </pre>
+	 */
+	@Experimental
+	public void addJobParameter(String key, String value) {
+		Map<String, String> params = getConfiguration()
+			.getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+			.map(HashMap::new)
+			.orElseGet(HashMap::new);
+		params.put(key, value);
+		getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
 	}
 
 	public static TableConfig getDefault() {

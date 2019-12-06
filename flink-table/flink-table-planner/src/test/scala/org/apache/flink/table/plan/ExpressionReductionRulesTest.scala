@@ -552,8 +552,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.addFunction("MyUdf", new RichFunc1)
     util.tableEnv
       .getConfig
-      .getConfiguration
-      .set(PipelineOptions.GLOBAL_JOB_PARAMETERS, Map("int.value" -> "10").asJava)
+      .addJobParameter("int.value", "10")
 
     val expected = unaryNode(
       "DataStreamCalc",
