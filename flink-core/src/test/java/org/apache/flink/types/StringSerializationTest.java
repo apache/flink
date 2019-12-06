@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.DataInput;
 import java.io.DataOutput;
 
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -72,7 +73,6 @@ public class StringSerializationTest {
 				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 65535),
 				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 65535)
 			};
-
 			testSerialization(testStrings);
 		}
 		catch (Exception e) {
@@ -80,6 +80,32 @@ public class StringSerializationTest {
 			e.printStackTrace();
 			fail("Exception in test: " + e.getMessage());
 		}
+	}
+
+	@Test
+	public void testUnicodeSurrogatePairs() {
+		try {
+			String[] symbols = new String[] {
+				"\uD800\uDF30", "\uD800\uDF31", "\uD800\uDF32", "\uD834\uDF08", "\uD834\uDF56",
+				"\uD834\uDD20", "\uD802\uDC01", "\uD800\uDC09", "\uD87E\uDC9E", "\uD864\uDDF8",
+				"\uD840\uDC0E", "\uD801\uDC80", "\uD801\uDC56", "\uD801\uDC05", "\uD800\uDF01"
+			};
+			String[] buffer = new String[100];
+			Random random = new Random();
+			for (int i = 0; i < 100; i++) {
+				StringBuilder builder = new StringBuilder();
+				for (int j = 0; j < 100; j++) {
+					builder.append(symbols[random.nextInt(symbols.length)]);
+				}
+				buffer[i] = builder.toString();
+			}
+			testSerialization(buffer);
+		} catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Exception in test: " + e.getMessage());
+		}
+
 	}
 
 	@Test
