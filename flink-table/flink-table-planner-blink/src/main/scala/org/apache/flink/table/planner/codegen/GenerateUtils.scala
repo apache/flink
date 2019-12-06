@@ -306,8 +306,6 @@ object GenerateUtils {
       case FLOAT =>
         val floatValue = literalValue.asInstanceOf[JBigDecimal].floatValue()
         floatValue match {
-          case Float.NaN => generateNonNullLiteral(
-            literalType, "java.lang.Float.NaN", Float.NaN)
           case Float.NegativeInfinity =>
             generateNonNullLiteral(
               literalType,
@@ -324,8 +322,6 @@ object GenerateUtils {
       case DOUBLE =>
         val doubleValue = literalValue.asInstanceOf[JBigDecimal].doubleValue()
         doubleValue match {
-          case Double.NaN => generateNonNullLiteral(
-            literalType, "java.lang.Double.NaN", Double.NaN)
           case Double.NegativeInfinity =>
             generateNonNullLiteral(
               literalType,
