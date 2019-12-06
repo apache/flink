@@ -312,10 +312,13 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	@Override
 	public boolean isActive(CommandLine commandLine) {
-		String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
-		boolean yarnJobManager = ID.equals(jobManagerOption);
-		boolean yarnAppId = commandLine.hasOption(applicationId.getOpt());
-		return yarnJobManager || yarnAppId || (isYarnPropertiesFileMode(commandLine) && yarnApplicationIdFromYarnProperties != null);
+		final String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
+		final boolean yarnJobManager = ID.equals(jobManagerOption);
+		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())
+				|| configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
+		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET))
+				|| YarnJobClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET));
+		return hasYarnExecutor || yarnJobManager || hasYarnAppId || (isYarnPropertiesFileMode(commandLine) && yarnApplicationIdFromYarnProperties != null);
 	}
 
 	@Override
@@ -391,6 +394,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	private ApplicationId getApplicationId(CommandLine commandLine) {
 		if (commandLine.hasOption(applicationId.getOpt())) {
 			return ConverterUtils.toApplicationId(commandLine.getOptionValue(applicationId.getOpt()));
+		} else if (configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent()) {
+			return ConverterUtils.toApplicationId(configuration.get(YarnConfigOptions.APPLICATION_ID));
 		} else if (isYarnPropertiesFileMode(commandLine)) {
 			return yarnApplicationIdFromYarnProperties;
 		}
@@ -516,6 +521,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 				throw new FlinkException("Error while parsing the YARN properties: " +
 					"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.", e);
 			}
+		}
+
+		String applicationId = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
+		if (applicationId != null) {
+			effectiveConfiguration.setString(YarnConfigOptions.APPLICATION_ID, applicationId);
 		}
 
 		// handle the YARN client's dynamic properties
