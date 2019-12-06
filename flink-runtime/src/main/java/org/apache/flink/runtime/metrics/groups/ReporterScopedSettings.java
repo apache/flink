@@ -19,6 +19,8 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.util.Preconditions;
 
+import java.util.Set;
+
 /**
  * Encapsulates all settings that are defined per reporter.
  */
@@ -28,7 +30,10 @@ public class ReporterScopedSettings {
 
 	private final char delimiter;
 
-	public ReporterScopedSettings(int reporterIndex, char delimiter) {
+	private Set<String> excludedVariables;
+
+	public ReporterScopedSettings(int reporterIndex, char delimiter, Set<String> excludedVariables) {
+		this.excludedVariables = excludedVariables;
 		Preconditions.checkArgument(reporterIndex >= 0);
 		this.reporterIndex = reporterIndex;
 		this.delimiter = delimiter;
@@ -40,5 +45,9 @@ public class ReporterScopedSettings {
 
 	public char getDelimiter() {
 		return delimiter;
+	}
+
+	public Set<String> getExcludedVariables() {
+		return excludedVariables;
 	}
 }

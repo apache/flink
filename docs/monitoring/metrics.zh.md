@@ -563,6 +563,7 @@ reporters will be instantiated on each job and task manager when they are starte
 - `metrics.reporter.<name>.factory.class`: The reporter factory class to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
+- `metrics.reporter.<name>.scope.variables.excludes`: (optional) A semicolon (;) separated list of variables that should be ignored by tag-based reporters. 
 - `metrics.reporters`: (optional) A comma-separated include list of reporter names. By default all configured reporters will be used.
 
 All reporters must at least have either the `class` or `factory.class` property. Which property may/should be used depends on the reporter implementation. See the individual reporter configuration sections for more information.
