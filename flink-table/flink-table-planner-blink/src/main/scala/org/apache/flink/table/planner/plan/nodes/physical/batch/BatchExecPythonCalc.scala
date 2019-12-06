@@ -28,7 +28,6 @@ import org.apache.flink.configuration.{ConfigOption, Configuration, MemorySize}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 
 /**
   * Batch physical RelNode for Python ScalarFunctions.

@@ -140,11 +140,12 @@ abstract class BatchExecHashAggregateBase(
       ).genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    setManagedMemoryWeight(new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism), managedMemory)
+      input.getParallelism,
+      managedMemory)
   }
 }

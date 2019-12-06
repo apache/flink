@@ -99,12 +99,11 @@ class BatchExecExpand(
       projects,
       opName = "BatchExpand")
 
-    setManagedMemoryWeight(new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      inputTransform.getParallelism), 0)
+      inputTransform.getParallelism)
   }
-
 }

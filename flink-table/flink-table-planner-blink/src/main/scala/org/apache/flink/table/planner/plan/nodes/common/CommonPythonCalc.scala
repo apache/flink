@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, SimpleOperatorFactory}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionIn
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
@@ -152,10 +153,10 @@ trait CommonPythonCalc {
       pythonFunctionInfos,
       forwardedFields)
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       inputTransform,
       name,
-      pythonOperator,
+      SimpleOperatorFactory.of(pythonOperator),
       pythonOperatorResultTyeInfo,
       inputTransform.getParallelism
     )

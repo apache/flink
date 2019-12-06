@@ -188,7 +188,7 @@ class BatchExecCorrelate(
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
     val operatorCtx = CodeGeneratorContext(config)
-    setManagedMemoryWeight(CorrelateCodeGenerator.generateCorrelateTransformation(
+    CorrelateCodeGenerator.generateCorrelateTransformation(
       config,
       operatorCtx,
       inputTransformation,
@@ -202,7 +202,7 @@ class BatchExecCorrelate(
       retainHeader = false,
       getExpressionString,
       "BatchExecCorrelate",
-      getRelDetailedDescription), 0)
+      getRelDetailedDescription)
   }
 
 }

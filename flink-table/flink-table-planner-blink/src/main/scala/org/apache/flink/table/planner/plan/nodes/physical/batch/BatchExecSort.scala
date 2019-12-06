@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, SimpleOperatorFactory}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -28,16 +28,15 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortOperator
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -122,11 +121,12 @@ class BatchExecSort(
 
     val sortMemory = MemorySize.parse(conf.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
-    setManagedMemoryWeight(new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
       getRelDetailedDescription,
-      operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
+      SimpleOperatorFactory.of(operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]]),
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism), sortMemory)
+      input.getParallelism,
+      sortMemory)
   }
 }

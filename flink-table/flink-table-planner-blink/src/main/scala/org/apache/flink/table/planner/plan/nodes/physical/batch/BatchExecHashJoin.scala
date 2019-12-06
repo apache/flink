@@ -21,7 +21,6 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -255,12 +254,13 @@ class BatchExecHashJoin(
 
     val managedMemory = MemorySize.parse(config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)).getBytes
-    setManagedMemoryWeight(new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    ExecNode.createTwoInputTransformation(
       build,
       probe,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      probe.getParallelism), managedMemory)
+      probe.getParallelism,
+      managedMemory)
   }
 }
