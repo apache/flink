@@ -805,6 +805,16 @@ object TestPartitionableSourceFactory {
     .field("part2", DataTypes.INT())
     .build()
 
+  /**
+    * For java invoking.
+    */
+  def registerTableSource(
+      tEnv: TableEnvironment,
+      tableName: String,
+      isBounded: Boolean): Unit = {
+    registerTableSource(tEnv, tableName, isBounded, tableSchema = tableSchema)
+  }
+
   def registerTableSource(
       tEnv: TableEnvironment,
       tableName: String,
