@@ -857,7 +857,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	//  static library loading utilities
 	// ------------------------------------------------------------------------
 
-	private static void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
+	@VisibleForTesting
+	static void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
 		synchronized (RocksDBStateBackend.class) {
 			if (!rocksDbInitialized) {
 
@@ -878,7 +879,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 						//  instances of the same JNI library being loaded in different class loaders, but
 						//  apparently not when coming from the same file path, so there we go)
 
-						rocksLibFolder = createRocksDBLibDir(tempDirParent);
+						rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+						// make sure the temp path exists
+						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
+
+						// noinspection ResultOfMethodCallIgnored
+						rocksLibFolder.mkdirs();
+						rocksLibFolder.deleteOnExit();
 
 						// make sure the temp path exists
 						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
@@ -914,18 +921,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				throw new IOException("Could not load the native RocksDB library", lastException);
 			}
 		}
-	}
-
-	@VisibleForTesting
-	static File createRocksDBLibDir(File tempDirParent) {
-		final File rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
-		// make sure the temp path exists
-		LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
-
-		// noinspection ResultOfMethodCallIgnored
-		rocksLibFolder.mkdirs();
-		rocksLibFolder.deleteOnExit();
-		return rocksLibFolder;
 	}
 
 	@VisibleForTesting
