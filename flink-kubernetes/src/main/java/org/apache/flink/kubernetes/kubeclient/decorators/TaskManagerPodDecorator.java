@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -59,6 +60,9 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 		final String clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
 		Preconditions.checkNotNull(clusterId, "ClusterId must be specified!");
 
+		final int taskManagerRpcPort = KubernetesUtils.parsePort(flinkConfig, TaskManagerOptions.RPC_PORT);
+		Preconditions.checkState(taskManagerRpcPort > 0, "{} should not be 0.", TaskManagerOptions.RPC_PORT.key());
+
 		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
 		final boolean hasLogback = new File(confDir, Constants.CONFIG_FILE_LOGBACK_NAME).exists();
 		final boolean hasLog4j = new File(confDir, Constants.CONFIG_FILE_LOG4J_NAME).exists();
@@ -75,12 +79,16 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 
 		pod.setSpec(new PodSpecBuilder()
 			.withVolumes(configMapVolume)
-			.withContainers(createTaskManagerContainer(flinkConfig, hasLogback, hasLog4j))
+			.withContainers(createTaskManagerContainer(flinkConfig, hasLogback, hasLog4j, taskManagerRpcPort))
 			.build());
 		return pod;
 	}
 
-	private Container createTaskManagerContainer(Configuration flinkConfig, boolean hasLogBack, boolean hasLog4j) {
+	private Container createTaskManagerContainer(
+			Configuration flinkConfig,
+			boolean hasLogBack,
+			boolean hasLog4j,
+			int taskManagerRpcPort) {
 		final String flinkConfDirInPod = flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
 		return new ContainerBuilder()
 			.withName(CONTAINER_NAME)
@@ -91,7 +99,7 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 			.withResources(KubernetesUtils.getResourceRequirements(
 				parameter.getTaskManagerMemoryInMB(),
 				parameter.getTaskManagerCpus()))
-			.withPorts(new ContainerPortBuilder().withContainerPort(Constants.TASK_MANAGER_RPC_PORT).build())
+			.withPorts(new ContainerPortBuilder().withContainerPort(taskManagerRpcPort).build())
 			.withEnv(this.parameter.getEnvironmentVariables()
 				.entrySet()
 				.stream()

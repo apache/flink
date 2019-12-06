@@ -18,6 +18,9 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -25,9 +28,12 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 
@@ -37,6 +43,9 @@ import static org.junit.Assert.assertEquals;
  * Tests for {@link KubernetesUtils}.
  */
 public class KubernetesUtilsTest extends TestLogger {
+
+	@Rule
+	public final ExpectedException exception = ExpectedException.none();
 
 	private static final String java = "$JAVA_HOME/bin/java";
 	private static final String classpath = "-classpath $FLINK_CLASSPATH";
@@ -185,6 +194,25 @@ public class KubernetesUtilsTest extends TestLogger {
 				" " + mainClass + " " + tmLogRedirects,
 			getTaskManagerStartCommand(cfg, true, true, mainClassArgs));
 
+	}
+
+	@Test
+	public void testParsePortRange() {
+		final Configuration cfg = new Configuration();
+		cfg.set(BlobServerOptions.PORT, "50100-50200");
+		exception.expect(FlinkRuntimeException.class);
+		exception.expectMessage(BlobServerOptions.PORT.key() + " should be specified to a fixed port. " +
+			"Do not support a range of ports.");
+		KubernetesUtils.parsePort(cfg, BlobServerOptions.PORT);
+	}
+
+	@Test
+	public void testParsePortNull() {
+		final Configuration cfg = new Configuration();
+		ConfigOption<String> testingPort = ConfigOptions.key("test.port").stringType().noDefaultValue();
+		exception.expect(FlinkRuntimeException.class);
+		exception.expectMessage(testingPort.key() + " should not be null.");
+		KubernetesUtils.parsePort(cfg, testingPort);
 	}
 
 	private String getJobManagerExpectedCommand(String jvmAllOpts, String logging, String mainClassArgs) {
