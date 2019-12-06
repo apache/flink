@@ -87,7 +87,6 @@ See bundled license files for details.
 This project bundles the following dependencies under the Common Development and Distribution License (CDDL) 1.0.
 See bundled license files for details.
 
-- javax.activation:activation:1.1
 - javax.ws.rs:jsr311-api:1.1.1
 - javax.xml.stream:stax-api:1.0-2
 - stax:stax-api:1.0.1
@@ -100,9 +99,10 @@ See bundled license files for details.
 - com.sun.jersey:jersey-server:1.19
 - com.sun.jersey:jersey-servlet:1.19
 - com.sun.xml.bind:jaxb-impl:2.2.3-1
+- javax.activation:activation-api:1.2.0
 - javax.servlet.jsp:jsp-api:2.1
 - javax.servlet:javax.servlet-api:3.1.0
-- javax.xml.bind:jaxb-api:2.2.2
+- javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
 See bundled license files for details.
