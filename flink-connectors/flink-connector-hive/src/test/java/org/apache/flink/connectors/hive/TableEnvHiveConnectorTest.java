@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -29,7 +30,6 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.planner.runtime.utils.TableUtil;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -49,8 +49,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-
-import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -96,7 +94,7 @@ public class TableEnvHiveConnectorTest {
 		assertTrue(fs.exists(defaultPartPath));
 
 		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select y, x from db1.part order by x");
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect(flinkTable)).asJava();
+		List<Row> rows = TableUtils.collectToList(flinkTable);
 		assertEquals(Arrays.toString(new String[]{"1,1", "null,2"}), rows.toString());
 
 		hiveShell.execute("drop database db1 cascade");
