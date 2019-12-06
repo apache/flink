@@ -330,13 +330,13 @@ tables:
       schema: "ROW<rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP>"
     schema:
       - name: rideId
-        type: LONG
+        data-type: BIGINT
       - name: lon
-        type: FLOAT
+        data-type: FLOAT
       - name: lat
-        type: FLOAT
+        data-type: FLOAT
       - name: rowTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: "from-field"
@@ -345,7 +345,7 @@ tables:
             type: "periodic-bounded"
             delay: "60000"
       - name: procTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         proctime: true
 {% endhighlight %}
 
@@ -500,13 +500,13 @@ tables:
       derive-schema: true
     schema:
       - name: rideId
-        type: LONG
+        data-type: BIGINT
       - name: lon
-        type: FLOAT
+        data-type: FLOAT
       - name: lat
-        type: FLOAT
+        data-type: FLOAT
       - name: rideTime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
 {% endhighlight %}
 
 The SQL Client makes sure that a statement is successfully submitted to the cluster. Once the query is submitted, the CLI will show information about the Flink job.
@@ -582,11 +582,11 @@ tables:
     format: # ...
     schema:
       - name: integerField
-        type: INT
+        data-type: INT
       - name: stringField
-        type: VARCHAR
+        data-type: STRING
       - name: rowtimeField
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: from-field
