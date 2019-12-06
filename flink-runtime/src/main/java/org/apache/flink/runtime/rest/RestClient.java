@@ -149,7 +149,7 @@ public class RestClient implements AutoCloseableAsync {
 			.channel(NioSocketChannel.class)
 			.handler(initializer);
 
-		LOG.info("Rest client endpoint started.");
+		LOG.debug("Rest client endpoint started.");
 	}
 
 	@Override
@@ -162,7 +162,7 @@ public class RestClient implements AutoCloseableAsync {
 
 		try {
 			shutDownFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			LOG.info("Rest endpoint shutdown complete.");
+			LOG.debug("Rest endpoint shutdown complete.");
 		} catch (Exception e) {
 			LOG.warn("Rest endpoint shutdown failed.", e);
 		}
@@ -170,7 +170,7 @@ public class RestClient implements AutoCloseableAsync {
 
 	private CompletableFuture<Void> shutdownInternally(Time timeout) {
 		if (isRunning.compareAndSet(true, false)) {
-			LOG.info("Shutting down rest endpoint.");
+			LOG.debug("Shutting down rest endpoint.");
 
 			if (bootstrap != null) {
 				if (bootstrap.group() != null) {
