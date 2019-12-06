@@ -41,6 +41,8 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction",
     "org.apache.flink.sql.parser.ddl.SqlDropFunction",
     "org.apache.flink.sql.parser.ddl.SqlAlterTable",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableRename",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs",

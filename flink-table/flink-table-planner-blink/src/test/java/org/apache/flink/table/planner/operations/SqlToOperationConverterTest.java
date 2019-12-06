@@ -45,6 +45,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -541,6 +543,43 @@ public class SqlToOperationConverterTest {
 		assertArrayEquals(
 			expected,
 			columnExpressions);
+	}
+
+	@Test
+	public void testAlterTable() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder().field("a", DataTypes.STRING()).build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+		final String[] renameTableSqls = new String[] {
+				"alter table cat1.db1.tb1 rename to tb2",
+				"alter table db1.tb1 rename to tb2",
+				"alter table tb1 rename to cat1.db1.tb2",
+		};
+		final ObjectIdentifier expectedIdentifier =
+				ObjectIdentifier.of("cat1", "db1", "tb1");
+		final ObjectIdentifier expectedNewIdentifier =
+				ObjectIdentifier.of("cat1", "db1", "tb2");
+		//test rename table converter
+		for (int i = 0; i < renameTableSqls.length; i++) {
+			Operation operation = parse(renameTableSqls[i], SqlDialect.DEFAULT);
+			assert operation instanceof AlterTableRenameOperation;
+			final AlterTableRenameOperation alterTableRenameOperation = (AlterTableRenameOperation) operation;
+			assertEquals(expectedIdentifier, alterTableRenameOperation.getTableIdentifier());
+			assertEquals(expectedNewIdentifier, alterTableRenameOperation.getNewTableIdentifier());
+		}
+		// test alter table properties
+		Operation operation = parse("alter table cat1.db1.tb1 set ('k1' = 'v1', 'k2' = 'v2')", SqlDialect.DEFAULT);
+		assert operation instanceof AlterTablePropertiesOperation;
+		final AlterTablePropertiesOperation alterTablePropertiesOperation = (AlterTablePropertiesOperation) operation;
+		assertEquals(expectedIdentifier, alterTablePropertiesOperation.getTableIdentifier());
+		assertEquals(2, alterTablePropertiesOperation.getCatalogTable().getProperties().size());
 	}
 
 	//~ Tool Methods ----------------------------------------------------------

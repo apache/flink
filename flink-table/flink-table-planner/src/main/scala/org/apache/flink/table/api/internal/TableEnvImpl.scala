@@ -120,7 +120,7 @@ abstract class TableEnvImpl(
 
   private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-      "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
+      "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
 
   private def isStreamingMode: Boolean = this match {
@@ -501,6 +501,28 @@ abstract class TableEnvImpl(
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
+      case alterTableOperation: AlterTableOperation => {
+        val catalog = getCatalogOrThrowException(
+          alterTableOperation.getTableIdentifier.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString)
+        try {
+          alterTableOperation match {
+            case alterTableRenameOp: AlterTableRenameOperation =>
+              catalog.renameTable(
+                alterTableRenameOp.getTableIdentifier.toObjectPath,
+                alterTableRenameOp.getNewTableIdentifier.getObjectName,
+                false)
+            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+              catalog.alterTable(
+                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
+                alterTablePropertiesOp.getCatalogTable,
+                false)
+          }
+        } catch {
+          case ex: TableNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
+      }
       case dropDatabaseOperation: DropDatabaseOperation =>
         val catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName)
         val exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString)

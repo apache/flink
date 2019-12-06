@@ -534,6 +534,33 @@ class CatalogTableITCase(isStreaming: Boolean) {
   }
 
   @Test
+  def testAlterTable(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'k1' = 'v1'
+        |)
+      """.stripMargin
+    tableEnv.sqlUpdate(ddl1)
+    tableEnv.sqlUpdate("alter table t1 rename to t2")
+    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
+    tableEnv.sqlUpdate("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
+    val expectedProperties = new util.HashMap[String, String]()
+    expectedProperties.put("connector", "COLLECTION")
+    expectedProperties.put("k1", "a")
+    expectedProperties.put("k2", "b")
+    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
+      .getProperties
+    assertEquals(expectedProperties, properties)
+  }
+
+  @Test
   def testUseCatalog(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
     tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))

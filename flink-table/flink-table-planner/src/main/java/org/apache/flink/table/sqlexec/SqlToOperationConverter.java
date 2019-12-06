@@ -19,6 +19,9 @@
 package org.apache.flink.table.sqlexec;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
+import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
@@ -48,6 +51,8 @@ import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -110,6 +115,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertCreateTable((SqlCreateTable) validated));
 		} else if (validated instanceof SqlDropTable) {
 			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
+		} else if (validated instanceof SqlAlterTable) {
+			return Optional.of(converter.convertAlterTable((SqlAlterTable) validated));
 		} else if (validated instanceof RichSqlInsert) {
 			SqlNodeList targetColumnList = ((RichSqlInsert) validated).getTargetColumnList();
 			if (targetColumnList != null && targetColumnList.size() != 0) {
@@ -184,6 +191,38 @@ public class SqlToOperationConverter {
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 		return new DropTableOperation(identifier, sqlDropTable.getIfExists());
+	}
+
+	/** convert ALTER TABLE statement. */
+	private Operation convertAlterTable(SqlAlterTable sqlAlterTable) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullTableName());
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		if (sqlAlterTable instanceof SqlAlterTableRename) {
+			UnresolvedIdentifier newUnresolvedIdentifier =
+					UnresolvedIdentifier.of(((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
+			ObjectIdentifier newTableIdentifier = catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
+			return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
+		} else if (sqlAlterTable instanceof SqlAlterTableProperties){
+			Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(tableIdentifier);
+			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
+				CatalogTable originalCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
+				Map<String, String> properties = new HashMap<>();
+				properties.putAll(originalCatalogTable.getProperties());
+				((SqlAlterTableProperties) sqlAlterTable).getPropertyList().getList().forEach(p ->
+						properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+								((SqlTableOption) p).getValueString()));
+				CatalogTable catalogTable = new CatalogTableImpl(
+						originalCatalogTable.getSchema(),
+						originalCatalogTable.getPartitionKeys(),
+						properties,
+						originalCatalogTable.getComment());
+				return new AlterTablePropertiesOperation(tableIdentifier, catalogTable);
+			} else {
+				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
+						tableIdentifier.toString()));
+			}
+		}
+		return null;
 	}
 
 	/** Fallback method for sql query. */
