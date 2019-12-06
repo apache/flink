@@ -56,8 +56,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 	@Nonnegative
 	private final long batchSize;
 
-	private long currentDataSize;
-
 	public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, long writeBatchSize) {
 		this(rocksDB, null, 500, writeBatchSize);
 	}
@@ -84,7 +82,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		} else {
 			this.batch = new WriteBatch(this.capacity * PER_RECORD_BYTES);
 		}
-		this.currentDataSize = batch.getDataSize();
 	}
 
 	public void put(
@@ -93,7 +90,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		@Nonnull byte[] value) throws RocksDBException {
 
 		batch.put(handle, key, value);
-		this.currentDataSize += calculateConsumedBytes(key, value);
 
 		flushIfNeeded();
 	}
@@ -103,7 +99,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		@Nonnull byte[] key) throws RocksDBException {
 
 		batch.remove(handle, key);
-		this.currentDataSize += calculateConsumedBytes(key, null);
 
 		flushIfNeeded();
 	}
@@ -118,7 +113,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 			}
 		}
 		batch.clear();
-		currentDataSize = batch.getDataSize();
 	}
 
 	public WriteOptions getOptions() {
@@ -140,40 +134,8 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		}
 	}
 
-	private long calculateConsumedBytes(byte[] key, byte[] value) {
-		long ret = 2 + calculateVarint32Length(key.length) + key.length;
-		if (value != null) {
-			ret += calculateVarint32Length(value.length) + value.length;
-		}
-		return ret;
-	}
-
-	/**
-	 * Calculate the length after encoded into Varint32, please ref to coding.cc of RocksDB.
-	 */
-	private int calculateVarint32Length(int input) {
-		if (input < (1 << 7)) {
-			return 1;
-		}
-		if (input < (1 << 14)) {
-			return 2;
-		}
-		if (input < (1 << 21)) {
-			return 3;
-		}
-		if (input < (1 << 28)) {
-			return 4;
-		}
-		return 5;
-	}
-
 	@VisibleForTesting
 	long getDataSize() {
-		return currentDataSize;
-	}
-
-	@VisibleForTesting
-	WriteBatch getBatch() {
-		return batch;
+		return batch.getDataSize();
 	}
 }

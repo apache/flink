@@ -27,7 +27,6 @@ import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
-import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
@@ -116,62 +115,6 @@ public class RocksDBWriteBatchWrapperTest {
 			}
 			writeBatchWrapper.put(handle, dummy, dummy);
 			assertEquals(initBatchSize, writeBatchWrapper.getDataSize());
-		}
-	}
-
-	/**
-	 * Test that the {@link RocksDBWriteBatchWrapper#getDataSize()} implemented by ourself equals to {@link WriteBatch#getDataSize()}.
-	 */
-	@Test
-	public void testWriteBufferDataSize() throws Exception  {
-		try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
-			WriteOptions options = new WriteOptions().setDisableWAL(true);
-			ColumnFamilyHandle handle = db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
-			RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, options, 100, 600000000)) {
-			// empty write batch
-			WriteBatch writeBatch = writeBatchWrapper.getBatch();
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-
-			// len < (1 << 7)
-			byte[] value = "1".getBytes();
-			byte[] a = new byte[1];
-			ThreadLocalRandom.current().nextBytes(a);
-			writeBatchWrapper.put(handle, a, value);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-			writeBatchWrapper.remove(handle, a);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-
-			// (1 <<7) <= len < (1 << 14)
-			byte[] b = new byte[128]; // 1 << 7
-			ThreadLocalRandom.current().nextBytes(b);
-			writeBatchWrapper.put(handle, b, value);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-			writeBatchWrapper.remove(handle, b);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-
-			// (1 << 14) <= len < (1 < 21)
-			byte[] c = new byte[16384]; // 1 << 14
-			ThreadLocalRandom.current().nextBytes(b);
-			writeBatchWrapper.put(handle, c, value);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-			writeBatchWrapper.remove(handle, c);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-
-			// (1 << 21) <= len < (1 < 28)
-			byte[] d = new byte[2097152]; // 1 << 21
-			ThreadLocalRandom.current().nextBytes(d);
-			writeBatchWrapper.put(handle, d, value);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-			writeBatchWrapper.remove(handle, d);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-
-			// (1 << 28) <= len
-			byte[] e = new byte[268435456]; // 1 << 28
-			ThreadLocalRandom.current().nextBytes(e);
-			writeBatchWrapper.put(handle, e, value);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
-			writeBatchWrapper.remove(handle, e);
-			assertEquals(writeBatch.getDataSize(), writeBatchWrapper.getDataSize());
 		}
 	}
 }
