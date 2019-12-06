@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.IOUtils;
 
 import org.rocksdb.ColumnFamilyOptions;
@@ -40,6 +41,8 @@ public class RocksDBOptionsContainer implements AutoCloseable, Serializable {
 	private PredefinedOptions predefinedOptions;
 	/** The options factory to create the RocksDB options. */
 	private OptionsFactory optionsFactory;
+	/** The shared resource among RocksDB instances. */
+	private OpaqueMemoryResource<RocksDBSharedResources> sharedResources;
 
 	private final ArrayList<DBOptions> dbOptions;
 	private final ArrayList<ColumnFamilyOptions> columnFamilyOptions;
@@ -111,6 +114,10 @@ public class RocksDBOptionsContainer implements AutoCloseable, Serializable {
 		this.optionsFactory = optionsFactory;
 	}
 
+	void setSharedResources(OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
+		this.sharedResources = sharedResources;
+	}
+
 	@Override
 	public void close() throws Exception {
 		if (optionsFactory != null) {
@@ -124,5 +131,9 @@ public class RocksDBOptionsContainer implements AutoCloseable, Serializable {
 		// we need to consider for the container reuse after restore processing
 		dbOptions.clear();
 		columnFamilyOptions.clear();
+
+		if (sharedResources != null) {
+			sharedResources.close();
+		}
 	}
 }

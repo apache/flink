@@ -18,9 +18,17 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.util.function.ThrowingRunnable;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.LRUCache;
+import org.rocksdb.NativeLibraryLoader;
+import org.rocksdb.WriteBufferManager;
 
 import java.util.ArrayList;
 
@@ -31,6 +39,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
  * Tests to guard {@link RocksDBOptionsContainer}.
  */
 public class RocksDBOptionsContainerTest {
+
+	@Rule
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	@Test
 	public void testCloseOptionsFactory() throws Exception {
@@ -103,5 +114,22 @@ public class RocksDBOptionsContainerTest {
 				assertThat(columnFamilyOption.isOwningHandle(), is(false));
 			}
 		}
+	}
+
+	@Test
+	public void testFreeSharedResourcesAfterClose() throws Exception {
+		NativeLibraryLoader.getInstance().loadLibrary(tmp.newFolder().getAbsolutePath());
+		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		LRUCache cache = new LRUCache(1024L);
+		WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
+		RocksDBSharedResources sharedResources = new RocksDBSharedResources(cache, wbm);
+		final ThrowingRunnable<Exception> disposer = sharedResources::close;
+		OpaqueMemoryResource<RocksDBSharedResources> opaqueResource =
+			new OpaqueMemoryResource<>(sharedResources, 1024L, disposer);
+		container.setSharedResources(opaqueResource);
+
+		container.close();
+		assertThat(cache.isOwningHandle(), is(false));
+		assertThat(wbm.isOwningHandle(), is(false));
 	}
 }

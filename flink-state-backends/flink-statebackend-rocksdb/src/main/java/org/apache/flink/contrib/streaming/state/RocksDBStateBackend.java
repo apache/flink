@@ -514,6 +514,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		if (sharedResources != null) {
 			LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
+			// register into options container for disposal.
+			optionsContainer.setSharedResources(sharedResources);
 
 			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
 			final Cache blockCache = rocksResources.getCache();
