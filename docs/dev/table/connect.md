@@ -172,13 +172,13 @@ tableEnvironment
   // declare the schema of the table
   .withSchema(
     new Schema()
-      .field("rowtime", Types.SQL_TIMESTAMP)
+      .field("rowtime", DataTypes.TIMESTAMP(3))
         .rowtime(new Rowtime()
           .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
-      .field("user", Types.LONG)
-      .field("message", Types.STRING)
+      .field("user", DataTypes.BIGINT())
+      .field("message", DataTypes.STRING())
   )
 
   // specify the update-mode for streaming tables
@@ -217,7 +217,7 @@ table_environment \
     ) \
     .with_schema(  # declare the schema of the table
         Schema()
-        .field("rowtime", DataTypes.TIMESTAMP())
+        .field("rowtime", DataTypes.TIMESTAMP(3))
         .rowtime(
             Rowtime()
             .timestamps_from_field("timestamp")
@@ -270,7 +270,7 @@ tables:
     # declare the schema of the table
     schema:
       - name: rowtime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: from-field
@@ -279,9 +279,9 @@ tables:
             type: periodic-bounded
             delay: "60000"
       - name: user
-        type: BIGINT
+        data-type: BIGINT
       - name: message
-        type: VARCHAR
+        data-type: STRING
 {% endhighlight %}
 </div>
 
@@ -289,8 +289,8 @@ tables:
 {% highlight sql %}
 CREATE TABLE MyUserTable (
   `user` BIGINT,
-  message VARCHAR,
-  ts VARCHAR
+  message STRING,
+  ts STRING
 ) WITH (
   -- declare the external system to connect to
   'connector.type' = 'kafka',
@@ -337,9 +337,9 @@ The following example shows a simple schema without time attributes and one-to-o
 {% highlight java %}
 .withSchema(
   new Schema()
-    .field("MyField1", Types.INT)     // required: specify the fields of the table (in this order)
-    .field("MyField2", Types.STRING)
-    .field("MyField3", Types.BOOLEAN)
+    .field("MyField1", DataTypes.INT())     // required: specify the fields of the table (in this order)
+    .field("MyField2", DataTypes.STRING())
+    .field("MyField3", DataTypes.BOOLEAN())
 )
 {% endhighlight %}
 </div>
@@ -359,11 +359,11 @@ The following example shows a simple schema without time attributes and one-to-o
 {% highlight yaml %}
 schema:
   - name: MyField1    # required: specify the fields of the table (in this order)
-    type: INT
+    data-type: INT
   - name: MyField2
-    type: VARCHAR
+    data-type: STRING
   - name: MyField3
-    type: BOOLEAN
+    data-type: BOOLEAN
 {% endhighlight %}
 </div>
 </div>
@@ -375,11 +375,11 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight java %}
 .withSchema(
   new Schema()
-    .field("MyField1", Types.SQL_TIMESTAMP)
+    .field("MyField1", DataTypes.TIMESTAMP(3))
       .proctime()      // optional: declares this field as a processing-time attribute
-    .field("MyField2", Types.SQL_TIMESTAMP)
+    .field("MyField2", DataTypes.TIMESTAMP(3))
       .rowtime(...)    // optional: declares this field as a event-time attribute
-    .field("MyField3", Types.BOOLEAN)
+    .field("MyField3", DataTypes.BOOLEAN())
       .from("mf3")     // optional: original field in the input that is referenced/aliased by this field
 )
 {% endhighlight %}
@@ -389,9 +389,9 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight python %}
 .with_schema(
     Schema()
-    .field("MyField1", DataTypes.TIMESTAMP())
+    .field("MyField1", DataTypes.TIMESTAMP(3))
     .proctime()  # optional: declares this field as a processing-time attribute
-    .field("MyField2", DataTypes.TIMESTAMP())
+    .field("MyField2", DataTypes.TIMESTAMP(3))
     .rowtime(...)  # optional: declares this field as a event-time attribute
     .field("MyField3", DataTypes.BOOLEAN())
     .from_origin_field("mf3")  # optional: original field in the input that is referenced/aliased by this field
@@ -403,13 +403,13 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight yaml %}
 schema:
   - name: MyField1
-    type: TIMESTAMP
+    data-type: TIMESTAMP(3)
     proctime: true    # optional: boolean flag whether this field should be a processing-time attribute
   - name: MyField2
-    type: TIMESTAMP
+    data-type: TIMESTAMP(3)
     rowtime: ...      # optional: wether this field should be a event-time attribute
   - name: MyField3
-    type: BOOLEAN
+    data-type: BOOLEAN
     from: mf3         # optional: original field in the input that is referenced/aliased by this field
 {% endhighlight %}
 </div>
@@ -578,34 +578,8 @@ Make sure to always declare both timestamps and watermarks. Watermarks are requi
 
 ### Type Strings
 
-Because type information is only available in a programming language, the following type strings are supported for being defined in a YAML file:
-
-{% highlight yaml %}
-VARCHAR
-BOOLEAN
-TINYINT
-SMALLINT
-INT
-BIGINT
-FLOAT
-DOUBLE
-DECIMAL
-DATE
-TIME
-TIMESTAMP
-MAP<fieldtype, fieldtype>        # generic map; e.g. MAP<VARCHAR, INT> that is mapped to Flink's MapTypeInfo
-MULTISET<fieldtype>              # multiset; e.g. MULTISET<VARCHAR> that is mapped to Flink's MultisetTypeInfo
-PRIMITIVE_ARRAY<fieldtype>       # primitive array; e.g. PRIMITIVE_ARRAY<INT> that is mapped to Flink's PrimitiveArrayTypeInfo
-OBJECT_ARRAY<fieldtype>          # object array; e.g. OBJECT_ARRAY<POJO(org.mycompany.MyPojoClass)> that is mapped to
-                                 #   Flink's ObjectArrayTypeInfo
-ROW<fieldtype, ...>              # unnamed row; e.g. ROW<VARCHAR, INT> that is mapped to Flink's RowTypeInfo
-                                 #   with indexed fields names f0, f1, ...
-ROW<fieldname fieldtype, ...>    # named row; e.g., ROW<myField VARCHAR, myOtherField INT> that
-                                 #   is mapped to Flink's RowTypeInfo
-POJO<class>                      # e.g., POJO<org.mycompany.MyPojoClass> that is mapped to Flink's PojoTypeInfo
-ANY<class>                       # e.g., ANY<org.mycompany.MyClass> that is mapped to Flink's GenericTypeInfo
-ANY<class, serialized>           # used for type information that is not supported by Flink's Table & SQL API
-{% endhighlight %}
+Because `DataType` is only available in a programming language, type strings are supported for being defined in a YAML file.
+The type strings are the same to type declaration in SQL, please see the [Data Types](types.html) page about how to declare a type in SQL.
 
 {% top %}
 
@@ -1433,9 +1407,9 @@ CREATE TABLE MyUserTable (
   'format.type' = 'csv',                  -- required: specify the schema type
 
   'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
-  'format.fields.0.type' = 'FLOAT',
+  'format.fields.0.data-type' = 'FLOAT',
   'format.fields.1.name' = 'rideTime',
-  'format.fields.1.type' = 'TIMESTAMP',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.derive-schema' = 'true',        -- or use the table's schema
 
@@ -1618,9 +1592,9 @@ CREATE TABLE MyUserTable (
   'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
 
   'format.fields.0.name' = 'lon',           -- required: define the schema either by using a type string which parses numbers to corresponding types
-  'format.fields.0.type' = 'FLOAT',
+  'format.fields.0.data-type' = 'FLOAT',
   'format.fields.1.name' = 'rideTime',
-  'format.fields.1.type' = 'TIMESTAMP',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
     '{
@@ -1855,8 +1829,8 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight java %}
 .withFormat(
   new OldCsv()
-    .field("field1", Types.STRING)    // required: ordered format fields
-    .field("field2", Types.TIMESTAMP)
+    .field("field1", DataTypes.STRING())    // required: ordered format fields
+    .field("field2", DataTypes.TIMESTAMP(3))
     .deriveSchema()                   // or use the table's schema
     .fieldDelimiter(",")              // optional: string delimiter "," by default
     .lineDelimiter("\n")              // optional: string delimiter "\n" by default
@@ -1890,9 +1864,9 @@ format:
   type: csv
   fields:                    # required: ordered format fields
     - name: field1
-      type: VARCHAR
+      data-type: STRING
     - name: field2
-      type: TIMESTAMP
+      data-type: TIMESTAMP(3)
   derive-schema: true        # or use the table's schema
   field-delimiter: ","       # optional: string delimiter "," by default
   line-delimiter: "\n"       # optional: string delimiter "\n" by default
@@ -1911,9 +1885,9 @@ CREATE TABLE MyUserTable (
   'format.type' = 'csv',                  -- required: specify the schema type
 
   'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
-  'format.fields.0.type' = 'FLOAT',
+  'format.fields.0.data-type' = 'STRING',
   'format.fields.1.name' = 'rideTime',
-  'format.fields.1.type' = 'TIMESTAMP',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.derive-schema' = 'true',        -- or use the table's schema'
 
