@@ -94,9 +94,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		minimumDesc.put("connector.property-version", "1");
 		minimumDesc.put("connector.type", "elasticsearch");
 		minimumDesc.put("connector.version", "6");
-		minimumDesc.put("connector.hosts.0.hostname", "localhost");
-		minimumDesc.put("connector.hosts.0.port", "1234");
-		minimumDesc.put("connector.hosts.0.protocol", "http");
+		minimumDesc.put("connector.hosts", "http://localhost:1234");
 		minimumDesc.put("connector.index", "MyIndex");
 		minimumDesc.put("connector.document-type", "MyType");
 
@@ -104,12 +102,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		maximumDesc.put("connector.property-version", "1");
 		maximumDesc.put("connector.type", "elasticsearch");
 		maximumDesc.put("connector.version", "6");
-		maximumDesc.put("connector.hosts.0.hostname", "host1");
-		maximumDesc.put("connector.hosts.0.port", "1234");
-		maximumDesc.put("connector.hosts.0.protocol", "https");
-		maximumDesc.put("connector.hosts.1.hostname", "host2");
-		maximumDesc.put("connector.hosts.1.port", "1234");
-		maximumDesc.put("connector.hosts.1.protocol", "https");
+		maximumDesc.put("connector.hosts", "https://host1:1234;https://host2:1234");
 		maximumDesc.put("connector.index", "MyIndex");
 		maximumDesc.put("connector.document-type", "MyType");
 		maximumDesc.put("connector.key-delimiter", "#");
@@ -128,9 +121,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		customDesc.put("connector.property-version", "1");
 		customDesc.put("connector.type", "elasticsearch");
 		customDesc.put("connector.version", "6");
-		customDesc.put("connector.hosts.0.hostname", "localhost");
-		customDesc.put("connector.hosts.0.port", "1234");
-		customDesc.put("connector.hosts.0.protocol", "http");
+		customDesc.put("connector.hosts", "http://localhost:1234");
 		customDesc.put("connector.index", "MyIndex");
 		customDesc.put("connector.document-type", "MyType");
 		customDesc.put("connector.flush-on-checkpoint", "false");

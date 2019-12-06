@@ -20,6 +20,7 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.table.api.ValidationException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +50,9 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_PARTITION = "partition";
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_OFFSET = "offset";
 	public static final String CONNECTOR_PROPERTIES = "connector.properties";
+	public static final String CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT = "connector.properties.zookeeper.connect";
+	public static final String CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER = "connector.properties.bootstrap.servers";
+	public static final String CONNECTOR_PROPERTIES_GROUP_ID = "connector.properties.group.id";
 	public static final String CONNECTOR_PROPERTIES_KEY = "key";
 	public static final String CONNECTOR_PROPERTIES_VALUE = "value";
 	public static final String CONNECTOR_SINK_PARTITIONER = "connector.sink-partitioner";
@@ -74,39 +78,54 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	private void validateStartupMode(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> specificOffsetValidators = new HashMap<>();
 		specificOffsetValidators.put(
-			CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
-			(key) -> properties.validateInt(
-				key,
-				false,
-				0,
-				Integer.MAX_VALUE));
+				CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
+				(key) -> properties.validateInt(
+						key,
+						false,
+						0,
+						Integer.MAX_VALUE));
 		specificOffsetValidators.put(
-			CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
-			(key) -> properties.validateLong(
-				key,
-				false,
-				0,
-				Long.MAX_VALUE));
+				CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
+				(key) -> properties.validateLong(
+						key,
+						false,
+						0,
+						Long.MAX_VALUE));
 
 		final Map<String, Consumer<String>> startupModeValidation = new HashMap<>();
 		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS, noValidation());
 		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_EARLIEST, noValidation());
 		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_LATEST, noValidation());
-		startupModeValidation.put(
-			CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS,
-			key -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
+
+		if (properties.containsKey(CONNECTOR_SPECIFIC_OFFSETS)) {
+			validateAndGetSpecificOffsetsStr(properties);
+			startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS, noValidation());
+		} else {
+			startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS,
+					key -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
+		}
+
 		properties.validateEnum(CONNECTOR_STARTUP_MODE, true, startupModeValidation);
 	}
 
 	private void validateKafkaProperties(DescriptorProperties properties) {
-		final Map<String, Consumer<String>> propertyValidators = new HashMap<>();
-		propertyValidators.put(
-			CONNECTOR_PROPERTIES_KEY,
-			key -> properties.validateString(key, false, 1));
-		propertyValidators.put(
-			CONNECTOR_PROPERTIES_VALUE,
-			key -> properties.validateString(key, false, 0));
-		properties.validateFixedIndexedProperties(CONNECTOR_PROPERTIES, true, propertyValidators);
+		if (properties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT)
+				|| properties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
+				|| properties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID)) {
+			properties.validateString(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT, false);
+			properties.validateString(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER, false);
+			properties.validateString(CONNECTOR_PROPERTIES_GROUP_ID, true);
+
+		} else {
+			final Map<String, Consumer<String>> propertyValidators = new HashMap<>();
+			propertyValidators.put(
+					CONNECTOR_PROPERTIES_KEY,
+					key -> properties.validateString(key, false, 1));
+			propertyValidators.put(
+					CONNECTOR_PROPERTIES_VALUE,
+					key -> properties.validateString(key, false, 0));
+			properties.validateFixedIndexedProperties(CONNECTOR_PROPERTIES, true, propertyValidators);
+		}
 	}
 
 	private void validateSinkPartitioner(DescriptorProperties properties) {
@@ -133,5 +152,56 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 				return CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS;
 		}
 		throw new IllegalArgumentException("Invalid startup mode.");
+	}
+
+	/**
+	 * Parse SpecificOffsets String to Map.
+	 *
+	 * <p>SpecificOffsets String format was given as following:
+	 *
+	 * <pre>
+	 *     connector.specific-offsets = partition:0,offset:42;partition:1,offset:300
+	 * </pre>
+	 * @param descriptorProperties
+	 * @return
+	 */
+	public static Map<Integer, Long> validateAndGetSpecificOffsetsStr(DescriptorProperties descriptorProperties) {
+		final Map<Integer, Long> offsetMap = new HashMap<>();
+
+		final String parseSpecificOffsetsStr = descriptorProperties.getString(CONNECTOR_SPECIFIC_OFFSETS);
+		if (null == parseSpecificOffsetsStr || parseSpecificOffsetsStr.length() == 0) {
+			throw new ValidationException("Properties connector.specific-offsets can not be empty, but is:" + parseSpecificOffsetsStr);
+		}
+
+		final String[] pairs = parseSpecificOffsetsStr.split(";");
+		for (String pair: pairs) {
+			if (null == pair || pair.length() == 0 || !pair.contains(",")) {
+				throw new ValidationException("Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS + "'" +
+						"should in the format 'partition:0,offset:42;partition:1,offset:300', " +
+						"but is '" + parseSpecificOffsetsStr + "'.");			}
+
+			final String[] kv = pair.split(",");
+			if (kv.length != 2 ||
+					!kv[0].startsWith(CONNECTOR_SPECIFIC_OFFSETS_PARTITION + ':') ||
+					!kv[1].startsWith(CONNECTOR_SPECIFIC_OFFSETS_OFFSET + ':')) {
+				throw new ValidationException("Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS + "'" +
+						"should in the format 'partition:0,offset:42;partition:1,offset:300', " +
+						"but is '" + parseSpecificOffsetsStr + "'.");
+			}
+
+			String partitionValue = kv[0].substring(kv[0].indexOf(":") + 1);
+			String offsetValue = kv[1].substring(kv[1].indexOf(":") + 1);
+			try {
+				final Integer parttion = Integer.valueOf(partitionValue);
+				final Long offset = Long.valueOf(offsetValue);
+				offsetMap.put(parttion, offset);
+			}
+			catch (NumberFormatException e) {
+				throw new ValidationException("Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS + "'" +
+						"should in the format 'partition:0,offset:42;partition:1,offset:300', " +
+						"but is '" + parseSpecificOffsetsStr + "'.", e);
+			}
+		}
+		return offsetMap;
 	}
 }

@@ -53,8 +53,11 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_GROUP_ID;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
@@ -109,7 +112,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(CONNECTOR_PROPERTIES);
 		properties.add(CONNECTOR_PROPERTIES + ".#." + CONNECTOR_PROPERTIES_KEY);
 		properties.add(CONNECTOR_PROPERTIES + ".#." + CONNECTOR_PROPERTIES_VALUE);
+		properties.add(CONNECTOR_PROPERTIES + ".*");
 		properties.add(CONNECTOR_STARTUP_MODE);
+		properties.add(CONNECTOR_SPECIFIC_OFFSETS);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET);
 		properties.add(CONNECTOR_SINK_PARTITIONER);
@@ -276,13 +281,27 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 	private Properties getKafkaProperties(DescriptorProperties descriptorProperties) {
 		final Properties kafkaProperties = new Properties();
-		final List<Map<String, String>> propsList = descriptorProperties.getFixedIndexedProperties(
-			CONNECTOR_PROPERTIES,
-			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
-		propsList.forEach(kv -> kafkaProperties.put(
-			descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
-			descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
-		));
+
+		if (descriptorProperties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT)
+				|| descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
+				|| descriptorProperties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID)) {
+			descriptorProperties.asMap().keySet()
+					.stream()
+					.filter(key -> key.startsWith(CONNECTOR_PROPERTIES))
+					.forEach(key -> {
+						final String value = descriptorProperties.getString(key);
+						final String subKey = key.replaceFirst(CONNECTOR_PROPERTIES + '.', "");
+						kafkaProperties.put(subKey, value);
+					});
+		} else {
+			final List<Map<String, String>> propsList = descriptorProperties.getFixedIndexedProperties(
+					CONNECTOR_PROPERTIES,
+					Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
+			propsList.forEach(kv -> kafkaProperties.put(
+					descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
+					descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
+			));
+		}
 		return kafkaProperties;
 	}
 
@@ -304,15 +323,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 						return StartupMode.GROUP_OFFSETS;
 
 					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
-						final List<Map<String, String>> offsetList = descriptorProperties.getFixedIndexedProperties(
-							CONNECTOR_SPECIFIC_OFFSETS,
-							Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-						offsetList.forEach(kv -> {
-							final int partition = descriptorProperties.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
-							final long offset = descriptorProperties.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-							final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
-							specificOffsets.put(topicPartition, offset);
-						});
+						buildSpecificOffsets(descriptorProperties, topic, specificOffsets);
 						return StartupMode.SPECIFIC_OFFSETS;
 					default:
 						throw new TableException("Unsupported startup mode. Validator should have checked that.");
@@ -322,6 +333,26 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		options.startupMode = startupMode;
 		options.specificOffsets = specificOffsets;
 		return options;
+	}
+
+	private void buildSpecificOffsets(DescriptorProperties descriptorProperties, String topic, Map<KafkaTopicPartition, Long> specificOffsets) {
+		if (descriptorProperties.containsKey(CONNECTOR_SPECIFIC_OFFSETS)) {
+			final Map<Integer, Long> offsetMap = KafkaValidator.validateAndGetSpecificOffsetsStr(descriptorProperties);
+			offsetMap.forEach((partition, offset) -> {
+				final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
+				specificOffsets.put(topicPartition, offset);
+			});
+		} else {
+			final List<Map<String, String>> offsetList = descriptorProperties.getFixedIndexedProperties(
+					CONNECTOR_SPECIFIC_OFFSETS,
+					Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+			offsetList.forEach(kv -> {
+				final int partition = descriptorProperties.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
+				final long offset = descriptorProperties.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+				final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
+				specificOffsets.put(topicPartition, offset);
+			});
+		}
 	}
 
 	@SuppressWarnings("unchecked")
