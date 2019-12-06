@@ -1619,10 +1619,12 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try (final JobClient jobClient = executeAsync(streamGraph).get()) {
-			return configuration.getBoolean(DeploymentOptions.ATTACHED)
-					? jobClient.getJobExecutionResult(userClassloader).get()
-					: new DetachedJobExecutionResult(jobClient.getJobID());
+		final JobClient jobClient = executeAsync(streamGraph).get();
+
+		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+			return jobClient.getJobExecutionResult(userClassloader).get();
+		} else {
+			return new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 	}
 
@@ -1633,10 +1635,6 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with a generated
 	 * default name.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
@@ -1652,10 +1650,6 @@ public class StreamExecutionEnvironment {
 	 * for example printing results or forwarding them to a message queue.
 	 *
 	 * <p>The program execution will be logged and displayed with the provided name
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @param jobName desired name of the job
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.

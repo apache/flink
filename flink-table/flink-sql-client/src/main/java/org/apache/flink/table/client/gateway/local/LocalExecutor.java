@@ -601,7 +601,8 @@ public class LocalExecutor implements Executor {
 		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
 
 		// blocking deployment
-		try (JobClient jobClient = deployer.deploy().get()) {
+		try {
+			JobClient jobClient = deployer.deploy().get();
 			return ProgramTargetDescriptor.of(jobClient.getJobID());
 		} catch (Exception e) {
 			throw new RuntimeException("Error running SQL job.", e);

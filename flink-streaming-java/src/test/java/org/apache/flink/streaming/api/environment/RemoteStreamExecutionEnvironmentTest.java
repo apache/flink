@@ -149,7 +149,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 						clusterClient = new TestClusterClient(configuration, jobID);
 
 						return CompletableFuture.completedFuture(
-								new ClusterClientJobClientAdapter<>(clusterClient, jobID));
+								new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
 					};
 				}
 			};
