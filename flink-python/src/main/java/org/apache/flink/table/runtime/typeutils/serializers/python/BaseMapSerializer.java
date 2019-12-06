@@ -31,6 +31,7 @@ import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryWriter;
+import org.apache.flink.table.dataformat.GenericMap;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
@@ -72,7 +73,7 @@ public class BaseMapSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	@Override
 	public void serialize(BaseMap map, DataOutputView target) throws IOException {
-		BinaryMap binaryMap = (BinaryMap) map;
+		BinaryMap binaryMap = toBinaryMap(map);
 		final int size = binaryMap.numElements();
 		target.writeInt(size);
 		BinaryArray keyArray = binaryMap.keyArray();
@@ -95,9 +96,22 @@ public class BaseMapSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	@Override
 	public BaseMap deserialize(DataInputView source) throws IOException {
-		final int size = source.readInt();
 		BinaryArray keyArray = new BinaryArray();
 		BinaryArray valueArray = new BinaryArray();
+		return deserializeInternal(source, keyArray, valueArray);
+	}
+
+	@Override
+	public BaseMap deserialize(BaseMap reuse, DataInputView source) throws IOException {
+		if (reuse instanceof GenericMap) {
+			return deserialize(source);
+		}
+		BinaryMap binaryMap = (BinaryMap) reuse;
+		return deserializeInternal(source, binaryMap.keyArray(), binaryMap.valueArray());
+	}
+
+	private BaseMap deserializeInternal(DataInputView source, BinaryArray keyArray, BinaryArray valueArray) throws IOException {
+		final int size = source.readInt();
 		BinaryArrayWriter keyWriter = new BinaryArrayWriter(keyArray, size, keySize);
 		BinaryArrayWriter valueWriter = new BinaryArrayWriter(valueArray, size, valueSize);
 		for (int i = 0; i < size; i++) {
@@ -114,11 +128,6 @@ public class BaseMapSerializer extends org.apache.flink.table.runtime.typeutils.
 		keyWriter.complete();
 		valueWriter.complete();
 		return BinaryMap.valueOf(keyArray, valueArray);
-	}
-
-	@Override
-	public BaseMap deserialize(BaseMap reuse, DataInputView source) throws IOException {
-		return deserialize(source);
 	}
 
 	@Override
@@ -140,7 +149,7 @@ public class BaseMapSerializer extends org.apache.flink.table.runtime.typeutils.
 	 * {@link TypeSerializerSnapshot} for {@link BaseMapSerializer}.
 	 */
 	public static final class BaseMapSerializerSnapshot implements TypeSerializerSnapshot<BaseMap> {
-		private static final int CURRENT_VERSION = 3;
+		private static final int CURRENT_VERSION = 1;
 
 		private LogicalType previousKeyType;
 		private LogicalType previousValueType;
