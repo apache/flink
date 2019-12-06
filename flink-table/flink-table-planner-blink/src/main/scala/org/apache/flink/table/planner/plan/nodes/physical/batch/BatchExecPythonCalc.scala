@@ -28,7 +28,7 @@ import org.apache.flink.configuration.{ConfigOption, Configuration, MemorySize}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 
 /**
   * Batch physical RelNode for Python ScalarFunctions.
@@ -58,13 +58,12 @@ class BatchExecPythonCalc(
       inputTransform,
       calcProgram,
       "BatchExecPythonCalc")
-    val resource = NodeResourceUtil.fromManagedMem(
-      getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
-    ret.setResources(resource, resource)
-    ret
+
+    ExecNode.setManagedMemoryWeight(
+      ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
   }
 
-  private def getPythonWorkerMemory(config: Configuration): Int = {
+  private def getPythonWorkerMemory(config: Configuration): Long = {
     val clazz = loadClass("org.apache.flink.python.PythonOptions")
     val pythonFrameworkMemorySize = MemorySize.parse(
       config.getString(
@@ -74,6 +73,6 @@ class BatchExecPythonCalc(
       config.getString(
         clazz.getField("PYTHON_DATA_BUFFER_MEMORY_SIZE").get(null)
           .asInstanceOf[ConfigOption[String]]))
-    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getMebiBytes
+    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getBytes
   }
 }

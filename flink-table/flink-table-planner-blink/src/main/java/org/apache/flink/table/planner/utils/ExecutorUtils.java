@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil;
 
 import java.util.List;
 
@@ -76,13 +75,8 @@ public class ExecutorUtils {
 	 * Sets batch properties for {@link StreamGraph}.
 	 */
 	public static void setBatchProperties(StreamGraph streamGraph, TableConfig tableConfig) {
-		// All transformations should set managed memory size.
-		ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
-		streamGraph.getStreamNodes().forEach(sn -> {
-			if (sn.getMinResources().equals(ResourceSpec.DEFAULT)) {
-				sn.setResources(managedResourceSpec, managedResourceSpec);
-			}
-		});
+		streamGraph.getStreamNodes().forEach(
+				sn -> sn.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN));
 		streamGraph.setChaining(true);
 		streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
 		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);

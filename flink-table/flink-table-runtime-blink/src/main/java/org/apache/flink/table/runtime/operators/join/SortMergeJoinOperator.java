@@ -64,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, BoundedMultiInput {
 
-	private final long externalBufferMemory;
+	private final double externalBufferMemRatio;
 	private final FlinkJoinType type;
 	private final boolean leftIsSmaller;
 	private final boolean[] filterNulls;
@@ -79,6 +79,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private GeneratedRecordComparator comparator2;
 	private GeneratedRecordComparator genKeyComparator;
 
+	private transient long externalBufferMemory;
 	private transient MemoryManager memManager;
 	private transient IOManager ioManager;
 	private transient BinaryRowSerializer serializer1;
@@ -97,14 +98,15 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private transient JoinedRow joinedRow;
 
 	public SortMergeJoinOperator(
-			long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
+			double externalBufferMemRatio,
+			FlinkJoinType type, boolean leftIsSmaller,
 			GeneratedJoinCondition condFuncCode,
 			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
 			GeneratedNormalizedKeyComputer computer1, GeneratedRecordComparator comparator1,
 			GeneratedNormalizedKeyComputer computer2, GeneratedRecordComparator comparator2,
 			GeneratedRecordComparator genKeyComparator,
 			boolean[] filterNulls) {
-		this.externalBufferMemory = externalBufferMemory;
+		this.externalBufferMemRatio = externalBufferMemRatio;
 		this.type = type;
 		this.leftIsSmaller = leftIsSmaller;
 		this.condFuncCode = condFuncCode;
@@ -139,6 +141,10 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		this.ioManager = this.getContainingTask().getEnvironment().getIOManager();
 
 		long totalMemory = computeMemorySize();
+
+		externalBufferMemory = (long) (totalMemory * externalBufferMemRatio);
+		externalBufferMemory = Math.max(externalBufferMemory, ResettableExternalBuffer.MIN_NUM_MEMORY);
+
 		long totalSortMem = totalMemory -
 				(type.equals(FlinkJoinType.FULL) ? externalBufferMemory * 2 : externalBufferMemory);
 		if (totalSortMem < 0) {

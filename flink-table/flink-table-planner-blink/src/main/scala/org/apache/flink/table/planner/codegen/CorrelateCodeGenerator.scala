@@ -22,16 +22,15 @@ import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
 import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
 import org.apache.flink.table.runtime.generated.GeneratedCollector
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -63,7 +62,8 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       expression: (RexNode, List[String], Option[List[RexNode]]) => String,
-      ruleDescription: String): Transformation[BaseRow] = {
+      opName: String,
+      transformationName: String): Transformation[BaseRow] = {
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
@@ -128,14 +128,14 @@ object CorrelateCodeGenerator {
       joinType,
       rexCall,
       pojoFieldMapping,
-      ruleDescription,
+      opName,
       classOf[ProcessFunction[BaseRow, BaseRow]],
       collector,
       retainHeader)
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       inputTransformation,
-      ruleDescription,
+      transformationName,
       substituteStreamOperator,
       BaseRowTypeInfo.of(returnType),
       parallelism)
