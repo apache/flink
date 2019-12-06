@@ -148,7 +148,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 					.unwrap(FlinkContext.class)
 					.getTableConfig()
 					.getLocalTimeZone());
-				Instant instant = extractValue(valueLiteral, java.time.Instant.class);
+				Instant instant = extractValue(valueLiteral, Instant.class);
 				return this.relBuilder.getRexBuilder().makeTimestampWithLocalTimeZoneLiteral(
 					fromLocalDateTime(LocalDateTime.ofInstant(instant, timeZone.toZoneId())),
 					lzTs.getPrecision());
