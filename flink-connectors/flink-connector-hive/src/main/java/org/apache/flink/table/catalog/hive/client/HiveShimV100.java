@@ -343,8 +343,8 @@ public class HiveShimV100 implements HiveShim {
 	}
 
 	@Override
-	public UniqueConstraint getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait) {
+	public Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait) {
 		// PK constraints not supported until 2.1.0 -- HIVE-13290
-		return null;
+		return Optional.empty();
 	}
 }

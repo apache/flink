@@ -529,14 +529,12 @@ public class HiveCatalog extends AbstractCatalog {
 			fields = hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
 		}
 		Set<String> notNullColumns = client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
-		UniqueConstraint primaryKey = isView ? null : client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(),
-				HiveTableUtil.relyConstraint((byte) 0));
+		Optional<UniqueConstraint> primaryKey = isView ? Optional.empty() :
+				client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(), HiveTableUtil.relyConstraint((byte) 0));
 		// PK columns cannot be null
-		if (primaryKey != null) {
-			notNullColumns.addAll(primaryKey.getColumns());
-		}
+		primaryKey.ifPresent(pk -> notNullColumns.addAll(pk.getColumns()));
 		TableSchema tableSchema =
-				HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys(), notNullColumns, primaryKey);
+				HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys(), notNullColumns, primaryKey.orElse(null));
 
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();

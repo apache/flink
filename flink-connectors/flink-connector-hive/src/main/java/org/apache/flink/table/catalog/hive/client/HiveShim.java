@@ -206,8 +206,8 @@ public interface HiveShim extends Serializable {
 	Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName);
 
 	/**
-	 * Get the primary key of a Hive table and convert it to a UniqueConstraint. Return null if the table
+	 * Get the primary key of a Hive table and convert it to a UniqueConstraint. Return empty if the table
 	 * doesn't have a primary key, or the constraint doesn't satisfy the desired trait, e.g. RELY.
 	 */
-	UniqueConstraint getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte constraintTrait);
+	Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait);
 }
