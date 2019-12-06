@@ -126,7 +126,8 @@ under the License.
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
-		<jaxb.api.version>2.3.0</jaxb.api.version>
+		<javax.activation.api.version>1.2.0</javax.activation.api.version>
+		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.2</powermock.version>
@@ -635,6 +636,15 @@ under the License.
 				<groupId>javax.xml.bind</groupId>
 				<artifactId>jaxb-api</artifactId>
 				<version>${jaxb.api.version}</version>
+			</dependency>
+
+			<dependency>
+				<!-- For dependency convergence
+					On Java 8- this dependency is bundled with the JDK
+					On Java 11+ this dependency is bundled in flink-dist -->
+				<groupId>javax.activation</groupId>
+				<artifactId>javax.activation-api</artifactId>
+				<version>${javax.activation.api.version}</version>
 			</dependency>
 
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
