@@ -32,13 +32,13 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.junit.Assert.assertEquals;
 
 /**
- * IT case for {@link TableUtils}.
+ * IT case for {@link TableUtils} in batch mode.
  */
-public class TableUtilsITCase extends BatchTestBase {
+public class TableUtilsBatchITCase extends BatchTestBase {
 
 	@Test
-	public void testTableResultToList() throws Exception {
-		final List<Row> sourceData = Arrays.asList(
+	public void testCollectToList() throws Exception {
+		List<Row> sourceData = Arrays.asList(
 			Row.of(1, 11L),
 			Row.of(1, 12L),
 			Row.of(2, 21L),
@@ -50,16 +50,16 @@ public class TableUtilsITCase extends BatchTestBase {
 			new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO),
 			"a, b");
 
-		final String sql = "SELECT sum(b) FROM T GROUP BY a HAVING a < 3 ORDER BY a";
-		final List<Row> expected = Arrays.asList(
+		String sql = "SELECT sum(b) FROM T GROUP BY a HAVING a < 3 ORDER BY a";
+		List<Row> expected = Arrays.asList(
 			Row.of(23L),
 			Row.of(43L));
 
-		final Table table = tEnv().sqlQuery(sql);
+		Table table = tEnv().sqlQuery(sql);
 		// run multiple times to make sure no errors will occur
 		// when the utility method is called a second time
 		for (int i = 0; i < 2; i++) {
-			final List<Row> actual = TableUtils.collectToList(table);
+			List<Row> actual = TableUtils.collectToList(table);
 			assertEquals(expected, actual);
 		}
 	}
