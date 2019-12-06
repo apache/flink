@@ -242,10 +242,12 @@ public class FlinkKubernetesCustomCli extends AbstractCustomCommandLine {
 
 			// Retrieve or create a session cluster.
 			if (clusterId != null && kubeClient.getInternalService(clusterId) != null) {
-				clusterClient = kubernetesClusterDescriptor.retrieve(clusterId);
+				clusterClient = kubernetesClusterDescriptor.retrieve(clusterId).getClusterClient();
 			} else {
-				clusterClient = kubernetesClusterDescriptor.deploySessionCluster(
-					kubernetesClusterClientFactory.getClusterSpecification(configuration));
+				clusterClient = kubernetesClusterDescriptor
+						.deploySessionCluster(
+								kubernetesClusterClientFactory.getClusterSpecification(configuration))
+						.getClusterClient();
 				clusterId = clusterClient.getClusterId();
 			}
 

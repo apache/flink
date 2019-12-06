@@ -547,7 +547,7 @@ public class LocalExecutor implements Executor {
 			ClusterClient<T> clusterClient = null;
 			try {
 				// retrieve existing cluster
-				clusterClient = clusterDescriptor.retrieve(context.getClusterId());
+				clusterClient = clusterDescriptor.retrieve(context.getClusterId()).getClusterClient();
 				try {
 					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId))).get();
 				} catch (Throwable t) {

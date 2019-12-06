@@ -25,7 +25,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigUtils;
@@ -364,7 +364,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	// -------------------------------------------------------------
 
 	@Override
-	public ClusterClient<ApplicationId> retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
+	public ClusterClientProvider<ApplicationId> retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
 
 		try {
 			// check if required Hadoop environment variables are set. If not, warn user
@@ -386,14 +386,20 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 			setClusterEntrypointInfoToConfig(report);
 
-			return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+			return () -> {
+				try {
+					return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+				} catch (Exception e) {
+					throw new RuntimeException("Couldn't retrieve Yarn cluster", e);
+				}
+			};
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
 		}
 	}
 
 	@Override
-	public ClusterClient<ApplicationId> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
+	public ClusterClientProvider<ApplicationId> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
 		try {
 			return deployInternal(
 					clusterSpecification,
@@ -407,7 +413,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	}
 
 	@Override
-	public ClusterClient<ApplicationId> deployJobCluster(
+	public ClusterClientProvider<ApplicationId> deployJobCluster(
 		ClusterSpecification clusterSpecification,
 		JobGraph jobGraph,
 		boolean detached) throws ClusterDeploymentException {
@@ -461,7 +467,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
 	 * @param detached True if the cluster should be started in detached mode
 	 */
-	private ClusterClient<ApplicationId> deployInternal(
+	private ClusterClientProvider<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
 			String applicationName,
 			String yarnClusterEntrypoint,
@@ -555,7 +561,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		setClusterEntrypointInfoToConfig(report);
 
-		return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+		return () -> {
+			try {
+				return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+			} catch (Exception e) {
+				throw new RuntimeException("Error while creating RestClusterClient.", e);
+			}
+		};
 	}
 
 	private ClusterSpecification validateClusterResources(

@@ -56,7 +56,10 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 			final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
 			checkState(clusterID != null);
 
-			final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterID);
+			final ClusterClient<ClusterID> clusterClient = clusterDescriptor
+					.retrieve(clusterID)
+					.getClusterClient();
+
 			return clusterClient
 					.submitJob(jobGraph)
 					.thenApply(jobID -> new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobID) {

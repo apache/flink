@@ -63,7 +63,9 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 
 			final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(configuration);
 
-			final ClusterClient<ClusterID> clusterClient = clusterDescriptor.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode());
+			final ClusterClient<ClusterID> clusterClient = clusterDescriptor
+					.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode())
+					.getClusterClient();
 			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
 			final boolean withShutdownHook = !configAccessor.getDetachedMode() && configAccessor.isShutdownOnAttachedExit();

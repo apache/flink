@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 
@@ -41,7 +41,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @return Client for the cluster
 	 * @throws ClusterRetrieveException if the cluster client could not be retrieved
 	 */
-	ClusterClient<T> retrieve(T clusterId) throws ClusterRetrieveException;
+	ClusterClientProvider<T> retrieve(T clusterId) throws ClusterRetrieveException;
 
 	/**
 	 * Triggers deployment of a cluster.
@@ -49,7 +49,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @return Client for the cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClusterClient<T> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException;
+	ClusterClientProvider<T> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException;
 
 	/**
 	 * Deploys a per-job cluster with the given job on the cluster.
@@ -61,7 +61,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @return Cluster client to talk to the Flink cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClusterClient<T> deployJobCluster(
+	ClusterClientProvider<T> deployJobCluster(
 		final ClusterSpecification clusterSpecification,
 		final JobGraph jobGraph,
 		final boolean detached) throws ClusterDeploymentException;

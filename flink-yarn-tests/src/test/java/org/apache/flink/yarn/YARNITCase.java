@@ -112,10 +112,12 @@ public class YARNITCase extends YarnTestBase {
 			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
 
 			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor.deployJobCluster(
-				clusterSpecification,
-				jobGraph,
-				false)) {
+			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor
+					.deployJobCluster(
+							clusterSpecification,
+							jobGraph,
+							false)
+					.getClusterClient()) {
 
 				ApplicationId applicationId = clusterClient.getClusterId();
 

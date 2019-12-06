@@ -55,7 +55,8 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
 
-		final ClusterClient<String> clusterClient = descriptor.deploySessionCluster(clusterSpecification);
+		final ClusterClient<String> clusterClient =
+				descriptor.deploySessionCluster(clusterSpecification).getClusterClient();
 
 		assertEquals(CLUSTER_ID, clusterClient.getClusterId());
 		assertEquals(String.format("http://%s:8081", MOCK_SERVICE_IP), clusterClient.getWebInterfaceURL());
@@ -91,6 +92,8 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 		assertEquals(
 			clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
 			jmContainer.getResources().getLimits().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
+
+		clusterClient.close();
 	}
 
 	@Test
