@@ -475,10 +475,6 @@ object BatchTestBase {
 
   def configForMiniCluster(conf: TableConfig): Unit = {
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, "2mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "2mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_SORT_MEMORY, "1mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY, "1mb")
     conf.getConfiguration.setString(TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
   }
 }
