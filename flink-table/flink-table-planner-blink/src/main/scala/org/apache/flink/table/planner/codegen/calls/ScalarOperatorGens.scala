@@ -186,7 +186,8 @@ object ScalarOperatorGens {
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
-          (l, r) => s"java.lang.Math.toIntExact(($l $op $r) % ${MILLIS_PER_DAY}L)"
+          (l, r) => s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
+            s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>

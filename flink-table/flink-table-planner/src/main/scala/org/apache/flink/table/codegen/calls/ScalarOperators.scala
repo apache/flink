@@ -895,10 +895,8 @@ object ScalarOperators {
 
       case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
-          (l, r) =>
-            s"java.lang.Math.toIntExact(((($l % ${MILLIS_PER_DAY}L == 0) ? " +
-              s"${MILLIS_PER_DAY}L : $l) $op java.lang.Math.toIntExact($r " +
-              s"% ${MILLIS_PER_DAY}L)) % ${MILLIS_PER_DAY}L)"
+          (l, r) => s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
+            s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
         }
 
       case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
