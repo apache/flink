@@ -83,7 +83,7 @@ public class TaskSlot implements AutoCloseable {
 		final int memoryPageSize,
 		final JobID jobId,
 		final AllocationID allocationId) {
-		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
+
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
 

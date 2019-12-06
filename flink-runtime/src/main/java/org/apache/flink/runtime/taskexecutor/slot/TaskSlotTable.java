@@ -82,7 +82,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	private final Map<Integer, TaskSlot> taskSlots;
 
 	/** Mapping from allocation id to task slot. */
-	private final Map<AllocationID, TaskSlot> allocationIDTaskSlotMap;
+	private final Map<AllocationID, TaskSlot> allocatedSlots;
 
 	/** Mapping from execution attempt id to task and task slot. */
 	private final Map<ExecutionAttemptID, TaskSlotMapping> taskSlotMappings;
@@ -95,9 +95,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	/** Whether the table has been started. */
 	private volatile boolean started;
-
-	/** Index of next allocated slot, for dynamic slot allocation. */
-	private int nextSlotIndex;
 
 	private final ResourceBudgetManager budgetManager;
 
@@ -120,7 +117,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 		budgetManager = new ResourceBudgetManager(Preconditions.checkNotNull(totalAvailableResourceProfile));
 
-		allocationIDTaskSlotMap = new HashMap<>(numberSlots);
+		allocatedSlots = new HashMap<>(numberSlots);
 
 		taskSlotMappings = new HashMap<>(4 * numberSlots);
 
@@ -128,7 +125,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 		slotActions = null;
 		started = false;
-		nextSlotIndex = numberSlots;
 	}
 
 	/**
@@ -150,6 +146,12 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public void stop() {
 		started = false;
 		timerService.stop();
+		allocatedSlots
+			.values()
+			.stream()
+			.filter(slot -> !taskSlots.containsKey(slot.getIndex()))
+			.forEach(TaskSlot::close);
+		allocatedSlots.clear();
 		taskSlots.values().forEach(TaskSlot::close);
 		taskSlots.clear();
 		slotActions = null;
@@ -157,7 +159,9 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	@VisibleForTesting
 	public boolean isStopped() {
-		return !started && taskSlots.values().stream().allMatch(slot -> slot.getMemoryManager().isShutdown());
+		return !started &&
+			taskSlots.values().stream().allMatch(slot -> slot.getMemoryManager().isShutdown()) &&
+			allocatedSlots.values().stream().allMatch(slot -> slot.getMemoryManager().isShutdown());
 	}
 
 	/**
@@ -205,9 +209,9 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 			slotStatuses.add(slotStatus);
 		}
 
-		for (TaskSlot taskSlot : taskSlots.values()) {
-			if (taskSlot.getIndex() >= numberSlots) {
-				SlotID slotID = new SlotID(resourceId, taskSlot.getIndex());
+		for (TaskSlot taskSlot : allocatedSlots.values()) {
+			if (taskSlot.getIndex() < 0) {
+				SlotID slotID = SlotID.generateDynamicSlotID(resourceId);
 				SlotStatus slotStatus = new SlotStatus(
 					slotID,
 					taskSlot.getResourceProfile(),
@@ -259,14 +263,10 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 		Preconditions.checkArgument(index < numberSlots);
 
-		TaskSlot taskSlot = allocationIDTaskSlotMap.get(allocationId);
+		TaskSlot taskSlot = allocatedSlots.get(allocationId);
 		if (taskSlot != null) {
 			LOG.info("Allocation ID {} is already allocated in {}.", allocationId, taskSlot);
 			return false;
-		}
-
-		if (index >= 0) {
-			resourceProfile = defaultSlotResourceProfile;
 		}
 
 		if (taskSlots.containsKey(index)) {
@@ -278,11 +278,11 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 				duplicatedTaskSlot.getAllocationId());
 			return duplicatedTaskSlot.getJobId().equals(jobId) &&
 				duplicatedTaskSlot.getAllocationId().equals(allocationId);
+		} else if (allocatedSlots.containsKey(allocationId)) {
+			return true;
 		}
 
-		if (index < 0) {
-			index = nextSlotIndex++;
-		}
+		resourceProfile = index >= 0 ? defaultSlotResourceProfile : resourceProfile;
 
 		if (!budgetManager.reserve(resourceProfile)) {
 			LOG.info("Cannot allocate the requested resources. Trying to allocate {}, "
@@ -294,10 +294,12 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		}
 
 		taskSlot = new TaskSlot(index, resourceProfile, memoryPageSize, jobId, allocationId);
-		taskSlots.put(index, taskSlot);
+		if (index >= 0) {
+			taskSlots.put(index, taskSlot);
+		}
 
 		// update the allocation id to task slot map
-		allocationIDTaskSlotMap.put(allocationId, taskSlot);
+		allocatedSlots.put(allocationId, taskSlot);
 
 		// register a timeout for this slot since it's in state allocated
 		timerService.registerTimeout(allocationId, slotTimeout.getSize(), slotTimeout.getUnit());
@@ -411,7 +413,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 			if (taskSlot.isEmpty()) {
 				// remove the allocation id to task slot mapping
-				allocationIDTaskSlotMap.remove(allocationId);
+				allocatedSlots.remove(allocationId);
 
 				// unregister a potential timeout
 				timerService.unregisterTimeout(allocationId);
@@ -475,8 +477,13 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 */
 	public boolean isAllocated(int index, JobID jobId, AllocationID allocationId) {
 		TaskSlot taskSlot = taskSlots.get(index);
-
-		return taskSlot != null && taskSlot.isAllocated(jobId, allocationId);
+		if (taskSlot != null) {
+			return taskSlot.isAllocated(jobId, allocationId);
+		} else if (index < 0) {
+			return allocatedSlots.containsKey(allocationId);
+		} else {
+			return false;
+		}
 	}
 
 	/**
@@ -694,7 +701,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	private TaskSlot getTaskSlot(AllocationID allocationId) {
 		Preconditions.checkNotNull(allocationId);
 
-		return allocationIDTaskSlotMap.get(allocationId);
+		return allocatedSlots.get(allocationId);
 	}
 
 	private void checkInit() {
