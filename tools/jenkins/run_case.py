@@ -41,17 +41,15 @@ from restapi_common import get_avg_qps_by_restful_interface
 
 
 def start_server(flink_home):
-    cmd = "bash %s/bin/start_yarn.sh" % flink_home
+    cmd = "bash %s/bin/start-cluster.sh" % flink_home
     status, output = run_command(cmd)
-    if status == 0:
-        return True
-    else:
-        return False
+    return status
 
 
 def end_server(flink_home):
     cmd = "bash %s/bin/stop_yarn.sh" % flink_home
-    run_command(cmd)
+    status, output = run_command(cmd)
+    return status
 
 
 def get_scenarios(scenario_file_name, test_jar):
@@ -79,18 +77,21 @@ def get_scenarios(scenario_file_name, test_jar):
         if linenum == 1:
             params_name = data.split(" ")
             for index in range(0, len(params_name)):
-                params_name[index] = params_name.get(index).trip()
-            if not params_name.contains("className"):
+                params_name[index] = params_name[index]
+            if not params_name.contains("testClassPath"):
                 scenario_file.close()
                 return 1, []
         else:
             params_value = data.split(" ")
-            for index in len(params_name):
-                param = params_name.get(index)
-                if param == "className":
-                    cmd = "-c %s %s %s" % (params_value.get(index), test_jar,  cmd)
+            for index in range(0,len(params_name)):
+                param = params_name[index]
+                if param == "testClassPath":
+                    cmd = "-c %s %s %s" % (params_value[index], test_jar,  cmd)
                 else:
-                    cmd = "%s  --%s %s" % (cmd, param, params_value.get(index))
+                    if param == "":
+                        cmd = "--%s %s" % (param, params_value[index])
+                    else:
+                        cmd = "%s --%s %s" % (cmd, param, params_value[index])
                 scenario_name = "%s_%s" % (scenario_name, param)
         scenario_names.append(scenario_name[1:])
         scenarios.append(cmd)
@@ -106,35 +107,39 @@ def get_avg(values):
 
 def run_cases(scenario_file_name, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10):
     status, scenarios, scenario_names = get_scenarios(scenario_file_name)
-    for scenario_index in len(scenarios):
+    for scenario_index in range(0, len(scenarios)):
         scenario = scenarios.get(scenario_index)
-        scenario_name = scenario_names.get(scenario_index)
+        scenario_name = scenario_names[scenario_index]
         total_qps = []
         status = start_server(flink_home)
-        if status != 0:
+        if not status:
             logger.info("start server failed")
             return 1
         for inter_index in range(0, inter_nums):
             cmd = "bash %s/bin/flink run %s" % (flink_home, scenario)
             status, output = run_command(cmd)
-            if status == 0:
+            if status:
                 qps = get_avg_qps_by_restful_interface(am_seserver_dddress)
                 total_qps.append(qps)
                 time.sleep(wait_minute)
         avg_qps = get_avg(total_qps)
         logger.info("The avg qps of %s's  is %s" % (scenario_name, avg_qps))
 
+def usage():
+    logger.info("python3 run_case.py scenario_file flink_home am_seserver_dddress inter_nums wait_minute")
+
 
 if __name__ == "__main__":
-    if len(sys.argv)<3:
+    if len(sys.argv) < 3:
         logger.error("The param's number must be larger than 3")
+        usage()
         sys.exit(1)
     am_seserver_dddress = sys.argv[1]
     scenario_file = sys.argv[2]
     flink_home = sys.argv[3]
-    if len(sys.argv) >= 4:
+    if len(sys.argv) > 4:
         inter_nums = sys.argv[4]
-    if len(sys.argv) >= 5:
+    if len(sys.argv) > 5:
         wait_minute = sys.argv[5]
 
     run_cases(scenario_file, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10)

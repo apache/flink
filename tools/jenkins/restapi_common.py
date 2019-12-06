@@ -77,6 +77,8 @@ def get_avg_qps_by_restful_interface(am_seserver_dddress, job_id):
                     url = "http://%s/jobs/%s/vertices/%s/subtasks/metrics?get=%s" % (am_seserver_dddress, job_id, id,
                                                                                   metrics_name)
                     value_result = execute_get(url)
+                    if value_result == "":
+                        continue
                     value_result = json.loads(value_result)
                     for value in value_result:
                         tps = value.getDouble("avg", 0)
