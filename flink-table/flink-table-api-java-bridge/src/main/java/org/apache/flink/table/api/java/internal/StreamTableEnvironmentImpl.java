@@ -373,13 +373,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
 	}
 
-	/**
-	 * Returns current catalog manager, used for SQL-CLI setting/resetting properties.
-	 */
-	public CatalogManager getCatalogManager() {
-		return this.catalogManager;
-	}
-
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
 		try {
 			return TypeExtractor.createTypeInfo(clazz);

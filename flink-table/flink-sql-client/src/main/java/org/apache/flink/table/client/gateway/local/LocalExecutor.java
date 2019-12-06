@@ -199,7 +199,7 @@ public class LocalExecutor implements Executor {
 	}
 
 	/** Returns ExecutionContext.Builder with given {@link SessionContext} session context. */
-	private ExecutionContext.Builder execContextBuilder(SessionContext sessionContext) {
+	private ExecutionContext.Builder createExecutionContextBuilder(SessionContext sessionContext) {
 		return ExecutionContext.builder(
 				defaultEnvironment,
 				sessionContext,
@@ -215,7 +215,7 @@ public class LocalExecutor implements Executor {
 		String sessionId = sessionContext.getSessionId();
 		ExecutionContext previousContext = this.contextMap.putIfAbsent(
 				sessionId,
-				execContextBuilder(sessionContext).build());
+				createExecutionContextBuilder(sessionContext).build());
 		if (previousContext != null) {
 			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionId);
 		}
@@ -260,11 +260,11 @@ public class LocalExecutor implements Executor {
 	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		// Renew the ExecutionContext by merging the default environment with original session context.
-		// Book keep all the catalogs of current ExecutionContext then
+		// Book keep all the session states of current ExecutionContext then
 		// re-register them into the new one.
-		ExecutionContext<?> newContext = execContextBuilder(
+		ExecutionContext<?> newContext = createExecutionContextBuilder(
 				context.getOriginalSessionContext())
-				.catalogManager(context.getCatalogManager())
+				.sessionState(context.getSessionState())
 				.build();
 		this.contextMap.put(sessionId, newContext);
 	}
@@ -275,12 +275,12 @@ public class LocalExecutor implements Executor {
 		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
 		// Renew the ExecutionContext by new environment.
-		// Book keep all the catalogs of current ExecutionContext then
+		// Book keep all the session states of current ExecutionContext then
 		// re-register them into the new one.
-		ExecutionContext<?> newContext = execContextBuilder(
+		ExecutionContext<?> newContext = createExecutionContextBuilder(
 				context.getOriginalSessionContext())
 				.env(newEnv)
-				.catalogManager(context.getCatalogManager())
+				.sessionState(context.getSessionState())
 				.build();
 		this.contextMap.put(sessionId, newContext);
 	}
@@ -309,7 +309,7 @@ public class LocalExecutor implements Executor {
 			// Renew the ExecutionContext.
 			this.contextMap.put(
 					sessionId,
-					execContextBuilder(context.getOriginalSessionContext())
+					createExecutionContextBuilder(context.getOriginalSessionContext())
 							.env(newEnv).build());
 		}
 	}

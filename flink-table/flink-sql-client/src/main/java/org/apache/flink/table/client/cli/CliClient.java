@@ -547,17 +547,18 @@ public class CliClient {
 		try {
 			executor.createTable(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
+			terminal.flush();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
 		}
-		terminal.flush();
 	}
 
 	private void callDropTable(SqlCommandCall cmdCall) {
 		try {
 			executor.dropTable(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_TABLE_REMOVED);
+			terminal.flush();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 		}

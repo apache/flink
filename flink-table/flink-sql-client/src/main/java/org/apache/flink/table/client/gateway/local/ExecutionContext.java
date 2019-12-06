@@ -120,9 +120,6 @@ public class ExecutionContext<ClusterID> {
 	private final SessionContext originalSessionContext;
 	private final ClassLoader classLoader;
 
-	@Nullable
-	private final CatalogManager catalogManager;
-
 	private final Configuration flinkConfig;
 	private final Configuration executorConfig;
 	private final ClusterClientFactory<ClusterID> clusterClientFactory;
@@ -135,7 +132,11 @@ public class ExecutionContext<ClusterID> {
 	private StreamExecutionEnvironment streamExecEnv;
 	private Executor executor;
 
-	public ExecutionContext(
+	// Members that should be reused in the same session.
+	@Nullable
+	private SessionState sessionState;
+
+	private ExecutionContext(
 			Environment environment,
 			SessionContext originalSessionContext,
 			List<URL> dependencies,
@@ -152,7 +153,7 @@ public class ExecutionContext<ClusterID> {
 				availableCommandLines);
 	}
 
-	public ExecutionContext(
+	private ExecutionContext(
 			Environment environment,
 			SessionContext originalSessionContext,
 			List<URL> dependencies,
@@ -171,10 +172,10 @@ public class ExecutionContext<ClusterID> {
 				availableCommandLines);
 	}
 
-	public ExecutionContext(
+	private ExecutionContext(
 			Environment environment,
 			SessionContext originalSessionContext,
-			@Nullable CatalogManager catalogManager,
+			@Nullable SessionState sessionState,
 			List<URL> dependencies,
 			Configuration flinkConfig,
 			ClusterClientServiceLoader clusterClientServiceLoader,
@@ -182,7 +183,6 @@ public class ExecutionContext<ClusterID> {
 			List<CustomCommandLine> availableCommandLines) throws FlinkException {
 		this.environment = environment;
 		this.originalSessionContext = originalSessionContext;
-		this.catalogManager = catalogManager;
 
 		this.flinkConfig = flinkConfig;
 
@@ -192,7 +192,7 @@ public class ExecutionContext<ClusterID> {
 				this.getClass().getClassLoader());
 
 		// Initialize the TableEnvironment.
-		initializeTableEnvironment();
+		initializeTableEnvironment(sessionState);
 
 		// convert deployment options into command line options that describe a cluster
 		final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
@@ -246,16 +246,8 @@ public class ExecutionContext<ClusterID> {
 		return catalogs;
 	}
 
-	public CatalogManager getCatalogManager() {
-		if (environment.getExecution().isStreamingPlanner()) {
-			StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) this.tableEnv;
-			return streamTableEnv.getCatalogManager();
-		} else if (environment.getExecution().isBatchPlanner()) {
-			BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) this.tableEnv;
-			return batchTableEnv.catalogManager();
-		} else {
-			throw new SqlExecutionException("Unsupported execution type specified.");
-		}
+	public SessionState getSessionState() {
+		return this.sessionState;
 	}
 
 	/**
@@ -399,19 +391,11 @@ public class ExecutionContext<ClusterID> {
 			StreamExecutionEnvironment env,
 			EnvironmentSettings settings,
 			Executor executor,
-			CatalogManager catalogManager) {
+			CatalogManager catalogManager,
+			ModuleManager moduleManager,
+			FunctionCatalog functionCatalog) {
 
 		final TableConfig config = TableConfig.getDefault();
-
-		if (catalogManager == null) {
-			catalogManager = new CatalogManager(
-					settings.getBuiltInCatalogName(),
-					new GenericInMemoryCatalog(
-							settings.getBuiltInCatalogName(),
-							settings.getBuiltInDatabaseName()));
-		}
-		final ModuleManager moduleManager = new ModuleManager();
-		final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
 
 		final Map<String, String> plannerProperties = settings.toPlannerProperties();
 		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
@@ -425,8 +409,7 @@ public class ExecutionContext<ClusterID> {
 			env,
 			planner,
 			executor,
-			settings.isStreamingMode()
-		);
+			settings.isStreamingMode());
 	}
 
 	private static Executor lookupExecutor(
@@ -448,61 +431,119 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private void initializeTableEnvironment() {
+	private void initializeTableEnvironment(SessionState sessionState) {
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.1 Create environments
 		//--------------------------------------------------------------------------------------------------------------
+		createTableEnvironment(sessionState);
+
+		final boolean noInheritedState = sessionState == null;
+		if (noInheritedState) {
+			//--------------------------------------------------------------------------------------------------------------
+			// Step.2 Create modules and load them into the TableEnvironment.
+			//--------------------------------------------------------------------------------------------------------------
+			// No need to register the modules info if already inherit from the same session.
+			Map<String, Module> modules = new LinkedHashMap<>();
+			environment.getModules().forEach((name, entry) ->
+					modules.put(name, createModule(entry.asMap(), classLoader))
+			);
+			if (!modules.isEmpty()) {
+				// unload core module first to respect whatever users configure
+				tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
+				modules.forEach(tableEnv::loadModule);
+			}
+
+			//--------------------------------------------------------------------------------------------------------------
+			// Step.3 create user-defined functions and temporal tables then register them.
+			//--------------------------------------------------------------------------------------------------------------
+			// No need to register the functions if already inherit from the same session.
+			registerFunctions();
+
+			//--------------------------------------------------------------------------------------------------------------
+			// Step.4 Create catalogs and register them.
+			//--------------------------------------------------------------------------------------------------------------
+			// No need to register the catalogs if already inherit from the same session.
+			initializeCatalogs();
+		}
+	}
+
+	private void createTableEnvironment(SessionState sessionState) {
+		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
+		final boolean noInheritedState = sessionState == null;
+		CatalogManager catalogManager;
+		ModuleManager moduleManager;
+		FunctionCatalog functionCatalog;
+		if (noInheritedState) {
+			// Step 1.1 Initialize the CatalogManager if required.
+			catalogManager = new CatalogManager(
+					settings.getBuiltInCatalogName(),
+					new GenericInMemoryCatalog(
+							settings.getBuiltInCatalogName(),
+							settings.getBuiltInDatabaseName()));
+			// Step 1.2 Initialize the ModuleManager if required.
+			moduleManager = new ModuleManager();
+			// Step 1.3 Initialize the FunctionCatalog if required.
+			functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+			// Step 1.4 Set up session state.
+			this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
+		} else {
+			catalogManager = sessionState.catalogManager;
+			moduleManager = sessionState.moduleManager;
+			functionCatalog = sessionState.functionCatalog;
+			// Set up session state.
+			this.sessionState = sessionState;
+		}
+		createTableEnvironment(settings, catalogManager, moduleManager, functionCatalog);
+	}
+
+	private void createTableEnvironment(
+			EnvironmentSettings settings,
+			CatalogManager catalogManager,
+			ModuleManager moduleManager,
+			FunctionCatalog functionCatalog) {
 		if (environment.getExecution().isStreamingPlanner()) {
 			streamExecEnv = createStreamExecutionEnvironment();
 			execEnv = null;
 
-			final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
 			executor = lookupExecutor(executorProperties, streamExecEnv);
-			tableEnv = createStreamTableEnvironment(streamExecEnv, settings, executor, catalogManager);
+			tableEnv = createStreamTableEnvironment(
+					streamExecEnv,
+					settings,
+					executor,
+					catalogManager,
+					moduleManager,
+					functionCatalog);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
 			execEnv = createExecutionEnvironment();
 			executor = null;
-			tableEnv = BatchTableEnvironment.create(execEnv);
+			tableEnv = new BatchTableEnvironmentImpl(
+					execEnv,
+					TableConfig.getDefault(),
+					catalogManager,
+					moduleManager);
 		} else {
 			throw new SqlExecutionException("Unsupported execution type specified.");
 		}
 		// set table configuration
 		environment.getConfiguration().asMap().forEach((k, v) ->
-			tableEnv.getConfig().getConfiguration().setString(k, v));
+				tableEnv.getConfig().getConfiguration().setString(k, v));
+	}
 
+	private void initializeCatalogs() {
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.2 Create modules and load them into the TableEnvironment.
-		//--------------------------------------------------------------------------------------------------------------
-		Map<String, Module> modules = new LinkedHashMap<>();
-		environment.getModules().forEach((name, entry) ->
-			modules.put(name, createModule(entry.asMap(), classLoader))
-		);
-		if (!modules.isEmpty()) {
-			// unload core module first to respect whatever users configure
-			tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
-			modules.forEach(tableEnv::loadModule);
-		}
-
-		if (catalogManager != null) {
-			registerFunctions();
-			// No need to register the catalogs info if already inherit from the same session.
-			return;
-		}
-
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.3 Create catalogs and register them.
+		// Step.1 Create catalogs and register them.
 		//--------------------------------------------------------------------------------------------------------------
 		Map<String, Catalog> catalogs = new LinkedHashMap<>();
 		environment.getCatalogs().forEach((name, entry) ->
-			catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
+				catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
 		);
 		// register catalogs
 		catalogs.forEach(tableEnv::registerCatalog);
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.4 create table sources & sinks, and register them.
+		// Step.2 create table sources & sinks, and register them.
 		//--------------------------------------------------------------------------------------------------------------
 		Map<String, TableSource<?>> tableSources = new HashMap<>();
 		Map<String, TableSink<?>> tableSinks = new HashMap<>();
@@ -520,12 +561,17 @@ public class ExecutionContext<ClusterID> {
 		tableSinks.forEach(tableEnv::registerTableSink);
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.5 create user-defined functions and temporal tables then register them.
+		// Step.4 Register temporal tables.
 		//--------------------------------------------------------------------------------------------------------------
-		registerFunctions();
+		environment.getTables().forEach((name, entry) -> {
+			if (entry instanceof TemporalTableEntry) {
+				final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
+				registerTemporalTable(temporalTableEntry);
+			}
+		});
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.6 Register views in specified order.
+		// Step.4 Register views in specified order.
 		//--------------------------------------------------------------------------------------------------------------
 		environment.getTables().forEach((name, entry) -> {
 			// if registering a view fails at this point,
@@ -537,7 +583,7 @@ public class ExecutionContext<ClusterID> {
 		});
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.7 Set current catalog and database.
+		// Step.5 Set current catalog and database.
 		//--------------------------------------------------------------------------------------------------------------
 		// Switch to the current catalog.
 		Optional<String> catalog = environment.getExecution().getCurrentCatalog();
@@ -574,13 +620,6 @@ public class ExecutionContext<ClusterID> {
 			functions.put(name, function);
 		});
 		registerFunctions(functions);
-
-		environment.getTables().forEach((name, entry) -> {
-			if (entry instanceof TemporalTableEntry) {
-				final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
-				registerTemporalTable(temporalTableEntry);
-			}
-		});
 	}
 
 	private void registerFunctions(Map<String, FunctionDefinition> functions) {
@@ -669,10 +708,11 @@ public class ExecutionContext<ClusterID> {
 		private final List<CustomCommandLine> commandLines;
 
 		private Environment defaultEnv;
-		private Environment env;
+		private Environment currentEnv;
 
 		// Optional members.
-		private CatalogManager catalogManager;
+		@Nullable
+		private SessionState sessionState;
 
 		private Builder(
 				Environment defaultEnv,
@@ -692,23 +732,23 @@ public class ExecutionContext<ClusterID> {
 		}
 
 		public Builder env(Environment environment) {
-			this.env = environment;
+			this.currentEnv = environment;
 			return this;
 		}
 
-		public Builder catalogManager(CatalogManager catalogManager) {
-			this.catalogManager = catalogManager;
+		public Builder sessionState(SessionState sessionState) {
+			this.sessionState = sessionState;
 			return this;
 		}
 
 		public ExecutionContext<?> build() {
 			try {
 				return new ExecutionContext<>(
-						this.env == null
+						this.currentEnv == null
 								? Environment.merge(defaultEnv, sessionContext.getSessionEnv())
-								: this.env,
+								: this.currentEnv,
 						this.sessionContext,
-						this.catalogManager,
+						this.sessionState,
 						this.dependencies,
 						this.configuration,
 						this.serviceLoader,
@@ -718,6 +758,29 @@ public class ExecutionContext<ClusterID> {
 				// catch everything such that a configuration does not crash the executor
 				throw new SqlExecutionException("Could not create execution context.", t);
 			}
+		}
+	}
+
+	/** Represents the state that should be reused in one session. **/
+	public static class SessionState {
+		public final CatalogManager catalogManager;
+		public final ModuleManager moduleManager;
+		public final FunctionCatalog functionCatalog;
+
+		private SessionState(
+				CatalogManager catalogManager,
+				ModuleManager moduleManager,
+				FunctionCatalog functionCatalog) {
+			this.catalogManager = catalogManager;
+			this.moduleManager = moduleManager;
+			this.functionCatalog = functionCatalog;
+		}
+
+		public static SessionState of(
+				CatalogManager catalogManager,
+				ModuleManager moduleManager,
+				FunctionCatalog functionCatalog) {
+			return new SessionState(catalogManager, moduleManager, functionCatalog);
 		}
 	}
 }

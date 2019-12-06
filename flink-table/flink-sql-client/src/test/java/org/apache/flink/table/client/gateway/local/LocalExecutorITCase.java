@@ -91,8 +91,9 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@Parameters(name = "Planner: {0}")
 	public static List<String> planner() {
-		return Collections.singletonList(
-				ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
+		return Arrays.asList(
+			ExecutionEntry.EXECUTION_PLANNER_VALUE_OLD,
+			ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
 	}
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
