@@ -705,7 +705,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/**
 	 * Gets the lock object on which all operations that involve data and state mutation have to lock.
 	 * @return The checkpoint lock object.
+	 * @deprecated This method will be removed in future releases. Use {@linkplain MailboxExecutor mailbox executor}
+	 * to run {@link StreamTask} actions that require synchronization (e.g. checkpointing, collecting output).
+	 * <p>
+	 * For other (non-{@link StreamTask}) actions other synchronization means can be used.
+	 * </p>
+	 * MailboxExecutor {@link MailboxExecutor#yield() yield} or {@link MailboxExecutor#tryYield() tryYield} methods can
+	 * be used for actions that should give control to other actions temporarily.
+	 * <p>
+	 * MailboxExecutor can be accessed by using {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory YieldingOperatorFactory}.
+	 * Example usage can be found in {@link org.apache.flink.streaming.api.operators.async.AsyncWaitOperator AsyncWaitOperator}.
+	 * </p>
 	 */
+	@Deprecated
 	public Object getCheckpointLock() {
 		return actionExecutor.getMutex();
 	}
