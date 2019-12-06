@@ -128,11 +128,6 @@ flink-connectors/flink-sql-connector-kafka,"
 MODULES_TESTS="\
 flink-tests"
 
-# we can only build the Kafka 0.8 connector when building for Scala 2.11
-if [[ $PROFILE == *"scala-2.11"* ]]; then
-    MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.8"
-fi
-
 # we can only build the Scala Shell when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then
     MODULES_CORE="$MODULES_CORE,flink-scala-shell"
