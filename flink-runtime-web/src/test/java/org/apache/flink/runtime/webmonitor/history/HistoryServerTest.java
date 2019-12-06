@@ -25,6 +25,8 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,6 +36,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.commons.io.IOUtils;
@@ -71,6 +74,8 @@ public class HistoryServerTest extends TestLogger {
 	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()
 		.enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
 		.disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+		.enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
 
 	private MiniClusterWithClientResource cluster;
 	private File jmDirectory;
@@ -143,9 +148,18 @@ public class HistoryServerTest extends TestLogger {
 			MultipleJobsDetails overview = mapper.readValue(response, MultipleJobsDetails.class);
 
 			Assert.assertEquals(numJobs + 1, overview.getJobs().size());
+
+			// checks whether the dashboard configuration contains all expected fields
+			getDashboardConfiguration(baseUrl);
 		} finally {
 			hs.stop();
 		}
+	}
+
+	private static DashboardConfiguration getDashboardConfiguration(String baseUrl) throws Exception {
+		String response = getFromHTTP(baseUrl + DashboardConfigurationHeaders.INSTANCE.getTargetRestEndpointURL());
+		return OBJECT_MAPPER.readValue(response, DashboardConfiguration.class);
+
 	}
 
 	private static void runJob() throws Exception {
