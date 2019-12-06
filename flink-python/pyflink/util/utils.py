@@ -21,15 +21,14 @@ from datetime import timedelta
 from pyflink.java_gateway import get_gateway
 
 
-def to_jarray(j_type, arr, gateway=None):
+def to_jarray(j_type, arr):
     """
     Convert python list to java type array
 
     :param j_type: java type of element in array
     :param arr: python type list
-    :param gateway: the gateway used to create java array
     """
-    gateway = gateway or get_gateway()
+    gateway = get_gateway()
     j_arr = gateway.new_array(j_type, len(arr))
     for i in range(0, len(arr)):
         j_arr[i] = arr[i]

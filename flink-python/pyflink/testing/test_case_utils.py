@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-import base64
-import json
 import logging
 import os
 import re
@@ -262,29 +260,6 @@ def replace_uuid(input_obj):
         return input_obj_copy
 
 
-def encode_to_base64(dict_obj):
-    return base64.b64encode(bytes(replace_uuid(json.dumps(dict_obj)), encoding="utf8"))
-
-
-def decode_from_base64(bytes_data):
-    return json.loads(str(base64.b64decode(bytes_data), encoding="utf8"))
-
-
-def create_empty_file(suffix, base_dir):
-    fd, path = tempfile.mkstemp(suffix=suffix, dir=base_dir)
-    os.close(fd)
-    return path
-
-
-def sort_dict_by_key(obj):
-    if not isinstance(obj, dict):
-        return obj
-    new_dict = dict()
-    for key, value in sorted(obj.items()):
-        new_dict[key] = sort_dict_by_key(value)
-    return new_dict
-
-
 class Tuple2(object):
 
     def __init__(self, f0, f1):
@@ -312,27 +287,3 @@ class TestEnv(object):
         for item in self.result:
             result[item.f0] = item.f1
         return result
-
-
-class TestConfiguration(object):
-
-    def __init__(self):
-        self._dict = dict()
-
-    def get_string(self, key, default_value):
-        if key in self._dict:
-            return self._dict[key]
-        else:
-            return default_value
-
-    def set_string(self, key, value):
-        self._dict[key] = value
-
-    def remove_config(self, key):
-        del self._dict[key]
-
-    def contains_key(self, key):
-        return key in self._dict
-
-    def to_dict(self):
-        return self._dict

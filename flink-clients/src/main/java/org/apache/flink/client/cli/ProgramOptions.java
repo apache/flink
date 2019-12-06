@@ -85,7 +85,6 @@ public class ProgramOptions extends CommandLineOptions {
 
 		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt())
 			| "org.apache.flink.client.python.PythonGatewayServer".equals(entryPointClass);
-		// If specified the option -py(--python)
 		if (isPython) {
 			// copy python related parameters to program args and place them in front of user parameters
 			List<String> pyArgList = new ArrayList<>();

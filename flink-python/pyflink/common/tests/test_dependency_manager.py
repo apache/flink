@@ -116,6 +116,46 @@ class DependencyManagerTests(PyFlinkTestCase):
         self.assertEqual(DependencyManager.PYFLINK_PY_EXECUTABLE,
                          JPythonDriverEnvUtils.PYFLINK_PY_EXECUTABLE)
 
+    def test_load_from_env(self):
+        dm = DependencyManager
+
+        system_env = dict()
+        system_env[dm.PYFLINK_PY_FILES] = "/file1.py\nhdfs://file2.zip\nfile3.egg"
+        system_env[dm.PYFLINK_PY_REQUIREMENTS] = "a.txt\nb_dir"
+        system_env[dm.PYFLINK_PY_EXECUTABLE] = "/usr/local/bin/python"
+        system_env[dm.PYFLINK_PY_ARCHIVES] = "/py3.zip\nvenv\n/py3.zip\n\ndata.zip\ndata"
+
+        self.dependency_manager.load_from_env(system_env)
+
+        configs = self.config.to_dict()
+        python_files = replace_uuid(json.loads(configs[dm.PYTHON_FILES]))
+        python_requirements_file = replace_uuid(configs[dm.PYTHON_REQUIREMENTS_FILE])
+        python_requirements_cache = replace_uuid(configs[dm.PYTHON_REQUIREMENTS_CACHE])
+        python_archives = replace_uuid(json.loads(configs[dm.PYTHON_ARCHIVES]))
+        python_exec = configs[dm.PYTHON_EXEC]
+        registered_files = replace_uuid(self.j_env.to_dict())
+
+        self.assertEqual(
+            {"python_file_0_{uuid}": "file1.py",
+             "python_file_1_{uuid}": "file2.zip",
+             "python_file_2_{uuid}": "file3.egg"}, python_files)
+        self.assertEqual(
+            {"python_archive_3_{uuid}": "venv",
+             "python_archive_4_{uuid}": "py3.zip",
+             "python_archive_5_{uuid}": "data"}, python_archives)
+        self.assertEqual("python_requirements_file_6_{uuid}", python_requirements_file)
+        self.assertEqual("python_requirements_cache_7_{uuid}", python_requirements_cache)
+        self.assertEqual("/usr/local/bin/python", python_exec)
+        self.assertEqual(
+            {"python_file_0_{uuid}": "/file1.py",
+             "python_file_1_{uuid}": "hdfs://file2.zip",
+             "python_file_2_{uuid}": "file3.egg",
+             "python_archive_3_{uuid}": "/py3.zip",
+             "python_archive_4_{uuid}": "/py3.zip",
+             "python_archive_5_{uuid}": "data.zip",
+             "python_requirements_file_6_{uuid}": "a.txt",
+             "python_requirements_cache_7_{uuid}": "b_dir"}, registered_files)
+
 
 if __name__ == "__main__":
     try:

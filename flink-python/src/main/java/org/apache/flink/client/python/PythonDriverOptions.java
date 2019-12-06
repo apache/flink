@@ -44,16 +44,16 @@ final class PythonDriverOptions {
 	private List<String> programArgs;
 
 	@Nonnull
-	private List<String> pyFiles;
+	private final List<String> pyFiles;
 
 	@Nullable
-	private Tuple2<String, String> pyRequirements;
+	private final Tuple2<String, String> pyRequirements;
 
 	@Nullable
-	private String pyExecutable;
+	private final String pyExecutable;
 
 	@Nonnull
-	private List<Tuple2<String, String>> pyArchives;
+	private final List<Tuple2<String, String>> pyArchives;
 
 	@Nonnull
 	String getEntrypointModule() {
@@ -71,20 +71,20 @@ final class PythonDriverOptions {
 	}
 
 	@Nonnull
-	public List<String> getPyFiles() {
+	List<String> getPyFiles() {
 		return pyFiles;
 	}
 
-	public Optional<Tuple2<String, String>> getPyRequirements() {
+	Optional<Tuple2<String, String>> getPyRequirements() {
 		return Optional.ofNullable(pyRequirements);
 	}
 
-	public Optional<String> getPyExecutable() {
+	Optional<String> getPyExecutable() {
 		return Optional.ofNullable(pyExecutable);
 	}
 
 	@Nonnull
-	public List<Tuple2<String, String>> getPyArchives() {
+	List<Tuple2<String, String>> getPyArchives() {
 		return pyArchives;
 	}
 

@@ -87,13 +87,13 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
 		.required(false)
 		.hasArg(true)
 		.argName("archiveFilePath>#<targetDirName(optional)>,...,<archiveFilePath>#<<targetDirName(optional)")
-		.desc("Add python archive files for job. The files will be extracted to the working directory of python " +
-			"UDF worker. Currently only zip-format is supported. For each archive file, a target directory name can " +
+		.desc("Add python archive files for job. The archive files will be extracted to the working directory " +
+			"of python UDF worker. Currently only zip-format is supported. For each archive file, a target directory " +
 			"be specified. If the target directory name is specified, the archive file will be extracted to a " +
-			"directory with the specified name. Otherwise, the archive file will be extracted to a directory with " +
-			"the same name of the archive file. The files uploaded via this option are accessible via relative path. " +
-			"'#' could be used as the separator of the archive file path and the target directory name. " +
-			"Comma (',') could be used as the separator to specify multiple archive files. " +
+			"name can directory with the specified name. Otherwise, the archive file will be extracted to a " +
+			"directory with the same name of the archive file. The files uploaded via this option are accessible " +
+			"via relative path. '#' could be used as the separator of the archive file path and the target directory " +
+			"name. Comma (',') could be used as the separator to specify multiple archive files. " +
 			"This option can be used to upload the virtual environment, the data files used in Python UDF " +
 			"(e.g.: --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable " +
 			"py37.zip/py37/bin/python). The data files could be accessed in Python UDF, e.g.: " +

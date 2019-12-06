@@ -146,7 +146,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertEquals("c.zip#venv,d.zip", programOptions.getProgramArgs()[7]);
 			assertEquals("--pyExecutable", programOptions.getProgramArgs()[8]);
 			assertEquals("bin/python", programOptions.getProgramArgs()[9]);
-
 		}
 	}
 
