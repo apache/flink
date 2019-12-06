@@ -521,15 +521,7 @@ public class HiveCatalog extends AbstractCatalog {
 		String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
 		// Table schema
-		List<FieldSchema> fields;
-		if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(hiveConf,
-				hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
-			// get schema from metastore
-			fields = hiveTable.getSd().getCols();
-		} else {
-			// get schema from deserializer
-			fields = hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
-		}
+		List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
 		Set<String> notNullColumns = client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
 		Optional<UniqueConstraint> primaryKey = isView ? Optional.empty() :
 				client.getPrimaryKey(hiveTable.getDbName(), hiveTable.getTableName(), HiveTableUtil.relyConstraint((byte) 0));
@@ -553,6 +545,17 @@ public class HiveCatalog extends AbstractCatalog {
 					comment);
 		} else {
 			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
+		}
+	}
+
+	private List<FieldSchema> getNonPartitionFields(HiveConf hiveConf, Table hiveTable) {
+		if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(hiveConf,
+				hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
+			// get schema from metastore
+			return hiveTable.getSd().getCols();
+		} else {
+			// get schema from deserializer
+			return hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
 		}
 	}
 
@@ -764,7 +767,7 @@ public class HiveCatalog extends AbstractCatalog {
 		Table hiveTable = getHiveTable(tablePath);
 		ensurePartitionedTable(tablePath, hiveTable);
 		List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
-		String filter = HiveTableUtil.makePartitionFilter(partColNames, expressions);
+		String filter = HiveTableUtil.makePartitionFilter(getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions);
 		if (filter == null) {
 			throw new UnsupportedOperationException(
 					"HiveCatalog is unable to handle the partition filter expressions: " + expressions);

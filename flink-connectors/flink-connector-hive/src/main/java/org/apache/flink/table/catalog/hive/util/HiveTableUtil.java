@@ -188,13 +188,14 @@ public class HiveTableUtil {
 	/**
 	 * Generates a filter string for partition columns from the given filter expressions.
 	 *
+	 * @param numNonPartCol The number of non-partition columns -- used to shift field reference index
 	 * @param partColNames The names of all partition columns
 	 * @param expressions  The filter expressions in CNF form
 	 * @return a filter string equivalent to the expressions, or null if the expressions can't be handled
 	 */
-	public static String makePartitionFilter(List<String> partColNames, List<Expression> expressions) {
+	public static String makePartitionFilter(int numNonPartCol, List<String> partColNames, List<Expression> expressions) {
 		List<String> filters = new ArrayList<>(expressions.size());
-		ExpressionExtractor extractor = new ExpressionExtractor(partColNames);
+		ExpressionExtractor extractor = new ExpressionExtractor(numNonPartCol, partColNames);
 		for (Expression expression : expressions) {
 			String str = expression.accept(extractor);
 			if (str == null) {
@@ -218,9 +219,12 @@ public class HiveTableUtil {
 			funcToStr.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, "<=");
 		}
 
+		// used to shift field reference index
+		private final int numNonPartCol;
 		private final List<String> partColNames;
 
-		ExpressionExtractor(List<String> partColNames) {
+		ExpressionExtractor(int numNonPartCol, List<String> partColNames) {
+			this.numNonPartCol = numNonPartCol;
 			this.partColNames = partColNames;
 		}
 
@@ -255,7 +259,7 @@ public class HiveTableUtil {
 
 		@Override
 		public String visit(FieldReferenceExpression fieldReference) {
-			return partColNames.get(fieldReference.getFieldIndex());
+			return partColNames.get(fieldReference.getFieldIndex() - numNonPartCol);
 		}
 
 		@Override
@@ -265,6 +269,7 @@ public class HiveTableUtil {
 
 		@Override
 		public String visit(Expression other) {
+			// only support resolved expressions
 			return null;
 		}
 	}
