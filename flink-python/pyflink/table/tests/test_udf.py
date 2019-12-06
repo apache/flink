@@ -332,9 +332,9 @@ class UserDefinedFunctionTests(object):
             return timestamp_param
 
         def array_func(array_param):
-            assert array_param == [1, 2, 3], \
+            assert array_param == [[1, 2, 3]], \
                 'array_param is wrong value %s !' % array_param
-            return array_param
+            return array_param[0]
 
         self.t_env.register_function(
             "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
@@ -376,7 +376,7 @@ class UserDefinedFunctionTests(object):
             "timestamp_func", udf(timestamp_func, [DataTypes.TIMESTAMP()], DataTypes.TIMESTAMP()))
 
         self.t_env.register_function(
-            "array_func", udf(array_func, [DataTypes.ARRAY(DataTypes.BIGINT())],
+            "array_func", udf(array_func, [DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT()))],
                               DataTypes.ARRAY(DataTypes.BIGINT())))
 
         table_sink = source_sink_utils.TestAppendSink(
@@ -393,7 +393,7 @@ class UserDefinedFunctionTests(object):
             [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
               bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
               datetime.time(hour=12, minute=0, second=0, microsecond=123000),
-              datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3])],
+              datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [[1, 2, 3]])],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -408,7 +408,7 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("k", DataTypes.DATE()),
                  DataTypes.FIELD("l", DataTypes.TIME(3)),
                  DataTypes.FIELD("m", DataTypes.TIMESTAMP()),
-                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.BIGINT()))]))
+                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT())))]))
 
         t.select("bigint_func(a), bigint_func_none(b),"
                  "tinyint_func(c), boolean_func(d),"

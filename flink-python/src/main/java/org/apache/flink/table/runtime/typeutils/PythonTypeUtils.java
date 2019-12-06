@@ -83,7 +83,7 @@ public final class PythonTypeUtils {
 	}
 
 	/**
-	 * Convert LogicalType to conversion class.
+	 * Convert LogicalType to conversion class for flink planner.
 	 */
 	public static class LogicalTypeToConversionClassConverter extends LogicalTypeDefaultVisitor<Class> {
 

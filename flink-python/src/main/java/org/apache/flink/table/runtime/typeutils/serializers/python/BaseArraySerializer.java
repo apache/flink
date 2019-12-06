@@ -76,8 +76,18 @@ public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutil
 
 	@Override
 	public BaseArray deserialize(DataInputView source) throws IOException {
-		int len = source.readInt();
 		BinaryArray array = new BinaryArray();
+		deserializeInternal(source, array);
+		return array;
+	}
+
+	@Override
+	public BaseArray deserialize(BaseArray reuse, DataInputView source) throws IOException {
+		return deserializeInternal(source, toBinaryArray(reuse));
+	}
+
+	private BaseArray deserializeInternal(DataInputView source, BinaryArray array) throws IOException {
+		int len = source.readInt();
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, len, elementSize);
 		for (int i = 0; i < len; i++) {
 			boolean isNonNull = source.readBoolean();
@@ -90,11 +100,6 @@ public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutil
 		}
 		writer.complete();
 		return array;
-	}
-
-	@Override
-	public BaseArray deserialize(BaseArray reuse, DataInputView source) throws IOException {
-		return deserialize(source);
 	}
 
 	@Override
@@ -116,7 +121,7 @@ public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutil
 	 * {@link TypeSerializerSnapshot} for {@link BaseArraySerializer}.
 	 */
 	public static final class BaseArraySerializerSnapshot implements TypeSerializerSnapshot<BaseArray> {
-		private static final int CURRENT_VERSION = 3;
+		private static final int CURRENT_VERSION = 1;
 
 		private LogicalType previousType;
 		private TypeSerializer previousEleSer;
