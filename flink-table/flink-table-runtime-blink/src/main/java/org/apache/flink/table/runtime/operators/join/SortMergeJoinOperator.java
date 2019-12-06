@@ -139,7 +139,8 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		this.ioManager = this.getContainingTask().getEnvironment().getIOManager();
 
 		long totalMemory = computeMemorySize();
-		long totalSortMem = totalMemory - externalBufferMemory;
+		long totalSortMem = totalMemory -
+				(type.equals(FlinkJoinType.FULL) ? externalBufferMemory * 2 : externalBufferMemory);
 		if (totalSortMem < 0) {
 			throw new TableException("Memory size is too small: " +
 					totalMemory + ", please increase manage memory of task manager.");
