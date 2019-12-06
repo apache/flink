@@ -27,6 +27,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -559,17 +560,18 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 				System.out.println(description);
 				return 0;
 			} else {
-				final ClusterClient<ApplicationId> clusterClient;
+				final ClusterClientProvider<ApplicationId> clusterClientProvider;
 				final ApplicationId yarnApplicationId;
 
 				if (cmd.hasOption(applicationId.getOpt())) {
 					yarnApplicationId = ConverterUtils.toApplicationId(cmd.getOptionValue(applicationId.getOpt()));
 
-					clusterClient = yarnClusterDescriptor.retrieve(yarnApplicationId);
+					clusterClientProvider = yarnClusterDescriptor.retrieve(yarnApplicationId);
 				} else {
 					final ClusterSpecification clusterSpecification = yarnClusterClientFactory.getClusterSpecification(configuration);
 
-					clusterClient = yarnClusterDescriptor.deploySessionCluster(clusterSpecification);
+					clusterClientProvider = yarnClusterDescriptor.deploySessionCluster(clusterSpecification);
+					ClusterClient<ApplicationId> clusterClient = clusterClientProvider.getClusterClient();
 
 					//------------------ ClusterClient deployed, handle connection details
 					yarnApplicationId = clusterClient.getClusterId();
@@ -611,21 +613,20 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						new ScheduledExecutorServiceAdapter(scheduledExecutorService));
 					Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
 						() -> shutdownCluster(
-							clusterClient,
-							scheduledExecutorService,
-							yarnApplicationStatusMonitor),
-						getClass().getSimpleName(),
-						LOG);
+								clusterClientProvider.getClusterClient(),
+								scheduledExecutorService,
+								yarnApplicationStatusMonitor),
+								getClass().getSimpleName(),
+								LOG);
 					try {
 						runInteractiveCli(
-							clusterClient,
 							yarnApplicationStatusMonitor,
 							acceptInteractiveInput);
 					} finally {
 						shutdownCluster(
-							clusterClient,
-							scheduledExecutorService,
-							yarnApplicationStatusMonitor);
+								clusterClientProvider.getClusterClient(),
+								scheduledExecutorService,
+								yarnApplicationStatusMonitor);
 
 						if (shutdownHook != null) {
 							// we do not need the hook anymore as we have just tried to shutdown the cluster.
@@ -825,12 +826,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	}
 
 	private static void runInteractiveCli(
-			ClusterClient<?> clusterClient,
 			YarnApplicationStatusMonitor yarnApplicationStatusMonitor,
 			boolean readConsoleInput) {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 			boolean continueRepl = true;
-			int numTaskmanagers = 0;
 			boolean isLastStatusUnknown = true;
 			long unknownStatusSince = System.nanoTime();
 

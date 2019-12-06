@@ -251,7 +251,9 @@ object FlinkShell {
     val clusterSpecification = clientFactory.getClusterSpecification(executorConfig)
 
     val clusterClient = try {
-      clusterDescriptor.deploySessionCluster(clusterSpecification)
+      clusterDescriptor
+        .deploySessionCluster(clusterSpecification)
+        .getClusterClient
     } finally {
       clusterDescriptor.close()
     }

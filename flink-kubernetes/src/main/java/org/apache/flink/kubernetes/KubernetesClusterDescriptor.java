@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -74,60 +75,61 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		return CLUSTER_DESCRIPTION;
 	}
 
-	private ClusterClient<String> createClusterClient(String clusterId) throws Exception {
-		final Configuration configuration = new Configuration(flinkConfig);
+	private ClusterClientProvider<String> createClusterClientProvider(String clusterId) {
+		return () -> {
+			final Configuration configuration = new Configuration(flinkConfig);
 
-		final Endpoint restEndpoint = client.getRestEndpoint(clusterId);
+			final Endpoint restEndpoint = client.getRestEndpoint(clusterId);
 
-		if (restEndpoint != null) {
-			configuration.setString(RestOptions.ADDRESS, restEndpoint.getAddress());
-			configuration.setInteger(RestOptions.PORT, restEndpoint.getPort());
-		} else {
-			throw new ClusterRetrieveException("Could not get the rest endpoint of " + clusterId);
-		}
+			if (restEndpoint != null) {
+				configuration.setString(RestOptions.ADDRESS, restEndpoint.getAddress());
+				configuration.setInteger(RestOptions.PORT, restEndpoint.getPort());
+			} else {
+				throw new RuntimeException(
+						new ClusterRetrieveException(
+								"Could not get the rest endpoint of " + clusterId));
+			}
 
-		return new RestClusterClient<>(configuration, clusterId);
+			try {
+
+				RestClusterClient<String> resultClient = new RestClusterClient<>(
+						configuration, clusterId);
+				LOG.info(
+						"Succesfully retrieved cluster client for cluster {}, JobManager Web Interface : {}",
+						clusterId,
+						resultClient.getWebInterfaceURL());
+				return resultClient;
+			} catch (Exception e) {
+				client.handleException(e);
+				throw new RuntimeException(new ClusterRetrieveException("Could not create the RestClusterClient.", e));
+			}
+		};
 	}
 
 	@Override
-	public ClusterClient<String> retrieve(String clusterId) throws ClusterRetrieveException {
-		try {
-			final ClusterClient<String> retrievedClient = createClusterClient(clusterId);
-			LOG.info(
-				"Retrieve flink cluster {} successfully, JobManager Web Interface : {}",
-				clusterId,
-				retrievedClient.getWebInterfaceURL());
-			return retrievedClient;
-		} catch (Exception e) {
-			client.handleException(e);
-			throw new ClusterRetrieveException("Could not create the RestClusterClient.", e);
-		}
+	public ClusterClientProvider<String> retrieve(String clusterId) {
+		return createClusterClientProvider(clusterId);
 	}
 
 	@Override
-	public ClusterClient<String> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
-		final ClusterClient<String> clusterClient = deployClusterInternal(
+	public ClusterClientProvider<String> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
+		final ClusterClientProvider<String> clusterClient = deployClusterInternal(
 			KubernetesSessionClusterEntrypoint.class.getName(),
 			clusterSpecification,
 			false);
-
-		LOG.info(
-			"Create flink session cluster {} successfully, JobManager Web Interface: {}",
-			clusterId,
-			clusterClient.getWebInterfaceURL());
 
 		return clusterClient;
 	}
 
 	@Override
-	public ClusterClient<String> deployJobCluster(
+	public ClusterClientProvider<String> deployJobCluster(
 			ClusterSpecification clusterSpecification,
 			JobGraph jobGraph,
 			boolean detached) throws ClusterDeploymentException {
 		throw new ClusterDeploymentException("Per job could not be supported now.");
 	}
 
-	private ClusterClient<String> deployClusterInternal(
+	private ClusterClientProvider<String> deployClusterInternal(
 			String entryPoint,
 			ClusterSpecification clusterSpecification,
 			boolean detached) throws ClusterDeploymentException {
@@ -178,7 +180,16 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			client.createConfigMap();
 			client.createFlinkMasterDeployment(clusterSpecification);
 
-			return createClusterClient(clusterId);
+			ClusterClientProvider<String> clusterClientProvider = createClusterClientProvider(clusterId);
+
+			try (ClusterClient<String> clusterClient = clusterClientProvider.getClusterClient()) {
+				LOG.info(
+						"Create flink session cluster {} successfully, JobManager Web Interface: {}",
+						clusterId,
+						clusterClient.getWebInterfaceURL());
+			}
+
+			return clusterClientProvider;
 		} catch (Exception e) {
 			client.handleException(e);
 			throw new ClusterDeploymentException("Could not create Kubernetes cluster " + clusterId, e);

@@ -1671,10 +1671,6 @@ public class StreamExecutionEnvironment {
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
 	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
-	 *
 	 * @param streamGraph the stream graph representing the transformations
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.

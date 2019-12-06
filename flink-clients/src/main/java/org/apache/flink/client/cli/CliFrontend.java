@@ -862,7 +862,7 @@ public class CliFrontend {
 				"you would like to connect.");
 		} else {
 			try {
-				final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId);
+				final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient();
 
 				try {
 					clusterAction.runAction(clusterClient);

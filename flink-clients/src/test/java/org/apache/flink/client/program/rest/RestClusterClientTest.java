@@ -555,7 +555,9 @@ public class RestClusterClientTest extends TestLogger {
 		checkState(clusterFactory != null);
 
 		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = clusterFactory.createClusterDescriptor(executorConfig);
-		final RestClusterClient<?> clusterClient = (RestClusterClient<?>) clusterDescriptor.retrieve(clusterFactory.getClusterId(executorConfig));
+		final RestClusterClient<?> clusterClient = (RestClusterClient<?>) clusterDescriptor
+				.retrieve(clusterFactory.getClusterId(executorConfig))
+				.getClusterClient();
 
 		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
 		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
