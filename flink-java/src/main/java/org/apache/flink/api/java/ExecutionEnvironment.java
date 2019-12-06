@@ -804,13 +804,15 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
-		try (final JobClient jobClient = executeAsync(jobName).get()) {
-			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
-					? jobClient.getJobExecutionResult(userClassloader).get()
-					: new DetachedJobExecutionResult(jobClient.getJobID());
+		final JobClient jobClient = executeAsync(jobName).get();
 
-			return lastJobExecutionResult;
+		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+			lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+		} else {
+			lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
+
+		return lastJobExecutionResult;
 	}
 
 	/**
@@ -821,10 +823,6 @@ public class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
 	 * <p>The program execution will be logged and displayed with a generated default name.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
@@ -842,10 +840,6 @@ public class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
 	 * <p>The program execution will be logged and displayed with the given job name.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.

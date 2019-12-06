@@ -40,7 +40,6 @@ import org.apache.flink.types.Row;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -101,32 +100,9 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 		// start listener thread
 		retrievalThread.start();
 
-		// we have to check for exceptions in two places here because job submission can fail
-		// at different stages. For batch file sources, the job manager will check if the file
-		// exists and job submission will already fail at that early stage, meaning we will not
-		// get a job client. For streaming file sources, this check only happens when the job
-		// was already successfully submitted.
 		jobExecutionResultFuture = deployer
 				.deploy()
-				.thenCompose(jobClient -> {
-					// fetch the job execution result, so that an attached cluster will shut down
-					CompletableFuture<JobExecutionResult> result = jobClient.getJobExecutionResult(
-							classLoader);
-
-					return result.whenComplete((unusedJobResult, jobException) -> {
-						if (jobException != null) {
-							executionException.compareAndSet(
-									null,
-									new SqlExecutionException(
-											"Error while submitting job.", jobException));
-						}
-						try {
-							jobClient.close();
-						} catch (Exception e) {
-							throw new CompletionException("Error while closing JobClient.", e);
-						}
-					});
-				})
+				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
 						executionException.compareAndSet(

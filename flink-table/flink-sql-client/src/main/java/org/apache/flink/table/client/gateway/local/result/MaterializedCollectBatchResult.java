@@ -35,8 +35,6 @@ import org.apache.flink.util.AbstractID;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -87,34 +85,9 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	@Override
 	public void startRetrieval(ProgramDeployer deployer) {
-		// we have to check for exceptions in two places here because job submission can fail
-		// at different stages. For batch file sources, the job manager will check if the file
-		// exists and job submission will already fail at that early stage, meaning we will not
-		// get a job client. For streaming file sources, this check only happens when the job
-		// was already successfully submitted.
 		deployer
 				.deploy()
-				.thenCompose(jobClient -> {
-
-					CompletableFuture<JobExecutionResult> result = jobClient.getJobExecutionResult(
-							classLoader);
-
-					return result.handle((unusedJobResult, jobException) -> {
-						if (jobException != null) {
-							executionException.compareAndSet(
-									null,
-									new SqlExecutionException(
-											"Error while submitting job.",
-											jobException));
-						}
-						try {
-							jobClient.close();
-						} catch (Exception e) {
-							throw new CompletionException("Error while closing JobClient.", e);
-						}
-						return unusedJobResult;
-					});
-				})
+				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
 				.thenAccept(new ResultRetrievalHandler())
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {

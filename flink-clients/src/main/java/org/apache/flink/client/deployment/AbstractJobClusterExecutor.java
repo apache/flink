@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
@@ -63,31 +64,28 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 
 			final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(configuration);
 
-			final ClusterClient<ClusterID> clusterClient = clusterDescriptor
-					.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode())
-					.getClusterClient();
+			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor
+					.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode());
 			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
 			final boolean withShutdownHook = !configAccessor.getDetachedMode() && configAccessor.isShutdownOnAttachedExit();
 
 			if (withShutdownHook) {
-				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
-					clusterClient::shutDownCluster, clusterClient.getClass().getSimpleName(), LOG);
+				ShutdownHookUtil.addShutdownHook(
+						() -> {
+							try (ClusterClient<ClusterID> client = clusterClientProvider.getClusterClient()) {
+								client.shutDownCluster();
+							}
+						},
+						"Cluster shutdown hook for attached Job execution",
+						LOG);
 
-				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
-					@Override
-					protected void doClose() {
-						ShutdownHookUtil.removeShutdownHook(shutdownHook, clusterClient.getClass().getSimpleName(), LOG);
-						clusterClient.close();
-					}
+				return CompletableFuture.completedFuture(
+						new ClusterClientJobClientAdapter<ClusterID>(clusterClientProvider, jobGraph.getJobID()) {
 				});
 			} else {
-				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
-					@Override
-					protected void doClose() {
-						clusterClient.close();
-					}
-				});
+				return CompletableFuture.completedFuture(
+						new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID()));
 			}
 		}
 	}
