@@ -138,7 +138,7 @@ class BatchExecExchange(
     val conf = planner.getTableConfig
     val shuffleMode = getShuffleMode(conf.getConfiguration)
 
-    relDistribution.getType match {
+    setManagedMemoryWeight(relDistribution.getType match {
       case RelDistribution.Type.ANY =>
         val transformation = new PartitionTransformation(
           input,
@@ -196,7 +196,7 @@ class BatchExecExchange(
       case _ =>
         throw new UnsupportedOperationException(
           s"not support RelDistribution: ${relDistribution.getType} now!")
-    }
+    }, 0)
   }
 }
 

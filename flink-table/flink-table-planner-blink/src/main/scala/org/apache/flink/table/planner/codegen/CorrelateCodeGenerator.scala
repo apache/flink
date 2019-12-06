@@ -63,7 +63,8 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       expression: (RexNode, List[String], Option[List[RexNode]]) => String,
-      ruleDescription: String): Transformation[BaseRow] = {
+      opName: String,
+      transformationName: String): Transformation[BaseRow] = {
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
@@ -128,14 +129,14 @@ object CorrelateCodeGenerator {
       joinType,
       rexCall,
       pojoFieldMapping,
-      ruleDescription,
+      opName,
       classOf[ProcessFunction[BaseRow, BaseRow]],
       collector,
       retainHeader)
 
     new OneInputTransformation(
       inputTransformation,
-      ruleDescription,
+      transformationName,
       substituteStreamOperator,
       BaseRowTypeInfo.of(returnType),
       parallelism)

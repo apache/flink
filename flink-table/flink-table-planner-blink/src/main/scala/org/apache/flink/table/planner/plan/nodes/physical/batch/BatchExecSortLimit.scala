@@ -141,11 +141,11 @@ class BatchExecSortLimit(
     // TODO If input is ordered, there is no need to use the heap.
     val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)
 
-    new OneInputTransformation(
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       inputType,
-      input.getParallelism)
+      input.getParallelism), 0)
   }
 }

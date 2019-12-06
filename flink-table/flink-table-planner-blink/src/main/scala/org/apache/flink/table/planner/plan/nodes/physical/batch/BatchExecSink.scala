@@ -139,12 +139,12 @@ class BatchExecSink[T](
             resultType,
             sink
           )
-          new OneInputTransformation(
+          setManagedMemoryWeight(new OneInputTransformation(
             plan,
             s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
             converterOperator,
             outputTypeInfo,
-            plan.getParallelism)
+            plan.getParallelism), 0)
         }
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

@@ -118,11 +118,11 @@ abstract class BatchExecSortAggregateBase(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal)
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    new OneInputTransformation(
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
+      input.getParallelism), 0)
   }
 }

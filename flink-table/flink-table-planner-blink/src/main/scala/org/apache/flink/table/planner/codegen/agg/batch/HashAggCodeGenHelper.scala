@@ -62,7 +62,6 @@ object HashAggCodeGenHelper {
 
   private[flink] def prepareHashAggMap(
       ctx: CodeGeneratorContext,
-      reservedManagedMemory: Long,
       groupKeyTypesTerm: String,
       aggBufferTypesTerm: String,
       aggregateMapTerm: String): Unit = {

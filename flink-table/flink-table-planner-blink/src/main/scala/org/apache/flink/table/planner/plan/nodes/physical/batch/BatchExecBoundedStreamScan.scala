@@ -86,9 +86,9 @@ class BatchExecBoundedStreamScan(
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
-    val batchTransform = boundedStreamTable.dataStream.getTransformation
+    val batchTransform = setManagedMemoryWeight(boundedStreamTable.dataStream.getTransformation, 0)
     if (needInternalConversion) {
-      ScanUtil.convertToInternalRow(
+      setManagedMemoryWeight(ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         batchTransform,
         boundedStreamTable.fieldIndexes,
@@ -96,7 +96,7 @@ class BatchExecBoundedStreamScan(
         getRowType,
         getTable.getQualifiedName,
         config,
-        None)
+        None),0)
     } else {
       batchTransform.asInstanceOf[Transformation[BaseRow]]
     }

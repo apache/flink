@@ -379,7 +379,7 @@ class BatchExecOverAggregate(
       collation.map(_._1),
       collation.map(_._2))
 
-    var managedMemoryInMB: Int = 0
+    var managedMemory: Long = 0L
     val operator = if (!needBufferData) {
       //operator needn't cache data
       val aggHandlers = modeToGroupToAggCallToAggFunction.map { case (_, _, aggCallToAggFunction) =>
@@ -410,23 +410,19 @@ class BatchExecOverAggregate(
       new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
     } else {
       val windowFrames = createOverWindowFrames(config)
-      val memText = config.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-      managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
+      managedMemory = MemorySize.parse(config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
       new BufferDataOverWindowOperator(
         windowFrames,
         genComparator,
         inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))
     }
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    val ret = new OneInputTransformation(
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
-    ret.setResources(resource, resource)
-    ret
+      input.getParallelism), managedMemory)
   }
 
   def createOverWindowFrames(config: TableConfig): Array[OverWindowFrame] = {

@@ -133,26 +133,21 @@ abstract class BatchExecHashWindowAggregateBase(
 
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
 
-    val memText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
-    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
-    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
-
     val generatedOperator = new HashWindowCodeGenerator(
       ctx, relBuilder, window, inputTimeFieldIndex,
       inputTimeIsDate, namedProperties,
       aggInfos, inputRowType, grouping, auxGrouping, enableAssignPane, isMerge, isFinal).gen(
-      inputType, outputType, groupBufferLimitSize, managedMemory, 0,
+      inputType, outputType, groupBufferLimitSize, 0,
       windowSize, slideSize)
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    val ret = new OneInputTransformation(
+
+    val managedMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      input.getParallelism), managedMemory)
   }
 }

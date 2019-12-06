@@ -134,8 +134,8 @@ class StreamExecCorrelate(
       inputTransformation.getParallelism,
       retainHeader = true,
       getExpressionString,
-      "StreamExecCorrelate")
-    transform.setName(getRelDetailedDescription)
+      "StreamExecCorrelate",
+      getRelDetailedDescription)
     if (inputsContainSingleton()) {
       transform.setParallelism(1)
       transform.setMaxParallelism(1)

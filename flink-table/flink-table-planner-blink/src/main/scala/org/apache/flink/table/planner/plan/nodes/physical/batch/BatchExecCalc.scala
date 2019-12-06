@@ -70,11 +70,11 @@ class BatchExecCalc(
       opName = "BatchCalc"
     )
 
-    new OneInputTransformation(
+    setManagedMemoryWeight(new OneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      inputTransform.getParallelism), 0)
   }
 }

@@ -120,18 +120,13 @@ class BatchExecSort(
       codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
       codeGen.generateRecordComparator("BatchExecSortComparator"))
 
-    val ret = new OneInputTransformation(
+    val sortMemory = MemorySize.parse(conf.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
-
-    val memText = conf.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      input.getParallelism), sortMemory)
   }
 }

@@ -218,10 +218,13 @@ class BatchExecSortMergeJoin(
       leftType,
       rightType)
 
-    val externalBufferMemText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-    val externalBufferMemoryInMB = MemorySize.parse(externalBufferMemText).getMebiBytes
-    val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+    val externalBufferMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
+    val sortMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
+    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
+
+    val managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2
 
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
       val originalOrders = originalKeys.map(_ => true)
@@ -237,6 +240,7 @@ class BatchExecSortMergeJoin(
     val rightSortGen = newSortGen(rightAllKey, rightType)
 
     val operator = new SortMergeJoinOperator(
+      externalBufferMemory.toDouble / managedMemory,
       externalBufferMemory,
       flinkJoinType,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
@@ -252,21 +256,13 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
-    val sortMemText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-    val sortMemoryInMB = MemorySize.parse(sortMemText).getMebiBytes
-    val managedMemoryInMB = externalBufferMemoryInMB * externalBufferNum + sortMemoryInMB * 2
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    setManagedMemoryWeight(new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftInput,
       rightInput,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      rightInput.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      rightInput.getParallelism), managedMemory)
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {

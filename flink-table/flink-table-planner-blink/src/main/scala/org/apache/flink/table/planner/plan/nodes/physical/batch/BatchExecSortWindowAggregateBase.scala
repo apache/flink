@@ -133,11 +133,11 @@ abstract class BatchExecSortWindowAggregateBase(
       generator.genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    new OneInputTransformation(
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
+      input.getParallelism), 0)
   }
 }

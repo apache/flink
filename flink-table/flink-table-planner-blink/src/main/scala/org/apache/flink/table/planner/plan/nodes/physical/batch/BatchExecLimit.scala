@@ -106,11 +106,11 @@ class BatchExecLimit(
         .asInstanceOf[Transformation[BaseRow]]
     val inputType = input.getOutputType
     val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
-    new OneInputTransformation(
+    setManagedMemoryWeight(new OneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       inputType,
-      input.getParallelism)
+      input.getParallelism), 0)
   }
 }

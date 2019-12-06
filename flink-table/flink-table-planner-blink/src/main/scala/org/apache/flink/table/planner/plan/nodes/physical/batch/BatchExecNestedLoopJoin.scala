@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJ
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -161,10 +160,9 @@ class BatchExecNestedLoopJoin(
       parallelism)
 
     if (!singleRowJoin) {
-      val mem = planner.getTableConfig.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-      val resourceSpec = NodeResourceUtil.fromManagedMem(MemorySize.parse(mem).getMebiBytes)
-      ret.setResources(resourceSpec, resourceSpec)
+      val mem = MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
+      setManagedMemoryWeight(ret, mem)
     }
     ret
   }
