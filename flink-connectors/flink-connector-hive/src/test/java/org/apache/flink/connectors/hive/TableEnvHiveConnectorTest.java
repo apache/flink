@@ -22,6 +22,7 @@ import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -321,6 +322,38 @@ public class TableEnvHiveConnectorTest {
 					tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
 			assertTrue("NOT NULL NORELY columns should be considered nullable",
 					tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testPKConstraint() throws Exception {
+		// While PK constraints are supported since Hive 2.1.0, the constraints cannot be RELY in 2.x versions.
+		// So let's only test for 3.x.
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		hiveShell.execute("create database db1");
+		try {
+			// test rely PK constraints
+			hiveShell.execute("create table db1.tbl1 (x tinyint,y smallint,z int, primary key (x,z) disable novalidate rely)");
+			CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl1"));
+			TableSchema tableSchema = catalogTable.getSchema();
+			assertTrue(tableSchema.getPrimaryKey().isPresent());
+			UniqueConstraint pk = tableSchema.getPrimaryKey().get();
+			assertEquals(2, pk.getColumns().size());
+			assertTrue(pk.getColumns().containsAll(Arrays.asList("x", "z")));
+
+			// test norely PK constraints
+			hiveShell.execute("create table db1.tbl2 (x tinyint,y smallint, primary key (x) disable norely)");
+			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl2"));
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
+
+			// test table w/o PK
+			hiveShell.execute("create table db1.tbl3 (x tinyint)");
+			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl3"));
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

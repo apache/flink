@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.commons.lang3.StringUtils;
@@ -43,6 +44,10 @@ import static org.apache.flink.table.catalog.hive.HiveCatalogConfig.DEFAULT_LIST
  */
 public class HiveTableUtil {
 
+	private static final byte HIVE_CONSTRAINT_ENABLE = 1 << 2;
+	private static final byte HIVE_CONSTRAINT_VALIDATE = 1 << 1;
+	private static final byte HIVE_CONSTRAINT_RELY = 1;
+
 	private HiveTableUtil() {
 	}
 
@@ -50,7 +55,7 @@ public class HiveTableUtil {
 	 * Create a Flink's TableSchema from Hive table's columns and partition keys.
 	 */
 	public static TableSchema createTableSchema(List<FieldSchema> cols, List<FieldSchema> partitionKeys,
-			Set<String> notNullColumns) {
+			Set<String> notNullColumns, UniqueConstraint primaryKey) {
 		List<FieldSchema> allCols = new ArrayList<>(cols);
 		allCols.addAll(partitionKeys);
 
@@ -67,9 +72,11 @@ public class HiveTableUtil {
 			}
 		}
 
-		return TableSchema.builder()
-				.fields(colNames, colTypes)
-				.build();
+		TableSchema.Builder builder = TableSchema.builder().fields(colNames, colTypes);
+		if (primaryKey != null) {
+			builder.primaryKey(primaryKey.getName(), primaryKey.getColumns().toArray(new String[0]));
+		}
+		return builder.build();
 	}
 
 	/**
@@ -136,6 +143,36 @@ public class HiveTableUtil {
 		partition.setCreateTime(currentTime);
 		partition.setLastAccessTime(currentTime);
 		return partition;
+	}
+
+	// returns a constraint trait that requires ENABLE
+	public static byte enableConstraint(byte trait) {
+		return (byte) (trait | HIVE_CONSTRAINT_ENABLE);
+	}
+
+	// returns a constraint trait that requires VALIDATE
+	public static byte validateConstraint(byte trait) {
+		return (byte) (trait | HIVE_CONSTRAINT_VALIDATE);
+	}
+
+	// returns a constraint trait that requires RELY
+	public static byte relyConstraint(byte trait) {
+		return (byte) (trait | HIVE_CONSTRAINT_RELY);
+	}
+
+	// returns whether a trait requires ENABLE constraint
+	public static boolean requireEnableConstraint(byte trait) {
+		return (trait & HIVE_CONSTRAINT_ENABLE) != 0;
+	}
+
+	// returns whether a trait requires VALIDATE constraint
+	public static boolean requireValidateConstraint(byte trait) {
+		return (trait & HIVE_CONSTRAINT_VALIDATE) != 0;
+	}
+
+	// returns whether a trait requires RELY constraint
+	public static boolean requireRelyConstraint(byte trait) {
+		return (trait & HIVE_CONSTRAINT_RELY) != 0;
 	}
 
 }
