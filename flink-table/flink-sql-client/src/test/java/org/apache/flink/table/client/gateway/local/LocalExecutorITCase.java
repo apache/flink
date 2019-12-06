@@ -269,6 +269,26 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testAlterTable() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final LocalExecutor localExecutor = (LocalExecutor) executor;
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+		executor.useCatalog(sessionId, "simple-catalog");
+		executor.useDatabase(sessionId, "default_database");
+		List<String> actualTables = executor.listTables(sessionId);
+		List<String> expectedTables = Arrays.asList("test-table");
+		assertEquals(expectedTables, actualTables);
+		executor.executeUpdate(sessionId, "alter table `test-table` rename to t1");
+		actualTables = executor.listTables(sessionId);
+		expectedTables = Arrays.asList("t1");
+		assertEquals(expectedTables, actualTables);
+		//todo: we should add alter table set test when we support create table in executor.
+		executor.closeSession(sessionId);
+	}
+
+	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());

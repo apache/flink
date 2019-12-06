@@ -83,6 +83,11 @@ public class SqlCommandParserTest {
 				new SqlCommandCall(SqlCommand.DROP_DATABASE, new String[] {"drop database db1"}));
 		testValidSqlCommand("alter database db1 set ('k1' = 'a')",
 				new SqlCommandCall(SqlCommand.ALTER_DATABASE, new String[] {"alter database db1 set ('k1' = 'a')"}));
+		testValidSqlCommand("alter table cat1.db1.tb1 rename to tb2",
+				new SqlCommandCall(SqlCommand.ALTER_TABLE, new String[]{"alter table cat1.db1.tb1 rename to tb2"}));
+		testValidSqlCommand("alter table cat1.db1.tb1 set ('k1'='v1', 'k2'='v2')",
+				new SqlCommandCall(SqlCommand.ALTER_TABLE,
+						new String[]{"alter table cat1.db1.tb1 set ('k1'='v1', 'k2'='v2')"}));
 	}
 
 	private void testInvalidSqlCommand(String stmt) {

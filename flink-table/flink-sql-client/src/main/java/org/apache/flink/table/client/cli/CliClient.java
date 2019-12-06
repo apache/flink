@@ -314,6 +314,9 @@ public class CliClient {
 			case ALTER_DATABASE:
 				callAlterDatabase(cmdCall);
 				break;
+			case ALTER_TABLE:
+				callAlterTable(cmdCall);
+				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
 		}
@@ -616,6 +619,17 @@ public class CliClient {
 	private void callAlterDatabase(SqlCommandCall cmdCall) {
 		final String alterDatabaseStmt = cmdCall.operands[0];
 		executor.executeUpdate(sessionId, alterDatabaseStmt);
+	}
+
+	private void callAlterTable(SqlCommandCall cmdCall) {
+		final String alterDatabaseStmt = cmdCall.operands[0];
+		try {
+			// perform and validate change
+			executor.executeUpdate(sessionId, alterDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
