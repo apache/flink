@@ -134,7 +134,7 @@ public class DecimalSerializer extends TypeSerializer<Decimal> {
 	 */
 	public static final class DecimalSerializerSnapshot implements TypeSerializerSnapshot<Decimal> {
 
-		private static final int CURRENT_VERSION = 3;
+		private static final int CURRENT_VERSION = 1;
 
 		private int previousPrecision;
 		private int previousScale;
