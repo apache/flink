@@ -102,6 +102,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -429,6 +430,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	@Override
 	public boolean isArchived() {
 		return false;
+	}
+
+	@Override
+	public Optional<String> getStateBackendName() {
+		return Optional.ofNullable(checkpointCoordinator).map(CheckpointCoordinator::getStateBackendName);
 	}
 
 	public void enableCheckpointing(

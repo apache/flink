@@ -31,6 +31,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Common interface for the runtime {@link ExecutionGraph} and {@link ArchivedExecutionGraph}.
@@ -164,4 +165,11 @@ public interface AccessExecutionGraph {
 	 * @return true, if the execution graph was archived, false otherwise
 	 */
 	boolean isArchived();
+
+	/**
+	 * Returns the state backend name for this ExecutionGraph.
+	 *
+	 * @return The state backend name, or an empty Optional in the case of batch jobs
+	 */
+	Optional<String> getStateBackendName();
 }
