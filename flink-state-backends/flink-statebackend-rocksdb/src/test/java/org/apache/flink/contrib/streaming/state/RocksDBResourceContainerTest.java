@@ -44,16 +44,6 @@ public class RocksDBResourceContainerTest {
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	@Test
-	public void testCloseOptionsFactory() throws Exception {
-		RocksDBResourceContainer container = new RocksDBResourceContainer();
-		DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
-		container.setOptionsFactory(optionsFactory);
-		assertThat(optionsFactory.isClosed(), is(false));
-		container.close();
-		assertThat(optionsFactory.isClosed(), is(true));
-	}
-
-	@Test
 	public void testFreeDBOptionsAfterClose() throws Exception {
 		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		DBOptions dbOptions = container.getDbOptions();

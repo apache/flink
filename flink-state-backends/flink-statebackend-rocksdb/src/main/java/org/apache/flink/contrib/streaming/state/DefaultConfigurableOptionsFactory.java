@@ -18,7 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -32,6 +31,7 @@ import org.rocksdb.PlainTableConfig;
 import org.rocksdb.TableFormatConfig;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,10 +59,8 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 
 	private final Map<String, String> configuredOptions = new HashMap<>();
 
-	private boolean closed;
-
 	@Override
-	public DBOptions createDBOptions(DBOptions currentOptions) {
+	public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		if (isOptionConfigured(MAX_BACKGROUND_THREADS)) {
 			currentOptions.setIncreaseParallelism(getMaxBackgroundThreads());
 		}
@@ -75,7 +73,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 	}
 
 	@Override
-	public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+	public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 		if (isOptionConfigured(COMPACTION_STYLE)) {
 			currentOptions.setCompactionStyle(getCompactionStyle());
 		}
@@ -422,15 +420,5 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFac
 			"The configuration " + key + " has not been configured.");
 
 		return configuredOptions.get(key);
-	}
-
-	@Override
-	public void close() {
-		this.closed = true;
-	}
-
-	@VisibleForTesting
-	boolean isClosed() {
-		return this.closed;
 	}
 }

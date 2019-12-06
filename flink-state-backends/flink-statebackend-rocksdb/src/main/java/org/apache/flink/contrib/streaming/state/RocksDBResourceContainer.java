@@ -45,12 +45,10 @@ public class RocksDBResourceContainer implements AutoCloseable, Serializable {
 	/** The shared resource among RocksDB instances. */
 	private OpaqueMemoryResource<RocksDBSharedResources> sharedResources;
 
-	private final ArrayList<DBOptions> dbOptions;
-	private final ArrayList<ColumnFamilyOptions> columnFamilyOptions;
+	private final ArrayList<AutoCloseable> handlesToClose;
 
 	public RocksDBResourceContainer() {
-		dbOptions = new ArrayList<>();
-		columnFamilyOptions = new ArrayList<>();
+		handlesToClose = new ArrayList<>();
 	}
 
 	/**
@@ -58,18 +56,15 @@ public class RocksDBResourceContainer implements AutoCloseable, Serializable {
 	 */
 	DBOptions getDbOptions() {
 		// initial options from pre-defined profile
-		DBOptions opt = checkAndGetPredefinedOptions().createDBOptions();
+		DBOptions opt = checkAndGetPredefinedOptions().createDBOptions(handlesToClose);
 
 		// add user-defined options factory, if specified
 		if (optionsFactory != null) {
-			opt = optionsFactory.createDBOptions(opt);
+			opt = optionsFactory.createDBOptions(opt, handlesToClose);
 		}
 
 		// add necessary default options
 		opt = opt.setCreateIfMissing(true);
-
-		// record the initiated options for resource guard
-		dbOptions.add(opt);
 
 		return opt;
 	}
@@ -79,15 +74,12 @@ public class RocksDBResourceContainer implements AutoCloseable, Serializable {
 	 */
 	public ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
-		ColumnFamilyOptions opt = checkAndGetPredefinedOptions().createColumnOptions();
+		ColumnFamilyOptions opt = checkAndGetPredefinedOptions().createColumnOptions(handlesToClose);
 
 		// add user-defined options, if specified
 		if (optionsFactory != null) {
-			opt = optionsFactory.createColumnOptions(opt);
+			opt = optionsFactory.createColumnOptions(opt, handlesToClose);
 		}
-
-		// record the initiated options for resource guard
-		columnFamilyOptions.add(opt);
 
 		return opt;
 	}
@@ -121,17 +113,8 @@ public class RocksDBResourceContainer implements AutoCloseable, Serializable {
 
 	@Override
 	public void close() throws Exception {
-		if (optionsFactory != null) {
-			optionsFactory.close();
-		}
-		if (predefinedOptions != null) {
-			predefinedOptions.close();
-		}
-		dbOptions.forEach(IOUtils::closeQuietly);
-		columnFamilyOptions.forEach(IOUtils::closeQuietly);
-		// we need to consider for the container reuse after restore processing
-		dbOptions.clear();
-		columnFamilyOptions.clear();
+		handlesToClose.forEach(IOUtils::closeQuietly);
+		handlesToClose.clear();
 
 		if (sharedResources != null) {
 			sharedResources.close();

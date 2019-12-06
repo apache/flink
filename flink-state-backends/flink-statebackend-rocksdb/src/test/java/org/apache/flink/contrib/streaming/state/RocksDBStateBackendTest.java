@@ -118,12 +118,13 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ColumnFamilyHandle defaultCFHandle = null;
 	private ColumnFamilyOptions columnOptions = null;
 	private RocksDBResourceContainer optionsContainer = null;
+	private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
 	public void prepareRocksDB() throws Exception {
 		instanceBasePath = tempFolder.newFolder();
 		instanceBasePath.mkdirs();
 		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
-		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions();
+		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose);
 		optionsContainer = new RocksDBResourceContainer();
 		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		db = RocksDBOperationUtils.openDB(dbPath, Collections.emptyList(),
@@ -161,6 +162,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		IOUtils.closeQuietly(db);
 		IOUtils.closeQuietly(columnOptions);
 		IOUtils.closeQuietly(optionsContainer);
+		handlesToClose.forEach(IOUtils::closeQuietly);
 
 		if (allCreatedCloseables != null) {
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
@@ -191,7 +193,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				IntSerializer.INSTANCE,
 				spy(db),
 				defaultCFHandle,
-				PredefinedOptions.DEFAULT.createColumnOptions())
+				PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose))
 			.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
 			.build();
 

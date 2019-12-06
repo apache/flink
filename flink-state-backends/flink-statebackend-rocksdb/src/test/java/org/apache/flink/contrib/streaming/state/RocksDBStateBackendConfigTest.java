@@ -57,6 +57,8 @@ import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.anyOf;
@@ -545,12 +547,12 @@ public class RocksDBStateBackendConfigTest {
 		// verify that user-defined options factory could be set programmatically and override pre-configured one.
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
-			public DBOptions createDBOptions(DBOptions currentOptions) {
+			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions;
 			}
 
 			@Override
-			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions.setCompactionStyle(CompactionStyle.FIFO);
 			}
 		});
@@ -571,12 +573,12 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
-			public DBOptions createDBOptions(DBOptions currentOptions) {
+			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions;
 			}
 
 			@Override
-			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
 			}
 		});
@@ -590,11 +592,14 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testPredefinedOptionsEnum() {
+		ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 		for (PredefinedOptions o : PredefinedOptions.values()) {
-			try (DBOptions opt = o.createDBOptions()) {
+			try (DBOptions opt = o.createDBOptions(handlesToClose)) {
 				assertNotNull(opt);
 			}
 		}
+		handlesToClose.forEach(IOUtils::closeQuietly);
+		handlesToClose.clear();
 	}
 
 	// ------------------------------------------------------------------------
@@ -766,12 +771,12 @@ public class RocksDBStateBackendConfigTest {
 		private int backgroundJobs = DEFAULT_BACKGROUND_JOBS;
 
 		@Override
-		public DBOptions createDBOptions(DBOptions currentOptions) {
+		public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 			return currentOptions.setMaxBackgroundJobs(backgroundJobs);
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+		public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 			return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
 		}
 

@@ -18,8 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.util.IOUtils;
-
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
@@ -27,7 +25,7 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 
-import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
@@ -40,7 +38,7 @@ import java.util.ArrayList;
  * <p>All of them effectively disable the RocksDB log by default because this file would grow
  * indefinitely and will be deleted with the TM anyway.
  */
-public enum PredefinedOptions implements AutoCloseable {
+public enum PredefinedOptions {
 
 	/**
 	 * Default options for all settings, except that writes are not forced to the
@@ -59,16 +57,21 @@ public enum PredefinedOptions implements AutoCloseable {
 	DEFAULT {
 
 		@Override
-		public DBOptions createDBOptions() {
-			return new DBOptions()
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
+			DBOptions dbOptions =
+				new DBOptions()
 					.setUseFsync(false)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			handlesToClose.add(dbOptions);
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions();
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
+			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
+			handlesToClose.add(columnFamilyOptions);
+			return columnFamilyOptions;
 		}
 
 	},
@@ -98,21 +101,26 @@ public enum PredefinedOptions implements AutoCloseable {
 	SPINNING_DISK_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
-
-			return new DBOptions()
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
+			DBOptions dbOptions =
+				new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			handlesToClose.add(dbOptions);
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions()
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
+			ColumnFamilyOptions columnFamilyOptions =
+				new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
+			handlesToClose.add(columnFamilyOptions);
+			return columnFamilyOptions;
 		}
 	},
 
@@ -145,21 +153,23 @@ public enum PredefinedOptions implements AutoCloseable {
 	 * there is no need to sync data to stable storage.
 	 */
 	SPINNING_DISK_OPTIMIZED_HIGH_MEM {
-		private ArrayList<BloomFilter> bloomFilters = new ArrayList<>();
 
 		@Override
-		public DBOptions createDBOptions() {
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 
-			return new DBOptions()
+			DBOptions dbOptions =
+				new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			handlesToClose.add(dbOptions);
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 
 			final long blockCacheSize = 256 * 1024 * 1024;
 			final long blockSize = 128 * 1024;
@@ -167,8 +177,8 @@ public enum PredefinedOptions implements AutoCloseable {
 			final long writeBufferSize = 64 * 1024 * 1024;
 
 			BloomFilter bloomFilter = new BloomFilter();
-			bloomFilters.add(bloomFilter);
-			return new ColumnFamilyOptions()
+			ColumnFamilyOptions columnFamilyOptions =
+				new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true)
 					.setTargetFileSizeBase(targetFileSize)
@@ -182,13 +192,9 @@ public enum PredefinedOptions implements AutoCloseable {
 									.setBlockSize(blockSize)
 									.setFilter(bloomFilter)
 					);
-		}
-
-		@Override
-		public void close() {
-			bloomFilters.forEach(IOUtils::closeQuietly);
-			bloomFilters.clear();
-			bloomFilters = new ArrayList<>();
+			handlesToClose.add(bloomFilter);
+			handlesToClose.add(columnFamilyOptions);
+			return columnFamilyOptions;
 		}
 	},
 
@@ -214,18 +220,23 @@ public enum PredefinedOptions implements AutoCloseable {
 	FLASH_SSD_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
-			return new DBOptions()
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
+			DBOptions dbOptions =
+				new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
+			handlesToClose.add(dbOptions);
+			return dbOptions;
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
-			return new ColumnFamilyOptions();
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
+			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
+			handlesToClose.add(columnFamilyOptions);
+			return columnFamilyOptions;
 		}
 	};
 
@@ -234,20 +245,17 @@ public enum PredefinedOptions implements AutoCloseable {
 	/**
 	 * Creates the {@link DBOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract DBOptions createDBOptions();
+	public abstract DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose);
 
 	/**
 	 * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract ColumnFamilyOptions createColumnOptions();
-
-	@Override
-	public void close() {
-		// do nothing by default
-	}
+	public abstract ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose);
 
 }
