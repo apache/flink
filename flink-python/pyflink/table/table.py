@@ -553,7 +553,7 @@ class Table(object):
                        or :class:`~pyflink.table.window.Slide`.
         :type window: pyflink.table.window.GroupWindow
         :return: A group windowed table.
-        :rtype: GroupWindowedTable
+        :rtype: pyflink.table.GroupWindowedTable
         """
         return GroupWindowedTable(self._j_table.window(window._java_window))
 
