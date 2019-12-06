@@ -78,6 +78,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -107,6 +108,10 @@ public class LocalExecutor implements Executor {
 	// result maintenance
 
 	private final ResultStore resultStore;
+
+	// insert into sql match pattern
+	public static final Pattern INSERT_INTO_SQL_PATTERN = Pattern.compile("(INSERT\\s+INTO.*)",
+			Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
 	/**
 	 * Creates a local executor for submitting table programs and retrieving results.
@@ -571,7 +576,7 @@ public class LocalExecutor implements Executor {
 		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
 		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-		if (!statement.trim().matches("(INSERT\\s+INTO.*)")) {
+		if (!INSERT_INTO_SQL_PATTERN.matcher(statement.trim()).matches()) {
 			return null;
 		}
 
