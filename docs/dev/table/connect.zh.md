@@ -44,7 +44,6 @@ The following tables list all available connectors and formats. Their mutual com
 | :---------------- | :------------------ | :--------------------------- | :----------------------|
 | Filesystem        |                     | Built-in                     | Built-in               |
 | Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.8                 | `flink-connector-kafka-0.8`  | Not available          |
 | Apache Kafka      | 0.9                 | `flink-connector-kafka-0.9`  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |

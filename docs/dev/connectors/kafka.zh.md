@@ -30,7 +30,7 @@ under the License.
 
 Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入数据。Flink Kafka Consumer 集成了 Flink 的 Checkpoint 机制，可提供 exactly-once 的处理语义。为此，Flink 并不完全依赖于跟踪 Kafka 消费组的偏移量，而是在内部跟踪和检查偏移量。
 
-根据你的用例和环境选择相应的包（maven artifact id）和类名。对于大多数用户来说，使用 `FlinkKafkaConsumer08`（ `flink-connector-kafka` 的一部分）是比较合适的。
+根据你的用例和环境选择相应的包（maven artifact id）和类名。对于大多数用户来说，使用 `FlinkKafkaConsumer09`（ `flink-connector-kafka` 的一部分）是比较合适的。
 
 <table class="table table-bordered">
   <thead>
@@ -43,15 +43,6 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
     </tr>
   </thead>
   <tbody>
-    <tr>
-        <td>flink-connector-kafka-0.8{{ site.scala_version_suffix }}</td>
-        <td>1.0.0</td>
-        <td>FlinkKafkaConsumer08<br>
-        FlinkKafkaProducer08</td>
-        <td>0.8.x</td>
-        <td>这个连接器在内部使用 Kafka 的 <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API。偏移量由 Flink 提交给 ZK。
-  </td>
-    </tr>
     <tr>
         <td>flink-connector-kafka-0.9{{ site.scala_version_suffix }}</td>
         <td>1.0.0</td>
@@ -112,7 +103,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 
 从 Flink 1.7 开始，有一个新的通用 Kafka 连接器，它不跟踪特定的 Kafka 主版本。相反，它是在 Flink 发布时跟踪最新版本的 Kafka。
 如果你的 Kafka broker 版本是 1.0.0 或 更新的版本，你应该使用这个 Kafka 连接器。
-如果你使用的是 Kafka 的旧版本( 0.11、0.10、0.9 或 0.8 )，那么你应该使用与 Kafka broker 版本相对应的连接器。
+如果你使用的是 Kafka 的旧版本( 0.11、0.10 或 0.9 )，那么你应该使用与 Kafka broker 版本相对应的连接器。
 
 ### 兼容性
 
@@ -143,7 +134,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 
 ## Kafka Consumer
 
-Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或适用于 Kafka 0.9.0.x 版本的 `FlinkKafkaConsumer09`，或适用于 Kafka >= 1.0.0 的版本的 `FlinkKafkaConsumer`）。它提供对一个或多个 Kafka topics 的访问。
+Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer09`（或适用于 Kafka 0.10.0.x 版本的 `FlinkKafkaConsumer010`，或适用于 Kafka >= 1.0.0 的版本的 `FlinkKafkaConsumer`）。它提供对一个或多个 Kafka topics 的访问。
 
 构造函数接受以下参数：
 
@@ -151,7 +142,6 @@ Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或适用于 Kafka 0.9.
 2. 用于反序列化 Kafka 数据的 DeserializationSchema 或者 KafkaDeserializationSchema
 3. Kafka 消费者的属性。需要以下属性：
   - "bootstrap.servers"（以逗号分隔的 Kafka broker 列表）
-  - "zookeeper.connect"（以逗号分割的 Zookeeper servers 列表) (**仅 Kafka 0.8 需要**)
   - "group.id" 消费组 ID
 
 示例：
@@ -161,22 +151,18 @@ Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或适用于 Kafka 0.9.
 {% highlight java %}
 Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
-// 仅 Kafka 0.8 需要
-properties.setProperty("zookeeper.connect", "localhost:2181");
 properties.setProperty("group.id", "test");
 DataStream<String> stream = env
-  .addSource(new FlinkKafkaConsumer08<>("topic", new SimpleStringSchema(), properties));
+  .addSource(new FlinkKafkaConsumer09<>("topic", new SimpleStringSchema(), properties));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
-// 仅 Kafka 0.8 需要
-properties.setProperty("zookeeper.connect", "localhost:2181")
 properties.setProperty("group.id", "test")
 stream = env
-    .addSource(new FlinkKafkaConsumer08[String]("topic", new SimpleStringSchema(), properties))
+    .addSource(new FlinkKafkaConsumer09[String]("topic", new SimpleStringSchema(), properties))
     .print()
 {% endhighlight %}
 </div>
@@ -242,7 +228,7 @@ Flink Kafka Consumer 允许通过配置来确定 Kafka 分区的起始位置。
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-FlinkKafkaConsumer08<String> myConsumer = new FlinkKafkaConsumer08<>(...);
+FlinkKafkaConsumer09<String> myConsumer = new FlinkKafkaConsumer09<>(...);
 myConsumer.setStartFromEarliest();     // 尽可能从最早的记录开始
 myConsumer.setStartFromLatest();       // 从最新的记录开始
 myConsumer.setStartFromTimestamp(...); // 从指定的时间开始（毫秒）
@@ -256,7 +242,7 @@ DataStream<String> stream = env.addSource(myConsumer);
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val myConsumer = new FlinkKafkaConsumer08[String](...)
+val myConsumer = new FlinkKafkaConsumer09[String](...)
 myConsumer.setStartFromEarliest()      // 尽可能从最早的记录开始
 myConsumer.setStartFromLatest()        // 从最新的记录开始
 myConsumer.setStartFromTimestamp(...)  // 从指定的时间开始（毫秒）
@@ -270,7 +256,7 @@ val stream = env.addSource(myConsumer)
 
 Flink Kafka Consumer 的所有版本都具有上述明确的起始位置配置方法。
 
- * `setStartFromGroupOffsets`（默认方法）：从 Kafka brokers（或者从 Kafka 0.8 版本的 Zookeeper 中）中的 consumer 组（consumer 属性中的 `group.id` 设置）提交的偏移量中开始读取分区。
+ * `setStartFromGroupOffsets`（默认方法）：从 Kafka brokers 中的 consumer 组（consumer 属性中的 `group.id` 设置）提交的偏移量中开始读取分区。
   如果找不到分区的偏移量，那么将会使用配置中的 `auto.offset.reset` 设置。
  * `setStartFromEarliest()` 或者 `setStartFromLatest()`：从最早或者最新的记录开始消费，在这些模式下，Kafka 中的 committed offset 将被忽略，不会用作起始位置。
  * `setStartFromTimestamp(long)`：从指定的时间戳开始。对于每个分区，其时间戳大于或等于指定时间戳的记录将用作起始位置。如果一个分区的最新记录早于指定的时间戳，则只从最新记录读取该分区数据。在这种模式下，Kafka 中的已提交 offset 将被忽略，不会用作起始位置。
@@ -372,7 +358,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer08[String](
+val myConsumer = new FlinkKafkaConsumer09[String](
   java.util.regex.Pattern.compile("test-topic-[0-9]"),
   new SimpleStringSchema,
   properties)
@@ -389,12 +375,12 @@ val stream = env.addSource(myConsumer)
 
 ### Kafka Consumer 提交 Offset 的行为配置
 
-Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker（或 0.8 版本的 Zookeeper）的行为。请注意：Flink Kafka Consumer 不依赖于提交的 offset 来实现容错保证。提交的 offset 只是一种方法，用于公开 consumer 的进度以便进行监控。
+Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker 的行为。请注意：Flink Kafka Consumer 不依赖于提交的 offset 来实现容错保证。提交的 offset 只是一种方法，用于公开 consumer 的进度以便进行监控。
 
 配置 offset 提交行为的方法是否相同，取决于是否为 job 启用了 checkpointing。
 
  - *禁用 Checkpointing：* 如果禁用了 checkpointing，则 Flink Kafka Consumer 依赖于内部使用的 Kafka client 自动定期 offset 提交功能。
- 因此，要禁用或启用 offset 的提交，只需将 `enable.auto.commit`（或 Kafka 0.8 的 `auto.commit.enable`）或者 `auto.commit.interval.ms` 的Key 值设置为提供的 `Properties` 配置中的适当值。
+ 因此，要禁用或启用 offset 的提交，只需将 `enable.auto.commit` 或者 `auto.commit.interval.ms` 的Key 值设置为提供的 `Properties` 配置中的适当值。
 
  - *启用 Checkpointing：* 如果启用了 checkpointing，那么当 checkpointing 完成时，Flink Kafka Consumer 将提交的 offset 存储在 checkpoint 状态中。
  这确保 Kafka broker 中提交的 offset 与 checkpoint 状态中的 offset 一致。
@@ -412,12 +398,10 @@ Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker（�
 {% highlight java %}
 Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
-// 仅 Kafka 0.8 需要
-properties.setProperty("zookeeper.connect", "localhost:2181");
 properties.setProperty("group.id", "test");
 
-FlinkKafkaConsumer08<String> myConsumer =
-    new FlinkKafkaConsumer08<>("topic", new SimpleStringSchema(), properties);
+FlinkKafkaConsumer09<String> myConsumer =
+    new FlinkKafkaConsumer09<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
 
 DataStream<String> stream = env
@@ -429,11 +413,9 @@ DataStream<String> stream = env
 {% highlight scala %}
 val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
-// 仅 Kafka 0.8 需要
-properties.setProperty("zookeeper.connect", "localhost:2181")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer08[String]("topic", new SimpleStringSchema(), properties)
+val myConsumer = new FlinkKafkaConsumer09[String]("topic", new SimpleStringSchema(), properties)
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter())
 stream = env
     .addSource(myConsumer)
@@ -505,10 +487,6 @@ stream.addSink(myProducer)
 为此，在实例化 producer 时提供 `null` 自定义分区程序，提供 `null` 作为自定义分区器是很重要的; 如上所述，如果未指定自定义分区程序，则默认使用 `FlinkFixedPartitioner`。
 
 ### Kafka Producer 和容错
-
-#### Kafka 0.8
-
-在 0.9 版本之前，Kafka 没有提供任何机制来保证至少一次或精准一次的语义。
 
 #### Kafka 0.9 and 0.10
 
@@ -594,7 +572,7 @@ Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({{ site.baseurl }}/zh/
 
 提交给 ZK 或 broker 的偏移量也可以用来跟踪 Kafka consumer 的读取进度。每个分区中提交的偏移量和最近偏移量之间的差异称为 *consumer lag*。如果 Flink 拓扑消耗来自 topic 的数据的速度比添加新数据的速度慢，那么延迟将会增加，consumer 将会滞后。对于大型生产部署，我们建议监视该指标，以避免增加延迟。
 
-## 启用 Kerberos 身份验证(仅适用于 0.9 以上版本)
+## 启用 Kerberos 身份验证
 
 Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置的 Kafka 安装进行身份验证。只需在 `flink-conf.yaml` 中配置 Flink。像这样为 Kafka 启用 Kerberos 身份验证：
 

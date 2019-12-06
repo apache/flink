@@ -250,9 +250,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 			env.execute("Test auto offset reset none");
 		} catch (Throwable e) {
 			// check if correct exception has been thrown
-			if (!e.getCause().getCause().getMessage().contains("Unable to find previous offset")  // kafka 0.8
-				&& !e.getCause().getCause().getMessage().contains("Undefined offset with no reset policy for partition") // kafka 0.9
-					) {
+			if (!e.getCause().getCause().getMessage().contains("Undefined offset with no reset policy for partition")) {
 				throw e;
 			}
 		}

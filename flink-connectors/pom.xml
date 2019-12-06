@@ -102,20 +102,6 @@ under the License.
 				<module>flink-sql-connector-kafka</module>
 			</modules>
 		</profile>
-
-		<!-- there's no Kafka 0.8 dependency for Scala 2.12, we only include when building
-		for Scala 2.11 -->
-		<profile>
-			<id>scala-2.11</id>
-			<activation>
-				<property>
-					<name>!scala-2.12</name>
-				</property>
-			</activation>
-			<modules>
-				<module>flink-connector-kafka-0.8</module>
-			</modules>
-		</profile>
 	</profiles>
 
 	<build>
