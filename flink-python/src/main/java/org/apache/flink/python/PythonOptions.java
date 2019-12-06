@@ -55,17 +55,20 @@ public class PythonOptions {
 	public static final ConfigOption<String> PYTHON_FRAMEWORK_MEMORY_SIZE = ConfigOptions
 		.key("python.fn-execution.framework.memory.size")
 		.defaultValue("64mb")
-		.withDescription("The amount of memory to be allocated by the Python framework. The" +
-			" memory will be accounted as managed memory. The sum of the value of this" +
-			" configuration and \"python.fn-execution.buffer.memory.size\" represents the total" +
-			" memory of the Python worker.");
+		.withDescription("The amount of memory to be allocated by the Python framework. The sum " +
+			"of the value of this configuration and \"python.fn-execution.buffer.memory.size\" " +
+			"represents the total memory of a Python worker. The memory will be accounted as " +
+			"managed memory if the actual memory allocated to an operator is no less than the " +
+			"total memory of a Python worker. Otherwise, this configuration takes no effect.");
 
 	/**
-	 * The amount of memory to be allocated by the input/output buffer of the Python worker.
+	 * The amount of memory to be allocated by the input/output buffer of a Python worker.
 	 */
 	public static final ConfigOption<String> PYTHON_DATA_BUFFER_MEMORY_SIZE = ConfigOptions
 		.key("python.fn-execution.buffer.memory.size")
 		.defaultValue("15mb")
-		.withDescription("The amount of memory to be allocated by the input buffer and output" +
-			" buffer of the Python worker. The memory will be accounted as managed memory.");
+		.withDescription("The amount of memory to be allocated by the input buffer and output " +
+			"buffer of a Python worker. The memory will be accounted as managed memory if the " +
+			"actual memory allocated to an operator is no less than the total memory of a Python " +
+			"worker. Otherwise, this configuration takes no effect.");
 }

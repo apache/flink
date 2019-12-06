@@ -28,6 +28,7 @@ import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryReservationException;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -108,29 +109,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 
 			Map<String, String> jobParams = getExecutionConfig().getGlobalJobParameters().toMap();
 
-			long requiredPythonWorkerMemory =
-				MemorySize.parse(
-					jobParams.getOrDefault(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.key(),
-						String.valueOf(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())))
-					.add(MemorySize.parse(jobParams.getOrDefault(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.key(),
-						String.valueOf(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue()))))
-					.getBytes();
-			MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
-			long availableManagedMemory = memoryManager.computeMemorySize(
-				getOperatorConfig().getManagedMemoryFraction());
-			if (requiredPythonWorkerMemory <= availableManagedMemory) {
-				memoryManager.reserveMemory(this, MemoryType.OFF_HEAP, requiredPythonWorkerMemory);
-				LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);
-				this.reservedMemory = requiredPythonWorkerMemory;
-				// TODO enforce the memory limit of Python worker
-			} else {
-				LOG.warn("Required Python worker memory {} exceeds the available managed off-heap " +
-					"memory {}. Skipping reserving off-heap memory from the MemoryManager. This does " +
-					"not affect the functionality. However, it may affect the stability of a job as " +
-					"the memory used by the Python worker is not managed by Flink.",
-					requiredPythonWorkerMemory, availableManagedMemory);
-				this.reservedMemory = -1;
-			}
+			reserveMemoryForPythonWorker(jobParams);
 
 			this.maxBundleSize = Integer.valueOf(jobParams.getOrDefault(
 				PythonOptions.MAX_BUNDLE_SIZE.key(),
@@ -285,6 +264,36 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 * Sends the execution results to the downstream operator.
 	 */
 	public abstract void emitResults();
+
+	/**
+	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
+	 * the memory used by the Python worker is managed by Flink.
+	 */
+	private void reserveMemoryForPythonWorker(Map<String, String> jobParams) throws MemoryReservationException {
+		long requiredPythonWorkerMemory =
+			MemorySize.parse(
+				jobParams.getOrDefault(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.key(),
+					String.valueOf(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())))
+				.add(MemorySize.parse(jobParams.getOrDefault(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.key(),
+					String.valueOf(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue()))))
+				.getBytes();
+		MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
+		long availableManagedMemory = memoryManager.computeMemorySize(
+			getOperatorConfig().getManagedMemoryFraction());
+		if (requiredPythonWorkerMemory <= availableManagedMemory) {
+			memoryManager.reserveMemory(this, MemoryType.OFF_HEAP, requiredPythonWorkerMemory);
+			LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);
+			this.reservedMemory = requiredPythonWorkerMemory;
+			// TODO enforce the memory limit of the Python worker
+		} else {
+			LOG.warn("Required Python worker memory {} exceeds the available managed off-heap " +
+					"memory {}. Skipping reserving off-heap memory from the MemoryManager. This does " +
+					"not affect the functionality. However, it may affect the stability of a job as " +
+					"the memory used by the Python worker is not managed by Flink.",
+				requiredPythonWorkerMemory, availableManagedMemory);
+			this.reservedMemory = -1;
+		}
+	}
 
 	/**
 	 * Checks whether to invoke startBundle.

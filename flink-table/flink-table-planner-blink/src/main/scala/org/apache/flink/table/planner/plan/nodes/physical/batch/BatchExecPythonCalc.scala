@@ -24,7 +24,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.MemorySize
+import org.apache.flink.configuration.{ConfigOption, Configuration, MemorySize}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
@@ -58,18 +58,22 @@ class BatchExecPythonCalc(
       inputTransform,
       calcProgram,
       "BatchExecPythonCalc")
-    val config = planner.getTableConfig
-    // "python.fn-execution.framework.memory.size" should be synced with
-    // PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE
-    val pythonFrameworkMemorySize =  MemorySize.parse(config.getConfiguration.getString(
-      "python.fn-execution.framework.memory.size", "64mb")).getMebiBytes
-    // "python.fn-execution.buffer.memory.size" should be synced with
-    // PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE
-    val pythonBufferMemorySize = MemorySize.parse(config.getConfiguration.getString(
-      "python.fn-execution.buffer.memory.size", "15mb")).getMebiBytes
     val resource = NodeResourceUtil.fromManagedMem(
-      pythonFrameworkMemorySize + pythonBufferMemorySize)
+      getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
     ret.setResources(resource, resource)
     ret
+  }
+
+  private def getPythonWorkerMemory(config: Configuration): Int = {
+    val clazz = loadClass("org.apache.flink.python.PythonOptions")
+    val pythonFrameworkMemorySize = MemorySize.parse(
+      config.getString(
+        clazz.getField("PYTHON_FRAMEWORK_MEMORY_SIZE").get(null)
+          .asInstanceOf[ConfigOption[String]]))
+    val pythonBufferMemorySize = MemorySize.parse(
+      config.getString(
+        clazz.getField("PYTHON_DATA_BUFFER_MEMORY_SIZE").get(null)
+          .asInstanceOf[ConfigOption[String]]))
+    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getMebiBytes
   }
 }
