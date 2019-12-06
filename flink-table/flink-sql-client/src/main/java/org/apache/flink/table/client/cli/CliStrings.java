@@ -141,6 +141,14 @@ public final class CliStrings {
 
 	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
 
+	public static final String MESSAGE_DATABASE_CREATED = "Database has been created.";
+
+	public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
+
+	public static final String MESSAGE_DATABASE_ALTER_SUCCEEDED = "Alter database succeeded!";
+
+	public static final String MESSAGE_DATABASE_ALTER_FAILED = "Alter database failed!";
+
 	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
 
 	public static final String MESSAGE_VIEW_NOT_FOUND = "The given view does not exist in the current CLI session. " +

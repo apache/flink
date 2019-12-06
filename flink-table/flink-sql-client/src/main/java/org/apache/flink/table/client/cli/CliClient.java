@@ -605,17 +605,32 @@ public class CliClient {
 
 	private void callCreateDatabase(SqlCommandCall cmdCall) {
 		final String createDatabaseStmt = cmdCall.operands[0];
-		executor.executeUpdate(sessionId, createDatabaseStmt);
+		try {
+			executor.executeUpdate(sessionId, createDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
 	}
 
 	private void callDropDatabase(SqlCommandCall cmdCall) {
 		final String dropDatabaseStmt = cmdCall.operands[0];
-		executor.executeUpdate(sessionId, dropDatabaseStmt);
+		try {
+			executor.executeUpdate(sessionId, dropDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
 	}
 
 	private void callAlterDatabase(SqlCommandCall cmdCall) {
 		final String alterDatabaseStmt = cmdCall.operands[0];
-		executor.executeUpdate(sessionId, alterDatabaseStmt);
+		try {
+			executor.executeUpdate(sessionId, alterDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_DATABASE_ALTER_FAILED, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
