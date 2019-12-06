@@ -190,6 +190,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<!-- Refer to HADOOP-15775 to fix broken tests under JDK11 -->
+			<groupId>javax.activation</groupId>
+			<artifactId>javax.activation-api</artifactId>
+			<version>1.2.0</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
