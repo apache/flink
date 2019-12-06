@@ -187,6 +187,7 @@ public class CheckpointCoordinator {
 
 	private final Clock clock;
 
+	private final String stateBackName;
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -268,6 +269,7 @@ public class CheckpointCoordinator {
 		this.isPreferCheckpointForRecovery = chkConfig.isPreferCheckpointForRecovery();
 		this.failureManager = checkNotNull(failureManager);
 		this.clock = checkNotNull(clock);
+		this.stateBackName = checkpointStateBackend.getClass().getSimpleName();
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
@@ -1221,6 +1223,10 @@ public class CheckpointCoordinator {
 	 */
 	public boolean isPeriodicCheckpointingConfigured() {
 		return baseInterval != Long.MAX_VALUE;
+	}
+
+	public String getStateBackendName() {
+		return stateBackName;
 	}
 
 	// --------------------------------------------------------------------------------------------
