@@ -25,7 +25,6 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
@@ -35,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,6 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class MiniDispatcher extends Dispatcher {
 	private static final Logger LOG = LoggerFactory.getLogger(MiniDispatcher.class);
 
+	private final AtomicReference<ApplicationStatus> applicationStatus = new AtomicReference<>(ApplicationStatus.UNKNOWN);
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
 
 	public MiniDispatcher(
@@ -85,33 +86,24 @@ public class MiniDispatcher extends Dispatcher {
 	}
 
 	@Override
-	public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
-		final CompletableFuture<JobResult> jobResultFuture = super.requestJobResult(jobId, timeout);
-
-		if (executionMode == ClusterEntrypoint.ExecutionMode.NORMAL) {
-			// terminate the MiniDispatcher once we served the first JobResult successfully
-			jobResultFuture.thenAccept((JobResult result) -> {
-				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
-						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
-
-				LOG.debug("Shutting down cluster because someone retrieved the job result.");
-				shutDownFuture.complete(status);
-			});
-		} else {
-			LOG.debug("Not shutting down cluster after someone retrieved the job result.");
-		}
-
-		return jobResultFuture;
-	}
-
-	@Override
 	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
 		super.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
+		ApplicationStatus applicationStatus = ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState());
+		ApplicationStatus oldApplicationStatus = this.applicationStatus.getAndSet(applicationStatus);
+
+		LOG.debug("ApplicationStatus changed from {} to {}.", oldApplicationStatus, applicationStatus);
+
 		if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
 			// shut down since we don't have to wait for the execution result retrieval
-			shutDownFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
+			shutDownFuture.complete(applicationStatus);
 		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> shutDownCluster() {
+		shutDownFuture.complete(applicationStatus.get());
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override

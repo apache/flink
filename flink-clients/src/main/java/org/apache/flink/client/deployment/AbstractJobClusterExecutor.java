@@ -75,7 +75,16 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
 					@Override
 					protected void doClose() {
+						clusterClient.shutDownCluster();
 						ShutdownHookUtil.removeShutdownHook(shutdownHook, clusterClient.getClass().getSimpleName(), LOG);
+						clusterClient.close();
+					}
+				});
+			} else if (!configAccessor.getDetachedMode()){
+				return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobGraph.getJobID()) {
+					@Override
+					protected void doClose() {
+						clusterClient.shutDownCluster();
 						clusterClient.close();
 					}
 				});
