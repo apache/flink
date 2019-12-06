@@ -80,16 +80,16 @@ class PythonOptionTests(PyFlinkTestCase):
              "python_requirements_cache_7_{uuid}": "b_dir"}, registered_files)
 
     def test_python_options_integrated(self):
-        tmp_dir = tempfile.mkdtemp(dir=self.tempdir)
-        tmp_file1 = create_empty_file(".py", self.tempdir)
-        tmp_file2 = create_empty_file(".zip", self.tempdir)
-        tmp_file3 = create_empty_file(".egg", self.tempdir)
-        py_files = ",".join([tmp_dir, tmp_file1, tmp_file2, tmp_file3])
+        python_module = tempfile.mkdtemp(dir=self.tempdir)
+        python_file1 = create_empty_file(".py", self.tempdir)
+        python_file2 = create_empty_file(".zip", self.tempdir)
+        python_file3 = create_empty_file(".egg", self.tempdir)
+        py_files = ",".join([python_module, python_file1, python_file2, python_file3])
 
-        self.dependency_manager.add_python_file(tmp_dir)
-        self.dependency_manager.add_python_file(tmp_file1)
-        self.dependency_manager.add_python_file(tmp_file2)
-        self.dependency_manager.add_python_file(tmp_file3)
+        self.dependency_manager.add_python_file(python_module)
+        self.dependency_manager.add_python_file(python_file1)
+        self.dependency_manager.add_python_file(python_file2)
+        self.dependency_manager.add_python_file(python_file3)
         self.dependency_manager.add_python_archive("c.zip", "venv")
         self.dependency_manager.add_python_archive("d.zip")
         self.dependency_manager.add_python_archive("e.zip", "data")
@@ -122,7 +122,7 @@ class PythonOptionTests(PyFlinkTestCase):
             if os.path.exists(result_file):
                 with open(result_file, "r") as f:
                     msg = f.read()
-                    if msg == "Assertion passed.":
+                    if msg == "Verify passed.":
                         pass
                     else:
                         self.fail(msg)

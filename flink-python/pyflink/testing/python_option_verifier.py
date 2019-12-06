@@ -53,12 +53,12 @@ if __name__ == "__main__":
 
     with open(result_file, "w") as f:
         if expected_parameter == actual_config and expected_files == actual_files:
-            f.write("Assertion passed.")
+            f.write("Verify passed.")
         elif expected_parameter != actual_config:
-            f.write("expected config:\n%s\nactual config:\n%s\n" %
+            f.write("Expected config:\n%s\nActual config:\n%s\n" %
                     (sort_dict_by_key(expected_parameter), sort_dict_by_key(actual_config)))
         elif expected_files != actual_files:
-            f.write("expected files:\n%s\nactual files:\n%s\n" %
+            f.write("Expected files:\n%s\nActual files:\n%s\n" %
                     (sort_dict_by_key(expected_files), sort_dict_by_key(actual_files)))
-    # test is complete, encounter the ProgramAbortException
+    # test finishes, encounter ProgramAbortException
     exit(1)

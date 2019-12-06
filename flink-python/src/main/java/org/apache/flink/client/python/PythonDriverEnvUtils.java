@@ -32,6 +32,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -159,17 +161,18 @@ public final class PythonDriverEnvUtils {
 		if (!pythonDriverOptions.getPyArchives().isEmpty()) {
 			env.systemEnv.put(
 				PYFLINK_PY_ARCHIVES,
-				joinTuples(pythonDriverOptions.getPyArchives().toArray(new Tuple2[0])));
+				joinTuples(pythonDriverOptions.getPyArchives()));
 		}
 		pythonDriverOptions.getPyRequirements().ifPresent(
-			pyRequirements -> env.systemEnv.put(PYFLINK_PY_REQUIREMENTS, joinTuples(pyRequirements)));
+			pyRequirements -> env.systemEnv.put(
+				PYFLINK_PY_REQUIREMENTS,
+				joinTuples(Collections.singleton(pyRequirements))));
 		pythonDriverOptions.getPyExecutable().ifPresent(
 			pyExecutable -> env.systemEnv.put(PYFLINK_PY_EXECUTABLE, pythonDriverOptions.getPyExecutable().get()));
 		return env;
 	}
 
-	@SafeVarargs
-	private static String joinTuples(Tuple2<String, String>... tuples) {
+	private static String joinTuples(Collection<Tuple2<String, String>> tuples) {
 		List<String> joinedTuples = new ArrayList<>();
 		for (Tuple2<String, String> tuple : tuples) {
 			String f0 = tuple.f0 == null ? "" : tuple.f0;

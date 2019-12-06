@@ -77,9 +77,9 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
 		.argName("requirementsFilePath>#<requirementsCachedDir(optional)")
 		.desc("Specify a requirements.txt file which defines the third-party dependencies. " +
 			"These dependencies will be installed and added to the PYTHONPATH of the python UDF worker. " +
-			"A directory which contains the installation packages of these dependencies could be specified" +
-			"via second parameter. Use '#' as the separator of parameters if second parameter exists. " +
-			"(e.g.: --pyRequirements file:///tmp/requirements.txt#file:///tmp/cached_dir)")
+			"A directory which contains the installation packages of these dependencies could be specified " +
+			"optionally. Use '#' as the separator if the optional parameter exists " +
+			"(e.g.: --pyRequirements file:///tmp/requirements.txt#file:///tmp/cached_dir).")
 		.build();
 
 	private static final Option PYARCHIVE_OPTION = Option.builder("pyarch")
@@ -87,19 +87,17 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
 		.required(false)
 		.hasArg(true)
 		.argName("archiveFilePath>#<targetDirName(optional)>,...,<archiveFilePath>#<<targetDirName(optional)")
-		.desc("Add python archive files for job. " +
-			"The file will be extracted to the working directory of python UDF worker. " +
-			"Currently only zip-format is supported. " +
-			"For each archive file, a target directory name can be specified. " +
-			"If target directory name is specified, the archive will be extracted to a directory with that name. " +
-			"Otherwise, the archive will be extracted to a directory with the same file name of itself. " +
-			"Therefore the files uploaded via this option are accessible via relative path. " +
-			"Use '#' as the separator of archive file path and target directory name. " +
+		.desc("Add python archive files for job. The files will be extracted to the working directory of python " +
+			"UDF worker. Currently only zip-format is supported. For each archive file, a target directory name can " +
+			"be specified. If the target directory name is specified, the archive file will be extracted to a " +
+			"directory with the specified name. Otherwise, the archive file will be extracted to a directory with " +
+			"the same name of the archive file. The files uploaded via this option are accessible via relative path. " +
+			"'#' could be used as the separator of the archive file path and the target directory name. " +
 			"Comma (',') could be used as the separator to specify multiple archive files. " +
-			"It can be used to upload the virtual environment " +
+			"This option can be used to upload the virtual environment, the data files used in Python UDF " +
 			"(e.g.: --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable " +
-			"py37.zip/py37/bin/python). Python UDF can also access the files stored in archives " +
-			"(e.g.: f = open('data/data.txt', 'r')).")
+			"py37.zip/py37/bin/python). The data files could be accessed in Python UDF, e.g.: " +
+			"f = open('data/data.txt', 'r').")
 		.build();
 
 	private static final Option PYEXEC_OPTION = Option.builder("pyexec")

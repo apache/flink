@@ -41,8 +41,6 @@ class DependencyManager(object):
 
     # Environment variable names used to store the dependency settings specified via commandline
     # options.
-    # The "PYFLINK_" prefix indicates that the variable is used to transmit data from external
-    # system to flink python process.
     PYFLINK_PY_FILES = "PYFLINK_PY_FILES"
     PYFLINK_PY_REQUIREMENTS = "PYFLINK_PY_REQUIREMENTS"
     PYFLINK_PY_EXECUTABLE = "PYFLINK_PY_EXECUTABLE"
