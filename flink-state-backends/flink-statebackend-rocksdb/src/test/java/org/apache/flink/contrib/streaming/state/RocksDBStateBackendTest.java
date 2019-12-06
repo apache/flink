@@ -117,14 +117,14 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private File instanceBasePath = null;
 	private ColumnFamilyHandle defaultCFHandle = null;
 	private ColumnFamilyOptions columnOptions = null;
-	private RocksDBOptionsContainer optionsContainer = null;
+	private RocksDBResourceContainer optionsContainer = null;
 
 	public void prepareRocksDB() throws Exception {
 		instanceBasePath = tempFolder.newFolder();
 		instanceBasePath.mkdirs();
 		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
 		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions();
-		optionsContainer = new RocksDBOptionsContainer();
+		optionsContainer = new RocksDBResourceContainer();
 		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		db = RocksDBOperationUtils.openDB(dbPath, Collections.emptyList(),
 			columnFamilyHandles, columnOptions, optionsContainer.getDbOptions());

@@ -30,12 +30,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
- * The container of RocksDB option factory and predefined options.
+ * The container for RocksDB resources, including predefined options, option factory and
+ * shared resource among instances.
  * <p/>
  * This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options,
  * and should be properly (and necessarily) closed to prevent resource leak.
  */
-public class RocksDBOptionsContainer implements AutoCloseable, Serializable {
+public class RocksDBResourceContainer implements AutoCloseable, Serializable {
 
 	/** The pre-configured option settings. */
 	private PredefinedOptions predefinedOptions;
@@ -47,7 +48,7 @@ public class RocksDBOptionsContainer implements AutoCloseable, Serializable {
 	private final ArrayList<DBOptions> dbOptions;
 	private final ArrayList<ColumnFamilyOptions> columnFamilyOptions;
 
-	public RocksDBOptionsContainer() {
+	public RocksDBResourceContainer() {
 		dbOptions = new ArrayList<>();
 		columnFamilyOptions = new ArrayList<>();
 	}

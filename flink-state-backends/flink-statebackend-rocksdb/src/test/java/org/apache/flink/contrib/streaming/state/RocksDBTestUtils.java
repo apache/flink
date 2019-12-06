@@ -46,7 +46,7 @@ public final class RocksDBTestUtils {
 			File instanceBasePath,
 			TypeSerializer<K> keySerializer) {
 
-		final RocksDBOptionsContainer optionsContainer = new RocksDBOptionsContainer();
+		final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
 		return new RocksDBKeyedStateBackendBuilder<>(
 			"no-op",
@@ -75,7 +75,7 @@ public final class RocksDBTestUtils {
 			ColumnFamilyHandle defaultCFHandle,
 			ColumnFamilyOptions columnFamilyOptions) {
 
-		final RocksDBOptionsContainer optionsContainer = new RocksDBOptionsContainer();
+		final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
 		return new RocksDBKeyedStateBackendBuilder<>(
 				"no-op",

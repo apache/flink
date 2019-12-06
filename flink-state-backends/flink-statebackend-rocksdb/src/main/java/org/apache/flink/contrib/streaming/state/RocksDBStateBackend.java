@@ -130,7 +130,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private File[] localRocksDbDirectories;
 
 	/** The container for all RocksDB options. */
-	private final RocksDBOptionsContainer optionsContainer;
+	private final RocksDBResourceContainer optionsContainer;
 
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
@@ -271,7 +271,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 		this.memoryConfiguration = new RocksDBMemoryConfiguration();
-		this.optionsContainer = new RocksDBOptionsContainer();
+		this.optionsContainer = new RocksDBResourceContainer();
 	}
 
 	/**
@@ -348,7 +348,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
 		// initiate options container
-		this.optionsContainer = new RocksDBOptionsContainer();
+		this.optionsContainer = new RocksDBResourceContainer();
 
 		// configure RocksDB predefined options
 		PredefinedOptions originalPredefinedOptions = original.optionsContainer.getPredefinedOptions();

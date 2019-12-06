@@ -36,16 +36,16 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
- * Tests to guard {@link RocksDBOptionsContainer}.
+ * Tests to guard {@link RocksDBResourceContainer}.
  */
-public class RocksDBOptionsContainerTest {
+public class RocksDBResourceContainerTest {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	@Test
 	public void testCloseOptionsFactory() throws Exception {
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
 		container.setOptionsFactory(optionsFactory);
 		assertThat(optionsFactory.isClosed(), is(false));
@@ -55,7 +55,7 @@ public class RocksDBOptionsContainerTest {
 
 	@Test
 	public void testFreeDBOptionsAfterClose() throws Exception {
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		DBOptions dbOptions = container.getDbOptions();
 		assertThat(dbOptions.isOwningHandle(), is(true));
 		container.close();
@@ -64,7 +64,7 @@ public class RocksDBOptionsContainerTest {
 
 	@Test
 	public void testFreeMultipleDBOptionsAfterClose() throws Exception {
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		final int optionNumber = 20;
 		ArrayList<DBOptions> dbOptions = new ArrayList<>(optionNumber);
 		for (int i = 0; i < optionNumber; i++) {
@@ -78,7 +78,7 @@ public class RocksDBOptionsContainerTest {
 
 	@Test
 	public void testFreeColumnOptionsAfterClose() throws Exception {
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		ColumnFamilyOptions columnFamilyOptions = container.getColumnOptions();
 		assertThat(columnFamilyOptions.isOwningHandle(), is(true));
 		container.close();
@@ -87,7 +87,7 @@ public class RocksDBOptionsContainerTest {
 
 	@Test
 	public void testFreeMultipleColumnOptionsAfterClose() throws Exception {
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		final int optionNumber = 20;
 		ArrayList<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(optionNumber);
 		for (int i = 0; i < optionNumber; i++) {
@@ -101,7 +101,7 @@ public class RocksDBOptionsContainerTest {
 
 	@Test
 	public void testFreeMultipleColumnOptionsWithPredefinedOptions() throws Exception {
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		for (PredefinedOptions predefinedOptions: PredefinedOptions.values()) {
 			container.setPredefinedOptions(predefinedOptions);
 			final int optionNumber = 20;
@@ -119,7 +119,7 @@ public class RocksDBOptionsContainerTest {
 	@Test
 	public void testFreeSharedResourcesAfterClose() throws Exception {
 		NativeLibraryLoader.getInstance().loadLibrary(tmp.newFolder().getAbsolutePath());
-		RocksDBOptionsContainer container = new RocksDBOptionsContainer();
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		LRUCache cache = new LRUCache(1024L);
 		WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
 		RocksDBSharedResources sharedResources = new RocksDBSharedResources(cache, wbm);

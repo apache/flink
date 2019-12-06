@@ -131,7 +131,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
 	/** The container of RocksDB option factory and predefined options. */
-	private final RocksDBOptionsContainer optionsContainer;
+	private final RocksDBResourceContainer optionsContainer;
 
 	/** Path where this configured instance stores its data directory. */
 	private final File instanceBasePath;
@@ -198,7 +198,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public RocksDBKeyedStateBackend(
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
-		RocksDBOptionsContainer optionsContainer,
+		RocksDBResourceContainer optionsContainer,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
