@@ -136,9 +136,21 @@ public final class SqlCommandParser {
 				return Optional.of(new String[]{operands[0], operands[1]});
 			}),
 
+		CREATE_DATABASE(
+				"(CREATE\\s+DATABASE\\s+.*)",
+				SINGLE_OPERAND),
+
+		DROP_DATABASE(
+				"(DROP\\s+DATABASE\\s+.*)",
+				SINGLE_OPERAND),
+
 		DROP_VIEW(
 			"DROP\\s+VIEW\\s+(.*)",
 			SINGLE_OPERAND),
+
+		ALTER_DATABASE(
+				"(ALTER\\s+DATABASE\\s+.*)",
+				SINGLE_OPERAND),
 
 		SET(
 			"SET(\\s+(\\S+)\\s*=(.*))?", // whitespace is only ignored on the left side of '='

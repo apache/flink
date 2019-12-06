@@ -544,6 +544,11 @@ public class LocalExecutor implements Executor {
 			String statement) {
 		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
+		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
+		if (!statement.trim().matches("(INSERT\\s+INTO.*)")) {
+			return null;
+		}
+
 		// create job graph with dependencies
 		final String jobName = sessionId + ": " + statement;
 		final JobGraph jobGraph;
