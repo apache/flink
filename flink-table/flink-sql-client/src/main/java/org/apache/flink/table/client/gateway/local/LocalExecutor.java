@@ -198,39 +198,27 @@ public class LocalExecutor implements Executor {
 		// nothing to do yet
 	}
 
-	/**
-	 * Create a new {@link ExecutionContext} by merging the default environment the the environment in session context.
-	 */
-	private ExecutionContext<?> createExecutionContext(SessionContext sessionContext) {
-		Environment mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getSessionEnv());
-		return createExecutionContext(mergedEnv, sessionContext);
-	}
-
-	/**
-	 * Create a new {@link ExecutionContext} by using the given environment.
-	 */
-	private ExecutionContext<?> createExecutionContext(Environment environment, SessionContext sessionContext) {
-		try {
-			return new ExecutionContext<>(
-					environment,
-					sessionContext,
-					dependencies,
-					flinkConfig,
-					clusterClientServiceLoader,
-					commandLineOptions,
-					commandLines);
-		} catch (Throwable t) {
-			// catch everything such that a configuration does not crash the executor
-			throw new SqlExecutionException("Could not create execution context.", t);
-		}
+	/** Returns ExecutionContext.Builder with given {@link SessionContext} session context. */
+	private ExecutionContext.Builder createExecutionContextBuilder(SessionContext sessionContext) {
+		return ExecutionContext.builder(
+				defaultEnvironment,
+				sessionContext,
+				this.dependencies,
+				this.flinkConfig,
+				this.clusterClientServiceLoader,
+				this.commandLineOptions,
+				this.commandLines);
 	}
 
 	@Override
 	public String openSession(SessionContext sessionContext) throws SqlExecutionException {
 		String sessionId = sessionContext.getSessionId();
-		ExecutionContext previousContext = this.contextMap.putIfAbsent(sessionId, createExecutionContext(sessionContext));
-		if (previousContext != null) {
+		if (this.contextMap.containsKey(sessionId)) {
 			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionId);
+		} else {
+			this.contextMap.put(
+					sessionId,
+					createExecutionContextBuilder(sessionContext).build());
 		}
 		return sessionId;
 	}
@@ -273,7 +261,13 @@ public class LocalExecutor implements Executor {
 	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		// Renew the ExecutionContext by merging the default environment with original session context.
-		this.contextMap.put(sessionId, createExecutionContext(context.getOriginalSessionContext()));
+		// Book keep all the session states of current ExecutionContext then
+		// re-register them into the new one.
+		ExecutionContext<?> newContext = createExecutionContextBuilder(
+				context.getOriginalSessionContext())
+				.sessionState(context.getSessionState())
+				.build();
+		this.contextMap.put(sessionId, newContext);
 	}
 
 	@Override
@@ -282,7 +276,14 @@ public class LocalExecutor implements Executor {
 		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
 		// Renew the ExecutionContext by new environment.
-		this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
+		// Book keep all the session states of current ExecutionContext then
+		// re-register them into the new one.
+		ExecutionContext<?> newContext = createExecutionContextBuilder(
+				context.getOriginalSessionContext())
+				.env(newEnv)
+				.sessionState(context.getSessionState())
+				.build();
+		this.contextMap.put(sessionId, newContext);
 	}
 
 	@Override
@@ -307,7 +308,10 @@ public class LocalExecutor implements Executor {
 		Environment newEnv = env.clone();
 		if (newEnv.getTables().remove(name) != null) {
 			// Renew the ExecutionContext.
-			this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
+			this.contextMap.put(
+					sessionId,
+					createExecutionContextBuilder(context.getOriginalSessionContext())
+							.env(newEnv).build());
 		}
 	}
 
@@ -335,6 +339,28 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listDatabases()));
+	}
+
+	@Override
+	public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			tEnv.sqlUpdate(ddl);
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not create a table from statement: " + ddl, e);
+		}
+	}
+
+	@Override
+	public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			tEnv.sqlUpdate(ddl);
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not drop table from statement: " + ddl, e);
+		}
 	}
 
 	@Override

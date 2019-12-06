@@ -296,6 +296,12 @@ public class CliClient {
 			case INSERT_INTO:
 				callInsertInto(cmdCall);
 				break;
+			case CREATE_TABLE:
+				callCreateTable(cmdCall);
+				break;
+			case DROP_TABLE:
+				callDropTable(cmdCall);
+				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
 				break;
@@ -535,6 +541,25 @@ public class CliClient {
 			return false;
 		}
 		return true;
+	}
+
+	private void callCreateTable(SqlCommandCall cmdCall) {
+		try {
+			executor.createTable(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+	}
+
+	private void callDropTable(SqlCommandCall cmdCall) {
+		try {
+			executor.dropTable(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_TABLE_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
 	}
 
 	private void callCreateView(SqlCommandCall cmdCall) {

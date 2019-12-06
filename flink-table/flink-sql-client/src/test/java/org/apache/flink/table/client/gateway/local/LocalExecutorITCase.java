@@ -54,6 +54,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -615,7 +616,7 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		try {
-			assertEquals(Arrays.asList("mydatabase"), executor.listDatabases(sessionId));
+			assertEquals(Collections.singletonList("mydatabase"), executor.listDatabases(sessionId));
 
 			executor.useCatalog(sessionId, "hivecatalog");
 
@@ -628,7 +629,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 			executor.useDatabase(sessionId, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
-			assertEquals(Arrays.asList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(sessionId));
+			assertEquals(Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(sessionId));
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -689,6 +690,221 @@ public class LocalExecutorITCase extends TestLogger {
 		resultID = executor.executeQuery(sessionId, "select * from TableNumber3").getResultId();
 		retrieveTableResult(executor, sessionId, resultID);
 		executor.closeSession(sessionId);
+	}
+
+	@Test
+	public void testCreateTable() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		final String ddlTemplate = "create table %s(\n" +
+				"  a int,\n" +
+				"  b bigint,\n" +
+				"  c varchar\n" +
+				") with (\n" +
+				"  'connector.type'='filesystem',\n" +
+				"  'format.type'='csv',\n" +
+				"  'connector.path'='xxx'\n" +
+				")\n";
+		try {
+			// Test create table with simple name.
+			executor.useCatalog(sessionId, "catalog1");
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+
+			// Test create table with full qualified name.
+			executor.useCatalog(sessionId, "catalog1");
+			executor.createTable(sessionId, String.format(ddlTemplate, "`simple-catalog`.`default_database`.MyTable3"));
+			executor.createTable(sessionId, String.format(ddlTemplate, "`simple-catalog`.`default_database`.MyTable4"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+			executor.useCatalog(sessionId, "simple-catalog");
+			assertEquals(Arrays.asList("MyTable3", "MyTable4", "test-table"), executor.listTables(sessionId));
+
+			// Test create table with db and table name.
+			executor.useCatalog(sessionId, "catalog1");
+			executor.createTable(sessionId, String.format(ddlTemplate, "`default`.MyTable5"));
+			executor.createTable(sessionId, String.format(ddlTemplate, "`default`.MyTable6"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2", "MyTable5", "MyTable6"), executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test @Ignore // TODO: reopen when FLINK-15075 was fixed.
+	public void testCreateTableWithComputedColumn() throws Exception {
+		Assume.assumeTrue(planner.equals("blink"));
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", "file:///fakePath1");
+		replaceVars.put("$VAR_SOURCE_PATH2", "file:///fakePath2");
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final String ddlTemplate = "create table %s(\n" +
+				"  a int,\n" +
+				"  b bigint,\n" +
+				"  c as a + 1\n" +
+				") with (\n" +
+				"  'connector.type'='filesystem',\n" +
+				"  'format.type'='csv',\n" +
+				"  'connector.path'='xxx'\n" +
+				")\n";
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			executor.useCatalog(sessionId, "catalog1");
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test @Ignore // TODO: reopen when FLINK-15075 was fixed.
+	public void testCreateTableWithWatermark() throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", "file:///fakePath1");
+		replaceVars.put("$VAR_SOURCE_PATH2", "file:///fakePath2");
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final String ddlTemplate = "create table %s(\n" +
+				"  a int,\n" +
+				"  b timestamp(3),\n" +
+				"  watermark for b as b - INTERVAL '5' second\n" +
+				") with (\n" +
+				"  'connector.type'='filesystem',\n" +
+				"  'format.type'='csv',\n" +
+				"  'connector.path'='xxx'\n" +
+				")\n";
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			executor.useCatalog(sessionId, "catalog1");
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
+	public void testCreateTableWithMultiSession() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			executor.useCatalog(sessionId, "catalog1");
+			executor.setSessionProperty(sessionId, "execution.type", "batch");
+			final String ddlTemplate = "create table %s(\n" +
+					"  a int,\n" +
+					"  b bigint,\n" +
+					"  c varchar\n" +
+					") with (\n" +
+					"  'connector.type'='filesystem',\n" +
+					"  'format.type'='csv',\n" +
+					"  'connector.path'='xxx',\n" +
+					"  'update-mode'='append'\n" +
+					")\n";
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			// Change the session property to trigger `new ExecutionContext`.
+			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+
+			// Reset the session properties.
+			executor.resetSessionProperties(sessionId);
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable3"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2", "MyTable3"), executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
+	public void testDropTable() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			executor.useCatalog(sessionId, "catalog1");
+			executor.setSessionProperty(sessionId, "execution.type", "batch");
+			final String ddlTemplate = "create table %s(\n" +
+					"  a int,\n" +
+					"  b bigint,\n" +
+					"  c varchar\n" +
+					") with (\n" +
+					"  'connector.type'='filesystem',\n" +
+					"  'format.type'='csv',\n" +
+					"  'connector.path'='xxx',\n" +
+					"  'update-mode'='append'\n" +
+					")\n";
+			// Test drop table.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE MyTable1");
+			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+
+			// Test drop table if exists.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE IF EXISTS MyTable1");
+			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+
+			// Test drop table with full qualified name.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE catalog1.`default`.MyTable1");
+			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+
+			// Test drop table with db and table name.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE `default`.MyTable1");
+			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+
+			// Test drop table that does not exist.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE IF EXISTS catalog2.`default`.MyTable1");
+			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE `default`.MyTable1");
+
+			// Test drop table with properties changed.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			// Change the session property to trigger `new ExecutionContext`.
+			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE MyTable1");
+			executor.dropTable(sessionId, "DROP TABLE MyTable2");
+			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+
+			// Test drop table with properties reset.
+			// Reset the session properties.
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			executor.resetSessionProperties(sessionId);
+			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable3"));
+			assertEquals(Arrays.asList("MyTable1", "MyTable2", "MyTable3"), executor.listTables(sessionId));
+			executor.dropTable(sessionId, "DROP TABLE MyTable1");
+			executor.dropTable(sessionId, "DROP TABLE MyTable2");
+			executor.dropTable(sessionId, "DROP TABLE MyTable3");
+			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+		} finally {
+			executor.closeSession(sessionId);
+		}
 	}
 
 	private void executeStreamQueryTable(
