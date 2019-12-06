@@ -134,7 +134,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		ConfigUtils.encodeCollectionToConfig(effectiveConfiguration, PipelineOptions.CLASSPATHS, classpaths, URL::toString);
 
 		// these should be set in the end to overwrite any values from the client config provided in the constructor.
-		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote-cluster");
+		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote-executor");
 		effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
 
 		return effectiveConfiguration;

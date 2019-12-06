@@ -31,7 +31,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 @Internal
 public class YarnSessionClusterExecutor extends AbstractSessionClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String NAME = "yarn-session-cluster";
+	public static final String NAME = "yarn-session-executor";
 
 	public YarnSessionClusterExecutor() {
 		super(new YarnClusterClientFactory());
