@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -29,9 +31,9 @@ import java.io.PrintStream;
 /**
  * An {@link ExecutionEnvironment} that never executes a job but only extracts the {@link Pipeline}.
  */
-public class OptimizerPlanEnvironment extends ExecutionEnvironment {
+public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
-	private OptimizerPlanEnvironment(int parallelism) {
+	private StreamPlanEnvironment(int parallelism) {
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		}
@@ -39,11 +41,11 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		throw new ProgramAbortException(createProgramPlan(jobName));
+		throw new ProgramAbortException(getStreamGraph(jobName));
 	}
 
 	public static void setAsContext(int parallelism) {
-		ExecutionEnvironmentFactory factory = () -> new OptimizerPlanEnvironment(parallelism);
+		StreamExecutionEnvironmentFactory factory = () -> new StreamPlanEnvironment(parallelism);
 		initializeContextEnvironment(factory);
 	}
 

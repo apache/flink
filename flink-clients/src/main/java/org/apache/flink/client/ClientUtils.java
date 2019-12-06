@@ -26,6 +26,8 @@ import org.apache.flink.client.program.ContextEnvironmentFactory;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
+import org.apache.flink.client.program.StreamContextEnvironment;
+import org.apache.flink.client.program.StreamContextEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -142,6 +144,13 @@ public enum ClientUtils {
 					jobExecutionResult);
 			ContextEnvironment.setAsContext(factory);
 
+			StreamContextEnvironmentFactory streamFactory = new StreamContextEnvironmentFactory(
+				executorServiceLoader,
+				configuration,
+				userCodeClassLoader,
+				jobExecutionResult);
+			StreamContextEnvironment.setAsContext(streamFactory);
+
 			try {
 				program.invokeInteractiveModeForExecution();
 
@@ -152,6 +161,7 @@ public enum ClientUtils {
 				return result;
 			} finally {
 				ContextEnvironment.unsetContext();
+				StreamContextEnvironment.unsetContext();
 			}
 		}
 		finally {

@@ -27,6 +27,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nullable;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+
 /**
  * Utility class for {@link PackagedProgram} related operations.
  */
@@ -51,13 +54,7 @@ public class PackagedProgramUtils {
 			Configuration configuration,
 			int defaultParallelism,
 			@Nullable JobID jobID) throws ProgramInvocationException {
-
-		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
-
-		final OptimizerPlanEnvironment optimizerPlanEnvironment = new OptimizerPlanEnvironment();
-		optimizerPlanEnvironment.setParallelism(defaultParallelism);
-		final Pipeline pipeline = optimizerPlanEnvironment.getPipeline(packagedProgram);
-
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism);
 		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
 
 		if (jobID != null) {
@@ -81,24 +78,53 @@ public class PackagedProgramUtils {
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
 	public static JobGraph createJobGraph(
-		PackagedProgram packagedProgram,
-		Configuration configuration,
-		int defaultParallelism) throws ProgramInvocationException {
+			PackagedProgram packagedProgram,
+			Configuration configuration,
+			int defaultParallelism) throws ProgramInvocationException {
 		return createJobGraph(packagedProgram, configuration, defaultParallelism, null);
 	}
 
-	public static Pipeline getPipelineFromProgram(PackagedProgram prog, int parallelism)
-			throws CompilerException, ProgramInvocationException {
+	public static Pipeline getPipelineFromProgram(
+			PackagedProgram program,
+			int parallelism) throws CompilerException, ProgramInvocationException {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+
 		try {
-			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
+			Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
 
 			// temporary hack to support the optimizer plan preview
-			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment();
-			if (parallelism > 0) {
-				env.setParallelism(parallelism);
+			PrintStream originalOut = System.out;
+			PrintStream originalErr = System.err;
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(baos));
+			ByteArrayOutputStream baes = new ByteArrayOutputStream();
+			System.setErr(new PrintStream(baes));
+
+			OptimizerPlanEnvironment.setAsContext(parallelism);
+			StreamPlanEnvironment.setAsContext(parallelism);
+
+			try {
+				program.invokeInteractiveModeForExecution();
+			} catch (ProgramInvocationException e) {
+				throw e;
+			} catch (ProgramAbortException e) {
+				return e.getPipeline();
+			} catch (Throwable t) {
+				throw new ProgramInvocationException("The program caused an error: ", t);
+			} finally {
+				OptimizerPlanEnvironment.unsetAsContext();
+				StreamPlanEnvironment.unsetAsContext();
+				System.setOut(originalOut);
+				System.setErr(originalErr);
 			}
-			return env.getPipeline(prog);
+
+			String stdout = baos.toString();
+			String stderr = baes.toString();
+
+			throw new ProgramInvocationException(
+				"The program plan could not be fetched - the program aborted pre-maturely."
+					+ "\n\nSystem.err: " + (stderr.length() == 0 ? "(none)" : stderr)
+					+ "\n\nSystem.out: " + (stdout.length() == 0 ? "(none)" : stdout));
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}

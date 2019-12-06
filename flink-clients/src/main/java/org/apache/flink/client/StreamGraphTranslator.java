@@ -17,15 +17,12 @@
  *
  */
 
-package org.apache.flink.streaming.api.graph;
+package org.apache.flink.client;
 
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.FlinkPipelineTranslator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -35,18 +32,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * <p>Note: this is used through reflection in
  * {@link org.apache.flink.client.FlinkPipelineTranslationUtil}.
  */
-@SuppressWarnings("unused")
 public class StreamGraphTranslator implements FlinkPipelineTranslator {
-
-	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphTranslator.class);
 
 	@Override
 	public JobGraph translateToJobGraph(
 			Pipeline pipeline,
 			Configuration optimizerConfiguration,
 			int defaultParallelism) {
-		checkArgument(pipeline instanceof StreamGraph,
-				"Given pipeline is not a DataStream StreamGraph.");
+		checkArgument(pipeline instanceof StreamGraph, "Given pipeline is not a DataStream StreamGraph.");
 
 		StreamGraph streamGraph = (StreamGraph) pipeline;
 		return streamGraph.getJobGraph(null);
@@ -54,11 +47,9 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
 
 	@Override
 	public String translateToJSONExecutionPlan(Pipeline pipeline) {
-		checkArgument(pipeline instanceof StreamGraph,
-				"Given pipeline is not a DataStream StreamGraph.");
+		checkArgument(pipeline instanceof StreamGraph, "Given pipeline is not a DataStream StreamGraph.");
 
 		StreamGraph streamGraph = (StreamGraph) pipeline;
-
 		return streamGraph.getStreamingPlanAsJSON();
 	}
 
