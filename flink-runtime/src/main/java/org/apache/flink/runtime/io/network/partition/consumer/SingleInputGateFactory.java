@@ -224,8 +224,7 @@ public class SingleInputGateFactory {
 			int floatingNetworkBuffersPerGate,
 			int size,
 			ResultPartitionType type) {
-		int maxNumberOfMemorySegments = type.isBounded() ? floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
-		return () -> bufferPoolFactory.createBufferPool(0, maxNumberOfMemorySegments);
+		return () -> bufferPoolFactory.createBufferPool(0, floatingNetworkBuffersPerGate);
 	}
 
 	private static class ChannelStatistics {

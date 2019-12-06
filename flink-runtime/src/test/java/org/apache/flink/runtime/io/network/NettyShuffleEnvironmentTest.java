@@ -163,8 +163,8 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		assertEquals(0, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
 		assertEquals(0, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
 
-		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(floatingBuffers, ig1.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(floatingBuffers, ig2.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(floatingBuffers, ig3.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(floatingBuffers, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
