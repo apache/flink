@@ -56,11 +56,10 @@ import java.util.List;
  * Provides the default data sets used for the WordCount example program. The default data sets are used, if no
  * parameters are given to the program.
  */
-
 public class FromElements {
 
 	@SafeVarargs
-	public static final <OUT> DataStreamSource<OUT> fromElements(StreamExecutionEnvironment env, Long maxCount, int sleepNum, OUT... data) {
+	public static <OUT> DataStreamSource<OUT> fromElements(StreamExecutionEnvironment env, Long maxCount, int sleepNum, OUT... data) {
 		if (data.length == 0) {
 			throw new IllegalArgumentException("fromElements needs at least one element as argument");
 		}
@@ -74,7 +73,7 @@ public class FromElements {
 		FromElementsRichFunction.checkCollection(dataCollection, typeInfo.getTypeClass());
 		try {
 			SourceFunction<OUT> function =
-				new FromElementsRichFunction<OUT>(typeInfo.createSerializer(env.getConfig()),
+				new FromElementsRichFunction<>(typeInfo.createSerializer(env.getConfig()),
 					maxCount, sleepNum, dataCollection);
 			return env.addSource(function, "WordsData", typeInfo);
 		} catch (IOException e) {
@@ -95,13 +94,11 @@ public class FromElements {
 	 *
 	 * @param <T> The type of elements returned by this function.
 	 */
-
 	public static class FromElementsRichFunction<T> extends RichSourceFunction<T>
 		implements ParallelSourceFunction<T>, CheckpointedFunction {
 		private static final long serialVersionUID = 1L;
 		private final TypeSerializer<T> serializer;
 		private final byte[] elementsSerialized;
-		private final int numElements;
 		private volatile long numElementsEmitted;
 		private volatile long numElementsToSkip;
 		private volatile boolean isRunning = true;
@@ -129,7 +126,6 @@ public class FromElements {
 			}
 			this.serializer = serializer;
 			this.elementsSerialized = baos.toByteArray();
-			this.numElements = count;
 			this.maxCount = maxCount;
 			this.sleepNum = sleepNum;
 		}
@@ -178,7 +174,6 @@ public class FromElements {
 				}
 				this.numElementsEmitted = this.numElementsToSkip;
 			}
-			final Object lock = ctx.getCheckpointLock();
 			while (isRunning && num < maxCount) {
 				num++;
 				T next;
@@ -191,7 +186,7 @@ public class FromElements {
 				} catch (Exception e) {
 					throw new IOException("Failed to deserialize an element from the source. If you are using user-defined serialization (Value and Writable types), check the serialization functions.\nSerializer is " + serializer);
 				}
-				synchronized (lock) {
+				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(next);
 					numElementsEmitted++;
 					sourceTpsMetrics.markEvent();
@@ -210,7 +205,7 @@ public class FromElements {
 				"The " + getClass().getSimpleName() + " has not been properly initialized.");
 			this.operateState.clear();
 			if (this.numElementsEmitted != 0L) {
-				this.operateState.add(this.numElementsEmitted % this.numElementsEmitted);
+				this.operateState.add(1L);
 			} else {
 				this.operateState.add(0L);
 			}

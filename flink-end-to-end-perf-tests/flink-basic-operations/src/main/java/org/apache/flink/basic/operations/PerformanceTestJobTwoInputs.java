@@ -19,11 +19,8 @@
 package org.apache.flink.basic.operations;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.basic.utils.Params;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end perf test for end-to-end perf test.
@@ -36,13 +33,11 @@ import org.slf4j.LoggerFactory;
  * -wait -wait_num -windowSize -rate -sleepNum -bigData -streamPartitioner -scheduleMode -executionMode -inputPath
  * -checkpointInterval -checkpointPath -stateBackend -checkpointTimeout
  */
-
 public class PerformanceTestJobTwoInputs extends PerformanceTestJobBase{
-	private static final Logger LOG = LoggerFactory.getLogger(PerformanceTestJobTwoInputs.class);
 
 	public static void main(String[] args) throws Exception {
 		PerformanceTestJobTwoInputs twoInputs = new PerformanceTestJobTwoInputs();
-		Params params = twoInputs.initParams(args);
+		twoInputs.initParams(args);
 		twoInputs.setEnv();
 		DataStream<Tuple2<String, String>> output1 = twoInputs.setGraph("oneInput1");
 		DataStream<Tuple2<String, String>> output2 = twoInputs.setGraph("oneInput2");

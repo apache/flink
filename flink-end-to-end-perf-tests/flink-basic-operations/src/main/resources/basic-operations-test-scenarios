@@ -1,52 +1,33 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-
-scenarioIndex   className    LogicalAttributesofEdges    ScheduleMode    CheckpointMode
-1               PerformanceTestJobOneInput    Broadcast   LazyFromSource      ExactlyOnce
-2               PerformanceTestJobOneInput    Rescale     LazyFromSource      ExactlyOnce
-3               PerformanceTestJobOneInput    Rebalance   LazyFromSource      ExactlyOnce
-4               PerformanceTestJobOneInput    KeyBy       LazyFromSource      ExactlyOnce
-5               PerformanceTestJobOneInput    Broadcast   Eager       ExactlyOnce
-6               PerformanceTestJobOneInput    Rescale     Eager       ExactlyOnce
-7               PerformanceTestJobOneInput    Rebalance   Eager       ExactlyOnce
-8               PerformanceTestJobOneInput    KeyBy       Eager       ExactlyOnce
-9               PerformanceTestJobOneInput    Broadcast   LazyFromSource      AtLeastOnce
-10              PerformanceTestJobOneInput    Rescale     LazyFromSource      AtLeastOnce
-11              PerformanceTestJobOneInput    Rebalance   LazyFromSource      AtLeastOnce
-12              PerformanceTestJobOneInput    KeyBy       LazyFromSource      AtLeastOnce
-13              PerformanceTestJobOneInput    Broadcast   Eager       AtLeastOnce
-14              PerformanceTestJobOneInput    Rescale     Eager       AtLeastOnce
-15              PerformanceTestJobOneInput    Rebalance   Eager       AtLeastOnce
-16              PerformanceTestJobOneInput    KeyBy       Eager       AtLeastOnce
-17              PerformanceTestJobTwoInputs    Broadcast   LazyFromSource      ExactlyOnce
-18              PerformanceTestJobTwoInputs    Rescale     LazyFromSource      ExactlyOnce
-19              PerformanceTestJobTwoInputs    Rebalance   LazyFromSource      ExactlyOnce
-20              PerformanceTestJobTwoInputs    KeyBy       LazyFromSource      ExactlyOnce
-21              PerformanceTestJobTwoInputs    Broadcast   Eager       ExactlyOnce
-22              PerformanceTestJobTwoInputs    Rescale     Eager       ExactlyOnce
-23              PerformanceTestJobTwoInputs    Rebalance   Eager       ExactlyOnce
-24              PerformanceTestJobTwoInputs    KeyBy       Eager       ExactlyOnce
-25              PerformanceTestJobTwoInputs    Broadcast   LazyFromSource      AtLeastOnce
-26              PerformanceTestJobTwoInputs    Rescale     LazyFromSource      AtLeastOnce
-27              PerformanceTestJobTwoInputs    Rebalance   LazyFromSource      AtLeastOnce
-28              PerformanceTestJobTwoInputs    KeyBy       LazyFromSource      AtLeastOnce
-29              PerformanceTestJobTwoInputs    Broadcast   Eager       AtLeastOnce
-30              PerformanceTestJobTwoInputs    Rescale     Eager       AtLeastOnce
-31              PerformanceTestJobTwoInputs    Rebalance   Eager       AtLeastOnce
-32              PerformanceTestJobTwoInputs    KeyBy       Eager       AtLeastOnce
+scenarioIndex   testClassPath   LogicalAttributesofEdges    ScheduleMode    CheckpointMode
+1   org.apache.flink.basic.operationsPerformanceTestJobOneInput Broadcast   LazyFromSource  ExactlyOnce
+2   org.apache.flink.basic.operationsPerformanceTestJobOneInput Rescale     LazyFromSource  ExactlyOnce
+3   org.apache.flink.basic.operationsPerformanceTestJobOneInput Rebalance   LazyFromSource  ExactlyOnce
+4   org.apache.flink.basic.operationsPerformanceTestJobOneInput KeyBy       LazyFromSource  ExactlyOnce
+5   org.apache.flink.basic.operationsPerformanceTestJobOneInput Broadcast   Eager   ExactlyOnce
+6   org.apache.flink.basic.operationsPerformanceTestJobOneInput Rescale     Eager   ExactlyOnce
+7   org.apache.flink.basic.operationsPerformanceTestJobOneInput Rebalance   Eager   ExactlyOnce
+8   org.apache.flink.basic.operationsPerformanceTestJobOneInput KeyBy       Eager   ExactlyOnce
+9   org.apache.flink.basic.operationsPerformanceTestJobOneInput Broadcast   LazyFromSource  AtLeastOnce
+10  org.apache.flink.basic.operationsPerformanceTestJobOneInput Rescale     LazyFromSource  AtLeastOnce
+11  org.apache.flink.basic.operationsPerformanceTestJobOneInput Rebalance   LazyFromSource  AtLeastOnce
+12  org.apache.flink.basic.operationsPerformanceTestJobOneInput KeyBy       LazyFromSource  AtLeastOnce
+13  org.apache.flink.basic.operationsPerformanceTestJobOneInput Broadcast   Eager   AtLeastOnce
+14  org.apache.flink.basic.operationsPerformanceTestJobOneInput Rescale     Eager   AtLeastOnce
+15  org.apache.flink.basic.operationsPerformanceTestJobOneInput Rebalance   Eager   AtLeastOnce
+16  org.apache.flink.basic.operationsPerformanceTestJobOneInput KeyBy       Eager   AtLeastOnce
+17  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Broadcast   LazyFromSource  ExactlyOnce
+18  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rescale   LazyFromSource  ExactlyOnce
+19  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rebalance   LazyFromSource  ExactlyOnce
+20  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    KeyBy   LazyFromSource  ExactlyOnce
+21  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Broadcast   Eager   ExactlyOnce
+22  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rescale Eager   ExactlyOnce
+23  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rebalance   Eager   ExactlyOnce
+24  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    KeyBy   Eager   ExactlyOnce
+25  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Broadcast   LazyFromSource  AtLeastOnce
+26  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rescale LazyFromSource  AtLeastOnce
+27  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rebalance   LazyFromSource  AtLeastOnce
+28  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    KeyBy   LazyFromSource  AtLeastOnce
+29  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Broadcast   Eager   AtLeastOnce
+30  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rescale Eager   AtLeastOnce
+31  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    Rebalance   Eager   AtLeastOnce
+32  org.apache.flink.basic.operationsPerformanceTestJobTwoInputs    KeyBy   Eager   AtLeastOnce

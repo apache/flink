@@ -24,7 +24,6 @@ import java.util.Random;
  * Provides the default data sets used for the WordCount example program. The default data sets are used, if no
  * parameters are given to the program.
  */
-
 public class WordCountData {
 
 	WordCountData() {}
@@ -71,7 +70,7 @@ public class WordCountData {
 	private static String[] generateData(String[] newWords, int wordLength, int seed) {
 		Random rand = new Random(seed);
 		for (int i = 0; i < newWords.length; i++) {
-			StringBuffer str = new StringBuffer();
+			StringBuilder str = new StringBuilder();
 			for (int j = 0; j < wordLength; j++) {
 				str.append(chars.charAt(rand.nextInt(Math.min(26, wordLength))));
 			}
@@ -82,8 +81,8 @@ public class WordCountData {
 
 	public static String[] getWords(int wordLength, Boolean random, int seed) {
 		if (random) {
-			String[] newwords = new String[10000];
-			return generateData(newwords, wordLength, seed);
+			String[] newWords = new String[10000];
+			return generateData(newWords, wordLength, seed);
 		} else {
 			return words;
 		}

@@ -19,7 +19,6 @@
 package org.apache.flink.basic.operations;
 
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -41,8 +40,6 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Collector;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end perf test for end-to-end perf test.
@@ -64,22 +61,20 @@ import org.slf4j.LoggerFactory;
  * --stateBackend
  * --checkpointTimeout
  */
-
 public class PerformanceTestJobBase {
-	private static final Logger LOG = LoggerFactory.getLogger(PerformanceTestJobBase.class);
 	public StreamExecutionEnvironment  env;
 	public Params params  = new Params();
-	static byte[] size10B = new byte[10];
-	static String recordSize10B = new String(size10B);
-	static byte[] size100B = new byte[100];
-	static String recordSize100B = new String(size100B);
-	static byte[] size1KB = new byte[1024];
-	static String recordSize1KB = new String(size1KB);
-	static String recordValue;
+	private static byte[] size10B = new byte[10];
+	private static String recordSize10B = new String(size10B);
+	private static byte[] size100B = new byte[100];
+	private static String recordSize100B = new String(size100B);
+	private static byte[] size1KB = new byte[1024];
+	private static String recordSize1KB = new String(size1KB);
+	private static String recordValue;
 
 	public Params initParams(String[] args){
-		ParameterTool arams = ParameterTool.fromArgs(args);
-		params.initEnv(arams);
+		ParameterTool paramTools = ParameterTool.fromArgs(args);
+		params.initEnv(paramTools);
 		return params;
 
 	}
@@ -121,10 +116,10 @@ public class PerformanceTestJobBase {
 	}
 
 	public DataStream<Tuple2<String, String>> setGraph(String sourceName){
-		int recodrSize = params.getRecordSize();
-		if (recodrSize == 10){
+		int recordSize = params.getRecordSize();
+		if (recordSize == 10){
 			recordValue = recordSize10B;
-		} else if (recodrSize == 100){
+		} else if (recordSize == 100){
 			recordValue = recordSize100B;
 		} else {
 			recordValue = recordSize1KB;
@@ -133,20 +128,31 @@ public class PerformanceTestJobBase {
 		DataStream<String> sourceNode = FromElements.fromElements(env, params.getMaxCount(), params.getSleepNum(),
 			WordCountData.getWords(recordValue.length(), true, params.getSeed())).setParallelism(params.getParallelism()).name(sourceName);
 
-		DataStream<Tuple2<String, String>> flapNode = sourceNode.flatMap(
-			new FlatMapFunction<String, Tuple2<String, String>>() {
-				@Override
-				public void flatMap(String value, Collector<Tuple2<String, String>> collector) throws Exception {
-					collector.collect(new Tuple2<>(value, recordValue));
-				}
-			}
-		).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
+		//DataStream<Tuple2<String, String>> flapNode = sourceNode.flatMap(
+		//	new FlatMapFunction<String, Tuple2<String, String>>() {
+		//		@Override
+		//		public void flatMap(String value, Collector<Tuple2<String, String>> collector) throws Exception {
+		//			collector.collect(new Tuple2<>(value, recordValue));
+		//		}
+		//	}
+		//).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
+		DataStream<Tuple2<String, String>> flapNode = sourceNode.flatMap((String value, Collector<Tuple2<String,
+			String>> collector) -> collector.collect(new Tuple2<>(value, recordValue))).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
+		//	new FlatMapFunction<String, Tuple2<String, String>>() {
+		//		@Override
+		//		public void flatMap(String value, Collector<Tuple2<String, String>> collector) throws Exception {
+		//			collector.collect(new Tuple2<>(value, recordValue));
+		//		}
+		//	}
+		//).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
 		DataStream<Tuple2<String, String>> outputNode = null;
 		String streamPartitioner = params.getStreamPartitioner().toLowerCase();
 
 		if ("forward".equals(streamPartitioner)) {
 			if (params.getParallelism() == params.getParallelism()) {
 				outputNode = flapNode.forward();
+			} else {
+				outputNode = flapNode;
 			}
 
 		} else if ("rescale".equals(streamPartitioner)) {
@@ -201,7 +207,7 @@ public class PerformanceTestJobBase {
 			new CoProcessFunction<Tuple2<String, String>, Tuple2<String, String>, Tuple3<String, String, String>>() {
 				@Override
 				public void processElement1(Tuple2<String, String> value, Context ctx, Collector<Tuple3<String, String, String>> out) throws Exception {
-					out.collect(new Tuple3<String, String, String>(value.f0, value.f1, value.f1));
+					out.collect(new Tuple3<>(value.f0, value.f1, value.f1));
 				}
 
 				@Override
@@ -209,7 +215,7 @@ public class PerformanceTestJobBase {
 					processElement1(value, ctx, out);
 				}
 
-			}, new TupleTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+			}, new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO)).name("downStreamWithInputOrder").setParallelism(params.getParallelism());
 	}
 

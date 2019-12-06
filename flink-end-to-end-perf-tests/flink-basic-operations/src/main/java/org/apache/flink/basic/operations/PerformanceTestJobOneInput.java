@@ -18,8 +18,6 @@
 
 package org.apache.flink.basic.operations;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end perf test for end-to-end perf test.
@@ -48,9 +46,7 @@ import org.slf4j.LoggerFactory;
  * --stateBackend
  * --checkpointTimeout
  */
-
 public class PerformanceTestJobOneInput extends PerformanceTestJobBase{
-	private static final Logger LOG = LoggerFactory.getLogger(PerformanceTestJobOneInput.class);
 
 	public static void main(String[] args) throws Exception {
 		PerformanceTestJobOneInput oneInput = new PerformanceTestJobOneInput();

@@ -30,7 +30,6 @@ import org.apache.flink.util.Collector;
 /**
  * ValueStateFlatMap.
  */
-
 public class ValueStateFlatMap extends RichFlatMapFunction<Tuple2<String, String>, Tuple2<String, String>> {
 	private transient ValueState<Tuple2<String, String>> sum;
 

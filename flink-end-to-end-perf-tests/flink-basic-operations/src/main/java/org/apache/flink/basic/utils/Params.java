@@ -24,28 +24,26 @@ import org.apache.flink.api.java.utils.ParameterTool;
  * Provides the default data sets used for the WordCount example program. The default data sets are used, if no
  * parameters are given to the program.
  */
-
 public class Params {
-	String jobName;
-	int parallelism;
-	String outputPath;
-	String checkPointMode;
-	int max;
-	Long maxCount;
-	int seed;
-	int waitNum;
-	long windowSize;
-	long rate;
-	int sleepNum;
-	boolean bigData;
-	String streamPartitioner;
-	String scheduleMode;
-	String executionMode;
-	long checkpointInterval;
-	String checkpointPath;
-	String stateBackend;
-	long checkpointTimeout;
-	int recordSize;
+	private String jobName;
+	private int parallelism;
+	private String outputPath;
+	private String checkPointMode;
+	private int max;
+	private Long maxCount;
+	private int seed;
+	private int waitNum;
+	private long windowSize;
+	private int sleepNum;
+	private boolean bigData;
+	private String streamPartitioner;
+	private String scheduleMode;
+	private String executionMode;
+	private long checkpointInterval;
+	private String checkpointPath;
+	private String stateBackend;
+	private long checkpointTimeout;
+	private int recordSize;
 
 	public void initEnv(ParameterTool params) {
 		this.jobName = params.get("jobName", "Basic PerformanceTestJob");
@@ -129,8 +127,5 @@ public class Params {
 		return seed;
 	}
 
-	public int getWaitNum() {
-		return waitNum;
-	}
 }
 
