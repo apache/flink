@@ -50,7 +50,8 @@ class TableEnvironment(object):
     A table environment is responsible for:
 
         - Connecting to external systems.
-        - Registering and retrieving :class:`Table` and other meta objects from a catalog.
+        - Registering and retrieving :class:`~pyflink.table.Table` and other meta objects from a
+          catalog.
         - Executing SQL statements.
         - Offering further configuration options.
 
@@ -92,31 +93,31 @@ class TableEnvironment(object):
         :param table_source: The table source used as table.
         :type table_source: pyflink.table.TableSource
         :return: The result table.
-        :rtype: Table
+        :rtype: pyflink.table.Table
         """
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source))
 
     def register_catalog(self, catalog_name, catalog):
         """
-        Registers a :class:`pyflink.table.catalog.Catalog` under a unique name.
-        All tables registered in the :class:`pyflink.table.catalog.Catalog` can be accessed.
+        Registers a :class:`~pyflink.table.catalog.Catalog` under a unique name.
+        All tables registered in the :class:`~pyflink.table.catalog.Catalog` can be accessed.
 
         :param catalog_name: The name under which the catalog will be registered.
         :type catalog_name: str
         :param catalog: The catalog to register.
-        :type catalog: Catalog
+        :type catalog: pyflink.table.catalog.Catalog
         """
         self._j_tenv.registerCatalog(catalog_name, catalog._j_catalog)
 
     def get_catalog(self, catalog_name):
         """
-        Gets a registered :class:`pyflink.table.catalog.Catalog` by name.
+        Gets a registered :class:`~pyflink.table.catalog.Catalog` by name.
 
-        :param catalog_name: The name to look up the :class:`pyflink.table.catalog.Catalog`.
+        :param catalog_name: The name to look up the :class:`~pyflink.table.catalog.Catalog`.
         :type catalog_name: str
         :return: The requested catalog, None if there is no
                  registered catalog with given name.
-        :rtype: Catalog
+        :rtype: pyflink.table.catalog.Catalog
         """
         catalog = self._j_tenv.getCatalog(catalog_name)
         if catalog.isPresent():
@@ -126,8 +127,8 @@ class TableEnvironment(object):
 
     def register_table(self, name, table):
         """
-        Registers a :class:`Table` under a unique name in the TableEnvironment's catalog.
-        Registered tables can be referenced in SQL queries.
+        Registers a :class:`~pyflink.table.Table` under a unique name in the TableEnvironment's
+        catalog. Registered tables can be referenced in SQL queries.
 
         Example:
         ::
@@ -138,7 +139,7 @@ class TableEnvironment(object):
         :param name: The name under which the table will be registered.
         :type name: str
         :param table: The table to register.
-        :type table: Table
+        :type table: pyflink.table.Table
 
         .. note:: Deprecated in 1.10. Use :func:`create_temporary_view` instead.
         """
@@ -147,8 +148,9 @@ class TableEnvironment(object):
 
     def register_table_source(self, name, table_source):
         """
-        Registers an external :class:`TableSource` in this :class:`TableEnvironment`'s catalog.
-        Registered tables can be referenced in SQL queries.
+        Registers an external :class:`~pyflink.table.TableSource` in this
+        :class:`~pyflink.table.TableEnvironment`'s catalog. Registered tables can be referenced in
+        SQL queries.
 
         Example:
         ::
@@ -171,9 +173,9 @@ class TableEnvironment(object):
 
     def register_table_sink(self, name, table_sink):
         """
-        Registers an external :class:`TableSink` with given field names and types in this
-        :class:`TableEnvironment`'s catalog.
-        Registered sink tables can be referenced in SQL DML statements.
+        Registers an external :class:`~pyflink.table.TableSink` with given field names and types in
+        this :class:`~pyflink.table.TableEnvironment`'s catalog. Registered sink tables can be
+        referenced in SQL DML statements.
 
         Example:
         ::
@@ -196,9 +198,9 @@ class TableEnvironment(object):
 
     def scan(self, *table_path):
         """
-        Scans a registered table and returns the resulting :class:`Table`.
+        Scans a registered table and returns the resulting :class:`~pyflink.table.Table`.
         A table to scan must be registered in the TableEnvironment. It can be either directly
-        registered or be an external member of a :class:`pyflink.table.catalog.Catalog`.
+        registered or be an external member of a :class:`~pyflink.table.catalog.Catalog`.
 
         See the documentation of :func:`~pyflink.table.TableEnvironment.use_database` or
         :func:`~pyflink.table.TableEnvironment.use_catalog` for the rules on the path resolution.
@@ -219,7 +221,7 @@ class TableEnvironment(object):
         :type table_path: str
         :throws: Exception if no table is found using the given table path.
         :return: The resulting table.
-        :rtype: Table
+        :rtype: pyflink.table.Table
 
         .. note:: Deprecated in 1.10. Use :func:`from_path` instead.
         """
@@ -231,9 +233,9 @@ class TableEnvironment(object):
 
     def from_path(self, path):
         """
-        Reads a registered table and returns the resulting :class:`Table`.
+        Reads a registered table and returns the resulting :class:`~pyflink.table.Table`.
 
-        A table to scan must be registered in the :class:`TableEnvironment`.
+        A table to scan must be registered in the :class:`~pyflink.table.TableEnvironment`.
 
         See the documentation of :func:`use_database` or :func:`use_catalog` for the rules on the
         path resolution.
@@ -259,16 +261,16 @@ class TableEnvironment(object):
         :param path: The path of a table API object to scan.
         :type path: str
         :return: Either a table or virtual table (=view).
-        :rtype: Table
+        :rtype: pyflink.table.Table
 
-        .. seealso:: :func:`user_catalog`
-        .. seealso:: :func:`user_database`
+        .. seealso:: :func:`use_catalog`
+        .. seealso:: :func:`use_database`
         """
         return Table(get_method(self._j_tenv, "from")(path))
 
     def insert_into(self, target_path, table):
         """
-        Instructs to write the content of a :class:`Table` API object into a table.
+        Instructs to write the content of a :class:`~pyflink.table.Table` API object into a table.
 
         See the documentation of :func:`use_database` or :func:`use_catalog` for the rules on the
         path resolution.
@@ -279,11 +281,11 @@ class TableEnvironment(object):
             >>> tab = table_env.scan("tableName")
             >>> table_env.insert_into("sink", tab)
 
-        :param target_path: The path of the registered :class:`TableSink` to which the
-                            :class:`Table` is written.
+        :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
+                            the :class:`~pyflink.table.Table` is written.
         :type target_path: str
         :param table: table The Table to write to the sink.
-        :type table: Table
+        :type table: pyflink.table.Table
         """
         self._j_tenv.insertInto(target_path, table._j_table)
 
@@ -404,11 +406,11 @@ class TableEnvironment(object):
     def explain(self, table=None, extended=False):
         """
         Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-        the result of the given :class:`Table` or multi-sinks plan.
+        the result of the given :class:`~pyflink.table.Table` or multi-sinks plan.
 
         :param table: The table to be explained. If table is None, explain for multi-sinks plan,
                       else for given table.
-        :type table: Table
+        :type table: pyflink.table.Table
         :param extended: If the plan should contain additional properties.
                          e.g. estimated cost, traits
         :type extended: bool
@@ -422,14 +424,15 @@ class TableEnvironment(object):
 
     def sql_query(self, query):
         """
-        Evaluates a SQL query on registered tables and retrieves the result as a :class:`Table`.
+        Evaluates a SQL query on registered tables and retrieves the result as a
+        :class:`~pyflink.table.Table`.
 
         All tables referenced by the query must be registered in the TableEnvironment.
 
-        A :class:`Table` is automatically registered when its :func:`~Table.__str__` method is
-        called, for example when it is embedded into a String.
+        A :class:`~pyflink.table.Table` is automatically registered when its
+        :func:`~Table.__str__` method is called, for example when it is embedded into a String.
 
-        Hence, SQL queries can directly reference a :class:`Table` as follows:
+        Hence, SQL queries can directly reference a :class:`~pyflink.table.Table` as follows:
         ::
 
             >>> table = ...
@@ -439,7 +442,7 @@ class TableEnvironment(object):
         :param query: The sql query string.
         :type query: str
         :return: The result table.
-        :rtype: Table
+        :rtype: pyflink.table.Table
         """
         j_table = self._j_tenv.sqlQuery(query)
         return Table(j_table)
@@ -453,9 +456,9 @@ class TableEnvironment(object):
             Currently only SQL INSERT statements and CREATE TABLE statements are supported.
 
         All tables referenced by the query must be registered in the TableEnvironment.
-        A :class:`Table` is automatically registered when its :func:`~Table.__str__` method is
-        called, for example when it is embedded into a String.
-        Hence, SQL queries can directly reference a :class:`Table` as follows:
+        A :class:`~pyflink.table.Table` is automatically registered when its
+        :func:`~Table.__str__` method is called, for example when it is embedded into a String.
+        Hence, SQL queries can directly reference a :class:`~pyflink.table.Table` as follows:
         ::
 
             # register the table sink into which the result is inserted.
@@ -572,7 +575,7 @@ class TableEnvironment(object):
 
         :param catalog_name: The name of the catalog to set as the current default catalog.
         :type catalog_name: str
-        :throws: :class:`pyflink.util.exceptions.CatalogException` thrown if a catalog with given
+        :throws: :class:`~pyflink.util.exceptions.CatalogException` thrown if a catalog with given
                  name could not be set as the default one.
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
@@ -630,7 +633,7 @@ class TableEnvironment(object):
         | cat1.db1.tab1  | cat1.db1.tab1                           |
         +----------------+-----------------------------------------+
 
-        :throws: :class:`pyflink.util.exceptions.CatalogException` thrown if the given catalog and
+        :throws: :class:`~pyflink.util.exceptions.CatalogException` thrown if the given catalog and
                  database could not be set as the default ones.
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
@@ -646,7 +649,7 @@ class TableEnvironment(object):
         Returns the table config to define the runtime behavior of the Table API.
 
         :return: Current table config.
-        :rtype: TableConfig
+        :rtype: pyflink.table.TableConfig
         """
         pass
 
@@ -679,7 +682,7 @@ class TableEnvironment(object):
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
-        :return: A :class:`pyflink.table.descriptors.ConnectTableDescriptor` used to build the
+        :return: A :class:`~pyflink.table.descriptors.ConnectTableDescriptor` used to build the
                  table source/sink.
         :rtype: pyflink.table.descriptors.ConnectTableDescriptor
         """
@@ -741,17 +744,19 @@ class TableEnvironment(object):
 
     def create_temporary_view(self, view_path, table):
         """
-        Registers a :class:`Table` API object as a temporary view similar to SQL temporary views.
+        Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
+        temporary views.
 
         Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
         it will be inaccessible in the current session. To make the permanent object available
         again you can drop the corresponding temporary object.
 
         :param view_path: The path under which the view will be registered. See also the
-                          :class:`TableEnvironment` class description for the format of the path.
+                          :class:`~pyflink.table.TableEnvironment` class description for the format
+                          of the path.
         :type view_path: str
         :param table: The view to register.
-        :type table: Table
+        :type table: pyflink.table.Table
         """
         self._j_tenv.createTemporaryView(view_path, table._j_table)
 
@@ -764,7 +769,7 @@ class TableEnvironment(object):
 
         .. note::
 
-            It is highly advised to set all parameters in the :class:`TableConfig`
+            It is highly advised to set all parameters in the :class:`~pyflink.table.TableConfig`
             on the very beginning of the program. It is undefined what configurations values will
             be used for the execution if queries are mixed with config changes. It depends on
             the characteristic of the particular parameter. For some of them the value from the
@@ -795,7 +800,7 @@ class TableEnvironment(object):
 
         The built-in acceptable composite element types contains:
 
-        **list**, **tuple**, **dict**, **array**, :class:`pyflink.table.Row`
+        **list**, **tuple**, **dict**, **array**, :class:`~pyflink.table.Row`
 
         If the element type is a composite type, it will be unboxed.
         e.g. table_env.from_elements([(1, 'Hi'), (2, 'Hello')]) will return a table like:
@@ -828,11 +833,11 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :type elements: list
         :param schema: The schema of the table.
-        :type schema: DataType
+        :type schema: pyflink.table.types.DataType
         :param verify_schema: Whether to verify the elements against the schema.
         :type verify_schema: bool
         :return: The result table.
-        :rtype: Table
+        :rtype: pyflink.table.Table
         """
 
         # verifies the elements against the specified schema
@@ -884,7 +889,7 @@ class TableEnvironment(object):
         Creates a table from a collection of elements.
 
         :param elements: The elements to create a table from.
-        :return: The result :class:`Table`.
+        :return: The result :class:`~pyflink.table.Table`.
         """
 
         # serializes to a file, and we read the file in java
@@ -935,7 +940,7 @@ class StreamTableEnvironment(TableEnvironment):
         Returns the table config to define the runtime behavior of the Table API.
 
         :return: Current table config.
-        :rtype: TableConfig
+        :rtype: pyflink.table.TableConfig
         """
         table_config = TableConfig()
         table_config._j_table_config = self._j_tenv.getConfig()
@@ -967,8 +972,9 @@ class StreamTableEnvironment(TableEnvironment):
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
-        :return: A :class:`StreamTableDescriptor` used to build the table source/sink.
-        :rtype: StreamTableDescriptor
+        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the table
+                 source/sink.
+        :rtype: pyflink.table.descriptors.StreamTableDescriptor
         """
         return StreamTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
@@ -976,7 +982,7 @@ class StreamTableEnvironment(TableEnvironment):
     @staticmethod
     def create(stream_execution_environment, table_config=None, environment_settings=None):
         """
-        Creates a :class:`TableEnvironment` for a
+        Creates a :class:`~pyflink.table.TableEnvironment` for a
         :class:`~pyflink.datastream.StreamExecutionEnvironment`.
 
         Example:
@@ -1001,14 +1007,14 @@ class StreamTableEnvironment(TableEnvironment):
                                              of the TableEnvironment.
         :type stream_execution_environment: pyflink.datastream.StreamExecutionEnvironment
         :param table_config: The configuration of the TableEnvironment, optional.
-        :type table_config: TableConfig
+        :type table_config: pyflink.table.TableConfig
         :param environment_settings: The environment settings used to instantiate the
                                      TableEnvironment. It provides the interfaces about planner
                                      selection(flink or blink), optional.
         :type environment_settings: pyflink.table.EnvironmentSettings
-        :return: The :class:`StreamTableEnvironment` created from given StreamExecutionEnvironment
-                 and configuration.
-        :rtype: StreamTableEnvironment
+        :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
+                 configuration.
+        :rtype: pyflink.table.StreamTableEnvironment
         """
         if table_config is not None and environment_settings is not None:
             raise ValueError("The param 'table_config' and "
@@ -1061,7 +1067,7 @@ class BatchTableEnvironment(TableEnvironment):
         Returns the table config to define the runtime behavior of the Table API.
 
         :return: Current table config.
-        :rtype: TableConfig
+        :rtype: pyflink.table.TableConfig
         """
         table_config = TableConfig()
         table_config._j_table_config = self._j_tenv.getConfig()
@@ -1093,9 +1099,11 @@ class BatchTableEnvironment(TableEnvironment):
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
-        :return: A :class:`BatchTableDescriptor` or a :class:`StreamTableDescriptor`
-                 (for blink planner) used to build the table source/sink.
-        :rtype: BatchTableDescriptor or StreamTableDescriptor
+        :return: A :class:`~pyflink.table.descriptors.BatchTableDescriptor` or a
+                 :class:`~pyflink.table.descriptors.StreamTableDescriptor` (for blink planner) used
+                 to build the table source/sink.
+        :rtype: pyflink.table.descriptors.BatchTableDescriptor or
+                pyflink.table.descriptors.StreamTableDescriptor
         """
         gateway = get_gateway()
         blink_t_env_class = get_java_class(
@@ -1110,7 +1118,7 @@ class BatchTableEnvironment(TableEnvironment):
     @staticmethod
     def create(execution_environment=None, table_config=None, environment_settings=None):
         """
-        Creates a :class:`BatchTableEnvironment`.
+        Creates a :class:`~pyflink.table.BatchTableEnvironment`.
 
         Example:
         ::
@@ -1127,18 +1135,18 @@ class BatchTableEnvironment(TableEnvironment):
             ...     .use_blink_planner().build()
             >>> table_env = BatchTableEnvironment.create(environment_settings=environment_settings)
 
-        :param execution_environment: The batch :class:`pyflink.dataset.ExecutionEnvironment` of
+        :param execution_environment: The batch :class:`~pyflink.dataset.ExecutionEnvironment` of
                                       the TableEnvironment.
         :type execution_environment: pyflink.dataset.ExecutionEnvironment
         :param table_config: The configuration of the TableEnvironment, optional.
-        :type table_config: TableConfig
+        :type table_config: pyflink.table.TableConfig
         :param environment_settings: The environment settings used to instantiate the
                                      TableEnvironment. It provides the interfaces about planner
                                      selection(flink or blink), optional.
         :type environment_settings: pyflink.table.EnvironmentSettings
         :return: The BatchTableEnvironment created from given ExecutionEnvironment and
                  configuration.
-        :rtype: BatchTableEnvironment
+        :rtype: pyflink.table.BatchTableEnvironment
         """
         if execution_environment is None and \
                 table_config is None and \
