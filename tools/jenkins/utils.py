@@ -41,16 +41,21 @@ def run_command(cmd, timeout=12000):
     try:
         while True:
             buff = p.stdout.readline()
-            line = buff.split("\n")[0]
+            line_buff = str(buff, encoding="utf-8")
+            line = line_buff.split("\n")[0]
             logger.info(line)
-            if buff == "" and not p.poll() is None:
+            if line_buff == "" and not p.poll() is None:
                 break
             else:
                 lines.append(buff)
     except Exception as e:
         logger.error(traceback.format_exc())
-        return 1, "", ""
+        return False, "", ""
     finally:
         my_timer.cancel()
         exit_code = p.returncode
-        return exit_code, "".join(lines)
+        if exit_code == 0:
+            result = True
+        else:
+            result = Flase
+        return result, "".join(lines)

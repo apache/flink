@@ -39,11 +39,10 @@ def init_standalone_env(host_list, user, source_path, dest_path):
 
 def get_host_list(slave_file):
     hostlist = []
-    data = ""
     with open(slave_file) as file:
         datas = file.read()
-    for data in datas.split("\n"):
-        if not(data == "" or data.startswith("#")):
+        for data in datas.split("\n"):
+            if not(data == "" or data.startswith("#")):
                 hostlist.append(data)
     return hostlist
 
@@ -51,7 +50,7 @@ def get_host_list(slave_file):
 def package(flink_home):
     cmd = "cd %s; mvn clean install -B -U -DskipTests -Drat.skip=true -Dcheckstyle.skip=true " % flink_home
     status, output = run_command(cmd)
-    if output.find("BUILD SUCCESS") > 0:
+    if status and output.find("BUILD SUCCESS") > 0:
         return True
     else:
         return False
@@ -60,7 +59,7 @@ def package(flink_home):
 def get_target(flink_home):
     cmd = "ls -lt %s/flink-dist/target/flink-*-bin/ |grep -v tar.gz"
     status, output = run_command(cmd)
-    if status == 0:
+    if status:
         target_file = output.split("\n")[0]
         return target_file, "%s/flink-dist/target/%s-bin/%s" % (flink_home, target_file, target_file)
     else:
@@ -75,9 +74,9 @@ def update_conf_slaves(dest_path, slave_file):
 def init_env():
     flink_home = os.getcwd()
     package_result = package(flink_home)
-    if package_result == 1:
+    if not package_result:
         logger.error("package error")
-        return 1
+        return False
     slave_file = "%s/tool/jenkins/slaves" % flink_home
     host_list = get_host_list(slave_file)
     flink_path, source_path = get_target(flink_home)
@@ -85,10 +84,10 @@ def init_env():
     if source_path != "":
         update_conf_slaves(source_path, slave_file)
         init_standalone_env(host_list, source_path, dest_path)
-        return 0
+        return True
     else:
         logger.error("find target file error")
-        return 1
+        return False
 
 
 if __name__ == "__main__":
