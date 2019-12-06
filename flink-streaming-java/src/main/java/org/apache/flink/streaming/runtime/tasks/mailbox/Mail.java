@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -76,10 +75,6 @@ public class Mail {
 	}
 
 	public void run() throws Exception {
-		try {
-			actionExecutor.run(runnable);
-		} catch (Exception e) {
-			throw new FlinkException("Cannot process mail " + toString(), e);
-		}
+		actionExecutor.run(runnable);
 	}
 }
