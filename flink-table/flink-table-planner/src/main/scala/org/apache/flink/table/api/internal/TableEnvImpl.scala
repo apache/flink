@@ -54,7 +54,7 @@ import _root_.scala.util.Try
   */
 abstract class TableEnvImpl(
     val config: TableConfig,
-    private val catalogManager: CatalogManager,
+    val catalogManager: CatalogManager,
     private val moduleManager: ModuleManager)
   extends TableEnvironment {
 

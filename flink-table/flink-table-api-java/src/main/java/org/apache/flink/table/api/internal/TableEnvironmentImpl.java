@@ -101,7 +101,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	// Flag that tells if the TableSource/TableSink used in this environment is stream table source/sink,
 	// and this should always be true. This avoids too many hard code.
 	private static final boolean IS_STREAM_TABLE = true;
-	private final CatalogManager catalogManager;
+	protected final CatalogManager catalogManager;
 	private final ModuleManager moduleManager;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();

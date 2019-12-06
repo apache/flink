@@ -48,6 +48,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl;
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -92,6 +93,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.HashMap;
@@ -116,6 +119,9 @@ public class ExecutionContext<ClusterID> {
 	private final Environment environment;
 	private final SessionContext originalSessionContext;
 	private final ClassLoader classLoader;
+
+	@Nullable
+	private final CatalogManager catalogManager;
 
 	private final Configuration flinkConfig;
 	private final Configuration executorConfig;
@@ -154,8 +160,29 @@ public class ExecutionContext<ClusterID> {
 			ClusterClientServiceLoader clusterClientServiceLoader,
 			Options commandLineOptions,
 			List<CustomCommandLine> availableCommandLines) throws FlinkException {
+		this(
+				environment,
+				originalSessionContext,
+				null,
+				dependencies,
+				flinkConfig,
+				new DefaultClusterClientServiceLoader(),
+				commandLineOptions,
+				availableCommandLines);
+	}
+
+	public ExecutionContext(
+			Environment environment,
+			SessionContext originalSessionContext,
+			@Nullable CatalogManager catalogManager,
+			List<URL> dependencies,
+			Configuration flinkConfig,
+			ClusterClientServiceLoader clusterClientServiceLoader,
+			Options commandLineOptions,
+			List<CustomCommandLine> availableCommandLines) throws FlinkException {
 		this.environment = environment;
 		this.originalSessionContext = originalSessionContext;
+		this.catalogManager = catalogManager;
 
 		this.flinkConfig = flinkConfig;
 
@@ -219,6 +246,18 @@ public class ExecutionContext<ClusterID> {
 		return catalogs;
 	}
 
+	public CatalogManager getCatalogManager() {
+		if (environment.getExecution().isStreamingPlanner()) {
+			StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) this.tableEnv;
+			return streamTableEnv.getCatalogManager();
+		} else if (environment.getExecution().isBatchPlanner()) {
+			BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) this.tableEnv;
+			return batchTableEnv.catalogManager();
+		} else {
+			throw new SqlExecutionException("Unsupported execution type specified.");
+		}
+	}
+
 	/**
 	 * Executes the given supplier using the execution context's classloader as thread classloader.
 	 */
@@ -273,6 +312,19 @@ public class ExecutionContext<ClusterID> {
 		jobGraph.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 
 		return jobGraph;
+	}
+
+	/** Returns a builder for this {@link ExecutionContext}. */
+	public static Builder builder(
+			Environment defaultEnv,
+			SessionContext sessionContext,
+			List<URL> dependencies,
+			Configuration configuration,
+			ClusterClientServiceLoader serviceLoader,
+			Options commandLineOptions,
+			List<CustomCommandLine> commandLines) {
+		return new Builder(defaultEnv, sessionContext, dependencies, configuration,
+				serviceLoader, commandLineOptions, commandLines);
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -346,13 +398,18 @@ public class ExecutionContext<ClusterID> {
 	private static TableEnvironment createStreamTableEnvironment(
 			StreamExecutionEnvironment env,
 			EnvironmentSettings settings,
-			Executor executor) {
+			Executor executor,
+			CatalogManager catalogManager) {
 
 		final TableConfig config = TableConfig.getDefault();
 
-		final CatalogManager catalogManager = new CatalogManager(
-			settings.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
+		if (catalogManager == null) {
+			catalogManager = new CatalogManager(
+					settings.getBuiltInCatalogName(),
+					new GenericInMemoryCatalog(
+							settings.getBuiltInCatalogName(),
+							settings.getBuiltInDatabaseName()));
+		}
 		final ModuleManager moduleManager = new ModuleManager();
 		final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
 
@@ -402,7 +459,7 @@ public class ExecutionContext<ClusterID> {
 			final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
 			executor = lookupExecutor(executorProperties, streamExecEnv);
-			tableEnv = createStreamTableEnvironment(streamExecEnv, settings, executor);
+			tableEnv = createStreamTableEnvironment(streamExecEnv, settings, executor, catalogManager);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
 			execEnv = createExecutionEnvironment();
@@ -426,6 +483,12 @@ public class ExecutionContext<ClusterID> {
 			// unload core module first to respect whatever users configure
 			tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
 			modules.forEach(tableEnv::loadModule);
+		}
+
+		if (catalogManager != null) {
+			registerFunctions();
+			// No need to register the catalogs info if already inherit from the same session.
+			return;
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -457,17 +520,12 @@ public class ExecutionContext<ClusterID> {
 		tableSinks.forEach(tableEnv::registerTableSink);
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.5 create user-defined functions and register them.
+		// Step.5 create user-defined functions and temporal tables then register them.
 		//--------------------------------------------------------------------------------------------------------------
-		Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
-		environment.getFunctions().forEach((name, entry) -> {
-			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
-			functions.put(name, function);
-		});
-		registerFunctions(functions);
+		registerFunctions();
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.5 Register views and temporal tables in specified order.
+		// Step.6 Register views in specified order.
 		//--------------------------------------------------------------------------------------------------------------
 		environment.getTables().forEach((name, entry) -> {
 			// if registering a view fails at this point,
@@ -475,14 +533,11 @@ public class ExecutionContext<ClusterID> {
 			if (entry instanceof ViewEntry) {
 				final ViewEntry viewEntry = (ViewEntry) entry;
 				registerView(viewEntry);
-			} else if (entry instanceof TemporalTableEntry) {
-				final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
-				registerTemporalTable(temporalTableEntry);
 			}
 		});
 
 		//--------------------------------------------------------------------------------------------------------------
-		// Step.6 Set current catalog and database.
+		// Step.7 Set current catalog and database.
 		//--------------------------------------------------------------------------------------------------------------
 		// Switch to the current catalog.
 		Optional<String> catalog = environment.getExecution().getCurrentCatalog();
@@ -510,6 +565,22 @@ public class ExecutionContext<ClusterID> {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
 		return env;
+	}
+
+	private void registerFunctions() {
+		Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
+		environment.getFunctions().forEach((name, entry) -> {
+			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
+			functions.put(name, function);
+		});
+		registerFunctions(functions);
+
+		environment.getTables().forEach((name, entry) -> {
+			if (entry instanceof TemporalTableEntry) {
+				final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
+				registerTemporalTable(temporalTableEntry);
+			}
+		});
 	}
 
 	private void registerFunctions(Map<String, FunctionDefinition> functions) {
@@ -582,6 +653,71 @@ public class ExecutionContext<ClusterID> {
 			return streamExecEnv.getStreamGraph(name);
 		} else {
 			return execEnv.createProgramPlan(name);
+		}
+	}
+
+	//~ Inner Class -------------------------------------------------------------------------------
+
+	/** Builder for {@link ExecutionContext}. */
+	public static class Builder {
+		// Required members.
+		private final SessionContext sessionContext;
+		private final List<URL> dependencies;
+		private final Configuration configuration;
+		private final ClusterClientServiceLoader serviceLoader;
+		private final Options commandLineOptions;
+		private final List<CustomCommandLine> commandLines;
+
+		private Environment defaultEnv;
+		private Environment env;
+
+		// Optional members.
+		private CatalogManager catalogManager;
+
+		private Builder(
+				Environment defaultEnv,
+				SessionContext sessionContext,
+				List<URL> dependencies,
+				Configuration configuration,
+				ClusterClientServiceLoader serviceLoader,
+				Options commandLineOptions,
+				List<CustomCommandLine> commandLines) {
+			this.defaultEnv = defaultEnv;
+			this.sessionContext = sessionContext;
+			this.dependencies = dependencies;
+			this.configuration = configuration;
+			this.serviceLoader = serviceLoader;
+			this.commandLineOptions = commandLineOptions;
+			this.commandLines = commandLines;
+		}
+
+		public Builder env(Environment environment) {
+			this.env = environment;
+			return this;
+		}
+
+		public Builder catalogManager(CatalogManager catalogManager) {
+			this.catalogManager = catalogManager;
+			return this;
+		}
+
+		public ExecutionContext<?> build() {
+			try {
+				return new ExecutionContext<>(
+						this.env == null
+								? Environment.merge(defaultEnv, sessionContext.getSessionEnv())
+								: this.env,
+						this.sessionContext,
+						this.catalogManager,
+						this.dependencies,
+						this.configuration,
+						this.serviceLoader,
+						this.commandLineOptions,
+						this.commandLines);
+			} catch (Throwable t) {
+				// catch everything such that a configuration does not crash the executor
+				throw new SqlExecutionException("Could not create execution context.", t);
+			}
 		}
 	}
 }
