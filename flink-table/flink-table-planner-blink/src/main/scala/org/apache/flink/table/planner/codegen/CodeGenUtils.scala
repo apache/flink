@@ -167,17 +167,6 @@ object CodeGenUtils {
     case RAW => className[BinaryGeneric[_]]
   }
 
-  def boxedTypeForUnboxType(clazz: Class[_]): Class[_] = clazz match {
-    case JBoolean.TYPE => classOf[JBoolean]
-    case JByte.TYPE => classOf[JByte]
-    case JShort.TYPE => classOf[JShort]
-    case JInt.TYPE => classOf[JInt]
-    case JLong.TYPE => classOf[JLong]
-    case JFloat.TYPE => classOf[JFloat]
-    case JDouble.TYPE => classOf[JDouble]
-    case _ => clazz
-  }
-
   /**
     * Gets the boxed type term from external type info.
     * We only use TypeInformation to store external type info.

@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUti
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.types.extraction.utils.ExtractionUtils
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
@@ -75,14 +76,9 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       } else {
         val javaTerm = newName("javaResult")
         // it maybe a Internal class, so use resultClass is most safety.
-        val boxedResultClass = boxedTypeForUnboxType(resultClass)
+        val boxedResultClass = ExtractionUtils.boxPrimitive(resultClass).asInstanceOf[Class[_]]
         val javaTypeTerm = boxedResultClass.getCanonicalName
-        val resultExternalTypeWithResultClass =
-          if (resultExternalType.getLogicalType.supportsOutputConversion(boxedResultClass)) {
-            resultExternalType.bridgedTo(boxedResultClass)
-          } else {
-            resultExternalType
-          }
+        val resultExternalTypeWithResultClass = resultExternalType.bridgedTo(boxedResultClass)
         val internal = genToInternalIfNeeded(
           ctx, resultExternalTypeWithResultClass, javaTerm)
         s"""
@@ -147,7 +143,7 @@ object ScalarFunctionCallGen {
       if (paramClass.isPrimitive && isInternalClass(signatureTypes(i))) {
         operandExpr
       } else {
-        val boxedParamClass = boxedTypeForUnboxType(paramClass)
+        val boxedParamClass = ExtractionUtils.boxPrimitive(paramClass).asInstanceOf[Class[_]]
         val signatureType =
           if (signatureTypes(i)
               .getLogicalType
