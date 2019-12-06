@@ -1976,7 +1976,7 @@ public class TaskExecutorTest extends TestLogger {
 			assertThat(slotReport, containsInAnyOrder(
 					new SlotStatus(new SlotID(resourceId, 0), DEFAULT_RESOURCE_PROFILE),
 					new SlotStatus(new SlotID(resourceId, 1), DEFAULT_RESOURCE_PROFILE),
-					new SlotStatus(new SlotID(resourceId, 2), resourceProfile, jobId, allocationId)));
+					new SlotStatus(SlotID.generateDynamicSlotID(resourceId), resourceProfile, jobId, allocationId)));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}

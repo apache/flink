@@ -87,7 +87,7 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 
 	@Override
 	public String toString() {
-		return resourceId + "_" + slotNumber;
+		return resourceId + "_" + (slotNumber >= 0 ? slotNumber : "dynamic");
 	}
 
 	/**
