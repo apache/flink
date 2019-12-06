@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.KeyToPath;
@@ -54,6 +55,7 @@ import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_MAP_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.FLINK_CONF_VOLUME;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Common utils for Kubernetes.
@@ -81,6 +83,25 @@ public class KubernetesUtils {
 			return content.toString();
 		}
 		throw new FileNotFoundException("File " + filePath + " not exists.");
+	}
+
+	/**
+	 * Parse a valid port for the config option. A fixed port is expected, and do not support a range of ports.
+	 *
+	 * @param flinkConfig flink config
+	 * @param port port config option
+	 * @return valid port
+	 */
+	public static Integer parsePort(Configuration flinkConfig, ConfigOption<String> port) {
+		checkNotNull(flinkConfig.get(port), port.key() + " should not be null.");
+
+		try {
+			return Integer.parseInt(flinkConfig.get(port));
+		} catch (NumberFormatException ex) {
+			throw new FlinkRuntimeException(
+				port.key() + " should be specified to a fixed port. Do not support a range of ports.",
+				ex);
+		}
 	}
 
 	/**

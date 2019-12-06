@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -28,7 +29,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesDeployment;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -44,7 +44,8 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Map;
 
-import static org.apache.flink.kubernetes.utils.Constants.BLOB_SERVER_PORT;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Flink master specific deployment configuration.
@@ -62,10 +63,13 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 	@Override
 	protected Deployment decorateInternalResource(Deployment deployment, Configuration flinkConfig) {
 		final String clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
-		Preconditions.checkNotNull(clusterId, "ClusterId must be specified!");
+		checkNotNull(clusterId, "ClusterId must be specified!");
+
+		final int blobServerPort = KubernetesUtils.parsePort(flinkConfig, BlobServerOptions.PORT);
+		checkArgument(blobServerPort > 0, "%s should not be 0.", BlobServerOptions.PORT.key());
 
 		final String mainClass = flinkConfig.getString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS);
-		Preconditions.checkNotNull(mainClass, "Main class must be specified!");
+		checkNotNull(mainClass, "Main class must be specified!");
 
 		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
 		final boolean hasLogback = new File(confDir, Constants.CONFIG_FILE_LOGBACK_NAME).exists();
@@ -80,7 +84,7 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 
 		final Volume configMapVolume = KubernetesUtils.getConfigMapVolume(clusterId, hasLogback, hasLog4j);
 
-		final Container container = createJobManagerContainer(flinkConfig, mainClass, hasLogback, hasLog4j);
+		final Container container = createJobManagerContainer(flinkConfig, mainClass, hasLogback, hasLog4j, blobServerPort);
 
 		final String serviceAccount = flinkConfig.getString(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT);
 		final PodSpec podSpec = new PodSpecBuilder()
@@ -101,7 +105,8 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 			Configuration flinkConfig,
 			String mainClass,
 			boolean hasLogback,
-			boolean hasLog4j) {
+			boolean hasLog4j,
+			int blobServerPort) {
 		final String flinkConfDirInPod = flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
 		final String logDirInPod = flinkConfig.getString(KubernetesConfigOptions.FLINK_LOG_DIR);
 		final String mainClassArgs = flinkConfig.getString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS_ARGS);
@@ -129,7 +134,7 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 			.withPorts(Arrays.asList(
 				new ContainerPortBuilder().withContainerPort(flinkConfig.getInteger(RestOptions.PORT)).build(),
 				new ContainerPortBuilder().withContainerPort(flinkConfig.getInteger(JobManagerOptions.PORT)).build(),
-				new ContainerPortBuilder().withContainerPort(BLOB_SERVER_PORT).build()))
+				new ContainerPortBuilder().withContainerPort(blobServerPort).build()))
 			.withVolumeMounts(KubernetesUtils.getConfigMapVolumeMount(flinkConfDirInPod, hasLogback, hasLog4j))
 			.build();
 	}
