@@ -347,6 +347,12 @@ class UserDefinedFunctionTests(object):
                 'decimal_param is wrong value %s !' % decimal_param
             return decimal_param
 
+        def decimal_cut_func(decimal_param):
+            from decimal import Decimal
+            assert decimal_param == Decimal('1000000000000000000.059999999999999999'), \
+                'decimal_param is wrong value %s !' % decimal_param
+            return decimal_param
+
         self.t_env.register_function(
             "boolean_func", udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN()))
 
@@ -398,6 +404,10 @@ class UserDefinedFunctionTests(object):
             "decimal_func", udf(decimal_func, [DataTypes.DECIMAL(38, 18)],
                                 DataTypes.DECIMAL(38, 18)))
 
+        self.t_env.register_function(
+            "decimal_cut_func", udf(decimal_cut_func, [DataTypes.DECIMAL(38, 18)],
+                                    DataTypes.DECIMAL(38, 18)))
+
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.TINYINT(),
@@ -417,7 +427,7 @@ class UserDefinedFunctionTests(object):
               datetime.time(hour=12, minute=0, second=0, microsecond=123000),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [[1, 2, 3]],
               {1: 'flink', 2: 'pyflink'}, decimal.Decimal('1000000000000000000.05'),
-              decimal.Decimal('1000000000000000000.0500000000000000000000000000'))],
+              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -445,7 +455,7 @@ class UserDefinedFunctionTests(object):
                  "date_func(k),time_func(l),"
                  "timestamp_func(m),array_func(n),"
                  "map_func(o),decimal_func(p),"
-                 "decimal_func(q)") \
+                 "decimal_cut_func(q)") \
             .insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
@@ -455,7 +465,7 @@ class UserDefinedFunctionTests(object):
                             "[102, 108, 105, 110, 107],pyflink,2014-09-13,"
                             "12:00:00,2018-03-11 03:00:00.123,[1, 2, 3],"
                             "{1=flink, 2=pyflink},1000000000000000000.050000000000000000,"
-                            "1000000000000000000.050000000000000000"])
+                            "1000000000000000000.059999999999999999"])
 
 
 # decide whether two floats are equal
