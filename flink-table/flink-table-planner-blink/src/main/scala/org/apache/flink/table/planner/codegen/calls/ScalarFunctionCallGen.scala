@@ -78,7 +78,14 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
         // it maybe a Internal class, so use resultClass is most safety.
         val boxedResultClass = ExtractionUtils.boxPrimitive(resultClass).asInstanceOf[Class[_]]
         val javaTypeTerm = boxedResultClass.getCanonicalName
-        val resultExternalTypeWithResultClass = resultExternalType.bridgedTo(boxedResultClass)
+        val resultExternalTypeWithResultClass =
+          if (resultExternalType.getLogicalType.supportsOutputConversion(boxedResultClass)) {
+            // resultClass of HiveScalarFunction is Object, which cannot be a valid
+            // conversion class
+            resultExternalType.bridgedTo(boxedResultClass)
+          } else {
+            resultExternalType
+          }
         val internal = genToInternalIfNeeded(
           ctx, resultExternalTypeWithResultClass, javaTerm)
         s"""
