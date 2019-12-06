@@ -48,6 +48,8 @@ fi
 
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
+cleanup_tmp_files
+
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P )`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
