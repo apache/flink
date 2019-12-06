@@ -622,10 +622,9 @@ public class CliClient {
 	}
 
 	private void callAlterTable(SqlCommandCall cmdCall) {
-		final String alterDatabaseStmt = cmdCall.operands[0];
+		final String alterTableStmt = cmdCall.operands[0];
 		try {
-			// perform and validate change
-			executor.executeUpdate(sessionId, alterDatabaseStmt);
+			executor.executeUpdate(sessionId, alterTableStmt);
 			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
