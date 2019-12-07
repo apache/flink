@@ -20,11 +20,11 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.io.FilePathFilter;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -65,7 +65,6 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 	private static final int NO_OF_FILES = 5;
 	private static final int LINES_PER_FILE = 150;
-	private static final int NO_OF_RETRIES = 3;
 	private static final long INTERVAL = 100;
 
 	private static File baseDir;
@@ -112,8 +111,6 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
 
-		// set the restart strategy.
-		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(NO_OF_RETRIES, 0));
 		env.enableCheckpointing(10);
 
 		// create and start the file creating thread.
@@ -227,7 +224,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 			// this is termination
 			if (elementCounter >= NO_OF_FILES * LINES_PER_FILE) {
 				actualCollectedContent = actualContent;
-				throw new SuccessException();
+				throw new SuppressRestartsException(new SuccessException());
 			}
 
 			// add some latency so that we have at least two checkpoint in
