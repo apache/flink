@@ -105,8 +105,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
 
 	/** The number of (re)tries for loading the RocksDB JNI library. */
-	@VisibleForTesting
-	static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
+	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
 	/** Flag whether the native library has been loaded. */
 	private static boolean rocksDbInitialized = false;
@@ -880,12 +879,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 						//  apparently not when coming from the same file path, so there we go)
 
 						rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
-						// make sure the temp path exists
-						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
-
-						// noinspection ResultOfMethodCallIgnored
-						rocksLibFolder.mkdirs();
-						rocksLibFolder.deleteOnExit();
 
 						// make sure the temp path exists
 						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
