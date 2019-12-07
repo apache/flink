@@ -41,8 +41,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -72,7 +72,7 @@ public class JobMasterBuilder {
 
 	private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
-	private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+	private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
 
 	private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
 

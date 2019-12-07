@@ -110,7 +110,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -313,7 +313,7 @@ public class JobMasterTest extends TestLogger {
 				testingFatalErrorHandler,
 				JobMasterTest.class.getClassLoader(),
 				schedulerNGFactory,
-				NettyShuffleMaster.INSTANCE,
+				ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 				NoOpJobMasterPartitionTracker.FACTORY) {
 				@Override
 				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
@@ -1639,7 +1639,7 @@ public class JobMasterTest extends TestLogger {
 			testingFatalErrorHandler,
 			JobMasterTest.class.getClassLoader(),
 			schedulerNGFactory,
-			NettyShuffleMaster.INSTANCE,
+			ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 			NoOpJobMasterPartitionTracker.FACTORY) {
 
 			@Override
