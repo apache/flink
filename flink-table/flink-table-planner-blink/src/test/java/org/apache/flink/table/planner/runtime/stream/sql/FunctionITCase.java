@@ -20,9 +20,8 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.planner.catalog.CatalogFunctionTestBase;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
+import org.apache.flink.table.planner.functions.FunctionTestBase;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
 import org.apache.flink.types.Row;
 
@@ -36,9 +35,9 @@ import java.util.List;
 import static org.junit.Assert.assertArrayEquals;
 
 /**
- * Tests for {@link CatalogFunction} in stream table environment.
+ * Tests for catalog and system in stream table environment.
  */
-public class CatalogFunctionITCase extends CatalogFunctionTestBase {
+public class FunctionITCase extends FunctionTestBase {
 
 	@BeforeClass
 	public static void setup() {
@@ -50,7 +49,7 @@ public class CatalogFunctionITCase extends CatalogFunctionTestBase {
 	@Test
 	public void testUseDefinedRegularCatalogFunction() throws Exception {
 		String functionDDL = "create function addOne as " +
-			"'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+			"'org.apache.flink.table.planner.functions.FunctionTestBase$TestUDF'";
 
 		String dropFunctionDDL = "drop function addOne";
 		testUseDefinedCatalogFunction(functionDDL);
@@ -61,9 +60,20 @@ public class CatalogFunctionITCase extends CatalogFunctionTestBase {
 	@Test
 	public void testUseDefinedTemporaryCatalogFunction() throws Exception {
 		String functionDDL = "create temporary function addOne as " +
-			"'org.apache.flink.table.planner.catalog.CatalogFunctionTestBase$TestUDF'";
+			"'org.apache.flink.table.planner.functions.FunctionTestBase$TestUDF'";
 
 		String dropFunctionDDL = "drop temporary function addOne";
+		testUseDefinedCatalogFunction(functionDDL);
+		// delete the function
+		tableEnv.sqlUpdate(dropFunctionDDL);
+	}
+
+	@Test
+	public void testUseDefinedTemporarySystemFunction() throws Exception {
+		String functionDDL = "create temporary system function addOne as " +
+			"'org.apache.flink.table.planner.functions.FunctionTestBase$TestUDF'";
+
+		String dropFunctionDDL = "drop temporary system function addOne";
 		testUseDefinedCatalogFunction(functionDDL);
 		// delete the function
 		tableEnv.sqlUpdate(dropFunctionDDL);

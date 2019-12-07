@@ -28,7 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Operation to describe a ALTER FUNCTION statement.
+ * Operation to describe a ALTER FUNCTION statement for temporary catalog function.
  */
 public class AlterFunctionOperation implements AlterOperation  {
 	private final ObjectIdentifier functionIdentifier;

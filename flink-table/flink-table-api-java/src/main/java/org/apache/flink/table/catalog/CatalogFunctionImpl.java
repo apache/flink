@@ -38,7 +38,10 @@ public class CatalogFunctionImpl implements CatalogFunction {
 		this(className, FunctionLanguage.JAVA, false);
 	}
 
-	public CatalogFunctionImpl(String className, FunctionLanguage functionLanguage, boolean isTemporary) {
+	public CatalogFunctionImpl(
+			String className,
+			FunctionLanguage functionLanguage,
+			boolean isTemporary) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
 		this.className = className;
 		this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
@@ -92,8 +95,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	public String toString() {
 		return "CatalogFunctionImpl{" +
 			"className='" + getClassName() + "', " +
-			"functionLanguage='" + getFunctionLanguage() +
-			"isGeneric='" + isGeneric() +
+			"functionLanguage='" + getFunctionLanguage() + "', " +
+			"isGeneric='" + isGeneric() + "', " +
 			"isTemporary='" + isTemporary() +
 			"'}";
 	}

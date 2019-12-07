@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.operations.ddl;
 
-import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -28,49 +26,38 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Operation to describe a CREATE FUNCTION statement for catalog function.
+ *  Operation to describe a DROP FUNCTION statement for temporary
+ *  system function.
  */
-public class CreateFunctionOperation implements CreateOperation {
-	private final ObjectIdentifier functionIdentifier;
-	private CatalogFunction catalogFunction;
-	private boolean ignoreIfExists;
+public class DropTempSystemFunctionOperation implements DropOperation {
+	private final String functionName;
+	private final boolean ifExists;
 
-	public CreateFunctionOperation(
-		ObjectIdentifier functionIdentifier,
-		CatalogFunction catalogFunction,
-		boolean ignoreIfExists) {
-		this.functionIdentifier = functionIdentifier;
-		this.catalogFunction = catalogFunction;
-		this.ignoreIfExists = ignoreIfExists;
+	public DropTempSystemFunctionOperation(
+		String functionName,
+		boolean ifExists) {
+		this.functionName = functionName;
+		this.ifExists = ifExists;
 	}
 
-	public CatalogFunction getCatalogFunction() {
-		return this.catalogFunction;
+	public String getFunctionName() {
+		return functionName;
 	}
 
-	public ObjectIdentifier getFunctionIdentifier() {
-		return this.functionIdentifier;
-	}
-
-	public boolean isIgnoreIfExists() {
-		return this.ignoreIfExists;
+	public boolean isIfExists() {
+		return ifExists;
 	}
 
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogFunction", catalogFunction.getDetailedDescription());
-		params.put("identifier", functionIdentifier);
-		params.put("ignoreIfExists", ignoreIfExists);
+		params.put("functionName", functionName);
+		params.put("ifExists", ifExists);
 
 		return OperationUtils.formatWithChildren(
-			"CREATE CATALOG FUNCTION",
+			"DROP TEMPORARY SYSTEM FUNCTION",
 			params,
 			Collections.emptyList(),
 			Operation::asSummaryString);
-	}
-
-	public String getFunctionName() {
-		return this.functionIdentifier.getObjectName();
 	}
 }

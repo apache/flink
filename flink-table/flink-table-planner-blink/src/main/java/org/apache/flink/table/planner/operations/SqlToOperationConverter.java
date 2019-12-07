@@ -60,9 +60,11 @@ import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -239,25 +241,42 @@ public class SqlToOperationConverter {
 
 	/** Convert CREATE FUNCTION statement. */
 	private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
-		FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
-		CatalogFunction catalogFunction = new CatalogFunctionImpl(
-			sqlCreateFunction.getFunctionClassName().getValueAs(String.class), language, sqlCreateFunction.isTemporary());
+		UnresolvedIdentifier unresolvedIdentifier =
+			UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
 
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		if (sqlCreateFunction.isSystemFunction()) {
+			return new CreateTempSystemFunctionOperation(
+				unresolvedIdentifier.getObjectName(),
+				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
+				sqlCreateFunction.isIfNotExists()
+			);
+		} else {
+			FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
+			CatalogFunction catalogFunction = new CatalogFunctionImpl(
+				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
+				language,
+				sqlCreateFunction.isTemporary());
+			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-		return new CreateFunctionOperation(
-			identifier,
-			catalogFunction,
-			sqlCreateFunction.isIfNotExists()
-		);
+			return new CreateFunctionOperation(
+				identifier,
+				catalogFunction,
+				sqlCreateFunction.isIfNotExists()
+			);
+		}
 	}
 
 	/** Convert ALTER FUNCTION statement. */
 	private Operation convertAlterFunction(SqlAlterFunction sqlAlterFunction) {
+		if (sqlAlterFunction.isSystemFunction()) {
+			throw new ValidationException("Alter temporary system function is not supported");
+		}
+
 		FunctionLanguage language = parseLanguage(sqlAlterFunction.getFunctionLanguage());
 		CatalogFunction catalogFunction = new CatalogFunctionImpl(
-			sqlAlterFunction.getFunctionClassName().getValueAs(String.class), language, sqlAlterFunction.isTemporary());
+			sqlAlterFunction.getFunctionClassName().getValueAs(String.class),
+			language,
+			sqlAlterFunction.isTemporary());
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -271,13 +290,21 @@ public class SqlToOperationConverter {
 	/** Convert DROP FUNCTION statement. */
 	private Operation convertDropFunction(SqlDropFunction sqlDropFunction) {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlDropFunction.getFunctionIdentifier());
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		if (sqlDropFunction.isSystemFunction()) {
+			return new DropTempSystemFunctionOperation(
+				unresolvedIdentifier.getObjectName(),
+				sqlDropFunction.getIfExists()
+			);
+		} else {
+			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-		return new DropFunctionOperation(
-			identifier,
-			sqlDropFunction.isTemporary(),
-			sqlDropFunction.getIfExists()
-		);
+			return new DropFunctionOperation(
+				identifier,
+				sqlDropFunction.isTemporary(),
+				sqlDropFunction.isSystemFunction(),
+				sqlDropFunction.getIfExists()
+			);
+		}
 	}
 
 	/**

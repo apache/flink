@@ -16,29 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.batch.sql;
+package org.apache.flink.table.planner.runtime.batch.sql;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.catalog.CatalogFunctionTestBase;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.planner.functions.FunctionTestBase;
+import org.apache.flink.table.planner.utils.TestingTableEnvironment;
 
 import org.junit.BeforeClass;
 
 /**
- * Tests for {@link CatalogFunction} in batch table environment.
+ * Tests for catalog and system functions in batch table environment.
  */
-public class CatalogFunctionITCase extends CatalogFunctionTestBase {
-	private static ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
+public class
+FunctionITCase extends FunctionTestBase {
 
 	@BeforeClass
 	public static void setup() {
-		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(executionEnvironment);
-		setTableEnv(batchTableEnvironment);
-	}
-
-	@Override
-	public void execute() throws Exception {
-		executionEnvironment.execute();
+		EnvironmentSettings environmentSettings =
+			EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		tableEnv = TestingTableEnvironment.create(environmentSettings);
 	}
 }
