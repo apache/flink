@@ -110,9 +110,8 @@ public class LocalExecutor implements Executor {
 	private final ResultStore resultStore;
 
 	// insert into sql match pattern
-	private static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 	public static final Pattern INSERT_INTO_SQL_PATTERN = Pattern.compile("(INSERT\\s+INTO.*)",
-			DEFAULT_PATTERN_FLAGS);
+			Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
 	/**
 	 * Creates a local executor for submitting table programs and retrieving results.

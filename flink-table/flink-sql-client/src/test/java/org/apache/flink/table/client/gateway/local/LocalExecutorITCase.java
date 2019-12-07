@@ -573,6 +573,53 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
+	@Test(timeout = 30_000L)
+	public void testExecuteInsertInto() throws Exception {
+		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		try {
+			final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
+					sessionId,
+					"insert Into TableSourceSink \n " +
+					"SELECT IntegerField1 = 42, StringField1 " +
+					"FROM TableNumber1");
+
+			// wait for job completion and verify result
+			boolean isRunning = true;
+			while (isRunning) {
+				Thread.sleep(50); // slow the processing down
+				final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+				switch (jobStatus) {
+					case CREATED:
+					case RUNNING:
+						continue;
+					case FINISHED:
+						isRunning = false;
+						verifySinkResult(csvOutputPath);
+						break;
+					default:
+						fail("Unexpected job status.");
+				}
+			}
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
 	@Test
 	public void testUseCatalogAndUseDatabase() throws Exception {
 		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
