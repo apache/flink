@@ -23,6 +23,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -41,6 +46,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -50,6 +57,7 @@ import java.util.Map;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -200,6 +208,41 @@ public class HiveTableSourceTest {
 	}
 
 	@Test
+	public void testPartitionFilter() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.part(x int) partitioned by (p1 int,p2 string)");
+			hiveShell.execute("alter table db1.part add partition (p1=1,p2='a')");
+			hiveShell.execute("alter table db1.part add partition (p1=2,p2='b')");
+			hiveShell.execute("alter table db1.part add partition (p1=3,p2='c')");
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
+					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
+			tableEnv.registerCatalog(catalog.getName(), catalog);
+			tableEnv.useCatalog(catalog.getName());
+			Table query = tableEnv.sqlQuery("select * from db1.part where p1>1 or p2<>'a'");
+			String[] explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			String optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+
+			query = tableEnv.sqlQuery("select * from db1.part where p1>2 and p2<='a'");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
+
+			query = tableEnv.sqlQuery("select * from db1.part where p1 in (1,3,5)");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
 	public void testProjectionPushDown() throws Exception {
 		hiveShell.execute("create table src(x int,y string) partitioned by (p1 bigint, p2 string)");
 		final String catalogName = "hive";
@@ -290,5 +333,22 @@ public class HiveTableSourceTest {
 		@SuppressWarnings("unchecked")
 		Transformation transformation = execNode.translateToPlan(planner);
 		Assert.assertEquals(2, transformation.getParallelism());
+	}
+
+	// A sub-class of HiveCatalog to test list partitions by filter.
+	private static class TestPartitionFilterCatalog extends HiveCatalog {
+
+		private boolean fallback = false;
+
+		TestPartitionFilterCatalog(String catalogName, String defaultDatabase,
+				@Nullable HiveConf hiveConf, String hiveVersion) {
+			super(catalogName, defaultDatabase, hiveConf, hiveVersion);
+		}
+
+		@Override
+		public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath) throws TableNotExistException, TableNotPartitionedException, CatalogException {
+			fallback = true;
+			return super.listPartitions(tablePath);
+		}
 	}
 }

@@ -762,19 +762,21 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
+	@Override
 	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> expressions)
 			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		Table hiveTable = getHiveTable(tablePath);
 		ensurePartitionedTable(tablePath, hiveTable);
 		List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
-		String filter = HiveTableUtil.makePartitionFilter(getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions);
-		if (filter == null) {
+		Optional<String> filter = HiveTableUtil.makePartitionFilter(
+				getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions);
+		if (!filter.isPresent()) {
 			throw new UnsupportedOperationException(
 					"HiveCatalog is unable to handle the partition filter expressions: " + expressions);
 		}
 		try {
 			PartitionSpecProxy.PartitionIterator partitions = client.listPartitionSpecsByFilter(
-					tablePath.getDatabaseName(), tablePath.getObjectName(), filter, (short) -1).getPartitionIterator();
+					tablePath.getDatabaseName(), tablePath.getObjectName(), filter.get(), (short) -1).getPartitionIterator();
 			List<CatalogPartitionSpec> res = new ArrayList<>();
 			while (partitions.hasNext()) {
 				Partition partition = partitions.next();
@@ -788,12 +790,6 @@ public class HiveCatalog extends AbstractCatalog {
 		} catch (TException e) {
 			throw new UnsupportedOperationException("Failed to list partition by filter from HMS", e);
 		}
-	}
-
-	@Override
-	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
-			throws TableNotExistException, TableNotPartitionedException, CatalogException {
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -191,19 +192,19 @@ public class HiveTableUtil {
 	 * @param numNonPartCol The number of non-partition columns -- used to shift field reference index
 	 * @param partColNames The names of all partition columns
 	 * @param expressions  The filter expressions in CNF form
-	 * @return a filter string equivalent to the expressions, or null if the expressions can't be handled
+	 * @return an Optional filter string equivalent to the expressions, which is empty if the expressions can't be handled
 	 */
-	public static String makePartitionFilter(int numNonPartCol, List<String> partColNames, List<Expression> expressions) {
+	public static Optional<String> makePartitionFilter(int numNonPartCol, List<String> partColNames, List<Expression> expressions) {
 		List<String> filters = new ArrayList<>(expressions.size());
 		ExpressionExtractor extractor = new ExpressionExtractor(numNonPartCol, partColNames);
 		for (Expression expression : expressions) {
 			String str = expression.accept(extractor);
 			if (str == null) {
-				return null;
+				return Optional.empty();
 			}
 			filters.add(str);
 		}
-		return String.join(" and ", filters);
+		return Optional.of(String.join(" and ", filters));
 	}
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {
