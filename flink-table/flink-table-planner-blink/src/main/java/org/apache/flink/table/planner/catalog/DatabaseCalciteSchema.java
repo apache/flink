@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.catalog;
 
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -39,6 +41,7 @@ import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -92,6 +95,8 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			Catalog catalog = catalogManager.getCatalog(catalogName).get();
 			return FlinkStatistic.builder()
 				.tableStats(extractTableStats(catalog, tableIdentifier))
+				// this is a temporary solution, FLINK-15123 will resolve this
+				.uniqueKeys(extractUniqueKeys(catalogBaseTable.getSchema()))
 				.build();
 		} else {
 			return FlinkStatistic.UNKNOWN();
@@ -112,6 +117,18 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				objectIdentifier.getCatalogName(),
 				tablePath.getDatabaseName(),
 				tablePath.getObjectName()), e);
+		}
+	}
+
+	private static Set<Set<String>> extractUniqueKeys(TableSchema tableSchema) {
+		Optional<UniqueConstraint> primaryKeyConstraint = tableSchema.getPrimaryKey();
+		if (primaryKeyConstraint.isPresent()) {
+			Set<String> primaryKey = new HashSet<>(primaryKeyConstraint.get().getColumns());
+			Set<Set<String>> uniqueKeys = new HashSet<>();
+			uniqueKeys.add(primaryKey);
+			return uniqueKeys;
+		} else {
+			return null;
 		}
 	}
 
