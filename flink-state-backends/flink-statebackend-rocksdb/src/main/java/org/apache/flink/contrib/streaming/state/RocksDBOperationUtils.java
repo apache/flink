@@ -19,17 +19,24 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.LongFunctionWithException;
 
+import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.LRUCache;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.WriteBufferManager;
+import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +53,11 @@ import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.
  * Utils for RocksDB Operations.
  */
 public class RocksDBOperationUtils {
+
+	private static final String MANAGED_MEMORY_RESOURCE_ID = "state-rocks-managed-memory";
+
+	private static final String FIXED_SLOT_MEMORY_RESOURCE_ID = "state-rocks-fixed-slot-memory";
+
 	public static RocksDB openDB(
 		String path,
 		List<ColumnFamilyDescriptor> stateColumnFamilyDescriptors,
@@ -162,6 +174,43 @@ public class RocksDBOperationUtils {
 			}
 		} catch (RocksDBException e) {
 			// ignore
+		}
+	}
+
+	@Nullable
+	public static OpaqueMemoryResource<RocksDBSharedResources> allocateSharedCachesIfConfigured(
+			RocksDBMemoryConfiguration memoryConfig,
+			MemoryManager memoryManager,
+			Logger logger) throws IOException {
+
+		if (!memoryConfig.isUsingFixedMemoryPerSlot() && !memoryConfig.isUsingManagedMemory()) {
+			return null;
+		}
+
+		final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
+		final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
+
+		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) -> {
+			final Cache cache = new LRUCache(size, -1, false, highPriorityPoolRatio);
+			final WriteBufferManager wbm = new WriteBufferManager((long) (writeBufferRatio * size), cache);
+			return new RocksDBSharedResources(cache, wbm);
+		};
+
+		try {
+			if (memoryConfig.isUsingFixedMemoryPerSlot()) {
+				assert memoryConfig.getFixedMemoryPerSlot() != null;
+
+				logger.info("Getting fixed-size shared cache for RocksDB.");
+				return memoryManager.getExternalSharedMemoryResource(
+						FIXED_SLOT_MEMORY_RESOURCE_ID, allocator, memoryConfig.getFixedMemoryPerSlot().getBytes());
+			}
+			else {
+				logger.info("Getting managed memory shared cache for RocksDB.");
+				return memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, allocator);
+			}
+		}
+		catch (Exception e) {
+			throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
 		}
 	}
 }

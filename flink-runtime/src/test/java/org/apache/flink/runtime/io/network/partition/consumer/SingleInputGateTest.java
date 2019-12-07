@@ -354,7 +354,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder()
 			.setPartitionRequestInitialBackoff(initialBackoff)
 			.setPartitionRequestMaxBackoff(maxBackoff)
-			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
 
 		SingleInputGate gate = new SingleInputGateFactory(
@@ -429,17 +428,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 			inputGate.setup();
 
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
-			if (enableCreditBasedFlowControl) {
-				// only the exclusive buffers should be assigned/available now
-				assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
+			// only the exclusive buffers should be assigned/available now
+			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
-					bufferPool.getNumberOfAvailableMemorySegments());
-				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			}
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+				bufferPool.getNumberOfAvailableMemorySegments());
+			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
+			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 		} finally {
 			inputGate.close();
 			network.close();
@@ -464,33 +459,25 @@ public class SingleInputGateTest extends InputGateTestBase {
 			inputGate.setup();
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
-			if (enableCreditBasedFlowControl) {
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
-					bufferPool.getNumberOfAvailableMemorySegments());
-				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			}
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
+				bufferPool.getNumberOfAvailableMemorySegments());
+			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
+			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 
 			// Trigger updates to remote input channel from unknown input channel
 			inputGate.updateInputChannel(
 				ResourceID.generate(),
 				createRemoteWithIdAndLocation(resultPartitionId.getPartitionId(), ResourceID.generate()));
 
-			if (enableCreditBasedFlowControl) {
-				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
-					.get(resultPartitionId.getPartitionId());
-				// only the exclusive buffers should be assigned/available now
-				assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
+			RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
+				.get(resultPartitionId.getPartitionId());
+			// only the exclusive buffers should be assigned/available now
+			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
-					bufferPool.getNumberOfAvailableMemorySegments());
-				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
-			}
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+				bufferPool.getNumberOfAvailableMemorySegments());
+			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
+			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 		} finally {
 			inputGate.close();
 			network.close();
@@ -695,9 +682,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	}
 
 	private NettyShuffleEnvironment createNettyShuffleEnvironment() {
-		return new NettyShuffleEnvironmentBuilder()
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build();
+		return new NettyShuffleEnvironmentBuilder().build();
 	}
 
 	static void verifyBufferOrEvent(

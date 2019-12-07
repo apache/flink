@@ -44,7 +44,7 @@ jobmanager.heap.size: 1024m
 
 # The heap size for the TaskManager JVM
 
-taskmanager.heap.size: 1024m
+taskmanager.memory.total-process.size: 1024m
 
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
@@ -186,9 +186,9 @@ jobmanager.execution.failover-strategy: region
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
 # of network buffers" error. The default min is 64MB, the default max is 1GB.
 # 
-# taskmanager.network.memory.fraction: 0.1
-# taskmanager.network.memory.min: 64mb
-# taskmanager.network.memory.max: 1gb
+# taskmanager.memory.shuffle.fraction: 0.1
+# taskmanager.memory.shuffle.min: 64mb
+# taskmanager.memory.shuffle.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration

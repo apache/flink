@@ -36,7 +36,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='flink-fn-execution.proto',
   package='org.apache.flink.fn_execution.v1',
   syntax='proto3',
-  serialized_pb=_b('\n\x18\x66link-fn-execution.proto\x12 org.apache.flink.fn_execution.v1\"\xfc\x01\n\x13UserDefinedFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12K\n\x06inputs\x18\x02 \x03(\x0b\x32;.org.apache.flink.fn_execution.v1.UserDefinedFunction.Input\x1a\x86\x01\n\x05Input\x12\x44\n\x03udf\x18\x01 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunctionH\x00\x12\x15\n\x0binputOffset\x18\x02 \x01(\x05H\x00\x12\x17\n\rinputConstant\x18\x03 \x01(\x0cH\x00\x42\x07\n\x05input\"[\n\x14UserDefinedFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\"\x8d\x07\n\x06Schema\x12>\n\x06\x66ields\x18\x01 \x03(\x0b\x32..org.apache.flink.fn_execution.v1.Schema.Field\x1a\x97\x01\n\x07MapType\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\xcd\x02\n\tFieldType\x12\x44\n\ttype_name\x18\x01 \x01(\x0e\x32\x31.org.apache.flink.fn_execution.v1.Schema.TypeName\x12\x10\n\x08nullable\x18\x02 \x01(\x08\x12U\n\x17\x63ollection_element_type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeH\x00\x12\x44\n\x08map_type\x18\x04 \x01(\x0b\x32\x30.org.apache.flink.fn_execution.v1.Schema.MapTypeH\x00\x12>\n\nrow_schema\x18\x05 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.SchemaH\x00\x42\x0b\n\ttype_info\x1al\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12@\n\x04type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\"\xea\x01\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\x0b\n\x07TINYINT\x10\x01\x12\x0c\n\x08SMALLINT\x10\x02\x12\x07\n\x03INT\x10\x03\x12\n\n\x06\x42IGINT\x10\x04\x12\x0b\n\x07\x44\x45\x43IMAL\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\n\n\x06\x44OUBLE\x10\x07\x12\x08\n\x04\x44\x41TE\x10\x08\x12\x08\n\x04TIME\x10\t\x12\x0c\n\x08\x44\x41TETIME\x10\n\x12\x0b\n\x07\x42OOLEAN\x10\x0b\x12\n\n\x06\x42INARY\x10\x0c\x12\r\n\tVARBINARY\x10\r\x12\x08\n\x04\x43HAR\x10\x0e\x12\x0b\n\x07VARCHAR\x10\x0f\x12\t\n\x05\x41RRAY\x10\x10\x12\x07\n\x03MAP\x10\x11\x12\x0c\n\x08MULTISET\x10\x12\x42-\n\x1forg.apache.flink.fnexecution.v1B\nFlinkFnApib\x06proto3')
+  serialized_pb=_b('\n\x18\x66link-fn-execution.proto\x12 org.apache.flink.fn_execution.v1\"\xfc\x01\n\x13UserDefinedFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12K\n\x06inputs\x18\x02 \x03(\x0b\x32;.org.apache.flink.fn_execution.v1.UserDefinedFunction.Input\x1a\x86\x01\n\x05Input\x12\x44\n\x03udf\x18\x01 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunctionH\x00\x12\x15\n\x0binputOffset\x18\x02 \x01(\x05H\x00\x12\x17\n\rinputConstant\x18\x03 \x01(\x0cH\x00\x42\x07\n\x05input\"[\n\x14UserDefinedFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\"\x80\t\n\x06Schema\x12>\n\x06\x66ields\x18\x01 \x03(\x0b\x32..org.apache.flink.fn_execution.v1.Schema.Field\x1a\x97\x01\n\x07MapType\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a!\n\x0c\x44\x61teTimeType\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a/\n\x0b\x44\x65\x63imalType\x12\x11\n\tprecision\x18\x01 \x01(\x05\x12\r\n\x05scale\x18\x02 \x01(\x05\x1a\xec\x03\n\tFieldType\x12\x44\n\ttype_name\x18\x01 \x01(\x0e\x32\x31.org.apache.flink.fn_execution.v1.Schema.TypeName\x12\x10\n\x08nullable\x18\x02 \x01(\x08\x12U\n\x17\x63ollection_element_type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeH\x00\x12\x44\n\x08map_type\x18\x04 \x01(\x0b\x32\x30.org.apache.flink.fn_execution.v1.Schema.MapTypeH\x00\x12>\n\nrow_schema\x18\x05 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.SchemaH\x00\x12O\n\x0e\x64\x61te_time_type\x18\x06 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.Schema.DateTimeTypeH\x00\x12L\n\x0c\x64\x65\x63imal_type\x18\x07 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.DecimalTypeH\x00\x42\x0b\n\ttype_info\x1al\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12@\n\x04type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\"\xea\x01\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\x0b\n\x07TINYINT\x10\x01\x12\x0c\n\x08SMALLINT\x10\x02\x12\x07\n\x03INT\x10\x03\x12\n\n\x06\x42IGINT\x10\x04\x12\x0b\n\x07\x44\x45\x43IMAL\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\n\n\x06\x44OUBLE\x10\x07\x12\x08\n\x04\x44\x41TE\x10\x08\x12\x08\n\x04TIME\x10\t\x12\x0c\n\x08\x44\x41TETIME\x10\n\x12\x0b\n\x07\x42OOLEAN\x10\x0b\x12\n\n\x06\x42INARY\x10\x0c\x12\r\n\tVARBINARY\x10\r\x12\x08\n\x04\x43HAR\x10\x0e\x12\x0b\n\x07VARCHAR\x10\x0f\x12\t\n\x05\x41RRAY\x10\x10\x12\x07\n\x03MAP\x10\x11\x12\x0c\n\x08MULTISET\x10\x12\x42-\n\x1forg.apache.flink.fnexecution.v1B\nFlinkFnApib\x06proto3')
 )
 
 
@@ -126,8 +126,8 @@ _SCHEMA_TYPENAME = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=1086,
-  serialized_end=1320,
+  serialized_start=1329,
+  serialized_end=1563,
 )
 _sym_db.RegisterEnumDescriptor(_SCHEMA_TYPENAME)
 
@@ -285,6 +285,73 @@ _SCHEMA_MAPTYPE = _descriptor.Descriptor(
   serialized_end=637,
 )
 
+_SCHEMA_DATETIMETYPE = _descriptor.Descriptor(
+  name='DateTimeType',
+  full_name='org.apache.flink.fn_execution.v1.Schema.DateTimeType',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='precision', full_name='org.apache.flink.fn_execution.v1.Schema.DateTimeType.precision', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=639,
+  serialized_end=672,
+)
+
+_SCHEMA_DECIMALTYPE = _descriptor.Descriptor(
+  name='DecimalType',
+  full_name='org.apache.flink.fn_execution.v1.Schema.DecimalType',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='precision', full_name='org.apache.flink.fn_execution.v1.Schema.DecimalType.precision', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='scale', full_name='org.apache.flink.fn_execution.v1.Schema.DecimalType.scale', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=674,
+  serialized_end=721,
+)
+
 _SCHEMA_FIELDTYPE = _descriptor.Descriptor(
   name='FieldType',
   full_name='org.apache.flink.fn_execution.v1.Schema.FieldType',
@@ -327,6 +394,20 @@ _SCHEMA_FIELDTYPE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='date_time_type', full_name='org.apache.flink.fn_execution.v1.Schema.FieldType.date_time_type', index=5,
+      number=6, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='decimal_type', full_name='org.apache.flink.fn_execution.v1.Schema.FieldType.decimal_type', index=6,
+      number=7, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -342,8 +423,8 @@ _SCHEMA_FIELDTYPE = _descriptor.Descriptor(
       name='type_info', full_name='org.apache.flink.fn_execution.v1.Schema.FieldType.type_info',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=640,
-  serialized_end=973,
+  serialized_start=724,
+  serialized_end=1216,
 )
 
 _SCHEMA_FIELD = _descriptor.Descriptor(
@@ -386,8 +467,8 @@ _SCHEMA_FIELD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=975,
-  serialized_end=1083,
+  serialized_start=1218,
+  serialized_end=1326,
 )
 
 _SCHEMA = _descriptor.Descriptor(
@@ -407,7 +488,7 @@ _SCHEMA = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_SCHEMA_MAPTYPE, _SCHEMA_FIELDTYPE, _SCHEMA_FIELD, ],
+  nested_types=[_SCHEMA_MAPTYPE, _SCHEMA_DATETIMETYPE, _SCHEMA_DECIMALTYPE, _SCHEMA_FIELDTYPE, _SCHEMA_FIELD, ],
   enum_types=[
     _SCHEMA_TYPENAME,
   ],
@@ -418,7 +499,7 @@ _SCHEMA = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=411,
-  serialized_end=1320,
+  serialized_end=1563,
 )
 
 _USERDEFINEDFUNCTION_INPUT.fields_by_name['udf'].message_type = _USERDEFINEDFUNCTION
@@ -437,10 +518,14 @@ _USERDEFINEDFUNCTIONS.fields_by_name['udfs'].message_type = _USERDEFINEDFUNCTION
 _SCHEMA_MAPTYPE.fields_by_name['key_type'].message_type = _SCHEMA_FIELDTYPE
 _SCHEMA_MAPTYPE.fields_by_name['value_type'].message_type = _SCHEMA_FIELDTYPE
 _SCHEMA_MAPTYPE.containing_type = _SCHEMA
+_SCHEMA_DATETIMETYPE.containing_type = _SCHEMA
+_SCHEMA_DECIMALTYPE.containing_type = _SCHEMA
 _SCHEMA_FIELDTYPE.fields_by_name['type_name'].enum_type = _SCHEMA_TYPENAME
 _SCHEMA_FIELDTYPE.fields_by_name['collection_element_type'].message_type = _SCHEMA_FIELDTYPE
 _SCHEMA_FIELDTYPE.fields_by_name['map_type'].message_type = _SCHEMA_MAPTYPE
 _SCHEMA_FIELDTYPE.fields_by_name['row_schema'].message_type = _SCHEMA
+_SCHEMA_FIELDTYPE.fields_by_name['date_time_type'].message_type = _SCHEMA_DATETIMETYPE
+_SCHEMA_FIELDTYPE.fields_by_name['decimal_type'].message_type = _SCHEMA_DECIMALTYPE
 _SCHEMA_FIELDTYPE.containing_type = _SCHEMA
 _SCHEMA_FIELDTYPE.oneofs_by_name['type_info'].fields.append(
   _SCHEMA_FIELDTYPE.fields_by_name['collection_element_type'])
@@ -451,6 +536,12 @@ _SCHEMA_FIELDTYPE.fields_by_name['map_type'].containing_oneof = _SCHEMA_FIELDTYP
 _SCHEMA_FIELDTYPE.oneofs_by_name['type_info'].fields.append(
   _SCHEMA_FIELDTYPE.fields_by_name['row_schema'])
 _SCHEMA_FIELDTYPE.fields_by_name['row_schema'].containing_oneof = _SCHEMA_FIELDTYPE.oneofs_by_name['type_info']
+_SCHEMA_FIELDTYPE.oneofs_by_name['type_info'].fields.append(
+  _SCHEMA_FIELDTYPE.fields_by_name['date_time_type'])
+_SCHEMA_FIELDTYPE.fields_by_name['date_time_type'].containing_oneof = _SCHEMA_FIELDTYPE.oneofs_by_name['type_info']
+_SCHEMA_FIELDTYPE.oneofs_by_name['type_info'].fields.append(
+  _SCHEMA_FIELDTYPE.fields_by_name['decimal_type'])
+_SCHEMA_FIELDTYPE.fields_by_name['decimal_type'].containing_oneof = _SCHEMA_FIELDTYPE.oneofs_by_name['type_info']
 _SCHEMA_FIELD.fields_by_name['type'].message_type = _SCHEMA_FIELDTYPE
 _SCHEMA_FIELD.containing_type = _SCHEMA
 _SCHEMA.fields_by_name['fields'].message_type = _SCHEMA_FIELD
@@ -491,6 +582,20 @@ Schema = _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,),
     ))
   ,
 
+  DateTimeType = _reflection.GeneratedProtocolMessageType('DateTimeType', (_message.Message,), dict(
+    DESCRIPTOR = _SCHEMA_DATETIMETYPE,
+    __module__ = 'flink_fn_execution_pb2'
+    # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.Schema.DateTimeType)
+    ))
+  ,
+
+  DecimalType = _reflection.GeneratedProtocolMessageType('DecimalType', (_message.Message,), dict(
+    DESCRIPTOR = _SCHEMA_DECIMALTYPE,
+    __module__ = 'flink_fn_execution_pb2'
+    # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.Schema.DecimalType)
+    ))
+  ,
+
   FieldType = _reflection.GeneratedProtocolMessageType('FieldType', (_message.Message,), dict(
     DESCRIPTOR = _SCHEMA_FIELDTYPE,
     __module__ = 'flink_fn_execution_pb2'
@@ -510,6 +615,8 @@ Schema = _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,),
   ))
 _sym_db.RegisterMessage(Schema)
 _sym_db.RegisterMessage(Schema.MapType)
+_sym_db.RegisterMessage(Schema.DateTimeType)
+_sym_db.RegisterMessage(Schema.DecimalType)
 _sym_db.RegisterMessage(Schema.FieldType)
 _sym_db.RegisterMessage(Schema.Field)
 

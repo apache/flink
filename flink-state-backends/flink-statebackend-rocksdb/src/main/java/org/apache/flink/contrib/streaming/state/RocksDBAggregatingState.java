@@ -118,9 +118,9 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 					setCurrentNamespace(source);
 					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
+						backend.db.delete(columnFamily, writeOptions, sourceKey);
 						dataInputView.setBuffer(valueBytes);
 						ACC value = valueSerializer.deserialize(dataInputView);
 

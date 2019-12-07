@@ -21,6 +21,8 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -29,7 +31,6 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.planner.runtime.utils.TableUtil;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -49,8 +50,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-
-import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -96,7 +95,7 @@ public class TableEnvHiveConnectorTest {
 		assertTrue(fs.exists(defaultPartPath));
 
 		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select y, x from db1.part order by x");
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect(flinkTable)).asJava();
+		List<Row> rows = TableUtils.collectToList(flinkTable);
 		assertEquals(Arrays.toString(new String[]{"1,1", "null,2"}), rows.toString());
 
 		hiveShell.execute("drop database db1 cascade");
@@ -323,6 +322,38 @@ public class TableEnvHiveConnectorTest {
 					tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
 			assertTrue("NOT NULL NORELY columns should be considered nullable",
 					tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testPKConstraint() throws Exception {
+		// While PK constraints are supported since Hive 2.1.0, the constraints cannot be RELY in 2.x versions.
+		// So let's only test for 3.x.
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		hiveShell.execute("create database db1");
+		try {
+			// test rely PK constraints
+			hiveShell.execute("create table db1.tbl1 (x tinyint,y smallint,z int, primary key (x,z) disable novalidate rely)");
+			CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl1"));
+			TableSchema tableSchema = catalogTable.getSchema();
+			assertTrue(tableSchema.getPrimaryKey().isPresent());
+			UniqueConstraint pk = tableSchema.getPrimaryKey().get();
+			assertEquals(2, pk.getColumns().size());
+			assertTrue(pk.getColumns().containsAll(Arrays.asList("x", "z")));
+
+			// test norely PK constraints
+			hiveShell.execute("create table db1.tbl2 (x tinyint,y smallint, primary key (x) disable norely)");
+			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl2"));
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
+
+			// test table w/o PK
+			hiveShell.execute("create table db1.tbl3 (x tinyint)");
+			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl3"));
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

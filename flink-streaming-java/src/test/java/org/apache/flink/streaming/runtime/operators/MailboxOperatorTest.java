@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Test;
 
@@ -132,7 +133,7 @@ public class MailboxOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ReplicatingMail implements Runnable {
+	private static class ReplicatingMail implements RunnableWithException {
 		private int mailCount = -1;
 		private final MailboxExecutor mailboxExecutor;
 

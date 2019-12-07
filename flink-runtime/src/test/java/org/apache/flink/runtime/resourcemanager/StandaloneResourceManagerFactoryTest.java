@@ -47,7 +47,7 @@ public class StandaloneResourceManagerFactoryTest extends TestLogger {
 		final TestingRpcService rpcService = new TestingRpcService();
 		try {
 			final Configuration configuration = new Configuration();
-			configuration.setString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, new MemorySize(128 * 1024 * 1024).toString());
+			configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, new MemorySize(128 * 1024 * 1024).toString());
 			configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 600);
 
 			final ResourceManager<ResourceID> ignored = resourceManagerFactory.createResourceManager(

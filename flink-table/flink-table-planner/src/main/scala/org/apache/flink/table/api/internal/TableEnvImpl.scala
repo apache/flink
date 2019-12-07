@@ -23,24 +23,23 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.catalog.exceptions.{DatabaseAlreadyExistException, DatabaseNotEmptyException, DatabaseNotExistException, FunctionAlreadyExistException, FunctionNotExistException}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
-import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation}
+import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
-
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
@@ -116,6 +115,11 @@ abstract class TableEnvImpl(
   )
 
   def getConfig: TableConfig = config
+
+  private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
+    "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+      "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
+      "CREATE DATABASE, DROP DATABASE, ALTER DATABASE"
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -466,9 +470,7 @@ abstract class TableEnvImpl(
   override def sqlUpdate(stmt: String): Unit = {
     val operations = parser.parse(stmt)
 
-    if (operations.size != 1) throw new TableException(
-      "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-        "INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
+    if (operations.size != 1) throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
 
     operations.get(0) match {
       case op: CatalogSinkModifyOperation =>
@@ -481,16 +483,96 @@ abstract class TableEnvImpl(
           createTableOperation.getCatalogTable,
           createTableOperation.getTableIdentifier,
           createTableOperation.isIgnoreIfExists)
+      case createDatabaseOperation: CreateDatabaseOperation =>
+        val catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(createDatabaseOperation.asSummaryString)
+        try {
+          catalog.createDatabase(
+            createDatabaseOperation.getDatabaseName,
+            createDatabaseOperation.getCatalogDatabase,
+            createDatabaseOperation.isIgnoreIfExists)
+        } catch {
+          case ex: DatabaseAlreadyExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
       case dropTableOperation: DropTableOperation =>
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
+      case alterTableOperation: AlterTableOperation => {
+        val catalog = getCatalogOrThrowException(
+          alterTableOperation.getTableIdentifier.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(alterTableOperation.asSummaryString)
+        try {
+          alterTableOperation match {
+            case alterTableRenameOp: AlterTableRenameOperation =>
+              catalog.renameTable(
+                alterTableRenameOp.getTableIdentifier.toObjectPath,
+                alterTableRenameOp.getNewTableIdentifier.getObjectName,
+                false)
+            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
+              catalog.alterTable(
+                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
+                alterTablePropertiesOp.getCatalogTable,
+                false)
+          }
+        } catch {
+          case ex: TableNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
+      }
+      case dropDatabaseOperation: DropDatabaseOperation =>
+        val catalog = getCatalogOrThrowException(dropDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(dropDatabaseOperation.asSummaryString)
+        try {
+          catalog.dropDatabase(
+            dropDatabaseOperation.getDatabaseName,
+            dropDatabaseOperation.isIfExists,
+            dropDatabaseOperation.isCascade)
+        } catch {
+          case ex: DatabaseNotEmptyException => throw new ValidationException(exMsg, ex)
+          case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
+      case alterDatabaseOperation: AlterDatabaseOperation =>
+        val catalog = getCatalogOrThrowException(alterDatabaseOperation.getCatalogName)
+        val exMsg = getDDLOpExecuteErrorMsg(alterDatabaseOperation.asSummaryString)
+        try {
+          catalog.alterDatabase(
+            alterDatabaseOperation.getDatabaseName,
+            alterDatabaseOperation.getCatalogDatabase,
+            false)
+        } catch {
+          case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
+          case ex: Exception => throw new TableException(exMsg, ex)
+        }
+      case createFunctionOperation: CreateFunctionOperation =>
+        createCatalogFunction(createFunctionOperation)
+      case alterFunctionOperation: AlterFunctionOperation =>
+        alterCatalogFunction(alterFunctionOperation)
+      case dropFunctionOperation: DropFunctionOperation =>
+        dropCatalogFunction(dropFunctionOperation)
       case useCatalogOperation: UseCatalogOperation =>
         catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
-      case _ => throw new TableException(
-        "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-          "type INSERT, CREATE TABLE, DROP TABLE, USE CATALOG")
+      case useDatabaseOperation: UseDatabaseOperation =>
+        catalogManager.setCurrentCatalog(useDatabaseOperation.getCatalogName)
+        catalogManager.setCurrentDatabase(useDatabaseOperation.getDatabaseName)
+      case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
+  }
+
+  /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
+  private def getCatalogOrThrowException(catalogName: String): Catalog = {
+    getCatalog(catalogName)
+      .orElseThrow(
+        new JSupplier[Throwable] {
+          override def get() = new ValidationException(
+            String.format("Catalog %s does not exist", catalogName))
+        })
+  }
+
+  private def getDDLOpExecuteErrorMsg(action: String):String = {
+    String.format("Could not execute %s", action)
   }
 
   protected def createTable(tableOperation: QueryOperation): TableImpl = {
@@ -611,6 +693,52 @@ abstract class TableEnvImpl(
     JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier))
       .filter(_.isTemporary)
       .map(_.getTable)
+  }
+
+  private def createCatalogFunction(createFunctionOperation: CreateFunctionOperation)= {
+    val catalog = getCatalogOrThrowException(
+      createFunctionOperation.getFunctionIdentifier.getCatalogName)
+    val exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString)
+    try {
+      catalog.createFunction(
+        createFunctionOperation.getFunctionIdentifier.toObjectPath,
+        createFunctionOperation.getCatalogFunction,
+        createFunctionOperation.isIgnoreIfExists)
+    } catch {
+      case ex: FunctionAlreadyExistException => throw new ValidationException(exMsg, ex)
+      case ex: Exception => throw new TableException(exMsg, ex)
+    }
+  }
+
+  private def alterCatalogFunction(alterFunctionOperation: AlterFunctionOperation) = {
+    val catalog = getCatalogOrThrowException(
+      alterFunctionOperation.getFunctionIdentifier.getCatalogName)
+    val exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString)
+
+    try {
+      catalog.alterFunction(
+        alterFunctionOperation.getFunctionIdentifier.toObjectPath,
+        alterFunctionOperation.getCatalogFunction,
+        alterFunctionOperation.isIfExists)
+    } catch {
+      case ex: FunctionNotExistException => throw new ValidationException(exMsg, ex)
+      case ex: Exception => throw new TableException(exMsg, ex)
+    }
+  }
+
+  private def dropCatalogFunction(dropFunctionOperation: DropFunctionOperation) = {
+    val catalog = getCatalogOrThrowException(
+      dropFunctionOperation.getFunctionIdentifier.getCatalogName)
+    val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
+
+    try {
+      catalog.dropFunction(
+        dropFunctionOperation.getFunctionIdentifier.toObjectPath,
+        dropFunctionOperation.isIfExists)
+    } catch {
+      case ex: FunctionNotExistException => throw new ValidationException(exMsg, ex)
+      case ex: Exception => throw new TableException(exMsg, ex)
+    }
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */

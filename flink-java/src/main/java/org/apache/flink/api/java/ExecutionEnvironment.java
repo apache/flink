@@ -55,7 +55,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
@@ -80,6 +79,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -804,26 +804,70 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
-		if (configuration.get(DeploymentOptions.TARGET) == null) {
-			throw new RuntimeException("No execution.target specified in your configuration file.");
-		}
-
-		consolidateParallelismDefinitionsInConfiguration();
-
-		final Plan plan = createProgramPlan(jobName);
-		final ExecutorFactory executorFactory =
-				executorServiceLoader.getExecutorFactory(configuration);
-
-		final Executor executor = executorFactory.getExecutor(configuration);
-
-		try (final JobClient jobClient = executor.execute(plan, configuration).get()) {
-
+		try (final JobClient jobClient = executeAsync(jobName).get()) {
 			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
 					? jobClient.getJobExecutionResult(userClassloader).get()
 					: new DetachedJobExecutionResult(jobClient.getJobID());
 
 			return lastJobExecutionResult;
 		}
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated default name.
+	 *
+	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
+	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
+	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
+	 *
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception Thrown, if the program submission fails.
+	 */
+	@PublicEvolving
+	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+		return executeAsync(getDefaultName());
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with the given job name.
+	 *
+	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
+	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
+	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
+	 *
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception Thrown, if the program submission fails.
+	 */
+	@PublicEvolving
+	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
+
+		consolidateParallelismDefinitionsInConfiguration();
+
+		final Plan plan = createProgramPlan(jobName);
+		final ExecutorFactory executorFactory =
+			executorServiceLoader.getExecutorFactory(configuration);
+
+		checkNotNull(
+			executorFactory,
+			"Cannot find compatible factory for specified execution.target (=%s)",
+			configuration.get(DeploymentOptions.TARGET));
+
+		return executorFactory
+			.getExecutor(configuration)
+			.execute(plan, configuration);
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

@@ -138,7 +138,7 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 {
     SqlIdentifier databaseName = null;
     boolean ifExists = false;
-    boolean isRestrict = true;
+    boolean cascade = false;
 }
 {
     <DATABASE>
@@ -151,13 +151,13 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 
     databaseName = CompoundIdentifier()
     [
-                <RESTRICT> { isRestrict = true; }
+                <RESTRICT> { cascade = false; }
         |
-                <CASCADE>  { isRestrict = false; }
+                <CASCADE>  { cascade = true; }
     ]
 
     {
-         return new SqlDropDatabase(s.pos(), databaseName, ifExists, isRestrict);
+         return new SqlDropDatabase(s.pos(), databaseName, ifExists, cascade);
     }
 }
 
@@ -331,25 +331,29 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
-    boolean isRename = true;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
         tableIdentifier = CompoundIdentifier()
     (
-        <RENAME> <TO> { isRename = true; }
+        <RENAME> <TO>
         newTableIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterTableRename(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        newTableIdentifier);
+        }
     |
-        <SET>   { isRename = false; }
+        <SET>
         propertyList = TableProperties()
+        {
+            return new SqlAlterTableProperties(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        propertyList);
+        }
     )
-    {
-        return new SqlAlterTable(startPos.plus(getPos()),
-            tableIdentifier,
-            newTableIdentifier,
-            propertyList,
-            isRename);
-    }
 }
 
 void TableColumn(TableCreationContext context) :

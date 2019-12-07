@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -149,6 +151,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		client.dropDatabase(name, deleteData, ignoreIfNotExists);
 	}
 
+	public void dropDatabase(String name, boolean deleteData, boolean ignoreIfNotExists, boolean cascade)
+			throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
+		client.dropDatabase(name, deleteData, ignoreIfNotExists, cascade);
+	}
+
 	public void alterDatabase(String name, Database database) throws NoSuchObjectException, MetaException, TException {
 		client.alterDatabase(name, database);
 	}
@@ -214,6 +221,10 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	public Set<String> getNotNullColumns(Configuration conf, String dbName, String tableName) {
 		return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
+	}
+
+	public Optional<UniqueConstraint> getPrimaryKey(String dbName, String tableName, byte trait) {
+		return hiveShim.getPrimaryKey(client, dbName, tableName, trait);
 	}
 
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {

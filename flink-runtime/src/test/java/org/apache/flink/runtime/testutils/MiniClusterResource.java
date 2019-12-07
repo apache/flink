@@ -159,8 +159,8 @@ public class MiniClusterResource extends ExternalResource {
 			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
 		}
 
-		if (!configuration.contains(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE)) {
-			configuration.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
+		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
 		}
 
 		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters

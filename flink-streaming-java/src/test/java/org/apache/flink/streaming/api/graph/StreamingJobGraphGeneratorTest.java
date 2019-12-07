@@ -67,8 +67,11 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -661,88 +664,74 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		// these specific values are needed to produce the double precision issue,
 		// i.e. 100.0 / 1100 + 300.0 / 1100 + 700.0 / 1100 can be larger than 1.0.
 		final ResourceSpec resource1 = ResourceSpec.newBuilder(1, 100)
-			.setOnHeapManagedMemory(new MemorySize(100))
-			.setOffHeapManagedMemory(new MemorySize(40))
+			.setManagedMemory(new MemorySize(100))
 			.build();
 		final ResourceSpec resource2 = ResourceSpec.newBuilder(1, 100)
-			.setOnHeapManagedMemory(new MemorySize(300))
-			.setOffHeapManagedMemory(new MemorySize(60))
+			.setManagedMemory(new MemorySize(300))
 			.build();
 		final ResourceSpec resource3 = ResourceSpec.newBuilder(1, 100)
-			.setOnHeapManagedMemory(new MemorySize(700))
-			.setOffHeapManagedMemory(new MemorySize(10))
+			.setManagedMemory(new MemorySize(700))
 			.build();
 		final ResourceSpec resource4 = ResourceSpec.newBuilder(1, 100)
-			.setOnHeapManagedMemory(new MemorySize(123))
-			.setOffHeapManagedMemory(new MemorySize(456))
+			.setManagedMemory(new MemorySize(123))
 			.build();
+		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource1, resource2, resource3, resource4);
 
 		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
-		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resource1, resource2, resource3, resource4);
+		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, null);
 		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(40.0 / 110, sourceConfig.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(60.0 / 110, map1Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(10.0 / 110, map2Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFraction(), 0.000001);
 
-		final BigDecimal sumFractionOnHeap = BigDecimal.valueOf(sourceConfig.getManagedMemoryFractionOnHeap())
-			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFractionOnHeap()))
-			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFractionOnHeap()));
-		assertThat(sumFractionOnHeap, lessThanOrEqualTo(BigDecimal.ONE));
+		final BigDecimal sumFraction = BigDecimal.valueOf(sourceConfig.getManagedMemoryFraction())
+			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFraction()))
+			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFraction()));
+		assertThat(sumFraction, lessThanOrEqualTo(BigDecimal.ONE));
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
 	}
 
 	@Test
 	public void testManagedMemoryFractionForUnknownResourceSpec() throws Exception {
-		final ResourceSpec resource1 = ResourceSpec.UNKNOWN;
-		final ResourceSpec resource2 = ResourceSpec.UNKNOWN;
-		final ResourceSpec resource3 = ResourceSpec.UNKNOWN;
-		final ResourceSpec resource4 = ResourceSpec.UNKNOWN;
+		final ResourceSpec resource = ResourceSpec.UNKNOWN;
+		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource, resource, resource, resource);
+		final List<Integer> managedMemoryWeights = Arrays.asList(1, 2, 3, 4);
 
 		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
-		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resource1, resource2, resource3, resource4);
+		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, managedMemoryWeights);
 		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(1.0 / 3, sourceConfig.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0 / 3, sourceConfig.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0 / 6, sourceConfig.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(1.0 / 3, map1Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0 / 3, map1Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(2.0 / 6, map1Config.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(1.0 / 3, map2Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0 / 3, map2Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(3.0 / 6, map2Config.getManagedMemoryFraction(), 0.000001);
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOnHeap(), 0.000001);
-		assertEquals(1.0, map3Config.getManagedMemoryFractionOffHeap(), 0.000001);
+		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
 
 	}
 
 	private JobGraph createJobGraphForManagedMemoryFractionTest(
-		final ResourceSpec resource1,
-		final ResourceSpec resource2,
-		final ResourceSpec resource3,
-		final ResourceSpec resource4) throws Exception {
+		final List<ResourceSpec> resourceSpecs,
+		@Nullable final List<Integer> managedMemoryWeights) throws Exception {
 
 		final Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
 
@@ -757,19 +746,26 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			public void cancel() {
 			}
 		});
-		opMethod.invoke(source, resource1);
+		opMethod.invoke(source, resourceSpecs.get(0));
 
 		// CHAIN(source -> map1) in default slot sharing group
 		final DataStream<Integer> map1 = source.map((MapFunction<Integer, Integer>) value -> value);
-		opMethod.invoke(map1, resource2);
+		opMethod.invoke(map1, resourceSpecs.get(1));
 
 		// CHAIN(map2) in default slot sharing group
 		final DataStream<Integer> map2 = map1.rebalance().map((MapFunction<Integer, Integer>) value -> value);
-		opMethod.invoke(map2, resource3);
+		opMethod.invoke(map2, resourceSpecs.get(2));
 
 		// CHAIN(map3) in test slot sharing group
 		final DataStream<Integer> map3 = map2.rebalance().map(value -> value).slotSharingGroup("test");
-		opMethod.invoke(map3, resource4);
+		opMethod.invoke(map3, resourceSpecs.get(3));
+
+		if (managedMemoryWeights != null) {
+			source.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(0));
+			map1.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(1));
+			map2.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(2));
+			map3.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(3));
+		}
 
 		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 	}

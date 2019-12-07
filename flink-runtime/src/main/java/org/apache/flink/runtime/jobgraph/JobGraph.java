@@ -573,6 +573,15 @@ public class JobGraph implements Serializable {
 		));
 	}
 
+	public void setUserArtifactRemotePath(String entryName, String remotePath) {
+		userArtifacts.computeIfPresent(entryName, (key, originalEntry) -> new DistributedCache.DistributedCacheEntry(
+			remotePath,
+			originalEntry.isExecutable,
+			null,
+			originalEntry.isZipped
+		));
+	}
+
 	public void writeUserArtifactEntriesToConfiguration() {
 		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
 			DistributedCache.writeFileInfoToConfig(

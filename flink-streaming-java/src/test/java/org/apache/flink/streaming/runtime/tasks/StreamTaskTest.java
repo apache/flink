@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -128,6 +127,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Assert;
@@ -162,7 +162,6 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -811,40 +810,6 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testOperatorNotSupportedByNonNetworkCreditMode() throws Exception {
-
-		// test the operator which implements InputSelectable
-		Configuration taskConfiguration = new Configuration();
-		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
-		streamConfig.setStreamOperator(new TestSequentialReadingStreamOperator("test operator"));
-		streamConfig.setOperatorID(new OperatorID());
-
-		Configuration taskManagerConfig = new Configuration();
-		taskManagerConfig.setBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL, false);
-
-		try (MockEnvironment mockEnvironment =
-			new MockEnvironmentBuilder()
-				.setTaskManagerRuntimeInfo(new TestingTaskManagerRuntimeInfo(taskManagerConfig))
-				.setTaskConfiguration(taskConfiguration)
-				.build()) {
-
-			StreamTask<String, TestSequentialReadingStreamOperator> streamTask =
-				new NoOpStreamTask<>(mockEnvironment);
-
-			try {
-				streamTask.invoke();
-				fail("should fail with an exception");
-			} catch (UnsupportedOperationException uoe) {
-				// this is what we expect
-				assertThat(uoe.getMessage(),
-					startsWith("The operator that implements the InputSelectable interface is not supported"));
-			} catch (Throwable t) {
-				fail("should fail with an UnsupportedOperationException");
-			}
-		}
-	}
-
 	/**
 	 * This test ensures that {@link RecordWriter} is correctly closed even if we fail to construct
 	 * {@link OperatorChain}, for example because of user class deserialization error.
@@ -913,7 +878,7 @@ public class StreamTaskTest extends TestLogger {
 			final AvailabilityTestStreamTask task = new AvailabilityTestStreamTask<>(environment, inputProcessor);
 			final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
 
-			final Runnable completeFutureTask = () -> {
+			final RunnableWithException completeFutureTask = () -> {
 				assertEquals(1, inputProcessor.currentNumProcessCalls);
 				assertTrue(task.mailboxProcessor.isDefaultActionUnavailable());
 				environment.getWriter(1).getAvailableFuture().complete(null);

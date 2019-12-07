@@ -116,13 +116,7 @@ class BatchExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
-    val memText = conf.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
-    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
-
     val operator = new SortOperator(
-      managedMemory,
       codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
       codeGen.generateRecordComparator("BatchExecSortComparator"))
 
@@ -132,6 +126,10 @@ class BatchExecSort(
       operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
       BaseRowTypeInfo.of(outputType),
       input.getParallelism)
+
+    val memText = conf.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
+    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
     val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
     ret.setResources(resource, resource)
     ret

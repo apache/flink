@@ -532,7 +532,7 @@ public final class ExtractionUtils {
 		private final List<String> parameterNames = new ArrayList<>();
 
 		public ParameterExtractor(Constructor constructor) {
-			super(Opcodes.ASM6);
+			super(Opcodes.ASM7);
 			constructorDescriptor = getConstructorDescriptor(constructor);
 		}
 
@@ -548,7 +548,7 @@ public final class ExtractionUtils {
 				String signature,
 				String[] exceptions) {
 			if (descriptor.equals(constructorDescriptor)) {
-				return new MethodVisitor(Opcodes.ASM6) {
+				return new MethodVisitor(Opcodes.ASM7) {
 					@Override
 					public void visitLocalVariable(
 							String name,

@@ -45,8 +45,6 @@ public class SingleInputGateBuilder {
 
 	private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
 
-	private boolean isCreditBased = true;
-
 	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
 		throw new UnsupportedOperationException();
 	};
@@ -73,16 +71,10 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
-	public SingleInputGateBuilder setIsCreditBased(boolean isCreditBased) {
-		this.isCreditBased = isCreditBased;
-		return this;
-	}
-
 	public SingleInputGateBuilder setupBufferPoolFactory(NettyShuffleEnvironment environment) {
 		NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
 		this.bufferPoolFactory = SingleInputGateFactory.createBufferPoolFactory(
 			environment.getNetworkBufferPool(),
-			config.isCreditBased(),
 			config.networkBuffersPerChannel(),
 			config.floatingNetworkBuffersPerGate(),
 			numberOfChannels,
@@ -103,7 +95,6 @@ public class SingleInputGateBuilder {
 			consumedSubpartitionIndex,
 			numberOfChannels,
 			partitionProducerStateProvider,
-			isCreditBased,
 			bufferPoolFactory);
 	}
 }

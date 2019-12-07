@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
@@ -152,15 +151,6 @@ class BatchExecNestedLoopJoin(
       condition
     ).gen()
 
-    val externalBufferMemoryInMb: Int = if (singleRowJoin) {
-      0
-    } else {
-      val mem = planner.getTableConfig.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-      MemorySize.parse(mem).getMebiBytes
-    }
-    val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
-
     val parallelism = if (leftIsBuild) rInput.getParallelism else lInput.getParallelism
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       lInput,
@@ -169,7 +159,13 @@ class BatchExecNestedLoopJoin(
       op,
       BaseRowTypeInfo.of(outputType),
       parallelism)
-    ret.setResources(resourceSpec, resourceSpec)
+
+    if (!singleRowJoin) {
+      val mem = planner.getTableConfig.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+      val resourceSpec = NodeResourceUtil.fromManagedMem(MemorySize.parse(mem).getMebiBytes)
+      ret.setResources(resourceSpec, resourceSpec)
+    }
     ret
   }
 }

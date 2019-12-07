@@ -204,7 +204,6 @@ class BatchExecHashJoin(
     val memText = config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)
     val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
-    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
     val condFunc = JoinUtil.generateConditionFunction(
       config, cluster.getRexBuilder, getJoinInfo, lType, rType)
 
@@ -236,18 +235,12 @@ class BatchExecHashJoin(
         pType,
         buildKeys,
         probeKeys,
-        managedMemory,
-        0,
-        0,
         buildRowSize,
         buildRowCount,
         reverseJoin,
         condFunc)
     } else {
       SimpleOperatorFactory.of(HashJoinOperator.newHashJoinOperator(
-        managedMemory,
-        0,
-        0,
         hashJoinType,
         condFunc,
         reverseJoin,

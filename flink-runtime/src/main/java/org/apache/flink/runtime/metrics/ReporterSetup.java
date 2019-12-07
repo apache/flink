@@ -223,7 +223,7 @@ public final class ReporterSetup {
 		MetricReporterFactory factory = reporterFactories.get(factoryClassName);
 
 		if (factory == null) {
-			LOG.warn("The reporter factory ({}) could not be found for reporter {}. Available factories: ", factoryClassName, reporterName, reporterFactories.keySet());
+			LOG.warn("The reporter factory ({}) could not be found for reporter {}. Available factories: {}.", factoryClassName, reporterName, reporterFactories.keySet());
 			return Optional.empty();
 		} else {
 			final MetricConfig metricConfig = new MetricConfig();

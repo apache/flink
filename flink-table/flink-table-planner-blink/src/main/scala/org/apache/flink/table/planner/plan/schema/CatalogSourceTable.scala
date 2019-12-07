@@ -19,14 +19,12 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.CatalogTable
+import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
-
+import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.table.planner.calcite.FlinkToRelContext
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
-
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.LogicalTableScan
@@ -70,27 +68,31 @@ class CatalogSourceTable[T](
     val cluster = context.getCluster
     val tableSourceTable = new TableSourceTable[T](
       relOptSchema,
-      names,
+      schemaTable.getTableIdentifier,
       rowType,
       statistic,
       tableSource,
       schemaTable.isStreamingMode,
       catalogTable)
-    if (columnExprs.isEmpty) {
-      LogicalTableScan.create(cluster, tableSourceTable)
-    } else {
-      // Get row type of physical fields.
-      val physicalFields = getRowType
-        .getFieldList
-        .filter(f => !columnExprs.contains(f.getName))
-        .map(f => f.getIndex)
-        .toArray
-      // Copy this table with physical scan row type.
-      val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
-      val scan = LogicalTableScan.create(cluster, newRelTable)
-      val toRelContext = context.asInstanceOf[FlinkToRelContext]
-      val relBuilder = toRelContext.createRelBuilder()
-      val fieldNames = rowType.getFieldNames.asScala
+
+    // 1. push table scan
+
+    // Get row type of physical fields.
+    val physicalFields = getRowType
+      .getFieldList
+      .filter(f => !columnExprs.contains(f.getName))
+      .map(f => f.getIndex)
+      .toArray
+    // Copy this table with physical scan row type.
+    val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
+    val scan = LogicalTableScan.create(cluster, newRelTable)
+    val toRelContext = context.asInstanceOf[FlinkToRelContext]
+    val relBuilder = toRelContext.createRelBuilder()
+    relBuilder.push(scan)
+
+    // 2. push computed column project
+    val fieldNames = rowType.getFieldNames.asScala
+    if (columnExprs.nonEmpty) {
       val fieldExprs = fieldNames
         .map { name =>
           if (columnExprs.contains(name)) {
@@ -102,10 +104,35 @@ class CatalogSourceTable[T](
       val rexNodes = toRelContext
         .createSqlExprToRexConverter(newRelTable.getRowType)
         .convertToRexNodes(fieldExprs)
-      relBuilder.push(scan)
-        .projectNamed(rexNodes.toList, fieldNames, true)
-        .build()
+      relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
     }
+
+    // 3. push watermark assigner
+    val watermarkSpec = catalogTable
+      .getSchema
+      // we only support single watermark currently
+      .getWatermarkSpecs.asScala.headOption
+    if (schemaTable.isStreamingMode && watermarkSpec.nonEmpty) {
+      if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
+        throw new TableException(
+          "If watermark is specified in DDL, the underlying TableSource of connector shouldn't" +
+            " return an non-empty list of RowtimeAttributeDescriptor" +
+            " via DefinedRowtimeAttributes interface.")
+      }
+      val rowtime = watermarkSpec.get.getRowtimeAttribute
+      if (rowtime.contains(".")) {
+        throw new TableException(
+          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
+      }
+      val rowtimeIndex = fieldNames.indexOf(rowtime)
+      val watermarkRexNode = toRelContext
+        .createSqlExprToRexConverter(rowType)
+        .convertToRexNode(watermarkSpec.get.getWatermarkExpressionString)
+      relBuilder.watermark(rowtimeIndex, watermarkRexNode)
+    }
+
+    // 4. returns the final RelNode
+    relBuilder.build()
   }
 
   /** Create the table source lazily. */

@@ -31,19 +31,19 @@ import java.util.List;
  */
 public class ResourceUtil {
 
-	public static final String[] PYTHON_BASIC_DEPENDENCIES = {
+	public static final String[] BUILT_IN_PYTHON_DEPENDENCIES = {
 		"pyflink.zip",
 		"py4j-0.10.8.1-src.zip",
 		"cloudpickle-1.2.2-src.zip",
 		"pyflink-udf-runner.sh"
 	};
 
-	public static List<File> extractBasicDependenciesFromResource(
+	public static List<File> extractBuiltInDependencies(
 			String tmpdir,
 			String prefix,
 			boolean skipShellScript) throws IOException, InterruptedException {
 		List<File> extractedFiles = new ArrayList<>();
-		for (String fileName : PYTHON_BASIC_DEPENDENCIES) {
+		for (String fileName : BUILT_IN_PYTHON_DEPENDENCIES) {
 			if (skipShellScript && fileName.endsWith(".sh")) {
 				continue;
 			}
@@ -77,7 +77,7 @@ public class ResourceUtil {
 
 	/**
 	 * This main method is used to create the shell script in a subprocess, see the "TODO" hints in method
-	 * {@link ResourceUtil#extractBasicDependenciesFromResource}.
+	 * {@link ResourceUtil#extractBuiltInDependencies}.
 	 * @param args First argument is the directory where shell script will be created. Second argument is the prefix of
 	 *             the shell script. Third argument is the fileName of the shell script.
 	 * @throws IOException

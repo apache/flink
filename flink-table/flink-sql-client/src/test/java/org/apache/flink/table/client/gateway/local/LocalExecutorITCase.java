@@ -121,7 +121,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "4m");
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
@@ -208,6 +208,83 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> expectedDatabases = Collections.singletonList("default_database");
 		assertEquals(expectedDatabases, actualDatabases);
 
+		executor.closeSession(sessionId);
+	}
+
+	@Test
+	public void testCreateDatabase() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		executor.executeUpdate(sessionId, "create database db1");
+
+		final List<String> actualDatabases = executor.listDatabases(sessionId);
+		final List<String> expectedDatabases = Arrays.asList("default_database", "db1");
+		assertEquals(expectedDatabases, actualDatabases);
+
+		executor.closeSession(sessionId);
+	}
+
+	@Test
+	public void testDropDatabase() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		executor.executeUpdate(sessionId, "create database db1");
+
+		List<String> actualDatabases = executor.listDatabases(sessionId);
+		List<String> expectedDatabases = Arrays.asList("default_database", "db1");
+		assertEquals(expectedDatabases, actualDatabases);
+
+		executor.executeUpdate(sessionId, "drop database if exists db1");
+
+		actualDatabases = executor.listDatabases(sessionId);
+		expectedDatabases = Arrays.asList("default_database");
+		assertEquals(expectedDatabases, actualDatabases);
+
+		executor.closeSession(sessionId);
+	}
+
+	@Test
+	public void testAlterDatabase() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		executor.executeUpdate(sessionId, "create database db1 comment 'db1_comment' with ('k1' = 'v1')");
+
+		executor.executeUpdate(sessionId, "alter database db1 set ('k1' = 'a', 'k2' = 'b')");
+
+		final List<String> actualDatabases = executor.listDatabases(sessionId);
+		final List<String> expectedDatabases = Arrays.asList("default_database", "db1");
+		assertEquals(expectedDatabases, actualDatabases);
+		//todo: we should compare the new db1 properties after we support describe database in LocalExecutor.
+
+		executor.closeSession(sessionId);
+	}
+
+	@Test
+	public void testAlterTable() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final LocalExecutor localExecutor = (LocalExecutor) executor;
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+		executor.useCatalog(sessionId, "simple-catalog");
+		executor.useDatabase(sessionId, "default_database");
+		List<String> actualTables = executor.listTables(sessionId);
+		List<String> expectedTables = Arrays.asList("test-table");
+		assertEquals(expectedTables, actualTables);
+		executor.executeUpdate(sessionId, "alter table `test-table` rename to t1");
+		actualTables = executor.listTables(sessionId);
+		expectedTables = Arrays.asList("t1");
+		assertEquals(expectedTables, actualTables);
+		//todo: we should add alter table set test when we support create table in executor.
 		executor.closeSession(sessionId);
 	}
 

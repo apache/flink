@@ -17,24 +17,28 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -47,12 +51,17 @@ public class MailboxExecutorImplTest {
 	private MailboxExecutor mailboxExecutor;
 	private ExecutorService otherThreadExecutor;
 	private TaskMailboxImpl mailbox;
+	private MailboxProcessor mailboxProcessor;
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Before
 	public void setUp() throws Exception {
 		this.mailbox = new TaskMailboxImpl();
-		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY);
+		this.mailboxExecutor = new MailboxExecutorImpl(mailbox, DEFAULT_PRIORITY, StreamTaskActionExecutor.IMMEDIATE);
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+		this.mailboxProcessor = new MailboxProcessor(c -> { }, StreamTaskActionExecutor.IMMEDIATE, mailbox, mailboxExecutor);
 	}
 
 	@After
@@ -73,30 +82,29 @@ public class MailboxExecutorImplTest {
 
 	@Test
 	public void testOperations() throws Exception {
-		final TestRunnable testRunnable = new TestRunnable();
-		mailboxExecutor.execute(testRunnable, "testRunnable");
-		Assert.assertEquals(testRunnable, mailbox.take(DEFAULT_PRIORITY).getRunnable());
+		AtomicBoolean wasExecuted = new AtomicBoolean(false);
+		CompletableFuture.runAsync(() -> mailboxExecutor.execute(() -> wasExecuted.set(true), ""), otherThreadExecutor).get();
 
-		CompletableFuture.runAsync(
-			() -> mailboxExecutor.execute(testRunnable, "testRunnable"),
-			otherThreadExecutor).get();
-		Assert.assertEquals(testRunnable, mailbox.take(DEFAULT_PRIORITY).getRunnable());
+		mailbox.take(DEFAULT_PRIORITY).run();
+		Assert.assertTrue(wasExecuted.get());
+	}
 
+	@Test
+	public void testClose() throws Exception {
 		final TestRunnable yieldRun = new TestRunnable();
 		final TestRunnable leftoverRun = new TestRunnable();
 		mailboxExecutor.execute(yieldRun, "yieldRun");
-		Future<?> leftoverFuture = CompletableFuture.supplyAsync(
+		final Future<?> leftoverFuture = CompletableFuture.supplyAsync(
 			() -> mailboxExecutor.submit(leftoverRun, "leftoverRun"),
 			otherThreadExecutor).get();
 
 		assertTrue(mailboxExecutor.tryYield());
-		Assert.assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
-		assertFalse(leftoverFuture.isDone());
+		assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
 
-		List<Mail> leftoverTasks = mailbox.close();
-		Assert.assertEquals(1, leftoverTasks.size());
+		assertFalse(leftoverFuture.isDone());
 		assertFalse(leftoverFuture.isCancelled());
-		FutureUtils.cancelRunnableFutures(leftoverTasks.stream().map(Mail::getRunnable).collect(Collectors.toList()));
+
+		mailboxProcessor.close();
 		assertTrue(leftoverFuture.isCancelled());
 
 		try {
@@ -145,18 +153,21 @@ public class MailboxExecutorImplTest {
 	}
 
 	@Test
-	public void testExecutorView() throws Exception {
-		CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {}, mailboxExecutor.asExecutor("runAsync"));
-		assertFalse(future.isDone());
-
-		mailboxExecutor.yield();
-		assertTrue(future.isDone());
+	public void testPrettyExceptionMessage() {
+		final String description = "Pretty command description";
+		mailboxExecutor.execute(
+			() -> {
+				throw new RuntimeException("Some random exception");
+			},
+			description);
+		expectedException.expectMessage(containsString(description));
+		mailboxExecutor.tryYield();
 	}
 
 	/**
 	 * Test {@link Runnable} that tracks execution.
 	 */
-	static class TestRunnable implements Runnable {
+	static class TestRunnable implements RunnableWithException {
 
 		private Thread executedByThread = null;
 

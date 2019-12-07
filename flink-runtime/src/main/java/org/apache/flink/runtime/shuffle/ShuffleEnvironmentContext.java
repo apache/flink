@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
@@ -33,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ShuffleEnvironmentContext {
 	private final Configuration configuration;
 	private final ResourceID taskExecutorResourceId;
-	private final long maxJvmHeapMemory;
+	private final MemorySize shuffleMemorySize;
 	private final boolean localCommunicationOnly;
 	private final InetAddress hostAddress;
 	private final TaskEventPublisher eventPublisher;
@@ -42,14 +43,14 @@ public class ShuffleEnvironmentContext {
 	public ShuffleEnvironmentContext(
 			Configuration configuration,
 			ResourceID taskExecutorResourceId,
-			long maxJvmHeapMemory,
+			MemorySize shuffleMemorySize,
 			boolean localCommunicationOnly,
 			InetAddress hostAddress,
 			TaskEventPublisher eventPublisher,
 			MetricGroup parentMetricGroup) {
 		this.configuration = checkNotNull(configuration);
 		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
-		this.maxJvmHeapMemory = maxJvmHeapMemory;
+		this.shuffleMemorySize = shuffleMemorySize;
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.hostAddress = checkNotNull(hostAddress);
 		this.eventPublisher = checkNotNull(eventPublisher);
@@ -64,8 +65,8 @@ public class ShuffleEnvironmentContext {
 		return taskExecutorResourceId;
 	}
 
-	public long getMaxJvmHeapMemory() {
-		return maxJvmHeapMemory;
+	public MemorySize getShuffleMemorySize() {
+		return shuffleMemorySize;
 	}
 
 	public boolean isLocalCommunicationOnly() {

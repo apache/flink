@@ -34,6 +34,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
@@ -144,7 +145,27 @@ public interface Catalog {
 	 * @throws DatabaseNotExistException if the given database does not exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+	default void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+			DatabaseNotEmptyException, CatalogException{
+		dropDatabase(name, ignoreIfNotExists, false);
+	}
+
+	/**
+	 * Drop a database.
+	 *
+	 * @param name              Name of the database to be dropped.
+	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
+	 *                           if set to false, throw an exception,
+	 *                           if set to true, do nothing.
+	 * @param cascade          Flag to specify behavior when the database contains table or function:
+	 *                           if set to true, delete all tables and functions in the database and then delete the
+	 *                             database,
+	 *                           if set to false, throw an exception.
+	 * @throws DatabaseNotExistException if the given database does not exist
+	 * @throws DatabaseNotEmptyException if the given database is not empty and isRestrict is true
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade) throws DatabaseNotExistException,
 		DatabaseNotEmptyException, CatalogException;
 
 	/**
@@ -286,6 +307,29 @@ public interface Catalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, CatalogException;
+
+	/**
+	 * Get CatalogPartitionSpec of partitions by expression filters in the table.
+	 *
+	 * <p>NOTE: For FieldReferenceExpression, the field index is based on schema of this table
+	 * instead of partition columns only.
+	 *
+	 * <p>The passed in predicates have been translated in conjunctive form.
+	 *
+	 * <p>If catalog does not support this interface at present, throw an {@link UnsupportedOperationException}
+	 * directly. If the catalog does not have a valid filter, throw the {@link UnsupportedOperationException}
+	 * directly. Planner will fallback to get all partitions and filter by itself.
+	 *
+	 * @param tablePath	path of the table
+	 * @param filters filters to push down filter to catalog
+	 * @return a list of CatalogPartitionSpec that is under the given CatalogPartitionSpec in the table
+	 *
+	 * @throws TableNotExistException thrown if the table does not exist in the catalog
+	 * @throws TableNotPartitionedException thrown if the table is not partitioned
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
 		throws TableNotExistException, TableNotPartitionedException, CatalogException;
 
 	/**

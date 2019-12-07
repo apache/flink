@@ -55,7 +55,7 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<Object> {
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-		logger.debug("Unhandled exception: {}", cause);
+		logger.debug("Unhandled exception.", cause);
 		sendError(ctx, ExceptionUtils.stringifyException(cause));
 	}
 

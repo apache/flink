@@ -1053,12 +1053,12 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>inputFloatingBuffersUsage</td>
-      <td>An estimate of the floating input buffers usage, dedicated for credit-based mode. (ignores LocalInputChannels)</td>
+      <td>An estimate of the floating input buffers usage. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>inputExclusiveBuffersUsage</td>
-      <td>An estimate of the exclusive input buffers usage, dedicated for credit-based mode. (ignores LocalInputChannels)</td>
+      <td>An estimate of the exclusive input buffers usage. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1376,7 +1376,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="12"><strong>Task</strong></th>
+      <th rowspan="13"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1435,6 +1435,11 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>numBuffersOutPerSecond</td>
       <td>The number of network buffers this task emits per second.</td>
       <td>Meter</td>
+    </tr>
+    <tr>
+      <td>isBackPressured</td>
+      <td>Whether the task is back-pressured.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="6"><strong>Task/Operator</strong></th>

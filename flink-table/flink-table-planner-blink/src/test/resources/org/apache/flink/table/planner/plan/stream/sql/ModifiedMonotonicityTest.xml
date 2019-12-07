@@ -37,7 +37,7 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MAX(max$0) AS EXPR$1], updateAsRe
          +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(max$0) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
             +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
                +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], updateAsRetraction=[true], accMode=[Acc])
-                  +- WatermarkAssigner(fields=[a1, a2, a3], miniBatchInterval=[Proctime, 100ms], updateAsRetraction=[true], accMode=[Acc])
+                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
                      +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
@@ -109,7 +109,7 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(min$0) AS EXPR$1], up
          +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(max$0) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
             +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
                +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], updateAsRetraction=[true], accMode=[Acc])
-                  +- WatermarkAssigner(fields=[a1, a2, a3], miniBatchInterval=[Proctime, 100ms], updateAsRetraction=[true], accMode=[Acc])
+                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
                      +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
@@ -135,7 +135,7 @@ GlobalGroupAggregate(select=[MIN(min$0) AS EXPR$0], updateAsRetraction=[false], 
          +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(min$0) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
             +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
                +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS min$0], updateAsRetraction=[true], accMode=[Acc])
-                  +- WatermarkAssigner(fields=[a1, a2, a3], miniBatchInterval=[Proctime, 100ms], updateAsRetraction=[true], accMode=[Acc])
+                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
                      +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>

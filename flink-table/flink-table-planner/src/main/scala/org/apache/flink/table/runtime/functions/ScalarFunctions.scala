@@ -43,7 +43,7 @@ class ScalarFunctions {}
 object ScalarFunctions {
 
   def power(a: Double, b: JBigDecimal): Double = {
-    Math.pow(a, b.doubleValue())
+    StrictMath.pow(a, b.doubleValue())
   }
 
   /**
@@ -111,7 +111,18 @@ object ScalarFunctions {
     if (x <= 0.0) {
       throw new IllegalArgumentException(s"x of 'log(x)' must be > 0, but x = $x")
     } else {
-      Math.log(x)
+      StrictMath.log(x)
+    }
+  }
+
+  /**
+   * Returns exp(x).
+   */
+  def exp(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'exp(x)' must be > 0, but x = $x")
+    } else {
+      StrictMath.exp(x)
     }
   }
 
@@ -139,7 +150,7 @@ object ScalarFunctions {
     if (base <= 1.0) {
       throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 1, but base = $base")
     } else {
-      Math.log(x) / Math.log(base)
+      StrictMath.log(x) / StrictMath.log(base)
     }
   }
 
@@ -150,7 +161,7 @@ object ScalarFunctions {
     if (x <= 0.0) {
       throw new IllegalArgumentException(s"x of 'log2(x)' must be > 0, but x = $x")
     } else {
-      Math.log(x) / Math.log(2)
+      StrictMath.log(x) / StrictMath.log(2)
     }
   }
 

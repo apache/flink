@@ -123,6 +123,11 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 	}
 
 	@Override
+	public void close() {
+
+	}
+
+	@Override
 	public MiniClusterClient.MiniClusterId getClusterId() {
 		return MiniClusterId.INSTANCE;
 	}
@@ -150,7 +155,10 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 		}
 	}
 
-	enum MiniClusterId {
+	/**
+	 * The type of the Cluster ID for the local {@link MiniCluster}.
+	 */
+	public enum MiniClusterId {
 		INSTANCE
 	}
 }

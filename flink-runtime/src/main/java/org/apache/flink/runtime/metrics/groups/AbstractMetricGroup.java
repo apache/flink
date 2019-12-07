@@ -110,6 +110,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		this.logicalScopeStrings = new String[registry.getNumberReporters()];
 	}
 
+	@Override
 	public Map<String, String> getAllVariables() {
 		if (variables == null) {
 			Map<String, String> tmpVariables = new HashMap<>();
@@ -193,6 +194,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 *
 	 * @see #getMetricIdentifier(String)
 	 */
+	@Override
 	public String[] getScopeComponents() {
 		return scopeComponents;
 	}
@@ -225,6 +227,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param metricName metric name
 	 * @return fully qualified metric name
 	 */
+	@Override
 	public String getMetricIdentifier(String metricName) {
 		return getMetricIdentifier(metricName, null);
 	}
@@ -237,6 +240,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param filter character filter which is applied to the scope components if not null.
 	 * @return fully qualified metric name
 	 */
+	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
 		return getMetricIdentifier(metricName, filter, -1);
 	}

@@ -64,6 +64,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -629,6 +630,55 @@ public class RocksDBStateBackendConfigTest {
 		FsStateBackend copyCheckpointBackend = (FsStateBackend) copy.getCheckpointBackend();
 		assertEquals(checkpointBackend.getCheckpointPath(), copyCheckpointBackend.getCheckpointPath());
 		assertEquals(checkpointBackend.getSavepointPath(), copyCheckpointBackend.getSavepointPath());
+	}
+
+	// ------------------------------------------------------------------------
+	//  RocksDB Memory Control
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testDefaultMemoryControlParameters() {
+		RocksDBMemoryConfiguration memSettings = new RocksDBMemoryConfiguration();
+		assertFalse(memSettings.isUsingFixedMemoryPerSlot());
+		assertEquals(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue(), memSettings.getHighPriorityPoolRatio(), 0.0);
+		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), memSettings.getWriteBufferRatio(), 0.0);
+
+		RocksDBMemoryConfiguration configured = RocksDBMemoryConfiguration.fromOtherAndConfiguration(memSettings, new Configuration());
+		assertFalse(configured.isUsingFixedMemoryPerSlot());
+		assertEquals(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue(), configured.getHighPriorityPoolRatio(), 0.0);
+		assertEquals(RocksDBOptions.WRITE_BUFFER_RATIO.defaultValue(), configured.getWriteBufferRatio(), 0.0);
+	}
+
+	@Test
+	public void testConfigureIllegalMemoryControlParameters() {
+		RocksDBMemoryConfiguration memSettings = new RocksDBMemoryConfiguration();
+
+		verifySetParameter(() -> memSettings.setFixedMemoryPerSlot("-1B"));
+		verifySetParameter(() -> memSettings.setHighPriorityPoolRatio(-0.1));
+		verifySetParameter(() -> memSettings.setHighPriorityPoolRatio(1.1));
+		verifySetParameter(() -> memSettings.setWriteBufferRatio(-0.1));
+		verifySetParameter(() -> memSettings.setWriteBufferRatio(1.1));
+
+		memSettings.setFixedMemoryPerSlot("128MB");
+		memSettings.setWriteBufferRatio(0.6);
+		memSettings.setHighPriorityPoolRatio(0.6);
+
+		try {
+			// sum of writeBufferRatio and highPriPoolRatio larger than 1.0
+			memSettings.validate();
+			fail("Expected an IllegalArgumentException.");
+		} catch (IllegalArgumentException expected) {
+			// expected exception
+		}
+	}
+
+	private void verifySetParameter(Runnable setter) {
+		try {
+			setter.run();
+			fail("No expected IllegalArgumentException.");
+		} catch (IllegalArgumentException expected) {
+			// expected exception
+		}
 	}
 
 	// ------------------------------------------------------------------------

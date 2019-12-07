@@ -137,9 +137,21 @@ public final class CliStrings {
 
 	public static final String MESSAGE_UNSUPPORTED_SQL = "Unsupported SQL statement.";
 
+	public static final String MESSAGE_ALTER_TABLE_SUCCEEDED = "Alter table succeeded!";
+
+	public static final String MESSAGE_ALTER_TABLE_FAILED = "Alter table failed!";
+
 	public static final String MESSAGE_VIEW_CREATED = "View has been created.";
 
 	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
+
+	public static final String MESSAGE_DATABASE_CREATED = "Database has been created.";
+
+	public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
+
+	public static final String MESSAGE_DATABASE_ALTER_SUCCEEDED = "Alter database succeeded!";
+
+	public static final String MESSAGE_DATABASE_ALTER_FAILED = "Alter database failed!";
 
 	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
 

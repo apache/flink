@@ -305,6 +305,18 @@ public class CliClient {
 			case SOURCE:
 				callSource(cmdCall);
 				break;
+			case CREATE_DATABASE:
+				callCreateDatabase(cmdCall);
+				break;
+			case DROP_DATABASE:
+				callDropDatabase(cmdCall);
+				break;
+			case ALTER_DATABASE:
+				callAlterDatabase(cmdCall);
+				break;
+			case ALTER_TABLE:
+				callAlterTable(cmdCall);
+				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
 		}
@@ -592,6 +604,46 @@ public class CliClient {
 		// try to run it
 		final Optional<SqlCommandCall> call = parseCommand(stmt);
 		call.ifPresent(this::callCommand);
+	}
+
+	private void callCreateDatabase(SqlCommandCall cmdCall) {
+		final String createDatabaseStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, createDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callDropDatabase(SqlCommandCall cmdCall) {
+		final String dropDatabaseStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, dropDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callAlterDatabase(SqlCommandCall cmdCall) {
+		final String alterDatabaseStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, alterDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_DATABASE_ALTER_FAILED, e);
+		}
+	}
+
+	private void callAlterTable(SqlCommandCall cmdCall) {
+		final String alterTableStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, alterTableStmt);
+			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

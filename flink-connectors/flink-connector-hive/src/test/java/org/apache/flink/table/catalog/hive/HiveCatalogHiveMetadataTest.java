@@ -97,14 +97,15 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
-		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
-		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0, 1000, 3, 0));
-		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataBoolean(15, 20, 3));
-		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3, 10));
-		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataLong(0, 20, 3, 2));
-		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataBinary(150, 20, 3));
+		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));
+		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0L, 1000L, 3L, 0L));
+		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataBoolean(15L, 20L, 3L));
+		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3L, 10L));
+		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataLong(0L, 20L, 3L, 2L));
+		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataBinary(150L, 20D, 3L));
 		if (supportDateStats) {
-			columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 1321, 0L));
+			columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDate(
+					new Date(71L), new Date(17923L), 132L, 0L));
 		}
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterTableColumnStatistics(path1, catalogColumnStatistics, false);
@@ -120,7 +121,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, partitionSpec, createPartition(), true);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
-		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
+		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterPartitionColumnStatistics(path1, partitionSpec, catalogColumnStatistics, false);
 
