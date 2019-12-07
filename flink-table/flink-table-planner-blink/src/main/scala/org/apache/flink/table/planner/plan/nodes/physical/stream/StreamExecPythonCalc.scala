@@ -56,7 +56,8 @@ class StreamExecPythonCalc(
     val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "StreamExecPythonCalc")
+      "StreamExecPythonCalc",
+      planner.getTableConfig.getConfiguration)
 
     if (inputsContainSingleton()) {
       ret.setParallelism(1)

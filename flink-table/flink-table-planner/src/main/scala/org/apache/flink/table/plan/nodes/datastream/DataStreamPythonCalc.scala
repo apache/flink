@@ -23,6 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.StreamQueryConfig
@@ -101,7 +102,10 @@ class DataStreamPythonCalc(
     val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val pythonOperator = getPythonScalarFunctionOperator(
-      pythonOperatorInputRowType, pythonOperatorOutputRowType, pythonUdfInputOffsets)
+      planner.getConfig.getConfiguration,
+      pythonOperatorInputRowType,
+      pythonOperatorOutputRowType,
+      pythonUdfInputOffsets)
 
     inputDataStream
       .transform(
@@ -113,17 +117,20 @@ class DataStreamPythonCalc(
   }
 
   private[flink] def getPythonScalarFunctionOperator(
+      config: Configuration,
       inputRowType: RowType,
       outputRowType: RowType,
       udfInputOffsets: Array[Int]) = {
     val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
+      classOf[Configuration],
       classOf[Array[PythonFunctionInfo]],
       classOf[RowType],
       classOf[RowType],
       classOf[Array[Int]],
       classOf[Array[Int]])
     ctor.newInstance(
+      config,
       pythonFunctionInfos,
       inputRowType,
       outputRowType,

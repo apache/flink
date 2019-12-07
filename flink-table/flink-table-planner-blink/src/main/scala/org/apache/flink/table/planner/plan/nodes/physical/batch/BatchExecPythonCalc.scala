@@ -57,7 +57,8 @@ class BatchExecPythonCalc(
     val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "BatchExecPythonCalc")
+      "BatchExecPythonCalc",
+      planner.getTableConfig.getConfiguration)
 
     ExecNode.setManagedMemoryWeight(
       ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration))

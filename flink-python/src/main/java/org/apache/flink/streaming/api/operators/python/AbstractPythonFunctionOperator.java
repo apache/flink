@@ -20,8 +20,10 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
@@ -36,10 +38,10 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.util.Preconditions;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -98,7 +100,13 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 */
 	private transient long reservedMemory;
 
-	public AbstractPythonFunctionOperator() {
+	/**
+	 * The python config.
+	 */
+	private final PythonConfig config;
+
+	public AbstractPythonFunctionOperator(Configuration config) {
+		this.config = new PythonConfig(Preconditions.checkNotNull(config));
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
@@ -107,13 +115,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		try {
 			this.bundleStarted = new AtomicBoolean(false);
 
-			Map<String, String> jobParams = getExecutionConfig().getGlobalJobParameters().toMap();
+			reserveMemoryForPythonWorker();
 
-			reserveMemoryForPythonWorker(jobParams);
-
-			this.maxBundleSize = Integer.valueOf(jobParams.getOrDefault(
-				PythonOptions.MAX_BUNDLE_SIZE.key(),
-				String.valueOf(PythonOptions.MAX_BUNDLE_SIZE.defaultValue())));
+			this.maxBundleSize = config.getMaxBundleSize();
 			if (this.maxBundleSize <= 0) {
 				this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
 				LOG.error("Invalid value for the maximum bundle size. Using default value of " +
@@ -122,9 +126,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 				LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
 			}
 
-			this.maxBundleTimeMills = Long.valueOf(jobParams.getOrDefault(
-				PythonOptions.MAX_BUNDLE_TIME_MILLS.key(),
-				String.valueOf(PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue())));
+			this.maxBundleTimeMills = config.getMaxBundleTimeMills();
 			if (this.maxBundleTimeMills <= 0L) {
 				this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
 				LOG.error("Invalid value for the maximum bundle time. Using default value of " +
@@ -269,14 +271,10 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
 	 * the memory used by the Python worker is managed by Flink.
 	 */
-	private void reserveMemoryForPythonWorker(Map<String, String> jobParams) throws MemoryReservationException {
-		long requiredPythonWorkerMemory =
-			MemorySize.parse(
-				jobParams.getOrDefault(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.key(),
-					String.valueOf(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())))
-				.add(MemorySize.parse(jobParams.getOrDefault(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.key(),
-					String.valueOf(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue()))))
-				.getBytes();
+	private void reserveMemoryForPythonWorker() throws MemoryReservationException {
+		long requiredPythonWorkerMemory = MemorySize.parse(config.getPythonFrameworkMemorySize())
+			.add(MemorySize.parse(config.getPythonDataBufferMemorySize()))
+			.getBytes();
 		MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
 		long availableManagedMemory = memoryManager.computeMemorySize(
 			getOperatorConfig().getManagedMemoryFraction());
@@ -341,8 +339,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 
 	protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
 		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(
-			getExecutionConfig().getGlobalJobParameters().toMap(),
-			getRuntimeContext().getDistributedCache());
+			config, getRuntimeContext().getDistributedCache());
 		PythonEnv pythonEnv = getPythonEnv();
 		if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
 			String taskManagerLogFile = getContainingTask()
