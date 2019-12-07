@@ -29,13 +29,9 @@ public class Params {
 	private int parallelism;
 	private String outputPath;
 	private String checkPointMode;
-	private int max;
 	private Long maxCount;
 	private int seed;
-	private int waitNum;
-	private long windowSize;
 	private int sleepNum;
-	private boolean bigData;
 	private String streamPartitioner;
 	private String scheduleMode;
 	private String executionMode;
@@ -50,13 +46,9 @@ public class Params {
 		this.parallelism = params.getInt("parallelism", 1);
 		this.outputPath = params.get("outputPath", "");
 		this.checkPointMode = params.get("checkpointMode", "AtLeastOnce");
-		this.max = params.getInt("max", 100);
 		this.maxCount = params.getLong("maxCount", Long.MAX_VALUE);
 		this.seed = params.getInt("seed", 0);
-		this.waitNum = params.getInt("wait_num", 1000);
-		this.windowSize = params.getLong("windowSize", 2000);
 		this.sleepNum = params.getInt("sleepNum", 0);
-		this.bigData = params.getBoolean("bigData", true);
 		this.streamPartitioner = params.get("streamPartitioner", "KeyBy");
 		this.scheduleMode = params.get("scheduleMode", "EAGER");
 		this.executionMode = params.get("executionMode", "PIPELINED");

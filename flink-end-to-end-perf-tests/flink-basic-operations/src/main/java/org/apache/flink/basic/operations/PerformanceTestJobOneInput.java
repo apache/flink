@@ -18,7 +18,6 @@
 
 package org.apache.flink.basic.operations;
 
-
 /**
  * End-to-end perf test for end-to-end perf test.
  *

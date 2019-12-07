@@ -21,7 +21,6 @@ package org.apache.flink.basic.operations;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
-
 /**
  * End-to-end perf test for end-to-end perf test.
  *

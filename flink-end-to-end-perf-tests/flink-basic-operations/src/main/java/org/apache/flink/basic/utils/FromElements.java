@@ -101,25 +101,18 @@ public class FromElements {
 		private final byte[] elementsSerialized;
 		private volatile long numElementsEmitted;
 		private volatile long numElementsToSkip;
-		private volatile boolean isRunning = true;
-		private Long num = 0L;
-		private Long maxCount = 0L;
+		private long recordCount = 0L;
+		private long maxCount = 0L;
 		private int sleepNum = 0;
 		private transient ListState<Long> operateState;
 		private transient Meter sourceTpsMetrics;
 
-		public FromElementsRichFunction(TypeSerializer<T> serializer, Long maxCount, int sleepNum, T... elements) throws IOException {
-			this(serializer, maxCount, sleepNum, Arrays.asList(elements));
-		}
-
 		public FromElementsRichFunction(TypeSerializer<T> serializer, Long maxCount, int sleepNum, Iterable<T> elements) throws IOException {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
-			int count = 0;
 			try {
 				for (T element : elements) {
 					serializer.serialize(element, wrapper);
-					count++;
 				}
 			} catch (Exception e) {
 				throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
@@ -174,8 +167,8 @@ public class FromElements {
 				}
 				this.numElementsEmitted = this.numElementsToSkip;
 			}
-			while (isRunning && num < maxCount) {
-				num++;
+			while (recordCount < maxCount) {
+				recordCount++;
 				T next;
 				try {
 					Thread.sleep(sleepNum);
@@ -196,7 +189,6 @@ public class FromElements {
 
 		@Override
 		public void cancel() {
-			isRunning = false;
 		}
 
 		@Override

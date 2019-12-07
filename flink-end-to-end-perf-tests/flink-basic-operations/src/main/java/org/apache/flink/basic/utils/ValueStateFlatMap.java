@@ -31,25 +31,19 @@ import org.apache.flink.util.Collector;
  * ValueStateFlatMap.
  */
 public class ValueStateFlatMap extends RichFlatMapFunction<Tuple2<String, String>, Tuple2<String, String>> {
-	private transient ValueState<Tuple2<String, String>> sum;
+	private transient ValueState<String> sumValues;
 
 	@Override
 	public void flatMap(Tuple2<String, String> value, Collector<Tuple2<String, String>> collector) throws Exception {
-		Tuple2<String, String> currentSum = sum.value();
-		currentSum.f0 += value.f1;
-		currentSum.f1 += value.f0;
-		sum.update(currentSum);
-		if (currentSum.f0.length() >= 2) {
-			collector.collect(new Tuple2<>(value.f0, currentSum.f0));
-			sum.clear();
-		}
+		String sumValue = sumValues.value() + value.f1;
+		sumValues.update(sumValue);
+		collector.collect(new Tuple2<>(value.f0, sumValue));
 	}
 
 	@Override
 	public void open(Configuration config) {
-		ValueStateDescriptor<Tuple2<String, String>> descriptor =
-			new ValueStateDescriptor<>("average", TypeInformation.of(new TypeHint<Tuple2<String, String>>() {}),
-				Tuple2.of("", ""));
-		sum = getRuntimeContext().getState(descriptor);
+		ValueStateDescriptor<String> descriptor =
+			new ValueStateDescriptor<>("sumValues", TypeInformation.of(new TypeHint<String>() {}), "");
+		sumValues = getRuntimeContext().getState(descriptor);
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.basic.operations;
 
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -39,7 +40,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Collector;
-
 
 /**
  * End-to-end perf test for end-to-end perf test.
@@ -94,7 +94,7 @@ public class PerformanceTestJobBase {
 	public void setStateBackend() throws Exception{
 		long checkpointInterval  = params.getCheckpointInterval();
 		String checkpointMode = params.getCheckPointMode().toLowerCase();
-		String statebackend = params.getStateBackend().toLowerCase();
+		String stateBackend = params.getStateBackend().toLowerCase();
 		String checkpointPath  = params.getCheckpointPath();
 		long checkpointTimeout = params.getCheckpointTimeout();
 		if (checkpointInterval > 0) {
@@ -103,7 +103,7 @@ public class PerformanceTestJobBase {
 			} else {
 				env.enableCheckpointing(checkpointInterval, CheckpointingMode.EXACTLY_ONCE);
 			}
-			if ("rocksdb".equals(statebackend)) {
+			if ("rocksdb".equals(stateBackend)) {
 				RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath, true);
 				env.setStateBackend(rocksDbBackend);
 			} else {
@@ -128,33 +128,20 @@ public class PerformanceTestJobBase {
 		DataStream<String> sourceNode = FromElements.fromElements(env, params.getMaxCount(), params.getSleepNum(),
 			WordCountData.getWords(recordValue.length(), true, params.getSeed())).setParallelism(params.getParallelism()).name(sourceName);
 
-		//DataStream<Tuple2<String, String>> flapNode = sourceNode.flatMap(
-		//	new FlatMapFunction<String, Tuple2<String, String>>() {
-		//		@Override
-		//		public void flatMap(String value, Collector<Tuple2<String, String>> collector) throws Exception {
-		//			collector.collect(new Tuple2<>(value, recordValue));
-		//		}
-		//	}
-		//).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
-		DataStream<Tuple2<String, String>> flapNode = sourceNode.flatMap((String value, Collector<Tuple2<String,
-			String>> collector) -> collector.collect(new Tuple2<>(value, recordValue))).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
-		//	new FlatMapFunction<String, Tuple2<String, String>>() {
-		//		@Override
-		//		public void flatMap(String value, Collector<Tuple2<String, String>> collector) throws Exception {
-		//			collector.collect(new Tuple2<>(value, recordValue));
-		//		}
-		//	}
-		//).setParallelism(params.getParallelism()).keyBy(0).flatMap(new ValueStateFlatMap());
+		DataStream<Tuple2<String, String>> flapNode =
+			sourceNode
+				.flatMap((String value, Collector<Tuple2<String, String>> collector)
+					-> collector.collect(new Tuple2<String, String>(value, recordValue)))
+				.returns(Types.TUPLE(Types.STRING, Types.STRING))
+				.setParallelism(params.getParallelism())
+				.keyBy(0)
+				.flatMap(new ValueStateFlatMap());
+
 		DataStream<Tuple2<String, String>> outputNode = null;
 		String streamPartitioner = params.getStreamPartitioner().toLowerCase();
 
 		if ("forward".equals(streamPartitioner)) {
-			if (params.getParallelism() == params.getParallelism()) {
-				outputNode = flapNode.forward();
-			} else {
-				outputNode = flapNode;
-			}
-
+			outputNode = flapNode.forward();
 		} else if ("rescale".equals(streamPartitioner)) {
 			outputNode = flapNode.rescale();
 		} else if ("rebalance".equals(streamPartitioner)) {
