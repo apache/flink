@@ -40,10 +40,9 @@ def init_standalone_env(host_list, user, source_path, dest_path):
 def get_host_list(slave_file):
     hostlist = []
     with open(slave_file) as file:
-        datas = file.read()
-        for data in datas.split("\n"):
-            if not(data == "" or data.startswith("#")):
-                hostlist.append(data)
+        data = file.readline()
+        if not(data == "" or data.startswith("#")):
+            hostlist.append(data)
     return hostlist
 
 

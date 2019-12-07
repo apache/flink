@@ -43,13 +43,19 @@ from restapi_common import get_avg_qps_by_restful_interface
 def start_server(flink_home):
     cmd = "bash %s/bin/start-cluster.sh" % flink_home
     status, output = run_command(cmd)
-    return status
+    if status and output.find("Exception") < 0:
+        return True
+    else:
+        return False
 
 
 def end_server(flink_home):
     cmd = "bash %s/bin/stop_yarn.sh" % flink_home
     status, output = run_command(cmd)
-    return status
+    if status and output.find("Exception") < 0:
+        return True
+    else:
+        return False
 
 
 def get_scenarios(scenario_file_name, test_jar):
@@ -67,34 +73,31 @@ def get_scenarios(scenario_file_name, test_jar):
     scenario_names = []
     linenum = 0
     with open(scenario_file_name) as file:
-        datas = file.read()
-    for data in datas.split("\n"):
-        if data.startswith("#") or data == "":
-            continue
-        linenum = linenum + 1
-        cmd = ""
-        scenario_name = ""
-        if linenum == 1:
-            params_name = data.split(" ")
-            for index in range(0, len(params_name)):
-                params_name[index] = params_name[index]
-            if not params_name.contains("testClassPath"):
-                scenario_file.close()
-                return 1, []
-        else:
-            params_value = data.split(" ")
-            for index in range(0,len(params_name)):
-                param = params_name[index]
-                if param == "testClassPath":
-                    cmd = "-c %s %s %s" % (params_value[index], test_jar,  cmd)
-                else:
-                    if param == "":
-                        cmd = "--%s %s" % (param, params_value[index])
+        data = file.readline()
+        if not (data.startswith("#") or data == ""):
+            linenum = linenum + 1
+            cmd = ""
+            scenario_name = ""
+            if linenum == 1:
+                params_name = data.split(" ")
+                for index in range(0, len(params_name)):
+                    params_name[index] = params_name[index]
+                if not "testClassPath" in params_name:
+                    return 1, []
+            else:
+                params_value = data.split(" ")
+                for index in range(0, len(params_name)):
+                    param = params_name[index]
+                    if param == "testClassPath":
+                        cmd = "-c %s %s %s" % (params_value[index], test_jar,  cmd)
                     else:
-                        cmd = "%s --%s %s" % (cmd, param, params_value[index])
+                        if param == "":
+                            cmd = "--%s %s" % (param, params_value[index])
+                        else:
+                            cmd = "%s --%s %s" % (cmd, param, params_value[index])
                 scenario_name = "%s_%s" % (scenario_name, param)
-        scenario_names.append(scenario_name[1:])
-        scenarios.append(cmd)
+            scenario_names.append(scenario_name[1:])
+            scenarios.append(cmd)
     return 0, scenarios, scenario_names
 
 
@@ -130,6 +133,7 @@ def usage():
 
 
 if __name__ == "__main__":
+    '''
     if len(sys.argv) < 3:
         logger.error("The param's number must be larger than 3")
         usage()
@@ -143,3 +147,5 @@ if __name__ == "__main__":
         wait_minute = sys.argv[5]
 
     run_cases(scenario_file, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10)
+    '''
+    get_scenarios("/Users/mufeng/work_code/aa","bb")

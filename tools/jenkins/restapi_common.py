@@ -34,12 +34,15 @@ def execute_get(url):
     :param url:
     :return: content from the request
     """
-    result = ""
     try:
         result = urllib.request.urlopen(url, timeout=300).read()
+        if result != "":
+            return json.loads(result)
+        else:
+            return {}
     except Exception as e:
         logger.error(e)
-    return result
+        return {}
 
 
 def get_source_node(plan):
@@ -49,7 +52,7 @@ def get_source_node(plan):
     :return: list of source nodes
     """
     source_nodes = []
-    nodes = plan["nodes"] if "nodes" in plan else []
+    nodes = plan.get("nodes", [])
     for node in nodes:
         inputs = node.get("inputs", [])
         if len(inputs) == 0:
@@ -60,7 +63,6 @@ def get_source_node(plan):
 def get_avg_qps_by_restful_interface(am_seserver_dddress, job_id):
     url = "http://%s/jobs/%s" % (am_seserver_dddress, job_id)
     result = execute_get(url)
-    result = json.loads(result)
     vertices = result.get("vertices", "")
     plan = result.get("plan", "")
     source_nodes = get_source_node(plan)
@@ -70,16 +72,12 @@ def get_avg_qps_by_restful_interface(am_seserver_dddress, job_id):
         if id in source_nodes:
             url = "http://%s/jobs/%s/vertices/%s/subtasks/metrics?agg=avg" % (am_seserver_dddress, job_id, id)
             keyresult = execute_get(url)
-            keyresult = json.loads(keyresult)
             for key in keyresult:
                 metrics_name = key.get("id", "")
                 if metrics_name.endswith("numBuffersOutPerSecond"):
                     url = "http://%s/jobs/%s/vertices/%s/subtasks/metrics?get=%s" % (am_seserver_dddress, job_id, id,
                                                                                   metrics_name)
                     value_result = execute_get(url)
-                    if value_result == "":
-                        continue
-                    value_result = json.loads(value_result)
                     for value in value_result:
                         tps = value.getDouble("avg", 0)
                         if tps > 0:
