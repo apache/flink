@@ -66,6 +66,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.ResourceRequirementsRetriever;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -313,6 +314,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** Shuffle master to register partitions for task deployment. */
 	private final ShuffleMaster<?> shuffleMaster;
+
+	/** The retriever to get required resources for a job vertex or a slot sharing group. */
+	private ResourceRequirementsRetriever resourceRequirementsRetriever;
 
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -840,6 +844,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
+	}
+
+	void buildResourceRequirements() {
+		resourceRequirementsRetriever = new ResourceRequirementsRetriever(tasks, shuffleMaster);
 	}
 
 	public boolean isLegacyScheduling() {
@@ -1716,6 +1724,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	ShuffleMaster<?> getShuffleMaster() {
 		return shuffleMaster;
+	}
+
+	ResourceRequirementsRetriever getResourceRequirementsRetriever() {
+		checkNotNull(resourceRequirementsRetriever, "resourceRequirementsRetriever must be set before used");
+		return resourceRequirementsRetriever;
 	}
 
 	public JobMasterPartitionTracker getPartitionTracker() {

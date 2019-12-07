@@ -529,14 +529,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			.setFutureExecutor(executorService)
 			.setSlotProvider(slotProvider)
 			.setBlobWriter(blobWriter)
+			.setJobGraph(new JobGraph(v1, v2))
 			.build();
 
 		checkJobOffloaded(eg);
 
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		List<JobVertex> ordered = Arrays.asList(v1, v2);
-		eg.attachJobGraph(ordered);
 
 		// schedule, this triggers mock deployment
 		eg.scheduleForExecution();
