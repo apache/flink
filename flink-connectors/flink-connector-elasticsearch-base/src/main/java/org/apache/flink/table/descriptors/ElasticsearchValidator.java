@@ -158,7 +158,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 		}
 
 		final String[] hosts = hostsStr.split(";");
-		for (String host: hosts) {
+		for (String host : hosts) {
 			try {
 				final URL url = new URL(host);
 				final String protocol = url.getProtocol();

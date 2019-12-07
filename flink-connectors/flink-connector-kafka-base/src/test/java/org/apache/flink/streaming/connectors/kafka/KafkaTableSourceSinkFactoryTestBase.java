@@ -100,9 +100,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTableSource() {
-
 		// prepare parameters for Kafka table source
-
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
 			.field(COUNT, DataTypes.DECIMAL(10, 3))
@@ -162,9 +160,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTableSourceWithLegacyProperties() {
-
 		// prepare parameters for Kafka table source
-
 		final TableSchema schema = TableSchema.builder()
 				.field(FRUIT_NAME, DataTypes.STRING())
 				.field(COUNT, DataTypes.DECIMAL(10, 3))
@@ -267,7 +263,6 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	@Test
 	public void testTableSink() {
 		// prepare parameters for Kafka table sink
-
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
 			.field(COUNT, DataTypes.DECIMAL(10, 4))
@@ -298,7 +293,6 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	@Test
 	public void testTableSinkWithLegacyProperties() {
 		// prepare parameters for Kafka table sink
-
 		final TableSchema schema = TableSchema.builder()
 				.field(FRUIT_NAME, DataTypes.STRING())
 				.field(COUNT, DataTypes.DECIMAL(10, 4))

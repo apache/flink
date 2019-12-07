@@ -273,10 +273,8 @@ public class Kafka extends ConnectorDescriptor {
 		}
 
 		if (kafkaProperties != null) {
-			this.kafkaProperties.entrySet()
-					.forEach(
-							entry -> properties.putString(CONNECTOR_PROPERTIES + '.' + entry.getKey(), entry.getValue())
-					);
+			this.kafkaProperties.entrySet().forEach(entry ->
+							properties.putString(CONNECTOR_PROPERTIES + '.' + entry.getKey(), entry.getValue()));
 		}
 
 		if (sinkPartitionerType != null) {

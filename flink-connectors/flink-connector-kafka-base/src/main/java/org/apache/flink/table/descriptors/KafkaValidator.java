@@ -163,30 +163,30 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	 *     connector.specific-offsets = partition:0,offset:42;partition:1,offset:300
 	 * </pre>
 	 * @param descriptorProperties
-	 * @return
+	 * @return SpecificOffsets with map format, key is partition, and value is offset.
 	 */
 	public static Map<Integer, Long> validateAndGetSpecificOffsetsStr(DescriptorProperties descriptorProperties) {
 		final Map<Integer, Long> offsetMap = new HashMap<>();
 
 		final String parseSpecificOffsetsStr = descriptorProperties.getString(CONNECTOR_SPECIFIC_OFFSETS);
-		if (null == parseSpecificOffsetsStr || parseSpecificOffsetsStr.length() == 0) {
+		if (parseSpecificOffsetsStr.isEmpty()) {
 			throw new ValidationException("Properties connector.specific-offsets can not be empty, but is:" + parseSpecificOffsetsStr);
 		}
 
 		final String[] pairs = parseSpecificOffsetsStr.split(";");
-		for (String pair: pairs) {
+		final String validationExceptionMessage = "Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS +
+				"' should in the format 'partition:0,offset:42;partition:1,offset:300', " +
+				"but is '" + parseSpecificOffsetsStr + "'.";
+		for (String pair : pairs) {
 			if (null == pair || pair.length() == 0 || !pair.contains(",")) {
-				throw new ValidationException("Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS + "'" +
-						"should in the format 'partition:0,offset:42;partition:1,offset:300', " +
-						"but is '" + parseSpecificOffsetsStr + "'.");			}
+				throw new ValidationException(validationExceptionMessage);
+			}
 
 			final String[] kv = pair.split(",");
 			if (kv.length != 2 ||
 					!kv[0].startsWith(CONNECTOR_SPECIFIC_OFFSETS_PARTITION + ':') ||
 					!kv[1].startsWith(CONNECTOR_SPECIFIC_OFFSETS_OFFSET + ':')) {
-				throw new ValidationException("Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS + "'" +
-						"should in the format 'partition:0,offset:42;partition:1,offset:300', " +
-						"but is '" + parseSpecificOffsetsStr + "'.");
+				throw new ValidationException(validationExceptionMessage);
 			}
 
 			String partitionValue = kv[0].substring(kv[0].indexOf(":") + 1);
@@ -197,9 +197,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 				offsetMap.put(parttion, offset);
 			}
 			catch (NumberFormatException e) {
-				throw new ValidationException("Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS + "'" +
-						"should in the format 'partition:0,offset:42;partition:1,offset:300', " +
-						"but is '" + parseSpecificOffsetsStr + "'.", e);
+				throw new ValidationException(validationExceptionMessage, e);
 			}
 		}
 		return offsetMap;

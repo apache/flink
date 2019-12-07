@@ -282,15 +282,13 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	private Properties getKafkaProperties(DescriptorProperties descriptorProperties) {
 		final Properties kafkaProperties = new Properties();
 
-		if (descriptorProperties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT)
-				|| descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER)
-				|| descriptorProperties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID)) {
+		if (hasConciseKafkaProperties(descriptorProperties)) {
 			descriptorProperties.asMap().keySet()
 					.stream()
 					.filter(key -> key.startsWith(CONNECTOR_PROPERTIES))
 					.forEach(key -> {
 						final String value = descriptorProperties.getString(key);
-						final String subKey = key.replaceFirst(CONNECTOR_PROPERTIES + '.', "");
+						final String subKey = key.substring((CONNECTOR_PROPERTIES + '.').length());
 						kafkaProperties.put(subKey, value);
 					});
 		} else {
@@ -303,6 +301,12 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 			));
 		}
 		return kafkaProperties;
+	}
+
+	private boolean hasConciseKafkaProperties(DescriptorProperties descriptorProperties) {
+		return descriptorProperties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT) ||
+				descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER) ||
+				descriptorProperties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID);
 	}
 
 	private StartupOptions getStartupOptions(
