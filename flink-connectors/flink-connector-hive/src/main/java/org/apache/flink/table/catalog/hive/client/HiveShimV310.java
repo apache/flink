@@ -50,14 +50,14 @@ import java.util.Set;
  */
 public class HiveShimV310 extends HiveShimV235 {
 
-	private transient Class hiveTimestampClz;
-	private transient Constructor hiveTimestampConstructor;
-	private transient Field hiveTimestampLocalDateTime;
-	private transient boolean hiveTimestampInited;
+	private static Class hiveTimestampClz;
+	private static Constructor hiveTimestampConstructor;
+	private static Field hiveTimestampLocalDateTime;
+	private static boolean hiveTimestampInited;
 
-	private void initTimestampClz() {
+	private static void initTimestampClz() {
 		if (!hiveTimestampInited) {
-			synchronized (this) {
+			synchronized (HiveShimV310.class) {
 				if (!hiveTimestampInited) {
 					try {
 						hiveTimestampClz = Class.forName("org.apache.hadoop.hive.common.type.Timestamp");
