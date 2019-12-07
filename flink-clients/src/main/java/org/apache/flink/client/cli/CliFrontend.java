@@ -210,6 +210,8 @@ public class CliFrontend {
 		final Configuration effectiveConfiguration =
 				getEffectiveConfiguration(commandLine, programOptions, jobJars);
 
+		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+
 		try {
 			executeProgram(effectiveConfiguration, program);
 		} finally {
@@ -1089,7 +1091,9 @@ public class CliFrontend {
 	 * @return custom command-line which is active (may only be one at a time)
 	 */
 	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+		LOG.debug("Custom commandlines: {}", customCommandLines);
 		for (CustomCommandLine cli : customCommandLines) {
+			LOG.debug("Checking custom commandline {}, isActive: {}", cli, cli.isActive(commandLine));
 			if (cli.isActive(commandLine)) {
 				return cli;
 			}
