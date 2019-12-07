@@ -65,7 +65,10 @@ class OldCsvTest extends DescriptorTestBase {
       .quoteCharacter('#')
       .ignoreFirstLine()
 
-    util.Arrays.asList(desc1, desc2)
+    val desc3 = new OldCsv()
+      .commentPrefix("#")
+
+    util.Arrays.asList(desc1, desc2, desc3)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {
@@ -92,7 +95,12 @@ class OldCsvTest extends DescriptorTestBase {
       "format.quote-character" -> "#",
       "format.ignore-first-line" -> "true")
 
-    util.Arrays.asList(props1.asJava, props2.asJava)
+    val props3 = Map(
+      "format.type" -> "csv",
+      "format.property-version" -> "1",
+      "format.comment-prefix" -> "#")
+
+    util.Arrays.asList(props1.asJava, props2.asJava, props3.asJava)
   }
 
   override def validator(): DescriptorValidator = {

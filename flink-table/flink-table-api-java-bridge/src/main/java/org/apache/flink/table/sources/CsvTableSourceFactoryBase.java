@@ -104,11 +104,10 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
 
 		TableSchema tableSchema = params.getTableSchema(SCHEMA);
-		boolean isDerived = params
-			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
-			.orElse(false);
 
-		if (!isDerived) {
+		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
+		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
+		if (hasSchema) {
 			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 			// the CsvTableSource needs some rework first
 			// for now the schema must be equal to the encoding
