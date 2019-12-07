@@ -96,7 +96,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), true);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
@@ -169,7 +169,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 				BufferConsumer bufferConsumer = buffers.peek();
 
 				buffer = bufferConsumer.build();
-				if (!isLocalChannel && canBeCompressed(buffer)) {
+				if (!isLocalChannel && !bufferConsumer.isShareable() && canBeCompressed(buffer)) {
 					buffer = parent.bufferCompressor.compressToOriginalBuffer(buffer);
 				}
 

@@ -45,6 +45,8 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.types.LongValue;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -55,6 +57,7 @@ import static org.junit.Assert.assertFalse;
 /**
  * Tests pipeline/blocking shuffle when data compression is enabled.
  */
+@RunWith(Parameterized.class)
 public class ShuffleCompressionITCase {
 
 	private static final int NUM_BUFFERS_TO_SEND = 1000;
@@ -70,7 +73,13 @@ public class ShuffleCompressionITCase {
 
 	private static final LongValue RECORD_TO_SEND = new LongValue(4387942071694473832L);
 
-	private static boolean useBroadcastPartitioner = false;
+	@Parameterized.Parameter
+	public static boolean useBroadcastPartitioner = false;
+
+	@Parameterized.Parameters(name = "useBroadcastPartitioner = {0}")
+	public static Boolean[] params() {
+		return new Boolean[] { true, false };
+	}
 
 	@Test
 	public void testDataCompressionForPipelineShuffle() throws Exception {
@@ -79,12 +88,6 @@ public class ShuffleCompressionITCase {
 
 	@Test
 	public void testDataCompressionForBlockingShuffle() throws Exception {
-		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
-	}
-
-	@Test
-	public void testDataCompressionForBlockingShuffleWithBroadcastPartitioner() throws Exception {
-		useBroadcastPartitioner = true;
 		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
 	}
 
