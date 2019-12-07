@@ -106,6 +106,7 @@ public class FromElements {
 		private int sleepNum = 0;
 		private transient ListState<Long> operateState;
 		private transient Meter sourceTpsMetrics;
+		private volatile boolean isRunning = true;
 
 		public FromElementsRichFunction(TypeSerializer<T> serializer, Long maxCount, int sleepNum, Iterable<T> elements) throws IOException {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -167,7 +168,7 @@ public class FromElements {
 				}
 				this.numElementsEmitted = this.numElementsToSkip;
 			}
-			while (recordCount < maxCount) {
+			while (isRunning && recordCount < maxCount) {
 				recordCount++;
 				T next;
 				try {
@@ -189,6 +190,7 @@ public class FromElements {
 
 		@Override
 		public void cancel() {
+			isRunning = false;
 		}
 
 		@Override
