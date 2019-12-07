@@ -1057,7 +1057,6 @@ public class JobMasterTest extends TestLogger {
 		configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(0));
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 
-
 		final Function<List<List<InputSplit>>, Collection<InputSplit>> expectAllRemainingInputSplits = this::flattenCollection;
 
 		runRequestNextInputSplitTest(expectAllRemainingInputSplits);

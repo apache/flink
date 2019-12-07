@@ -151,7 +151,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
 			TaskManagerLocation randomLocation = new TaskManagerLocation(
 					ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
-			
+
 			TaskManagerLocation location = new TaskManagerLocation(
 					ResourceID.generate(), InetAddress.getLoopbackAddress(), 20000 + i);
 
@@ -238,15 +238,13 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		// we need a bit of reflection magic to initialize the location without going through
 		// scheduling paths. we choose to do that, rather than the alternatives:
 		//  - mocking the scheduler created fragile tests that break whenever the scheduler is adjusted
-		//  - exposing test methods in the ExecutionVertex leads to undesirable setters 
+		//  - exposing test methods in the ExecutionVertex leads to undesirable setters
 
 		SlotContext slotContext = new SimpleSlotContext(
 			new AllocationID(),
 			location,
 			0,
 			mock(TaskManagerGateway.class));
-
-
 
 		LogicalSlot slot = new SingleLogicalSlot(
 			new SlotRequestId(),

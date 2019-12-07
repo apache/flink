@@ -42,8 +42,8 @@ import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
@@ -56,6 +56,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -133,7 +134,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 	private static final class TestFactory implements MasterTriggerRestoreHook.Factory {
 
 		private static final long serialVersionUID = -612969579110202607L;
-		
+
 		private final Serializable payload;
 
 		TestFactory(Serializable payload) {
