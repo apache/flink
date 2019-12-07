@@ -191,11 +191,8 @@ public class HiveTableSourceTest {
 		// first check execution plan to ensure partition prunning works
 		String[] explain = tEnv.explain(src).split("==.*==\n");
 		assertEquals(4, explain.length);
-		String abstractSyntaxTree = explain[1];
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
-		assertTrue(abstractSyntaxTree, abstractSyntaxTree.contains(
-				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
 		assertTrue(optimizedLogicalPlan, optimizedLogicalPlan.contains(
 				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
@@ -233,6 +230,12 @@ public class HiveTableSourceTest {
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
 
 			query = tableEnv.sqlQuery("select * from db1.part where p1 in (1,3,5)");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+
+			query = tableEnv.sqlQuery("select * from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d')");
 			explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];

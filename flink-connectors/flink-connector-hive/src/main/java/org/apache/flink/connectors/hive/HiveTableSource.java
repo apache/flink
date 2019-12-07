@@ -59,6 +59,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A TableSource implementation to read data from Hive tables.
@@ -126,7 +127,7 @@ public class HiveTableSource implements
 	@Override
 	public DataStream<BaseRow> getDataStream(StreamExecutionEnvironment execEnv) {
 		if (!initAllPartitions) {
-			initAllPartitions();
+			initAllPartitions(null);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -201,10 +202,8 @@ public class HiveTableSource implements
 
 	@Override
 	public List<Map<String, String>> getPartitions() {
-		if (!initAllPartitions) {
-			initAllPartitions();
-		}
-		return partitionList;
+		throw new RuntimeException("This method is not expected to be called. " +
+				"Please use Catalog API to retrieve all partitions of a table");
 	}
 
 	@Override
@@ -213,7 +212,7 @@ public class HiveTableSource implements
 			return this;
 		} else {
 			if (!initAllPartitions) {
-				initAllPartitions();
+				initAllPartitions(remainingPartitions);
 			}
 
 			List<HiveTablePartition> remainingHivePartitions = new ArrayList<>();
@@ -228,7 +227,7 @@ public class HiveTableSource implements
 		}
 	}
 
-	private void initAllPartitions() {
+	private void initAllPartitions(List<Map<String, String>> specsToFetch) {
 		allHivePartitions = new ArrayList<>();
 		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
 		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
@@ -240,8 +239,14 @@ public class HiveTableSource implements
 			if (partitionColNames != null && partitionColNames.size() > 0) {
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
-				List<Partition> partitions =
-						client.listPartitions(dbName, tableName, (short) -1);
+				List<Partition> partitions = new ArrayList<>();
+				if (specsToFetch != null) {
+					for (Map<String, String> spec : specsToFetch) {
+						partitions.add(client.getPartition(dbName, tableName, partitionSpecToValues(spec, partitionColNames)));
+					}
+				} else {
+					partitions.addAll(client.listPartitions(dbName, tableName, (short) -1));
+				}
 				for (Partition partition : partitions) {
 					StorageDescriptor sd = partition.getSd();
 					Map<String, Object> partitionColValues = new HashMap<>();
@@ -273,6 +278,12 @@ public class HiveTableSource implements
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
 		initAllPartitions = true;
+	}
+
+	private static List<String> partitionSpecToValues(Map<String, String> spec, List<String> partitionColNames) {
+		Preconditions.checkArgument(spec.size() == partitionColNames.size() && spec.keySet().containsAll(partitionColNames),
+				"Partition spec (%s) and partition column names (%s) doesn't match", spec, partitionColNames);
+		return partitionColNames.stream().map(spec::get).collect(Collectors.toList());
 	}
 
 	private Object restorePartitionValueFromFromType(String valStr, DataType type) {

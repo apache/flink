@@ -775,9 +775,10 @@ public class HiveCatalog extends AbstractCatalog {
 					"HiveCatalog is unable to handle the partition filter expressions: " + expressions);
 		}
 		try {
-			PartitionSpecProxy.PartitionIterator partitions = client.listPartitionSpecsByFilter(
-					tablePath.getDatabaseName(), tablePath.getObjectName(), filter.get(), (short) -1).getPartitionIterator();
-			List<CatalogPartitionSpec> res = new ArrayList<>();
+			PartitionSpecProxy partitionSpec = client.listPartitionSpecsByFilter(
+					tablePath.getDatabaseName(), tablePath.getObjectName(), filter.get(), (short) -1);
+			List<CatalogPartitionSpec> res = new ArrayList<>(partitionSpec.size());
+			PartitionSpecProxy.PartitionIterator partitions = partitionSpec.getPartitionIterator();
 			while (partitions.hasNext()) {
 				Partition partition = partitions.next();
 				Map<String, String> spec = new HashMap<>();

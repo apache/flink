@@ -209,15 +209,15 @@ public class HiveTableUtil {
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {
 
-		private static final Map<FunctionDefinition, String> funcToStr = new HashMap<>();
+		private static final Map<FunctionDefinition, String> FUNC_TO_STR = new HashMap<>();
 
 		static {
-			funcToStr.put(BuiltInFunctionDefinitions.EQUALS, "=");
-			funcToStr.put(BuiltInFunctionDefinitions.NOT_EQUALS, "<>");
-			funcToStr.put(BuiltInFunctionDefinitions.GREATER_THAN, ">");
-			funcToStr.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, ">=");
-			funcToStr.put(BuiltInFunctionDefinitions.LESS_THAN, "<");
-			funcToStr.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, "<=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.EQUALS, "=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.NOT_EQUALS, "<>");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.GREATER_THAN, ">");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, ">=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.LESS_THAN, "<");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, "<=");
 		}
 
 		// used to shift field reference index
@@ -230,7 +230,7 @@ public class HiveTableUtil {
 		}
 
 		private String funcToString(BuiltInFunctionDefinition funcDef) {
-			return funcToStr.containsKey(funcDef) ? funcToStr.get(funcDef) : funcDef.getName();
+			return FUNC_TO_STR.containsKey(funcDef) ? FUNC_TO_STR.get(funcDef) : funcDef.getName();
 		}
 
 		@Override
@@ -248,7 +248,7 @@ public class HiveTableUtil {
 				if (funcDef == BuiltInFunctionDefinitions.CAST) {
 					return String.format("cast(%s as %s)", operands.get(0), operands.get(1));
 				}
-				return String.join(" " + funcToString((BuiltInFunctionDefinition) funcDef) + " ", operands);
+				return "(" + String.join(" " + funcToString((BuiltInFunctionDefinition) funcDef) + " ", operands) + ")";
 			}
 			return null;
 		}
