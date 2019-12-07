@@ -152,6 +152,10 @@ public final class SqlCommandParser {
 				"(ALTER\\s+DATABASE\\s+.*)",
 				SINGLE_OPERAND),
 
+		ALTER_TABLE(
+				"(ALTER\\s+TABLE\\s+.*)",
+				SINGLE_OPERAND),
+
 		SET(
 			"SET(\\s+(\\S+)\\s*=(.*))?", // whitespace is only ignored on the left side of '='
 			(operands) -> {
