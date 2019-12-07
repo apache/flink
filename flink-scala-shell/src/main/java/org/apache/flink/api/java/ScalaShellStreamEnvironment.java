@@ -30,15 +30,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.JarUtils;
 
-import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -62,7 +57,7 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
 
 		super(validateAndGetConfiguration(configuration));
 		this.flinkILoop = checkNotNull(flinkILoop);
-		this.jarFiles = checkNotNull(getJarFiles(jarFiles));
+		this.jarFiles = checkNotNull(JarUtils.getJarFiles(jarFiles));
 	}
 
 	private static Configuration validateAndGetConfiguration(final Configuration configuration) {
@@ -72,22 +67,6 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
 							"or running in a TestEnvironment context.");
 		}
 		return checkNotNull(configuration);
-	}
-
-	private static List<URL> getJarFiles(final String[] jars) {
-		return jars == null
-				? Collections.emptyList()
-				: Arrays.stream(jars).map(jarPath -> {
-			try {
-				final URL fileURL = new File(jarPath).getAbsoluteFile().toURI().toURL();
-				JarUtils.checkJarFile(fileURL);
-				return fileURL;
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("JAR file path invalid", e);
-			} catch (IOException e) {
-				throw new RuntimeException("Problem with jar file " + jarPath, e);
-			}
-		}).collect(Collectors.toList());
 	}
 
 	@Override
