@@ -20,15 +20,14 @@ package org.apache.flink.table.runtime.stream.sql;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.catalog.CatalogFunctionTestBase;
+import org.apache.flink.table.functions.FunctionTestBase;
 
 import org.junit.BeforeClass;
 
 /**
- * Tests for {@link CatalogFunction} in stream table environment.
+ * Tests for catalog and system function in stream table environment.
  */
-public class CatalogFunctionITCase extends CatalogFunctionTestBase {
+public class FunctionITCase extends FunctionTestBase {
 	private static StreamExecutionEnvironment streamExecEnvironment;
 
 	@BeforeClass

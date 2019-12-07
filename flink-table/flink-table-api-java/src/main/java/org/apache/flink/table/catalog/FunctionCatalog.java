@@ -205,6 +205,15 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	/**
+	 * Check whether a temporary system function is already registered.
+	 * @param functionName the name of the function
+	 * @return whether the temporary system function exists in the function catalog
+	 */
+	public boolean hasTemporarySystemFunction(String functionName) {
+		return tempSystemFunctions.containsKey(functionName);
+	}
+
+	/**
 	 * Drop a temporary system function.
 	 *
 	 * @param funcName name of the function
@@ -328,7 +337,8 @@ public class FunctionCatalog implements FunctionLookup {
 					fd = catalog.getFunctionDefinitionFactory().get()
 						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				} else {
-					fd = FunctionDefinitionUtil.createFunctionDefinition(oi.getObjectName(), catalogFunction);
+					fd = FunctionDefinitionUtil.createFunctionDefinition(
+						oi.getObjectName(), catalogFunction.getClassName());
 				}
 
 				return Optional.of(

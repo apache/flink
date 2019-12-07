@@ -547,11 +547,15 @@ abstract class TableEnvImpl(
           case ex: Exception => throw new TableException(exMsg, ex)
         }
       case createFunctionOperation: CreateFunctionOperation =>
-        createCatalogFunction(createFunctionOperation)
+          createCatalogFunction(createFunctionOperation)
+      case createTempSystemFunctionOperation: CreateTempSystemFunctionOperation =>
+          createSystemFunction(createTempSystemFunctionOperation)
       case alterFunctionOperation: AlterFunctionOperation =>
-        alterCatalogFunction(alterFunctionOperation)
+          alterCatalogFunction(alterFunctionOperation)
       case dropFunctionOperation: DropFunctionOperation =>
-        dropCatalogFunction(dropFunctionOperation)
+          dropCatalogFunction(dropFunctionOperation)
+      case dropTempSystemFunctionOperation: DropTempSystemFunctionOperation =>
+          dropSystemFunction(dropTempSystemFunctionOperation)
       case useCatalogOperation: UseCatalogOperation =>
         catalogManager.setCurrentCatalog(useCatalogOperation.getCatalogName)
       case useDatabaseOperation: UseDatabaseOperation =>
@@ -704,8 +708,8 @@ abstract class TableEnvImpl(
           createFunctionOperation.getFunctionIdentifier);
         if (!exist) {
           val functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
-            createFunctionOperation.getFunctionName, function)
-          registerFunctionInFunctionCatalog(
+            createFunctionOperation.getFunctionName, function.getClassName)
+          registerCatalogFunctionInFunctionCatalog(
             createFunctionOperation.getFunctionIdentifier,
             functionDefinition)
         } else if (!createFunctionOperation.isIgnoreIfExists) {
@@ -753,16 +757,8 @@ abstract class TableEnvImpl(
     val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
     try {
       if (dropFunctionOperation.isTemporary)  {
-
-        val exist = functionCatalog.hasTemporaryCatalogFunction(
-          dropFunctionOperation.getFunctionIdentifier)
-        if (exist) {
           functionCatalog.dropTempCatalogFunction(
             dropFunctionOperation.getFunctionIdentifier, dropFunctionOperation.isIfExists)
-        } else if (!dropFunctionOperation.isIfExists) {
-          throw new ValidationException(String.format("Temporary catalog function %s is not found",
-            dropFunctionOperation.getFunctionIdentifier.asSerializableString))
-        }
       } else  {
         val catalog = getCatalogOrThrowException(
           dropFunctionOperation.getFunctionIdentifier.getCatalogName)
@@ -777,16 +773,54 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def registerFunctionInFunctionCatalog[T, ACC](
+  private def createSystemFunction(
+      createFunctionOperation: CreateTempSystemFunctionOperation): Unit = {
+    val exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString)
+    try {
+      val exist = functionCatalog.hasTemporarySystemFunction(
+        createFunctionOperation.getFunctionName)
+      if (!exist) {
+        val functionDefinition = FunctionDefinitionUtil.createFunctionDefinition(
+          createFunctionOperation.getFunctionName, createFunctionOperation.getFunctionClass)
+        registerSystemFunctionInFunctionCatalog(
+          createFunctionOperation.getFunctionName,
+          functionDefinition)
+      } else if (!createFunctionOperation.isIgnoreIfExists) {
+        throw new ValidationException(
+          String.format("Temporary system function %s is already defined",
+          createFunctionOperation.getFunctionName))
+      }
+    } catch {
+      case e: ValidationException =>
+        throw e
+      case e: Exception =>
+        throw new TableException(exMsg, e)
+    }
+  }
+
+  private def dropSystemFunction(dropFunctionOperation: DropTempSystemFunctionOperation): Unit = {
+    val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
+    try {
+      functionCatalog.dropTempSystemFunction(
+        dropFunctionOperation.getFunctionName, dropFunctionOperation.isIfExists)
+    } catch {
+      case e: ValidationException =>
+        throw e
+      case e: Exception =>
+        throw new TableException(exMsg, e)
+    }
+  }
+
+  private def registerCatalogFunctionInFunctionCatalog[T, ACC](
       functionIdentifier: ObjectIdentifier,
       functionDefinition: FunctionDefinition): Unit = {
+
     if (functionDefinition.isInstanceOf[ScalarFunctionDefinition]) {
       val scalarFunctionDefinition = functionDefinition.asInstanceOf[ScalarFunctionDefinition]
       functionCatalog.registerTempCatalogScalarFunction(
         functionIdentifier,
         scalarFunctionDefinition.getScalarFunction)
-    }
-    else if (functionDefinition.isInstanceOf[AggregateFunctionDefinition]) {
+    } else if (functionDefinition.isInstanceOf[AggregateFunctionDefinition]) {
       val aggregateFunctionDefinition = functionDefinition.asInstanceOf[AggregateFunctionDefinition]
       val aggregateFunction = aggregateFunctionDefinition
         .getAggregateFunction.asInstanceOf[AggregateFunction[T, ACC]]
@@ -798,12 +832,48 @@ abstract class TableEnvImpl(
         aggregateFunction,
         typeInfo,
         accTypeInfo)
-    }
-    else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
+
+    } else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
       val tableFunctionDefinition = functionDefinition.asInstanceOf[TableFunctionDefinition]
       val tableFunction = tableFunctionDefinition.getTableFunction.asInstanceOf[TableFunction[T]]
       val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction)
-      functionCatalog.registerTempCatalogTableFunction(functionIdentifier, tableFunction, typeInfo)
+      functionCatalog.registerTempCatalogTableFunction(
+        functionIdentifier,
+        tableFunction,
+        typeInfo)
+
+    }
+  }
+
+  private def registerSystemFunctionInFunctionCatalog[T, ACC](
+      functionName: String,
+      functionDefinition: FunctionDefinition): Unit = {
+    if (functionDefinition.isInstanceOf[ScalarFunctionDefinition]) {
+      val scalarFunctionDefinition = functionDefinition.asInstanceOf[ScalarFunctionDefinition]
+      functionCatalog.registerTempSystemScalarFunction(
+        functionName,
+        scalarFunctionDefinition.getScalarFunction)
+    } else if (functionDefinition.isInstanceOf[AggregateFunctionDefinition]) {
+      val aggregateFunctionDefinition = functionDefinition.asInstanceOf[AggregateFunctionDefinition]
+      val aggregateFunction = aggregateFunctionDefinition
+        .getAggregateFunction.asInstanceOf[AggregateFunction[T, ACC]]
+      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
+      val accTypeInfo = UserFunctionsTypeHelper
+        .getAccumulatorTypeOfAggregateFunction(aggregateFunction)
+      functionCatalog.registerTempSystemAggregateFunction(
+        functionName,
+        aggregateFunction,
+        typeInfo,
+        accTypeInfo)
+    } else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
+      val tableFunctionDefinition = functionDefinition.asInstanceOf[TableFunctionDefinition]
+      val tableFunction = tableFunctionDefinition.getTableFunction.asInstanceOf[TableFunction[T]]
+      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction)
+      functionCatalog.registerTempSystemTableFunction(
+        functionName,
+        tableFunction,
+        typeInfo)
+
     }
   }
 

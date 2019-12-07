@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.functions;
 
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -37,9 +39,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link CatalogFunction}.
+ * Tests for both catalog and system function.
  */
-public abstract class CatalogFunctionTestBase {
+public abstract class FunctionTestBase {
 	private static TableEnvironment tableEnv;
 
 	public static void setTableEnv(TableEnvironment e) {
@@ -99,7 +101,7 @@ public abstract class CatalogFunctionTestBase {
 		try {
 			tableEnv.sqlUpdate(ddl1);
 		} catch (Exception e){
-			assertEquals(e.getMessage(), "Could not execute CREATE FUNCTION:" +
+			assertEquals(e.getMessage(), "Could not execute CREATE CATALOG FUNCTION:" +
 				" (catalogFunction: [Optional[This is a user-defined function]], identifier:" +
 				" [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false])");
 		}
@@ -108,10 +110,10 @@ public abstract class CatalogFunctionTestBase {
 	@Test
 	public void testCreateTemporaryCatalogFunction() {
 		String ddl1 = "create temporary function default_catalog.default_database.f4" +
-			" as 'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String ddl2 = "create temporary function if not exists default_catalog.default_database.f4" +
-			" as 'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String ddl3 = "drop temporary function default_catalog.default_database.f4";
 
@@ -144,8 +146,23 @@ public abstract class CatalogFunctionTestBase {
 			assertTrue(e instanceof ValidationException);
 			assertEquals(e.getMessage(),
 				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" is not found");
+					" doesn't exist");
 		}
+	}
+
+	@Test
+	public void testCreateTemporarySystemFunction() {
+		String ddl1 = "create temporary system function default_catalog.default_database.f5" +
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
+
+		String ddl2 = "create temporary system function if not exists default_catalog.default_database.f5" +
+			" as 'org.apache.flink.table.functions.CatalogFunctionTestBase$TestUDF'";
+
+		String ddl3 = "drop temporary system function default_catalog.default_database.f5";
+
+		tableEnv.sqlUpdate(ddl1);
+		tableEnv.sqlUpdate(ddl2);
+		tableEnv.sqlUpdate(ddl3);
 	}
 
 	@Test
@@ -200,7 +217,7 @@ public abstract class CatalogFunctionTestBase {
 	}
 
 	@Test
-	public void testAlterTemporaryFunction() {
+	public void testAlterTemporaryCatalogFunction() {
 		String alterTemporary = "ALTER TEMPORARY FUNCTION default_catalog.default_database.f4" +
 			" as 'org.apache.flink.function.TestFunction'";
 
@@ -210,7 +227,19 @@ public abstract class CatalogFunctionTestBase {
 		} catch (Exception e) {
 			assertTrue(e.getMessage().equals("Alter temporary catalog function is not supported"));
 		}
+	}
 
+	@Test
+	public void testAlterTemporarySystemFunction() {
+		String alterTemporary = "ALTER TEMPORARY SYSTEM FUNCTION default_catalog.default_database.f4" +
+			" as 'org.apache.flink.function.TestFunction'";
+
+		try {
+			tableEnv.sqlUpdate(alterTemporary);
+			fail();
+		} catch (Exception e) {
+			assertTrue(e.getMessage().equals("Alter temporary system function is not supported"));
+		}
 	}
 
 	@Test
@@ -256,7 +285,7 @@ public abstract class CatalogFunctionTestBase {
 			fail();
 		} catch (Exception e){
 			assertEquals(e.getMessage(), "Temporary catalog function" +
-				" `default_catalog`.`default_database`.`f4` is not found");
+				" `default_catalog`.`default_database`.`f4` doesn't exist");
 		}
 
 		try {
@@ -264,7 +293,7 @@ public abstract class CatalogFunctionTestBase {
 			fail();
 		} catch (Exception e) {
 			assertEquals(e.getMessage(), "Temporary catalog function " +
-				"`catalog1`.`default_database`.`f4` is not found");
+				"`catalog1`.`default_database`.`f4` doesn't exist");
 		}
 
 		try {
@@ -272,17 +301,14 @@ public abstract class CatalogFunctionTestBase {
 			fail();
 		} catch (Exception e) {
 			assertEquals(e.getMessage(), "Temporary catalog function " +
-				"`default_catalog`.`db1`.`f4` is not found");
+				"`default_catalog`.`db1`.`f4` doesn't exist");
 		}
 	}
 
 	@Test
 	public void testCreateDropTemporaryCatalogFunctionsWithDifferentIdentifier() {
 		String createNoCatalogDB = "create temporary function f4" +
-			" as 'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
-
-		String alterNoCatalogDB = "alter temporary function f4 " +
-			"as 'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF2'";
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String dropNoCatalogDB = "drop temporary function f4";
 
@@ -290,7 +316,7 @@ public abstract class CatalogFunctionTestBase {
 		tableEnv.sqlUpdate(dropNoCatalogDB);
 
 		String createNonExistsCatalog = "create temporary function catalog1.default_database.f4" +
-			" as 'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String dropNonExistsCatalog = "drop temporary function catalog1.default_database.f4";
 
@@ -298,7 +324,7 @@ public abstract class CatalogFunctionTestBase {
 		tableEnv.sqlUpdate(dropNonExistsCatalog);
 
 		String createNonExistsDB = "create temporary function default_catalog.db1.f4" +
-			" as 'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String dropNonExistsDB = "drop temporary function default_catalog.db1.f4";
 
@@ -307,9 +333,29 @@ public abstract class CatalogFunctionTestBase {
 	}
 
 	@Test
+	public void testDropTemporarySystemFunction() {
+		String ddl1 = "create temporary system function f5" +
+			" as 'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
+
+		String ddl2 = "drop temporary system function f5";
+
+		String ddl3 = "drop temporary system function if exists f5";
+
+		tableEnv.sqlUpdate(ddl1);
+		tableEnv.sqlUpdate(ddl2);
+		tableEnv.sqlUpdate(ddl3);
+
+		try {
+			tableEnv.sqlUpdate(ddl2);
+		} catch (Exception e) {
+			assertEquals(e.getMessage(), "Temporary system function f5 doesn't exist");
+		}
+	}
+
+	@Test
 	public void testUseDefinedRegularCatalogFunction() throws Exception {
 		String functionDDL = "create function addOne as " +
-			"'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
+			"'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String dropFunctionDDL = "drop function addOne";
 		testUseDefinedCatalogFunction(functionDDL);
@@ -320,9 +366,20 @@ public abstract class CatalogFunctionTestBase {
 	@Test
 	public void testUseDefinedTemporaryCatalogFunction() throws Exception {
 		String functionDDL = "create temporary function addOne as " +
-			"'org.apache.flink.table.catalog.CatalogFunctionTestBase$TestUDF'";
+			"'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
 
 		String dropFunctionDDL = "drop temporary function addOne";
+		testUseDefinedCatalogFunction(functionDDL);
+		// delete the function
+		tableEnv.sqlUpdate(dropFunctionDDL);
+	}
+
+	@Test
+	public void testUseDefinedTemporarySystemFunction() throws Exception {
+		String functionDDL = "create temporary system function addOne as " +
+			"'org.apache.flink.table.functions.FunctionTestBase$TestUDF'";
+
+		String dropFunctionDDL = "drop temporary system function addOne";
 		testUseDefinedCatalogFunction(functionDDL);
 		// delete the function
 		tableEnv.sqlUpdate(dropFunctionDDL);

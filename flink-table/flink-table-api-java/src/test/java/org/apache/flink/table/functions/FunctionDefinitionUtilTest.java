@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.catalog.CatalogFunctionImpl;
 
 import org.junit.Test;
 
@@ -33,7 +32,7 @@ public class FunctionDefinitionUtilTest {
 	public void testScalarFunction() {
 		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-				new CatalogFunctionImpl(TestScalarFunction.class.getName())
+				TestScalarFunction.class.getName()
 		);
 
 		assertTrue(((ScalarFunctionDefinition) fd).getScalarFunction() instanceof TestScalarFunction);
@@ -43,7 +42,7 @@ public class FunctionDefinitionUtilTest {
 	public void testTableFunction() {
 		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-			new CatalogFunctionImpl(TestTableFunction.class.getName())
+			TestTableFunction.class.getName()
 		);
 
 		assertTrue(((TableFunctionDefinition) fd).getTableFunction() instanceof TestTableFunction);
@@ -53,7 +52,7 @@ public class FunctionDefinitionUtilTest {
 	public void testAggregateFunction() {
 		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-			new CatalogFunctionImpl(TestAggFunction.class.getName())
+			TestAggFunction.class.getName()
 		);
 
 		assertTrue(((AggregateFunctionDefinition) fd).getAggregateFunction() instanceof TestAggFunction);
@@ -63,7 +62,7 @@ public class FunctionDefinitionUtilTest {
 	public void testTableAggregateFunction() {
 		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
 			"test",
-			new CatalogFunctionImpl(TestTableAggFunction.class.getName())
+			TestTableAggFunction.class.getName()
 		);
 
 		assertTrue(((TableAggregateFunctionDefinition) fd).getTableAggregateFunction() instanceof TestTableAggFunction);

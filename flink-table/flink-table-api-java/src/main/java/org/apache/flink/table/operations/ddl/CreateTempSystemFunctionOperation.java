@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.operations.ddl;
 
-import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -28,28 +26,28 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Operation to describe a CREATE FUNCTION statement for catalog function.
+ * Operation to describe a CREATE FUNCTION statement for temporary system function.
  */
-public class CreateFunctionOperation implements CreateOperation {
-	private final ObjectIdentifier functionIdentifier;
-	private CatalogFunction catalogFunction;
+public class CreateTempSystemFunctionOperation implements CreateOperation {
+	private final String functionName;
+	private String functionClass;
 	private boolean ignoreIfExists;
 
-	public CreateFunctionOperation(
-		ObjectIdentifier functionIdentifier,
-		CatalogFunction catalogFunction,
+	public CreateTempSystemFunctionOperation(
+		String functionName,
+		String functionClass,
 		boolean ignoreIfExists) {
-		this.functionIdentifier = functionIdentifier;
-		this.catalogFunction = catalogFunction;
+		this.functionName = functionName;
+		this.functionClass = functionClass;
 		this.ignoreIfExists = ignoreIfExists;
 	}
 
-	public CatalogFunction getCatalogFunction() {
-		return this.catalogFunction;
+	public String getFunctionName() {
+		return this.functionName;
 	}
 
-	public ObjectIdentifier getFunctionIdentifier() {
-		return this.functionIdentifier;
+	public String getFunctionClass() {
+		return this.functionClass;
 	}
 
 	public boolean isIgnoreIfExists() {
@@ -59,18 +57,14 @@ public class CreateFunctionOperation implements CreateOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogFunction", catalogFunction.getDetailedDescription());
-		params.put("identifier", functionIdentifier);
+		params.put("functionName", functionName);
+		params.put("functionClass", functionClass);
 		params.put("ignoreIfExists", ignoreIfExists);
 
 		return OperationUtils.formatWithChildren(
-			"CREATE CATALOG FUNCTION",
+			"CREATE TEMPORARY SYSTEM FUNCTION",
 			params,
 			Collections.emptyList(),
 			Operation::asSummaryString);
-	}
-
-	public String getFunctionName() {
-		return this.functionIdentifier.getObjectName();
 	}
 }
