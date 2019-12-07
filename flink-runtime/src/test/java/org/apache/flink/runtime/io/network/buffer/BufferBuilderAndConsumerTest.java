@@ -137,7 +137,7 @@ public class BufferBuilderAndConsumerTest {
 	@Test
 	public void copy() {
 		BufferBuilder bufferBuilder = createBufferBuilder();
-		BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer();
+		BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer(true);
 
 		bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
 
