@@ -165,7 +165,10 @@ public class Csv extends FormatDescriptor {
 	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
 	 * is interpreted as a field renaming in the format.
+	 * @deprecated Derivation format schema from table's schema is the default behavior now.
+	 * 	So there is no need to explicitly declare to derive schema.
 	 */
+	@Deprecated
 	public Csv deriveSchema() {
 		internalProperties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
 		return this;
