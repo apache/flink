@@ -1306,7 +1306,8 @@ The CSV format aims to comply with [RFC-4180](https://tools.ietf.org/html/rfc418
 MIME Type for Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
 
 The format allows to read and write CSV data that corresponds to a given format schema. The format schema can be
-defined either as a Flink type or derived from the desired table schema.
+defined either as a Flink type or derived from the desired table schema. Since Flink 1.10, the format will derive
+format schema from table schema by default. Therefore, it is no longer necessary to explicitly declare the format schema.
 
 If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for
 defining schema information only once. The names, types, and fields' order of the format are determined by the
@@ -1321,11 +1322,9 @@ The CSV format can be used as follows:
 .withFormat(
   new Csv()
 
-    // required: define the schema either by using type information
+    // optional: define the schema explicitly using type information. This overrides default
+    // behavior that uses table's schema as format schema.
     .schema(Type.ROW(...))
-
-    // or use the table's schema
-    .deriveSchema()
 
     .fieldDelimiter(';')         // optional: field delimiter character (',' by default)
     .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
@@ -1349,11 +1348,9 @@ The CSV format can be used as follows:
 .with_format(
     Csv()
 
-    # required: define the schema either by using type information
+    # optional: define the schema explicitly using type information. This overrides default
+    # behavior that uses table's schema as format schema.
     .schema(DataTypes.ROW(...))
-
-    # or use the table's schema
-    .derive_schema()
 
     .field_delimiter(';')          # optional: field delimiter character (',' by default)
     .line_delimiter("\r\n")        # optional: line delimiter ("\n" by default;
@@ -1377,11 +1374,9 @@ The CSV format can be used as follows:
 format:
   type: csv
 
-  # required: define the schema either by using type information
+  # optional: define the schema explicitly using type information. This overrides default
+  # behavior that uses table's schema as format schema.
   schema: "ROW(lon FLOAT, rideTime TIMESTAMP)"
-
-  # or use the table's schema
-  derive-schema: true
 
   field-delimiter: ";"         # optional: field delimiter character (',' by default)
   line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default;
@@ -1406,12 +1401,10 @@ CREATE TABLE MyUserTable (
 ) WITH (
   'format.type' = 'csv',                  -- required: specify the schema type
 
-  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
-  'format.fields.0.data-type' = 'FLOAT',
+  'format.fields.0.name' = 'lon',         -- optional: define the schema explicitly using type information.
+  'format.fields.0.data-type' = 'FLOAT',  -- This overrides default behavior that uses table's schema as format schema.
   'format.fields.1.name' = 'rideTime',
   'format.fields.1.data-type' = 'TIMESTAMP(3)',
-
-  'format.derive-schema' = 'true',        -- or use the table's schema
 
   'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
@@ -1498,10 +1491,11 @@ The JSON format can be used as follows:
   new Json()
     .failOnMissingField(true)   // optional: flag whether to fail if a field is missing or not, false by default
 
-    // required: define the schema either by using type information which parses numbers to corresponding types
+    // optional: define the schema explicitly using type information. This overrides default
+    // behavior that uses table's schema as format schema.
     .schema(Type.ROW(...))
 
-    // or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    // or by using a JSON schema which parses to DECIMAL and TIMESTAMP. This also overrides default behavior.
     .jsonSchema(
       "{" +
       "  type: 'object'," +
@@ -1516,9 +1510,6 @@ The JSON format can be used as follows:
       "  }" +
       "}"
     )
-
-    // or use the table's schema
-    .deriveSchema()
 )
 {% endhighlight %}
 </div>
@@ -1529,10 +1520,11 @@ The JSON format can be used as follows:
     Json()
     .fail_on_missing_field(True)   # optional: flag whether to fail if a field is missing or not, False by default
 
-    # required: define the schema either by using type information which parses numbers to corresponding types
+    # optional: define the schema explicitly using type information. This overrides default
+    # behavior that uses table's schema as format schema.
     .schema(DataTypes.ROW(...))
 
-    # or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    # or by using a JSON schema which parses to DECIMAL and TIMESTAMP. This also overrides default behavior.
     .json_schema(
         "{"
         "  type: 'object',"
@@ -1547,9 +1539,6 @@ The JSON format can be used as follows:
         "  }"
         "}"
     )
-
-    # or use the table's schema
-    .derive_schema()
 )
 {% endhighlight %}
 </div>
@@ -1560,10 +1549,11 @@ format:
   type: json
   fail-on-missing-field: true   # optional: flag whether to fail if a field is missing or not, false by default
 
-  # required: define the schema either by using a type string which parses numbers to corresponding types
+  # optional: define the schema explicitly using type information. This overrides default
+  # behavior that uses table's schema as format schema.
   schema: "ROW(lon FLOAT, rideTime TIMESTAMP)"
 
-  # or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+  # or by using a JSON schema which parses to DECIMAL and TIMESTAMP. This also overrides the default behavior.
   json-schema: >
     {
       type: 'object',
@@ -1577,9 +1567,6 @@ format:
         }
       }
     }
-
-  # or use the table's schema
-  derive-schema: true
 {% endhighlight %}
 </div>
 
@@ -1591,13 +1578,13 @@ CREATE TABLE MyUserTable (
   'format.type' = 'json',                   -- required: specify the format type
   'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
 
-  'format.fields.0.name' = 'lon',           -- required: define the schema either by using a type string which parses numbers to corresponding types
-  'format.fields.0.data-type' = 'FLOAT',
+  'format.fields.0.name' = 'lon',           -- optional: define the schema explicitly using type information.
+  'format.fields.0.data-type' = 'FLOAT',    -- This overrides default behavior that uses table's schema as format schema.
   'format.fields.1.name' = 'rideTime',
   'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
-  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
-    '{
+  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP.
+    '{                                      -- This also overrides the default behavior.
       "type": "object",
       "properties": {
         "lon": {
@@ -1608,9 +1595,7 @@ CREATE TABLE MyUserTable (
           "format": "date-time"
         }
       }
-    }',
-
-  'format.derive-schema' = 'true'          -- or use the table's schema
+    }'
 )
 {% endhighlight %}
 </div>
@@ -1829,9 +1814,8 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight java %}
 .withFormat(
   new OldCsv()
-    .field("field1", DataTypes.STRING())    // required: ordered format fields
-    .field("field2", DataTypes.TIMESTAMP(3))
-    .deriveSchema()                   // or use the table's schema
+    .field("field1", DataTypes.STRING())    // optional: declare ordered format fields explicitly. This will overrides
+    .field("field2", DataTypes.TIMESTAMP(3)) //  the default behavior that uses table's schema as format schema.
     .fieldDelimiter(",")              // optional: string delimiter "," by default
     .lineDelimiter("\n")              // optional: string delimiter "\n" by default
     .quoteCharacter('"')              // optional: single character for string values, empty by default
@@ -1846,8 +1830,8 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight python %}
 .with_format(
     OldCsv()
-    .field("field1", DataTypes.STRING())    # required: ordered format fields
-    .field("field2", DataTypes.TIMESTAMP())
+    .field("field1", DataTypes.STRING())    # optional: declare ordered format fields explicitly. This will overrides
+    .field("field2", DataTypes.TIMESTAMP()) #  the default behavior that uses table's schema as format schema.
     .field_delimiter(",")                   # optional: string delimiter "," by default
     .line_delimiter("\n")                   # optional: string delimiter "\n" by default
     .quote_character('"')                   # optional: single character for string values, empty by default
@@ -1862,12 +1846,11 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight yaml %}
 format:
   type: csv
-  fields:                    # required: ordered format fields
-    - name: field1
+  fields:                    # optional: declare ordered format fields explicitly. This will overrides
+    - name: field1           #  the default behavior that uses table's schema as format schema.
       data-type: STRING
     - name: field2
       data-type: TIMESTAMP(3)
-  derive-schema: true        # or use the table's schema
   field-delimiter: ","       # optional: string delimiter "," by default
   line-delimiter: "\n"       # optional: string delimiter "\n" by default
   quote-character: '"'       # optional: single character for string values, empty by default
@@ -1884,12 +1867,10 @@ CREATE TABLE MyUserTable (
 ) WITH (
   'format.type' = 'csv',                  -- required: specify the schema type
 
-  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
-  'format.fields.0.data-type' = 'STRING',
+  'format.fields.0.name' = 'lon',         -- optional: declare ordered format fields explicitly. This will overrides
+  'format.fields.0.data-type' = 'STRING', --  the default behavior that uses table's schema as format schema.
   'format.fields.1.name' = 'rideTime',
   'format.fields.1.data-type' = 'TIMESTAMP(3)',
-
-  'format.derive-schema' = 'true',        -- or use the table's schema'
 
   'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
   'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
