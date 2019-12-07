@@ -65,7 +65,6 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, BoundedMultiInput {
 
 	private final double externalBufferMemRatio;
-	private final long maxExternalBufferMemory;
 	private final FlinkJoinType type;
 	private final boolean leftIsSmaller;
 	private final boolean[] filterNulls;
@@ -99,7 +98,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private transient JoinedRow joinedRow;
 
 	public SortMergeJoinOperator(
-			double externalBufferMemRatio, long maxExternalBufferMemory,
+			double externalBufferMemRatio,
 			FlinkJoinType type, boolean leftIsSmaller,
 			GeneratedJoinCondition condFuncCode,
 			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
@@ -108,7 +107,6 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 			GeneratedRecordComparator genKeyComparator,
 			boolean[] filterNulls) {
 		this.externalBufferMemRatio = externalBufferMemRatio;
-		this.maxExternalBufferMemory = maxExternalBufferMemory;
 		this.type = type;
 		this.leftIsSmaller = leftIsSmaller;
 		this.condFuncCode = condFuncCode;
@@ -145,7 +143,6 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		long totalMemory = computeMemorySize();
 
 		externalBufferMemory = (long) (totalMemory * externalBufferMemRatio);
-		externalBufferMemory = Math.min(externalBufferMemory, maxExternalBufferMemory);
 		externalBufferMemory = Math.max(externalBufferMemory, ResettableExternalBuffer.MIN_NUM_MEMORY);
 
 		long totalSortMem = totalMemory -

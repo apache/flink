@@ -241,7 +241,6 @@ class BatchExecSortMergeJoin(
 
     val operator = new SortMergeJoinOperator(
       externalBufferMemory.toDouble / managedMemory,
-      externalBufferMemory,
       flinkJoinType,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
       condFunc,

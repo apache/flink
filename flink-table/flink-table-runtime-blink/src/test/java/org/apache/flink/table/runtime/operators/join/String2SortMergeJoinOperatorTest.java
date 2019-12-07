@@ -168,7 +168,7 @@ public class String2SortMergeJoinOperatorTest {
 
 	static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
 		return new SortMergeJoinOperator(
-				0, 1024 * 1024, type, leftIsSmaller,
+				0, type, leftIsSmaller,
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {
