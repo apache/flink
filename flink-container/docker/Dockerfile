@@ -49,7 +49,6 @@ RUN \
 # Install build dependencies and flink
 ADD $flink_dist $hadoop_jar $FLINK_INSTALL_PATH/
 ADD $job_artifacts/* $FLINK_JOB_ARTIFACTS_DIR/
-ADD $job_artifacts/* $FLINK_LIB_DIR/
 
 RUN set -x && \
   ln -s $FLINK_INSTALL_PATH/flink-[0-9]* $FLINK_HOME && \
@@ -62,6 +61,8 @@ RUN set -x && \
   chown -h flink:flink $FLINK_HOME
 
 COPY docker-entrypoint.sh /
+COPY $job_artifacts/* $FLINK_LIB_DIR/
+
 
 USER flink
 EXPOSE 8081 6123
