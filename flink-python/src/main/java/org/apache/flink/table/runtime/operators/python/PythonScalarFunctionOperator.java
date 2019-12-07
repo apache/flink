@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -58,12 +59,13 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	private transient TypeSerializer<CRow> forwardedInputSerializer;
 
 	public PythonScalarFunctionOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override

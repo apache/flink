@@ -26,10 +26,11 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
-                                             PyFlinkBlinkBatchTableTestCase)
+                                             PyFlinkBlinkBatchTableTestCase,
+                                             PyFlinkStreamTableTestCase)
 
 
-class PyFlinkDependencyTests(object):
+class DependencyTests(object):
 
     def test_add_python_file(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
@@ -56,12 +57,17 @@ class PyFlinkDependencyTests(object):
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
 
 
-class PyFlinkBatchDependencyTests(PyFlinkDependencyTests, PyFlinkBlinkBatchTableTestCase):
+class FlinkStreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     pass
 
 
-class PyFlinkStreamDependencyTests(PyFlinkDependencyTests, PyFlinkBlinkStreamTableTestCase):
+class BlinkBatchDependencyTests(DependencyTests, PyFlinkBlinkBatchTableTestCase):
+
+    pass
+
+
+class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCase):
 
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))

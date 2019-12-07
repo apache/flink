@@ -107,15 +107,15 @@ class DependencyManagerTests(PyFlinkTestCase):
             table_config.get_python_executable())
 
     def test_constant_consistency(self):
-        JDependencyInfo = get_gateway().jvm.org.apache.flink.python.env.PythonDependencyInfo
+        JPythonConfig = get_gateway().jvm.org.apache.flink.python.PythonConfig
         self.assertEqual(DependencyManager.PYTHON_REQUIREMENTS_CACHE,
-                         JDependencyInfo.PYTHON_REQUIREMENTS_CACHE)
+                         JPythonConfig.PYTHON_REQUIREMENTS_CACHE)
         self.assertEqual(DependencyManager.PYTHON_REQUIREMENTS_FILE,
-                         JDependencyInfo.PYTHON_REQUIREMENTS_FILE)
+                         JPythonConfig.PYTHON_REQUIREMENTS_FILE)
         self.assertEqual(DependencyManager.PYTHON_ARCHIVES,
-                         JDependencyInfo.PYTHON_ARCHIVES)
-        self.assertEqual(DependencyManager.PYTHON_FILES, JDependencyInfo.PYTHON_FILES)
-        self.assertEqual(DependencyManager.PYTHON_EXEC, JDependencyInfo.PYTHON_EXEC)
+                         JPythonConfig.PYTHON_ARCHIVES)
+        self.assertEqual(DependencyManager.PYTHON_FILES, JPythonConfig.PYTHON_FILES)
+        self.assertEqual(DependencyManager.PYTHON_EXEC, JPythonConfig.PYTHON_EXEC)
 
 
 class Tuple2(object):

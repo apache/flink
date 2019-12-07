@@ -57,7 +57,8 @@ class BatchExecPythonCalc(
     val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "BatchExecPythonCalc")
+      "BatchExecPythonCalc",
+      planner.getTableConfig.getConfiguration)
     val resource = NodeResourceUtil.fromManagedMem(
       getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
     ret.setResources(resource, resource)

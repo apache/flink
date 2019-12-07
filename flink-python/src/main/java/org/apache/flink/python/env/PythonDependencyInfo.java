@@ -20,6 +20,7 @@ package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.python.PythonConfig;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -38,12 +39,6 @@ import java.util.Optional;
  */
 @Internal
 public final class PythonDependencyInfo {
-
-	public static final String PYTHON_FILES = "python.files";
-	public static final String PYTHON_REQUIREMENTS_FILE = "python.requirements-file";
-	public static final String PYTHON_REQUIREMENTS_CACHE = "python.requirements-cache";
-	public static final String PYTHON_ARCHIVES = "python.archives";
-	public static final String PYTHON_EXEC = "python.exec";
 
 	/**
 	 * The python files uploaded by TableEnvironment#add_python_file() or command line option "-pyfs". The key is the
@@ -111,19 +106,18 @@ public final class PythonDependencyInfo {
 	/**
 	 * Creates PythonDependencyInfo from GlobalJobParameters and DistributedCache.
 	 *
-	 * @param globalJobParameters The parameter map which contains information of python dependency.
+	 * @param pythonConfig The python config.
 	 * @param distributedCache The DistributedCache object of current task.
 	 * @return The PythonDependencyInfo object that contains whole information of python dependency.
 	 */
-	public static PythonDependencyInfo create(
-		Map<String, String> globalJobParameters, DistributedCache distributedCache)
+	public static PythonDependencyInfo create(PythonConfig pythonConfig, DistributedCache distributedCache)
 		throws IOException {
 		ObjectMapper mapper = new ObjectMapper();
 
 		Map<String, String> pythonFiles = new HashMap<>();
-		if (globalJobParameters.containsKey(PYTHON_FILES)) {
+		if (pythonConfig.getPythonFilesInfo().isPresent()) {
 			Map<String, String> filesIdToFilesName =
-				mapper.readValue(globalJobParameters.get(PYTHON_FILES), HashMap.class);
+				mapper.readValue(pythonConfig.getPythonFilesInfo().get(), HashMap.class);
 			for (Map.Entry<String, String> entry: filesIdToFilesName.entrySet()) {
 				File pythonFile = distributedCache.getFile(entry.getKey());
 				String filePath = pythonFile.getAbsolutePath();
@@ -133,19 +127,19 @@ public final class PythonDependencyInfo {
 
 		String requirementsFilePath = null;
 		String requirementsCacheDir = null;
-		if (globalJobParameters.containsKey(PYTHON_REQUIREMENTS_FILE)) {
+		if (pythonConfig.getPythonRequirementsFileInfo().isPresent()) {
 			requirementsFilePath = distributedCache.getFile(
-				globalJobParameters.get(PYTHON_REQUIREMENTS_FILE)).getAbsolutePath();
-			if (globalJobParameters.containsKey(PYTHON_REQUIREMENTS_CACHE)) {
+				pythonConfig.getPythonRequirementsFileInfo().get()).getAbsolutePath();
+			if (pythonConfig.getPythonRequirementsCacheDirInfo().isPresent()) {
 				requirementsCacheDir = distributedCache.getFile(
-					globalJobParameters.get(PYTHON_REQUIREMENTS_CACHE)).getAbsolutePath();
+					pythonConfig.getPythonRequirementsCacheDirInfo().get()).getAbsolutePath();
 			}
 		}
 
 		Map<String, String> archives = new HashMap<>();
-		if (globalJobParameters.containsKey(PYTHON_ARCHIVES)) {
+		if (pythonConfig.getPythonArchivesInfo().isPresent()) {
 			Map<String, String> archivesMap =
-				mapper.readValue(globalJobParameters.get(PYTHON_ARCHIVES), HashMap.class);
+				mapper.readValue(pythonConfig.getPythonArchivesInfo().get(), HashMap.class);
 
 			for (Map.Entry<String, String> entry: archivesMap.entrySet()) {
 				String archiveFilePath = distributedCache.getFile(entry.getKey()).getAbsolutePath();
@@ -154,7 +148,7 @@ public final class PythonDependencyInfo {
 			}
 		}
 
-		String pythonExec = globalJobParameters.get(PYTHON_EXEC);
+		String pythonExec = pythonConfig.getPythonExec().orElse(null);
 
 		return new PythonDependencyInfo(
 			pythonFiles,
