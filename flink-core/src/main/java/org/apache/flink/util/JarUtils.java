@@ -22,9 +22,14 @@ import org.apache.flink.annotation.Internal;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 
 /**
  * Utility functions for jar files.
@@ -51,5 +56,23 @@ public class JarUtils {
 		} catch (IOException e) {
 			throw new IOException("Error while opening jar file '" + jarFile.getAbsolutePath() + '\'', e);
 		}
+	}
+
+	public static List<URL> getJarFiles(final String[] jars) {
+		if (jars == null) {
+			return Collections.emptyList();
+		}
+
+		return Arrays.stream(jars).map(jarPath -> {
+			try {
+				final URL fileURL = new File(jarPath).getAbsoluteFile().toURI().toURL();
+				JarUtils.checkJarFile(fileURL);
+				return fileURL;
+			} catch (MalformedURLException e) {
+				throw new IllegalArgumentException("JAR file path invalid", e);
+			} catch (IOException e) {
+				throw new RuntimeException("Problem with jar file " + jarPath, e);
+			}
+		}).collect(Collectors.toList());
 	}
 }
