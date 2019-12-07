@@ -75,7 +75,6 @@ public class ExecutorUtils {
 	 * Sets batch properties for {@link StreamGraph}.
 	 */
 	public static void setBatchProperties(StreamGraph streamGraph, TableConfig tableConfig) {
-		// using unknown mode!
 		streamGraph.getStreamNodes().forEach(
 				sn -> sn.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN));
 		streamGraph.setChaining(true);

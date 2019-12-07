@@ -28,6 +28,7 @@ import org.apache.flink.configuration.{ConfigOption, Configuration, MemorySize}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 
 /**
   * Batch physical RelNode for Python ScalarFunctions.
@@ -53,11 +54,13 @@ class BatchExecPythonCalc(
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    createPythonOneInputTransformation(
+    val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "BatchExecPythonCalc",
-      getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
+      "BatchExecPythonCalc")
+
+    ExecNode.setManagedMemoryWeight(
+      ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
   }
 
   private def getPythonWorkerMemory(config: Configuration): Long = {
