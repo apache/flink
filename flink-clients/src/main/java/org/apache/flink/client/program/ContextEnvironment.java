@@ -27,7 +27,14 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.util.ShutdownHookUtil;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -36,6 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
 	private final AtomicReference<JobExecutionResult> jobExecutionResult;
 
@@ -61,7 +70,31 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		verifyExecuteIsCalledOnceWhenInDetachedMode();
 
-		final JobExecutionResult jobExecutionResult = super.execute(jobName);
+		JobClient jobClient = executeAsync(jobName).get();
+
+		JobExecutionResult jobExecutionResult;
+		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+					jobClient.getJobExecutionResult(getUserCodeClassLoader());
+
+			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> {
+							// wait a smidgen to allow the async request to go through before
+							// the jvm exits
+							jobClient.cancel().get(1, TimeUnit.SECONDS);
+						},
+						ContextEnvironment.class.getSimpleName(),
+						LOG);
+				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+			}
+
+			jobExecutionResult = jobExecutionResultFuture.get();
+		} else {
+			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+		}
+
 		setJobExecutionResult(jobExecutionResult);
 		return jobExecutionResult;
 	}

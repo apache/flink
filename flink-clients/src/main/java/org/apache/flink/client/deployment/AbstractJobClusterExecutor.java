@@ -21,13 +21,11 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,25 +66,8 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 					.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode());
 			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
-			final boolean withShutdownHook = !configAccessor.getDetachedMode() && configAccessor.isShutdownOnAttachedExit();
-
-			if (withShutdownHook) {
-				ShutdownHookUtil.addShutdownHook(
-						() -> {
-							try (ClusterClient<ClusterID> client = clusterClientProvider.getClusterClient()) {
-								client.shutDownCluster();
-							}
-						},
-						"Cluster shutdown hook for attached Job execution",
-						LOG);
-
-				return CompletableFuture.completedFuture(
-						new ClusterClientJobClientAdapter<ClusterID>(clusterClientProvider, jobGraph.getJobID()) {
-				});
-			} else {
-				return CompletableFuture.completedFuture(
-						new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID()));
-			}
+			return CompletableFuture.completedFuture(
+					new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID()));
 		}
 	}
 }
