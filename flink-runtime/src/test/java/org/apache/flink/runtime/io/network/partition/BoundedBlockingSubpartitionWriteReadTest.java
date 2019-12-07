@@ -210,7 +210,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 				nums--;
 			}
 
-			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true));
+			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true, false));
 
 			// we need to flush after every buffer as long as the add() contract is that
 			// buffer are immediately added and can be filled further after that (for low latency

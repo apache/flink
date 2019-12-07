@@ -70,15 +70,17 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle mode.
 	 *
-	 * <p>Note: Data is compressed per sliced buffer and compression can incur extra CPU overhead, so it is not recommended
-	 * to enable compression if network is not the bottleneck or compression ratio is low.
+	 * <p>Note: Data is compressed per sliced buffer and compression is disabled for operators using broadcast partitioner.
+	 * Because of the extra CPU overhead, it is not recommended to enable compression if network is not the bottleneck or
+	 * compression ratio is low.
 	 */
 	public static final ConfigOption<Boolean> PIPELINED_SHUFFLE_COMPRESSION_ENABLED =
 		key("taskmanager.network.pipelined-shuffle.compression.enabled")
 			.defaultValue(false)
 			.withDescription("Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle" +
-				" mode. Note that data is compressed per sliced buffer and compression can incur extra CPU overhead, so" +
-				" it is not recommended to enable compression if network is not the bottleneck or compression ratio is low.");
+				" mode. Note that data is compressed per sliced buffer and compression is disabled for operators using " +
+				"broadcast partitioner. Because of the extra CPU overhead, it is not recommended to enable compression " +
+				"if network is not the bottleneck or compression ratio is low.");
 
 	/**
 	 * The codec to be used when compressing shuffle data.
