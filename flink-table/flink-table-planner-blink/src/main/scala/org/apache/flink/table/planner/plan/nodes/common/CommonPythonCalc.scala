@@ -125,7 +125,8 @@ trait CommonPythonCalc {
   def createPythonOneInputTransformation(
       inputTransform: Transformation[BaseRow],
       calcProgram: RexProgram,
-      name: String): OneInputTransformation[BaseRow, BaseRow] = {
+      name: String,
+      memoryBytes: Long = 0): OneInputTransformation[BaseRow, BaseRow] = {
     val pythonRexCalls = calcProgram.getProjectList
       .map(calcProgram.expandLocalRef)
       .collect { case call: RexCall => call }
@@ -158,7 +159,8 @@ trait CommonPythonCalc {
       name,
       SimpleOperatorFactory.of(pythonOperator),
       pythonOperatorResultTyeInfo,
-      inputTransform.getParallelism
+      inputTransform.getParallelism,
+      memoryBytes
     )
   }
 }

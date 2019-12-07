@@ -53,17 +53,14 @@ class BatchExecPythonCalc(
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val ret = createPythonOneInputTransformation(
+    createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "BatchExecPythonCalc")
-    val resource = NodeResourceUtil.fromManagedMem(
+      "BatchExecPythonCalc",
       getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
-    ret.setResources(resource, resource)
-    ret
   }
 
-  private def getPythonWorkerMemory(config: Configuration): Int = {
+  private def getPythonWorkerMemory(config: Configuration): Long = {
     val clazz = loadClass("org.apache.flink.python.PythonOptions")
     val pythonFrameworkMemorySize = MemorySize.parse(
       config.getString(
@@ -73,6 +70,6 @@ class BatchExecPythonCalc(
       config.getString(
         clazz.getField("PYTHON_DATA_BUFFER_MEMORY_SIZE").get(null)
           .asInstanceOf[ConfigOption[String]]))
-    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getMebiBytes
+    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getBytes
   }
 }
