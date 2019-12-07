@@ -117,10 +117,7 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * @param fieldName the field name
 	 * @param fieldType the type information of the field
-	 * @deprecated This method will be removed in future versions as it uses the old type system.
-	 * 			Please use {@link #field(String, DataType)} instead.
 	 */
-	@Deprecated
 	public OldCsv field(String fieldName, TypeInformation<?> fieldType) {
 		field(fieldName, TypeConversions.fromLegacyInfoToDataType(fieldType));
 		return this;
@@ -222,7 +219,11 @@ public class OldCsv extends FormatDescriptor {
 	 *
 	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema.
+	 *
+	 * @deprecated Derivation format schema from table's schema is the default behavior now.
+	 *  So there is no need to explicitly declare to derive schema.
 	 */
+	@Deprecated
 	public OldCsv deriveSchema() {
 		this.deriveSchema = Optional.of(true);
 		return this;
