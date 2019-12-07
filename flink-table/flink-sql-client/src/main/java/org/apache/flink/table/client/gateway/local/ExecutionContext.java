@@ -31,7 +31,6 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
@@ -133,44 +132,7 @@ public class ExecutionContext<ClusterID> {
 	private Executor executor;
 
 	// Members that should be reused in the same session.
-	@Nullable
 	private SessionState sessionState;
-
-	private ExecutionContext(
-			Environment environment,
-			SessionContext originalSessionContext,
-			List<URL> dependencies,
-			Configuration flinkConfig,
-			Options commandLineOptions,
-			List<CustomCommandLine> availableCommandLines) throws FlinkException {
-		this(
-				environment,
-				originalSessionContext,
-				dependencies,
-				flinkConfig,
-				new DefaultClusterClientServiceLoader(),
-				commandLineOptions,
-				availableCommandLines);
-	}
-
-	private ExecutionContext(
-			Environment environment,
-			SessionContext originalSessionContext,
-			List<URL> dependencies,
-			Configuration flinkConfig,
-			ClusterClientServiceLoader clusterClientServiceLoader,
-			Options commandLineOptions,
-			List<CustomCommandLine> availableCommandLines) throws FlinkException {
-		this(
-				environment,
-				originalSessionContext,
-				null,
-				dependencies,
-				flinkConfig,
-				new DefaultClusterClientServiceLoader(),
-				commandLineOptions,
-				availableCommandLines);
-	}
 
 	private ExecutionContext(
 			Environment environment,
@@ -431,14 +393,29 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private void initializeTableEnvironment(SessionState sessionState) {
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.1 Create environments
-		//--------------------------------------------------------------------------------------------------------------
-		createTableEnvironment(sessionState);
-
+	private void initializeTableEnvironment(@Nullable SessionState sessionState) {
+		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 		final boolean noInheritedState = sessionState == null;
 		if (noInheritedState) {
+			//--------------------------------------------------------------------------------------------------------------
+			// Step.1 Create environments
+			//--------------------------------------------------------------------------------------------------------------
+			// Step 1.1 Initialize the CatalogManager if required.
+			final CatalogManager catalogManager = new CatalogManager(
+					settings.getBuiltInCatalogName(),
+					new GenericInMemoryCatalog(
+							settings.getBuiltInCatalogName(),
+							settings.getBuiltInDatabaseName()));
+			// Step 1.2 Initialize the ModuleManager if required.
+			final ModuleManager moduleManager = new ModuleManager();
+			// Step 1.3 Initialize the FunctionCatalog if required.
+			final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+			// Step 1.4 Set up session state.
+			this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
+
+			// Must initialize the table environment before actually the
+			createTableEnvironment(settings, catalogManager, moduleManager, functionCatalog);
+
 			//--------------------------------------------------------------------------------------------------------------
 			// Step.2 Create modules and load them into the TableEnvironment.
 			//--------------------------------------------------------------------------------------------------------------
@@ -464,36 +441,15 @@ public class ExecutionContext<ClusterID> {
 			//--------------------------------------------------------------------------------------------------------------
 			// No need to register the catalogs if already inherit from the same session.
 			initializeCatalogs();
-		}
-	}
-
-	private void createTableEnvironment(SessionState sessionState) {
-		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
-		final boolean noInheritedState = sessionState == null;
-		CatalogManager catalogManager;
-		ModuleManager moduleManager;
-		FunctionCatalog functionCatalog;
-		if (noInheritedState) {
-			// Step 1.1 Initialize the CatalogManager if required.
-			catalogManager = new CatalogManager(
-					settings.getBuiltInCatalogName(),
-					new GenericInMemoryCatalog(
-							settings.getBuiltInCatalogName(),
-							settings.getBuiltInDatabaseName()));
-			// Step 1.2 Initialize the ModuleManager if required.
-			moduleManager = new ModuleManager();
-			// Step 1.3 Initialize the FunctionCatalog if required.
-			functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
-			// Step 1.4 Set up session state.
-			this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
 		} else {
-			catalogManager = sessionState.catalogManager;
-			moduleManager = sessionState.moduleManager;
-			functionCatalog = sessionState.functionCatalog;
 			// Set up session state.
 			this.sessionState = sessionState;
+			createTableEnvironment(
+					settings,
+					sessionState.catalogManager,
+					sessionState.moduleManager,
+					sessionState.functionCatalog);
 		}
-		createTableEnvironment(settings, catalogManager, moduleManager, functionCatalog);
 	}
 
 	private void createTableEnvironment(
@@ -716,7 +672,7 @@ public class ExecutionContext<ClusterID> {
 
 		private Builder(
 				Environment defaultEnv,
-				SessionContext sessionContext,
+				@Nullable SessionContext sessionContext,
 				List<URL> dependencies,
 				Configuration configuration,
 				ClusterClientServiceLoader serviceLoader,

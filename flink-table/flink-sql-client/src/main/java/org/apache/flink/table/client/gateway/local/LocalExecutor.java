@@ -213,11 +213,12 @@ public class LocalExecutor implements Executor {
 	@Override
 	public String openSession(SessionContext sessionContext) throws SqlExecutionException {
 		String sessionId = sessionContext.getSessionId();
-		ExecutionContext previousContext = this.contextMap.putIfAbsent(
-				sessionId,
-				createExecutionContextBuilder(sessionContext).build());
-		if (previousContext != null) {
+		if (this.contextMap.containsKey(sessionId)) {
 			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionId);
+		} else {
+			this.contextMap.put(
+					sessionId,
+					createExecutionContextBuilder(sessionContext).build());
 		}
 		return sessionId;
 	}
