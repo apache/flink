@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.MemoryArchitecture;
@@ -218,7 +219,7 @@ public class ResultPartitionFactory {
 			// If the partition type is back pressure-free, we register with the buffer pool for
 			// callbacks to release memory.
 			return bufferPoolFactory.createBufferPool(
-				numberOfSubpartitions + 1,
+				NettyShuffleUtils.getNumberOfRequiredBuffersForResultPartition(numberOfSubpartitions),
 				maxNumberOfMemorySegments,
 				type.hasBackPressure() ? null : bufferPoolOwner);
 		};

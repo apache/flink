@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
@@ -31,7 +32,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor> {
 
+	private final int networkBuffersPerInputChannel;
+
+	private final int networkBufferSize;
+
 	public NettyShuffleMaster(final Configuration configuration) {
+		networkBuffersPerInputChannel = NettyShuffleUtils.getNetworkBuffersPerInputChannel(configuration);
+		networkBufferSize = NettyShuffleUtils.getNetworkBufferSize(configuration);
 	}
 
 	@Override
@@ -61,5 +68,15 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 		return producerDescriptor.getDataPort() >= 0 ?
 			NetworkPartitionConnectionInfo.fromProducerDescriptor(producerDescriptor, connectionIndex) :
 			LocalExecutionPartitionConnectionInfo.INSTANCE;
+	}
+
+	@Override
+	public MemorySize getShuffleMemoryForTask(final TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
+		final int numRequiredNetworkBuffers = NettyShuffleUtils.computeRequiredNetworkBuffers(
+			networkBuffersPerInputChannel,
+			taskInputsOutputsDescriptor.getNumbersOfInputGateChannels().values(),
+			taskInputsOutputsDescriptor.getNumbersOfResultSubpartitions().values());
+
+		return new MemorySize((long) networkBufferSize * numRequiredNetworkBuffers);
 	}
 }

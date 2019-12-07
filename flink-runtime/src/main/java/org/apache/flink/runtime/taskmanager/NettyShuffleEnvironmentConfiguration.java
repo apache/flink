@@ -24,6 +24,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
+import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -192,19 +193,19 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		final int dataport = getDataport(configuration);
 
-		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
+		final int networkBufferSize = NettyShuffleUtils.getNetworkBufferSize(configuration);
 
 		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
 
 		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(
 			configuration,
 			shuffleMemorySize,
-			pageSize);
+			networkBufferSize);
 
 		int initialRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
 		int maxRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
 
-		int buffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
+		int buffersPerChannel = NettyShuffleUtils.getNetworkBuffersPerInputChannel(configuration);
 		int extraBuffersPerGate = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
 		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
@@ -227,7 +228,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
-			pageSize,
+			networkBufferSize,
 			initialRequestBackoff,
 			maxRequestBackoff,
 			buffersPerChannel,

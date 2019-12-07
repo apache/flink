@@ -29,6 +29,7 @@ public class PartitionDescriptorBuilder {
 	private IntermediateResultPartitionID partitionId;
 	private ResultPartitionType partitionType;
 	private int totalNumberOfPartitions = 1;
+	private int numberOfSubpartitions = 1;
 
 	private PartitionDescriptorBuilder() {
 		this.partitionId = new IntermediateResultPartitionID();
@@ -50,8 +51,19 @@ public class PartitionDescriptorBuilder {
 		return this;
 	}
 
+	public PartitionDescriptorBuilder setNumberOfSubpartitions(int numberOfSubpartitions) {
+		this.numberOfSubpartitions = numberOfSubpartitions;
+		return this;
+	}
+
 	public PartitionDescriptor build() {
-		return new PartitionDescriptor(new IntermediateDataSetID(), totalNumberOfPartitions, partitionId, partitionType, 1, 0);
+		return new PartitionDescriptor(
+			new IntermediateDataSetID(),
+			totalNumberOfPartitions,
+			partitionId,
+			partitionType,
+			numberOfSubpartitions,
+			0);
 	}
 
 	public static PartitionDescriptorBuilder newBuilder() {

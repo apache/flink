@@ -300,6 +300,11 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		return buffers;
 	}
 
+	@VisibleForTesting
+	public int getNumTotalRequiredBuffers() {
+		return numTotalRequiredBuffers;
+	}
+
 	/**
 	 * Returns a future that is completed when there are free segments
 	 * in this pool.

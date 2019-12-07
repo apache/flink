@@ -207,14 +207,18 @@ public class SingleInputGate extends InputGate {
 
 	@Override
 	public void setup() throws IOException, InterruptedException {
+		setupBuffers();
+		requestPartitions();
+	}
+
+	@VisibleForTesting
+	public void setupBuffers() throws IOException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		// assign exclusive buffers to input channels directly and use the rest for floating buffers
 		assignExclusiveSegments();
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
-
-		requestPartitions();
 	}
 
 	@VisibleForTesting
