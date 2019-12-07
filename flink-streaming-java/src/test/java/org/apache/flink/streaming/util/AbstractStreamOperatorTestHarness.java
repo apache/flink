@@ -290,6 +290,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		return executionConfig;
 	}
 
+	public StreamConfig getStreamConfig() {
+		return config;
+	}
+
 	/**
 	 * Get all the output from the task. This contains StreamRecords and Events interleaved.
 	 */
