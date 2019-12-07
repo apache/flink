@@ -78,19 +78,19 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	private void validateStartupMode(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> specificOffsetValidators = new HashMap<>();
 		specificOffsetValidators.put(
-				CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
-				(key) -> properties.validateInt(
-						key,
-						false,
-						0,
-						Integer.MAX_VALUE));
+			CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
+			(key) -> properties.validateInt(
+				key,
+				false,
+				0,
+				Integer.MAX_VALUE));
 		specificOffsetValidators.put(
-				CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
-				(key) -> properties.validateLong(
-						key,
-						false,
-						0,
-						Long.MAX_VALUE));
+			CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
+			(key) -> properties.validateLong(
+				key,
+				false,
+				0,
+				Long.MAX_VALUE));
 
 		final Map<String, Consumer<String>> startupModeValidation = new HashMap<>();
 		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS, noValidation());
