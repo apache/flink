@@ -73,7 +73,8 @@ cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
 <span class="label label-danger">Attention</span> The plugin mechanism for file systems was introduced in Flink version `1.9` to
 support dedicated Java class loaders per plugin and to move away from the class shading mechanism.
 You can still use the provided file systems (or your own implementations) via the old mechanism by copying the corresponding
-JAR file into `lib` directory.
+JAR file into `lib` directory. However, **since 1.10, s3 plugins must be loaded through the plugin mechanism**; the old
+way no longer works as these plugins are not shaded anymore (or more specifically the classes are not relocated since 1.10).
 
 It's encouraged to use the plugin-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
 directory may be not supported in future Flink versions.
