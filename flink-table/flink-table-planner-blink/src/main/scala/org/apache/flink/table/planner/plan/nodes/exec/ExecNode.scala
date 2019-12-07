@@ -117,10 +117,10 @@ object ExecNode {
     }
 
     // Using Bytes can easily overflow
-    // Using MebiBytes to cast to int
+    // Using KibiBytes to cast to int
     // Careful about zero
-    val memoryMB = if (memoryBytes == 0) 0 else Math.max(1, (memoryBytes >> 20).toInt)
-    transformation.setManagedMemoryWeight(memoryMB)
+    val memoryKibiBytes = if (memoryBytes == 0) 0 else Math.max(1, (memoryBytes >> 10).toInt)
+    transformation.setManagedMemoryWeight(memoryKibiBytes)
     transformation
   }
 
