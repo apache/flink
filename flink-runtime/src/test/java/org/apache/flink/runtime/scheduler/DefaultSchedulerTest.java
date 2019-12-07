@@ -26,7 +26,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -48,10 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
@@ -77,7 +73,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -88,6 +83,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.Matchers.contains;
@@ -686,54 +684,6 @@ public class DefaultSchedulerTest extends TestLogger {
 		final ExecutionAttemptID attemptId = vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
 		scheduler.updateTaskExecutionState(
 			new TaskExecutionState(scheduler.getJobGraph().getJobID(), attemptId, ExecutionState.FINISHED));
-	}
-
-	private void acknowledgePendingCheckpoint(final SchedulerBase scheduler, final long checkpointId) throws Exception {
-		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
-
-		for (ArchivedExecutionVertex executionVertex : scheduler.requestJob().getAllExecutionVertices()) {
-			final ExecutionAttemptID attemptId = executionVertex.getCurrentExecutionAttempt().getAttemptId();
-			final AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
-				scheduler.getJobGraph().getJobID(),
-				attemptId,
-				checkpointId);
-			checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
-		}
-	}
-
-	private void enableCheckpointing(final JobGraph jobGraph) {
-		final List<JobVertexID> triggerVertices = new ArrayList<>();
-		final List<JobVertexID> ackVertices = new ArrayList<>();
-		final List<JobVertexID> commitVertices = new ArrayList<>();
-
-		for (JobVertex vertex : jobGraph.getVertices()) {
-			if (vertex.isInputVertex()) {
-				triggerVertices.add(vertex.getID());
-			}
-			commitVertices.add(vertex.getID());
-			ackVertices.add(vertex.getID());
-		}
-
-		jobGraph.setSnapshotSettings(
-			new JobCheckpointingSettings(
-				triggerVertices,
-				ackVertices,
-				commitVertices,
-				new CheckpointCoordinatorConfiguration(
-					Long.MAX_VALUE, // disable periodical checkpointing
-					10 * 60 * 1000,
-					0,
-					1,
-					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					false,
-					false,
-					0),
-				null));
-	}
-
-	private CheckpointCoordinator getCheckpointCoordinator(final SchedulerBase scheduler) {
-		// TODO: get CheckpointCoordinator from the scheduler directly after it is factored out from ExecutionGraph
-		return scheduler.getExecutionGraph().getCheckpointCoordinator();
 	}
 
 	private void waitForTermination(final DefaultScheduler scheduler) throws Exception {
