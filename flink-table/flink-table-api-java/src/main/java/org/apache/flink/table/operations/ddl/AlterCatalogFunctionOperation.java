@@ -28,14 +28,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Operation to describe a ALTER FUNCTION statement for temporary catalog function.
+ * Operation to describe a ALTER FUNCTION statement for catalog functions.
  */
-public class AlterFunctionOperation implements AlterOperation  {
+public class AlterCatalogFunctionOperation implements AlterOperation  {
 	private final ObjectIdentifier functionIdentifier;
 	private CatalogFunction catalogFunction;
 	private boolean ifExists;
 
-	public AlterFunctionOperation(
+	public AlterCatalogFunctionOperation(
 			ObjectIdentifier functionIdentifier,
 			CatalogFunction catalogFunction,
 			boolean ifExists) {
@@ -64,7 +64,7 @@ public class AlterFunctionOperation implements AlterOperation  {
 		params.put("ifExists", ifExists);
 
 		return OperationUtils.formatWithChildren(
-			"ALTER FUNCTION",
+			"ALTER CATALOG FUNCTION",
 			params,
 			Collections.emptyList(),
 			Operation::asSummaryString);

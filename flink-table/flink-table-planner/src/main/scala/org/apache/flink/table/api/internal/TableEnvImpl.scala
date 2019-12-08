@@ -546,13 +546,13 @@ abstract class TableEnvImpl(
           case ex: DatabaseNotExistException => throw new ValidationException(exMsg, ex)
           case ex: Exception => throw new TableException(exMsg, ex)
         }
-      case createFunctionOperation: CreateFunctionOperation =>
+      case createFunctionOperation: CreateCatalogFunctionOperation =>
           createCatalogFunction(createFunctionOperation)
       case createTempSystemFunctionOperation: CreateTempSystemFunctionOperation =>
           createSystemFunction(createTempSystemFunctionOperation)
-      case alterFunctionOperation: AlterFunctionOperation =>
+      case alterFunctionOperation: AlterCatalogFunctionOperation =>
           alterCatalogFunction(alterFunctionOperation)
-      case dropFunctionOperation: DropFunctionOperation =>
+      case dropFunctionOperation: DropCatalogFunctionOperation =>
           dropCatalogFunction(dropFunctionOperation)
       case dropTempSystemFunctionOperation: DropTempSystemFunctionOperation =>
           dropSystemFunction(dropTempSystemFunctionOperation)
@@ -699,7 +699,7 @@ abstract class TableEnvImpl(
       .map(_.getTable)
   }
 
-  private def createCatalogFunction(createFunctionOperation: CreateFunctionOperation)= {
+  private def createCatalogFunction(createFunctionOperation: CreateCatalogFunctionOperation)= {
     val exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString)
     try {
       val function = createFunctionOperation.getCatalogFunction
@@ -732,7 +732,7 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def alterCatalogFunction(alterFunctionOperation: AlterFunctionOperation) = {
+  private def alterCatalogFunction(alterFunctionOperation: AlterCatalogFunctionOperation) = {
     val exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString)
     try {
       val function = alterFunctionOperation.getCatalogFunction
@@ -753,7 +753,7 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def dropCatalogFunction(dropFunctionOperation: DropFunctionOperation) = {
+  private def dropCatalogFunction(dropFunctionOperation: DropCatalogFunctionOperation) = {
     val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
     try {
       if (dropFunctionOperation.isTemporary)  {
