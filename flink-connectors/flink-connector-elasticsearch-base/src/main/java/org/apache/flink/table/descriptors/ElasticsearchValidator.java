@@ -170,7 +170,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 				if (StringUtils.isNullOrWhitespaceOnly(protocol) ||
 					StringUtils.isNullOrWhitespaceOnly(hostName) ||
-					-1 == hostPort ) {
+					-1 == hostPort) {
 					throw new ValidationException(validationExceptionMessage);
 				}
 
