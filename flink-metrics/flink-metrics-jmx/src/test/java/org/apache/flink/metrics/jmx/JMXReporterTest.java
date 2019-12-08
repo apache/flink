@@ -306,6 +306,6 @@ public class JMXReporterTest extends TestLogger {
 	}
 
 	private static ReporterScopedSettings createReporterScopedSettings(int reporterIndex) {
-		return new ReporterScopedSettings(reporterIndex, ',');
+		return new ReporterScopedSettings(reporterIndex, ',', Collections.emptySet());
 	}
 }

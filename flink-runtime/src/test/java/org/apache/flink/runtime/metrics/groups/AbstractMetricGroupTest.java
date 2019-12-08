@@ -30,16 +30,21 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -69,6 +74,22 @@ public class AbstractMetricGroupTest extends TestLogger {
 		assertTrue(group.getAllVariables().isEmpty());
 
 		registry.shutdown().get();
+	}
+
+	@Test
+	public void testGetAllVariablesWithOutExclusions() {
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+
+		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
+		assertThat(group.getAllVariables(), IsMapContaining.hasKey(ScopeFormat.SCOPE_HOST));
+	}
+
+	@Test
+	public void testGetAllVariablesWithExclusions() {
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+
+		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
+		assertEquals(group.getAllVariables(-1, Collections.singleton(ScopeFormat.SCOPE_HOST)).size(), 0);
 	}
 
 	// ========================================================================
