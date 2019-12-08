@@ -137,23 +137,36 @@ public class ExecutionEnvironment {
 	private final ClassLoader userClassloader;
 
 	/**
-	 * Creates a new Execution Environment.
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
+	 * configure the {@link org.apache.flink.core.execution.Executor}.
 	 */
-	protected ExecutionEnvironment() {
-		this(new Configuration());
-	}
-
-	protected ExecutionEnvironment(final Configuration configuration) {
+	@PublicEvolving
+	public ExecutionEnvironment(final Configuration configuration) {
 		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
-	protected ExecutionEnvironment(
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+	}
+
+	/**
+	 * Creates a new Execution Environment.
+	 */
+	protected ExecutionEnvironment() {
+		this(new Configuration());
 	}
 
 	@Internal
