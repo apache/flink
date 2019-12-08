@@ -32,7 +32,8 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 
-import com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
+
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Before;
