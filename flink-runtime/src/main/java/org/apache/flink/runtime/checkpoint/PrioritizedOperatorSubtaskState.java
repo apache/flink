@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.commons.lang3.BooleanUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+
+import org.apache.commons.lang3.BooleanUtils;
 
 import javax.annotation.Nonnull;
 
@@ -162,7 +163,6 @@ public class PrioritizedOperatorSubtaskState {
 		return restored;
 	}
 
-
 	private static <T extends StateObject> StateObjectCollection<T> lastElement(List<StateObjectCollection<T>> list) {
 		return list.get(list.size() - 1);
 	}
@@ -174,6 +174,9 @@ public class PrioritizedOperatorSubtaskState {
 		return EMPTY_NON_RESTORED_INSTANCE;
 	}
 
+	/**
+	 * A builder for PrioritizedOperatorSubtaskState.
+	 */
 	@Internal
 	public static class Builder {
 

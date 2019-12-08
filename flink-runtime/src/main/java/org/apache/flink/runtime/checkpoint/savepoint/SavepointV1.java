@@ -35,10 +35,10 @@ public class SavepointV1 implements Savepoint {
 	/** The savepoint version. */
 	public static final int VERSION = 1;
 
-	/** The checkpoint ID */
+	/** The checkpoint ID. */
 	private final long checkpointId;
 
-	/** The task states */
+	/** The task states. */
 	private final Collection<TaskState> taskStates;
 
 	public SavepointV1(long checkpointId, Collection<TaskState> taskStates) {

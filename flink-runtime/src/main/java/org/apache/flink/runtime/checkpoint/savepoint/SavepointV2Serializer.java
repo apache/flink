@@ -26,11 +26,11 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -54,15 +54,15 @@ import java.util.UUID;
 
 /**
  * (De)serializer for checkpoint metadata format version 2.
- * 
+ *
  * <p>This format version adds
- * 
+ *
  * <p>Basic checkpoint metadata layout:
  * <pre>
  *  +--------------+---------------+-----------------+
  *  | checkpointID | master states | operator states |
  *  +--------------+---------------+-----------------+
- *  
+ *
  *  Master state:
  *  +--------------+---------------------+---------+------+---------------+
  *  | magic number | num remaining bytes | version | name | payload bytes |
@@ -73,7 +73,7 @@ import java.util.UUID;
 @VisibleForTesting
 public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
-	/** Random magic number for consistency checks */
+	/** Random magic number for consistency checks. */
 	private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
 
 	private static final byte NULL_HANDLE = 0;
@@ -83,12 +83,12 @@ public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 	private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
 
-	/** The singleton instance of the serializer */
+	/** The singleton instance of the serializer. */
 	public static final SavepointV2Serializer INSTANCE = new SavepointV2Serializer();
 
 	// ------------------------------------------------------------------------
 
-	/** Singleton, not meant to be instantiated */
+	/** Singleton, not meant to be instantiated. */
 	private SavepointV2Serializer() {}
 
 	// ------------------------------------------------------------------------
@@ -295,7 +295,7 @@ public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		// for compatibility, do not remove
 		int len = dis.readInt();
 
-		if (SavepointSerializers.FAIL_WHEN_LEGACY_STATE_DETECTED) {
+		if (SavepointSerializers.failWhenLegacyStateDetected) {
 			Preconditions.checkState(len == 0,
 				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
 					"no longer supported starting from Flink 1.4. Please rewrite your job to use " +
