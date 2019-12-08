@@ -27,15 +27,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- *  Operation to describe a DROP FUNCTION statement for catalog function.
+ *  Operation to describe a DROP FUNCTION statement for catalog functions.
  */
-public class DropFunctionOperation implements DropOperation {
+public class DropCatalogFunctionOperation implements DropOperation {
 	private final ObjectIdentifier functionIdentifier;
 	private final boolean ifExists;
 	private final boolean isTemporary;
 	private final boolean isSystemFunction;
 
-	public DropFunctionOperation(
+	public DropCatalogFunctionOperation(
 			ObjectIdentifier functionIdentifier,
 			boolean isTemporary,
 			boolean isSystemFunction,
@@ -63,7 +63,7 @@ public class DropFunctionOperation implements DropOperation {
 		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
-			"DROP FUNCTION",
+			"DROP CATALOG FUNCTION",
 			params,
 			Collections.emptyList(),
 			Operation::asSummaryString);
