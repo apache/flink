@@ -19,9 +19,9 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.util.StringUtils;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -155,18 +155,22 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 		final String hostsStr = descriptorProperties.getString(CONNECTOR_HOSTS);
 
 		final String[] hosts = hostsStr.split(";");
+		final String validationExceptionMessage = "Properties '" + CONNECTOR_HOSTS + "' format should " +
+			"follow the format 'http://host_name:port', but is '" + hosts + "'.";
+
+		if (hosts.length == 0) {
+			throw new ValidationException(validationExceptionMessage);
+		}
 		for (String host : hosts) {
-			final String validationExceptionMessage = "Properties '" + CONNECTOR_HOSTS + "' format should " +
-					"follow the format 'http://host_name:port', but is '" + host + "'.";
 			try {
 				final URL url = new URL(host);
 				final String protocol = url.getProtocol();
 				final String hostName = url.getHost();
 				final int hostPort = url.getPort();
 
-				if (null == protocol || protocol.isEmpty()
-					|| null == hostName || hostName.isEmpty()
-					|| -1 == hostPort ) {
+				if (StringUtils.isNullOrWhitespaceOnly(protocol) ||
+					StringUtils.isNullOrWhitespaceOnly(hostName) ||
+					-1 == hostPort ) {
 					throw new ValidationException(validationExceptionMessage);
 				}
 

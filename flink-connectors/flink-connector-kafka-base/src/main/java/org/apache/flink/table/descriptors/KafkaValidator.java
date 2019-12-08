@@ -175,6 +175,11 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		final String validationExceptionMessage = "Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS +
 			"' should follow the format 'partition:0,offset:42;partition:1,offset:300', " +
 			"but is '" + parseSpecificOffsetsStr + "'.";
+
+		if (pairs.length == 0) {
+			throw new ValidationException(validationExceptionMessage);
+		}
+
 		for (String pair : pairs) {
 			if (null == pair || pair.length() == 0 || !pair.contains(",")) {
 				throw new ValidationException(validationExceptionMessage);
