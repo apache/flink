@@ -657,7 +657,6 @@ abstract class CodeGenerator(
       case FLOAT =>
         val floatValue = value.asInstanceOf[JBigDecimal].floatValue()
         floatValue match {
-          case Float.NaN => generateNonNullLiteral(resultType, "java.lang.Float.NaN")
           case Float.NegativeInfinity =>
             generateNonNullLiteral(resultType, "java.lang.Float.NEGATIVE_INFINITY")
           case Float.PositiveInfinity =>
@@ -668,7 +667,6 @@ abstract class CodeGenerator(
       case DOUBLE =>
         val doubleValue = value.asInstanceOf[JBigDecimal].doubleValue()
         doubleValue match {
-          case Double.NaN => generateNonNullLiteral(resultType, "java.lang.Double.NaN")
           case Double.NegativeInfinity =>
             generateNonNullLiteral(resultType, "java.lang.Double.NEGATIVE_INFINITY")
           case Double.PositiveInfinity =>
