@@ -789,7 +789,8 @@ public class HiveCatalog extends AbstractCatalog {
 			}
 			return res;
 		} catch (TException e) {
-			throw new UnsupportedOperationException("Failed to list partition by filter from HMS", e);
+			throw new UnsupportedOperationException(
+					"Failed to list partition by filter from HMS, filter expressions: " + expressions, e);
 		}
 	}
 

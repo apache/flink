@@ -209,37 +209,48 @@ public class HiveTableSourceTest {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.part(x int) partitioned by (p1 int,p2 string)");
-			hiveShell.execute("alter table db1.part add partition (p1=1,p2='a')");
-			hiveShell.execute("alter table db1.part add partition (p1=2,p2='b')");
-			hiveShell.execute("alter table db1.part add partition (p1=3,p2='c')");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{1}).commit("p1=1,p2='a'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{2}).commit("p1=2,p2='b'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{3}).commit("p1=3,p2='c'");
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
 					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
 			tableEnv.registerCatalog(catalog.getName(), catalog);
 			tableEnv.useCatalog(catalog.getName());
-			Table query = tableEnv.sqlQuery("select * from db1.part where p1>1 or p2<>'a'");
+			Table query = tableEnv.sqlQuery("select x from db1.part where p1>1 or p2<>'a' order by x");
 			String[] explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[2, 3]", results.toString());
 
-			query = tableEnv.sqlQuery("select * from db1.part where p1>2 and p2<='a'");
+			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
 			explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
+			results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[]", results.toString());
 
-			query = tableEnv.sqlQuery("select * from db1.part where p1 in (1,3,5)");
+			query = tableEnv.sqlQuery("select x from db1.part where p1 in (1,3,5) order by x");
 			explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[1, 3]", results.toString());
 
-			query = tableEnv.sqlQuery("select * from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d')");
+			query = tableEnv.sqlQuery("select x from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d') order by x");
 			explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[1, 2]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
