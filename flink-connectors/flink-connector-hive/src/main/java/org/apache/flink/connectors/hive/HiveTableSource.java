@@ -77,8 +77,6 @@ public class HiveTableSource implements
 	private final CatalogTable catalogTable;
 	private List<HiveTablePartition> allHivePartitions;
 	private String hiveVersion;
-	//partitionList represent all partitions in map list format used in partition-pruning situation.
-	private List<Map<String, String>> partitionList = new ArrayList<>();
 	private Map<Map<String, String>, HiveTablePartition> partitionSpec2HiveTablePartition = new HashMap<>();
 	private boolean initAllPartitions;
 	private boolean partitionPruned;
@@ -100,7 +98,6 @@ public class HiveTableSource implements
 	private HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable,
 							List<HiveTablePartition> allHivePartitions,
 							String hiveVersion,
-							List<Map<String, String>> partitionList,
 							boolean initAllPartitions,
 							boolean partitionPruned,
 							int[] projectedFields,
@@ -111,7 +108,6 @@ public class HiveTableSource implements
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.allHivePartitions = allHivePartitions;
 		this.hiveVersion = hiveVersion;
-		this.partitionList = partitionList;
 		this.initAllPartitions = initAllPartitions;
 		this.partitionPruned = partitionPruned;
 		this.projectedFields = projectedFields;
@@ -197,7 +193,7 @@ public class HiveTableSource implements
 	@Override
 	public TableSource<BaseRow> applyLimit(long limit) {
 		return new HiveTableSource(jobConf, tablePath, catalogTable, allHivePartitions, hiveVersion,
-						partitionList, initAllPartitions, partitionPruned, projectedFields, true, limit);
+						initAllPartitions, partitionPruned, projectedFields, true, limit);
 	}
 
 	@Override
@@ -223,7 +219,7 @@ public class HiveTableSource implements
 				remainingHivePartitions.add(hiveTablePartition);
 			}
 			return new HiveTableSource(jobConf, tablePath, catalogTable, remainingHivePartitions, hiveVersion,
-						partitionList, true, true, projectedFields, isLimitPushDown, limit);
+						true, true, projectedFields, isLimitPushDown, limit);
 		}
 	}
 
@@ -268,7 +264,6 @@ public class HiveTableSource implements
 					}
 					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues);
 					allHivePartitions.add(hiveTablePartition);
-					partitionList.add(partitionSpec);
 					partitionSpec2HiveTablePartition.put(partitionSpec, hiveTablePartition);
 				}
 			} else {
@@ -332,6 +327,6 @@ public class HiveTableSource implements
 	@Override
 	public TableSource<BaseRow> projectFields(int[] fields) {
 		return new HiveTableSource(jobConf, tablePath, catalogTable, allHivePartitions, hiveVersion,
-				partitionList, initAllPartitions, partitionPruned, fields, isLimitPushDown, limit);
+				initAllPartitions, partitionPruned, fields, isLimitPushDown, limit);
 	}
 }
