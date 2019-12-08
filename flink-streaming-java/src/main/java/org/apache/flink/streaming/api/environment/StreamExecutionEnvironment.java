@@ -173,12 +173,28 @@ public class StreamExecutionEnvironment {
 
 	public StreamExecutionEnvironment() {
 		this(new Configuration());
+		// unfortunately, StreamExecutionEnvironment always (implicitly) had a public constructor.
+		// This constructor is not useful because the execution environment cannot be used for
+		// execution. We're keeping this to appease the binary compatibiliy checks.
 	}
 
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 */
+	@PublicEvolving
 	public StreamExecutionEnvironment(final Configuration configuration) {
 		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
 	public StreamExecutionEnvironment(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
