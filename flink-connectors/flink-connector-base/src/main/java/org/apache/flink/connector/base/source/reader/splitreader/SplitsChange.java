@@ -16,26 +16,26 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
+package org.apache.flink.connector.base.source.reader.splitreader;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.metrics.MetricGroup;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * The class that expose some context from runtime to the {@link SourceReader}.
+ * An abstract class to host splits change.
  */
-@Public
-public interface SourceReaderContext {
+public abstract class SplitsChange<SplitT> {
+	private final List<SplitT> splits;
+
+	SplitsChange(List<SplitT> splits) {
+		this.splits = splits;
+	}
 
 	/**
-	 * @return The metric group this source belongs to.
+	 * @return the list of splits.
 	 */
-	MetricGroup metricGroup();
+	public List<SplitT> splits() {
+		return Collections.unmodifiableList(splits);
+	}
 
-	/**
-	 * Send a source event to the source coordinator.
-	 *
-	 * @param sourceEvent the source event to coordinator.
-	 */
-	void sendSourceEventToCoordinator(SourceEvent sourceEvent);
 }

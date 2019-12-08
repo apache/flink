@@ -16,26 +16,22 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
+package org.apache.flink.connector.base.source.reader.mocks;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.api.connector.source.SourceOutput;
+import org.apache.flink.connector.base.source.reader.RecordEmitter;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * The class that expose some context from runtime to the {@link SourceReader}.
+ * A mock {@link RecordEmitter} that works with the {@link MockSplitReader} and {@link MockSourceReader}.
  */
-@Public
-public interface SourceReaderContext {
-
-	/**
-	 * @return The metric group this source belongs to.
-	 */
-	MetricGroup metricGroup();
-
-	/**
-	 * Send a source event to the source coordinator.
-	 *
-	 * @param sourceEvent the source event to coordinator.
-	 */
-	void sendSourceEventToCoordinator(SourceEvent sourceEvent);
+public class MockRecordEmitter implements RecordEmitter<int[], Integer, AtomicInteger> {
+	@Override
+	public void emitRecord(int[] record, SourceOutput<Integer> output, AtomicInteger splitState) throws Exception {
+		// The value is the first element.
+		output.collect(record[0]);
+		// The state will be next index.
+		splitState.set(record[1] + 1);
+	}
 }

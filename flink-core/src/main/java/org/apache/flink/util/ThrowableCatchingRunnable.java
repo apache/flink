@@ -16,26 +16,32 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
+package org.apache.flink.util;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.metrics.MetricGroup;
+import java.util.function.Consumer;
 
 /**
- * The class that expose some context from runtime to the {@link SourceReader}.
+ * This class catches all the {@link Throwable Throwables} from the wrapped runnable. This class is
+ * useful when the wrapped runnable is submitted to an executor where the UncaughtExceptionHandler
+ * is not usable.
  */
-@Public
-public interface SourceReaderContext {
+public class ThrowableCatchingRunnable implements Runnable {
+	private final Consumer<Throwable> exceptionHandler;
+	private final Runnable runnable;
 
-	/**
-	 * @return The metric group this source belongs to.
-	 */
-	MetricGroup metricGroup();
+	public ThrowableCatchingRunnable(
+			Consumer<Throwable> exceptionHandler,
+			Runnable runnable) {
+		this.exceptionHandler = exceptionHandler;
+		this.runnable = runnable;
+	}
 
-	/**
-	 * Send a source event to the source coordinator.
-	 *
-	 * @param sourceEvent the source event to coordinator.
-	 */
-	void sendSourceEventToCoordinator(SourceEvent sourceEvent);
+	@Override
+	public void run() {
+		try {
+			runnable.run();
+		} catch (Throwable t) {
+			exceptionHandler.accept(t);
+		}
+	}
 }

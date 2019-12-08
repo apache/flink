@@ -16,26 +16,35 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
+package org.apache.flink.connector.base.source.reader;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.metrics.MetricGroup;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * The class that expose some context from runtime to the {@link SourceReader}.
+ * An interface for the elements passed from the fetchers to the source reader.
  */
-@Public
-public interface SourceReaderContext {
+public interface RecordsWithSplitIds<E> {
 
 	/**
-	 * @return The metric group this source belongs to.
-	 */
-	MetricGroup metricGroup();
-
-	/**
-	 * Send a source event to the source coordinator.
+	 * Get all the split ids.
 	 *
-	 * @param sourceEvent the source event to coordinator.
+	 * @return a collection of split ids.
 	 */
-	void sendSourceEventToCoordinator(SourceEvent sourceEvent);
+	Collection<String> splitIds();
+
+	/**
+	 * Get all the records by Splits.
+	 *
+	 * @return a mapping from split ids to the records.
+	 */
+	Map<String, Collection<E>> recordsBySplits();
+
+	/**
+	 * Get the finished splits.
+	 *
+	 * @return the finished splits after this RecordsWithSplitIds is returned.
+	 */
+	Set<String> finishedSplits();
 }

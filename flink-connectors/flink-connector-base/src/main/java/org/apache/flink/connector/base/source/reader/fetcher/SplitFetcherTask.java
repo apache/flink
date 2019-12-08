@@ -16,26 +16,26 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
-
-import org.apache.flink.annotation.Public;
-import org.apache.flink.metrics.MetricGroup;
+package org.apache.flink.connector.base.source.reader.fetcher;
 
 /**
- * The class that expose some context from runtime to the {@link SourceReader}.
+ * An interface similar to {@link Runnable} but allows throwing exceptions and wakeup.
  */
-@Public
-public interface SourceReaderContext {
+public interface SplitFetcherTask {
 
 	/**
-	 * @return The metric group this source belongs to.
-	 */
-	MetricGroup metricGroup();
-
-	/**
-	 * Send a source event to the source coordinator.
+	 * Run the logic. This method allows throwing an interrupted exception on wakeup, but the
+	 * implementation does not have to. It is preferred to finish the work elegantly
+	 * and return a boolean to indicate whether all the jobs have been done or more
+	 * invocation is needed.
 	 *
-	 * @param sourceEvent the source event to coordinator.
+	 * @return whether the runnable has successfully finished running.
+	 * @throws InterruptedException when interrupted.
 	 */
-	void sendSourceEventToCoordinator(SourceEvent sourceEvent);
+	boolean run() throws InterruptedException;
+
+	/**
+	 * Wake up the running thread.
+	 */
+	void wakeUp();
 }
