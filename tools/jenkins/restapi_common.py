@@ -19,8 +19,6 @@
 ################################################################################
 #
 # This common file writes the functions of getting qps from flink restful api
-#
-# Note by AiHua Li:
 
 import urllib
 import urllib.request

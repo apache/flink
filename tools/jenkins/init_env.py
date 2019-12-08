@@ -23,10 +23,8 @@
 # environment are ready in the cluster
 #
 
-import os
 from logger import logger
 from utils import run_command
-from restapi_common import execute_get
 
 
 def init_standalone_env(host_list, user, source_path, dest_path):
@@ -40,9 +38,9 @@ def init_standalone_env(host_list, user, source_path, dest_path):
 def get_host_list(slave_file):
     hostlist = []
     with open(slave_file) as file:
-        data = file.readline()
-        if not(data == "" or data.startswith("#")):
-            hostlist.append(data)
+        for data in file:
+            if not(data == "" or data.startswith("#")):
+                hostlist.append(data.split("\n")[0])
     return hostlist
 
 
@@ -70,8 +68,7 @@ def update_conf_slaves(dest_path, slave_file):
     run_command(cmd)
 
 
-def init_env():
-    flink_home = os.getcwd()
+def init_env(user, flink_home):
     package_result = package(flink_home)
     if not package_result:
         logger.error("package error")
@@ -79,17 +76,27 @@ def init_env():
     slave_file = "%s/tool/jenkins/slaves" % flink_home
     host_list = get_host_list(slave_file)
     flink_path, source_path = get_target(flink_home)
-    dest_path = "/home/admin/%s" % flink_path
+    dest_path = "/home/%s/%s" % (user, flink_path)
     if source_path != "":
         update_conf_slaves(source_path, slave_file)
-        init_standalone_env(host_list, source_path, dest_path)
+        init_standalone_env(host_list, user, source_path, dest_path)
         return True
     else:
         logger.error("find target file error")
         return False
 
 
+def usage():
+    logger.info("python3 init_env.py user")
+
+
 if __name__ == "__main__":
-    init_env()
+    if len(sys.argv) < 2:
+        logger.error("The param's number must be larger than 1")
+        usage()
+        sys.exit(1)
+    user = sys.argv[1]
+    flink_home = sys.argv[2]
+    init_env(user, flink_home)
 
 

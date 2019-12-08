@@ -57,5 +57,5 @@ def run_command(cmd, timeout=12000):
         if exit_code == 0:
             result = True
         else:
-            result = Flase
+            result = False
         return result, "".join(lines)

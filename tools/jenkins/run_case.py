@@ -30,6 +30,7 @@
 
 import sys
 import time
+import re
 
 if sys.version_info < (3, 5):
     print("Python versions prior to 3.5 are not supported.")
@@ -60,9 +61,9 @@ def end_server(flink_home):
 
 def get_scenarios(scenario_file_name, test_jar):
     """
-    parser file which contains serval scenarios,it's content likes this:
-    classPath       scenarioName      jobparam1     jobparams2
-    org.apache.Test testScenario1     aaa           bbb
+    Parse file which contains several scenarios. Its content looks like the following examples.
+    scenarioIndex   classPath scenarioName  jobparam1   jobparams2
+    1 org.apache.Test testScenario1 aaa bbb
     ……
     :param scenario_file_name: scenario's file
     :param test_jar:
@@ -73,21 +74,21 @@ def get_scenarios(scenario_file_name, test_jar):
     scenario_names = []
     linenum = 0
     with open(scenario_file_name) as file:
-        data = file.readline()
-        if not (data.startswith("#") or data == ""):
+        for data in file:
+            if data.startswith("#") or data.startswith(" .*") or data == "":
+                continue
             linenum = linenum + 1
             cmd = ""
             scenario_name = ""
             if linenum == 1:
                 params_name = data.split(" ")
-                for index in range(0, len(params_name)):
-                    params_name[index] = params_name[index]
-                if not "testClassPath" in params_name:
+                if not ("testClassPath" in params_name):
                     return 1, []
             else:
                 params_value = data.split(" ")
                 for index in range(0, len(params_name)):
                     param = params_name[index]
+                    value = params_value[index]
                     if param == "testClassPath":
                         cmd = "-c %s %s %s" % (params_value[index], test_jar,  cmd)
                     else:
@@ -95,8 +96,8 @@ def get_scenarios(scenario_file_name, test_jar):
                             cmd = "--%s %s" % (param, params_value[index])
                         else:
                             cmd = "%s --%s %s" % (cmd, param, params_value[index])
-                scenario_name = "%s_%s" % (scenario_name, param)
-            scenario_names.append(scenario_name[1:])
+                scenario_name = "%s_%s" % (scenario_name, value)
+            scenario_names.append(scenario_name[1:-1])
             scenarios.append(cmd)
     return 0, scenarios, scenario_names
 
@@ -108,32 +109,55 @@ def get_avg(values):
         return sum(values) * 1.0 / len(values)
 
 
+def cancel_job(job_id, flink_home, am_seserver_dddress):
+    cmd = "%s/bin/flink -m cancel %s %s " % (flink_home, am_seserver_dddress, job_id)
+    status, output = run_command(cmd)
+    if status:
+        return True
+    else:
+        logger.error("stop server failed:%s" % output)
+        return False
+
+
+def get_job_id(output):
+    regex_match = re.search("Job has been submitted with JobID ([a-z0-9]{32})", output)
+    job_id = regex_match.group(1)
+    return job_id
+
+
 def run_cases(scenario_file_name, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10):
+    status = start_server(flink_home)
+    if not status:
+        logger.info("start server failed")
+        return 1
     status, scenarios, scenario_names = get_scenarios(scenario_file_name)
     for scenario_index in range(0, len(scenarios)):
         scenario = scenarios.get(scenario_index)
         scenario_name = scenario_names[scenario_index]
         total_qps = []
-        status = start_server(flink_home)
-        if not status:
-            logger.info("start server failed")
-            return 1
         for inter_index in range(0, inter_nums):
             cmd = "bash %s/bin/flink run %s" % (flink_home, scenario)
             status, output = run_command(cmd)
             if status:
-                qps = get_avg_qps_by_restful_interface(am_seserver_dddress)
-                total_qps.append(qps)
-                time.sleep(wait_minute)
+                job_id = get_job_id(output)
+                for qps_index in range(0, 20):
+                    qps = get_avg_qps_by_restful_interface(am_seserver_dddress, job_id)
+                    total_qps.append(qps)
+                    time.sleep(wait_minute)
+                cancel_job(job_id, flink_home, am_seserver_dddress)
+            else:
+                logger.error("status:%s, output:%s" % (status, output))
+                return 1
         avg_qps = get_avg(total_qps)
         logger.info("The avg qps of %s's  is %s" % (scenario_name, avg_qps))
+    end_server(flink_home)
+
 
 def usage():
     logger.info("python3 run_case.py scenario_file flink_home am_seserver_dddress inter_nums wait_minute")
 
 
 if __name__ == "__main__":
-    '''
     if len(sys.argv) < 3:
         logger.error("The param's number must be larger than 3")
         usage()
@@ -147,5 +171,3 @@ if __name__ == "__main__":
         wait_minute = sys.argv[5]
 
     run_cases(scenario_file, flink_home, am_seserver_dddress, inter_nums=10, wait_minute=10)
-    '''
-    get_scenarios("/Users/mufeng/work_code/aa","bb")
