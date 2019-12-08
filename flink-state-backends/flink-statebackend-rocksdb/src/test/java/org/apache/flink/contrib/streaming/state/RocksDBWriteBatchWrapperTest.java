@@ -110,7 +110,7 @@ public class RocksDBWriteBatchWrapperTest {
 			ThreadLocalRandom.current().nextBytes(dummy);
 			for (int i = 1; i < 100; ++i) {
 				writeBatchWrapper.put(handle, dummy, dummy);
-				// init 12 bytes, each kv consumes 8 bytes
+				// each kv consumes 8 bytes
 				assertEquals(initBatchSize + 8 * i, writeBatchWrapper.getDataSize());
 			}
 			writeBatchWrapper.put(handle, dummy, dummy);

@@ -571,7 +571,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			stateHandles,
 			keyGroupCompressionDecorator,
 			cancelStreamRegistry
-		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
+		)
+			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
 			.setNativeMetricOptions(resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
