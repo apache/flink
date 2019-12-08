@@ -306,6 +306,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
+	@Nullable
+	private String stateBackendName;
+
 	private String jsonPlan;
 
 	/** Shuffle master to register partitions for task deployment. */
@@ -434,7 +437,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	@Override
 	public Optional<String> getStateBackendName() {
-		return Optional.ofNullable(checkpointCoordinator).map(CheckpointCoordinator::getStateBackendName);
+		return Optional.ofNullable(stateBackendName);
 	}
 
 	public void enableCheckpointing(
@@ -509,6 +512,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// job status changes (running -> on, all other states -> off)
 			registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
 		}
+
+		this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
 	}
 
 	@Nullable

@@ -349,8 +349,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			executionGraph.isStoppable(),
 			executionGraph.getCheckpointCoordinatorConfiguration(),
 			executionGraph.getCheckpointStatsSnapshot(),
-			executionGraph.getCheckpointCoordinator() != null
-				? executionGraph.getCheckpointCoordinator().getStateBackendName()
-				: null);
+			executionGraph.getStateBackendName().orElse(null));
 	}
 }
