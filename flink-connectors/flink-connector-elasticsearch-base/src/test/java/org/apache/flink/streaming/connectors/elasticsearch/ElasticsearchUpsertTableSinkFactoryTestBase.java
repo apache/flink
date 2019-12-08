@@ -91,23 +91,22 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 	}
 
 	@Test
-	public void testTableSinkWithLegacyProperties(){
+	public void testTableSinkWithLegacyProperties() {
 		// prepare parameters for Elasticsearch table sink
-
 		final TableSchema schema = createTestSchema();
 
 		final ElasticsearchUpsertTableSinkBase expectedSink = getExpectedTableSink(
-				false,
-				schema,
-				Collections.singletonList(new Host(HOSTNAME, PORT, SCHEMA)),
-				INDEX,
-				DOC_TYPE,
-				KEY_DELIMITER,
-				KEY_NULL_LITERAL,
-				new JsonRowSerializationSchema(schema.toRowType()),
-				XContentType.JSON,
-				new DummyFailureHandler(),
-				createTestSinkOptions());
+			false,
+			schema,
+			Collections.singletonList(new Host(HOSTNAME, PORT, SCHEMA)),
+			INDEX,
+			DOC_TYPE,
+			KEY_DELIMITER,
+			KEY_NULL_LITERAL,
+			new JsonRowSerializationSchema(schema.toRowType()),
+			XContentType.JSON,
+			new DummyFailureHandler(),
+			createTestSinkOptions());
 
 		// construct table sink using descriptors and table sink factory
 		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
@@ -122,7 +121,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 		legacyPropertiesMap.put("connector.hosts.0.protocol", "https");
 
 		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, legacyPropertiesMap)
-				.createStreamTableSink(legacyPropertiesMap);
+			.createStreamTableSink(legacyPropertiesMap);
 
 		assertEquals(expectedSink, actualSink);
 	}
@@ -152,33 +151,33 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 
 	protected Map<String, String> createElasticSearchProperties() {
 		return new TestTableDescriptor(
-				new Elasticsearch()
-						.version(getElasticsearchVersion())
-						.host(HOSTNAME, PORT, SCHEMA)
-						.index(INDEX)
-						.documentType(DOC_TYPE)
-						.keyDelimiter(KEY_DELIMITER)
-						.keyNullLiteral(KEY_NULL_LITERAL)
-						.bulkFlushBackoffExponential()
-						.bulkFlushBackoffDelay(123L)
-						.bulkFlushBackoffMaxRetries(3)
-						.bulkFlushInterval(100L)
-						.bulkFlushMaxActions(1000)
-						.bulkFlushMaxSize("1 MB")
-						.failureHandlerCustom(DummyFailureHandler.class)
-						.connectionMaxRetryTimeout(100)
-						.connectionPathPrefix("/myapp"))
-				.withFormat(
-						new Json()
-								.deriveSchema())
-				.withSchema(
-						new Schema()
-								.field(FIELD_KEY, DataTypes.BIGINT())
-								.field(FIELD_FRUIT_NAME, DataTypes.STRING())
-								.field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
-								.field(FIELD_TS, DataTypes.TIMESTAMP(3)))
-				.inUpsertMode()
-				.toProperties();
+			new Elasticsearch()
+				.version(getElasticsearchVersion())
+				.host(HOSTNAME, PORT, SCHEMA)
+				.index(INDEX)
+				.documentType(DOC_TYPE)
+				.keyDelimiter(KEY_DELIMITER)
+				.keyNullLiteral(KEY_NULL_LITERAL)
+				.bulkFlushBackoffExponential()
+				.bulkFlushBackoffDelay(123L)
+				.bulkFlushBackoffMaxRetries(3)
+				.bulkFlushInterval(100L)
+				.bulkFlushMaxActions(1000)
+				.bulkFlushMaxSize("1 MB")
+				.failureHandlerCustom(DummyFailureHandler.class)
+				.connectionMaxRetryTimeout(100)
+				.connectionPathPrefix("/myapp"))
+			.withFormat(
+				new Json()
+					.deriveSchema())
+			.withSchema(
+				new Schema()
+					.field(FIELD_KEY, DataTypes.BIGINT())
+					.field(FIELD_FRUIT_NAME, DataTypes.STRING())
+					.field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
+					.field(FIELD_TS, DataTypes.TIMESTAMP(3)))
+			.inUpsertMode()
+			.toProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------

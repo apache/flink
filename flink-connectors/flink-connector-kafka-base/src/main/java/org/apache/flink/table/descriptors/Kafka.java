@@ -265,16 +265,21 @@ public class Kafka extends ConnectorDescriptor {
 				if (i != 0) {
 					stringBuilder.append(';');
 				}
-				stringBuilder.append(CONNECTOR_SPECIFIC_OFFSETS_PARTITION).append(':').append(specificOffset.getKey()).append(',');
-				stringBuilder.append(CONNECTOR_SPECIFIC_OFFSETS_OFFSET).append(':').append(specificOffset.getValue());
+				stringBuilder.append(CONNECTOR_SPECIFIC_OFFSETS_PARTITION)
+					.append(':')
+					.append(specificOffset.getKey())
+					.append(',')
+					.append(CONNECTOR_SPECIFIC_OFFSETS_OFFSET)
+					.append(':')
+					.append(specificOffset.getValue());
 				i++;
 			}
 			properties.putString(CONNECTOR_SPECIFIC_OFFSETS, stringBuilder.toString());
 		}
 
 		if (kafkaProperties != null) {
-			this.kafkaProperties.entrySet().forEach(entry ->
-							properties.putString(CONNECTOR_PROPERTIES + '.' + entry.getKey(), entry.getValue()));
+			this.kafkaProperties.forEach((key, value) ->
+				properties.putString(CONNECTOR_PROPERTIES + '.' + key, value));
 		}
 
 		if (sinkPartitionerType != null) {

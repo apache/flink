@@ -247,8 +247,8 @@ tables:
       topic: test-input
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: localhost:2181,localhost:2182
-        bootstrap.servers: localhost:9092,localhost:9093
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
 
     # declare a format for this system
     format:
@@ -295,8 +295,8 @@ CREATE TABLE MyUserTable (
   'connector.version' = '0.10',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
-  'connector.properties.zookeeper.connect' = 'localhost:2181,localhost:2182',
-  'connector.properties.bootstrap.servers' = 'localhost:9092,localhost:9093',
+  'connector.properties.zookeeper.connect' = 'localhost:2181',
+  'connector.properties.bootstrap.servers' = 'localhost:9092',
   'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
@@ -763,9 +763,9 @@ connector:
   topic: ...          # required: topic name from which the table is read
 
   properties:          
-    zookeeper.connect: localhost:2181,localhost:2182  # required: specify the ZooKeeper connection string
-    bootstrap.servers: localhost:9092,localhost:9093  # required: specify the Kafka server connection string
-    group.id: testGroup                               # optional: required in Kafka consumer, specify consumer group
+    zookeeper.connect: localhost:2181  # required: specify the ZooKeeper connection string
+    bootstrap.servers: localhost:9092  # required: specify the Kafka server connection string
+    group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
 
   startup-mode: ...                                               # optional: valid modes are "earliest-offset", "latest-offset",
                                                                   # "group-offsets", or "specific-offsets"
@@ -794,8 +794,8 @@ CREATE TABLE MyUserTable (
   'update-mode' = 'append',         -- required: update mode when used as table sink,
                                     -- only support append mode now.
 
-  'connector.properties.zookeeper.connect' = 'localhost:2181,localhost:2182', -- required: specifies the ZooKeeper connection string
-  'connector.properties.bootstrap.servers' = 'localhost:9092,localhost:9093', -- required: specifies the Kafka server connection string
+  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specifies the ZooKeeper connection string
+  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specifies the Kafka server connection string
   'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specifies consumer group
   'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset",
                                                    -- "latest-offset", "group-offsets",

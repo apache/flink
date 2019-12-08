@@ -372,8 +372,8 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 		@Override
 		public String toString() {
 			return protocol + "://"
-					+ hostname + ":"
-					+ port;
+				+ hostname + ":"
+				+ port;
 		}
 	}
 

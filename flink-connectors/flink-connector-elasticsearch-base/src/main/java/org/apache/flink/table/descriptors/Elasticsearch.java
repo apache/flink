@@ -304,7 +304,11 @@ public class Elasticsearch extends ConnectorDescriptor {
 		final DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(internalProperties);
 
-		properties.putString(CONNECTOR_HOSTS, hosts.stream().map(Host::toString).collect(Collectors.joining(";")));
+		properties.putString(
+			CONNECTOR_HOSTS,
+			hosts.stream()
+				.map(Host::toString)
+				.collect(Collectors.joining(";")));
 
 		return properties.asMap();
 	}

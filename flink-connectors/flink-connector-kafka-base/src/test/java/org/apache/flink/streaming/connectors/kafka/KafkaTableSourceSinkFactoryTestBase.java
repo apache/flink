@@ -162,14 +162,14 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	public void testTableSourceWithLegacyProperties() {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
-				.field(FRUIT_NAME, DataTypes.STRING())
-				.field(COUNT, DataTypes.DECIMAL(10, 3))
-				.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
-				.field(PROC_TIME, DataTypes.TIMESTAMP(3))
-				.build();
+			.field(FRUIT_NAME, DataTypes.STRING())
+			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
+			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
+			.build();
 
 		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors = Collections.singletonList(
-				new RowtimeAttributeDescriptor(EVENT_TIME, new ExistingField(TIME), new AscendingTimestamps()));
+			new RowtimeAttributeDescriptor(EVENT_TIME, new ExistingField(TIME), new AscendingTimestamps()));
 
 		final Map<String, String> fieldMapping = new HashMap<>();
 		fieldMapping.put(FRUIT_NAME, NAME);
@@ -182,24 +182,24 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
-				TableSchema.builder()
-						.field(NAME, DataTypes.STRING())
-						.field(COUNT, DataTypes.DECIMAL(10, 3))
-						.field(TIME, DataTypes.TIMESTAMP(3))
-						.build()
-						.toRowType()
+			TableSchema.builder()
+				.field(NAME, DataTypes.STRING())
+				.field(COUNT, DataTypes.DECIMAL(10, 3))
+				.field(TIME, DataTypes.TIMESTAMP(3))
+				.build()
+				.toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
-				schema,
-				Optional.of(PROC_TIME),
-				rowtimeAttributeDescriptors,
-				fieldMapping,
-				TOPIC,
-				KAFKA_PROPERTIES,
-				deserializationSchema,
-				StartupMode.SPECIFIC_OFFSETS,
-				specificOffsets);
+			schema,
+			Optional.of(PROC_TIME),
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			TOPIC,
+			KAFKA_PROPERTIES,
+			deserializationSchema,
+			StartupMode.SPECIFIC_OFFSETS,
+			specificOffsets);
 
 		TableSourceValidation.validateTableSource(expected);
 
@@ -225,7 +225,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		legacyPropertiesMap.put("connector.properties.2.value", "dummy");
 
 		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, legacyPropertiesMap)
-				.createStreamTableSource(legacyPropertiesMap);
+			.createStreamTableSource(legacyPropertiesMap);
 
 		assertEquals(expected, actualSource);
 
@@ -239,19 +239,19 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	protected Map<String, String> createKafkaSourceProperties() {
 		return new TestTableDescriptor(
 				new Kafka()
-						.version(getKafkaVersion())
-						.topic(TOPIC)
-						.properties(KAFKA_PROPERTIES)
-						.sinkPartitionerRoundRobin() // test if accepted although not needed
-						.startFromSpecificOffsets(OFFSETS))
+					.version(getKafkaVersion())
+					.topic(TOPIC)
+					.properties(KAFKA_PROPERTIES)
+					.sinkPartitionerRoundRobin() // test if accepted although not needed
+					.startFromSpecificOffsets(OFFSETS))
 				.withFormat(new TestTableFormat())
 				.withSchema(
-						new Schema()
-								.field(FRUIT_NAME, DataTypes.STRING()).from(NAME)
-								.field(COUNT, DataTypes.DECIMAL(10, 3)) // no from so it must match with the input
-								.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
-								new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
-								.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
+					new Schema()
+						.field(FRUIT_NAME, DataTypes.STRING()).from(NAME)
+						.field(COUNT, DataTypes.DECIMAL(10, 3)) // no from so it must match with the input
+						.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
+							new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
+							.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
 				.inAppendMode()
 				.toProperties();
 	}
@@ -294,17 +294,17 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	public void testTableSinkWithLegacyProperties() {
 		// prepare parameters for Kafka table sink
 		final TableSchema schema = TableSchema.builder()
-				.field(FRUIT_NAME, DataTypes.STRING())
-				.field(COUNT, DataTypes.DECIMAL(10, 4))
-				.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
-				.build();
+			.field(FRUIT_NAME, DataTypes.STRING())
+			.field(COUNT, DataTypes.DECIMAL(10, 4))
+			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
+			.build();
 
 		final KafkaTableSinkBase expected = getExpectedKafkaTableSink(
-				schema,
-				TOPIC,
-				KAFKA_PROPERTIES,
-				Optional.of(new FlinkFixedPartitioner<>()),
-				new TestSerializationSchema(schema.toRowType()));
+			schema,
+			TOPIC,
+			KAFKA_PROPERTIES,
+			Optional.of(new FlinkFixedPartitioner<>()),
+			new TestSerializationSchema(schema.toRowType()));
 
 		// construct table sink using descriptors and table sink factory
 		final Map<String, String> legacyPropertiesMap = new HashMap<>();
@@ -328,7 +328,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		legacyPropertiesMap.put("connector.properties.2.value", "dummy");
 
 		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, legacyPropertiesMap)
-				.createStreamTableSink(legacyPropertiesMap);
+			.createStreamTableSink(legacyPropertiesMap);
 
 		assertEquals(expected, actualSink);
 
@@ -341,20 +341,20 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 	protected Map<String, String> createKafkaSinkProperties() {
 		return new TestTableDescriptor(
-				new Kafka()
-						.version(getKafkaVersion())
-						.topic(TOPIC)
-						.properties(KAFKA_PROPERTIES)
-						.sinkPartitionerFixed()
-						.startFromSpecificOffsets(OFFSETS)) // test if they accepted although not needed
-				.withFormat(new TestTableFormat())
-				.withSchema(
-						new Schema()
-								.field(FRUIT_NAME, DataTypes.STRING())
-								.field(COUNT, DataTypes.DECIMAL(10, 4))
-								.field(EVENT_TIME, DataTypes.TIMESTAMP(3)))
-				.inAppendMode()
-				.toProperties();
+			new Kafka()
+				.version(getKafkaVersion())
+				.topic(TOPIC)
+				.properties(KAFKA_PROPERTIES)
+				.sinkPartitionerFixed()
+				.startFromSpecificOffsets(OFFSETS)) // test if they accepted although not needed
+			.withFormat(new TestTableFormat())
+			.withSchema(
+				new Schema()
+					.field(FRUIT_NAME, DataTypes.STRING())
+					.field(COUNT, DataTypes.DECIMAL(10, 4))
+					.field(EVENT_TIME, DataTypes.TIMESTAMP(3)))
+			.inAppendMode()
+			.toProperties();
 	}
 
 	private static class StreamExecutionEnvironmentMock extends StreamExecutionEnvironment {

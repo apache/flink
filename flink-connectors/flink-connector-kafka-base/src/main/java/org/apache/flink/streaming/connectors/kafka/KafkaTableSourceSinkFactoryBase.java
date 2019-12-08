@@ -282,31 +282,25 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	private Properties getKafkaProperties(DescriptorProperties descriptorProperties) {
 		final Properties kafkaProperties = new Properties();
 
-		if (hasConciseKafkaProperties(descriptorProperties)) {
+		if (KafkaValidator.hasConciseKafkaProperties(descriptorProperties)) {
 			descriptorProperties.asMap().keySet()
-					.stream()
-					.filter(key -> key.startsWith(CONNECTOR_PROPERTIES))
-					.forEach(key -> {
-						final String value = descriptorProperties.getString(key);
-						final String subKey = key.substring((CONNECTOR_PROPERTIES + '.').length());
-						kafkaProperties.put(subKey, value);
-					});
+				.stream()
+				.filter(key -> key.startsWith(CONNECTOR_PROPERTIES))
+				.forEach(key -> {
+					final String value = descriptorProperties.getString(key);
+					final String subKey = key.substring((CONNECTOR_PROPERTIES + '.').length());
+					kafkaProperties.put(subKey, value);
+				});
 		} else {
 			final List<Map<String, String>> propsList = descriptorProperties.getFixedIndexedProperties(
-					CONNECTOR_PROPERTIES,
-					Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
+				CONNECTOR_PROPERTIES,
+				Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
 			propsList.forEach(kv -> kafkaProperties.put(
-					descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
-					descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
+				descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
+				descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
 			));
 		}
 		return kafkaProperties;
-	}
-
-	private boolean hasConciseKafkaProperties(DescriptorProperties descriptorProperties) {
-		return descriptorProperties.containsKey(CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT) ||
-				descriptorProperties.containsKey(CONNECTOR_PROPERTIES_BOOTSTRAP_SERVER) ||
-				descriptorProperties.containsKey(CONNECTOR_PROPERTIES_GROUP_ID);
 	}
 
 	private StartupOptions getStartupOptions(
@@ -341,7 +335,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 	private void buildSpecificOffsets(DescriptorProperties descriptorProperties, String topic, Map<KafkaTopicPartition, Long> specificOffsets) {
 		if (descriptorProperties.containsKey(CONNECTOR_SPECIFIC_OFFSETS)) {
-			final Map<Integer, Long> offsetMap = KafkaValidator.validateAndGetSpecificOffsetsStr(descriptorProperties);
+			final Map<Integer, Long> offsetMap = KafkaValidator.validateAndParseSpecificOffsetsString(descriptorProperties);
 			offsetMap.forEach((partition, offset) -> {
 				final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
 				specificOffsets.put(topicPartition, offset);

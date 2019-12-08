@@ -20,6 +20,7 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.table.api.ValidationException;
 
 import java.net.MalformedURLException;
@@ -89,14 +90,14 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateHosts(DescriptorProperties properties) {
-		final Map<String, Consumer<String>> hostsValidators = new HashMap<>();
-		hostsValidators.put(CONNECTOR_HOSTS_HOSTNAME, (key) -> properties.validateString(key, false, 1));
-		hostsValidators.put(CONNECTOR_HOSTS_PORT, (key) -> properties.validateInt(key, false, 0, 65535));
-		hostsValidators.put(CONNECTOR_HOSTS_PROTOCOL, (key) -> properties.validateString(key, false, 1));
-
 		if (properties.containsKey(CONNECTOR_HOSTS)) {
-			validateAndGetHostsStr(properties);
+			validateAndParseHostsString(properties);
 		} else {
+			final Map<String, Consumer<String>> hostsValidators = new HashMap<>();
+			hostsValidators.put(CONNECTOR_HOSTS_HOSTNAME, (key) -> properties.validateString(key, false, 1));
+			hostsValidators.put(CONNECTOR_HOSTS_PORT, (key) -> properties.validateInt(key, false, 0, 65535));
+			hostsValidators.put(CONNECTOR_HOSTS_PROTOCOL, (key) -> properties.validateString(key, false, 1));
+
 			properties.validateFixedIndexedProperties(CONNECTOR_HOSTS, false, hostsValidators);
 		}
 	}
@@ -146,28 +147,32 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	 * <pre>
 	 *     connector.hosts = http://host_name:9092;http://host_name:9093
 	 * </pre>
-	 * @param descriptorProperties
-	 * @return
 	 */
-	public static List<ElasticsearchUpsertTableSinkBase.Host> validateAndGetHostsStr(DescriptorProperties descriptorProperties) {
-		final List<ElasticsearchUpsertTableSinkBase.Host> hostList = new ArrayList<>();
+	public static List<Host> validateAndParseHostsString(DescriptorProperties descriptorProperties) {
+		final List<Host> hostList = new ArrayList<>();
 
+		descriptorProperties.validateString(CONNECTOR_HOSTS, false, 1);
 		final String hostsStr = descriptorProperties.getString(CONNECTOR_HOSTS);
-		if (hostsStr.isEmpty()) {
-			throw new ValidationException("Properties '" + CONNECTOR_HOSTS + "' can not be empty.");
-		}
 
 		final String[] hosts = hostsStr.split(";");
 		for (String host : hosts) {
+			final String validationExceptionMessage = "Properties '" + CONNECTOR_HOSTS + "' format should " +
+					"follow the format 'http://host_name:port', but is '" + host + "'.";
 			try {
 				final URL url = new URL(host);
 				final String protocol = url.getProtocol();
-				final String hostNmae = url.getHost();
+				final String hostName = url.getHost();
 				final int hostPort = url.getPort();
-				hostList.add(new ElasticsearchUpsertTableSinkBase.Host(hostNmae, hostPort, protocol));
+
+				if (null == protocol || protocol.isEmpty()
+					|| null == hostName || hostName.isEmpty()
+					|| -1 == hostPort ) {
+					throw new ValidationException(validationExceptionMessage);
+				}
+
+				hostList.add(new Host(hostName, hostPort, protocol));
 			} catch (MalformedURLException e) {
-				throw new ValidationException("Properties '" + CONNECTOR_HOSTS + "' format should follow the " +
-						"format 'http://host_name:9092', but is:" + host , e);
+				throw new ValidationException(validationExceptionMessage, e);
 			}
 		}
 		return hostList;

@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_HOSTS;
+
 /**
  * Tests for the {@link Elasticsearch} descriptor.
  */
@@ -48,10 +50,30 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		addPropertyAndVerify(descriptors().get(1), "connector.bulk-flush.max-size", "12 bytes");
 	}
 
+	@Test(expected = ValidationException.class)
+	public void testInvalidProtocolInHosts() {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putString(CONNECTOR_HOSTS, "localhost:90");
+		ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testInvalidHostNameInHosts() {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putString(CONNECTOR_HOSTS, "http://:90");
+		ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testInvalidHostPortInHosts() {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putString(CONNECTOR_HOSTS, "http://localhost");
+		ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+	}
+
 	@Override
 	public List<Descriptor> descriptors() {
-		final Descriptor minimumDesc =
-			new Elasticsearch()
+		final Descriptor minimumDesc = new Elasticsearch()
 				.version("6")
 				.host("localhost", 1234, "http")
 				.index("MyIndex")
