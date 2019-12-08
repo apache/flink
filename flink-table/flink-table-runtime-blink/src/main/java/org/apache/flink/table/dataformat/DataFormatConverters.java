@@ -167,22 +167,22 @@ public class DataFormatConverters {
 					return new DecimalConverter(ps.f0, ps.f1);
 				}
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				int precision = getDateTimePrecision(logicalType);
+				int precisionOfTS = getDateTimePrecision(logicalType);
 				if (clazz == Timestamp.class) {
-					return new TimestampConverter(precision);
+					return new TimestampConverter(precisionOfTS);
 				} else if (clazz == LocalDateTime.class) {
-					return new LocalDateTimeConverter(precision);
+					return new LocalDateTimeConverter(precisionOfTS);
 				} else {
-					return new SqlTimestampConverter(precision);
+					return new SqlTimestampConverter(precisionOfTS);
 				}
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				int precision = getDateTimePrecision(logicalType);
+				int precisionOfLZTS = getDateTimePrecision(logicalType);
 				if (clazz == Instant.class) {
-					return new InstantConverter(precision);
+					return new InstantConverter(precisionOfLZTS);
 				} else if (clazz == Long.class || clazz == long.class) {
-					return new LongSqlTimestampConverter(precision);
+					return new LongSqlTimestampConverter(precisionOfLZTS);
 				} else {
-					return new SqlTimestampConverter(precision);
+					return new SqlTimestampConverter(precisionOfLZTS);
 				}
 			case ARRAY:
 				if (clazz == BinaryArray.class) {
@@ -303,7 +303,7 @@ public class DataFormatConverters {
 		if (logicalType instanceof LocalZonedTimestampType) {
 			return ((LocalZonedTimestampType) logicalType).getPrecision();
 		} else if (logicalType instanceof TimestampType) {
-			return ((TimestampType) logicalType).getPrecision()
+			return ((TimestampType) logicalType).getPrecision();
 		} else {
 			TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
 			if (typeInfo instanceof LegacyInstantTypeInfo) {
