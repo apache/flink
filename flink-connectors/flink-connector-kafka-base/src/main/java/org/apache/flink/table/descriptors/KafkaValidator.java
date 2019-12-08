@@ -170,12 +170,12 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 
 		final String parseSpecificOffsetsStr = descriptorProperties.getString(CONNECTOR_SPECIFIC_OFFSETS);
 		if (parseSpecificOffsetsStr.isEmpty()) {
-			throw new ValidationException("Properties connector.specific-offsets can not be empty, but is:" + parseSpecificOffsetsStr);
+			throw new ValidationException("Properties '" + CONNECTOR_SPECIFIC_OFFSETS + "' can not be empty.");
 		}
 
 		final String[] pairs = parseSpecificOffsetsStr.split(";");
 		final String validationExceptionMessage = "Invalid properties '" + CONNECTOR_SPECIFIC_OFFSETS +
-				"' should in the format 'partition:0,offset:42;partition:1,offset:300', " +
+				"' should follow the format 'partition:0,offset:42;partition:1,offset:300', " +
 				"but is '" + parseSpecificOffsetsStr + "'.";
 		for (String pair : pairs) {
 			if (null == pair || pair.length() == 0 || !pair.contains(",")) {
@@ -195,8 +195,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 				final Integer parttion = Integer.valueOf(partitionValue);
 				final Long offset = Long.valueOf(offsetValue);
 				offsetMap.put(parttion, offset);
-			}
-			catch (NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				throw new ValidationException(validationExceptionMessage, e);
 			}
 		}

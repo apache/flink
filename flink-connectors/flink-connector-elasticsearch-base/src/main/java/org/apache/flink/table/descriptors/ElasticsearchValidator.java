@@ -153,8 +153,8 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 		final List<ElasticsearchUpsertTableSinkBase.Host> hostList = new ArrayList<>();
 
 		final String hostsStr = descriptorProperties.getString(CONNECTOR_HOSTS);
-		if (null == hostsStr || hostsStr.length() == 0) {
-			throw new ValidationException("Properties '" + CONNECTOR_HOSTS + "' can not be empty, but is:" + hostsStr);
+		if (hostsStr.isEmpty()) {
+			throw new ValidationException("Properties '" + CONNECTOR_HOSTS + "' can not be empty.");
 		}
 
 		final String[] hosts = hostsStr.split(";");
@@ -165,9 +165,9 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 				final String hostNmae = url.getHost();
 				final int hostPort = url.getPort();
 				hostList.add(new ElasticsearchUpsertTableSinkBase.Host(hostNmae, hostPort, protocol));
-			}
-			catch (MalformedURLException e) {
-				throw new ValidationException("Host format '" + CONNECTOR_HOSTS + "' should keep: protocol://host:port, but is:" + host , e);
+			} catch (MalformedURLException e) {
+				throw new ValidationException("Properties '" + CONNECTOR_HOSTS + "' format should follow the " +
+						"format 'http://host_name:9092', but is:" + host , e);
 			}
 		}
 		return hostList;
