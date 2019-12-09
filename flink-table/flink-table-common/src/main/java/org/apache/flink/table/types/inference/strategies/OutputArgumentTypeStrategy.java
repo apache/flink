@@ -15,58 +15,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentCount;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Optional;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
- * Validator that checks for a single argument that can be of any type.
+ * Strategy for inferring an unknown argument type from the function's output {@link DataType} if available.
  */
 @Internal
-public final class AnyTypeValidator implements ArgumentTypeValidator, InputTypeValidator {
+public final class OutputArgumentTypeStrategy implements ArgumentTypeStrategy {
 
 	@Override
-	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		return true;
+	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
+		final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
+		if (hasRoot(actualDataType.getLogicalType(), LogicalTypeRoot.NULL)) {
+			return callContext.getOutputDataType();
+		}
+		return Optional.of(actualDataType);
 	}
 
 	@Override
 	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Signature.Argument.of("<ANY>");
-	}
-
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(1);
-	}
-
-	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		return true;
-	}
-
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(getExpectedArgument(definition, 0)));
+		return Signature.Argument.of("<OUTPUT>");
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o instanceof AnyTypeValidator;
+		return this == o || o instanceof OutputArgumentTypeStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return AnyTypeValidator.class.hashCode();
+		return OutputArgumentTypeStrategy.class.hashCode();
 	}
 }

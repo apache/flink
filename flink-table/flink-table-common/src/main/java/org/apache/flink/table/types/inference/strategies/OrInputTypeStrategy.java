@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -36,28 +38,28 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Validator that checks for a disjunction of multiple {@link InputTypeValidator}s into one like
- * {@code f(NUMERIC) || f(STRING)}.
+ * Strategy for inferring and validating the input using a disjunction of multiple {@link InputTypeStrategy}s
+ * into one like {@code f(NUMERIC) || f(STRING)}.
  */
 @Internal
-public final class OrTypeInputValidator implements InputTypeValidator {
+public final class OrInputTypeStrategy implements InputTypeStrategy {
 
-	private final List<? extends InputTypeValidator> validators;
+	private final List<? extends InputTypeStrategy> inputStrategies;
 
-	public OrTypeInputValidator(List<? extends InputTypeValidator> validators) {
-		Preconditions.checkArgument(validators.size() > 0);
-		this.validators = validators;
+	public OrInputTypeStrategy(List<? extends InputTypeStrategy> inputStrategies) {
+		Preconditions.checkArgument(inputStrategies.size() > 0);
+		this.inputStrategies = inputStrategies;
 	}
 
 	@Override
 	public ArgumentCount getArgumentCount() {
 		final List<ArgumentCount> counts = new AbstractList<ArgumentCount>() {
 			public ArgumentCount get(int index) {
-				return validators.get(index).getArgumentCount();
+				return inputStrategies.get(index).getArgumentCount();
 			}
 
 			public int size() {
-				return validators.size();
+				return inputStrategies.size();
 			}
 		};
 		final Integer min = commonMin(counts);
@@ -102,18 +104,39 @@ public final class OrTypeInputValidator implements InputTypeValidator {
 	}
 
 	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		for (final InputTypeValidator validator : validators) {
-			if (validator.validate(callContext, false)) {
-				return true;
+	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
+		final List<LogicalType> actualTypes = callContext.getArgumentDataTypes().stream()
+			.map(DataType::getLogicalType)
+			.collect(Collectors.toList());
+
+		Optional<List<DataType>> closestDataTypes = Optional.empty();
+		for (InputTypeStrategy inputStrategy : inputStrategies) {
+			final Optional<List<DataType>> inferredDataTypes = inputStrategy.inferInputTypes(
+				callContext,
+				false);
+			// types do not match at all
+			if (!inferredDataTypes.isPresent()) {
+				continue;
+			}
+			final List<LogicalType> inferredTypes = inferredDataTypes.get().stream()
+				.map(DataType::getLogicalType)
+				.collect(Collectors.toList());
+			// types match exactly
+			if (actualTypes.equals(inferredTypes)) {
+				return inferredDataTypes;
+			}
+			// type matches with some casting
+			else if (!closestDataTypes.isPresent()) {
+				closestDataTypes = inferredDataTypes;
 			}
 		}
-		return false;
+
+		return closestDataTypes;
 	}
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return validators.stream()
+		return inputStrategies.stream()
 			.flatMap(v -> v.getExpectedSignatures(definition).stream())
 			.collect(Collectors.toList());
 	}
@@ -126,13 +149,13 @@ public final class OrTypeInputValidator implements InputTypeValidator {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		OrTypeInputValidator that = (OrTypeInputValidator) o;
-		return Objects.equals(validators, that.validators);
+		OrInputTypeStrategy that = (OrInputTypeStrategy) o;
+		return Objects.equals(inputStrategies, that.inputStrategies);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(validators);
+		return Objects.hash(inputStrategies);
 	}
 
 	// --------------------------------------------------------------------------------------------

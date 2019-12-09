@@ -20,7 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.util.Preconditions;
@@ -103,8 +103,18 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 			return this;
 		}
 
-		public Builder inputTypeValidator(InputTypeValidator inputTypeValidator) {
-			this.typeInferenceBuilder.inputTypeValidator(inputTypeValidator);
+		public Builder namedArguments(List<String> argumentNames) {
+			this.typeInferenceBuilder.namedArguments(argumentNames);
+			return this;
+		}
+
+		public Builder typedArguments(List<DataType> argumentTypes) {
+			this.typeInferenceBuilder.typedArguments(argumentTypes);
+			return this;
+		}
+
+		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
+			this.typeInferenceBuilder.inputTypeStrategy(inputTypeStrategy);
 			return this;
 		}
 
@@ -115,16 +125,6 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 		public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
 			this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
-			return this;
-		}
-
-		public Builder namedArguments(List<String> argumentNames) {
-			this.typeInferenceBuilder.namedArguments(argumentNames);
-			return this;
-		}
-
-		public Builder typedArguments(List<DataType> argumentTypes) {
-			this.typeInferenceBuilder.typedArguments(argumentTypes);
 			return this;
 		}
 

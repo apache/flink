@@ -19,7 +19,9 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
@@ -31,6 +33,11 @@ import java.util.Optional;
  */
 @PublicEvolving
 public interface CallContext {
+
+	/**
+	 * Enables to lookup types in a catalog and resolve RAW types.
+	 */
+	DataTypeLookup getDataTypeLookup();
 
 	/**
 	 * Returns the function definition that defines the function currently being called.
@@ -70,6 +77,16 @@ public interface CallContext {
 	 * in a vararg function call.
 	 */
 	List<DataType> getArgumentDataTypes();
+
+	/**
+	 * Returns the inferred output data type of the function call.
+	 *
+	 * <p>It does this by inferring the input argument data type using
+	 * {@link ArgumentTypeStrategy#inferArgumentType(CallContext, int, boolean)} of a wrapping call (if
+	 * available) where this function call is an argument. For example, {@code takes_string(this_function(NULL))}
+	 * would lead to a {@link DataTypes#STRING()} because the wrapping call expects a string argument.
+	 */
+	Optional<DataType> getOutputDataType();
 
 	/**
 	 * Creates a validation error for exiting the type inference process with a meaningful exception.

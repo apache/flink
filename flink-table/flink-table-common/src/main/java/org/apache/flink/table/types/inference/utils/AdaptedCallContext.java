@@ -19,14 +19,14 @@
 package org.apache.flink.table.types.inference.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.MutableCallContext;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,26 +37,28 @@ import java.util.Optional;
  * literal before is not a literal anymore in this call context.
  */
 @Internal
-public final class AdaptedCallContext implements MutableCallContext {
+public final class AdaptedCallContext implements CallContext {
 
 	private final CallContext originalContext;
 
-	private final List<DataType> expectedArguments;
-
 	private final @Nullable DataType outputDataType;
 
-	public AdaptedCallContext(
-			CallContext originalContext,
-			List<DataType> castedArguments,
-			@Nullable DataType outputDataType) {
+	private List<DataType> expectedArguments;
+
+	public AdaptedCallContext(CallContext originalContext, @Nullable DataType outputDataType) {
 		this.originalContext = originalContext;
-		this.expectedArguments = new ArrayList<>(castedArguments);
+		this.expectedArguments = originalContext.getArgumentDataTypes();
 		this.outputDataType = outputDataType;
 	}
 
+	public void setExpectedArguments(List<DataType> expectedArguments) {
+		Preconditions.checkArgument(this.expectedArguments.size() == expectedArguments.size());
+		this.expectedArguments = expectedArguments;
+	}
+
 	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return expectedArguments;
+	public DataTypeLookup getDataTypeLookup() {
+		return originalContext.getDataTypeLookup();
 	}
 
 	@Override
@@ -91,17 +93,17 @@ public final class AdaptedCallContext implements MutableCallContext {
 		return originalContext.getName();
 	}
 
-	private boolean isCasted(int pos) {
-		return !originalContext.getArgumentDataTypes().get(pos).equals(expectedArguments.get(pos));
-	}
-
 	@Override
-	public void mutateArgumentDataType(int pos, DataType newDataType) {
-		expectedArguments.set(pos, newDataType);
+	public List<DataType> getArgumentDataTypes() {
+		return expectedArguments;
 	}
 
 	@Override
 	public Optional<DataType> getOutputDataType() {
 		return Optional.ofNullable(outputDataType);
+	}
+
+	private boolean isCasted(int pos) {
+		return !originalContext.getArgumentDataTypes().get(pos).equals(expectedArguments.get(pos));
 	}
 }
