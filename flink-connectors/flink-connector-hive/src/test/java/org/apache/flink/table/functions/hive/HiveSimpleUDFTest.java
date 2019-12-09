@@ -21,7 +21,6 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.functions.hive.util.TestHiveUDFArray;
 import org.apache.flink.table.types.DataType;
 
@@ -38,6 +37,7 @@ import org.junit.Test;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.Timestamp;
 
 import static org.junit.Assert.assertEquals;
@@ -133,8 +133,8 @@ public class HiveSimpleUDFTest {
 			});
 
 		assertEquals(29, udf.eval("1969-07-20"));
-		assertEquals(29, udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, "1969-07-20")));
-		assertEquals(29, udf.eval(hiveShim.toHiveTimestamp(Timestamp.valueOf("1969-07-20 00:00:00"))));
+		assertEquals(29, udf.eval(Date.valueOf("1969-07-20")));
+		assertEquals(29, udf.eval(Timestamp.valueOf("1969-07-20 00:00:00")));
 		assertEquals(1, udf.eval("1980-12-31 12:59:59"));
 	}
 
