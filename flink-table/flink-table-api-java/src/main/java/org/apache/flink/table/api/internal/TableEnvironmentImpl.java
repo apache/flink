@@ -169,6 +169,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.planner = planner;
 		this.parser = planner.getParser();
 		this.operationTreeBuilder = OperationTreeBuilder.create(
+			tableConfig,
 			functionCatalog,
 			path -> {
 				try {
@@ -189,18 +190,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	public static TableEnvironmentImpl create(EnvironmentSettings settings) {
 
+		TableConfig tableConfig = new TableConfig();
+
 		CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
 
 		ModuleManager moduleManager = new ModuleManager();
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
 			.create(executorProperties);
 
-		TableConfig tableConfig = new TableConfig();
 		Map<String, String> plannerProperties = settings.toPlannerProperties();
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
 			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);

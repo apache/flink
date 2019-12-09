@@ -60,7 +60,7 @@ abstract class TableEnvImpl(
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog =
-    new FunctionCatalog(catalogManager, moduleManager)
+    new FunctionCatalog(config, catalogManager, moduleManager)
 
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
@@ -90,6 +90,7 @@ abstract class TableEnvImpl(
   }
 
   private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
+    config,
     functionCatalog,
     tableLookup,
     isStreamingMode)

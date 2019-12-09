@@ -29,10 +29,16 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -58,13 +64,14 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 
 /**
  * This rule checks if a {@link UnresolvedCallExpression} can work with the given arguments and infers
- * the output data type. All function calls are resolved {@link CallExpression} after applying this
- * rule.
+ * the output data type. All function calls are resolved {@link CallExpression} after applying this rule.
  *
  * <p>This rule also resolves {@code flatten()} calls on composite types.
  *
  * <p>If the call expects different types of arguments, but the given arguments have types that can
  * be casted, a {@link BuiltInFunctionDefinitions#CAST} expression is inserted.
+ *
+ * <p>It validates and prepares inline, unregistered {@link UserDefinedFunction}s.
  */
 @Internal
 final class ResolveCallByArgumentsRule implements ResolverRule {
@@ -89,7 +96,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		@Override
 		public List<ResolvedExpression> visit(UnresolvedCallExpression unresolvedCall) {
-			final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
+			final FunctionDefinition definition = prepareUserDefinedFunction(unresolvedCall.getFunctionDefinition());
 
 			final String name = unresolvedCall.getFunctionIdentifier()
 				.map(FunctionIdentifier::toString)
@@ -219,6 +226,43 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					return argument;
 				})
 				.collect(Collectors.toList());
+		}
+
+		/**
+		 * Validates and cleans an inline, unregistered {@link UserDefinedFunction}.
+		 */
+		private FunctionDefinition prepareUserDefinedFunction(FunctionDefinition definition) {
+			if (definition instanceof ScalarFunctionDefinition) {
+				final ScalarFunctionDefinition sf = (ScalarFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), sf.getScalarFunction());
+				return new ScalarFunctionDefinition(
+					sf.getName(),
+					sf.getScalarFunction());
+			} else if (definition instanceof TableFunctionDefinition) {
+				final TableFunctionDefinition tf = (TableFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), tf.getTableFunction());
+				return new TableFunctionDefinition(
+					tf.getName(),
+					tf.getTableFunction(),
+					tf.getResultType());
+			} else if (definition instanceof AggregateFunctionDefinition) {
+				final AggregateFunctionDefinition af = (AggregateFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), af.getAggregateFunction());
+				return new AggregateFunctionDefinition(
+					af.getName(),
+					af.getAggregateFunction(),
+					af.getResultTypeInfo(),
+					af.getAccumulatorTypeInfo());
+			} else if (definition instanceof TableAggregateFunctionDefinition) {
+				final TableAggregateFunctionDefinition taf = (TableAggregateFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), taf.getTableAggregateFunction());
+				return new TableAggregateFunctionDefinition(
+					taf.getName(),
+					taf.getTableAggregateFunction(),
+					taf.getResultTypeInfo(),
+					taf.getAccumulatorTypeInfo());
+			}
+			return definition;
 		}
 	}
 

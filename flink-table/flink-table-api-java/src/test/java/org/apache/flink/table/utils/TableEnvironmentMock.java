@@ -65,14 +65,15 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 	}
 
 	private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
+		final TableConfig config = createTableConfig();
 		final CatalogManager catalogManager = createCatalogManager();
 		final ModuleManager moduleManager = new ModuleManager();
 		return new TableEnvironmentMock(
 			catalogManager,
 			moduleManager,
-			createTableConfig(),
+			config,
 			createExecutor(),
-			createFunctionCatalog(catalogManager, moduleManager),
+			createFunctionCatalog(config, catalogManager, moduleManager),
 			createPlanner(),
 			isStreamingMode);
 	}
@@ -93,8 +94,11 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 		return new ExecutorMock();
 	}
 
-	private static FunctionCatalog createFunctionCatalog(CatalogManager catalogManager, ModuleManager moduleManager) {
-		return new FunctionCatalog(catalogManager, moduleManager);
+	private static FunctionCatalog createFunctionCatalog(
+			TableConfig config,
+			CatalogManager catalogManager,
+			ModuleManager moduleManager) {
+		return new FunctionCatalog(config, catalogManager, moduleManager);
 	}
 
 	private static PlannerMock createPlanner() {
