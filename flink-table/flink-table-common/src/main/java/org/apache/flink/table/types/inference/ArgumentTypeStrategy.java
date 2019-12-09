@@ -21,40 +21,36 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 
-import java.util.List;
+import java.util.Optional;
 
 /**
- * Validator for checking the input data types of a function call.
- *
- * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link Object#equals(Object)}.
- *
- * @see InputTypeValidators
+ * Strategy for inferring and validating a single input argument type of a function call.
  */
 @PublicEvolving
-public interface InputTypeValidator {
+public interface ArgumentTypeStrategy {
 
 	/**
-	 * Initial input validation based on the number of arguments.
-	 */
-	ArgumentCount getArgumentCount();
-
-	/**
-	 * Main logic for validating the input. Returns {@code true} if the arguments are valid for the
-	 * given call, {@code false} otherwise.
+	 * Main logic for inferring and validating an argument. Returns the data type that is valid for
+	 * the given call. If the returned type differs from {@link CallContext#getArgumentDataTypes()} at
+	 * {@code argumentPos}, a casting operation can be inserted. An empty result means that the given
+	 * input is invalid.
 	 *
 	 * @param callContext provides details about the function call
+	 * @param argumentPos argument index in the {@link CallContext}
 	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
 	 *                       with a meaningful exception in case the validation is not successful or
-	 *                       if this function should simply return {@code false}.
+	 *                       if this function should simply return an empty result.
 	 * @see CallContext#newValidationError(String, Object...)
 	 */
-	boolean validate(CallContext callContext, boolean throwOnFailure);
+	Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure);
 
 	/**
-	 * Returns a summary of the function's expected signatures.
+	 * Returns a summary of the function's expected argument at {@code argumentPos}.
 	 *
-	 * @param definition the function definition that defines the function currently being called.
+	 * @param functionDefinition the function definition that defines the function currently being called.
+	 * @param argumentPos the position within the function call for which the signature should be retrieved
 	 */
-	List<Signature> getExpectedSignatures(FunctionDefinition definition);
+	Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos);
 }

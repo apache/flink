@@ -16,68 +16,53 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentCount;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.Signature;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Validator that checks if a single argument is a literal.
+ * Strategy that checks if an argument is a literal.
  */
 @Internal
-public final class LiteralTypeValidator implements ArgumentTypeValidator, InputTypeValidator {
+public final class LiteralArgumentTypeStrategy implements ArgumentTypeStrategy {
 
 	private final boolean allowNull;
 
-	public LiteralTypeValidator(boolean allowNull) {
+	public LiteralArgumentTypeStrategy(boolean allowNull) {
 		this.allowNull = allowNull;
 	}
 
 	@Override
-	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
+	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
 		if (!callContext.isArgumentLiteral(argumentPos)) {
 			if (throwOnFailure) {
 				throw callContext.newValidationError("Literal expected.");
 			}
-			return false;
+			return Optional.empty();
 		}
 		if (callContext.isArgumentNull(argumentPos) && !allowNull) {
 			if (throwOnFailure) {
 				throw callContext.newValidationError("Literal must not be NULL.");
 			}
-			return false;
+			return Optional.empty();
 		}
-		return true;
+		return Optional.of(callContext.getArgumentDataTypes().get(argumentPos));
 	}
 
 	@Override
 	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Signature.Argument.of("<LITERAL>");
-	}
-
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(1);
-	}
-
-	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		return validateArgument(callContext, 0, throwOnFailure);
-	}
-
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(getExpectedArgument(definition, 0)));
+		if (allowNull) {
+			return Signature.Argument.of("<LITERAL>");
+		}
+		return Signature.Argument.of("<LITERAL NOT NULL>");
 	}
 
 	@Override
@@ -88,7 +73,7 @@ public final class LiteralTypeValidator implements ArgumentTypeValidator, InputT
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		LiteralTypeValidator that = (LiteralTypeValidator) o;
+		LiteralArgumentTypeStrategy that = (LiteralArgumentTypeStrategy) o;
 		return allowNull == that.allowNull;
 	}
 

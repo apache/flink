@@ -90,4 +90,9 @@ public final class UnknownCallContext implements CallContext {
 	public List<DataType> getArgumentDataTypes() {
 		return argumentDataTypes;
 	}
+
+	@Override
+	public Optional<DataType> getOutputDataType() {
+		return Optional.empty();
+	}
 }

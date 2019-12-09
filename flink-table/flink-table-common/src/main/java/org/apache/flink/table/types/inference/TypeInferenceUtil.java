@@ -27,14 +27,15 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.AdaptedCallContext;
 import org.apache.flink.table.types.inference.utils.UnknownCallContext;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
@@ -45,9 +46,9 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  *
  * <p><ul>
  * <li>1. Validate number of arguments.
- * <li>2. (*) Apply assignment operators on the call expression by permuting operands and adding default
- *        expressions. These are preparations for {@link CallContext}.
- * <li>3. For unknown (NULL) operands: Access the outer wrapping call and try to get its operand
+ * <li>2. (*) Apply assignment operators on the call by permuting operands and adding default values. These
+ *        are preparations for {@link CallContext}.
+ * <li>3. For resolving unknown (NULL) operands: Access the outer wrapping call and try to get its operand
  *        type for the return type of the actual call. E.g. for {@code takes_string(this_function(NULL))}
  *        infer operands from {@code takes_string(NULL)} and use the inferred string type as the return
  *        type of {@code this_function(NULL)}.
@@ -55,14 +56,32 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  * <li>5. (*) Check the usage of DEFAULT operands are correct using validator.isOptional().
  * <li>6. Perform input type validation.
  * <li>7. (Optional) Infer accumulator type.
- * <li>8. (*) Check for an implementation evaluation method matching the operands. The matching happens
- *        class-based. Thus, for example, eval(Object) is valid for (INT). Or eval(Object...) is valid
- *        for (INT, STRING). We rely on the conversion classes specified by DataType.
- * <li>9. Infer return type.
+ * <li>8. Infer return type.
+ * <li>9. (*) In the planner: Call the strategies again at any point in time to enrich a DataType that
+ *        has been created from a logical type with a conversion class.
+ * <li>10. (*) In the planner: Check for an implementation evaluation method matching the operands. The
+ *        matching happens class-based. Thus, for example, eval(Object) is valid for (INT). Or eval(Object...)
+ *        is valid for (INT, STRING). We rely on the conversion classes specified by DataType.
  * </ul>
  */
 @Internal
 public final class TypeInferenceUtil {
+
+	/**
+	 * Generates a signature of the given {@link FunctionDefinition}.
+	 */
+	public static String generateSignature(
+			String name,
+			FunctionDefinition definition,
+			TypeInference typeInference) {
+		if (typeInference.getNamedArguments().isPresent() || typeInference.getTypedArguments().isPresent()) {
+			return formatNamedOrTypedArguments(name, typeInference);
+		}
+		return typeInference.getInputTypeStrategy().getExpectedSignatures(definition)
+			.stream()
+			.map(s -> formatSignature(name, s))
+			.collect(Collectors.joining("\n"));
+	}
 
 	/**
 	 * Runs the type inference process.
@@ -98,9 +117,9 @@ public final class TypeInferenceUtil {
 
 	/**
 	 * Information what the outer world (i.e. an outer wrapping call) expects from the current
-	 * function call. This can be helpful for {@link InputTypeStrategy}.
+	 * function call. This can be helpful for an {@link InputTypeStrategy}.
 	 *
-	 * @see MutableCallContext#getOutputDataType()
+	 * @see CallContext#getOutputDataType()
 	 */
 	public static final class SurroundingInfo {
 
@@ -128,12 +147,8 @@ public final class TypeInferenceUtil {
 		}
 
 		private Optional<DataType> inferOutputType() {
-			// no strategy for inference
-			if (!typeInference.getInputTypeStrategy().isPresent()) {
-				return Optional.empty();
-			}
 			final boolean isValidCount = validateArgumentCount(
-				typeInference.getInputTypeValidator().getArgumentCount(),
+				typeInference.getInputTypeStrategy().getArgumentCount(),
 				argumentCount,
 				false);
 			if (!isValidCount) {
@@ -143,9 +158,9 @@ public final class TypeInferenceUtil {
 			// for retrieving the output type of "this_function(NULL)"
 			final CallContext callContext = new UnknownCallContext(name, functionDefinition, argumentCount);
 			final AdaptedCallContext adaptedContext = adaptArguments(typeInference, callContext, null);
-			final InputTypeStrategy inputTypeStrategy = typeInference.getInputTypeStrategy().get();
-			inputTypeStrategy.inferInputTypes(adaptedContext);
-			return Optional.of(adaptedContext.getArgumentDataTypes().get(innerCallPosition));
+			final Optional<List<DataType>> inferredDataTypes = typeInference.getInputTypeStrategy()
+				.inferInputTypes(adaptedContext, false);
+			return inferredDataTypes.map(dataTypes -> dataTypes.get(innerCallPosition));
 		}
 	}
 
@@ -194,26 +209,26 @@ public final class TypeInferenceUtil {
 			@Nullable SurroundingInfo surroundingInfo) {
 		try {
 			validateArgumentCount(
-				typeInference.getInputTypeValidator().getArgumentCount(),
+				typeInference.getInputTypeStrategy().getArgumentCount(),
 				callContext.getArgumentDataTypes().size(),
 				true);
 		} catch (ValidationException e) {
-			throw getInvalidInputException(typeInference.getInputTypeValidator(), callContext, e);
+			throw getInvalidInputException(
+				typeInference,
+				callContext,
+				e);
 		}
 
-		final AdaptedCallContext adaptedCallContext = adaptArguments(
-			typeInference,
-			callContext,
-			surroundingInfo);
-
+		final AdaptedCallContext adaptedCallContext;
 		try {
-			validateInputTypes(
-				typeInference.getInputTypeValidator(),
-				adaptedCallContext);
+			adaptedCallContext = adaptArguments(
+				typeInference,
+				callContext,
+				surroundingInfo);
 		} catch (ValidationException e) {
 			throw getInvalidInputException(
-				typeInference.getInputTypeValidator(),
-				adaptedCallContext,
+				typeInference,
+				callContext,
 				e);
 		}
 
@@ -224,20 +239,35 @@ public final class TypeInferenceUtil {
 	}
 
 	private static ValidationException getInvalidInputException(
-			InputTypeValidator validator,
+			TypeInference typeInference,
 			CallContext callContext,
 			ValidationException cause) {
-
-		final String expectedSignatures = validator.getExpectedSignatures(callContext.getFunctionDefinition())
-			.stream()
-			.map(s -> formatSignature(callContext.getName(), s))
-			.collect(Collectors.joining("\n"));
 		return new ValidationException(
 			String.format(
 				"Invalid input arguments. Expected signatures are:\n%s",
-				expectedSignatures
+				generateSignature(
+					callContext.getName(),
+					callContext.getFunctionDefinition(),
+					typeInference)
 			),
 			cause);
+	}
+
+	private static String formatNamedOrTypedArguments(String name, TypeInference typeInference) {
+		final Optional<List<String>> optionalNames = typeInference.getNamedArguments();
+		final Optional<List<DataType>> optionalDataTypes = typeInference.getTypedArguments();
+		final int count = Math.max(
+			optionalNames.map(List::size).orElse(0),
+			optionalDataTypes.map(List::size).orElse(0));
+		final String arguments = IntStream.range(0, count)
+			.mapToObj(pos -> {
+				final StringBuilder builder = new StringBuilder();
+				optionalNames.ifPresent(names -> builder.append(names.get(pos)).append(" => "));
+				optionalDataTypes.ifPresent(dataTypes -> builder.append(dataTypes.get(pos).toString()));
+				return builder.toString();
+			})
+			.collect(Collectors.joining(", "));
+		return String.format("%s(%s)", name, arguments);
 	}
 
 	private static String formatSignature(String name, Signature s) {
@@ -293,16 +323,6 @@ public final class TypeInferenceUtil {
 		return true;
 	}
 
-	private static void validateInputTypes(InputTypeValidator inputTypeValidator, CallContext callContext) {
-		// check for unknown types first
-		if (callContext.getArgumentDataTypes().stream().anyMatch(TypeInferenceUtil::isUnknown)) {
-			throw new ValidationException("Invalid use of untyped NULL in arguments.");
-		}
-		if (!inputTypeValidator.validate(callContext, true)) {
-			throw new ValidationException("Invalid input arguments.");
-		}
-	}
-
 	/**
 	 * Adapts the call's argument if necessary.
 	 *
@@ -313,23 +333,30 @@ public final class TypeInferenceUtil {
 			TypeInference typeInference,
 			CallContext callContext,
 			@Nullable SurroundingInfo surroundingInfo) {
+		final List<DataType> actualTypes = callContext.getArgumentDataTypes();
 
-		final List<DataType> expectedOrActualTypes = typeInference.getArgumentTypes()
-			.orElse(callContext.getArgumentDataTypes());
+		typeInference.getTypedArguments()
+			.ifPresent((dataTypes) -> {
+				if (actualTypes.size() != dataTypes.size()) {
+					throw new ValidationException(
+						String.format(
+							"Invalid number of arguments. %d arguments expected after argument expansion but %d passed.",
+							dataTypes.size(),
+							actualTypes.size()));
+				}
+			});
 
 		final AdaptedCallContext adaptedCallContext = inferInputTypes(
 			typeInference,
-			expectedOrActualTypes,
 			callContext,
 			surroundingInfo);
 
-		final List<DataType> actualTypes = callContext.getArgumentDataTypes();
+		// final check if the call is valid after casting
 		final List<DataType> expectedTypes = adaptedCallContext.getArgumentDataTypes();
 		for (int pos = 0; pos < actualTypes.size(); pos++) {
 			final DataType expectedType = expectedTypes.get(pos);
 			final DataType actualType = actualTypes.get(pos);
-
-			if (!actualType.equals(expectedType) && !canCast(actualType, expectedType)) {
+			if (!supportsImplicitCast(actualType.getLogicalType(), expectedType.getLogicalType())) {
 				throw new ValidationException(
 					String.format(
 						"Invalid argument type at position %d. Data type %s expected but %s passed.",
@@ -338,12 +365,12 @@ public final class TypeInferenceUtil {
 						actualType));
 			}
 		}
+
 		return adaptedCallContext;
 	}
 
 	private static AdaptedCallContext inferInputTypes(
 			TypeInference typeInference,
-			List<DataType> expectedTypes,
 			CallContext callContext,
 			@Nullable SurroundingInfo surroundingInfo) {
 		// use information of surrounding call to determine output type of this call
@@ -354,22 +381,23 @@ public final class TypeInferenceUtil {
 			outputType = null;
 		}
 
-		final AdaptedCallContext adaptedCallContext = new AdaptedCallContext(
-			callContext,
-			expectedTypes,
-			outputType);
+		final AdaptedCallContext adaptedCallContext = new AdaptedCallContext(callContext, outputType);
 
-		// further adapt the arguments by calling an input strategy
-		typeInference.getInputTypeStrategy()
-			.ifPresent(s -> s.inferInputTypes(adaptedCallContext));
+		// typed arguments have highest priority
+		typeInference.getTypedArguments().ifPresent(adaptedCallContext::setExpectedArguments);
+
+		final List<DataType> inferredDataTypes = typeInference.getInputTypeStrategy()
+			.inferInputTypes(adaptedCallContext, true)
+			.orElseThrow(() -> new ValidationException("Invalid input arguments."));
+
+		// input must not contain unknown types at this point
+		if (inferredDataTypes.stream().anyMatch(TypeInferenceUtil::isUnknown)) {
+			throw new ValidationException("Invalid use of untyped NULL in arguments.");
+		}
+
+		adaptedCallContext.setExpectedArguments(inferredDataTypes);
 
 		return adaptedCallContext;
-	}
-
-	private static boolean canCast(DataType sourceDataType, DataType targetDataType) {
-		return LogicalTypeCasts.supportsImplicitCast(
-			sourceDataType.getLogicalType(),
-			targetDataType.getLogicalType());
 	}
 
 	private static Result inferTypes(

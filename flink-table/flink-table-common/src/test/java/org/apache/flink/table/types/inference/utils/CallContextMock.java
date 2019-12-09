@@ -42,6 +42,8 @@ public class CallContextMock implements CallContext {
 
 	public String name;
 
+	public Optional<DataType> outputDataType;
+
 	@Override
 	public List<DataType> getArgumentDataTypes() {
 		return argumentDataTypes;
@@ -71,5 +73,10 @@ public class CallContextMock implements CallContext {
 	@Override
 	public String getName() {
 		return name;
+	}
+
+	@Override
+	public Optional<DataType> getOutputDataType() {
+		return outputDataType;
 	}
 }

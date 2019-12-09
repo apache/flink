@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -28,27 +29,31 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Validator that checks if each operand corresponds to an explicitly defined logical type.
+ * Strategy for an argument that corresponds to an explicitly defined type with or without implicit
+ * casting.
  */
 @Internal
-public final class ExplicitTypeValidator implements ArgumentTypeValidator {
+public final class ExplicitArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	private final LogicalType expectedType;
+	private final DataType expectedDataType;
 
-	public ExplicitTypeValidator(LogicalType expectedType) {
-		this.expectedType = Preconditions.checkNotNull(expectedType);
+	public ExplicitArgumentTypeStrategy(DataType expectedDataType) {
+		this.expectedDataType = Preconditions.checkNotNull(expectedDataType);
 	}
 
 	@Override
-	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
+	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
+		final LogicalType expectedType = expectedDataType.getLogicalType();
 		final LogicalType actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
-		// quick path
+		// if logical types match, we return the expected data type
+		// for ensuring the expected conversion class
 		if (expectedType.equals(actualType)) {
-			return true;
+			return Optional.of(expectedDataType);
 		}
-		// lenient check
+		// type coercion
 		if (!LogicalTypeCasts.supportsImplicitCast(actualType, expectedType)) {
 			if (throwOnFailure) {
 				throw callContext.newValidationError(
@@ -56,14 +61,14 @@ public final class ExplicitTypeValidator implements ArgumentTypeValidator {
 					expectedType,
 					actualType);
 			}
-			return false;
+			return Optional.empty();
 		}
-		return true;
+		return Optional.of(expectedDataType);
 	}
 
 	@Override
 	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Argument.of(expectedType.asSummaryString());
+		return Argument.of(expectedDataType.toString());
 	}
 
 	@Override
@@ -74,12 +79,12 @@ public final class ExplicitTypeValidator implements ArgumentTypeValidator {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		ExplicitTypeValidator that = (ExplicitTypeValidator) o;
-		return Objects.equals(expectedType, that.expectedType);
+		ExplicitArgumentTypeStrategy that = (ExplicitArgumentTypeStrategy) o;
+		return Objects.equals(expectedDataType, that.expectedDataType);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(expectedType);
+		return Objects.hash(expectedDataType);
 	}
 }

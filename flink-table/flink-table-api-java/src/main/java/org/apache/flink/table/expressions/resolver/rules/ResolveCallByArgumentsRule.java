@@ -277,6 +277,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			return name;
 		}
 
+		@Override
+		public Optional<DataType> getOutputDataType() {
+			return Optional.empty();
+		}
+
 		private ResolvedExpression getArgument(int pos) {
 			if (pos >= resolvedArgs.size()) {
 				throw new IndexOutOfBoundsException(

@@ -16,26 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Validator that does not perform any validation and always passes.
+ * Strategy that does not perform any modification or validation of the input.
  */
 @Internal
-public final class PassingTypeValidator implements InputTypeValidator, ArgumentTypeValidator {
+public final class WildcardInputTypeStrategy implements InputTypeStrategy {
 
 	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
 
@@ -45,8 +46,8 @@ public final class PassingTypeValidator implements InputTypeValidator, ArgumentT
 	}
 
 	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		return true;
+	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
+		return Optional.of(callContext.getArgumentDataTypes());
 	}
 
 	@Override
@@ -56,21 +57,11 @@ public final class PassingTypeValidator implements InputTypeValidator, ArgumentT
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o instanceof PassingTypeValidator;
+		return this == o || o instanceof WildcardInputTypeStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return PassingTypeValidator.class.hashCode();
-	}
-
-	@Override
-	public boolean validateArgument(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		return true;
-	}
-
-	@Override
-	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Argument.of("*");
+		return WildcardInputTypeStrategy.class.hashCode();
 	}
 }
