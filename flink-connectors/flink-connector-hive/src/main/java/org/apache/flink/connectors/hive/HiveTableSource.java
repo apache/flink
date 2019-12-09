@@ -52,6 +52,8 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.sql.Date;
 import java.util.ArrayList;
@@ -76,6 +78,7 @@ public class HiveTableSource implements
 	private final ObjectPath tablePath;
 	private final CatalogTable catalogTable;
 	// Remaining partition specs after partition pruning is performed. Null if pruning is not pushed down.
+	@Nullable
 	private List<Map<String, String>> remainingPartitions = null;
 	private List<HiveTablePartition> allHivePartitions;
 	private String hiveVersion;
