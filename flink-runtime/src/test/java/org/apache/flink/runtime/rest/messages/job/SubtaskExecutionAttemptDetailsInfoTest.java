@@ -47,7 +47,13 @@ public class SubtaskExecutionAttemptDetailsInfoTest extends RestResponseMarshall
 			random.nextBoolean(),
 			Math.abs(random.nextLong()),
 			random.nextBoolean(),
-			Math.abs(random.nextFloat()), random.nextBoolean(), Math.abs(random.nextFloat()), random.nextBoolean(), Math.abs(random.nextFloat()), random.nextBoolean(), random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			random.nextBoolean(),
 			random.nextBoolean()
 		);
 

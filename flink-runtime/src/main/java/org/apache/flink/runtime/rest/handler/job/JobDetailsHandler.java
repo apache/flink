@@ -214,7 +214,13 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			counts.isNumRecordsInComplete(),
 			counts.getNumRecordsOut(),
 			counts.isNumRecordsOutComplete(),
-			inputExclusiveBuffersUsageAvg, counts.isUsageInputExclusiveBuffersComplete(), inputFloatingBuffersUsageAvg, counts.isUsageInputFloatingBuffersComplete(), outPoolUsageAvg, counts.isUsageOutPoolComplete(), counts.isBackPressured(),
+			inputExclusiveBuffersUsageAvg,
+			counts.isUsageInputExclusiveBuffersComplete(),
+			inputFloatingBuffersUsageAvg,
+			counts.isUsageInputFloatingBuffersComplete(),
+			outPoolUsageAvg,
+			counts.isUsageOutPoolComplete(),
+			counts.isBackPressured(),
 			counts.isBackPressuredComplete()
 		);
 
