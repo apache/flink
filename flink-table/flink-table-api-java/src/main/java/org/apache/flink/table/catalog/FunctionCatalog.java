@@ -37,7 +37,7 @@ import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
-import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.Preconditions;
 
@@ -76,7 +76,7 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public void registerTempSystemScalarFunction(String name, ScalarFunction function) {
-		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
 		registerTempSystemFunction(
 			name,
 			new ScalarFunctionDefinition(name, function)
@@ -88,9 +88,9 @@ public class FunctionCatalog implements FunctionLookup {
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
 		// check if class not Scala object
-		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
 		// check if class could be instantiated
-		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
 
 		registerTempSystemFunction(
 			name,
@@ -107,9 +107,9 @@ public class FunctionCatalog implements FunctionLookup {
 			TypeInformation<T> resultType,
 			TypeInformation<ACC> accType) {
 		// check if class not Scala object
-		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
 		// check if class could be instantiated
-		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
 
 		final FunctionDefinition definition;
 		if (function instanceof AggregateFunction) {
@@ -135,7 +135,7 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
-		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
 		registerTempCatalogFunction(
 			oi,
 			new ScalarFunctionDefinition(oi.getObjectName(), function)
@@ -147,9 +147,9 @@ public class FunctionCatalog implements FunctionLookup {
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
 		// check if class not Scala object
-		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
 		// check if class could be instantiated
-		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
 
 		registerTempCatalogFunction(
 			oi,
@@ -166,9 +166,9 @@ public class FunctionCatalog implements FunctionLookup {
 			TypeInformation<T> resultType,
 			TypeInformation<ACC> accType) {
 		// check if class not Scala object
-		UserFunctionsTypeHelper.validateNotSingleton(function.getClass());
+		UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
 		// check if class could be instantiated
-		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
 
 		final FunctionDefinition definition;
 		if (function instanceof AggregateFunction) {

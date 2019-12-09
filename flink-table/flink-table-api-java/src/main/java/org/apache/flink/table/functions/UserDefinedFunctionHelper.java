@@ -19,8 +19,11 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig.ClosureCleanerLevel;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -31,7 +34,7 @@ import java.util.Arrays;
  * {@link org.apache.flink.table.catalog.FunctionCatalog}.
  */
 @Internal
-public class UserFunctionsTypeHelper {
+public class UserDefinedFunctionHelper {
 
 	/**
 	 * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
@@ -152,9 +155,6 @@ public class UserFunctionsTypeHelper {
 			throw new ValidationException(String.format(
 				"Function class %s is no proper class," +
 					" it is either abstract, an interface, or a primitive type.", clazz.getCanonicalName()));
-		} else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-			throw new ValidationException(String.format(
-				"The class %s is an inner class, but not statically accessible.", clazz.getCanonicalName()));
 		}
 	}
 
@@ -171,6 +171,6 @@ public class UserFunctionsTypeHelper {
 		}
 	}
 
-	private UserFunctionsTypeHelper() {
+	private UserDefinedFunctionHelper() {
 	}
 }

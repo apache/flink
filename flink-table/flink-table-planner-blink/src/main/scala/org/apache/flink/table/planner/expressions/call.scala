@@ -201,9 +201,9 @@ case class PlannerTableFunctionCall(
 
   override def validateInput(): ValidationResult = {
     // check if not Scala object
-    UserFunctionsTypeHelper.validateNotSingleton(tableFunction.getClass)
+    UserDefinedFunctionHelper.validateNotSingleton(tableFunction.getClass)
     // check if class could be instantiated
-    UserFunctionsTypeHelper.validateInstantiation(tableFunction.getClass)
+    UserDefinedFunctionHelper.validateInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
     val signature = parameters.map(_.resultType).map(fromLegacyInfoToDataType)
     val foundMethod = getUserDefinedMethod(
