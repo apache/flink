@@ -1635,7 +1635,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		final JobClient jobClient = executeAsync(streamGraph).get();
+		final JobClient jobClient = executeAsync(streamGraph);
 
 		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
 			return jobClient.getJobExecutionResult(userClassloader).get();
@@ -1652,11 +1652,11 @@ public class StreamExecutionEnvironment {
 	 * <p>The program execution will be logged and displayed with a generated
 	 * default name.
 	 *
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
 	@PublicEvolving
-	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+	public final JobClient executeAsync() throws Exception {
 		return executeAsync(DEFAULT_JOB_NAME);
 	}
 
@@ -1668,11 +1668,11 @@ public class StreamExecutionEnvironment {
 	 * <p>The program execution will be logged and displayed with the provided name
 	 *
 	 * @param jobName desired name of the job
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
 	@PublicEvolving
-	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+	public JobClient executeAsync(String jobName) throws Exception {
 		return executeAsync(getStreamGraph(checkNotNull(jobName)));
 	}
 
@@ -1682,11 +1682,11 @@ public class StreamExecutionEnvironment {
 	 * for example printing results or forwarding them to a message queue.
 	 *
 	 * @param streamGraph the stream graph representing the transformations
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
 	 */
 	@Internal
-	public CompletableFuture<JobClient> executeAsync(StreamGraph streamGraph) throws Exception {
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
@@ -1700,9 +1700,11 @@ public class StreamExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		return executorFactory
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
+
+		return jobClientFuture.get();
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

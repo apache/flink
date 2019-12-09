@@ -62,7 +62,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		transformations.clear();
 
-		JobClient jobClient = executeAsync(streamGraph).get();
+		JobClient jobClient = executeAsync(streamGraph);
 
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
