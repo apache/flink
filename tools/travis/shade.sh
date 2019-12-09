@@ -124,27 +124,9 @@ check_shaded_artifacts_s3_fs() {
 	VARIANT=$1
 	jar tf flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar > allClasses
 
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e "^org/apache/flink/fs/" | grep '\.class$'`
-	if [ "$?" == "0" ]; then
-		echo "=============================================================================="
-		echo "${VARIANT}: Detected unshaded dependencies in fat jar:"
-		echo "${UNSHADED_CLASSES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
 	if [ ! `cat allClasses | grep '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$'` ]; then
 		echo "=============================================================================="
 		echo "${VARIANT}: File does not exist: services/org.apache.flink.core.fs.FileSystemFactory"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs.*shaded" -e '^META-INF/services/'`
-	if [ "$?" == "0" ]; then
-		echo "=============================================================================="
-		echo "${VARIANT}: Detected unshaded service files in fat jar:"
-		echo "${UNSHADED_SERVICES}"
 		echo "=============================================================================="
 		return 1
 	fi
