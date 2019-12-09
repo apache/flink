@@ -19,11 +19,12 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.MyPojo
 import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
@@ -34,7 +35,8 @@ import java.math.{BigDecimal => JDecimal}
 import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
 
-import scala.collection.mutable
+import scala.collection.JavaConversions._
+import scala.collection.{Seq, mutable}
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -326,6 +328,46 @@ class TableSourceITCase extends BatchTestBase {
         row("t2"),
         row("t3"),
         row("t4")
+      )
+    )
+  }
+
+  @Test
+  def testProjectablePoJoTable(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("myPojo"),
+      Array(
+        new PojoTypeInfo[MyPojo](
+          classOf[MyPojo],
+          Seq(
+            new PojoField(classOf[MyPojo].getDeclaredField("f1"), Types.INT),
+            new PojoField(classOf[MyPojo].getDeclaredField("f2"), Types.INT))
+        ))
+    )
+
+    val data: Seq[Row] = Seq(
+      row(new MyPojo(1, 1)),
+      row(new MyPojo(2, 2)),
+      row(new MyPojo(3, 3))
+    )
+
+    val tableSource = new TestProjectableTableSource(
+      true,
+      tableSchema,
+      new RowTypeInfo(
+        tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
+        tableSchema.getFieldNames),
+      data
+    )
+
+    tEnv.registerTableSource("MyPojoTable", tableSource)
+
+    checkResult(
+      "SELECT myPojo.f1, myPojo.f2 FROM MyPojoTable",
+      Seq(
+        row(1, 1),
+        row(2, 2),
+        row(3, 3)
       )
     )
   }

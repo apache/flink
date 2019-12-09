@@ -18,23 +18,18 @@
 
 package org.apache.flink.table.planner.sources
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, TypeInfoLogicalTypeConverter}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isAssignable
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
+import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType, TimestampKind, TimestampType, TinyIntType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -42,7 +37,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
-
 import java.sql.Timestamp
 
 import scala.collection.JavaConversions._
@@ -100,18 +94,22 @@ object TableSourceUtil {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
             s"Rowtime attributes must be of TimestampType.")
         }
-        val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
+        val (physicalName, idx, logicalType) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
-        if (!isAssignable(fromTypeInfoToLogicalType(tpe), t)) {
+        if (!isAssignable(logicalType, t)) {
           throw new ValidationException(s"Type $t of table field '$name' does not " +
-            s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
+            s"match with type $logicalType of the field '$physicalName' of the " +
+            "TableSource return type.")
         }
         idx
     }
-    val inputType = fromDataTypeToTypeInfo(tableSource.getProducedDataType)
+
+    val inputType =
+      LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(
+        tableSource.getProducedDataType)
 
     // ensure that only one field is mapped to an atomic type
-    if (!inputType.isInstanceOf[CompositeType[_]] && mapping.count(_ >= 0) > 1) {
+    if (!(inputType.getTypeRoot == LogicalTypeRoot.ROW) && mapping.count(_ >= 0) > 1) {
       throw new ValidationException(
         s"More than one table field matched to atomic input type $inputType.")
     }
@@ -296,11 +294,10 @@ object TableSourceUtil {
       * Creates a RelNode with a schema that corresponds on the given fields
       * Fields for which no information is available, will have default values.
       */
-    def createSchemaRelNode(fields: Array[(String, Int, TypeInformation[_])]): RelNode = {
+    def createSchemaRelNode(fields: Array[(String, Int, LogicalType)]): RelNode = {
       val maxIdx = fields.map(_._2).max
       val idxMap: Map[Int, (String, LogicalType)] = Map(
-        fields.map(f => f._2 ->(f._1,
-            fromTypeInfoToLogicalType(f._3))): _*)
+        fields.map(f => f._2 ->(f._1, f._3)): _*)
       val (physicalFields, physicalTypes) = (0 to maxIdx)
         .map(i => idxMap.getOrElse(i, ("", new TinyIntType()))).unzip
       val physicalSchema: RelDataType = typeFactory.buildRelNodeRowType(
@@ -322,7 +319,9 @@ object TableSourceUtil {
           // push an empty values node with the physical schema on the relbuilder
           relBuilder.push(createSchemaRelNode(resolvedFields))
           // get extraction expression
-          resolvedFields.map(f => new ResolvedFieldReference(f._1, f._3, f._2))
+          resolvedFields.map(
+            f => new ResolvedFieldReference(
+              f._1, TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(f._3), f._2))
         } else {
           new Array[ResolvedFieldReference](0)
         }
@@ -371,30 +370,35 @@ object TableSourceUtil {
     *
     * @param fieldName The logical field to look up.
     * @param tableSource The table source in which to look for the field.
-    * @return The name, index, and type information of the physical field.
+    * @return The name, index, and logical type of the physical field.
     */
   private def resolveInputField(
       fieldName: String,
-      tableSource: TableSource[_]): (String, Int, TypeInformation[_]) = {
+      tableSource: TableSource[_]): (String, Int, LogicalType) = {
 
-    val returnType = fromDataTypeToTypeInfo(tableSource.getProducedDataType)
+    val returnType =
+      LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(
+        tableSource.getProducedDataType)
 
     /** Look up a field by name in a type information */
-    def lookupField(fieldName: String, failMsg: String): (String, Int, TypeInformation[_]) = {
-      returnType match {
+    def lookupField(fieldName: String, failMsg: String): (String, Int, LogicalType) = {
 
-        case c: CompositeType[_] =>
+      returnType.getTypeRoot match {
+        case LogicalTypeRoot.ROW =>
+          // composite type would convert to RowType in blink planner
+          val dt = returnType.asInstanceOf[RowType]
+
           // get and check field index
-          val idx = c.getFieldIndex(fieldName)
+          val idx = dt.getFieldIndex(fieldName)
           if (idx < 0) {
             throw new ValidationException(failMsg)
           }
-          // return field name, index, and field type
-          (fieldName, idx, c.getTypeAt(idx))
 
-        case t: TypeInformation[_] =>
+          // return field name, index, and field type
+          (fieldName, idx, dt.getTypeAt(idx))
+        case _ =>
           // no composite type, we return the full atomic type as field
-          (fieldName, 0, t)
+          (fieldName, 0, returnType)
       }
     }
 
@@ -423,17 +427,16 @@ object TableSourceUtil {
   }
 
   /**
-    * Identifies the physical fields in the return type
-    * [[org.apache.flink.api.common.typeinfo.TypeInformation]] of a [[TableSource]]
+    * Identifies the physical fields in the return type of a [[TableSource]]
     * for a list of field names of the [[TableSource]]'s [[org.apache.flink.table.api.TableSchema]].
     *
     * @param fieldNames The field names to look up.
     * @param tableSource The table source in which to look for the field.
-    * @return The name, index, and type information of the physical field.
+    * @return The name, index, and logical type of the physical field.
     */
   private def resolveInputFields(
       fieldNames: Array[String],
-      tableSource: TableSource[_]): Array[(String, Int, TypeInformation[_])] = {
+      tableSource: TableSource[_]): Array[(String, Int, LogicalType)] = {
     fieldNames.map(resolveInputField(_, tableSource))
   }
 }
