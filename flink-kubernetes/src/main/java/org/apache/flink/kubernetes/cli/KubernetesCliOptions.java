@@ -91,22 +91,6 @@ public class KubernetesCliOptions {
 		.desc("Help for Kubernetes session CLI.")
 		.build();
 
-	public static final Option JOB_CLASS_NAME_OPTION = Option.builder("jc")
-		.longOpt("job-classname")
-		.required(false)
-		.hasArg(true)
-		.argName("job class name")
-		.desc("Class name of the job to run.")
-		.build();
-
-	public static final Option JOB_ID_OPTION = Option.builder("jid")
-		.longOpt("job-id")
-		.required(false)
-		.hasArg(true)
-		.argName("job id")
-		.desc("Job ID of the job to run.")
-		.build();
-
 	/** This class is not meant to be instantiated. */
 	private KubernetesCliOptions() {}
 }
