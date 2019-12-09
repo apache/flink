@@ -23,6 +23,7 @@
 # environment are ready in the cluster
 #
 
+import sys
 from logger import logger
 from utils import run_command
 
