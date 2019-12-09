@@ -100,9 +100,8 @@ public class RocksDBResourceContainerTest {
 
 	@Test
 	public void testFreeMultipleColumnOptionsWithPredefinedOptions() throws Exception {
-		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		for (PredefinedOptions predefinedOptions: PredefinedOptions.values()) {
-			container.setPredefinedOptions(predefinedOptions);
+			RocksDBResourceContainer container = new RocksDBResourceContainer(predefinedOptions, null);
 			final int optionNumber = 20;
 			ArrayList<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(optionNumber);
 			for (int i = 0; i < optionNumber; i++) {
@@ -117,14 +116,14 @@ public class RocksDBResourceContainerTest {
 
 	@Test
 	public void testFreeSharedResourcesAfterClose() throws Exception {
-		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		LRUCache cache = new LRUCache(1024L);
 		WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
 		RocksDBSharedResources sharedResources = new RocksDBSharedResources(cache, wbm);
 		final ThrowingRunnable<Exception> disposer = sharedResources::close;
 		OpaqueMemoryResource<RocksDBSharedResources> opaqueResource =
 			new OpaqueMemoryResource<>(sharedResources, 1024L, disposer);
-		container.setSharedResources(opaqueResource);
+
+		RocksDBResourceContainer container = new RocksDBResourceContainer(PredefinedOptions.DEFAULT, null, opaqueResource);
 
 		container.close();
 		assertThat(cache.isOwningHandle(), is(false));

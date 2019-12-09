@@ -502,20 +502,17 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
-		// create resource container
-		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
-		resourceContainer.setPredefinedOptions(this.predefinedOptions);
-		resourceContainer.setOptionsFactory(this.optionsFactory);
-		DBOptions dbOptions = resourceContainer.getDbOptions();
-		Function<String, ColumnFamilyOptions> createColumnOptions;
-
 		final OpaqueMemoryResource<RocksDBSharedResources> sharedResources = RocksDBOperationUtils
 				.allocateSharedCachesIfConfigured(memoryConfiguration, env.getMemoryManager(), LOG);
 
+		final RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer(
+				getConfiguredPredefinedOptionsOrDefault(), optionsFactory, sharedResources);
+
+		final DBOptions dbOptions = resourceContainer.getDbOptions();
+		final Function<String, ColumnFamilyOptions> createColumnOptions;
+
 		if (sharedResources != null) {
 			LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
-			// register into options container for disposal.
-			resourceContainer.setSharedResources(sharedResources);
 
 			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
 			final Cache blockCache = rocksResources.getCache();
@@ -839,9 +836,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@VisibleForTesting
 	public DBOptions getDbOptions() {
-		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
-		resourceContainer.setOptionsFactory(optionsFactory);
-		resourceContainer.setPredefinedOptions(predefinedOptions);
+		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer(
+				getConfiguredPredefinedOptionsOrDefault(),
+				optionsFactory);
 		return resourceContainer.getDbOptions();
 	}
 
@@ -850,9 +847,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@VisibleForTesting
 	public ColumnFamilyOptions getColumnOptions() {
-		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
-		resourceContainer.setOptionsFactory(optionsFactory);
-		resourceContainer.setPredefinedOptions(predefinedOptions);
+		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer(
+			getConfiguredPredefinedOptionsOrDefault(),
+			optionsFactory);
 		return resourceContainer.getColumnOptions();
 	}
 
@@ -899,6 +896,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	@Deprecated
 	public void setNumberOfTransferingThreads(int numberOfTransferingThreads) {
 		setNumberOfTransferThreads(numberOfTransferingThreads);
+	}
+
+	private PredefinedOptions getConfiguredPredefinedOptionsOrDefault() {
+		return predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT;
 	}
 
 	// ------------------------------------------------------------------------
