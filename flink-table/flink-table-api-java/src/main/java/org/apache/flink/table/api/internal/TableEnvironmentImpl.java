@@ -65,7 +65,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
@@ -875,9 +875,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
 			AggregateFunction<T, ACC > aggregateFunction =
 				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
 				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
 			functionCatalog.registerTempCatalogAggregateFunction(
@@ -888,7 +888,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (functionDefinition instanceof TableFunctionDefinition) {
 			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
 			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfTableFunction(tableFunction);
 			functionCatalog.registerTempCatalogTableFunction(
 				functionIdentifier,
@@ -908,9 +908,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
 			AggregateFunction<T, ACC > aggregateFunction =
 				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
 				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 			functionCatalog.registerTempSystemAggregateFunction(
 				functionName,
@@ -921,7 +921,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (functionDefinition instanceof TableFunctionDefinition) {
 			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
 			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfTableFunction(tableFunction);
 
 			functionCatalog.registerTempSystemTableFunction(

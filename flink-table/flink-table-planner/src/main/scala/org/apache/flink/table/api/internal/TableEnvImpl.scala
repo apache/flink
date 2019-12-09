@@ -142,7 +142,7 @@ abstract class TableEnvImpl(
       name: String,
       function: TableFunction[T])
     : Unit = {
-    val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+    val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
       .getReturnTypeOfTableFunction(
         function,
         implicitly[TypeInformation[T]])
@@ -161,12 +161,12 @@ abstract class TableEnvImpl(
       name: String,
       function: UserDefinedAggregateFunction[T, ACC])
     : Unit = {
-    val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+    val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(
         function,
         implicitly[TypeInformation[T]])
 
-    val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper
+    val accTypeInfo: TypeInformation[ACC] = UserDefinedFunctionHelper
       .getAccumulatorTypeOfAggregateFunction(
       function,
       implicitly[TypeInformation[ACC]])
@@ -824,8 +824,8 @@ abstract class TableEnvImpl(
       val aggregateFunctionDefinition = functionDefinition.asInstanceOf[AggregateFunctionDefinition]
       val aggregateFunction = aggregateFunctionDefinition
         .getAggregateFunction.asInstanceOf[AggregateFunction[T, ACC]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
-      val accTypeInfo = UserFunctionsTypeHelper
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
+      val accTypeInfo = UserDefinedFunctionHelper
         .getAccumulatorTypeOfAggregateFunction(aggregateFunction)
       functionCatalog.registerTempCatalogAggregateFunction(
         functionIdentifier,
@@ -836,7 +836,7 @@ abstract class TableEnvImpl(
     } else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
       val tableFunctionDefinition = functionDefinition.asInstanceOf[TableFunctionDefinition]
       val tableFunction = tableFunctionDefinition.getTableFunction.asInstanceOf[TableFunction[T]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction)
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction)
       functionCatalog.registerTempCatalogTableFunction(
         functionIdentifier,
         tableFunction,
@@ -857,8 +857,8 @@ abstract class TableEnvImpl(
       val aggregateFunctionDefinition = functionDefinition.asInstanceOf[AggregateFunctionDefinition]
       val aggregateFunction = aggregateFunctionDefinition
         .getAggregateFunction.asInstanceOf[AggregateFunction[T, ACC]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
-      val accTypeInfo = UserFunctionsTypeHelper
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
+      val accTypeInfo = UserDefinedFunctionHelper
         .getAccumulatorTypeOfAggregateFunction(aggregateFunction)
       functionCatalog.registerTempSystemAggregateFunction(
         functionName,
@@ -868,7 +868,7 @@ abstract class TableEnvImpl(
     } else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
       val tableFunctionDefinition = functionDefinition.asInstanceOf[TableFunctionDefinition]
       val tableFunction = tableFunctionDefinition.getTableFunction.asInstanceOf[TableFunction[T]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction)
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction)
       functionCatalog.registerTempSystemTableFunction(
         functionName,
         tableFunction,
