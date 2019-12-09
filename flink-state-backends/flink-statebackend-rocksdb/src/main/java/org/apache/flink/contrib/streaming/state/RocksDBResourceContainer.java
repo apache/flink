@@ -25,25 +25,32 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 
 /**
  * The container for RocksDB resources, including predefined options, option factory and
  * shared resource among instances.
- * <p/>
- * This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options,
+ *
+ * <p>This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options,
  * and should be properly (and necessarily) closed to prevent resource leak.
  */
-public class RocksDBResourceContainer implements AutoCloseable {
+final class RocksDBResourceContainer implements AutoCloseable {
 
 	/** The pre-configured option settings. */
 	private PredefinedOptions predefinedOptions;
+
 	/** The options factory to create the RocksDB options. */
+	@Nullable
 	private OptionsFactory optionsFactory;
-	/** The shared resource among RocksDB instances. */
+
+	/** The shared resource among RocksDB instances. This resource is not part of the 'handlesToClose',
+	 * because the handles to close are closed quietly, whereas for this one, we want exceptions to be reported. */
+	@Nullable
 	private OpaqueMemoryResource<RocksDBSharedResources> sharedResources;
 
+	/** The handles to be closed when the container is closed. */
 	private final ArrayList<AutoCloseable> handlesToClose;
 
 	public RocksDBResourceContainer() {
@@ -71,7 +78,7 @@ public class RocksDBResourceContainer implements AutoCloseable {
 	/**
 	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances.
 	 */
-	public ColumnFamilyOptions getColumnOptions() {
+	ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
 		ColumnFamilyOptions opt = checkAndGetPredefinedOptions().createColumnOptions(handlesToClose);
 
@@ -81,10 +88,6 @@ public class RocksDBResourceContainer implements AutoCloseable {
 		}
 
 		return opt;
-	}
-
-	PredefinedOptions getPredefinedOptions() {
-		return predefinedOptions;
 	}
 
 	PredefinedOptions checkAndGetPredefinedOptions() {
