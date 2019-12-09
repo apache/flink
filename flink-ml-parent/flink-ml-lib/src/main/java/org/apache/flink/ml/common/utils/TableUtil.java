@@ -333,6 +333,11 @@ public class TableUtil {
 	 *
 	 * <p>If <code>categoricalCols</code> is null, return all the categorical columns.
 	 *
+	 * <p>for example: In FeatureHasher which projects a number of categorical or numerical features
+	 * into a feature vector of a specified dimension needs to identify the categorical features. And
+	 * the column which is the string or boolean must be categorical. We need to find these columns as
+	 * categorical when user do not specify the types(categorical or numerical).
+	 *
 	 * @param tableSchema     TableSchema.
 	 * @param featureCols     the columns to chosen from.
 	 * @param categoricalCols the columns which are included in the final result whatever the types of them are. And it
