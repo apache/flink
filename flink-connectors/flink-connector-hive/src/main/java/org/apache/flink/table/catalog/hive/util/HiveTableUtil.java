@@ -26,7 +26,6 @@ import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
@@ -209,6 +208,7 @@ public class HiveTableUtil {
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {
 
+		// maps a supported function to its name
 		private static final Map<FunctionDefinition, String> FUNC_TO_STR = new HashMap<>();
 
 		static {
@@ -218,6 +218,8 @@ public class HiveTableUtil {
 			FUNC_TO_STR.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, ">=");
 			FUNC_TO_STR.put(BuiltInFunctionDefinitions.LESS_THAN, "<");
 			FUNC_TO_STR.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, "<=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.AND, "and");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.OR, "or");
 		}
 
 		// used to shift field reference index
@@ -229,14 +231,10 @@ public class HiveTableUtil {
 			this.partColNames = partColNames;
 		}
 
-		private String funcToString(BuiltInFunctionDefinition funcDef) {
-			return FUNC_TO_STR.containsKey(funcDef) ? FUNC_TO_STR.get(funcDef) : funcDef.getName();
-		}
-
 		@Override
 		public String visit(CallExpression call) {
 			FunctionDefinition funcDef = call.getFunctionDefinition();
-			if (funcDef instanceof BuiltInFunctionDefinition) {
+			if (FUNC_TO_STR.containsKey(funcDef)) {
 				List<String> operands = new ArrayList<>();
 				for (Expression child : call.getChildren()) {
 					String operand = child.accept(this);
@@ -245,10 +243,7 @@ public class HiveTableUtil {
 					}
 					operands.add(operand);
 				}
-				if (funcDef == BuiltInFunctionDefinitions.CAST) {
-					return String.format("cast(%s as %s)", operands.get(0), operands.get(1));
-				}
-				return "(" + String.join(" " + funcToString((BuiltInFunctionDefinition) funcDef) + " ", operands) + ")";
+				return "(" + String.join(" " + FUNC_TO_STR.get(funcDef) + " ", operands) + ")";
 			}
 			return null;
 		}
