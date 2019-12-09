@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * A listener that is notified on specific job status changed, which should be firstly
  * registered by {@code #registerJobListener} of execution environments.
@@ -35,18 +37,16 @@ import javax.annotation.Nullable;
 public interface JobListener {
 
 	/**
-	 * Callback on job submission succeeded or failed.
+	 * Callback on job submission. This is called when {@code execute()} or {@code executeAsync()}
+	 * is called.
 	 *
-	 * <p>Exactly one of the passed parameters is null, respectively for failure or success.
- 	 *
 	 * @param jobClient a {@link JobClient} for the submitted job
-	 * @param throwable the cause if submission failed
 	 */
-	void onJobSubmitted(@Nullable JobClient jobClient, @Nullable Throwable throwable);
+	void onJobSubmitted(CompletableFuture<JobClient> jobClient);
 
 	/**
 	 * Callback on job execution finished, successfully or unsuccessfully. It is only called
-	 * back when you call {@code #execute} instead of {@code executeAsync} methods of execution
+	 * back when you call {@code execute()} instead of {@code executeAsync()} methods of execution
 	 * environments.
 	 *
 	 * <p>Exactly one of the passed parameters is null, respectively for failure or success.

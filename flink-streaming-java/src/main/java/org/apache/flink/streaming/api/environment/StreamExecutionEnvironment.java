@@ -1740,13 +1740,9 @@ public class StreamExecutionEnvironment {
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);
 
-		return jobClientFuture.whenComplete((jobClient, throwable) -> {
-			if (throwable != null) {
-				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, throwable));
-			} else {
-				jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
-			}
-		});
+		jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClientFuture));
+
+		return jobClientFuture;
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
