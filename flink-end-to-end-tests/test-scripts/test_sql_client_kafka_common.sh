@@ -100,10 +100,8 @@ cat >> $SQL_CONF << EOF
       topic: test-avro
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
     format:
       type: avro
       avro-schema: >

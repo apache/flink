@@ -79,6 +79,7 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_TYPE_VALUE_ELASTICSEARCH;
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.validateAndParseHostsString;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
@@ -117,6 +118,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(UPDATE_MODE);
 
 		// Elasticsearch
+		properties.add(CONNECTOR_HOSTS);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_HOSTNAME);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PORT);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PROTOCOL);
@@ -200,15 +202,19 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 	}
 
 	private List<Host> getHosts(DescriptorProperties descriptorProperties) {
-		final List<Map<String, String>> hosts = descriptorProperties.getFixedIndexedProperties(
-			CONNECTOR_HOSTS,
-			Arrays.asList(CONNECTOR_HOSTS_HOSTNAME, CONNECTOR_HOSTS_PORT, CONNECTOR_HOSTS_PROTOCOL));
-		return hosts.stream()
-			.map(host -> new Host(
-				descriptorProperties.getString(host.get(CONNECTOR_HOSTS_HOSTNAME)),
-				descriptorProperties.getInt(host.get(CONNECTOR_HOSTS_PORT)),
-				descriptorProperties.getString(host.get(CONNECTOR_HOSTS_PROTOCOL))))
-			.collect(Collectors.toList());
+		if (descriptorProperties.containsKey(CONNECTOR_HOSTS)) {
+			return validateAndParseHostsString(descriptorProperties);
+		} else {
+			final List<Map<String, String>> hosts = descriptorProperties.getFixedIndexedProperties(
+				CONNECTOR_HOSTS,
+				Arrays.asList(CONNECTOR_HOSTS_HOSTNAME, CONNECTOR_HOSTS_PORT, CONNECTOR_HOSTS_PROTOCOL));
+			return hosts.stream()
+				.map(host -> new Host(
+					descriptorProperties.getString(host.get(CONNECTOR_HOSTS_HOSTNAME)),
+					descriptorProperties.getInt(host.get(CONNECTOR_HOSTS_PORT)),
+					descriptorProperties.getString(host.get(CONNECTOR_HOSTS_PROTOCOL))))
+				.collect(Collectors.toList());
+		}
 	}
 
 	private SerializationSchema<Row> getSerializationSchema(Map<String, String> properties) {
