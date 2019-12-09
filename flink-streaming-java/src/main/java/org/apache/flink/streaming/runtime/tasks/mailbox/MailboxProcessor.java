@@ -198,6 +198,9 @@ public class MailboxProcessor implements Closeable {
 				if (throwable instanceof Exception) {
 					throw (Exception) throwable;
 				}
+				else if (throwable instanceof Error) {
+					throw (Error) throwable;
+				}
 				else {
 					throw WrappingRuntimeException.wrapIfNecessary(throwable);
 				}
