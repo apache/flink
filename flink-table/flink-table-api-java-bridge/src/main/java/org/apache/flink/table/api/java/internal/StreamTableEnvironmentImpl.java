@@ -110,7 +110,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 		ModuleManager moduleManager = new ModuleManager();
 
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = lookupExecutor(executorProperties, executionEnvironment);

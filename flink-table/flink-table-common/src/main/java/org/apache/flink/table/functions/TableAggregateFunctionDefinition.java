@@ -49,6 +49,10 @@ public final class TableAggregateFunctionDefinition implements FunctionDefinitio
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
+	public String getName() {
+		return name;
+	}
+
 	public TableAggregateFunction<?, ?> getTableAggregateFunction() {
 		return aggregateFunction;
 	}

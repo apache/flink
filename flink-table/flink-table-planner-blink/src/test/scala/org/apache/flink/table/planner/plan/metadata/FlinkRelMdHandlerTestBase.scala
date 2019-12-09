@@ -91,7 +91,7 @@ class FlinkRelMdHandlerTestBase {
   val plannerContext: PlannerContext =
     new PlannerContext(
       tableConfig,
-      new FunctionCatalog(catalogManager, moduleManager),
+      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
       catalogManager,
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
