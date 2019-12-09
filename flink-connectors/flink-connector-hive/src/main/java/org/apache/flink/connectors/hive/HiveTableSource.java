@@ -75,10 +75,10 @@ public class HiveTableSource implements
 	private final JobConf jobConf;
 	private final ObjectPath tablePath;
 	private final CatalogTable catalogTable;
+	// Remaining partition specs after partition pruning is performed. Null if pruning is not pushed down.
+	private List<Map<String, String>> remainingPartitions = null;
 	private List<HiveTablePartition> allHivePartitions;
 	private String hiveVersion;
-	private Map<Map<String, String>, HiveTablePartition> partitionSpec2HiveTablePartition = new HashMap<>();
-	private boolean initAllPartitions;
 	private boolean partitionPruned;
 	private int[] projectedFields;
 	private boolean isLimitPushDown = false;
@@ -90,15 +90,13 @@ public class HiveTableSource implements
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
-		initAllPartitions = false;
 		partitionPruned = false;
 	}
 
 	// A constructor mainly used to create copies during optimizations like partition pruning and projection push down.
 	private HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable,
-							List<HiveTablePartition> allHivePartitions,
+							List<Map<String, String>> remainingPartitions,
 							String hiveVersion,
-							boolean initAllPartitions,
 							boolean partitionPruned,
 							int[] projectedFields,
 							boolean isLimitPushDown,
@@ -106,9 +104,8 @@ public class HiveTableSource implements
 		this.jobConf = Preconditions.checkNotNull(jobConf);
 		this.tablePath = Preconditions.checkNotNull(tablePath);
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
-		this.allHivePartitions = allHivePartitions;
+		this.remainingPartitions = remainingPartitions;
 		this.hiveVersion = hiveVersion;
-		this.initAllPartitions = initAllPartitions;
 		this.partitionPruned = partitionPruned;
 		this.projectedFields = projectedFields;
 		this.isLimitPushDown = isLimitPushDown;
@@ -122,9 +119,7 @@ public class HiveTableSource implements
 
 	@Override
 	public DataStream<BaseRow> getDataStream(StreamExecutionEnvironment execEnv) {
-		if (!initAllPartitions) {
-			initAllPartitions(null);
-		}
+		initAllPartitions();
 
 		@SuppressWarnings("unchecked")
 		TypeInformation<BaseRow> typeInfo =
@@ -192,8 +187,8 @@ public class HiveTableSource implements
 
 	@Override
 	public TableSource<BaseRow> applyLimit(long limit) {
-		return new HiveTableSource(jobConf, tablePath, catalogTable, allHivePartitions, hiveVersion,
-						initAllPartitions, partitionPruned, projectedFields, true, limit);
+		return new HiveTableSource(jobConf, tablePath, catalogTable, remainingPartitions, hiveVersion,
+						partitionPruned, projectedFields, true, limit);
 	}
 
 	@Override
@@ -207,23 +202,12 @@ public class HiveTableSource implements
 		if (catalogTable.getPartitionKeys() == null || catalogTable.getPartitionKeys().size() == 0) {
 			return this;
 		} else {
-			if (!initAllPartitions) {
-				initAllPartitions(remainingPartitions);
-			}
-
-			List<HiveTablePartition> remainingHivePartitions = new ArrayList<>();
-			for (Map<String, String> partitionSpec : remainingPartitions) {
-				HiveTablePartition hiveTablePartition = partitionSpec2HiveTablePartition.get(partitionSpec);
-				Preconditions.checkNotNull(hiveTablePartition, String.format("remainingPartitions must contain " +
-																			"partition spec %s", partitionSpec));
-				remainingHivePartitions.add(hiveTablePartition);
-			}
-			return new HiveTableSource(jobConf, tablePath, catalogTable, remainingHivePartitions, hiveVersion,
-						true, true, projectedFields, isLimitPushDown, limit);
+			return new HiveTableSource(jobConf, tablePath, catalogTable, remainingPartitions, hiveVersion,
+					true, projectedFields, isLimitPushDown, limit);
 		}
 	}
 
-	private void initAllPartitions(List<Map<String, String>> specsToFetch) {
+	private void initAllPartitions() {
 		allHivePartitions = new ArrayList<>();
 		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
 		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
@@ -236,8 +220,8 @@ public class HiveTableSource implements
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 				List<Partition> partitions = new ArrayList<>();
-				if (specsToFetch != null) {
-					for (Map<String, String> spec : specsToFetch) {
+				if (remainingPartitions != null) {
+					for (Map<String, String> spec : remainingPartitions) {
 						partitions.add(client.getPartition(dbName, tableName, partitionSpecToValues(spec, partitionColNames)));
 					}
 				} else {
@@ -246,11 +230,9 @@ public class HiveTableSource implements
 				for (Partition partition : partitions) {
 					StorageDescriptor sd = partition.getSd();
 					Map<String, Object> partitionColValues = new HashMap<>();
-					Map<String, String> partitionSpec = new HashMap<>();
 					for (int i = 0; i < partitionColNames.size(); i++) {
 						String partitionColName = partitionColNames.get(i);
 						String partitionValue = partition.getValues().get(i);
-						partitionSpec.put(partitionColName, partitionValue);
 						DataType type = catalogTable.getSchema().getFieldDataType(partitionColName).get();
 						Object partitionObject;
 						if (defaultPartitionName.equals(partitionValue)) {
@@ -264,7 +246,6 @@ public class HiveTableSource implements
 					}
 					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues);
 					allHivePartitions.add(hiveTablePartition);
-					partitionSpec2HiveTablePartition.put(partitionSpec, hiveTablePartition);
 				}
 			} else {
 				allHivePartitions.add(new HiveTablePartition(client.getTable(dbName, tableName).getSd()));
@@ -272,7 +253,6 @@ public class HiveTableSource implements
 		} catch (TException e) {
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
-		initAllPartitions = true;
 	}
 
 	private static List<String> partitionSpecToValues(Map<String, String> spec, List<String> partitionColNames) {
@@ -314,7 +294,7 @@ public class HiveTableSource implements
 	@Override
 	public String explainSource() {
 		String explain = String.format(" TablePath: %s, PartitionPruned: %s, PartitionNums: %d",
-				tablePath.getFullName(), partitionPruned, null == allHivePartitions ? 0 : allHivePartitions.size());
+				tablePath.getFullName(), partitionPruned, null == remainingPartitions ? null : remainingPartitions.size());
 		if (projectedFields != null) {
 			explain += ", ProjectedFields: " + Arrays.toString(projectedFields);
 		}
@@ -326,7 +306,7 @@ public class HiveTableSource implements
 
 	@Override
 	public TableSource<BaseRow> projectFields(int[] fields) {
-		return new HiveTableSource(jobConf, tablePath, catalogTable, allHivePartitions, hiveVersion,
-				initAllPartitions, partitionPruned, fields, isLimitPushDown, limit);
+		return new HiveTableSource(jobConf, tablePath, catalogTable, remainingPartitions, hiveVersion,
+				partitionPruned, fields, isLimitPushDown, limit);
 	}
 }

@@ -276,7 +276,7 @@ public class HiveTableSourceTest {
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];
 			String expectedExplain =
-					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: 2, ProjectedFields: [2, 1]";
+					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: null, ProjectedFields: [2, 1]";
 			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
@@ -310,7 +310,7 @@ public class HiveTableSourceTest {
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];
 			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
-									"PartitionNums: 1, LimitPushDown true, Limit 1";
+									"PartitionNums: null, LimitPushDown true, Limit 1";
 			assertTrue(logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan.contains(expectedExplain));
 
