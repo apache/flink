@@ -560,7 +560,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
-			.setNativeMetricOptions(getMemoryWatcherOptions(resourceContainer));
+			.setNativeMetricOptions(resourceContainer.getMemoryWatcherOptions(defaultMetricOptions));
 		return builder.build();
 	}
 
@@ -851,16 +851,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			getConfiguredPredefinedOptionsOrDefault(),
 			optionsFactory);
 		return resourceContainer.getColumnOptions();
-	}
-
-	public RocksDBNativeMetricOptions getMemoryWatcherOptions(RocksDBResourceContainer resourceContainer) {
-		RocksDBNativeMetricOptions options = this.defaultMetricOptions;
-		OptionsFactory optionsFactory = resourceContainer.getOptionsFactory();
-		if (optionsFactory != null) {
-			options = optionsFactory.createNativeMetricsOptions(options);
-		}
-
-		return options;
 	}
 
 	/**
