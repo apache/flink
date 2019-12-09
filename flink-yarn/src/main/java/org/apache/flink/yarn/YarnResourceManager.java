@@ -419,8 +419,21 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 			nodeManagerClient.startContainerAsync(container, taskExecutorLaunchContext);
 		} catch (Throwable t) {
-			onStartContainerError(container.getId(), t);
+			releaseFailedContainerAndRequestNewContainerIfRequired(container.getId(), t);
 		}
+	}
+
+	private void releaseFailedContainerAndRequestNewContainerIfRequired(ContainerId containerId, Throwable throwable) {
+		validateRunsInMainThread();
+
+		log.error("Could not start TaskManager in container {}.", containerId, throwable);
+
+		final ResourceID resourceId = new ResourceID(containerId.toString());
+		// release the failed container
+		workerNodeMap.remove(resourceId);
+		resourceManagerClient.releaseAssignedContainer(containerId);
+		// and ask for a new one
+		requestYarnContainerIfRequired();
 	}
 
 	private void returnExcessContainer(Container excessContainer) {
@@ -478,7 +491,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	// ------------------------------------------------------------------------
 	@Override
 	public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> map) {
-		log.debug("Succeed to call YARN Node Manager to start container", containerId);
+		log.debug("Succeeded to call YARN Node Manager to start container {}.", containerId);
 	}
 
 	@Override
@@ -488,19 +501,12 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onContainerStopped(ContainerId containerId) {
-		log.debug("Succeed to call YARN Node Manager to stop container", containerId);
+		log.debug("Succeeded to call YARN Node Manager to stop container {}.", containerId);
 	}
 
 	@Override
-	public void onStartContainerError(ContainerId containerId, Throwable throwable) {
-		log.error("Could not start TaskManager in container {}.", containerId, throwable);
-
-		final ResourceID resourceId = new ResourceID(containerId.toString());
-		// release the failed container
-		workerNodeMap.remove(resourceId);
-		resourceManagerClient.releaseAssignedContainer(containerId);
-		// and ask for a new one
-		requestYarnContainerIfRequired();
+	public void onStartContainerError(ContainerId containerId, Throwable t) {
+		runAsync(() -> releaseFailedContainerAndRequestNewContainerIfRequired(containerId, t));
 	}
 
 	@Override
@@ -510,7 +516,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onStopContainerError(ContainerId containerId, Throwable throwable) {
-		log.warn("Error while calling YARN Node Manager to stop container {}", containerId, throwable);
+		log.warn("Error while calling YARN Node Manager to stop container {}.", containerId, throwable);
 	}
 
 	// ------------------------------------------------------------------------
