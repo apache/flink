@@ -508,11 +508,11 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * its usage. In other case, there may be resource leaks depending on the JobClient
    * implementation.
    *
-   * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
+   * @return A [[JobClient]] that can be used to communicate with the submitted job,
    *         completed on submission succeeded.
    */
   @PublicEvolving
-  def executeAsync(): CompletableFuture[JobClient] = javaEnv.executeAsync()
+  def executeAsync(): JobClient = javaEnv.executeAsync()
 
   /**
    * Triggers the program execution asynchronously.
@@ -528,11 +528,11 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * its usage. In other case, there may be resource leaks depending on the JobClient
    * implementation.
    *
-   * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
+   * @return A [[JobClient]] that can be used to communicate with the submitted job,
    *         completed on submission succeeded.
    */
   @PublicEvolving
-  def executeAsync(jobName: String): CompletableFuture[JobClient] = javaEnv.executeAsync(jobName)
+  def executeAsync(jobName: String): JobClient = javaEnv.executeAsync(jobName)
 
   /**
    * Creates the plan with which the system will execute the program, and returns it as  a String

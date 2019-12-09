@@ -817,7 +817,7 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
-		final JobClient jobClient = executeAsync(jobName).get();
+		final JobClient jobClient = executeAsync(jobName);
 
 		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
 			lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
@@ -837,11 +837,11 @@ public class ExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with a generated default name.
 	 *
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
 	 */
 	@PublicEvolving
-	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+	public final JobClient executeAsync() throws Exception {
 		return executeAsync(getDefaultName());
 	}
 
@@ -854,11 +854,11 @@ public class ExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with the given job name.
 	 *
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
 	 */
 	@PublicEvolving
-	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+	public JobClient executeAsync(String jobName) throws Exception {
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
 		consolidateParallelismDefinitionsInConfiguration();
@@ -872,9 +872,11 @@ public class ExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		return executorFactory
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(plan, configuration);
+
+		return jobClientFuture.get();
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
