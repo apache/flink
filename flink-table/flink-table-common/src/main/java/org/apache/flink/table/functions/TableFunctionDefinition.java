@@ -46,6 +46,10 @@ public final class TableFunctionDefinition implements FunctionDefinition {
 		this.resultType = Preconditions.checkNotNull(resultType);
 	}
 
+	public String getName() {
+		return name;
+	}
+
 	public TableFunction<?> getTableFunction() {
 		return tableFunction;
 	}

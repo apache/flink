@@ -49,6 +49,10 @@ public final class AggregateFunctionDefinition implements FunctionDefinition {
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
+	public String getName() {
+		return name;
+	}
+
 	public AggregateFunction<?, ?> getAggregateFunction() {
 		return aggregateFunction;
 	}

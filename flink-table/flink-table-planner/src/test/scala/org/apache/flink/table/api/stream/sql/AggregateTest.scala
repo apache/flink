@@ -68,15 +68,16 @@ class AggregateTest extends TableTestBase {
   @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
     val defaultCatalog = "default_catalog"
+    val config = new TableConfig
     val catalogManager = new CatalogManager(
       defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
     val moduleManager = new ModuleManager
-    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
+    val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
     val tablEnv = new StreamTableEnvironmentImpl(
       catalogManager,
       moduleManager,
       functionCatalog,
-      new TableConfig,
+      config,
       Mockito.mock(classOf[StreamExecutionEnvironment]),
       Mockito.mock(classOf[Planner]),
       Mockito.mock(classOf[Executor]),

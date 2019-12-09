@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig.ClosureCleanerLevel;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.table.api.TableConfig;
@@ -146,9 +147,20 @@ public class UserDefinedFunctionHelper {
 	}
 
 	/**
+	 * Prepares a {@link UserDefinedFunction} for usage in the API.
+	 */
+	public static void prepareFunction(TableConfig config, UserDefinedFunction function) {
+		if (function instanceof TableFunction) {
+			UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
+		}
+		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
+		UserDefinedFunctionHelper.cleanFunction(config, function);
+	}
+
+	/**
 	 * Checks if a user-defined function can be easily instantiated.
 	 */
-	public static void validateInstantiation(Class<?> clazz) {
+	private static void validateInstantiation(Class<?> clazz) {
 		if (!InstantiationUtil.isPublic(clazz)) {
 			throw new ValidationException(String.format("Function class %s is not public.", clazz.getCanonicalName()));
 		} else if (!InstantiationUtil.isProperClass(clazz)) {
@@ -159,15 +171,33 @@ public class UserDefinedFunctionHelper {
 	}
 
 	/**
-	 * Check whether this is a Scala object. It is forbidden to use {@link TableFunction} implemented
-	 * by a Scala object, since concurrent risks.
+	 * Check whether this is a Scala object. Using Scala objects can lead to concurrency issues,
+	 * e.g., due to a shared collector.
 	 */
-	public static void validateNotSingleton(Class<?> clazz) {
+	private static void validateNotSingleton(Class<?> clazz) {
 		// TODO it is not a good way to check singleton. Maybe improve it further.
 		if (Arrays.stream(clazz.getFields()).anyMatch(f -> f.getName().equals("MODULE$"))) {
 			throw new ValidationException(String.format(
-				"TableFunction implemented by class %s is a Scala object. This is forbidden because of concurrency" +
+				"Function implemented by class %s is a Scala object. This is forbidden because of concurrency" +
 					" problems when using them.", clazz.getCanonicalName()));
+		}
+	}
+
+	/**
+	 * Modifies a function instance by removing any reference to outer classes. This enables
+	 * non-static inner function classes.
+	 */
+	private static void cleanFunction(TableConfig config, UserDefinedFunction function) {
+		final ClosureCleanerLevel level = config.getConfiguration().get(PipelineOptions.CLOSURE_CLEANER_LEVEL);
+		try {
+			ClosureCleaner.clean(function, level, true);
+		} catch (Throwable t) {
+			throw new ValidationException(
+				String.format(
+					"Function class '%s' is not serializable. Make sure that the class is self-contained " +
+						"(i.e. no references to outer classes) and all inner fields are serializable as well.",
+					function.getClass()),
+				t);
 		}
 	}
 

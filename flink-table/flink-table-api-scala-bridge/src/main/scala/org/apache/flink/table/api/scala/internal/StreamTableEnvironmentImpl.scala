@@ -315,7 +315,7 @@ object StreamTableEnvironmentImpl {
       new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
 
     val moduleManager = new ModuleManager
-    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
+    val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
     val executorProperties = settings.toExecutorProperties
     val executor = lookupExecutor(executorProperties, executionEnvironment)

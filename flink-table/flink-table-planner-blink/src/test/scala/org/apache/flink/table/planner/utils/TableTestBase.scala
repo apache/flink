@@ -1087,7 +1087,7 @@ object TestingTableEnvironment {
             settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
     }
     val moduleManager = new ModuleManager
-    val functionCatalog = new FunctionCatalog(catalogMgr, moduleManager)
+    val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
     val plannerProperties = settings.toPlannerProperties
     val executorProperties = settings.toExecutorProperties
     val executor = ComponentFactoryService.find(classOf[ExecutorFactory],

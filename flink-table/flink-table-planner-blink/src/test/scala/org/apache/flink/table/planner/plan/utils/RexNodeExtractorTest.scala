@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{DataTypes, TableConfig}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
@@ -56,7 +56,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   val catalogManager = new CatalogManager(
     defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
   val moduleManager = new ModuleManager
-  private val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
+  private val functionCatalog = new FunctionCatalog(
+    TableConfig.getDefault,
+    catalogManager,
+    moduleManager)
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](

@@ -45,6 +45,7 @@ public class CallExpressionResolver {
 			.build()
 			.getCluster().getPlanner().getContext().unwrap(FlinkContext.class);
 		this.resolver = ExpressionResolver.resolverFor(
+			context.getTableConfig(),
 			name -> Optional.empty(),
 			context.getFunctionCatalog()).build();
 	}

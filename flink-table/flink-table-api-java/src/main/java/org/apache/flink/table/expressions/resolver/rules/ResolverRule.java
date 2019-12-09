@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
@@ -46,6 +47,11 @@ public interface ResolverRule {
 	 * name etc.
 	 */
 	interface ResolutionContext {
+
+		/**
+		 * Access to configuration.
+		 */
+		TableConfig configuration();
 
 		/**
 		 * Access to available {@link org.apache.flink.table.expressions.FieldReferenceExpression} in inputs.
