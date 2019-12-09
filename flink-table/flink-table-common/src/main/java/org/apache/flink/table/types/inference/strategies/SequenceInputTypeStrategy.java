@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.util.Preconditions;
 
@@ -35,57 +35,63 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Validator that checks for a sequence of {@link ArgumentTypeValidator}s for validating an entire
- * function signature like {@code f(STRING, NUMERIC)} or {@code f(s STRING, n NUMERIC)}.
+ * Strategy for inferring and validating a function signature like {@code f(STRING, NUMERIC)}
+ * or {@code f(s STRING, n NUMERIC)} using a sequence of {@link ArgumentTypeStrategy}s.
  */
 @Internal
-public final class SequenceInputValidator implements InputTypeValidator {
+public final class SequenceInputTypeStrategy implements InputTypeStrategy {
 
-	private final List<? extends ArgumentTypeValidator> validators;
+	private final List<? extends ArgumentTypeStrategy> argumentStrategies;
 
 	private final @Nullable List<String> argumentNames;
 
-	public SequenceInputValidator(
-			List<? extends ArgumentTypeValidator> validators,
+	public SequenceInputTypeStrategy(
+			List<? extends ArgumentTypeStrategy> argumentStrategies,
 			@Nullable List<String> argumentNames) {
-		Preconditions.checkArgument(validators.size() > 0);
-		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == validators.size());
-		this.validators = validators;
+		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == argumentStrategies.size());
+		this.argumentStrategies = argumentStrategies;
 		this.argumentNames = argumentNames;
 	}
 
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(validators.size());
+		return ConstantArgumentCount.of(argumentStrategies.size());
 	}
 
 	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
+	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
 		final List<DataType> dataTypes = callContext.getArgumentDataTypes();
-		if (dataTypes.size() != validators.size()) {
-			return false;
+		if (dataTypes.size() != argumentStrategies.size()) {
+			return Optional.empty();
 		}
-		for (int i = 0; i < validators.size(); i++) {
-			final ArgumentTypeValidator validator = validators.get(i);
-			if (!validator.validateArgument(callContext, i, throwOnFailure)) {
-				return false;
+		final List<DataType> inferredDataTypes = new ArrayList<>(dataTypes.size());
+		for (int i = 0; i < argumentStrategies.size(); i++) {
+			final ArgumentTypeStrategy argumentTypeStrategy = argumentStrategies.get(i);
+			final Optional<DataType> inferredDataType = argumentTypeStrategy.inferArgumentType(
+				callContext,
+				i,
+				throwOnFailure);
+			if (!inferredDataType.isPresent()) {
+				return Optional.empty();
 			}
+			inferredDataTypes.add(inferredDataType.get());
 		}
-		return true;
+		return Optional.of(inferredDataTypes);
 	}
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
 		final List<Signature.Argument> arguments = new ArrayList<>();
-		for (int i = 0; i < validators.size(); i++) {
+		for (int i = 0; i < argumentStrategies.size(); i++) {
 			if (argumentNames == null) {
-				arguments.add(validators.get(i).getExpectedArgument(definition, i));
+				arguments.add(argumentStrategies.get(i).getExpectedArgument(definition, i));
 			} else {
 				arguments.add(Signature.Argument.of(
 					argumentNames.get(i),
-					validators.get(i).getExpectedArgument(definition, i).getType()));
+					argumentStrategies.get(i).getExpectedArgument(definition, i).getType()));
 			}
 		}
 
@@ -100,13 +106,13 @@ public final class SequenceInputValidator implements InputTypeValidator {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		SequenceInputValidator that = (SequenceInputValidator) o;
-		return Objects.equals(validators, that.validators) &&
+		SequenceInputTypeStrategy that = (SequenceInputTypeStrategy) o;
+		return Objects.equals(argumentStrategies, that.argumentStrategies) &&
 			Objects.equals(argumentNames, that.argumentNames);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(validators, argumentNames);
+		return Objects.hash(argumentStrategies, argumentNames);
 	}
 }

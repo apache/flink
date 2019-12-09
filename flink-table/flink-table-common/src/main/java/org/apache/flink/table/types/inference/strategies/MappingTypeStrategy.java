@@ -21,33 +21,50 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
- * Type strategy that maps an {@link InputTypeValidator} to a {@link TypeStrategy} if the validator
- * matches.
+ * Type strategy that maps an {@link InputTypeStrategy} to a {@link TypeStrategy} if the input strategy
+ * infers identical types.
  */
 @Internal
-public final class MatchingTypeStrategy implements TypeStrategy {
+public final class MappingTypeStrategy implements TypeStrategy {
 
-	private final Map<InputTypeValidator, TypeStrategy> matchers;
+	private final Map<InputTypeStrategy, TypeStrategy> mappings;
 
-	public MatchingTypeStrategy(Map<InputTypeValidator, TypeStrategy> matchers) {
-		this.matchers = matchers;
+	public MappingTypeStrategy(Map<InputTypeStrategy, TypeStrategy> mappings) {
+		this.mappings = mappings;
 	}
 
 	@Override
 	public Optional<DataType> inferType(CallContext callContext) {
-		for (Map.Entry<InputTypeValidator, TypeStrategy> matcher : matchers.entrySet()) {
-			final InputTypeValidator validator = matcher.getKey();
-			final TypeStrategy strategy = matcher.getValue();
-			if (validator.getArgumentCount().isValidCount(callContext.getArgumentDataTypes().size()) &&
-					validator.validate(callContext, false)) {
+		final List<LogicalType> actualTypes = callContext.getArgumentDataTypes().stream()
+			.map(DataType::getLogicalType)
+			.collect(Collectors.toList());
+		for (Map.Entry<InputTypeStrategy, TypeStrategy> mapping : mappings.entrySet()) {
+			final InputTypeStrategy inputStrategy = mapping.getKey();
+			final TypeStrategy strategy = mapping.getValue();
+			if (!inputStrategy.getArgumentCount().isValidCount(actualTypes.size())) {
+				continue;
+			}
+			final Optional<List<DataType>> inferredDataTypes = inputStrategy.inferInputTypes(
+				callContext,
+				false);
+			if (!inferredDataTypes.isPresent()) {
+				continue;
+			}
+			final List<LogicalType> inferredTypes = inferredDataTypes.get().stream()
+				.map(DataType::getLogicalType)
+				.collect(Collectors.toList());
+			if (actualTypes.equals(inferredTypes)) {
 				return strategy.inferType(callContext);
 			}
 		}
@@ -62,12 +79,12 @@ public final class MatchingTypeStrategy implements TypeStrategy {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		MatchingTypeStrategy that = (MatchingTypeStrategy) o;
-		return matchers.equals(that.matchers);
+		MappingTypeStrategy that = (MappingTypeStrategy) o;
+		return mappings.equals(that.mappings);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(matchers);
+		return Objects.hash(mappings);
 	}
 }

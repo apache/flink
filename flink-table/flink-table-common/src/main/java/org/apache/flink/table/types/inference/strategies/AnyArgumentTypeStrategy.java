@@ -18,41 +18,37 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
-import org.apache.flink.table.types.inference.MutableCallContext;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.Signature;
 
-import java.util.List;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import java.util.Optional;
 
 /**
- * Input type strategy that supplies the function's output {@link DataType} for each unknown
- * argument if available.
+ * Strategy for an argument that can be of any type.
  */
 @Internal
-public final class OutputTypeInputTypeStrategy implements InputTypeStrategy {
+public final class AnyArgumentTypeStrategy implements ArgumentTypeStrategy {
 
 	@Override
-	public void inferInputTypes(MutableCallContext callContext) {
-		callContext.getOutputDataType().ifPresent(t -> {
-			final List<DataType> dataTypes = callContext.getArgumentDataTypes();
-			for (int i = 0; i < dataTypes.size(); i++) {
-				if (hasRoot(dataTypes.get(i).getLogicalType(), LogicalTypeRoot.NULL)) {
-					callContext.mutateArgumentDataType(i, t);
-				}
-			}
-		});
+	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
+		return Optional.of(callContext.getArgumentDataTypes().get(argumentPos));
+	}
+
+	@Override
+	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+		return Signature.Argument.of("<ANY>");
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o instanceof OutputTypeInputTypeStrategy;
+		return this == o || o instanceof AnyArgumentTypeStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return OutputTypeInputTypeStrategy.class.hashCode();
+		return AnyArgumentTypeStrategy.class.hashCode();
 	}
 }
