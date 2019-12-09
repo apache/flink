@@ -114,16 +114,13 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	// Store it because we need it for the cleanup test.
 	private String dbPath;
 	private RocksDB db = null;
-	private File instanceBasePath = null;
 	private ColumnFamilyHandle defaultCFHandle = null;
 	private ColumnFamilyOptions columnOptions = null;
 	private RocksDBResourceContainer optionsContainer = null;
 	private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
 	public void prepareRocksDB() throws Exception {
-		instanceBasePath = tempFolder.newFolder();
-		instanceBasePath.mkdirs();
-		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
+		String dbPath = new File(tempFolder.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
 		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose);
 		optionsContainer = new RocksDBResourceContainer();
 		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
@@ -170,11 +167,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			}
 			allCreatedCloseables = null;
 		}
-		try {
-			org.apache.flink.util.FileUtils.deleteDirectory(instanceBasePath);
-		} catch (Exception ex) {
-			// ignored
-		}
 	}
 
 	public void setupRocksKeyedStateBackend() throws Exception {
@@ -189,7 +181,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		prepareRocksDB();
 
 		keyedStateBackend = RocksDBTestUtils.builderForTestDB(
-				instanceBasePath,
+				tempFolder.newFolder(), // this is not used anyways because the DB is injected
 				IntSerializer.INSTANCE,
 				spy(db),
 				defaultCFHandle,
