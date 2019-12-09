@@ -33,7 +33,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
@@ -57,8 +56,6 @@ import static org.apache.flink.kubernetes.cli.KubernetesCliOptions.CLUSTER_ID_OP
 import static org.apache.flink.kubernetes.cli.KubernetesCliOptions.DYNAMIC_PROPERTY_OPTION;
 import static org.apache.flink.kubernetes.cli.KubernetesCliOptions.HELP_OPTION;
 import static org.apache.flink.kubernetes.cli.KubernetesCliOptions.IMAGE_OPTION;
-import static org.apache.flink.kubernetes.cli.KubernetesCliOptions.JOB_CLASS_NAME_OPTION;
-import static org.apache.flink.kubernetes.cli.KubernetesCliOptions.JOB_ID_OPTION;
 
 /**
  * Kubernetes customized commandline.
@@ -84,9 +81,6 @@ public class FlinkKubernetesCustomCli extends AbstractCustomCommandLine {
 	private final Option taskManagerSlotsOption;
 	private final Option dynamicPropertiesOption;
 	private final Option helpOption;
-
-	private final Option jobClassOption;
-	private final Option jobIdOption;
 
 	private final ClusterClientServiceLoader clusterClientServiceLoader;
 
@@ -114,9 +108,6 @@ public class FlinkKubernetesCustomCli extends AbstractCustomCommandLine {
 			KubernetesCliOptions.TASK_MANAGER_MEMORY_OPTION, shortPrefix, longPrefix);
 		this.taskManagerSlotsOption = KubernetesCliOptions.getOptionWithPrefix(
 			KubernetesCliOptions.TASK_MANAGER_SLOTS_OPTION, shortPrefix, longPrefix);
-
-		this.jobClassOption = KubernetesCliOptions.getOptionWithPrefix(JOB_CLASS_NAME_OPTION, shortPrefix, longPrefix);
-		this.jobIdOption = KubernetesCliOptions.getOptionWithPrefix(JOB_ID_OPTION, shortPrefix, longPrefix);
 
 		this.helpOption = KubernetesCliOptions.getOptionWithPrefix(HELP_OPTION, shortPrefix, longPrefix);
 	}
@@ -195,25 +186,6 @@ public class FlinkKubernetesCustomCli extends AbstractCustomCommandLine {
 		final Properties dynamicProperties = commandLine.getOptionProperties(dynamicPropertiesOption.getOpt());
 		for (String key : dynamicProperties.stringPropertyNames()) {
 			effectiveConfiguration.setString(key, dynamicProperties.getProperty(key));
-		}
-
-		final StringBuilder entryPointClassArgs = new StringBuilder();
-		if (commandLine.hasOption(jobClassOption.getOpt())) {
-			entryPointClassArgs.append(" --")
-				.append(jobClassOption.getLongOpt())
-				.append(" ")
-				.append(commandLine.getOptionValue(jobClassOption.getOpt()));
-		}
-
-		if (commandLine.hasOption(jobIdOption.getOpt())) {
-			entryPointClassArgs.append(" --")
-				.append(jobIdOption.getLongOpt())
-				.append(" ")
-				.append(commandLine.getOptionValue(jobIdOption.getOpt()));
-		}
-		if (!entryPointClassArgs.toString().isEmpty()) {
-			effectiveConfiguration.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS_ARGS,
-				entryPointClassArgs.toString());
 		}
 
 		return effectiveConfiguration;
