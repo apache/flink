@@ -112,7 +112,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.startup-mode': 'specific-offsets',
-                    'connector.specific-offsets.0.': 'partition:1,offset:220;partition:3,offset:400',
+                    'connector.specific-offsets': 'partition:1,offset:220;partition:3,offset:400',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -174,7 +174,7 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
         elasticsearch = Elasticsearch().host("localhost", 9200, "http")
 
         properties = elasticsearch.to_properties()
-        expected = {'connector.hosts.': 'http://localhost:9200',
+        expected = {'connector.hosts': 'http://localhost:9200',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
