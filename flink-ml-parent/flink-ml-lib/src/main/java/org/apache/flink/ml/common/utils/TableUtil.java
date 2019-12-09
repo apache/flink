@@ -33,8 +33,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Utility class for the operations on Table, such as the operations on column name, the operations on column type and
- * so on.
+ * Utility to operator to interact with Table contents, such as rows and columns.
  */
 public class TableUtil {
 	/**
