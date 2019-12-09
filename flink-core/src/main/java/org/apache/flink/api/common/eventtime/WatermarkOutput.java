@@ -16,30 +16,29 @@
  limitations under the License.
  */
 
-package org.apache.flink.api.connector.source;
+package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
 /**
- * The interface provided by Flink task to the {@link SourceReader} to emit records
- * to downstream operators for message processing.
+ * An output for watermarks. The output accepts watermarks and idleness (inactivity) status.
  */
 @Public
-public interface SourceOutput<T> extends WatermarkOutput {
+public interface WatermarkOutput {
 
 	/**
-	 * Emit a record without a timestamp. Equivalent to {@link #collect(Object, Long) collect(timestamp, null)};
+	 * Emits the given watermark.
 	 *
-	 * @param record the record to emit.
+	 * <p>Emitting a watermark also implicitly marks the stream as <i>active</i>, ending
+	 * previously marked idleness.
 	 */
-	void collect(T record) throws Exception;
+	void emitWatermark(Watermark watermark);
 
 	/**
-	 * Emit a record with timestamp.
+	 * Marks this output as idle, meaning that downstream operations do not
+	 * wait for watermarks from this output.
 	 *
-	 * @param record the record to emit.
-	 * @param timestamp the timestamp of the record.
+	 * <p>An output becomes active again as soon as the next watermark is emitted.
 	 */
-	void collect(T record, Long timestamp) throws Exception;
+	void markIdle();
 }
