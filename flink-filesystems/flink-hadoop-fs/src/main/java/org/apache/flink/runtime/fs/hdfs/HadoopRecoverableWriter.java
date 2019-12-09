@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream.Committer;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.util.HadoopUtils;
+
 import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +64,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 
 		// Part of functionality depends on specific versions. We check these schemes and versions eagerly for
 		// better error messages.
-		if(!HadoopUtils.isMinHadoopVersion(2, 7)){
+		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
 			LOG.warn("WARNING: You are running on hadoop version " + VersionInfo.getVersion() + ", Recovery which depends on fs.truncate() will throw exception");
 		}
 	}

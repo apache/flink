@@ -194,8 +194,8 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	}
 
 	private static boolean truncate(final FileSystem hadoopFs, final Path file, final long length) throws IOException {
-		if(!HadoopUtils.isMinHadoopVersion(2, 7)){
-			throw new IllegalStateException("Truncation is not available in hadoop version < 2.7 , You are on Hadoop " + VersionInfo.getVersion() );
+		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
+			throw new IllegalStateException("Truncation is not available in hadoop version < 2.7 , You are on Hadoop " + VersionInfo.getVersion());
 		}
 
 		if (truncateHandle != null) {
