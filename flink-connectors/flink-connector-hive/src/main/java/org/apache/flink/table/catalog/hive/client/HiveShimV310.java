@@ -38,7 +38,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -50,25 +52,38 @@ import java.util.Set;
  */
 public class HiveShimV310 extends HiveShimV235 {
 
+	// timestamp classes
 	private static Class hiveTimestampClz;
 	private static Constructor hiveTimestampConstructor;
 	private static Field hiveTimestampLocalDateTime;
-	private static boolean hiveTimestampInited;
 
-	private static void initTimestampClz() {
-		if (!hiveTimestampInited) {
+	// date classes
+	private static Class hiveDateClz;
+	private static Constructor hiveDateConstructor;
+	private static Field hiveDateLocalDate;
+
+	private static boolean hiveClassesInited;
+
+	private static void initDateTimeClasses() {
+		if (!hiveClassesInited) {
 			synchronized (HiveShimV310.class) {
-				if (!hiveTimestampInited) {
+				if (!hiveClassesInited) {
 					try {
 						hiveTimestampClz = Class.forName("org.apache.hadoop.hive.common.type.Timestamp");
 						hiveTimestampConstructor = hiveTimestampClz.getDeclaredConstructor(LocalDateTime.class);
 						hiveTimestampConstructor.setAccessible(true);
 						hiveTimestampLocalDateTime = hiveTimestampClz.getDeclaredField("localDateTime");
 						hiveTimestampLocalDateTime.setAccessible(true);
+
+						hiveDateClz = Class.forName("org.apache.hadoop.hive.common.type.Date");
+						hiveDateConstructor = hiveDateClz.getDeclaredConstructor(LocalDate.class);
+						hiveDateConstructor.setAccessible(true);
+						hiveDateLocalDate = hiveDateClz.getDeclaredField("localDate");
+						hiveDateLocalDate.setAccessible(true);
 					} catch (ClassNotFoundException | NoSuchMethodException | NoSuchFieldException e) {
 						throw new FlinkHiveException("Failed to get Hive timestamp class and constructor", e);
 					}
-					hiveTimestampInited = true;
+					hiveClassesInited = true;
 				}
 			}
 		}
@@ -105,16 +120,13 @@ public class HiveShimV310 extends HiveShimV235 {
 
 	@Override
 	public Class<?> getDateDataTypeClass() {
-		try {
-			return Class.forName("org.apache.hadoop.hive.common.type.Date");
-		} catch (ClassNotFoundException e) {
-			throw new CatalogException("Failed to find class org.apache.hadoop.hive.common.type.Date", e);
-		}
+		initDateTimeClasses();
+		return hiveDateClz;
 	}
 
 	@Override
 	public Class<?> getTimestampDataTypeClass() {
-		initTimestampClz();
+		initDateTimeClasses();
 		return hiveTimestampClz;
 	}
 
@@ -171,7 +183,7 @@ public class HiveShimV310 extends HiveShimV235 {
 	@Override
 	public Object toHiveTimestamp(Object flinkTimestamp) {
 		ensureSupportedFlinkTimestamp(flinkTimestamp);
-		initTimestampClz();
+		initDateTimeClasses();
 		if (flinkTimestamp instanceof Timestamp) {
 			flinkTimestamp = ((Timestamp) flinkTimestamp).toLocalDateTime();
 		}
@@ -184,7 +196,7 @@ public class HiveShimV310 extends HiveShimV235 {
 
 	@Override
 	public LocalDateTime toFlinkTimestamp(Object hiveTimestamp) {
-		initTimestampClz();
+		initDateTimeClasses();
 		Preconditions.checkArgument(hiveTimestampClz.isAssignableFrom(hiveTimestamp.getClass()),
 				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
 				hiveTimestampClz.getName(), hiveTimestamp.getClass().getName());
@@ -192,6 +204,33 @@ public class HiveShimV310 extends HiveShimV235 {
 			return (LocalDateTime) hiveTimestampLocalDateTime.get(hiveTimestamp);
 		} catch (IllegalAccessException e) {
 			throw new FlinkHiveException("Failed to convert to Flink timestamp", e);
+		}
+	}
+
+	@Override
+	public Object toHiveDate(Object flinkDate) {
+		ensureSupportedFlinkDate(flinkDate);
+		initDateTimeClasses();
+		if (flinkDate instanceof Date) {
+			flinkDate = ((Date) flinkDate).toLocalDate();
+		}
+		try {
+			return hiveDateConstructor.newInstance(flinkDate);
+		} catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+			throw new FlinkHiveException("Failed to convert to Hive date", e);
+		}
+	}
+
+	@Override
+	public LocalDate toFlinkDate(Object hiveDate) {
+		initDateTimeClasses();
+		Preconditions.checkArgument(hiveDateClz.isAssignableFrom(hiveDate.getClass()),
+				"Expecting Hive date to be an instance of %s, but actually got %s",
+				hiveDateClz.getName(), hiveDate.getClass().getName());
+		try {
+			return (LocalDate) hiveDateLocalDate.get(hiveDate);
+		} catch (IllegalAccessException e) {
+			throw new FlinkHiveException("Failed to convert to Flink date", e);
 		}
 	}
 }

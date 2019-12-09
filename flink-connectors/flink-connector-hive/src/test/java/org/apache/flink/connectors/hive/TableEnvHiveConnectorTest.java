@@ -44,7 +44,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -142,19 +144,21 @@ public class TableEnvHiveConnectorTest {
 		} else {
 			suffix = "stored as " + format;
 		}
-		hiveShell.execute("create table db1.src (i int,s string,ts timestamp) " + suffix);
-		hiveShell.execute("create table db1.dest (i int,s string,ts timestamp) " + suffix);
+		hiveShell.execute("create table db1.src (i int,s string,ts timestamp,dt date) " + suffix);
+		hiveShell.execute("create table db1.dest (i int,s string,ts timestamp,dt date) " + suffix);
 
 		// prepare source data with Hive
 		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
-		hiveShell.execute("insert into table db1.src values (1,'a','2018-08-20 00:00:00.1'),(2,'b','2019-08-26 00:00:00.1')");
+		hiveShell.execute("insert into table db1.src values " +
+				"(1,'a','2018-08-20 00:00:00.1','2018-08-20'),(2,'b','2019-08-26 00:00:00.1','2019-08-26')");
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
 		tableEnv.execute("test_" + format);
 
 		// verify data on hive side
-		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta\t2018-08-20 00:00:00.1", "2\tb\t2019-08-26 00:00:00.1"));
+		verifyHiveQueryResult("select * from db1.dest",
+				Arrays.asList("1\ta\t2018-08-20 00:00:00.1\t2018-08-20", "2\tb\t2019-08-26 00:00:00.1\t2019-08-26"));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -389,6 +393,31 @@ public class TableEnvHiveConnectorTest {
 			tableEnv.sqlUpdate("insert into db1.dest select max(ts) from db1.src");
 			tableEnv.execute("write timestamp to hive");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-03 15:43:32.123456789"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testDate() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (dt date)");
+			hiveShell.execute("create table db1.dest (dt date)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{Date.valueOf("2019-12-09")})
+					.addRow(new Object[]{Date.valueOf("2019-12-12")})
+					.commit();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			// test read date from hive
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.src"));
+			assertEquals(2, results.size());
+			assertEquals(LocalDate.of(2019, 12, 9), results.get(0).getField(0));
+			assertEquals(LocalDate.of(2019, 12, 12), results.get(1).getField(0));
+			// test write date to hive
+			tableEnv.sqlUpdate("insert into db1.dest select max(dt) from db1.src");
+			tableEnv.execute("write date to hive");
+			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-12"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

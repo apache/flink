@@ -76,7 +76,9 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -364,9 +366,29 @@ public class HiveShimV100 implements HiveShim {
 		return ((Timestamp) hiveTimestamp).toLocalDateTime();
 	}
 
+	@Override
+	public Object toHiveDate(Object flinkDate) {
+		ensureSupportedFlinkDate(flinkDate);
+		return flinkDate instanceof Date ? flinkDate : Date.valueOf((LocalDate) flinkDate);
+	}
+
+	@Override
+	public LocalDate toFlinkDate(Object hiveDate) {
+		Preconditions.checkArgument(hiveDate instanceof Date,
+				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
+				Date.class.getName(), hiveDate.getClass().getName());
+		return ((Date) hiveDate).toLocalDate();
+	}
+
 	void ensureSupportedFlinkTimestamp(Object flinkTimestamp) {
 		Preconditions.checkArgument(flinkTimestamp instanceof Timestamp || flinkTimestamp instanceof LocalDateTime,
 				"Only support converting %s or %s to Hive timestamp, but not %s",
 				Timestamp.class.getName(), LocalDateTime.class.getName(), flinkTimestamp.getClass().getName());
+	}
+
+	void ensureSupportedFlinkDate(Object flinkDate) {
+		Preconditions.checkArgument(flinkDate instanceof Date || flinkDate instanceof LocalDate,
+				"Only support converting %s or %s to Hive date, but not %s",
+				Date.class.getName(), LocalDate.class.getName(), flinkDate.getClass().getName());
 	}
 }
