@@ -35,6 +35,29 @@ DataStreamScan(table=[[default_catalog, default_database, DataStreamTable]], fie
 
     </Resource>
   </TestCase>
+  <TestCase name="testDDLTableScan">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 1:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[ts, a, b], where=[>(a, 1)])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1:INTERVAL SECOND)])
+   +- TableSourceScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]], fields=[ts, a, b])
+]]>
+
+    </Resource>
+  </TestCase>
   <TestCase name="testTableSourceScan">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
@@ -54,23 +77,45 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 
     </Resource>
   </TestCase>
-  <TestCase name="testDDLTableScan">
+  <TestCase name="testDDLWithComputedColumn">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+      <![CDATA[SELECT * FROM t1]]>
 
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
-+- LogicalFilter(condition=[>($1, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]])
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
 ]]>
 
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[ts, a, b], where=[>(a, 1)])
-+- TableSourceScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]], fields=[ts, a, b], rowtime=[ts], watermark=[`ts` - INTERVAL '0.001' SECOND])
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithWatermarkComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 1:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+WatermarkAssigner(rowtime=[d], watermark=[-(d, 1:INTERVAL SECOND)])
++- Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+   +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
 ]]>
 
     </Resource>

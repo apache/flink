@@ -78,7 +78,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 
 	@Nullable
 	@Override
-	public BufferAndBacklog getNextBuffer() throws IOException {
+	public BufferAndBacklog getNextBuffer(boolean isLocalChannel) throws IOException {
 		final Buffer current = nextBuffer; // copy reference to stack
 
 		if (current == null) {

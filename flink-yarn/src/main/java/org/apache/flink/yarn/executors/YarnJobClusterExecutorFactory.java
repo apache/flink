@@ -34,8 +34,7 @@ public class YarnJobClusterExecutorFactory implements ExecutorFactory {
 
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return configuration.get(DeploymentOptions.TARGET)
-				.equalsIgnoreCase(YarnJobClusterExecutor.NAME);
+		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override

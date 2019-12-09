@@ -17,8 +17,10 @@
  */
 package org.apache.flink.api.scala
 
+import java.util.concurrent.CompletableFuture
+
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
@@ -30,6 +32,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.execution.JobClient
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
@@ -492,6 +495,46 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Triggers the program execution asynchronously.
+   * The environment will execute all parts of the program that have
+   * resulted in a "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with a generated default name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
+   * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
+   *         completed on submission succeeded.
+   */
+  @PublicEvolving
+  def executeAsync(): CompletableFuture[JobClient] = javaEnv.executeAsync()
+
+  /**
+   * Triggers the program execution asynchronously.
+   * The environment will execute all parts of the program that have
+   * resulted in a "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with the given name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
+   * @return A future of [[JobClient]] that can be used to communicate with the submitted job,
+   *         completed on submission succeeded.
+   */
+  @PublicEvolving
+  def executeAsync(jobName: String): CompletableFuture[JobClient] = javaEnv.executeAsync(jobName)
+
+  /**
    * Creates the plan with which the system will execute the program, and returns it as  a String
    * using a JSON representation of the execution data flow graph.
    */
@@ -502,8 +545,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates the program's [[org.apache.flink.api.common.Plan]].
    * The plan is a description of all data sources, data sinks,
-   * and operations and how they interact, as an isolated unit that can be executed with a
-   * [[org.apache.flink.api.common.PlanExecutor]]. Obtaining a plan and starting it with an
+   * and operations and how they interact, as an isolated unit that can be executed with an
+   * [[org.apache.flink.core.execution.Executor]]. Obtaining a plan and starting it with an
    * executor is an alternative way to run a program and is only possible if the program only
    * consists of distributed operations.
    */

@@ -49,10 +49,13 @@ object LongHashJoinGenerator {
         keyType.getFieldCount == 1 && {
       keyType.getTypeAt(0).getTypeRoot match {
         case BIGINT | INTEGER | SMALLINT | TINYINT | FLOAT | DOUBLE | DATE |
-             TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => true
+             TIME_WITHOUT_TIME_ZONE => true
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val timestampType = keyType.getTypeAt(0).asInstanceOf[TimestampType]
-          if (SqlTimestamp.isCompact(timestampType.getPrecision)) true else false
+          SqlTimestamp.isCompact(timestampType.getPrecision)
+        case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+          val lzTs = keyType.getTypeAt(0).asInstanceOf[LocalZonedTimestampType]
+          SqlTimestamp.isCompact(lzTs.getPrecision)
         case _ => false
       }
       // TODO decimal and multiKeys support.
@@ -70,6 +73,7 @@ object LongHashJoinGenerator {
     val term = singleType.getTypeRoot match {
       case FLOAT => s"Float.floatToIntBits($getCode)"
       case DOUBLE => s"Double.doubleToLongBits($getCode)"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$getCode.getMillisecond()"
       case _ => getCode
     }
     s"return $term;"
@@ -105,9 +109,6 @@ object LongHashJoinGenerator {
       probeType: RowType,
       buildKeyMapping: Array[Int],
       probeKeyMapping: Array[Int],
-      managedMemorySize: Long,
-      maxMemorySize: Long,
-      perRequestSize: Long,
       buildRowSize: Int,
       buildRowCount: Long,
       reverseJoinFunction: Boolean,
@@ -175,7 +176,7 @@ object LongHashJoinGenerator {
          |    super(getContainingTask().getJobConfiguration(), getContainingTask(),
          |      $buildSerTerm, $probeSerTerm,
          |      getContainingTask().getEnvironment().getMemoryManager(),
-         |      ${managedMemorySize}L, ${maxMemorySize}L, ${perRequestSize}L,
+         |      computeMemorySize(),
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
          |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());

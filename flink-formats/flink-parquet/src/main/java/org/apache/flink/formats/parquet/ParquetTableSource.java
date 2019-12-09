@@ -321,7 +321,7 @@ public class ParquetTableSource
 			}
 		} else if (exp instanceof BinaryExpression) {
 			if (exp instanceof And) {
-				LOG.debug("All of the predicates should be in CNF. Found an AND expression.", exp);
+				LOG.debug("All of the predicates should be in CNF. Found an AND expression: {}.", exp);
 			} else if (exp instanceof Or) {
 				FilterPredicate c1 = toParquetPredicate(((Or) exp).left());
 				FilterPredicate c2 = toParquetPredicate(((Or) exp).right());

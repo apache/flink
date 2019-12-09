@@ -22,6 +22,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.env.PythonDependencyInfo;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -40,6 +43,7 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,7 +69,7 @@ import static org.mockito.Mockito.when;
 public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunctionRunnerTest<Row, Row> {
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() {
+	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row, Row> runner = createSingleUDFRunner();
 
 		// check input TypeSerializer
@@ -81,7 +85,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	}
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() {
+	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row, Row> runner = createMultipleUDFRunner();
 
 		// check input TypeSerializer
@@ -97,7 +101,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	}
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() {
+	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row, Row> runner = createChainedUDFRunner();
 
 		// check input TypeSerializer
@@ -113,7 +117,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	}
 
 	@Test
-	public void testUDFnProtoConstructedProperlyForSingleUDF() {
+	public void testUDFnProtoConstructedProperlyForSingleUDF() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row, Row> runner = createSingleUDFRunner();
 
 		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
@@ -125,7 +129,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	}
 
 	@Test
-	public void testUDFProtoConstructedProperlyForMultipleUDFs() {
+	public void testUDFProtoConstructedProperlyForMultipleUDFs() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row, Row> runner = createMultipleUDFRunner();
 
 		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
@@ -143,7 +147,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	}
 
 	@Test
-	public void testUDFProtoConstructedProperlyForChainedUDFs() {
+	public void testUDFProtoConstructedProperlyForChainedUDFs() throws Exception {
 		final AbstractPythonScalarFunctionRunner<Row, Row> runner = createChainedUDFRunner();
 
 		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
@@ -218,25 +222,29 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 	public AbstractPythonScalarFunctionRunner<Row, Row> createPythonScalarFunctionRunner(
 		final PythonFunctionInfo[] pythonFunctionInfos,
 		RowType inputType,
-		RowType outputType) {
+		RowType outputType) throws IOException {
 		final FnDataReceiver<Row> dummyReceiver = input -> {
 			// ignore the execution results
 		};
 
-		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
+		final PythonEnvironmentManager environmentManager =
+			new ProcessPythonEnvironmentManager(
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new String[] {System.getProperty("java.io.tmpdir")},
+				null,
+				new HashMap<>());
 
 		return new PythonScalarFunctionRunner(
 			"testPythonRunner",
 			dummyReceiver,
 			pythonFunctionInfos,
-			pythonEnv,
+			environmentManager,
 			inputType,
-			outputType,
-			new String[] {System.getProperty("java.io.tmpdir")});
+			outputType);
 	}
 
 	private AbstractPythonScalarFunctionRunner<Row, Row> createUDFRunner(
-		JobBundleFactory jobBundleFactory, FnDataReceiver<Row> receiver) {
+		JobBundleFactory jobBundleFactory, FnDataReceiver<Row> receiver) throws IOException {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -245,17 +253,21 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 
 		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
 
-		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
+		final PythonEnvironmentManager environmentManager =
+			new ProcessPythonEnvironmentManager(
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new String[] {System.getProperty("java.io.tmpdir")},
+				null,
+				new HashMap<>());
 
 		return new PythonScalarFunctionRunnerTestHarness(
 			"testPythonRunner",
 			receiver,
 			pythonFunctionInfos,
-			pythonEnv,
+			environmentManager,
 			rowType,
 			rowType,
-			jobBundleFactory,
-			new String[] {System.getProperty("java.io.tmpdir")});
+			jobBundleFactory);
 	}
 
 	private static class PythonScalarFunctionRunnerTestHarness extends PythonScalarFunctionRunner {
@@ -266,11 +278,10 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			String taskName,
 			FnDataReceiver<Row> resultReceiver,
 			PythonFunctionInfo[] scalarFunctions,
-			PythonEnv pythonEnv,
+			PythonEnvironmentManager environmentManager,
 			RowType inputType, RowType outputType,
-			JobBundleFactory jobBundleFactory,
-			String[] tempDirs) {
-			super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
+			JobBundleFactory jobBundleFactory) {
+			super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
 			this.jobBundleFactory = jobBundleFactory;
 		}
 

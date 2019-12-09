@@ -58,6 +58,7 @@ public class EnvironmentTest {
 		replaceVars1.put("$VAR_RESULT_MODE", "table");
 		replaceVars1.put("$VAR_UPDATE_MODE", "");
 		replaceVars1.put("$VAR_MAX_ROWS", "100");
+		replaceVars1.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		final Environment env1 = EnvironmentFileUtil.parseModified(
 			DEFAULTS_ENVIRONMENT_FILE,
 			replaceVars1);

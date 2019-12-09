@@ -212,6 +212,10 @@ public class HiveTableSource implements
 		if (catalogTable.getPartitionKeys() == null || catalogTable.getPartitionKeys().size() == 0) {
 			return this;
 		} else {
+			if (!initAllPartitions) {
+				initAllPartitions();
+			}
+
 			List<HiveTablePartition> remainingHivePartitions = new ArrayList<>();
 			for (Map<String, String> partitionSpec : remainingPartitions) {
 				HiveTablePartition hiveTablePartition = partitionSpec2HiveTablePartition.get(partitionSpec);

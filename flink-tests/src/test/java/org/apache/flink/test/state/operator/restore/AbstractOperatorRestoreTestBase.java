@@ -41,6 +41,7 @@ import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -106,6 +107,11 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	@BeforeClass
 	public static void beforeClass() {
 		SavepointSerializers.setFailWhenLegacyStateDetected(false);
+	}
+
+	@AfterClass
+	public static void after() {
+		SavepointSerializers.setFailWhenLegacyStateDetected(true);
 	}
 
 	@Test

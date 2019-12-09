@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory
 import org.apache.flink.streaming.api.operators.{ProcessOperator, SimpleOperatorFactory}
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException, TableSchema}
 import org.apache.flink.table.dataformat.BaseRow
@@ -34,6 +33,7 @@ import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getParamClassesConsiderVarArgs, getUserDefinedMethod, signatureToString, signaturesToString}
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
@@ -350,7 +350,7 @@ abstract class CommonLookupJoin(
       SimpleOperatorFactory.of(new ProcessOperator(processFunc))
     }
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
       operatorFactory,

@@ -47,8 +47,8 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 
 	@Nullable
 	@Override
-	public BufferAndBacklog getNextBuffer() {
-		return parent.pollBuffer();
+	public BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
+		return parent.pollBuffer(isLocalChannel);
 	}
 
 	@Override

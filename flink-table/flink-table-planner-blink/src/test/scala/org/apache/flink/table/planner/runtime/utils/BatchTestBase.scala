@@ -24,8 +24,8 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
-import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment, TableUtils}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -124,7 +124,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     FlinkRelOptUtil.toString(optimized, SqlExplainLevel.EXPPLAN_ATTRIBUTES)
   }
 
-  def check(sqlQuery: String, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+  def check(sqlQuery: String, checkFunc: Seq[Row] => Option[String]): Unit = {
     val table = parseQuery(sqlQuery)
     val result = executeQuery(table)
 
@@ -141,7 +141,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     }
   }
 
-  def checkTable(table: Table, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+  def checkTable(table: Table, checkFunc: Seq[Row] => Option[String]): Unit = {
     val result = executeQuery(table)
 
     checkFunc(result).foreach { results =>
@@ -285,7 +285,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableUtil.collect(table.asInstanceOf[TableImpl])
+  def executeQuery(table: Table): Seq[Row] = TableUtils.collectToList(table).asScala
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)
@@ -436,7 +436,7 @@ object BatchTestBase {
       result: Array[T],
       sort: Boolean,
       asTuples: Boolean = false): Unit = {
-    val resultStringsBuffer: ArrayBuffer[String] = new ArrayBuffer[String](result.size)
+    val resultStringsBuffer: ArrayBuffer[String] = new ArrayBuffer[String](result.length)
     result.foreach { v =>
       v match {
         case t0: Tuple if asTuples =>
@@ -475,10 +475,6 @@ object BatchTestBase {
 
   def configForMiniCluster(conf: TableConfig): Unit = {
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, "2mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "2mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_SORT_MEMORY, "1mb")
-    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY, "1mb")
     conf.getConfiguration.setString(TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
   }
 }

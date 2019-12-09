@@ -132,14 +132,26 @@ public class HiveShimV120 extends HiveShimV111 {
 	public ColumnStatisticsData toHiveDateColStats(CatalogColumnStatisticsDataDate flinkDateColStats) {
 		try {
 			Class dateStatsClz = Class.forName("org.apache.hadoop.hive.metastore.api.DateColumnStatsData");
-			Object dateStats = dateStatsClz.getDeclaredConstructor(long.class, long.class)
-					.newInstance(flinkDateColStats.getNullCount(), flinkDateColStats.getNdv());
+			Object dateStats = dateStatsClz.getDeclaredConstructor().newInstance();
+			dateStatsClz.getMethod("clear").invoke(dateStats);
+			if (null != flinkDateColStats.getNdv()) {
+				dateStatsClz.getMethod("setNumDVs", long.class).invoke(dateStats, flinkDateColStats.getNdv());
+			}
+			if (null != flinkDateColStats.getNullCount()) {
+				dateStatsClz.getMethod("setNumNulls", long.class).invoke(dateStats, flinkDateColStats.getNullCount());
+			}
 			Class hmsDateClz = Class.forName("org.apache.hadoop.hive.metastore.api.Date");
-			Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
-			Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
 			Constructor hmsDateConstructor = hmsDateClz.getConstructor(long.class);
-			setHigh.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMax().getDaysSinceEpoch()));
-			setLow.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMin().getDaysSinceEpoch()));
+			if (null != flinkDateColStats.getMax()) {
+				Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
+				setHigh.invoke(dateStats,
+							hmsDateConstructor.newInstance(flinkDateColStats.getMax().getDaysSinceEpoch()));
+			}
+			if (null != flinkDateColStats.getMin()) {
+				Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
+				setLow.invoke(dateStats,
+							hmsDateConstructor.newInstance(flinkDateColStats.getMin().getDaysSinceEpoch()));
+			}
 			Class colStatsClz = ColumnStatisticsData.class;
 			return (ColumnStatisticsData) colStatsClz.getDeclaredMethod("dateStats", dateStatsClz).invoke(null, dateStats);
 		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
@@ -162,15 +174,19 @@ public class HiveShimV120 extends HiveShimV111 {
 		try {
 			Object dateStats = ColumnStatisticsData.class.getDeclaredMethod("getDateStats").invoke(hiveDateColStats);
 			Class dateStatsClz = dateStats.getClass();
-			long numDV = (long) dateStatsClz.getMethod("getNumDVs").invoke(dateStats);
-			long numNull = (long) dateStatsClz.getMethod("getNumNulls").invoke(dateStats);
+			boolean isSetNumDv = (boolean) dateStatsClz.getMethod("isSetNumDVs").invoke(dateStats);
+			boolean isSetNumNull = (boolean) dateStatsClz.getMethod("isSetNumNulls").invoke(dateStats);
+			boolean isSetHighValue = (boolean) dateStatsClz.getMethod("isSetHighValue").invoke(dateStats);
+			boolean isSetLowValue = (boolean) dateStatsClz.getMethod("isSetLowValue").invoke(dateStats);
+			Long numDV = isSetNumDv ? (Long) dateStatsClz.getMethod("getNumDVs").invoke(dateStats) : null;
+			Long numNull = isSetNumNull ? (Long) dateStatsClz.getMethod("getNumNulls").invoke(dateStats) : null;
 			Object hmsHighDate = dateStatsClz.getMethod("getHighValue").invoke(dateStats);
 			Object hmsLowDate = dateStatsClz.getMethod("getLowValue").invoke(dateStats);
 			Class hmsDateClz = hmsHighDate.getClass();
 			Method hmsDateDays = hmsDateClz.getMethod("getDaysSinceEpoch");
-			long highDateDays = (long) hmsDateDays.invoke(hmsHighDate);
-			long lowDateDays = (long) hmsDateDays.invoke(hmsLowDate);
-			return new CatalogColumnStatisticsDataDate(new Date(lowDateDays), new Date(highDateDays), numDV, numNull);
+			Date highDateDays = isSetHighValue ? new Date((Long) hmsDateDays.invoke(hmsHighDate)) : null;
+			Date lowDateDays = isSetLowValue ? new Date((Long) hmsDateDays.invoke(hmsLowDate)) : null;
+			return new CatalogColumnStatisticsDataDate(lowDateDays, highDateDays, numDV, numNull);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create Flink statistics for date column", e);
 		}

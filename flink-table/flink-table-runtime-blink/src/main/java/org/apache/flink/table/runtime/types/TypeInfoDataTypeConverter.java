@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
@@ -45,6 +46,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -54,6 +56,7 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -119,6 +122,15 @@ public class TypeInfoDataTypeConverter {
 				} else {
 					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 				}
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) logicalType;
+				int precisionLzTs = lzTs.getPrecision();
+				return clazz == SqlTimestamp.class ?
+					new SqlTimestampTypeInfo(precisionLzTs) :
+					(clazz == Instant.class ?
+						((3 == precisionLzTs) ? Types.INSTANT : new LegacyInstantTypeInfo(precisionLzTs)) :
+						TypeConversions.fromDataTypeToLegacyInfo(dataType));
+
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) logicalType;
 				return clazz == Decimal.class ?

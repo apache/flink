@@ -46,7 +46,7 @@ public interface DynamicResult<C> extends Result<C> {
 	/**
 	 * Starts the table program using the given deployer and monitors it's execution.
 	 */
-	void startRetrieval(ProgramDeployer<C> deployer);
+	void startRetrieval(ProgramDeployer deployer);
 
 	/**
 	 * Returns the table sink required by this result type.

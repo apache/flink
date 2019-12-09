@@ -19,8 +19,7 @@
 package org.apache.flink.table.descriptors
 
 import java.util.Optional
-
-import org.apache.flink.table.api.{TableException, TableSchema, Types}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Types}
 import org.apache.flink.table.descriptors.RowtimeTest.CustomExtractor
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp}
 import org.apache.flink.table.sources.wmstrategies.{BoundedOutOfOrderTimestamps, PreserveWatermarks}
@@ -87,19 +86,21 @@ class SchemaValidatorTest {
 
   @Test
   def testDeriveTableSinkSchemaWithRowtimeFromField(): Unit = {
+    // we have to use DataTypes here because TypeInformation -> properties -> DataType
+    // loses information (conversion class)
     val desc1 = new Schema()
-      .field("otherField", Types.STRING).from("csvField")
-      .field("abcField", Types.STRING)
-      .field("p", Types.SQL_TIMESTAMP).proctime()
-      .field("r", Types.SQL_TIMESTAMP).rowtime(
+      .field("otherField", DataTypes.STRING()).from("csvField")
+      .field("abcField", DataTypes.STRING())
+      .field("p", DataTypes.TIMESTAMP(3)).proctime()
+      .field("r", DataTypes.TIMESTAMP(3)).rowtime(
       new Rowtime().timestampsFromField("myTime").watermarksFromSource())
     val props = new DescriptorProperties()
     props.putProperties(desc1.toProperties)
 
     val expectedTableSinkSchema = TableSchema.builder()
-      .field("csvField", Types.STRING) // aliased
-      .field("abcField", Types.STRING)
-      .field("myTime", Types.SQL_TIMESTAMP)
+      .field("csvField", DataTypes.STRING()) // aliased
+      .field("abcField", DataTypes.STRING())
+      .field("myTime", DataTypes.TIMESTAMP(3))
       .build()
 
     assertEquals(expectedTableSinkSchema, SchemaValidator.deriveTableSinkSchema(props))

@@ -24,11 +24,10 @@ import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, 
 import org.apache.flink.table.planner.expressions.{PlannerWindowProperty, WindowProperty}
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -143,6 +142,17 @@ class FlinkRelBuilder(
         push(LogicalWindowTableAggregate.create(window, namedProperties, aggregate))
       case _ => push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
     }
+  }
+
+  /**
+    * Build watermark assigner relation node.
+    */
+  def watermark(rowtimeFieldIndex: Int, watermarkExpr: RexNode): RelBuilder = {
+    val input = build()
+    val watermarkAssigner = LogicalWatermarkAssigner
+      .create(cluster, input, rowtimeFieldIndex, watermarkExpr)
+    push(watermarkAssigner)
+    this
   }
 
   def queryOperation(queryOperation: QueryOperation): RelBuilder = {

@@ -101,10 +101,10 @@ public abstract class CatalogTest {
 			catalog.dropFunction(path1, true);
 		}
 		if (catalog.databaseExists(db1)) {
-			catalog.dropDatabase(db1, true);
+			catalog.dropDatabase(db1, true, false);
 		}
 		if (catalog.databaseExists(db2)) {
-			catalog.dropDatabase(db2, true);
+			catalog.dropDatabase(db2, true, false);
 		}
 	}
 
@@ -167,7 +167,7 @@ public abstract class CatalogTest {
 
 		assertTrue(catalog.databaseExists(db1));
 
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, true);
 
 		assertFalse(catalog.databaseExists(db1));
 	}
@@ -176,12 +176,12 @@ public abstract class CatalogTest {
 	public void testDropDb_DatabaseNotExistException() throws Exception {
 		exception.expect(DatabaseNotExistException.class);
 		exception.expectMessage("Database db1 does not exist in Catalog");
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, false);
 	}
 
 	@Test
 	public void testDropDb_DatabaseNotExist_Ignore() throws Exception {
-		catalog.dropDatabase(db1, true);
+		catalog.dropDatabase(db1, true, false);
 	}
 
 	@Test
@@ -191,7 +191,7 @@ public abstract class CatalogTest {
 
 		exception.expect(DatabaseNotEmptyException.class);
 		exception.expectMessage("Database db1 in catalog test-catalog is not empty");
-		catalog.dropDatabase(db1, true);
+		catalog.dropDatabase(db1, true, false);
 	}
 
 	@Test
@@ -729,7 +729,7 @@ public abstract class CatalogTest {
 	public void testDropFunction_FunctionNotExist_ignored() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.dropFunction(nonExistObjectPath, true);
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, false);
 	}
 
 	// ------ partitions ------

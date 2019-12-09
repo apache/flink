@@ -989,6 +989,20 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	}
 
 	private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
+		try {
+			cancelOrFailAndCancelInvokableInternal(targetState, cause);
+		} catch (Throwable t) {
+			if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(t)) {
+				String message = String.format("FATAL - exception in cancelling task %s (%s).", taskNameWithSubtask, executionId);
+				notifyFatalError(message, t);
+			} else {
+				throw t;
+			}
+		}
+	}
+
+	@VisibleForTesting
+	void cancelOrFailAndCancelInvokableInternal(ExecutionState targetState, Throwable cause) {
 		while (true) {
 			ExecutionState current = executionState;
 

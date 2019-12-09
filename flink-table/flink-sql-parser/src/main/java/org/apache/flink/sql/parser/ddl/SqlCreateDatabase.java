@@ -45,7 +45,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class SqlCreateDatabase extends SqlCreate implements ExtendedSqlNode {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE DATABASE", SqlKind.OTHER);
+	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE DATABASE", SqlKind.OTHER_DDL);
 
 	private final SqlIdentifier databaseName;
 

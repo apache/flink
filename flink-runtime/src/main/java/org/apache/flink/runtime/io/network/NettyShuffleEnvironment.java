@@ -178,8 +178,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			checkNotNull(ownerName),
 			checkNotNull(executionAttemptID),
 			parentGroup,
-			nettyGroup.addGroup(METRIC_GROUP_INPUT),
-			nettyGroup.addGroup(METRIC_GROUP_OUTPUT));
+			nettyGroup.addGroup(METRIC_GROUP_OUTPUT),
+			nettyGroup.addGroup(METRIC_GROUP_INPUT));
 	}
 
 	@Override

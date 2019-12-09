@@ -25,7 +25,6 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
@@ -40,20 +39,9 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * JVM heap size for the TaskManagers with memory size.
-	 */
-	@Deprecated
-	public static final ConfigOption<String> TASK_MANAGER_HEAP_MEMORY =
-			key("taskmanager.heap.size")
-			.defaultValue("1024m")
-			.withDescription("JVM heap size for the TaskManagers, which are the parallel workers of" +
-					" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
-					" YARN container, minus a certain tolerance value.");
-
-	/**
 	 * JVM heap size (in megabytes) for the TaskManagers.
 	 *
-	 * @deprecated use {@link #TASK_MANAGER_HEAP_MEMORY}
+	 * @deprecated use {@link #TOTAL_PROCESS_MEMORY}
 	 */
 	@Deprecated
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
@@ -187,49 +175,6 @@ public class TaskManagerOptions {
 			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
-	 * Amount of memory to be allocated by the task manager's memory manager. If not
-	 * set, a relative fraction will be allocated, as defined by {@link #LEGACY_MANAGED_MEMORY_FRACTION}.
-	 */
-	@Deprecated
-	public static final ConfigOption<String> LEGACY_MANAGED_MEMORY_SIZE =
-			key("taskmanager.memory.size")
-			.defaultValue("0")
-			.withDescription("The amount of memory (in megabytes) that the task manager reserves on-heap or off-heap" +
-				" (depending on taskmanager.memory.off-heap) for sorting, hash tables, and caching of intermediate" +
-				" results. If unspecified, the memory manager will take a fixed ratio with respect to the size of" +
-				" the task manager JVM as specified by taskmanager.memory.fraction.");
-
-	/**
-	 * Fraction of free memory allocated by the memory manager if {@link #LEGACY_MANAGED_MEMORY_SIZE} is
-	 * not set.
-	 */
-	@Deprecated
-	public static final ConfigOption<Float> LEGACY_MANAGED_MEMORY_FRACTION =
-			key("taskmanager.memory.fraction")
-			.defaultValue(0.7f)
-			.withDescription(new Description.DescriptionBuilder()
-				.text("The relative amount of memory (after subtracting the amount of memory used by network" +
-					" buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results." +
-					" For example, a value of %s means that a task manager reserves 80% of its memory" +
-					" (on-heap or off-heap depending on taskmanager.memory.off-heap)" +
-					" for internal data buffers, leaving 20% of free memory for the task manager's heap for objects" +
-					" created by user-defined functions. This parameter is only evaluated, if " +
-					LEGACY_MANAGED_MEMORY_SIZE.key() + " is not set.", code("0.8"))
-				.build());
-
-	/**
-	 * Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager
-	 * as well as the network buffers.
-	 **/
-	@Deprecated
-	public static final ConfigOption<Boolean> MEMORY_OFF_HEAP =
-			key("taskmanager.memory.off-heap")
-			.defaultValue(false)
-				.withDescription("Memory allocation method (JVM heap or off-heap), used for managed memory of the" +
-						" TaskManager. For setups with larger quantities of memory, this can" +
-						" improve the efficiency of the operations performed on the memory.");
-
-	/**
 	 * The config parameter for automatically defining the TaskManager's binding address,
 	 * if {@link #HOST} configuration option is not set.
 	 */
@@ -245,15 +190,42 @@ public class TaskManagerOptions {
 				.build());
 
 	// ------------------------------------------------------------------------
-	//  Memory Options
+	//  Resource Options
 	// ------------------------------------------------------------------------
+
+	/**
+	 * This config option describes number of cpu cores of task executors.
+	 * In case of Yarn / Mesos / Kubernetes, it is used to launch a container for the task executor.
+	 *
+	 * <p>DO NOT USE THIS CONFIG OPTION.
+	 * This config option is currently only used internally, for passing cpu cores into task executors
+	 * for dynamic fine grained slot resource management. The feature is not completed at the moment,
+	 * and the config option is experimental and might be changed / removed in the future. Thus, we do
+	 * not expose this config option to users.
+	 *
+	 * <p>For configuring the cpu cores of container on Yarn / Mesos / Kubernetes, please use
+	 * {@link YarnConfigOptions#VCORES}, {@link MesosTaskManagerParameters#MESOS_RM_TASKS_CPUS} and
+	 * {@link KubernetesConfigOptions#TASK_MANAGER_CPU}.
+	 */
+	@Documentation.ExcludeFromDocumentation
+	public static final ConfigOption<Double> CPU_CORES =
+		key("taskmanager.cpu.cores")
+			.doubleType()
+			.noDefaultValue()
+			.withDescription("CPU cores for the TaskExecutors. In case of Yarn setups, this value will be rounded to "
+				+ "the closest positive integer. If not explicitly configured, legacy config options "
+				+ "'yarn.containers.vcores', 'mesos.resourcemanager.tasks.cpus' and 'kubernetes.taskmanager.cpu' will be "
+				+ "used for Yarn / Mesos / Kubernetes setups, and '" + NUM_TASK_SLOTS.key() + "' will be used for "
+				+ "standalone setups (approximate number of slots).");
 
 	/**
 	 * Total Process Memory size for the TaskExecutors.
 	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
 	public static final ConfigOption<String> TOTAL_PROCESS_MEMORY =
 		key("taskmanager.memory.total-process.size")
 			.noDefaultValue()
+			.withDeprecatedKeys("taskmanager.heap.size")
 			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
 				+ " TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On"
 				+ " containerized setups, this should be set to the container memory.");
@@ -261,11 +233,9 @@ public class TaskManagerOptions {
 	/**
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
 	public static final ConfigOption<String> TOTAL_FLINK_MEMORY =
 		key("taskmanager.memory.total-flink.size")
 		.noDefaultValue()
-		.withDeprecatedKeys(TASK_MANAGER_HEAP_MEMORY.key())
 		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
 			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
 			+ " Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Shuffle Memory.");
@@ -284,7 +254,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> FRAMEWORK_OFF_HEAP_MEMORY =
 		key("taskmanager.memory.framework.off-heap.size")
-			.defaultValue("64m")
+			.defaultValue("128m")
 			.withDescription("Framework Off-Heap Memory size for TaskExecutors. This is the size of off-heap memory"
 				+ " (JVM direct memory or native memory) reserved for TaskExecutor framework, which will not be"
 				+ " allocated to task slots. It will be accounted as part of the JVM max direct memory size limit.");
@@ -297,7 +267,7 @@ public class TaskManagerOptions {
 			.noDefaultValue()
 			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
 				+ " user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
-				+ " Task Off-Heap Memory, (On-Heap and Off-Heap) Managed Memory and Shuffle Memory.");
+				+ " Task Off-Heap Memory, Managed Memory and Shuffle Memory.");
 
 	/**
 	 * Task Off-Heap Memory size for TaskExecutors.
@@ -314,44 +284,22 @@ public class TaskManagerOptions {
 	public static final ConfigOption<String> MANAGED_MEMORY_SIZE =
 		key("taskmanager.memory.managed.size")
 			.noDefaultValue()
-			.withDeprecatedKeys(LEGACY_MANAGED_MEMORY_SIZE.key())
-			.withDescription("Managed Memory size for TaskExecutors. This is the size of memory managed by the memory"
-				+ " manager, including both On-Heap Managed Memory and Off-Heap Managed Memory, reserved for sorting,"
-				+ " hash tables, caching of intermediate results and state backends. Memory consumers can either"
-				+ " allocate memory from the memory manager in the form of MemorySegments, or reserve bytes from the"
-				+ " memory manager and keep their memory usage within that boundary. If unspecified, it will be derived"
-				+ " to make up the configured fraction of the Total Flink Memory.");
+			.withDeprecatedKeys("taskmanager.memory.size")
+			.withDescription("Managed Memory size for TaskExecutors. This is the size of off-heap memory managed by the"
+				+ " memory manager, reserved for sorting, hash tables, caching of intermediate results and RocksDB state"
+				+ " backend. Memory consumers can either allocate memory from the memory manager in the form of"
+				+ " MemorySegments, or reserve bytes from the memory manager and keep their memory usage within that"
+				+ " boundary. If unspecified, it will be derived to make up the configured fraction of the Total Flink"
+				+ " Memory.");
 
 	/**
 	 * Fraction of Total Flink Memory to be used as Managed Memory, if {@link #MANAGED_MEMORY_SIZE} is not specified.
 	 */
 	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
 		key("taskmanager.memory.managed.fraction")
-			.defaultValue(0.5f)
+			.defaultValue(0.4f)
 			.withDescription("Fraction of Total Flink Memory to be used as Managed Memory, if Managed Memory size is not"
 				+ " explicitly specified.");
-
-	/**
-	 * Off-Heap Managed Memory size for TaskExecutors.
-	 */
-	public static final ConfigOption<String> MANAGED_MEMORY_OFFHEAP_SIZE =
-		key("taskmanager.memory.managed.off-heap.size")
-			.noDefaultValue()
-			.withDescription("Off-Heap Managed Memory size for TaskExecutors. This is the part of Managed Memory that is"
-				+ " off-heap, while the remaining is on-heap. If unspecified, it will be derived to make up the"
-				+ " configured fraction of the Managed Memory size.");
-
-	/**
-	 * Fraction of Managed Memory that Off-Heap Managed Memory takes.
-	 */
-	public static final ConfigOption<Float> MANAGED_MEMORY_OFFHEAP_FRACTION =
-		key("taskmanager.memory.managed.off-heap.fraction")
-			.defaultValue(-1.0f)
-			.withDescription("Fraction of Managed Memory that Off-Heap Managed Memory takes, if Off-Heap Managed Memory"
-				+ " size is not explicitly specified. If the fraction is not explicitly specified (or configured with"
-				+ " negative values), it will be derived from the legacy config option '"
-				+ TaskManagerOptions.MEMORY_OFF_HEAP.key() + "', to use either all on-heap memory or all off-heap memory"
-				+ " for Managed Memory.");
 
 	/**
 	 * Min Shuffle Memory size for TaskExecutors.
@@ -397,7 +345,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> JVM_METASPACE =
 		key("taskmanager.memory.jvm-metaspace.size")
-			.defaultValue("192m")
+			.defaultValue("128m")
 			.withDescription("JVM Metaspace Size for the TaskExecutors.");
 
 	/**
@@ -488,15 +436,6 @@ public class TaskManagerOptions {
 				" A value of -1 indicates that there is no limit.");
 
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Toggle to switch between FLIP-49 and current task manager memory configurations.
-	 */
-	@Documentation.ExcludeFromDocumentation("FLIP-49 is still in development.")
-	public static final ConfigOption<Boolean> ENABLE_FLIP_49_CONFIG =
-			key("taskmanager.enable-flip-49")
-			.defaultValue(false)
-			.withDescription("Toggle to switch between FLIP-49 and current task manager memory configurations.");
 
 	/** Not intended to be instantiated. */
 	private TaskManagerOptions() {}

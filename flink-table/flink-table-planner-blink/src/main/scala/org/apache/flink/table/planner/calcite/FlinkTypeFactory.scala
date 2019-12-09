@@ -76,7 +76,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case LogicalTypeRoot.DATE => createSqlType(DATE)
       case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
       case LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+        val lzTs = t.asInstanceOf[LocalZonedTimestampType]
+        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE, lzTs.getPrecision)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -438,12 +439,7 @@ object FlinkTypeFactory {
       case TIMESTAMP =>
         new TimestampType(relDataType.getPrecision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        if (relDataType.getPrecision > 3) {
-          throw new TableException(
-            s"TIMESTAMP_WITH_LOCAL_TIME_ZONE precision is not supported:" +
-                s" ${relDataType.getPrecision}")
-        }
-        new LocalZonedTimestampType(3)
+        new LocalZonedTimestampType(relDataType.getPrecision)
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>

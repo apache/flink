@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
@@ -32,7 +31,6 @@ import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -48,7 +46,6 @@ import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_IN
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /**
  * Test cases for the deployment of Yarn Flink clusters.
@@ -115,10 +112,12 @@ public class YARNITCase extends YarnTestBase {
 			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
 
 			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor.deployJobCluster(
-				clusterSpecification,
-				jobGraph,
-				false)) {
+			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor
+					.deployJobCluster(
+							clusterSpecification,
+							jobGraph,
+							false)
+					.getClusterClient()) {
 
 				ApplicationId applicationId = clusterClient.getClusterId();
 
@@ -129,31 +128,9 @@ public class YARNITCase extends YarnTestBase {
 				assertThat(jobResult, is(notNullValue()));
 				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
-				waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
+				waitApplicationFinishedElseKillIt(
+					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
 			}
 		}
 	}
-
-	private void waitApplicationFinishedElseKillIt(
-			ApplicationId applicationId,
-			Duration timeout,
-			YarnClusterDescriptor yarnClusterDescriptor) throws Exception {
-		Deadline deadline = Deadline.now().plus(timeout);
-		YarnApplicationState state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
-
-		while (state != YarnApplicationState.FINISHED) {
-			if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
-				fail("Application became FAILED or KILLED while expecting FINISHED");
-			}
-
-			if (deadline.isOverdue()) {
-				yarnClusterDescriptor.killCluster(applicationId);
-				fail("Application didn't finish before timeout");
-			}
-
-			sleep(sleepIntervalInMS);
-			state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
-		}
-	}
-
 }

@@ -17,6 +17,7 @@
 ################################################################################
 
 import datetime
+import decimal
 import struct
 from apache_beam.coders.coder_impl import StreamCoderImpl
 
@@ -79,6 +80,64 @@ class RowCoderImpl(StreamCoderImpl):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
+class ArrayCoderImpl(StreamCoderImpl):
+
+    def __init__(self, elem_coder):
+        self._elem_coder = elem_coder
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int32(len(value))
+        for elem in value:
+            if elem is None:
+                out_stream.write_byte(False)
+            else:
+                out_stream.write_byte(True)
+                self._elem_coder.encode_to_stream(elem, out_stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        size = in_stream.read_bigendian_int32()
+        elements = [self._elem_coder.decode_from_stream(in_stream, nested)
+                    if in_stream.read_byte() else None for _ in range(size)]
+        return elements
+
+    def __repr__(self):
+        return 'ArrayCoderImpl[%s]' % repr(self._elem_coder)
+
+
+class MapCoderImpl(StreamCoderImpl):
+
+    def __init__(self, key_coder, value_coder):
+        self._key_coder = key_coder
+        self._value_coder = value_coder
+
+    def encode_to_stream(self, map_value, out_stream, nested):
+        out_stream.write_bigendian_int32(len(map_value))
+        for key in map_value:
+            self._key_coder.encode_to_stream(key, out_stream, nested)
+            value = map_value[key]
+            if value is None:
+                out_stream.write_byte(True)
+            else:
+                out_stream.write_byte(False)
+                self._value_coder.encode_to_stream(map_value[key], out_stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        size = in_stream.read_bigendian_int32()
+        map_value = {}
+        for _ in range(size):
+            key = self._key_coder.decode_from_stream(in_stream, nested)
+            is_null = in_stream.read_byte()
+            if is_null:
+                map_value[key] = None
+            else:
+                value = self._value_coder.decode_from_stream(in_stream, nested)
+                map_value[key] = value
+        return map_value
+
+    def __repr__(self):
+        return 'MapCoderImpl[%s]' % ' : '.join([repr(self._key_coder), repr(self._value_coder)])
+
+
 class BigIntCoderImpl(StreamCoderImpl):
     def encode_to_stream(self, value, out_stream, nested):
         out_stream.write_bigendian_int64(value)
@@ -90,10 +149,10 @@ class BigIntCoderImpl(StreamCoderImpl):
 class TinyIntCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
-        out_stream.write_byte(value)
+        out_stream.write(struct.pack('b', value))
 
     def decode_from_stream(self, in_stream, nested):
-        return int(in_stream.read_byte())
+        return struct.unpack('b', in_stream.read(1))[0]
 
 
 class SmallIntImpl(StreamCoderImpl):
@@ -140,6 +199,30 @@ class DoubleCoderImpl(StreamCoderImpl):
         return in_stream.read_bigendian_double()
 
 
+class DecimalCoderImpl(StreamCoderImpl):
+
+    def __init__(self, precision, scale):
+        self.context = decimal.Context(prec=precision)
+        self.scale_format = decimal.Decimal(10) ** -scale
+
+    def encode_to_stream(self, value, out_stream, nested):
+        user_context = decimal.getcontext()
+        decimal.setcontext(self.context)
+        value = value.quantize(self.scale_format)
+        bytes_value = str(value).encode("utf-8")
+        out_stream.write_bigendian_int32(len(bytes_value))
+        out_stream.write(bytes_value, False)
+        decimal.setcontext(user_context)
+
+    def decode_from_stream(self, in_stream, nested):
+        user_context = decimal.getcontext()
+        decimal.setcontext(self.context)
+        size = in_stream.read_bigendian_int32()
+        value = decimal.Decimal(in_stream.read(size).decode("utf-8")).quantize(self.scale_format)
+        decimal.setcontext(user_context)
+        return value
+
+
 class BinaryCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
@@ -154,8 +237,9 @@ class BinaryCoderImpl(StreamCoderImpl):
 class CharCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
-        out_stream.write_bigendian_int32(len(value))
-        out_stream.write(value.encode("utf-8"), False)
+        bytes_value = value.encode("utf-8")
+        out_stream.write_bigendian_int32(len(bytes_value))
+        out_stream.write(bytes_value, False)
 
     def decode_from_stream(self, in_stream, nested):
         size = in_stream.read_bigendian_int32()
@@ -177,3 +261,65 @@ class DateCoderImpl(StreamCoderImpl):
 
     def internal_to_date(self, v):
         return datetime.date.fromordinal(v + self.EPOCH_ORDINAL)
+
+
+class TimeCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int32(self.time_to_internal(value))
+
+    def decode_from_stream(self, in_stream, nested):
+        value = in_stream.read_bigendian_int32()
+        return self.internal_to_time(value)
+
+    def time_to_internal(self, t):
+        milliseconds = (t.hour * 3600000
+                        + t.minute * 60000
+                        + t.second * 1000
+                        + t.microsecond // 1000)
+        return milliseconds
+
+    def internal_to_time(self, v):
+        seconds, milliseconds = divmod(v, 1000)
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        return datetime.time(hours, minutes, seconds, milliseconds * 1000)
+
+
+class TimestampCoderImpl(StreamCoderImpl):
+
+    def __init__(self, precision):
+        self.precision = precision
+
+    def is_compact(self):
+        return self.precision <= 3
+
+    def encode_to_stream(self, value, out_stream, nested):
+        milliseconds, nanoseconds = self.timestamp_to_internal(value)
+        if self.is_compact():
+            assert nanoseconds == 0
+            out_stream.write_bigendian_int64(milliseconds)
+        else:
+            out_stream.write_bigendian_int64(milliseconds)
+            out_stream.write_bigendian_int32(nanoseconds)
+
+    def decode_from_stream(self, in_stream, nested):
+        if self.is_compact():
+            milliseconds = in_stream.read_bigendian_int64()
+            nanoseconds = 0
+        else:
+            milliseconds = in_stream.read_bigendian_int64()
+            nanoseconds = in_stream.read_bigendian_int32()
+        return self.internal_to_timestamp(milliseconds, nanoseconds)
+
+    def timestamp_to_internal(self, timestamp):
+        seconds = int(timestamp.replace(tzinfo=datetime.timezone.utc).timestamp())
+        microseconds_of_second = timestamp.microsecond
+        milliseconds = seconds * 1000 + microseconds_of_second // 1000
+        nanoseconds = microseconds_of_second % 1000 * 1000
+        return milliseconds, nanoseconds
+
+    def internal_to_timestamp(self, milliseconds, nanoseconds):
+        second, microsecond = (milliseconds // 1000,
+                               milliseconds % 1000 * 1000 + nanoseconds // 1000)
+        return datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond)

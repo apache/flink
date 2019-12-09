@@ -20,6 +20,7 @@ package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -32,6 +33,7 @@ import java.util.List;
 
 import scala.Option;
 
+import static org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters.MESOS_RM_TASKS_MEMORY_MB;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -75,7 +77,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test
 	public void testContainerVolumes() throws Exception {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_VOLUMES, "/host/path:/container/path:ro");
 
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
@@ -87,7 +89,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test
 	public void testContainerDockerParameter() throws Exception {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS, "testKey=testValue");
 
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
@@ -98,7 +100,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test
 	public void testContainerDockerParameters() throws Exception {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS,
 				"testKey1=testValue1,testKey2=testValue2,testParam3=key3=value3,testParam4=\"key4=value4\"");
 
@@ -116,14 +118,14 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testContainerDockerParametersMalformed() throws Exception {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS, "badParam");
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
 	}
 
 	@Test
 	public void testUriParameters() throws Exception {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setString(MesosTaskManagerParameters.MESOS_TM_URIS,
 				"file:///dev/null,http://localhost/test,  test_url ");
 
@@ -136,14 +138,15 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test
 	public void testUriParametersDefault() throws Exception {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
 		assertEquals(params.uris().size(), 0);
 	}
 
+	@Test
 	public void testForcePullImageTrue() {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setBoolean(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_FORCE_PULL_IMAGE, true);
 
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
@@ -152,7 +155,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test
 	public void testForcePullImageFalse() {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 		config.setBoolean(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_FORCE_PULL_IMAGE, false);
 
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
@@ -161,7 +164,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	@Test
 	public void testForcePullImageDefault() {
-		Configuration config = new Configuration();
+		Configuration config = getConfiguration();
 
 		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
 		assertEquals(params.dockerForcePullImage(), false);
@@ -222,20 +225,30 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 		MesosTaskManagerParameters.create(withGPUConfiguration(-1));
 	}
 
-	private static Configuration withGPUConfiguration(int gpus) {
+	@Test
+	public void testConfigCpuCores() {
+		Configuration config = getConfiguration();
+		config.setDouble(TaskManagerOptions.CPU_CORES, 1.5);
+		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(config);
+		assertThat(mesosTaskManagerParameters.cpus(), is(1.5));
+	}
+
+	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
+		config.setInteger(MESOS_RM_TASKS_MEMORY_MB, 1280);
+		return config;
+	}
+
+	private static Configuration withGPUConfiguration(int gpus) {
+		Configuration config = getConfiguration();
 		config.setInteger(MesosTaskManagerParameters.MESOS_RM_TASKS_GPUS, gpus);
 		return config;
 	}
 
 	private static Configuration withHardHostAttrConstraintConfiguration(final String configuration) {
-		return new Configuration() {
-			private static final long serialVersionUID = -3249384117909445760L;
-
-			{
-				setString(MesosTaskManagerParameters.MESOS_CONSTRAINTS_HARD_HOSTATTR, configuration);
-			}
-		};
+		Configuration config = getConfiguration();
+		config.setString(MesosTaskManagerParameters.MESOS_CONSTRAINTS_HARD_HOSTATTR, configuration);
+		return config;
 	}
 
 }

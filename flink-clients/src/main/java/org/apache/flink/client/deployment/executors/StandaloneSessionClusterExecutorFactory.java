@@ -34,8 +34,7 @@ public class StandaloneSessionClusterExecutorFactory implements ExecutorFactory 
 
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return configuration.get(DeploymentOptions.TARGET)
-				.equalsIgnoreCase(StandaloneSessionClusterExecutor.NAME);
+		return StandaloneSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override

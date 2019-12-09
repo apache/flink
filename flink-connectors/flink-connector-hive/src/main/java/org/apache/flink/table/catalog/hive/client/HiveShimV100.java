@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -75,6 +76,8 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -339,5 +342,31 @@ public class HiveShimV100 implements HiveShim {
 	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
 		// NOT NULL constraints not supported until 3.0.0 -- HIVE-16575
 		return Collections.emptySet();
+	}
+
+	@Override
+	public Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait) {
+		// PK constraints not supported until 2.1.0 -- HIVE-13290
+		return Optional.empty();
+	}
+
+	@Override
+	public Object toHiveTimestamp(Object flinkTimestamp) {
+		ensureSupportedFlinkTimestamp(flinkTimestamp);
+		return flinkTimestamp instanceof Timestamp ? flinkTimestamp : Timestamp.valueOf((LocalDateTime) flinkTimestamp);
+	}
+
+	@Override
+	public LocalDateTime toFlinkTimestamp(Object hiveTimestamp) {
+		Preconditions.checkArgument(hiveTimestamp instanceof Timestamp,
+				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
+				Timestamp.class.getName(), hiveTimestamp.getClass().getName());
+		return ((Timestamp) hiveTimestamp).toLocalDateTime();
+	}
+
+	void ensureSupportedFlinkTimestamp(Object flinkTimestamp) {
+		Preconditions.checkArgument(flinkTimestamp instanceof Timestamp || flinkTimestamp instanceof LocalDateTime,
+				"Only support converting %s or %s to Hive timestamp, but not %s",
+				Timestamp.class.getName(), LocalDateTime.class.getName(), flinkTimestamp.getClass().getName());
 	}
 }

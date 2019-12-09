@@ -40,14 +40,11 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.jar.JarFile;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -58,27 +55,6 @@ public enum ClientUtils {
 	;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
-
-	public static void checkJarFile(URL jar) throws IOException {
-		File jarFile;
-		try {
-			jarFile = new File(jar.toURI());
-		} catch (URISyntaxException e) {
-			throw new IOException("JAR file path is invalid '" + jar + '\'');
-		}
-		if (!jarFile.exists()) {
-			throw new IOException("JAR file does not exist '" + jarFile.getAbsolutePath() + '\'');
-		}
-		if (!jarFile.canRead()) {
-			throw new IOException("JAR file can't be read '" + jarFile.getAbsolutePath() + '\'');
-		}
-
-		try (JarFile ignored = new JarFile(jarFile)) {
-			// verify that we can open the Jar file
-		} catch (IOException e) {
-			throw new IOException("Error while opening jar file '" + jarFile.getAbsolutePath() + '\'', e);
-		}
-	}
 
 	public static ClassLoader buildUserCodeClassLoader(
 			List<URL> jars,

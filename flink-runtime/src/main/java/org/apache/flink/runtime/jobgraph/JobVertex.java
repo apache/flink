@@ -62,10 +62,10 @@ public class JobVertex implements java.io.Serializable {
 	private final ArrayList<OperatorID> operatorIdsAlternatives = new ArrayList<>();
 
 	/** List of produced data sets, one per writer. */
-	private final ArrayList<IntermediateDataSet> results = new ArrayList<IntermediateDataSet>();
+	private final ArrayList<IntermediateDataSet> results = new ArrayList<>();
 
 	/** List of edges with incoming data. One per Reader. */
-	private final ArrayList<JobEdge> inputs = new ArrayList<JobEdge>();
+	private final ArrayList<JobEdge> inputs = new ArrayList<>();
 
 	/** Number of subtasks to split this task into at runtime. */
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;

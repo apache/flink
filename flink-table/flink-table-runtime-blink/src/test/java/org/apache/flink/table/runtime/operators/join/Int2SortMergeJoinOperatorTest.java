@@ -184,7 +184,7 @@ public class Int2SortMergeJoinOperatorTest {
 
 	static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
 		return new SortMergeJoinOperator(
-				32 * 32 * 1024, 1024 * 1024, type, leftIsSmaller,
+				0, type, leftIsSmaller,
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {

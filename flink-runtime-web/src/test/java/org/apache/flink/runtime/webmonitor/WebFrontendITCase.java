@@ -106,7 +106,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		// !!DO NOT REMOVE!! next line is required for tests
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "12m");
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
 
 		return config;
 	}
@@ -228,8 +228,8 @@ public class WebFrontendITCase extends TestLogger {
 		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
 		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 
-		String expected = CLUSTER_CONFIGURATION.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE);
-		String actual = conf.get(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.key());
+		String expected = CLUSTER_CONFIGURATION.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		String actual = conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
 
 		assertEquals(expected, actual);
 	}

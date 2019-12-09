@@ -290,6 +290,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		return executionConfig;
 	}
 
+	public StreamConfig getStreamConfig() {
+		return config;
+	}
+
 	/**
 	 * Get all the output from the task. This contains StreamRecords and Events interleaved.
 	 */
@@ -314,6 +318,18 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			}
 		}
 		return resultElements;
+	}
+
+	/**
+	 * Get the list of OUT values emitted by the operator.
+	 */
+	public List<OUT> extractOutputValues(){
+		List<StreamRecord<? extends OUT>> streamRecords = extractOutputStreamRecords();
+		List<OUT> outputValues = new ArrayList<>();
+		for (StreamRecord<? extends OUT> streamRecord : streamRecords) {
+			outputValues.add(streamRecord.getValue());
+		}
+		return outputValues;
 	}
 
 	/**

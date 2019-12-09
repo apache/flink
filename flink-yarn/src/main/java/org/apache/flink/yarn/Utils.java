@@ -19,11 +19,9 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
 
@@ -64,7 +62,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
@@ -130,7 +127,7 @@ public final class Utils {
 	}
 
 	/**
-	 * Copy a local file to a remote file system.
+	 * Copy a local file to a remote file system and register as Local Resource.
 	 *
 	 * @param fs
 	 * 		remote filesystem
@@ -146,6 +143,36 @@ public final class Utils {
 	 * @return Path to remote file (usually hdfs)
 	 */
 	static Tuple2<Path, LocalResource> setupLocalResource(
+		FileSystem fs,
+		String appId,
+		Path localSrcPath,
+		Path homedir,
+		String relativeTargetPath) throws IOException {
+
+		File localFile = new File(localSrcPath.toUri().getPath());
+		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath);
+		// now create the resource instance
+		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
+		return Tuple2.of(remoteFileInfo.f0, resource);
+	}
+
+	/**
+	 * Copy a local file to a remote file system.
+	 *
+	 * @param fs
+	 * 		remote filesystem
+	 * @param appId
+	 * 		application ID
+	 * @param localSrcPath
+	 * 		path to the local file
+	 * @param homedir
+	 * 		remote home directory base (will be extended)
+	 * @param relativeTargetPath
+	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 *
+	 * @return Path to remote file (usually hdfs)
+	 */
+	static Tuple2<Path, Long> uploadLocalFileToRemote(
 		FileSystem fs,
 		String appId,
 		Path localSrcPath,
@@ -202,10 +229,7 @@ public final class Utils {
 			dstModificationTime = localFile.lastModified();
 			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
 		}
-
-		// now create the resource instance
-		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime);
-		return Tuple2.of(dst, resource);
+		return new Tuple2<>(dst, dstModificationTime);
 	}
 
 	/**
@@ -608,34 +632,6 @@ public final class Utils {
 		if (!condition) {
 			throw new RuntimeException(String.format(message, values));
 		}
-	}
-
-	/**
-	 * Get dynamic properties based on two Flink configuration. If base config does not contain and target config
-	 * contains the key or the value is different, it should be added to results. Otherwise, if the base config contains
-	 * and target config does not contain the key, it will be ignored.
-	 * @param baseConfig The base configuration.
-	 * @param targetConfig The target configuration.
-	 * @return Dynamic properties as string, separated by space.
-	 */
-	static String getDynamicProperties(
-		org.apache.flink.configuration.Configuration baseConfig,
-		org.apache.flink.configuration.Configuration targetConfig) {
-
-		String[] newAddedConfigs = targetConfig.keySet().stream().flatMap(
-			(String key) -> {
-				final String baseValue = baseConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
-				final String targetValue = targetConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
-
-				if (!baseConfig.keySet().contains(key) || !baseValue.equals(targetValue)) {
-					return Stream.of("-" + CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getOpt() + key +
-						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + targetValue);
-				} else {
-					return Stream.empty();
-				}
-			})
-			.toArray(String[]::new);
-		return String.join(" ", newAddedConfigs);
 	}
 
 }

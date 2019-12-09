@@ -66,7 +66,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "80m");
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
 		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 800);
 		return config;
 	}

@@ -54,7 +54,7 @@ cd "$END_TO_END_DIR"
 
 echo "[INFO]Preparing Flink cluster..."
 
-set_config_key "taskmanager.heap.size" "4096m"
+set_config_key "taskmanager.memory.total-process.size" "4096m"
 set_config_key "taskmanager.numberOfTaskSlots" "4"
 set_config_key "parallelism.default" "4"
 start_cluster

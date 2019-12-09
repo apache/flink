@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Test
 
@@ -42,7 +42,6 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testDDLTableScan(): Unit = {
-    TestCollectionTableFactory.isStreaming = true
     util.addTable(
       """
         |CREATE TABLE src (
@@ -51,9 +50,51 @@ class TableScanTest extends TableTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION'
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
         |)
       """.stripMargin)
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testDDLWithComputedColumn(): Unit = {
+    // Create table with field as atom expression.
+    util.tableEnv.registerFunction("my_udf", Func0)
+    util.addTable(
+      s"""
+         |create table t1(
+         |  a int,
+         |  b varchar,
+         |  c as a + 1,
+         |  d as to_timestamp(b),
+         |  e as my_udf(a)
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'false'
+         |)
+       """.stripMargin)
+    util.verifyPlan("SELECT * FROM t1")
+  }
+
+  @Test
+  def testDDLWithWatermarkComputedColumn(): Unit = {
+    // Create table with field as atom expression.
+    util.tableEnv.registerFunction("my_udf", Func0)
+    util.addTable(
+      s"""
+         |create table t1(
+         |  a int,
+         |  b varchar,
+         |  c as a + 1,
+         |  d as to_timestamp(b),
+         |  e as my_udf(a),
+         |  WATERMARK FOR d AS d - INTERVAL '0.001' SECOND
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'false'
+         |)
+       """.stripMargin)
+    util.verifyPlan("SELECT * FROM t1")
   }
 }

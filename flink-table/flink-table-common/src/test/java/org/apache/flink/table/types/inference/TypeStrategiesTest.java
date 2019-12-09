@@ -83,7 +83,13 @@ public class TypeStrategiesTest {
 			TestSpec
 				.forStrategy(createMatchingTypeStrategy())
 				.inputTypes(DataTypes.INT(), DataTypes.INT())
-				.expectErrorMessage("Could not infer an output type for the given arguments.")
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
+
+			// invalid return type
+			TestSpec
+				.forStrategy(TypeStrategies.explicit(DataTypes.NULL()))
+				.inputTypes()
+				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received.")
 		);
 	}
 
@@ -119,7 +125,7 @@ public class TypeStrategiesTest {
 			.inputTypeValidator(InputTypeValidators.PASSING)
 			.outputTypeStrategy(testSpec.strategy)
 			.build();
-		return TypeInferenceUtil.runTypeInference(typeInference, callContextMock);
+		return TypeInferenceUtil.runTypeInference(typeInference, callContextMock, null);
 	}
 
 	// --------------------------------------------------------------------------------------------

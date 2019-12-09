@@ -437,11 +437,11 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
 
         properties = csv.to_properties()
         expected = {'format.fields.0.name': 'a',
-                    'format.fields.0.type': 'BIGINT',
+                    'format.fields.0.data-type': 'BIGINT',
                     'format.fields.1.name': 'b',
-                    'format.fields.1.type': 'VARCHAR',
+                    'format.fields.1.data-type': 'VARCHAR(2147483647)',
                     'format.fields.2.name': 'c',
-                    'format.fields.2.type': 'SQL_TIMESTAMP',
+                    'format.fields.2.data-type': 'TIMESTAMP(3)',
                     'format.type': 'csv',
                     'format.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -454,9 +454,9 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
 
         properties = csv.to_properties()
         expected = {'format.fields.0.name': 'a',
-                    'format.fields.0.type': 'INT',
+                    'format.fields.0.data-type': 'INT',
                     'format.fields.1.name': 'b',
-                    'format.fields.1.type': 'VARCHAR',
+                    'format.fields.1.data-type': 'VARCHAR(2147483647)',
                     'format.type': 'csv',
                     'format.property-version': '1'}
 
@@ -786,27 +786,27 @@ class SchemaDescriptorTests(PyFlinkTestCase):
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'schema.1.name': 'long_field',
-                    'schema.1.type': 'BIGINT',
+                    'schema.1.data-type': 'BIGINT',
                     'schema.2.name': 'string_field',
-                    'schema.2.type': 'VARCHAR',
+                    'schema.2.data-type': 'VARCHAR(2147483647)',
                     'schema.3.name': 'timestamp_field',
-                    'schema.3.type': 'TIMESTAMP',
+                    'schema.3.data-type': 'TIMESTAMP(3)',
                     'schema.4.name': 'time_field',
-                    'schema.4.type': 'TIME',
+                    'schema.4.data-type': 'TIME(0)',
                     'schema.5.name': 'date_field',
-                    'schema.5.type': 'DATE',
+                    'schema.5.data-type': 'DATE',
                     'schema.6.name': 'double_field',
-                    'schema.6.type': 'DOUBLE',
+                    'schema.6.data-type': 'DOUBLE',
                     'schema.7.name': 'float_field',
-                    'schema.7.type': 'FLOAT',
+                    'schema.7.data-type': 'FLOAT',
                     'schema.8.name': 'byte_field',
-                    'schema.8.type': 'TINYINT',
+                    'schema.8.data-type': 'TINYINT',
                     'schema.9.name': 'short_field',
-                    'schema.9.type': 'SMALLINT',
+                    'schema.9.data-type': 'SMALLINT',
                     'schema.10.name': 'boolean_field',
-                    'schema.10.type': 'BOOLEAN'}
+                    'schema.10.data-type': 'BOOLEAN'}
         self.assertEqual(expected, properties)
 
     def test_field_in_string(self):
@@ -825,27 +825,27 @@ class SchemaDescriptorTests(PyFlinkTestCase):
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'schema.1.name': 'long_field',
-                    'schema.1.type': 'BIGINT',
+                    'schema.1.data-type': 'BIGINT',
                     'schema.2.name': 'string_field',
-                    'schema.2.type': 'VARCHAR',
+                    'schema.2.data-type': 'VARCHAR',
                     'schema.3.name': 'timestamp_field',
-                    'schema.3.type': 'SQL_TIMESTAMP',
+                    'schema.3.data-type': 'TIMESTAMP(3)',
                     'schema.4.name': 'time_field',
-                    'schema.4.type': 'SQL_TIME',
+                    'schema.4.data-type': 'TIME(0)',
                     'schema.5.name': 'date_field',
-                    'schema.5.type': 'SQL_DATE',
+                    'schema.5.data-type': 'DATE',
                     'schema.6.name': 'double_field',
-                    'schema.6.type': 'DOUBLE',
+                    'schema.6.data-type': 'DOUBLE',
                     'schema.7.name': 'float_field',
-                    'schema.7.type': 'FLOAT',
+                    'schema.7.data-type': 'FLOAT',
                     'schema.8.name': 'byte_field',
-                    'schema.8.type': 'TINYINT',
+                    'schema.8.data-type': 'TINYINT',
                     'schema.9.name': 'short_field',
-                    'schema.9.type': 'SMALLINT',
+                    'schema.9.data-type': 'SMALLINT',
                     'schema.10.name': 'boolean_field',
-                    'schema.10.type': 'BOOLEAN'}
+                    'schema.10.data-type': 'BOOLEAN'}
         self.assertEqual(expected, properties)
 
     def test_from_origin_field(self):
@@ -856,12 +856,12 @@ class SchemaDescriptorTests(PyFlinkTestCase):
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'schema.1.name': 'long_field',
-                    'schema.1.type': 'BIGINT',
+                    'schema.1.data-type': 'BIGINT',
                     'schema.1.from': 'origin_field_a',
                     'schema.2.name': 'string_field',
-                    'schema.2.type': 'VARCHAR'}
+                    'schema.2.data-type': 'VARCHAR(2147483647)'}
         self.assertEqual(expected, properties)
 
     def test_proctime(self):
@@ -872,12 +872,12 @@ class SchemaDescriptorTests(PyFlinkTestCase):
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'int_field',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'schema.1.name': 'ptime',
-                    'schema.1.type': 'BIGINT',
+                    'schema.1.data-type': 'BIGINT',
                     'schema.1.proctime': 'true',
                     'schema.2.name': 'string_field',
-                    'schema.2.type': 'VARCHAR'}
+                    'schema.2.data-type': 'VARCHAR(2147483647)'}
         self.assertEqual(expected, properties)
 
     def test_rowtime(self):
@@ -892,17 +892,17 @@ class SchemaDescriptorTests(PyFlinkTestCase):
         properties = schema.to_properties()
         print(properties)
         expected = {'schema.0.name': 'int_field',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'schema.1.name': 'long_field',
-                    'schema.1.type': 'BIGINT',
+                    'schema.1.data-type': 'BIGINT',
                     'schema.2.name': 'rtime',
-                    'schema.2.type': 'BIGINT',
+                    'schema.2.data-type': 'BIGINT',
                     'schema.2.rowtime.timestamps.type': 'from-field',
                     'schema.2.rowtime.timestamps.from': 'long_field',
                     'schema.2.rowtime.watermarks.type': 'periodic-bounded',
                     'schema.2.rowtime.watermarks.delay': '5000',
                     'schema.3.name': 'string_field',
-                    'schema.3.type': 'VARCHAR'}
+                    'schema.3.data-type': 'VARCHAR(2147483647)'}
         self.assertEqual(expected, properties)
 
     def test_schema(self):
@@ -912,9 +912,9 @@ class SchemaDescriptorTests(PyFlinkTestCase):
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'a',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'schema.1.name': 'b',
-                    'schema.1.type': 'VARCHAR'}
+                    'schema.1.data-type': 'VARCHAR(2147483647)'}
         self.assertEqual(expected, properties)
 
 
@@ -930,7 +930,7 @@ class AbstractTableDescriptorTests(object):
         expected = {'format.type': 'csv',
                     'format.property-version': '1',
                     'format.fields.0.name': 'a',
-                    'format.fields.0.type': 'INT',
+                    'format.fields.0.data-type': 'INT',
                     'connector.property-version': '1',
                     'connector.type': 'filesystem'}
         assert properties == expected
@@ -942,7 +942,7 @@ class AbstractTableDescriptorTests(object):
 
         properties = descriptor.to_properties()
         expected = {'schema.0.name': 'a',
-                    'schema.0.type': 'INT',
+                    'schema.0.data-type': 'INT',
                     'format.type': 'csv',
                     'format.property-version': '1',
                     'connector.type': 'filesystem',

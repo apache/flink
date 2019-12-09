@@ -92,9 +92,9 @@ Configuration options to control Flink's restart behaviour in case of job failur
 
 {% include generated/task_manager_configuration.html %}
 
-For *batch* jobs Flink allocates a fraction of 0.7 of the free memory (total memory configured via taskmanager.heap.size minus memory used for network buffers) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
+For *batch* jobs Flink allocates a fraction of 0.4 of the total flink memory (configured via taskmanager.memory.total-flink.size) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
 
-The default fraction for managed memory can be adjusted using the taskmanager.memory.fraction parameter. An absolute value may be set using taskmanager.memory.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
+The default fraction for managed memory can be adjusted using the taskmanager.memory.managed.fraction parameter. An absolute value may be set using taskmanager.memory.managed.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
 
 {% include generated/task_manager_memory_configuration.html %}
 
@@ -271,7 +271,7 @@ repartitioning or broadcasting steps (shuffle phase). In those, each parallel ta
 TaskManager has to be able to talk to all other parallel tasks.
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> Since Flink 1.5, network buffers will always be allocated off-heap, i.e. outside of the JVM heap, irrespective of the value of <code>taskmanager.memory.off-heap</code>. This way, we can pass these buffers directly to the underlying network stack layers.
+  <strong>Note:</strong> Since Flink 1.5, network buffers will always be allocated off-heap, i.e. outside of the JVM heap. This way, we can pass these buffers directly to the underlying network stack layers.
 </div>
 
 #### Setting Memory Fractions
@@ -280,9 +280,9 @@ Previously, the number of network buffers was set manually which became a quite 
 (see below). Since Flink 1.3, it is possible to define a fraction of memory that is being used for
 network buffers with the following configuration parameters:
 
-- `taskmanager.network.memory.fraction`: Fraction of JVM memory to use for network buffers (DEFAULT: 0.1),
-- `taskmanager.network.memory.min`: Minimum memory size for network buffers (DEFAULT: 64MB),
-- `taskmanager.network.memory.max`: Maximum memory size for network buffers (DEFAULT: 1GB), and
+- `taskmanager.memory.shuffle.fraction`: Fraction of JVM memory to use for network buffers (DEFAULT: 0.1),
+- `taskmanager.memory.shuffle.min`: Minimum memory size for network buffers (DEFAULT: 64MB),
+- `taskmanager.memory.shuffle.max`: Maximum memory size for network buffers (DEFAULT: 1GB), and
 - `taskmanager.memory.segment-size`: Size of memory buffers used by the memory manager and the
 network stack in bytes (DEFAULT: 32KB).
 

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -58,8 +59,8 @@ public class MiniClusterConfiguration {
 			RpcServiceSharing rpcServiceSharing,
 			@Nullable String commonBindAddress) {
 
-		this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
 		this.numTaskManagers = numTaskManagers;
+		this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 		this.commonBindAddress = commonBindAddress;
 	}
@@ -72,6 +73,10 @@ public class MiniClusterConfiguration {
 
 		if (!configuration.contains(JobManagerOptions.SCHEDULER)) {
 			configuration.setString(JobManagerOptions.SCHEDULER, schedulerType);
+		}
+
+		if (!TaskExecutorResourceUtils.isTaskExecutorResourceExplicitlyConfigured(configuration)) {
+			return new UnmodifiableConfiguration(TaskExecutorResourceUtils.adjustConfigurationForLocalExecution(configuration, numTaskManagers));
 		}
 
 		return new UnmodifiableConfiguration(configuration);

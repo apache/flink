@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -136,8 +136,8 @@ public class SlotManagerImplTest extends TestLogger {
 		final JobID jobId = new JobID();
 
 		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setRequestSlotFunction(tuple5 -> {
-				assertThat(tuple5.f4, is(equalTo(resourceManagerId)));
+			.setRequestSlotFunction(tuple6 -> {
+				assertThat(tuple6.f5, is(equalTo(resourceManagerId)));
 				return new CompletableFuture<>();
 			})
 			.createTestingTaskExecutorGateway();
@@ -264,11 +264,11 @@ public class SlotManagerImplTest extends TestLogger {
 		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder().build();
 
 		try (SlotManagerImpl slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
-			final CompletableFuture<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>> requestFuture = new CompletableFuture<>();
+			final CompletableFuture<Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>> requestFuture = new CompletableFuture<>();
 			// accept an incoming slot request
 			final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-				.setRequestSlotFunction(tuple5 -> {
-					requestFuture.complete(Tuple5.of(tuple5.f0, tuple5.f1, tuple5.f2, tuple5.f3, tuple5.f4));
+				.setRequestSlotFunction(tuple6 -> {
+					requestFuture.complete(Tuple6.of(tuple6.f0, tuple6.f1, tuple6.f2, tuple6.f3, tuple6.f4, tuple6.f5));
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				})
 				.createTestingTaskExecutorGateway();
@@ -284,7 +284,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(slotRequest));
 
-			assertThat(requestFuture.get(), is(equalTo(Tuple5.of(slotId, jobId, allocationId, targetAddress, resourceManagerId))));
+			assertThat(requestFuture.get(), is(equalTo(Tuple6.of(slotId, jobId, allocationId, resourceProfile, targetAddress, resourceManagerId))));
 
 			TaskManagerSlot slot = slotManager.getSlot(slotId);
 
@@ -305,7 +305,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final AllocationID allocationId = new AllocationID();
 
 		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> new CompletableFuture<>())
+			.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple6 -> new CompletableFuture<>())
 			.createTestingTaskExecutorGateway();
 
 		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
@@ -359,11 +359,11 @@ public class SlotManagerImplTest extends TestLogger {
 			.setAllocateResourceConsumer(ignored -> numberAllocateResourceCalls.incrementAndGet())
 			.build();
 
-		final CompletableFuture<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>> requestFuture = new CompletableFuture<>();
+		final CompletableFuture<Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>> requestFuture = new CompletableFuture<>();
 		// accept an incoming slot request
 		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setRequestSlotFunction(tuple5 -> {
-				requestFuture.complete(Tuple5.of(tuple5.f0, tuple5.f1, tuple5.f2, tuple5.f3, tuple5.f4));
+			.setRequestSlotFunction(tuple6 -> {
+				requestFuture.complete(Tuple6.of(tuple6.f0, tuple6.f1, tuple6.f2, tuple6.f3, tuple6.f4, tuple6.f5));
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			})
 			.createTestingTaskExecutorGateway();
@@ -383,7 +383,7 @@ public class SlotManagerImplTest extends TestLogger {
 				taskExecutorConnection,
 				slotReport);
 
-			assertThat(requestFuture.get(), is(equalTo(Tuple5.of(slotId, jobId, allocationId, targetAddress, resourceManagerId))));
+			assertThat(requestFuture.get(), is(equalTo(Tuple6.of(slotId, jobId, allocationId, resourceProfile, targetAddress, resourceManagerId))));
 
 			TaskManagerSlot slot = slotManager.getSlot(slotId);
 
@@ -886,8 +886,8 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final CompletableFuture<SlotID> requestedSlotFuture = new CompletableFuture<>();
 		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setRequestSlotFunction(tuple5 -> {
-				requestedSlotFuture.complete(tuple5.f0);
+			.setRequestSlotFunction(tuple6 -> {
+				requestedSlotFuture.complete(tuple6.f0);
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			})
 			.createTestingTaskExecutorGateway();
@@ -1059,12 +1059,12 @@ public class SlotManagerImplTest extends TestLogger {
 			final SlotRequest slotRequest = new SlotRequest(new JobID(), new AllocationID(), ResourceProfile.UNKNOWN, "foobar");
 			slotManager.registerSlotRequest(slotRequest);
 
-			final BlockingQueue<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>> requestSlotQueue = new ArrayBlockingQueue<>(1);
+			final BlockingQueue<Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>> requestSlotQueue = new ArrayBlockingQueue<>(1);
 			final BlockingQueue<CompletableFuture<Acknowledge>> responseQueue = new ArrayBlockingQueue<>(1);
 
 			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-				.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> {
-					requestSlotQueue.offer(slotIDJobIDAllocationIDStringResourceManagerIdTuple5);
+				.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple6 -> {
+					requestSlotQueue.offer(slotIDJobIDAllocationIDStringResourceManagerIdTuple6);
 					try {
 						return responseQueue.take();
 					} catch (InterruptedException ignored) {
@@ -1082,7 +1082,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			slotManager.registerTaskManager(taskExecutionConnection, slotReport);
 
-			final Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId> firstRequest = requestSlotQueue.take();
+			final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId> firstRequest = requestSlotQueue.take();
 
 			final CompletableFuture<Acknowledge> secondManualSlotRequestResponse = new CompletableFuture<>();
 			responseQueue.offer(secondManualSlotRequestResponse);
@@ -1090,7 +1090,7 @@ public class SlotManagerImplTest extends TestLogger {
 			// fail first request
 			firstManualSlotRequestResponse.completeExceptionally(new SlotAllocationException("Test exception"));
 
-			final Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId> secondRequest = requestSlotQueue.take();
+			final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId> secondRequest = requestSlotQueue.take();
 
 			assertThat(secondRequest.f2, equalTo(firstRequest.f2));
 			assertThat(secondRequest.f0, equalTo(firstRequest.f0));
@@ -1115,12 +1115,12 @@ public class SlotManagerImplTest extends TestLogger {
 			final SlotRequest slotRequest1 = new SlotRequest(jobID, new AllocationID(), ResourceProfile.UNKNOWN, "foobar");
 			slotManager.registerSlotRequest(slotRequest1);
 
-			final BlockingQueue<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>> requestSlotQueue = new ArrayBlockingQueue<>(1);
+			final BlockingQueue<Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>> requestSlotQueue = new ArrayBlockingQueue<>(1);
 			final BlockingQueue<CompletableFuture<Acknowledge>> responseQueue = new ArrayBlockingQueue<>(1);
 
 			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-					.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> {
-						requestSlotQueue.offer(slotIDJobIDAllocationIDStringResourceManagerIdTuple5);
+					.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple6 -> {
+						requestSlotQueue.offer(slotIDJobIDAllocationIDStringResourceManagerIdTuple6);
 						try {
 							return responseQueue.take();
 						} catch (InterruptedException ignored) {
@@ -1138,7 +1138,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			slotManager.registerTaskManager(taskExecutionConnection, slotReport);
 
-			final Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId> firstRequest = requestSlotQueue.take();
+			final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId> firstRequest = requestSlotQueue.take();
 
 			final CompletableFuture<Acknowledge> secondManualSlotRequestResponse = new CompletableFuture<>();
 			responseQueue.offer(secondManualSlotRequestResponse);
@@ -1149,7 +1149,7 @@ public class SlotManagerImplTest extends TestLogger {
 			// fail first request
 			firstManualSlotRequestResponse.completeExceptionally(new TimeoutException("Test exception to fail first allocation"));
 
-			final Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId> secondRequest = requestSlotQueue.take();
+			final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId> secondRequest = requestSlotQueue.take();
 
 			// fail second request
 			secondManualSlotRequestResponse.completeExceptionally(new SlotOccupiedException("Test exception", slotRequest1.getAllocationId(), jobID));
@@ -1546,8 +1546,8 @@ public class SlotManagerImplTest extends TestLogger {
 
 	private void registerTaskExecutorWithTwoSlots(SlotManagerImpl slotManager, CompletableFuture<JobID> firstRequestSlotFuture) {
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> {
-				firstRequestSlotFuture.complete(slotIDJobIDAllocationIDStringResourceManagerIdTuple5.f1);
+			.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple6 -> {
+				firstRequestSlotFuture.complete(slotIDJobIDAllocationIDStringResourceManagerIdTuple6.f1);
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			})
 			.createTestingTaskExecutorGateway();

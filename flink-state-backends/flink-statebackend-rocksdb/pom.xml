@@ -57,7 +57,7 @@ under the License.
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>5.17.2-artisans-1.0</version>
+			<version>5.17.2-artisans-2.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -89,4 +89,27 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<!-- build a test jar -->
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

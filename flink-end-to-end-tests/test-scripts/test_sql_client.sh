@@ -139,11 +139,11 @@ cat >> $SQL_CONF << EOF
     update-mode: upsert
     schema:
       - name: user_id
-        type: INT
+        data-type: INT
       - name: user_name
-        type: VARCHAR
+        data-type: STRING
       - name: user_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: elasticsearch
       version: 6
@@ -163,11 +163,11 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: user_id
-        type: INT
+        data-type: INT
       - name: user_name
-        type: VARCHAR
+        data-type: STRING
       - name: user_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: elasticsearch
       version: 6

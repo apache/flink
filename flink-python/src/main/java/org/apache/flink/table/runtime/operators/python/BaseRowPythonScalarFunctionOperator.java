@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -70,12 +72,13 @@ public class BaseRowPythonScalarFunctionOperator
 	private transient Projection<BaseRow, BinaryRow> udfInputProjection;
 
 	public BaseRowPythonScalarFunctionOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -113,15 +116,16 @@ public class BaseRowPythonScalarFunctionOperator
 	}
 
 	@Override
-	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(FnDataReceiver<BaseRow> resultReceiver) {
+	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
+			FnDataReceiver<BaseRow> resultReceiver,
+			PythonEnvironmentManager pythonEnvironmentManager) {
 		return new BaseRowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
-			scalarFunctions[0].getPythonFunction().getPythonEnv(),
+			pythonEnvironmentManager,
 			udfInputType,
-			udfOutputType,
-			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories());
+			udfOutputType);
 	}
 
 	private Projection<BaseRow, BinaryRow> createUdfInputProjection() {

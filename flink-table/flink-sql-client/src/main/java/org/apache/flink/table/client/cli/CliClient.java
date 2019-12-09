@@ -296,6 +296,12 @@ public class CliClient {
 			case INSERT_INTO:
 				callInsertInto(cmdCall);
 				break;
+			case CREATE_TABLE:
+				callCreateTable(cmdCall);
+				break;
+			case DROP_TABLE:
+				callDropTable(cmdCall);
+				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
 				break;
@@ -304,6 +310,18 @@ public class CliClient {
 				break;
 			case SOURCE:
 				callSource(cmdCall);
+				break;
+			case CREATE_DATABASE:
+				callCreateDatabase(cmdCall);
+				break;
+			case DROP_DATABASE:
+				callDropDatabase(cmdCall);
+				break;
+			case ALTER_DATABASE:
+				callAlterDatabase(cmdCall);
+				break;
+			case ALTER_TABLE:
+				callAlterTable(cmdCall);
 				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
@@ -525,6 +543,25 @@ public class CliClient {
 		return true;
 	}
 
+	private void callCreateTable(SqlCommandCall cmdCall) {
+		try {
+			executor.createTable(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+	}
+
+	private void callDropTable(SqlCommandCall cmdCall) {
+		try {
+			executor.dropTable(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_TABLE_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
 	private void callCreateView(SqlCommandCall cmdCall) {
 		final String name = cmdCall.operands[0];
 		final String query = cmdCall.operands[1];
@@ -592,6 +629,46 @@ public class CliClient {
 		// try to run it
 		final Optional<SqlCommandCall> call = parseCommand(stmt);
 		call.ifPresent(this::callCommand);
+	}
+
+	private void callCreateDatabase(SqlCommandCall cmdCall) {
+		final String createDatabaseStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, createDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callDropDatabase(SqlCommandCall cmdCall) {
+		final String dropDatabaseStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, dropDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callAlterDatabase(SqlCommandCall cmdCall) {
+		final String alterDatabaseStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, alterDatabaseStmt);
+			printInfo(CliStrings.MESSAGE_DATABASE_ALTER_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_DATABASE_ALTER_FAILED, e);
+		}
+	}
+
+	private void callAlterTable(SqlCommandCall cmdCall) {
+		final String alterTableStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, alterTableStmt);
+			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

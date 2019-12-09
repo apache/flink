@@ -93,12 +93,6 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<scope>test</scope>
-		</dependency>
-
 		<!-- Joda, jackson, and lombok are used to test that serialization and type extraction
 			work with types from those libraries -->
 

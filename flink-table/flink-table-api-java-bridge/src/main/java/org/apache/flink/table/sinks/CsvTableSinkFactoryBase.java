@@ -66,12 +66,14 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		properties.add(CONNECTOR_PATH);
 		// format
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
+		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
 		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
 		properties.add(CONNECTOR_PATH);
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
 		return properties;
 	}
@@ -90,10 +92,10 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
 		// build
 		TableSchema tableSchema = params.getTableSchema(SCHEMA);
-		boolean isDerived = params
-			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
-			.orElse(false);
-		if (!isDerived) {
+
+		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
+		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
+		if (hasSchema) {
 			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 			if (!formatSchema.equals(tableSchema)) {
 				throw new TableException(

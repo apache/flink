@@ -26,10 +26,10 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, WatermarkSpec}
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter
 import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters}
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, WatermarkGeneratorCodeGenerator}
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -43,15 +43,10 @@ import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, P
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, SqlExprToRexConverter}
-import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory
-import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.types.utils.TypeConversions
 
 import java.util
 
@@ -157,88 +152,31 @@ class StreamExecTableSourceScan(
 
     val ingestedTable = new DataStream(planner.getExecEnv, streamTransformation)
 
-    val withWatermarks = if (tableSourceTable.watermarkSpec.isDefined) {
-      // generate watermarks for rowtime indicator from WatermarkSpec
-      val rowType = tableSourceTable.getRowType
-      val converter = planner.createFlinkPlanner.createSqlExprToRexConverter(rowType)
-      applyWatermarkByWatermarkSpec(
-        config,
-        ingestedTable,
-        FlinkTypeFactory.toLogicalRowType(rowType),
-        tableSourceTable.watermarkSpec.get,
-        converter)
-    } else {
-      val rowtimeDesc: Option[RowtimeAttributeDescriptor] =
-        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.getRowType)
+    // generate watermarks for rowtime indicator
+    val rowtimeDescOption: Option[RowtimeAttributeDescriptor] =
+      TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.getRowType)
 
-      // generate watermarks for rowtime indicator from DefinedRowtimeAttributes
-      if (rowtimeDesc.isDefined) {
-        applyWatermarkByRowtimeAttributeDescriptor(
-          ingestedTable,
-          rowtimeDesc.get,
-          producedDataType)
-      } else {
+    val withWatermarks = rowtimeDescOption match {
+      case Some(rowtimeDesc) =>
+        val rowtimeFieldIdx = getRowType.getFieldNames.indexOf(rowtimeDesc.getAttributeName)
+        val watermarkStrategy = rowtimeDesc.getWatermarkStrategy
+        watermarkStrategy match {
+          case p: PeriodicWatermarkAssigner =>
+            val watermarkGenerator = new PeriodicWatermarkAssignerWrapper(rowtimeFieldIdx, p)
+            ingestedTable.assignTimestampsAndWatermarks(watermarkGenerator)
+          case p: PunctuatedWatermarkAssigner =>
+            val watermarkGenerator =
+              new PunctuatedWatermarkAssignerWrapper(rowtimeFieldIdx, p, producedDataType)
+            ingestedTable.assignTimestampsAndWatermarks(watermarkGenerator)
+          case _: PreserveWatermarks =>
+            // The watermarks have already been provided by the underlying DataStream.
+            ingestedTable
+        }
+      case None =>
         // No need to generate watermarks if no rowtime attribute is specified.
         ingestedTable
-      }
     }
-
     withWatermarks.getTransformation
-  }
-
-  private def applyWatermarkByWatermarkSpec(
-      config: TableConfig,
-      input: DataStream[BaseRow],
-      inputType: RowType,
-      watermarkSpec: WatermarkSpec,
-      converter: SqlExprToRexConverter): DataStream[BaseRow] = {
-    // TODO: [FLINK-14473] support nested field as the rowtime attribute in the future
-    val rowtime = watermarkSpec.getRowtimeAttribute
-    if (rowtime.contains(".")) {
-      throw new TableException(
-        s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-    }
-    val rowtimeFieldIndex = getRowType.getFieldNames.indexOf(rowtime)
-    val watermarkExpr = converter.convertToRexNode(watermarkSpec.getWatermarkExpressionString)
-    val watermarkResultType = TypeConversions.fromLogicalToDataType(
-      FlinkTypeFactory.toLogicalType(watermarkExpr.getType))
-    // check the derived datatype equals to the datatype in WatermarkSpec in TableSchema.
-    if (!watermarkResultType.equals(watermarkSpec.getWatermarkExprOutputType)) {
-      throw new TableException(
-        s"The derived data type '$watermarkResultType' of watermark expression doesn't equal to " +
-          s"the data type '${watermarkSpec.getWatermarkExprOutputType}' in WatermarkSpec. " +
-          "Please pass in correct result type of watermark expression when constructing " +
-          "TableSchema.")
-    }
-    val watermarkGenerator = WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
-      config,
-      inputType,
-      watermarkExpr)
-    val operatorFactory = new WatermarkAssignerOperatorFactory(
-      rowtimeFieldIndex,
-      0L,
-      watermarkGenerator)
-    input.transform(s"WatermarkAssigner($watermarkSpec)", input.getType, operatorFactory)
-  }
-
-  private def applyWatermarkByRowtimeAttributeDescriptor(
-      input: DataStream[BaseRow],
-      rowtimeDesc: RowtimeAttributeDescriptor,
-      producedDataType: DataType): DataStream[BaseRow] = {
-    val rowtimeFieldIdx = getRowType.getFieldNames.indexOf(rowtimeDesc.getAttributeName)
-    val watermarkStrategy = rowtimeDesc.getWatermarkStrategy
-    watermarkStrategy match {
-      case p: PeriodicWatermarkAssigner =>
-        val watermarkGenerator = new PeriodicWatermarkAssignerWrapper(rowtimeFieldIdx, p)
-        input.assignTimestampsAndWatermarks(watermarkGenerator)
-      case p: PunctuatedWatermarkAssigner =>
-        val watermarkGenerator =
-          new PunctuatedWatermarkAssignerWrapper(rowtimeFieldIdx, p, producedDataType)
-        input.assignTimestampsAndWatermarks(watermarkGenerator)
-      case _: PreserveWatermarks =>
-        // The watermarks have already been provided by the underlying DataStream.
-        input
-    }
   }
 
   private def needInternalConversion: Boolean = {

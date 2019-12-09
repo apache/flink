@@ -30,6 +30,8 @@ TEST_PROGRAM_NAME=HighParallelismIterationsTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
 set_config_key "taskmanager.numberOfTaskSlots" "$SLOTS_PER_TM"
+set_config_key "taskmanager.memory.shuffle.min" "160m"
+set_config_key "taskmanager.memory.shuffle.max" "160m"
 
 print_mem_use
 start_cluster

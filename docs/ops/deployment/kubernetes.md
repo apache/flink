@@ -129,7 +129,7 @@ data:
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
     jobmanager.heap.size: 1024m
-    taskmanager.heap.size: 1024m
+    taskmanager.memory.total-process.size: 1024m
   log4j.properties: |+
     log4j.rootLogger=INFO, file
     log4j.logger.akka=INFO

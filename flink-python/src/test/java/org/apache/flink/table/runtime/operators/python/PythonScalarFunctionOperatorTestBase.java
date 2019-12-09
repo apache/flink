@@ -64,8 +64,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	@Test
 	public void testRetractionFieldKept() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(new Configuration());
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -85,11 +84,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	@Test
 	public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -110,10 +107,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	@Test
 	public void testFinishBundleTriggeredByCount() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
-		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -134,11 +130,10 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	@Test
 	public void testFinishBundleTriggeredByTime() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
 		conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -157,10 +152,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	@Test
 	public void testFinishBundleTriggeredByClose() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -177,10 +171,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 
 	@Test
 	public void testWatermarkProcessedOnFinishBundle() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -216,12 +209,13 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		Assert.assertEquals(1, vertices.size());
 	}
 
-	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness() throws Exception {
+	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(Configuration config) throws Exception {
 		RowType dataType = new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
 			new RowType.RowField("f3", new BigIntType())));
 		AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> operator = getTestOperator(
+			config,
 			new PythonFunctionInfo[] {
 				new PythonFunctionInfo(
 					AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
@@ -233,10 +227,14 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 			new int[]{0, 1}
 		);
 
-		return new OneInputStreamOperatorTestHarness<>(operator);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		return testHarness;
 	}
 
 	public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> getTestOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,

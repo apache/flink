@@ -142,7 +142,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		final ArrayList<BufferAndBacklog> list = new ArrayList<>();
 
 		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer()) != null) {
+		while ((bab = reader.getNextBuffer(true)) != null) {
 			list.add(bab);
 		}
 
@@ -151,7 +151,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 
 	private static void drainAllData(ResultSubpartitionView reader) throws Exception {
 		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer()) != null) {
+		while ((bab = reader.getNextBuffer(true)) != null) {
 			bab.buffer().recycleBuffer();
 		}
 	}

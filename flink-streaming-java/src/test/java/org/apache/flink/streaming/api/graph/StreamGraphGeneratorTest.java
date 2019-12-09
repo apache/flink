@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
@@ -50,7 +51,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -70,7 +75,7 @@ import static org.junit.Assert.assertTrue;
  * specific tests.
  */
 @SuppressWarnings("serial")
-public class StreamGraphGeneratorTest {
+public class StreamGraphGeneratorTest extends TestLogger {
 
 	@Test
 	public void generatorForwardsSavepointRestoreSettings() {
@@ -460,6 +465,9 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
 		iteration.closeWith(filter).print();
 
+		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
+		iteration.getTransformation().setResources(resources, resources);
+
 		StreamGraph streamGraph = env.getStreamGraph();
 		for (Tuple2<StreamNode, StreamNode> iterationPair : streamGraph.getIterationSourceSinkPairs()) {
 			assertNotNull(iterationPair.f0.getCoLocationGroup());
@@ -467,7 +475,16 @@ public class StreamGraphGeneratorTest {
 
 			assertEquals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, iterationPair.f0.getSlotSharingGroup());
 			assertEquals(iterationPair.f0.getSlotSharingGroup(), iterationPair.f1.getSlotSharingGroup());
+
+			final ResourceSpec sourceMinResources = iterationPair.f0.getMinResources();
+			final ResourceSpec sinkMinResources = iterationPair.f1.getMinResources();
+			final ResourceSpec iterationResources = sourceMinResources.merge(sinkMinResources);
+			assertThat(iterationResources, equalsResourceSpec(resources));
 		}
+	}
+
+	private Matcher<ResourceSpec> equalsResourceSpec(ResourceSpec resources) {
+		return new EqualsResourceSpecMatcher(resources);
 	}
 
 	/**
@@ -491,6 +508,22 @@ public class StreamGraphGeneratorTest {
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
 		for (StreamNode streamNode : streamNodes) {
 			assertEquals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, streamNode.getSlotSharingGroup());
+		}
+	}
+
+	@Test
+	public void testSetManagedMemoryWeight() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		source.getTransformation().setManagedMemoryWeight(123);
+		source.print().name("sink");
+
+		final StreamGraph streamGraph = env.getStreamGraph();
+		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+			final int expectedWeight = streamNode.getOperatorName().contains("source")
+				? 123
+				: Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT;
+			assertEquals(expectedWeight, streamNode.getManagedMemoryWeight());
 		}
 	}
 
@@ -581,5 +614,23 @@ public class StreamGraphGeneratorTest {
 			return value;
 		}
 
+	}
+
+	private static class EqualsResourceSpecMatcher extends TypeSafeMatcher<ResourceSpec> {
+		private final ResourceSpec resources;
+
+		EqualsResourceSpecMatcher(ResourceSpec resources) {
+			this.resources = resources;
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("expected resource spec ").appendValue(resources);
+		}
+
+		@Override
+		protected boolean matchesSafely(ResourceSpec item) {
+			return resources.lessThanOrEqual(item) && item.lessThanOrEqual(resources);
+		}
 	}
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -29,11 +29,12 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
@@ -51,7 +52,6 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.client.gateway.local.result.BasicResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
@@ -59,6 +59,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
@@ -77,7 +78,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -107,6 +110,10 @@ public class LocalExecutor implements Executor {
 	// result maintenance
 
 	private final ResultStore resultStore;
+
+	// insert into sql match pattern
+	public static final Pattern INSERT_INTO_SQL_PATTERN = Pattern.compile("(INSERT\\s+INTO.*)",
+			Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
 	/**
 	 * Creates a local executor for submitting table programs and retrieving results.
@@ -198,39 +205,27 @@ public class LocalExecutor implements Executor {
 		// nothing to do yet
 	}
 
-	/**
-	 * Create a new {@link ExecutionContext} by merging the default environment the the environment in session context.
-	 */
-	private ExecutionContext<?> createExecutionContext(SessionContext sessionContext) {
-		Environment mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getSessionEnv());
-		return createExecutionContext(mergedEnv, sessionContext);
-	}
-
-	/**
-	 * Create a new {@link ExecutionContext} by using the given environment.
-	 */
-	private ExecutionContext<?> createExecutionContext(Environment environment, SessionContext sessionContext) {
-		try {
-			return new ExecutionContext<>(
-					environment,
-					sessionContext,
-					dependencies,
-					flinkConfig,
-					clusterClientServiceLoader,
-					commandLineOptions,
-					commandLines);
-		} catch (Throwable t) {
-			// catch everything such that a configuration does not crash the executor
-			throw new SqlExecutionException("Could not create execution context.", t);
-		}
+	/** Returns ExecutionContext.Builder with given {@link SessionContext} session context. */
+	private ExecutionContext.Builder createExecutionContextBuilder(SessionContext sessionContext) {
+		return ExecutionContext.builder(
+				defaultEnvironment,
+				sessionContext,
+				this.dependencies,
+				this.flinkConfig,
+				this.clusterClientServiceLoader,
+				this.commandLineOptions,
+				this.commandLines);
 	}
 
 	@Override
 	public String openSession(SessionContext sessionContext) throws SqlExecutionException {
 		String sessionId = sessionContext.getSessionId();
-		ExecutionContext previousContext = this.contextMap.putIfAbsent(sessionId, createExecutionContext(sessionContext));
-		if (previousContext != null) {
+		if (this.contextMap.containsKey(sessionId)) {
 			throw new SqlExecutionException("Found another session with the same session identifier: " + sessionId);
+		} else {
+			this.contextMap.put(
+					sessionId,
+					createExecutionContextBuilder(sessionContext).build());
 		}
 		return sessionId;
 	}
@@ -273,7 +268,13 @@ public class LocalExecutor implements Executor {
 	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
 		ExecutionContext<?> context = getExecutionContext(sessionId);
 		// Renew the ExecutionContext by merging the default environment with original session context.
-		this.contextMap.put(sessionId, createExecutionContext(context.getOriginalSessionContext()));
+		// Book keep all the session states of current ExecutionContext then
+		// re-register them into the new one.
+		ExecutionContext<?> newContext = createExecutionContextBuilder(
+				context.getOriginalSessionContext())
+				.sessionState(context.getSessionState())
+				.build();
+		this.contextMap.put(sessionId, newContext);
 	}
 
 	@Override
@@ -282,7 +283,14 @@ public class LocalExecutor implements Executor {
 		Environment env = context.getEnvironment();
 		Environment newEnv = Environment.enrich(env, ImmutableMap.of(key, value), ImmutableMap.of());
 		// Renew the ExecutionContext by new environment.
-		this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
+		// Book keep all the session states of current ExecutionContext then
+		// re-register them into the new one.
+		ExecutionContext<?> newContext = createExecutionContextBuilder(
+				context.getOriginalSessionContext())
+				.env(newEnv)
+				.sessionState(context.getSessionState())
+				.build();
+		this.contextMap.put(sessionId, newContext);
 	}
 
 	@Override
@@ -307,7 +315,10 @@ public class LocalExecutor implements Executor {
 		Environment newEnv = env.clone();
 		if (newEnv.getTables().remove(name) != null) {
 			// Renew the ExecutionContext.
-			this.contextMap.put(sessionId, createExecutionContext(newEnv, context.getOriginalSessionContext()));
+			this.contextMap.put(
+					sessionId,
+					createExecutionContextBuilder(context.getOriginalSessionContext())
+							.env(newEnv).build());
 		}
 	}
 
@@ -335,6 +346,28 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listDatabases()));
+	}
+
+	@Override
+	public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			tEnv.sqlUpdate(ddl);
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not create a table from statement: " + ddl, e);
+		}
+	}
+
+	@Override
+	public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			tEnv.sqlUpdate(ddl);
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not drop table from statement: " + ddl, e);
+		}
 	}
 
 	@Override
@@ -514,7 +547,7 @@ public class LocalExecutor implements Executor {
 			ClusterClient<T> clusterClient = null;
 			try {
 				// retrieve existing cluster
-				clusterClient = clusterDescriptor.retrieve(context.getClusterId());
+				clusterClient = clusterDescriptor.retrieve(context.getClusterId()).getClusterClient();
 				try {
 					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId))).get();
 				} catch (Throwable t) {
@@ -544,28 +577,36 @@ public class LocalExecutor implements Executor {
 			String statement) {
 		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
+		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
+		if (!INSERT_INTO_SQL_PATTERN.matcher(statement.trim()).matches()) {
+			return null;
+		}
+
 		// create job graph with dependencies
 		final String jobName = sessionId + ": " + statement;
-		final JobGraph jobGraph;
+		final Pipeline pipeline;
 		try {
-			jobGraph = context.createJobGraph(jobName);
+			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
 		}
 
+		// create a copy so that we can change settings without affecting the original config
+		Configuration configuration = new Configuration(context.getFlinkConfig());
+		// for update queries we don't wait for the job result, so run in detached mode
+		configuration.set(DeploymentOptions.ATTACHED, false);
+
 		// create execution
-		final BasicResult<C> result = new BasicResult<>();
-		final ProgramDeployer<C> deployer = new ProgramDeployer<>(
-				context, jobName, jobGraph, result, false);
+		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
 
 		// blocking deployment
-		deployer.run();
-
-		return ProgramTargetDescriptor.of(
-				result.getClusterId(),
-				jobGraph.getJobID(),
-				result.getWebInterfaceUrl());
+		try {
+			JobClient jobClient = deployer.deploy().get();
+			return ProgramTargetDescriptor.of(jobClient.getJobID());
+		} catch (Exception e) {
+			throw new RuntimeException("Error running SQL job.", e);
+		}
 	}
 
 	private <C> ResultDescriptor executeQueryInternal(String sessionId, ExecutionContext<C> context, String query) {
@@ -576,11 +617,11 @@ public class LocalExecutor implements Executor {
 		final DynamicResult<C> result = resultStore.createResult(
 				context.getEnvironment(),
 				removeTimeAttributes(table.getSchema()),
-				context.getExecutionConfig());
+				context.getExecutionConfig(),
+				context.getClassLoader());
 
-		// create job graph with dependencies
 		final String jobName = sessionId + ": " + query;
-		final JobGraph jobGraph;
+		final Pipeline pipeline;
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
@@ -590,7 +631,7 @@ public class LocalExecutor implements Executor {
 						jobName);
 				return null;
 			});
-			jobGraph = context.createJobGraph(jobName);
+			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store
@@ -599,13 +640,20 @@ public class LocalExecutor implements Executor {
 			throw new SqlExecutionException("Invalid SQL query.", t);
 		}
 
-		// store the result with a unique id (the job id for now)
-		final String resultId = jobGraph.getJobID().toString();
+		// store the result with a unique id
+		final String resultId = UUID.randomUUID().toString();
 		resultStore.storeResult(resultId, result);
 
+		// create a copy so that we can change settings without affecting the original config
+		Configuration configuration = new Configuration(context.getFlinkConfig());
+		// for queries we wait for the job result, so run in attached mode
+		configuration.set(DeploymentOptions.ATTACHED, true);
+		// shut down the cluster if the shell is closed
+		configuration.set(DeploymentOptions.SHUTDOWN_IF_ATTACHED, true);
+
 		// create execution
-		final ProgramDeployer<C> deployer = new ProgramDeployer<>(
-				context, jobName, jobGraph, result, true);
+		final ProgramDeployer deployer = new ProgramDeployer(
+				configuration, jobName, pipeline);
 
 		// start result retrieval
 		result.startRetrieval(deployer);
@@ -656,7 +704,7 @@ public class LocalExecutor implements Executor {
 		try {
 			// find jar files
 			for (URL url : jars) {
-				ClientUtils.checkJarFile(url);
+				JarUtils.checkJarFile(url);
 				dependencies.add(url);
 			}
 
@@ -676,7 +724,7 @@ public class LocalExecutor implements Executor {
 					// only consider jars
 					if (f.isFile() && f.getAbsolutePath().toLowerCase().endsWith(".jar")) {
 						final URL url = f.toURI().toURL();
-						ClientUtils.checkJarFile(url);
+						JarUtils.checkJarFile(url);
 						dependencies.add(url);
 					}
 				}

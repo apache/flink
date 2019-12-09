@@ -134,7 +134,7 @@ execution:
   result-mode: "$VAR_RESULT_MODE"
   max-table-result-rows: "$VAR_MAX_ROWS"
   restart-strategy:
-    type: failure-rate
+    type: "$VAR_RESTART_STRATEGY_TYPE"
     max-failures-per-interval: 10
     failure-rate-interval: 99000
     delay: 1000

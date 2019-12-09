@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
@@ -42,7 +43,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -121,9 +124,6 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), new TimestampConverter(3));
 		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), new LocalDateTimeConverter(3));
 
-		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Long.class), LongConverter.INSTANCE);
-		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), InstantConverter.INSTANCE);
-
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
 
@@ -168,6 +168,15 @@ public class DataFormatConverters {
 					return new BigDecimalConverter(ps.f0, ps.f1);
 				} else {
 					return new DecimalConverter(ps.f0, ps.f1);
+				}
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				int precision = getDateTimePrecision(logicalType);
+				if (clazz == Instant.class) {
+					return new InstantConverter(precision);
+				} else if (clazz == Long.class || clazz == long.class) {
+					return new LongSqlTimestampConverter(precision);
+				} else {
+					return new SqlTimestampConverter(precision);
 				}
 			case ARRAY:
 				if (clazz == BinaryArray.class) {
@@ -246,12 +255,20 @@ public class DataFormatConverters {
 				} else if (typeInfo instanceof LegacyTimestampTypeInfo) {
 					LegacyTimestampTypeInfo timestampType = (LegacyTimestampTypeInfo) typeInfo;
 					return new TimestampConverter(timestampType.getPrecision());
+				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
+					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
+					return new InstantConverter(instantTypeInfo.getPrecision());
 				}
 
 				if (clazz == BinaryGeneric.class) {
 					return BinaryGenericConverter.INSTANCE;
 				}
 				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				if (dataType.getConversionClass().equals(LocalDateTime.class)) {
+					return new LocalDateTimeConverter(((TimestampType) logicalType).getPrecision());
+				}
+				return new TimestampConverter(((TimestampType) logicalType).getPrecision());
 			default:
 				throw new RuntimeException("Not support dataType: " + dataType);
 		}
@@ -279,6 +296,19 @@ public class DataFormatConverters {
 			}
 		}
 		return ps;
+	}
+
+	private static int getDateTimePrecision(LogicalType logicalType) {
+		if (logicalType instanceof LocalZonedTimestampType) {
+			return ((LocalZonedTimestampType) logicalType).getPrecision();
+		} else {
+			TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
+			if (typeInfo instanceof LegacyInstantTypeInfo) {
+				return ((LegacyInstantTypeInfo) typeInfo).getPrecision();
+			} else {
+				return LocalZonedTimestampType.DEFAULT_PRECISION;
+			}
+		}
 	}
 
 	/**
@@ -728,27 +758,29 @@ public class DataFormatConverters {
 	/**
 	 * Converter for Instant.
 	 */
-	public static final class InstantConverter extends DataFormatConverter<Long, Instant> {
+	public static final class InstantConverter extends DataFormatConverter<SqlTimestamp, Instant> {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final InstantConverter INSTANCE = new InstantConverter();
+		private final int precision;
 
-		private InstantConverter() {}
-
-		@Override
-		Long toInternalImpl(Instant value) {
-			return value.toEpochMilli();
+		public InstantConverter(int precision) {
+			this.precision = precision;
 		}
 
 		@Override
-		Instant toExternalImpl(Long value) {
-			return Instant.ofEpochMilli(value);
+		SqlTimestamp toInternalImpl(Instant value) {
+			return SqlTimestamp.fromInstant(value);
+		}
+
+		@Override
+		Instant toExternalImpl(SqlTimestamp value) {
+			return value.toInstant();
 		}
 
 		@Override
 		Instant toExternalImpl(BaseRow row, int column) {
-			return toExternalImpl(row.getLong(column));
+			return toExternalImpl(row.getTimestamp(column, precision));
 		}
 	}
 
@@ -1411,6 +1443,54 @@ public class DataFormatConverters {
 				fields[i] = converters[i].toExternal(value, i);
 			}
 			return (Product) serializer.createInstance(fields);
+		}
+	}
+
+	/**
+	 * Converter for Long and SqlTimestamp.
+	 */
+	public static final class LongSqlTimestampConverter extends DataFormatConverter<SqlTimestamp, Long> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int precision;
+
+		public LongSqlTimestampConverter(int precision) {
+			this.precision = precision;
+		}
+
+		@Override
+		SqlTimestamp toInternalImpl(Long value) {
+			return SqlTimestamp.fromEpochMillis(value);
+		}
+
+		@Override
+		Long toExternalImpl(SqlTimestamp value) {
+			return value.getMillisecond();
+		}
+
+		@Override
+		Long toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getTimestamp(column, precision));
+		}
+	}
+
+	/**
+	 * Converter for SqlTimestmap class.
+	 */
+	public static final class SqlTimestampConverter extends IdentityConverter<SqlTimestamp> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int precision;
+
+		public SqlTimestampConverter(int precision) {
+			this.precision = precision;
+		}
+
+		@Override
+		SqlTimestamp toExternalImpl(BaseRow row, int column) {
+			return row.getTimestamp(column, precision);
 		}
 	}
 }

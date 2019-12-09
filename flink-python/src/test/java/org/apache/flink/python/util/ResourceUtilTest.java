@@ -50,7 +50,7 @@ public class ResourceUtilTest {
 		Runtime.getRuntime().addShutdownHook(hook);
 		try {
 			String prefix = "tmp_";
-			List<File> files = ResourceUtil.extractBasicDependenciesFromResource(
+			List<File> files = ResourceUtil.extractBuiltInDependencies(
 				tmpdir.getAbsolutePath(),
 				prefix,
 				true);
@@ -60,7 +60,7 @@ public class ResourceUtilTest {
 				new File(tmpdir, "tmp_py4j-0.10.8.1-src.zip"),
 				new File(tmpdir, "tmp_cloudpickle-1.2.2-src.zip")}, files.toArray());
 			files.forEach(File::delete);
-			files = ResourceUtil.extractBasicDependenciesFromResource(
+			files = ResourceUtil.extractBuiltInDependencies(
 				tmpdir.getAbsolutePath(),
 				prefix,
 				false);

@@ -21,9 +21,11 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -32,7 +34,6 @@ import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,10 +45,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import scala.Some;
 import scala.Tuple2;
@@ -334,7 +335,7 @@ public class BootstrapTools {
 	 * Get an instance of the dynamic properties option.
 	 *
 	 * <p>Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.shuffle.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
 		return new Option(DYNAMIC_PROPERTIES_OPT, true, "Dynamic properties");
@@ -387,16 +388,8 @@ public class BootstrapTools {
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 
-		ArrayList<String> params = new ArrayList<>();
-		params.add(String.format("-Xms%dm", tmParams.taskManagerHeapSizeMB()));
-		params.add(String.format("-Xmx%dm", tmParams.taskManagerHeapSizeMB()));
-
-		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
-			params.add(String.format("-XX:MaxDirectMemorySize=%dm",
-				tmParams.taskManagerDirectMemoryLimitMB()));
-		}
-
-		startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
+		final TaskExecutorResourceSpec taskExecutorResourceSpec = tmParams.getTaskExecutorResourceSpec();
+		startCommandValues.put("jvmmem", TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec));
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
@@ -428,11 +421,12 @@ public class BootstrapTools {
 		startCommandValues.put("redirects",
 			"1> " + logDirectory + "/taskmanager.out " +
 			"2> " + logDirectory + "/taskmanager.err");
-		String args = "--configDir " + configDirectory;
+
+		String argsStr = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec) + " --configDir " + configDirectory;
 		if (!mainArgs.isEmpty()) {
-			args += " " + mainArgs;
+			argsStr += " " + mainArgs;
 		}
-		startCommandValues.put("args",  args);
+		startCommandValues.put("args", argsStr);
 
 		final String commandTemplate = flinkConfig
 			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
@@ -477,7 +471,9 @@ public class BootstrapTools {
 		for (Map.Entry<String, String> variable : startCommandValues
 			.entrySet()) {
 			template = template
-				.replace("%" + variable.getKey() + "%", variable.getValue());
+				.replace("%" + variable.getKey() + "%", variable.getValue())
+				.replace("  ", " ")
+				.trim();
 		}
 		return template;
 	}
@@ -616,5 +612,32 @@ public class BootstrapTools {
 		public Config getAkkaConfig() {
 			return AkkaUtils.getThreadPoolExecutorConfig(this);
 		}
+	}
+
+	/**
+	 * Get dynamic properties based on two Flink configurations. If base config does not contain and target config
+	 * contains the key or the value is different, it should be added to results. Otherwise, if the base config contains
+	 * and target config does not contain the key, it will be ignored.
+	 *
+	 * @param baseConfig The base configuration.
+	 * @param targetConfig The target configuration.
+	 * @return Dynamic properties as string, separated by whitespace.
+	 */
+	public static String getDynamicProperties(Configuration baseConfig, Configuration targetConfig) {
+
+		String[] newAddedConfigs = targetConfig.keySet().stream().flatMap(
+			(String key) -> {
+				final String baseValue = baseConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+				final String targetValue = targetConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+
+				if (!baseConfig.keySet().contains(key) || !baseValue.equals(targetValue)) {
+					return Stream.of("-" + CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getOpt() + key +
+						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + targetValue);
+				} else {
+					return Stream.empty();
+				}
+			})
+			.toArray(String[]::new);
+		return String.join(" ", newAddedConfigs);
 	}
 }

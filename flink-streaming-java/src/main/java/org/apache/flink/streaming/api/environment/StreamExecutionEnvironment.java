@@ -55,7 +55,6 @@ import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
@@ -101,6 +100,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1619,23 +1619,74 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		if (configuration.get(DeploymentOptions.TARGET) == null) {
-			throw new RuntimeException("No execution.target specified in your configuration file.");
+		final JobClient jobClient = executeAsync(streamGraph).get();
+
+		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+			return jobClient.getJobExecutionResult(userClassloader).get();
+		} else {
+			return new DetachedJobExecutionResult(jobClient.getJobID());
 		}
+	}
+
+	/**
+	 * Triggers the program asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated
+	 * default name.
+	 *
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+		return executeAsync(DEFAULT_JOB_NAME);
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * @param jobName desired name of the job
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+		return executeAsync(getStreamGraph(checkNotNull(jobName)));
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * @param streamGraph the stream graph representing the transformations
+	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Internal
+	public CompletableFuture<JobClient> executeAsync(StreamGraph streamGraph) throws Exception {
+		checkNotNull(streamGraph, "StreamGraph cannot be null.");
+		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
 		consolidateParallelismDefinitionsInConfiguration();
 
 		final ExecutorFactory executorFactory =
-				executorServiceLoader.getExecutorFactory(configuration);
+			executorServiceLoader.getExecutorFactory(configuration);
 
-		final Executor executor = executorFactory.getExecutor(configuration);
+		checkNotNull(
+			executorFactory,
+			"Cannot find compatible factory for specified execution.target (=%s)",
+			configuration.get(DeploymentOptions.TARGET));
 
-		try (final JobClient jobClient = executor.execute(streamGraph, configuration).get()) {
-
-			return configuration.getBoolean(DeploymentOptions.ATTACHED)
-					? jobClient.getJobExecutionResult(userClassloader).get()
-					: new DetachedJobExecutionResult(jobClient.getJobID());
-		}
+		return executorFactory
+			.getExecutor(configuration)
+			.execute(streamGraph, configuration);
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {

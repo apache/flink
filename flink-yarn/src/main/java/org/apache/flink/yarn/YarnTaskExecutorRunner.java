@@ -21,18 +21,12 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
-import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
-import org.apache.flink.runtime.entrypoint.FlinkParseException;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -80,39 +74,24 @@ public class YarnTaskExecutorRunner {
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		run(args);
+		runTaskManagerSecurely(args);
 	}
 
 	/**
 	 * The instance entry point for the YARN task executor. Obtains user group information and calls
-	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)}  as a
+	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
 	 */
-	private static void run(String[] args) {
+	private static void runTaskManagerSecurely(String[] args) {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
 
 			final String currDir = ENV.get(Environment.PWD.key());
 			LOG.info("Current working Directory: {}", currDir);
 
-      // Some dynamic properties for task manager are added to args, such as managed memory size.
-			final CommandLineParser<ClusterConfiguration> commandLineParser =
-				new CommandLineParser<>(new ClusterConfigurationParserFactory());
-
-			ClusterConfiguration clusterConfiguration = null;
-			try {
-				clusterConfiguration = commandLineParser.parse(args);
-			} catch (FlinkParseException e) {
-				LOG.error("Could not parse command line arguments {}.", args, e);
-				commandLineParser.printHelp(YarnTaskExecutorRunner.class.getSimpleName());
-				System.exit(1);
-			}
-
-			final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(
-				clusterConfiguration.getDynamicProperties());
-			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir, dynamicProperties);
+			final Configuration configuration = TaskManagerRunner.loadConfiguration(args);
 
 			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
@@ -144,7 +123,7 @@ public class YarnTaskExecutorRunner {
 
 		setupConfigurationFromVariables(configuration, currDir, variables);
 
-		installSecurityContext(configuration);
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 	}
 
 	private static void setupConfigurationFromVariables(Configuration configuration, String currDir, Map<String, String> variables) throws IOException {
@@ -181,10 +160,5 @@ public class YarnTaskExecutorRunner {
 		if (taskExecutorHostname != null) {
 			configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
 		}
-	}
-
-	private static void installSecurityContext(Configuration configuration) throws Exception {
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		SecurityUtils.install(sc);
 	}
 }

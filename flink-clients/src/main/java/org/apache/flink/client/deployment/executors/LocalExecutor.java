@@ -19,6 +19,7 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
@@ -48,6 +49,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class LocalExecutor implements Executor {
 
+	public static final String NAME = "local-executor";
+
 	@Override
 	public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
 		checkNotNull(pipeline);
@@ -60,15 +63,14 @@ public class LocalExecutor implements Executor {
 		final MiniCluster miniCluster = startMiniCluster(jobGraph, configuration);
 		final MiniClusterClient clusterClient = new MiniClusterClient(configuration, miniCluster);
 
-		return clusterClient
-				.submitJob(jobGraph)
-				.thenApply(jobID -> new ClusterClientJobClientAdapter<MiniClusterClient.MiniClusterId>(clusterClient, jobID) {
-					@Override
-					protected void doClose() {
-						clusterClient.close();
-						shutdownMiniCluster(miniCluster);
-					}
-				});
+		CompletableFuture<JobID> jobIdFuture = clusterClient.submitJob(jobGraph);
+
+		jobIdFuture
+				.thenCompose(clusterClient::requestJobResult)
+				.thenAccept((jobResult) -> clusterClient.shutDownCluster());
+
+		return jobIdFuture.thenApply(jobID ->
+				new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
 	}
 
 	private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration) {

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.calcite;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.tools.RelBuilder;
 
 /**
  * A ToRelContext impl that takes the context variables
@@ -38,7 +37,7 @@ public interface FlinkToRelContext extends RelOptTable.ToRelContext {
 	SqlExprToRexConverter createSqlExprToRexConverter(RelDataType tableRowType);
 
 	/**
-	 * Creates a new instance of {@link RelBuilder} to build relational expressions.
+	 * Creates a new instance of {@link FlinkRelBuilder} to build relational expressions.
 	 */
-	RelBuilder createRelBuilder();
+	FlinkRelBuilder createRelBuilder();
 }

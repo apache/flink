@@ -96,8 +96,7 @@ public class StreamConfig implements Serializable {
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION_ON_HEAP = "managedMemFractionOnHeap";
-	private static final String MANAGED_MEMORY_FRACTION_OFF_HEAP = "managedMemFractionOffHeap";
+	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
 
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -134,28 +133,16 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFractionOnHeap(double managedMemFractionOnHeap) {
+	public void setManagedMemoryFraction(double managedMemFraction) {
 		checkArgument(
-			managedMemFractionOnHeap >= 0.0 && managedMemFractionOnHeap <= 1.0,
-			String.format("managedMemFractionOnHeap should be in range [0.0, 1.0], but was: %s", managedMemFractionOnHeap));
+			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
+			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
 
-		config.setDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, managedMemFractionOnHeap);
+		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
 	}
 
-	public double getManagedMemoryFractionOnHeap() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, DEFAULT_MANAGED_MEMORY_FRACTION);
-	}
-
-	public void setManagedMemoryFractionOffHeap(double managedMemFractionOffHeap) {
-		checkArgument(
-			managedMemFractionOffHeap >= 0.0 && managedMemFractionOffHeap <= 1.0,
-			String.format("managedMemFractionOffHeap should be in range [0.0, 1.0], but was: %s", managedMemFractionOffHeap));
-
-		config.setDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, managedMemFractionOffHeap);
-	}
-
-	public double getManagedMemoryFractionOffHeap() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, DEFAULT_MANAGED_MEMORY_FRACTION);
+	public double getManagedMemoryFraction() {
+		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {

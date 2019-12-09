@@ -193,7 +193,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 			restartStrategyFactory,
 			jobGraph.isCheckpointingEnabled());
 
-		log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobGraph.getName(), jobGraph.getJobID());
+		if (legacyScheduling) {
+			log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobGraph.getName(), jobGraph.getJobID());
+		}
 
 		this.blobWriter = checkNotNull(blobWriter);
 		this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);

@@ -151,6 +151,7 @@ class BatchExecTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
-    env.addSource(func, tableSource.explainSource(), t).getTransformation
+    ExecNode.setManagedMemoryWeight(env.addSource(func, tableSource.explainSource(), t)
+        .getTransformation)
   }
 }

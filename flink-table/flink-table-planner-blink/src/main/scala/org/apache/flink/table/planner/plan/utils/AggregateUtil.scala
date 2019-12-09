@@ -497,6 +497,9 @@ object AggregateUtil extends Enumeration {
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val dt = argTypes(0).asInstanceOf[TimestampType]
         DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
 
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT

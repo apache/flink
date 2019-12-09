@@ -87,13 +87,13 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: event_timestamp
-        type: VARCHAR
+        data-type: STRING
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: message
-        type: VARCHAR
+        data-type: STRING
       - name: duplicate_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: kafka
       version: "$KAFKA_SQL_VERSION"
@@ -123,15 +123,15 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: event_timestamp
-        type: VARCHAR
+        data-type: STRING
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: message
-        type: VARCHAR
+        data-type: STRING
       - name: duplicate_count
-        type: BIGINT
+        data-type: BIGINT
       - name: constant
-        type: VARCHAR
+        data-type: STRING
     connector:
       type: filesystem
       path: $RESULT
@@ -139,15 +139,15 @@ cat >> $SQL_CONF << EOF
       type: csv
       fields:
         - name: event_timestamp
-          type: VARCHAR
+          data-type: STRING
         - name: user
-          type: VARCHAR
+          data-type: STRING
         - name: message
-          type: VARCHAR
+          data-type: STRING
         - name: duplicate_count
-          type: BIGINT
+          data-type: BIGINT
         - name: constant
-          type: VARCHAR
+          data-type: STRING
 
 functions:
   - name: RegReplace

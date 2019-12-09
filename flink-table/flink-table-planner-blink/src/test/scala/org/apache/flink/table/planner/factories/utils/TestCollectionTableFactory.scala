@@ -52,7 +52,7 @@ class TestCollectionTableFactory
 {
 
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    getCollectionSource(properties, isStreaming = TestCollectionTableFactory.isStreaming)
+    getCollectionSource(properties)
   }
 
   override def createTableSink(properties: JMap[String, String]): TableSink[Row] = {
@@ -60,7 +60,7 @@ class TestCollectionTableFactory
   }
 
   override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[Row] = {
-    getCollectionSource(properties, isStreaming = true)
+    getCollectionSource(properties)
   }
 
   override def createStreamTableSink(properties: JMap[String, String]): StreamTableSink[Row] = {
@@ -68,7 +68,7 @@ class TestCollectionTableFactory
   }
 
   override def createBatchTableSource(properties: JMap[String, String]): BatchTableSource[Row] = {
-    getCollectionSource(properties, isStreaming = false)
+    getCollectionSource(properties)
   }
 
   override def createBatchTableSink(properties: JMap[String, String]): BatchTableSink[Row] = {
@@ -89,7 +89,7 @@ class TestCollectionTableFactory
 }
 
 object TestCollectionTableFactory {
-  var isStreaming: Boolean = true
+  val IS_BOUNDED = "is-bounded"
 
   val SOURCE_DATA = new JLinkedList[Row]()
   val DIM_DATA = new JLinkedList[Row]()
@@ -111,12 +111,12 @@ object TestCollectionTableFactory {
     emitIntervalMS = -1L
   }
 
-  def getCollectionSource(props: JMap[String, String],
-    isStreaming: Boolean): CollectionTableSource = {
+  def getCollectionSource(props: JMap[String, String]): CollectionTableSource = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSource(emitIntervalMS, physicalSchema(schema), isStreaming)
+    val isBounded = properties.getOptionalBoolean(IS_BOUNDED).orElse(true)
+    new CollectionTableSource(emitIntervalMS, physicalSchema(schema), isBounded)
   }
 
   def getCollectionSink(props: JMap[String, String]): CollectionTableSink = {
@@ -139,14 +139,14 @@ object TestCollectionTableFactory {
   class CollectionTableSource(
     val emitIntervalMs: Long,
     val schema: TableSchema,
-    val isStreaming: Boolean)
+    val bounded: Boolean)
     extends BatchTableSource[Row]
       with StreamTableSource[Row]
       with LookupableTableSource[Row] {
 
     private val rowType: TypeInformation[Row] = schema.toRowType
 
-    override def isBounded: Boolean = !isStreaming
+    override def isBounded: Boolean = bounded
 
     def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
       execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,

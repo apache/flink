@@ -172,31 +172,6 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			long reservedMemorySize,
 			IOManager ioManager,
 			int avgRecordLen,
-			int buildRowCount,
-			boolean useBloomFilters,
-			HashJoinType type,
-			JoinCondition condFunc,
-			boolean reverseJoin,
-			boolean[] filterNulls,
-			boolean tryDistinctBuildRow) {
-		this(conf, owner, buildSideSerializer, probeSideSerializer, buildSideProjection, probeSideProjection, memManager,
-				reservedMemorySize, reservedMemorySize, 0, ioManager, avgRecordLen, buildRowCount, useBloomFilters, type, condFunc,
-				reverseJoin, filterNulls, tryDistinctBuildRow);
-	}
-
-	public BinaryHashTable(
-			Configuration conf,
-			Object owner,
-			AbstractRowSerializer buildSideSerializer,
-			AbstractRowSerializer probeSideSerializer,
-			Projection<BaseRow, BinaryRow> buildSideProjection,
-			Projection<BaseRow, BinaryRow> probeSideProjection,
-			MemoryManager memManager,
-			long reservedMemorySize,
-			long preferredMemorySize,
-			long perRequestMemorySize,
-			IOManager ioManager,
-			int avgRecordLen,
 			long buildRowCount,
 			boolean useBloomFilters,
 			HashJoinType type,
@@ -204,7 +179,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			boolean reverseJoin,
 			boolean[] filterNulls,
 			boolean tryDistinctBuildRow) {
-		super(conf, owner, memManager, reservedMemorySize, preferredMemorySize, perRequestMemorySize,
+		super(conf, owner, memManager, reservedMemorySize,
 				ioManager, avgRecordLen, buildRowCount, !type.buildLeftSemiOrAnti() && tryDistinctBuildRow);
 		// assign the members
 		this.originBuildSideSerializer = buildSideSerializer;
@@ -484,10 +459,10 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
 		final int totalBuffersAvailable = this.availableMemory.size() + this.buildSpillRetBufferNumbers;
-		if (totalBuffersAvailable != this.reservedNumBuffers + this.allocatedFloatingNum) {
+		if (totalBuffersAvailable != this.totalNumBuffers) {
 			throw new RuntimeException(String.format("Hash Join bug in memory management: Memory buffers leaked." +
-					" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s), allocatedFloatingNum(%s)",
-					availableMemory.size(), buildSpillRetBufferNumbers, reservedNumBuffers, allocatedFloatingNum));
+					" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s)",
+					availableMemory.size(), buildSpillRetBufferNumbers, totalNumBuffers));
 		}
 
 		long numBuckets = p.getBuildSideRecordCount() / BinaryHashBucketArea.NUM_ENTRIES_PER_BUCKET + 1;

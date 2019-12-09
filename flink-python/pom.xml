@@ -198,6 +198,9 @@ under the License.
 					<include>pyflink-udf-runner.sh</include>
 				</includes>
 			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
 		</resources>
 		<plugins>
 			<plugin>

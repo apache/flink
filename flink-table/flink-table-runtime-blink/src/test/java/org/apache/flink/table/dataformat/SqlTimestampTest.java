@@ -21,7 +21,9 @@ package org.apache.flink.table.dataformat;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.TimeZone;
 
 /**
  * Test for {@link SqlTimestamp}.
@@ -77,6 +79,29 @@ public class SqlTimestampTest {
 		LocalDateTime ldt4 = LocalDateTime.of(1989, 1, 2, 0, 0, 0, 123456789);
 		java.sql.Timestamp t4 = java.sql.Timestamp.valueOf(ldt4);
 		Assert.assertEquals(SqlTimestamp.fromLocalDateTime(ldt4), SqlTimestamp.fromTimestamp(t4));
+
+		// From Instant to SqlTimestamp and vice versa
+		Instant instant1 = Instant.ofEpochMilli(123L);
+		Instant instant2 = Instant.ofEpochSecond(0L, 123456789L);
+		Instant instant3 = Instant.ofEpochSecond(-2L, 123456789L);
+
+		Assert.assertEquals(instant1, SqlTimestamp.fromInstant(instant1).toInstant());
+		Assert.assertEquals(instant2, SqlTimestamp.fromInstant(instant2).toInstant());
+		Assert.assertEquals(instant3, SqlTimestamp.fromInstant(instant3).toInstant());
+	}
+
+	@Test
+	public void testDaylightSavingTime() {
+		TimeZone tz = TimeZone.getDefault();
+		TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
+
+		java.sql.Timestamp dstBegin2018 = java.sql.Timestamp.valueOf("2018-03-11 03:00:00");
+		Assert.assertEquals(dstBegin2018, SqlTimestamp.fromTimestamp(dstBegin2018).toTimestamp());
+
+		java.sql.Timestamp dstBegin2019 = java.sql.Timestamp.valueOf("2019-03-10 02:00:00");
+		Assert.assertEquals(dstBegin2019, SqlTimestamp.fromTimestamp(dstBegin2019).toTimestamp());
+
+		TimeZone.setDefault(tz);
 	}
 
 	@Test
@@ -93,5 +118,8 @@ public class SqlTimestampTest {
 
 		LocalDateTime ldt = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 123456789);
 		Assert.assertEquals("1969-01-02T00:00:00.123456789", SqlTimestamp.fromLocalDateTime(ldt).toString());
+
+		Instant instant = Instant.ofEpochSecond(0L, 123456789L);
+		Assert.assertEquals("1970-01-01T00:00:00.123456789", SqlTimestamp.fromInstant(instant).toString());
 	}
 }

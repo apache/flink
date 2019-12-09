@@ -43,7 +43,7 @@ public class SlotSharingGroup implements java.io.Serializable {
 
 	/** Represents resources of all tasks in the group. Default to be zero.
 	 * Any task with UNKNOWN resources will turn it to be UNKNOWN. */
-	private ResourceSpec resourceSpec = ResourceSpec.newBuilder(0.0, 0).build();
+	private ResourceSpec resourceSpec = ResourceSpec.ZERO;
 
 	// --------------------------------------------------------------------------------------------
 

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -104,6 +105,8 @@ public class SchedulingITCase extends TestLogger {
 
 		final long slotIdleTimeout = 50L;
 		configuration.setLong(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
+
+		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
 
 		final int parallelism = 4;
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()

@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -50,10 +51,13 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
+import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
+import org.rocksdb.TableFormatConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +74,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
@@ -109,7 +114,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** Flag whether the native library has been loaded. */
 	private static boolean rocksDbInitialized = false;
 
-	private static final int UNDEFINED_NUMBER_OF_TRANSFERING_THREADS = -1;
+	private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -136,7 +141,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private final TernaryBoolean enableIncrementalCheckpointing;
 
 	/** Thread number used to transfer (download and upload) state, default value: 1. */
-	private int numberOfTransferingThreads;
+	private int numberOfTransferThreads;
 
 	/**
 	 * This determines if compaction filter to cleanup state with TTL is enabled.
@@ -145,6 +150,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * whether the filter is active for particular state or not.
 	 */
 	private TernaryBoolean enableTtlCompactionFilter;
+
+	/** The configuration for memory settings (pool sizes, etc.). */
+	private final RocksDBMemoryConfiguration memoryConfiguration;
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
@@ -213,7 +221,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
-	@SuppressWarnings("deprecation")
 	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
 		this(new FsStateBackend(checkpointDataUri));
 	}
@@ -231,7 +238,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
-	@SuppressWarnings("deprecation")
 	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing) throws IOException {
 		this(new FsStateBackend(checkpointDataUri), enableIncrementalCheckpointing);
 	}
@@ -264,11 +270,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
-		this.numberOfTransferingThreads = UNDEFINED_NUMBER_OF_TRANSFERING_THREADS;
+		this.numberOfTransferThreads = UNDEFINED_NUMBER_OF_TRANSFER_THREADS;
 		// for now, we use still the heap-based implementation as default
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
+		this.memoryConfiguration = new RocksDBMemoryConfiguration();
 	}
 
 	/**
@@ -305,14 +312,17 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
-		if (original.numberOfTransferingThreads == UNDEFINED_NUMBER_OF_TRANSFERING_THREADS) {
-			this.numberOfTransferingThreads = config.getInteger(CHECKPOINT_TRANSFER_THREAD_NUM);
+		if (original.numberOfTransferThreads == UNDEFINED_NUMBER_OF_TRANSFER_THREADS) {
+			this.numberOfTransferThreads = config.getInteger(CHECKPOINT_TRANSFER_THREAD_NUM);
 		} else {
-			this.numberOfTransferingThreads = original.numberOfTransferingThreads;
+			this.numberOfTransferThreads = original.numberOfTransferThreads;
 		}
 
 		this.enableTtlCompactionFilter = original.enableTtlCompactionFilter
 			.resolveUndefined(config.getBoolean(TTL_COMPACT_FILTER_ENABLED));
+
+		this.memoryConfiguration = RocksDBMemoryConfiguration.fromOtherAndConfiguration(original.memoryConfiguration, config);
+		this.memoryConfiguration.validate();
 
 		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
 
@@ -493,14 +503,45 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
+		DBOptions dbOptions = getDbOptions();
+		Function<String, ColumnFamilyOptions> createColumnOptions;
+
+		final OpaqueMemoryResource<RocksDBSharedResources> sharedResources = RocksDBOperationUtils
+				.allocateSharedCachesIfConfigured(memoryConfiguration, env.getMemoryManager(), LOG);
+
+		if (sharedResources != null) {
+			LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
+
+			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
+			final Cache blockCache = rocksResources.getCache();
+
+			dbOptions.setWriteBufferManager(rocksResources.getWriteBufferManager());
+
+			createColumnOptions = stateName -> {
+				ColumnFamilyOptions columnOptions = getColumnOptions();
+				TableFormatConfig tableFormatConfig = columnOptions.tableFormatConfig();
+				Preconditions.checkArgument(tableFormatConfig instanceof BlockBasedTableConfig,
+					"We currently only support BlockBasedTableConfig When bounding total memory.");
+				BlockBasedTableConfig blockBasedTableConfig = (BlockBasedTableConfig) tableFormatConfig;
+				blockBasedTableConfig.setBlockCache(blockCache);
+				blockBasedTableConfig.setCacheIndexAndFilterBlocks(true);
+				blockBasedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
+				blockBasedTableConfig.setPinL0FilterAndIndexBlocksInCache(true);
+				columnOptions.setTableFormatConfig(blockBasedTableConfig);
+				return columnOptions;
+			};
+		} else {
+			createColumnOptions = stateName -> getColumnOptions();
+		}
+
 		ExecutionConfig executionConfig = env.getExecutionConfig();
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
 			env.getUserClassLoader(),
 			instanceBasePath,
-			getDbOptions(),
-			stateName -> getColumnOptions(),
+			dbOptions,
+			createColumnOptions,
 			kvStateRegistry,
 			keySerializer,
 			numberOfKeyGroups,
@@ -513,9 +554,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			stateHandles,
 			keyGroupCompressionDecorator,
 			cancelStreamRegistry
-		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
+		)
+			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
-			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())
+			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
 			.setNativeMetricOptions(getMemoryWatcherOptions());
 		return builder.build();
 	}
@@ -587,6 +629,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	// ------------------------------------------------------------------------
 	//  Parameters
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the memory configuration object, which offers settings to control RocksDB's memory usage.
+	 */
+	public RocksDBMemoryConfiguration getMemoryConfiguration() {
+		return memoryConfiguration;
+	}
 
 	/**
 	 * Sets the path where the RocksDB local database files should be stored on the local
@@ -823,20 +872,36 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/**
 	 * Gets the number of threads used to transfer files while snapshotting/restoring.
 	 */
-	public int getNumberOfTransferingThreads() {
-		return numberOfTransferingThreads == UNDEFINED_NUMBER_OF_TRANSFERING_THREADS ?
-			CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue() : numberOfTransferingThreads;
+	public int getNumberOfTransferThreads() {
+		return numberOfTransferThreads == UNDEFINED_NUMBER_OF_TRANSFER_THREADS ?
+			CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue() : numberOfTransferThreads;
 	}
 
 	/**
 	 * Sets the number of threads used to transfer files while snapshotting/restoring.
 	 *
-	 * @param numberOfTransferingThreads The number of threads used to transfer files while snapshotting/restoring.
+	 * @param numberOfTransferThreads The number of threads used to transfer files while snapshotting/restoring.
 	 */
-	public void setNumberOfTransferingThreads(int numberOfTransferingThreads) {
-		Preconditions.checkArgument(numberOfTransferingThreads > 0,
+	public void setNumberOfTransferThreads(int numberOfTransferThreads) {
+		Preconditions.checkArgument(numberOfTransferThreads > 0,
 			"The number of threads used to transfer files in RocksDBStateBackend should be greater than zero.");
-		this.numberOfTransferingThreads = numberOfTransferingThreads;
+		this.numberOfTransferThreads = numberOfTransferThreads;
+	}
+
+	/**
+	 * @deprecated Typo in method name. Use {@link #getNumberOfTransferThreads} instead.
+	 */
+	@Deprecated
+	public int getNumberOfTransferingThreads() {
+		return getNumberOfTransferThreads();
+	}
+
+	/**
+	 * @deprecated Typo in method name. Use {@link #setNumberOfTransferThreads(int)} instead.
+	 */
+	@Deprecated
+	public void setNumberOfTransferingThreads(int numberOfTransferingThreads) {
+		setNumberOfTransferThreads(numberOfTransferingThreads);
 	}
 
 	// ------------------------------------------------------------------------
@@ -849,7 +914,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				"checkpointStreamBackend=" + checkpointStreamBackend +
 				", localRocksDbDirectories=" + Arrays.toString(localRocksDbDirectories) +
 				", enableIncrementalCheckpointing=" + enableIncrementalCheckpointing +
-				", numberOfTransferingThreads=" + numberOfTransferingThreads +
+				", numberOfTransferThreads=" + numberOfTransferThreads +
 				'}';
 	}
 
@@ -857,7 +922,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	//  static library loading utilities
 	// ------------------------------------------------------------------------
 
-	private void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
+	private static void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
 		synchronized (RocksDBStateBackend.class) {
 			if (!rocksDbInitialized) {
 

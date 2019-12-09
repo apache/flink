@@ -17,19 +17,43 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.api.common.state.StateTtlConfig.CleanupStrategies;
+import org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrategy;
+import org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy;
 import org.apache.flink.api.common.time.Time;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link StateTtlConfig}.
  */
 public class StateTtlConfigTest {
+
+	@Test
+	public void testStateTtlConfigBuildWithoutCleanupInBackground() {
+		StateTtlConfig ttlConfig = StateTtlConfig
+			.newBuilder(Time.seconds(1))
+			.disableCleanupInBackground()
+			.build();
+
+		assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
+
+		CleanupStrategies cleanupStrategies = ttlConfig.getCleanupStrategies();
+		IncrementalCleanupStrategy incrementalCleanupStrategy =
+			cleanupStrategies.getIncrementalCleanupStrategy();
+		RocksdbCompactFilterCleanupStrategy rocksdbCleanupStrategy =
+			cleanupStrategies.getRocksdbCompactFilterCleanupStrategy();
+
+		assertThat(cleanupStrategies.isCleanupInBackground(), is(false));
+		assertThat(incrementalCleanupStrategy, nullValue());
+		assertThat(rocksdbCleanupStrategy, nullValue());
+		assertThat(cleanupStrategies.inRocksdbCompactFilter(), is(false));
+	}
 
 	@Test
 	public void testStateTtlConfigBuildWithCleanupInBackground() {
@@ -38,21 +62,21 @@ public class StateTtlConfigTest {
 			.cleanupInBackground()
 			.build();
 
-		assertNotNull(ttlConfig.getCleanupStrategies());
+		assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
 
-		StateTtlConfig.CleanupStrategies cleanupStrategies = ttlConfig.getCleanupStrategies();
-		StateTtlConfig.IncrementalCleanupStrategy incrementalCleanupStrategy =
+		CleanupStrategies cleanupStrategies = ttlConfig.getCleanupStrategies();
+		IncrementalCleanupStrategy incrementalCleanupStrategy =
 			cleanupStrategies.getIncrementalCleanupStrategy();
-		StateTtlConfig.RocksdbCompactFilterCleanupStrategy rocksdbCleanupStrategy =
+		RocksdbCompactFilterCleanupStrategy rocksdbCleanupStrategy =
 			cleanupStrategies.getRocksdbCompactFilterCleanupStrategy();
 
-		assertTrue(cleanupStrategies.isCleanupInBackground());
-		assertNotNull(incrementalCleanupStrategy);
-		assertNotNull(rocksdbCleanupStrategy);
-		assertTrue(cleanupStrategies.inRocksdbCompactFilter());
-		assertEquals(5, incrementalCleanupStrategy.getCleanupSize());
-		assertFalse(incrementalCleanupStrategy.runCleanupForEveryRecord());
-		assertEquals(1000, rocksdbCleanupStrategy.getQueryTimeAfterNumEntries());
+		assertThat(cleanupStrategies.isCleanupInBackground(), is(true));
+		assertThat(incrementalCleanupStrategy, notNullValue());
+		assertThat(rocksdbCleanupStrategy, notNullValue());
+		assertThat(cleanupStrategies.inRocksdbCompactFilter(), is(true));
+		assertThat(incrementalCleanupStrategy.getCleanupSize(), is(5));
+		assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord(), is(false));
+		assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
 	}
 
 }

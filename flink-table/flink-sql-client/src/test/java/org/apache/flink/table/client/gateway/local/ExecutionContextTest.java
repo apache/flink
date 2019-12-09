@@ -21,6 +21,7 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -243,18 +244,21 @@ public class ExecutionContextTest {
 				OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> ExecutionContext<T> createExecutionContext(String file, Map<String, String> replaceVars) throws Exception {
 		final Environment env = EnvironmentFileUtil.parseModified(
 			file,
 			replaceVars);
 		final Configuration flinkConfig = new Configuration();
-		return new ExecutionContext<>(
-			env,
-			new SessionContext("test-session", new Environment()),
-			Collections.emptyList(),
-			flinkConfig,
-			new Options(),
-			Collections.singletonList(new DefaultCLI(flinkConfig)));
+		return (ExecutionContext<T>) ExecutionContext.builder(
+				env,
+				new SessionContext("test-session", new Environment()),
+				Collections.emptyList(),
+				flinkConfig,
+				new DefaultClusterClientServiceLoader(),
+				new Options(),
+				Collections.singletonList(new DefaultCLI(flinkConfig)))
+				.build();
 	}
 
 	private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
@@ -264,6 +268,7 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
 		return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
 	}
 
