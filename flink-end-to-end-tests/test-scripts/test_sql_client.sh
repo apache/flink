@@ -147,10 +147,7 @@ cat >> $SQL_CONF << EOF
     connector:
       type: elasticsearch
       version: 6
-      hosts:
-        - hostname: "localhost"
-          port: 9200
-          protocol: "http"
+      hosts: "http://localhost:9200"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
       bulk-flush:
@@ -171,10 +168,7 @@ cat >> $SQL_CONF << EOF
     connector:
       type: elasticsearch
       version: 6
-      hosts:
-        - hostname: "localhost"
-          port: 9200
-          protocol: "http"
+      hosts: "http://localhost:9200"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
       bulk-flush:
