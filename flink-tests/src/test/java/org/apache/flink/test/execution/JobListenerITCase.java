@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 public class JobListenerITCase extends TestLogger {
 
 	@Test
-	public void testJobListenerOnBatchEnvironment() throws Exception {
+	public void testExecuteCallsJobListenerOnBatchEnvironment() throws Exception {
 		OneShotLatch submissionLatch = new OneShotLatch();
 		OneShotLatch executionLatch = new OneShotLatch();
 
@@ -64,7 +64,33 @@ public class JobListenerITCase extends TestLogger {
 	}
 
 	@Test
-	public void testJobListenerOnStreamingEnvironment() throws Exception {
+	public void testExecuteAsyncCallsJobListenerOnBatchEnvironment() throws Exception {
+		OneShotLatch submissionLatch = new OneShotLatch();
+		OneShotLatch executionLatch = new OneShotLatch();
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.registerJobListener(new JobListener() {
+			@Override
+			public void onJobSubmitted(JobClient jobClient, Throwable throwable) {
+				submissionLatch.trigger();
+			}
+
+			@Override
+			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
+				executionLatch.trigger();
+			}
+		});
+
+		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+		env.executeAsync();
+
+		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+		// when executing asynchronously we don't get an "executed" callback
+	}
+
+	@Test
+	public void testExecuteCallsJobListenerOnStreamingEnvironment() throws Exception {
 		OneShotLatch submissionLatch = new OneShotLatch();
 		OneShotLatch executionLatch = new OneShotLatch();
 
@@ -87,5 +113,31 @@ public class JobListenerITCase extends TestLogger {
 
 		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
 		executionLatch.await(2000L, TimeUnit.MILLISECONDS);
+	}
+
+	@Test
+	public void testExecuteAsyncCallsJobListenerOnStreamingEnvironment() throws Exception {
+		OneShotLatch submissionLatch = new OneShotLatch();
+		OneShotLatch executionLatch = new OneShotLatch();
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env.registerJobListener(new JobListener() {
+			@Override
+			public void onJobSubmitted(JobClient jobClient, Throwable throwable) {
+				submissionLatch.trigger();
+			}
+
+			@Override
+			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
+				executionLatch.trigger();
+			}
+		});
+
+		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+		env.executeAsync();
+
+		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+		// when executing asynchronously we don't get an "executed" callback
 	}
 }
