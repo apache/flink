@@ -80,7 +80,6 @@ public class HiveTableSource implements
 	// Remaining partition specs after partition pruning is performed. Null if pruning is not pushed down.
 	@Nullable
 	private List<Map<String, String>> remainingPartitions = null;
-	private List<HiveTablePartition> allHivePartitions;
 	private String hiveVersion;
 	private boolean partitionPruned;
 	private int[] projectedFields;
@@ -122,12 +121,12 @@ public class HiveTableSource implements
 
 	@Override
 	public DataStream<BaseRow> getDataStream(StreamExecutionEnvironment execEnv) {
-		initAllPartitions();
+		List<HiveTablePartition> allHivePartitions = initAllPartitions();
 
 		@SuppressWarnings("unchecked")
 		TypeInformation<BaseRow> typeInfo =
 				(TypeInformation<BaseRow>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
-		HiveTableInputFormat inputFormat = getInputFormat();
+		HiveTableInputFormat inputFormat = getInputFormat(allHivePartitions);
 		DataStreamSource<BaseRow> source = execEnv.createInput(inputFormat, typeInfo);
 
 		Configuration conf = GlobalConfiguration.loadConfiguration();
@@ -156,7 +155,7 @@ public class HiveTableSource implements
 		return source.name(explainSource());
 	}
 
-	private HiveTableInputFormat getInputFormat() {
+	private HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions) {
 		return new HiveTableInputFormat(
 				jobConf, catalogTable, allHivePartitions, projectedFields, limit, hiveVersion);
 	}
@@ -210,8 +209,8 @@ public class HiveTableSource implements
 		}
 	}
 
-	private void initAllPartitions() {
-		allHivePartitions = new ArrayList<>();
+	private List<HiveTablePartition> initAllPartitions() {
+		List<HiveTablePartition> allHivePartitions = new ArrayList<>();
 		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
 		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
 		// refactoring. We will postpone this until we merge Blink to Flink.
@@ -256,6 +255,7 @@ public class HiveTableSource implements
 		} catch (TException e) {
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
+		return allHivePartitions;
 	}
 
 	private static List<String> partitionSpecToValues(Map<String, String> spec, List<String> partitionColNames) {
