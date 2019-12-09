@@ -46,6 +46,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -311,16 +312,13 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testFailWhenNoLocalStorageDir() throws Exception {
+		final File targetDir = tempFolder.newFolder();
+		Assume.assumeTrue("Cannot mark directory non-writable", targetDir.setWritable(false, false));
+
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-		File targetDir = tempFolder.newFolder();
 
 		try {
-			if (!targetDir.setWritable(false, false)) {
-				System.err.println("Cannot execute 'testFailWhenNoLocalStorageDir' because cannot mark directory non-writable");
-				return;
-			}
-
 			rocksDbBackend.setDbStoragePath(targetDir.getAbsolutePath());
 
 			boolean hasFailure = false;
@@ -354,19 +352,14 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testContinueOnSomeDbDirectoriesMissing() throws Exception {
-		File targetDir1 = tempFolder.newFolder();
-		File targetDir2 = tempFolder.newFolder();
+		final File targetDir1 = tempFolder.newFolder();
+		final File targetDir2 = tempFolder.newFolder();
+		Assume.assumeTrue("Cannot mark directory non-writable", targetDir1.setWritable(false, false));
 
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
 		try {
-
-			if (!targetDir1.setWritable(false, false)) {
-				System.err.println("Cannot execute 'testContinueOnSomeDbDirectoriesMissing' because cannot mark directory non-writable");
-				return;
-			}
-
 			rocksDbBackend.setDbStoragePaths(targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
 
 			try {
