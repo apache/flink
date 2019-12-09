@@ -63,14 +63,18 @@ public enum PredefinedOptions {
 					.setUseFsync(false)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			handlesToClose.add(dbOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
 			return dbOptions;
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
-			handlesToClose.add(columnFamilyOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(columnFamilyOptions);
+			}
 			return columnFamilyOptions;
 		}
 
@@ -109,7 +113,9 @@ public enum PredefinedOptions {
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			handlesToClose.add(dbOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
 			return dbOptions;
 		}
 
@@ -119,7 +125,9 @@ public enum PredefinedOptions {
 				new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
-			handlesToClose.add(columnFamilyOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(columnFamilyOptions);
+			}
 			return columnFamilyOptions;
 		}
 	},
@@ -164,7 +172,9 @@ public enum PredefinedOptions {
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			handlesToClose.add(dbOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
 			return dbOptions;
 		}
 
@@ -192,8 +202,10 @@ public enum PredefinedOptions {
 									.setBlockSize(blockSize)
 									.setFilter(bloomFilter)
 					);
-			handlesToClose.add(bloomFilter);
-			handlesToClose.add(columnFamilyOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(bloomFilter);
+				handlesToClose.add(columnFamilyOptions);
+			}
 			return columnFamilyOptions;
 		}
 	},
@@ -228,14 +240,18 @@ public enum PredefinedOptions {
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			handlesToClose.add(dbOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(dbOptions);
+			}
 			return dbOptions;
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
-			handlesToClose.add(columnFamilyOptions);
+			if (handlesToClose != null) {
+				handlesToClose.add(columnFamilyOptions);
+			}
 			return columnFamilyOptions;
 		}
 	};
@@ -251,11 +267,27 @@ public enum PredefinedOptions {
 	public abstract DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose);
 
 	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public DBOptions createDBOptions() {
+		return createDBOptions(null);
+	}
+
+	/**
 	 * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
 	 *
 	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
 	public abstract ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public ColumnFamilyOptions createColumnOptions() {
+		return createColumnOptions(null);
+	}
 
 }

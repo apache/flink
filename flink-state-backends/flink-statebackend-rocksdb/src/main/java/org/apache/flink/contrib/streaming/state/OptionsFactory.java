@@ -60,6 +60,17 @@ public interface OptionsFactory extends java.io.Serializable {
 	DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose);
 
 	/**
+	 * Set the additional options on top of the current options object.
+	 *
+	 * @param currentOptions The options object with the pre-defined options.
+	 * @return The options object on which the additional options are set.
+	 * @deprecated use {@link #createDBOptions(DBOptions, Collection)} instead.
+	 */
+	default DBOptions createDBOptions(DBOptions currentOptions) {
+		return createDBOptions(currentOptions, null);
+	}
+
+	/**
 	 * This method should set the additional options on top of the current options object.
 	 * The current options object may contain pre-defined options based on flags that have
 	 * been configured on the state backend.
@@ -72,6 +83,17 @@ public interface OptionsFactory extends java.io.Serializable {
 	 * @return The options object on which the additional options are set.
 	 */
 	ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * Set the additional options on top of the current options object.
+	 *
+	 * @param currentOptions The options object with the pre-defined options.
+	 * @return The options object on which the additional options are set.
+	 * @deprecated use {@link #createColumnOptions(ColumnFamilyOptions, Collection)} instead.
+	 */
+	default ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+		return createColumnOptions(currentOptions, null);
+	}
 
 	/**
 	 * This method should enable certain RocksDB metrics to be forwarded to

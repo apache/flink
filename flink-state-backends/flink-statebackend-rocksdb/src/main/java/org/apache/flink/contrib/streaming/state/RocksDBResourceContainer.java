@@ -26,7 +26,6 @@ import org.rocksdb.DBOptions;
 
 import javax.annotation.Nonnull;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
@@ -36,7 +35,7 @@ import java.util.ArrayList;
  * This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options,
  * and should be properly (and necessarily) closed to prevent resource leak.
  */
-public class RocksDBResourceContainer implements AutoCloseable, Serializable {
+public class RocksDBResourceContainer implements AutoCloseable {
 
 	/** The pre-configured option settings. */
 	private PredefinedOptions predefinedOptions;
