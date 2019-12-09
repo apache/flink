@@ -24,10 +24,11 @@ import org.apache.flink.util.IOUtils;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The container for RocksDB resources, including predefined options, option factory and
@@ -39,22 +40,37 @@ import java.util.ArrayList;
 final class RocksDBResourceContainer implements AutoCloseable {
 
 	/** The pre-configured option settings. */
-	private PredefinedOptions predefinedOptions;
+	private final PredefinedOptions predefinedOptions;
 
 	/** The options factory to create the RocksDB options. */
 	@Nullable
-	private OptionsFactory optionsFactory;
+	private final OptionsFactory optionsFactory;
 
 	/** The shared resource among RocksDB instances. This resource is not part of the 'handlesToClose',
 	 * because the handles to close are closed quietly, whereas for this one, we want exceptions to be reported. */
 	@Nullable
-	private OpaqueMemoryResource<RocksDBSharedResources> sharedResources;
+	private final OpaqueMemoryResource<RocksDBSharedResources> sharedResources;
 
 	/** The handles to be closed when the container is closed. */
 	private final ArrayList<AutoCloseable> handlesToClose;
 
 	public RocksDBResourceContainer() {
-		handlesToClose = new ArrayList<>();
+		this(PredefinedOptions.DEFAULT, null, null);
+	}
+
+	public RocksDBResourceContainer(PredefinedOptions predefinedOptions, @Nullable OptionsFactory optionsFactory) {
+		this(predefinedOptions, optionsFactory, null);
+	}
+
+	public RocksDBResourceContainer(
+		PredefinedOptions predefinedOptions,
+		@Nullable OptionsFactory optionsFactory,
+		@Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
+
+		this.predefinedOptions = checkNotNull(predefinedOptions);
+		this.optionsFactory = optionsFactory;
+		this.sharedResources = sharedResources;
+		this.handlesToClose = new ArrayList<>();
 	}
 
 	/**
@@ -62,7 +78,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 	 */
 	DBOptions getDbOptions() {
 		// initial options from pre-defined profile
-		DBOptions opt = checkAndGetPredefinedOptions().createDBOptions(handlesToClose);
+		DBOptions opt = predefinedOptions.createDBOptions(handlesToClose);
 
 		// add user-defined options factory, if specified
 		if (optionsFactory != null) {
@@ -80,7 +96,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 	 */
 	ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
-		ColumnFamilyOptions opt = checkAndGetPredefinedOptions().createColumnOptions(handlesToClose);
+		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions(handlesToClose);
 
 		// add user-defined options, if specified
 		if (optionsFactory != null) {
@@ -90,27 +106,9 @@ final class RocksDBResourceContainer implements AutoCloseable {
 		return opt;
 	}
 
-	PredefinedOptions checkAndGetPredefinedOptions() {
-		if (predefinedOptions == null) {
-			predefinedOptions = PredefinedOptions.DEFAULT;
-		}
-		return predefinedOptions;
-	}
-
+	@Nullable
 	OptionsFactory getOptionsFactory() {
 		return optionsFactory;
-	}
-
-	void setPredefinedOptions(@Nonnull PredefinedOptions predefinedOptions) {
-		this.predefinedOptions = predefinedOptions;
-	}
-
-	void setOptionsFactory(@Nonnull OptionsFactory optionsFactory) {
-		this.optionsFactory = optionsFactory;
-	}
-
-	void setSharedResources(OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
-		this.sharedResources = sharedResources;
 	}
 
 	@Override
