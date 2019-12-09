@@ -172,8 +172,7 @@ public class SqlToOperationConverter {
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-				((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
 		String tableComment = sqlCreateTable.getComment().map(comment ->
@@ -223,8 +222,7 @@ public class SqlToOperationConverter {
 				Map<String, String> properties = new HashMap<>();
 				properties.putAll(originalCatalogTable.getProperties());
 				((SqlAlterTableProperties) sqlAlterTable).getPropertyList().getList().forEach(p ->
-					properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-						((SqlTableOption) p).getValueString()));
+					properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 				CatalogTable catalogTable = new CatalogTableImpl(
 					originalCatalogTable.getSchema(),
 					originalCatalogTable.getPartitionKeys(),
@@ -386,8 +384,7 @@ public class SqlToOperationConverter {
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateDatabase.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-				((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
 		return new CreateDatabaseOperation(catalogName, databaseName, catalogDatabase, ignoreIfExists);
 	}
@@ -430,7 +427,7 @@ public class SqlToOperationConverter {
 		}
 		// set with properties
 		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(), ((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
 		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
 	}
