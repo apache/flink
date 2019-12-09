@@ -21,7 +21,8 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Rule;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyOptions;
@@ -30,6 +31,7 @@ import org.rocksdb.LRUCache;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.WriteBufferManager;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -40,8 +42,15 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 public class RocksDBResourceContainerTest {
 
-	@Rule
-	public final TemporaryFolder tmp = new TemporaryFolder();
+	@ClassRule
+	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+
+	@BeforeClass
+	public static void ensureRocksDbNativeLibraryLoaded() throws IOException {
+		NativeLibraryLoader.getInstance().loadLibrary(TMP_FOLDER.newFolder().getAbsolutePath());
+	}
+
+	// ------------------------------------------------------------------------
 
 	@Test
 	public void testFreeDBOptionsAfterClose() throws Exception {
@@ -108,7 +117,6 @@ public class RocksDBResourceContainerTest {
 
 	@Test
 	public void testFreeSharedResourcesAfterClose() throws Exception {
-		NativeLibraryLoader.getInstance().loadLibrary(tmp.newFolder().getAbsolutePath());
 		RocksDBResourceContainer container = new RocksDBResourceContainer();
 		LRUCache cache = new LRUCache(1024L);
 		WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
