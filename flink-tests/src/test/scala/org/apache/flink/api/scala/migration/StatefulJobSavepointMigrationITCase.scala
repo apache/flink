@@ -35,36 +35,41 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.tuple.Tuple2
-import org.apache.flink.runtime.state.{StateBackendLoader, FunctionInitializationContext, FunctionSnapshotContext}
+import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.streaming.util.migration.MigrationVersion
+import org.apache.flink.testutils.migration.MigrationVersion
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Ignore, Test}
 
-import scala.util.{Failure, Properties, Try}
+import scala.util.{Failure, Try}
 
 object StatefulJobSavepointMigrationITCase {
 
   @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
   def parameters: util.Collection[(MigrationVersion, String)] = {
     util.Arrays.asList(
-      (MigrationVersion.v1_2, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_2, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
   // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
-  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_4
+  // TODO Note: You should generate the savepoint based on the release branch instead of the master.
+  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_9
   val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME
 
   val NUM_ELEMENTS = 4

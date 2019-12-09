@@ -107,7 +107,7 @@ public class BucketsTest {
 
 		final RollingPolicy<String, String> onCheckpointRP =
 				DefaultRollingPolicy
-						.create()
+						.builder()
 						.withMaxPartSize(7L) // roll with 2 elements
 						.build();
 
@@ -188,7 +188,7 @@ public class BucketsTest {
 
 		// it takes the current processing time of the context for the creation time,
 		// and for the last modification time.
-		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L , 3L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
 
 		// now it should roll
 		buckets.onProcessingTime(7L);
@@ -214,13 +214,13 @@ public class BucketsTest {
 		final Path path = new Path(outDir.toURI());
 
 		final OnProcessingTimePolicy<String, String> rollOnProcessingTimeCountingPolicy =
-				new OnProcessingTimePolicy<>(2L);
+			new OnProcessingTimePolicy<>(2L);
 
 		final Buckets<String, String> buckets =
 				createBuckets(path, rollOnProcessingTimeCountingPolicy, 0);
 
 		// it takes the current processing time of the context for the creation time, and for the last modification time.
-		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L , 3L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
 
 		// now it should roll
 		buckets.onProcessingTime(7L);
@@ -244,7 +244,7 @@ public class BucketsTest {
 				createBuckets(path, rollOnProcessingTimeCountingPolicy, 0);
 
 		// it takes the current processing time of the context for the creation time, and for the last modification time.
-		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L , 3L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
 		Assert.assertEquals(1L, buckets.getActiveBuckets().get("test").getPartCounter());
 
 		// now it should roll
@@ -257,7 +257,7 @@ public class BucketsTest {
 
 		Assert.assertTrue(buckets.getActiveBuckets().isEmpty());
 
-		buckets.onElement("test", new TestUtils.MockSinkContext(2L, 3L , 4L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(2L, 3L, 4L));
 		Assert.assertEquals(2L, buckets.getActiveBuckets().get("test").getPartCounter());
 	}
 
@@ -316,8 +316,9 @@ public class BucketsTest {
 				new VerifyingBucketAssigner(timestamp, watermark, processingTime),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
-				DefaultRollingPolicy.create().build(),
-				2
+				DefaultRollingPolicy.builder().build(),
+				2,
+				OutputFileConfig.builder().build()
 		);
 
 		buckets.onElement(
@@ -371,16 +372,27 @@ public class BucketsTest {
 	private static Buckets<String, String> createBuckets(
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
-			final int subtaskIdx
-	) throws IOException {
+			final int subtaskIdx) throws IOException {
+		return createBuckets(
+				basePath,
+				rollingPolicy,
+				subtaskIdx,
+				OutputFileConfig.builder().build());
+	}
 
+	private static Buckets<String, String> createBuckets(
+			final Path basePath,
+			final RollingPolicy<String, String> rollingPolicy,
+			final int subtaskIdx,
+			final OutputFileConfig outputFileConfig) throws IOException {
 		return new Buckets<>(
 				basePath,
 				new TestUtils.StringIdentityBucketAssigner(),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
-				subtaskIdx
+				subtaskIdx,
+				outputFileConfig
 		);
 	}
 
@@ -389,10 +401,24 @@ public class BucketsTest {
 			final RollingPolicy<String, String> rollingPolicy,
 			final int subtaskIdx,
 			final ListState<byte[]> bucketState,
-			final ListState<Long> partCounterState
-	) throws Exception {
+			final ListState<Long> partCounterState) throws Exception {
+		return restoreBuckets(
+				basePath,
+				rollingPolicy,
+				subtaskIdx,
+				bucketState,
+				partCounterState,
+				OutputFileConfig.builder().build());
+	}
 
-		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx);
+	private static Buckets<String, String> restoreBuckets(
+			final Path basePath,
+			final RollingPolicy<String, String> rollingPolicy,
+			final int subtaskIdx,
+			final ListState<byte[]> bucketState,
+			final ListState<Long> partCounterState,
+			final OutputFileConfig outputFileConfig) throws Exception {
+		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx, outputFileConfig);
 		restoredBuckets.initializeState(bucketState, partCounterState);
 		return restoredBuckets;
 	}

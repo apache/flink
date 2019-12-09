@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +33,7 @@ import java.util.Arrays;
 /**
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
  */
-public class DataOutputSerializer implements DataOutputView {
+public class DataOutputSerializer implements DataOutputView, MemorySegmentWritable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DataOutputSerializer.class);
 
@@ -150,6 +152,18 @@ public class DataOutputSerializer implements DataOutputView {
 			resize(len);
 		}
 		System.arraycopy(b, off, this.buffer, this.position, len);
+		this.position += len;
+	}
+
+	@Override
+	public void write(MemorySegment segment, int off, int len) throws IOException {
+		if (len < 0 || off > segment.size() - len) {
+			throw new ArrayIndexOutOfBoundsException();
+		}
+		if (this.position > this.buffer.length - len) {
+			resize(len);
+		}
+		segment.get(off, this.buffer, this.position, len);
 		this.position += len;
 	}
 
@@ -348,6 +362,11 @@ public class DataOutputSerializer implements DataOutputView {
 
 		source.readFully(this.buffer, this.position, numBytes);
 		this.position += numBytes;
+	}
+
+	public void setPosition(int position) {
+		Preconditions.checkArgument(position >= 0 && position <= this.position, "Position out of bounds.");
+		this.position = position;
 	}
 
 	// ------------------------------------------------------------------------

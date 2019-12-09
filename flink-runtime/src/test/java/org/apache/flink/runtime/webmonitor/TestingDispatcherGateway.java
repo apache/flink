@@ -19,15 +19,14 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -72,18 +71,17 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	public TestingDispatcherGateway(
 			String address,
 			String hostname,
-			String restAddress,
 			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
-			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
-			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
+			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
 			Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
 			Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
 			Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
 			Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier,
-			Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier,
-			Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier,
+			Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServiceAddressesSupplier,
+			Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServiceGatewaysSupplier,
 			BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
 			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction,
+			BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction,
 			Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
 			Supplier<CompletableFuture<Collection<JobID>>> listFunction,
 			int blobServerPort,
@@ -92,18 +90,17 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		super(
 			address,
 			hostname,
-			restAddress,
 			cancelJobFunction,
-			stopJobFunction,
 			requestJobFunction,
 			requestJobResultFunction,
 			requestJobStatusFunction,
 			requestMultipleJobDetailsSupplier,
 			requestClusterOverviewSupplier,
-			requestMetricQueryServicePathsSupplier,
-			requestTaskManagerMetricQueryServicePathsSupplier,
+			requestMetricQueryServiceAddressesSupplier,
+			requestTaskManagerMetricQueryServiceGatewaysSupplier,
 			requestOperatorBackPressureStatsFunction,
-			triggerSavepointFunction);
+			triggerSavepointFunction,
+			stopWithSavepointFunction);
 		this.submitFunction = submitFunction;
 		this.listFunction = listFunction;
 		this.blobServerPort = blobServerPort;
@@ -138,7 +135,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	/**
 	 * Builder for the {@link TestingDispatcherGateway}.
 	 */
-	public static final class Builder extends TestingRestfulGateway.Builder {
+	public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
 		private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
 		private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -162,9 +159,14 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		}
 
 		@Override
-		public TestingRestfulGateway.Builder setRequestJobFunction(Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction) {
+		public Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
 			// signature clash
 			throw new UnsupportedOperationException("Use setRequestArchivedJobFunction() instead.");
+		}
+
+		@Override
+		protected Builder self() {
+			return this;
 		}
 
 		public Builder setBlobServerPort(int blobServerPort) {
@@ -181,18 +183,17 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			return new TestingDispatcherGateway(
 				address,
 				hostname,
-				restAddress,
 				cancelJobFunction,
-				stopJobFunction,
 				requestJobFunction,
 				requestJobResultFunction,
 				requestJobStatusFunction,
 				requestMultipleJobDetailsSupplier,
 				requestClusterOverviewSupplier,
-				requestMetricQueryServicePathsSupplier,
-				requestTaskManagerMetricQueryServicePathsSupplier,
+				requestMetricQueryServiceGatewaysSupplier,
+				requestTaskManagerMetricQueryServiceGatewaysSupplier,
 				requestOperatorBackPressureStatsFunction,
 				triggerSavepointFunction,
+				stopWithSavepointFunction,
 				submitFunction,
 				listFunction,
 				blobServerPort,

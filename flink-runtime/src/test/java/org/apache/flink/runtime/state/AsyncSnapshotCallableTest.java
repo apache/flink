@@ -224,11 +224,11 @@ public class AsyncSnapshotCallableTest {
 		protected String callInternal() throws Exception {
 
 			addInvocation(METHOD_CALL);
-			registerCloseableForCancellation(blockingResource);
+			snapshotCloseableRegistry.registerCloseable(blockingResource);
 			try {
 				blockingResource.simulateBlockingOperation();
 			} finally {
-				if (unregisterCloseableFromCancellation(blockingResource)) {
+				if (snapshotCloseableRegistry.unregisterCloseable(blockingResource)) {
 					blockingResource.close();
 				}
 			}

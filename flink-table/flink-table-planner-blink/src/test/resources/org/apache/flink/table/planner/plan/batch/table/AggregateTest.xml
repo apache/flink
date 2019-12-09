@@ -1,0 +1,97 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregate">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
++- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
++- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
+   +- LogicalFilter(condition=[=($0, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+      +- Calc(select=[CAST(1) AS a, b, c], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithFilterOnNestedFields">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3])
++- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
+      +- LogicalFilter(condition=[=($0, 1)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2, Final_SUM(sum$4) AS EXPR$3])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
+      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[=(a, 1)])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[=($0, 1)])
++- LogicalProject(a=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(1) AS a, EXPR$0, EXPR$1, EXPR$2])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
+         +- Calc(select=[a, b, c], where=[=(a, 1)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

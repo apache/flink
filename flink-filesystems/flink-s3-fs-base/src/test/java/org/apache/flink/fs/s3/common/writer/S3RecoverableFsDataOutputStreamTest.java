@@ -39,8 +39,8 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -314,10 +314,9 @@ public class S3RecoverableFsDataOutputStreamTest {
 
 	private static byte[] readFileContents(RefCountedFSOutputStream file) throws IOException {
 		final byte[] content = new byte[MathUtils.checkedDownCast(file.getPos())];
-		try (InputStream inputStream = file.getInputStream()) {
-			int bytesRead = inputStream.read(content, 0, content.length); // TODO: 10/2/18 see if closed in download
-			Assert.assertEquals(file.getPos(), bytesRead);
-		}
+		File inputFile = file.getInputFile();
+		long bytesRead = new FileInputStream(inputFile).read(content, 0,  MathUtils.checkedDownCast(inputFile.length()));
+		Assert.assertEquals(file.getPos(), bytesRead);
 		return content;
 	}
 

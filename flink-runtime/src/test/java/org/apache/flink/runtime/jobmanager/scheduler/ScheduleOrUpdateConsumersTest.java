@@ -22,6 +22,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
@@ -38,6 +40,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.List;
 
@@ -47,6 +50,7 @@ import static org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismT
  * Tests for the lazy scheduling/updating of consumers depending on the
  * producers result.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 	private static final int NUMBER_OF_TMS = 2;
@@ -111,8 +115,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-				sender.getID(), pipelinedReceiver.getID(), blockingReceiver.getID());
+		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		pipelinedReceiver.setSlotSharingGroup(slotSharingGroup);
@@ -147,12 +150,8 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 			// The order of intermediate result creation in the job graph specifies which produced
 			// result partition is pipelined/blocking.
-			final RecordWriter<IntValue> pipelinedWriter =
-					new RecordWriter<>(getEnvironment().getWriter(0));
-
-			final RecordWriter<IntValue> blockingWriter =
-					new RecordWriter<>(getEnvironment().getWriter(1));
-
+			final RecordWriter<IntValue> pipelinedWriter = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
+			final RecordWriter<IntValue> blockingWriter = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(1));
 			writers.add(pipelinedWriter);
 			writers.add(blockingWriter);
 

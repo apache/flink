@@ -17,16 +17,18 @@
  */
 package org.apache.flink.api.scala.types
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo._
+import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractorTest.CustomTuple
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, UnitTypeInfo}
+import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TraversableSerializer, UnitTypeInfo}
 import org.apache.flink.types.{IntValue, StringValue}
-
 import org.junit.{Assert, Test}
 
+@SerialVersionUID(-1509730037212683566L)
 case class CustomCaseClass(a: String, b: Int)
 
 case class UmlautCaseClass(ä: String, ß: Int)
@@ -584,6 +586,51 @@ class TypeInformationGenTest {
     // then things like "env.fromElements((),(),())" won't work.
     import scala.collection.JavaConversions._
     CollectionInputFormat.checkCollection(Seq((),(),()), (new UnitTypeInfo).getTypeClass())
+  }
+
+  @Test
+  def testNestedTraversableWithTypeParametersReplacesTypeParametersInCanBuildFrom(): Unit = {
+
+    def createTraversableTypeInfo[T: TypeInformation] = createTypeInformation[Seq[Seq[T]]]
+
+    val traversableTypeInfo = createTraversableTypeInfo[Int]
+    val outerTraversableSerializer = traversableTypeInfo.createSerializer(new ExecutionConfig)
+      .asInstanceOf[TraversableSerializer[Seq[Seq[Int]], Seq[Int]]]
+
+    // make sure that we still create the correct inner element serializer, despite the generics
+    val innerTraversableSerializer = outerTraversableSerializer.elementSerializer
+      .asInstanceOf[TraversableSerializer[Seq[Int], Int]]
+    Assert.assertEquals(
+      classOf[IntSerializer],
+      innerTraversableSerializer.elementSerializer.getClass)
+
+    // if the code in here had Ts it would not compile. This would already fail above when
+    // creating the serializer. This is just to verify.
+    Assert.assertEquals(
+      "implicitly[scala.collection.generic.CanBuildFrom[" +
+        "Seq[Seq[Object]], Seq[Object], Seq[Seq[Object]]]" +
+        "]",
+      outerTraversableSerializer.cbfCode)
+  }
+
+  @Test
+  def testNestedTraversableWithSpecificTypesDoesNotReplaceTypeParametersInCanBuildFrom(): Unit = {
+
+    val traversableTypeInfo = createTypeInformation[Seq[Seq[Int]]]
+    val outerTraversableSerializer = traversableTypeInfo.createSerializer(new ExecutionConfig)
+      .asInstanceOf[TraversableSerializer[Seq[Seq[Int]], Seq[Int]]]
+
+    val innerTraversableSerializer = outerTraversableSerializer.elementSerializer
+      .asInstanceOf[TraversableSerializer[Seq[Int], Int]]
+    Assert.assertEquals(
+      classOf[IntSerializer],
+      innerTraversableSerializer.elementSerializer.getClass)
+
+    Assert.assertEquals(
+      "implicitly[scala.collection.generic.CanBuildFrom[" +
+        "Seq[Seq[Int]], Seq[Int], Seq[Seq[Int]]]" +
+        "]",
+      outerTraversableSerializer.cbfCode)
   }
 }
 

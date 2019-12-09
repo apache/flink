@@ -22,12 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -89,13 +90,21 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 		Optional<FlinkKafkaPartitioner<Row>> partitioner);
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
+	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
 		final SinkFunction<Row> kafkaProducer = createKafkaProducer(
 			topic,
 			properties,
 			serializationSchema,
 			partitioner);
-		dataStream.addSink(kafkaProducer).name(TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames()));
+		return dataStream
+			.addSink(kafkaProducer)
+			.setParallelism(dataStream.getParallelism())
+			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
+	}
+
+	@Override
+	public void emitDataStream(DataStream<Row> dataStream) {
+		consumeDataStream(dataStream);
 	}
 
 	@Override

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,6 +33,15 @@ under the License.
 	<name>flink-metrics-core</name>
 
 	<packaging>jar</packaging>
+
+	<dependencies>
+		<!-- ================== test dependencies ================== -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>

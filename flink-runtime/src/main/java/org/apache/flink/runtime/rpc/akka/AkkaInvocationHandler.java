@@ -26,13 +26,15 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
-import org.apache.flink.runtime.rpc.akka.messages.Processing;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
@@ -48,6 +50,8 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -167,12 +171,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 
 	@Override
 	public void start() {
-		rpcEndpoint.tell(Processing.START, ActorRef.noSender());
+		rpcEndpoint.tell(ControlMessages.START, ActorRef.noSender());
 	}
 
 	@Override
 	public void stop() {
-		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
+		rpcEndpoint.tell(ControlMessages.STOP, ActorRef.noSender());
 	}
 
 	// ------------------------------------------------------------------------
@@ -203,14 +207,33 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 			tell(rpcInvocation);
 
 			result = null;
-		} else if (Objects.equals(returnType, CompletableFuture.class)) {
-			// execute an asynchronous call
-			result = ask(rpcInvocation, futureTimeout);
 		} else {
-			// execute a synchronous call
-			CompletableFuture<?> futureResult = ask(rpcInvocation, futureTimeout);
+			// execute an asynchronous call
+			CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
 
-			result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
+			CompletableFuture<?> completableFuture = resultFuture.thenApply((Object o) -> {
+				if (o instanceof SerializedValue) {
+					try {
+						return  ((SerializedValue<?>) o).deserializeValue(getClass().getClassLoader());
+					} catch (IOException | ClassNotFoundException e) {
+						throw new CompletionException(
+							new RpcException("Could not deserialize the serialized payload of RPC method : "
+								+ methodName, e));
+					}
+				} else {
+					return o;
+				}
+			});
+
+			if (Objects.equals(returnType, CompletableFuture.class)) {
+				result = completableFuture;
+			} else {
+				try {
+					result = completableFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
+				} catch (ExecutionException ee) {
+					throw new RpcException("Failure while obtaining synchronous RPC result.", ExceptionUtils.stripExecutionException(ee));
+				}
+			}
 		}
 
 		return result;
@@ -244,7 +267,10 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 					args);
 
 				if (remoteRpcInvocation.getSize() > maximumFramesize) {
-					throw new IOException("The rpc invocation size exceeds the maximum akka framesize.");
+					throw new IOException(
+						String.format(
+							"The rpc invocation size %d exceeds the maximum akka framesize.",
+							remoteRpcInvocation.getSize()));
 				} else {
 					rpcInvocation = remoteRpcInvocation;
 				}

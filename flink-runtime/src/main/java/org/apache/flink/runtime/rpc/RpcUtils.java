@@ -74,8 +74,7 @@ public class RpcUtils {
 	 * @throws TimeoutException if a timeout occurred
 	 */
 	public static void terminateRpcEndpoint(RpcEndpoint rpcEndpoint, Time timeout) throws ExecutionException, InterruptedException, TimeoutException {
-		rpcEndpoint.shutDown();
-		rpcEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		rpcEndpoint.closeAsync().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -112,6 +111,19 @@ public class RpcUtils {
 		}
 
 		FutureUtils.waitForAll(terminationFutures).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Returns the hostname onto which the given {@link RpcService} has been bound. If
+	 * the {@link RpcService} has been started in local mode, then the hostname is
+	 * {@code "hostname"}.
+	 *
+	 * @param rpcService to retrieve the hostname for
+	 * @return hostname onto which the given {@link RpcService} has been bound or localhost
+	 */
+	public static String getHostname(RpcService rpcService) {
+		final String rpcServiceAddress = rpcService.getAddress();
+		return rpcServiceAddress != null && rpcServiceAddress.isEmpty() ? "localhost" : rpcServiceAddress;
 	}
 
 	// We don't want this class to be instantiable

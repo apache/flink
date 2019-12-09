@@ -21,7 +21,9 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -50,7 +53,6 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
@@ -72,23 +74,16 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
 		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
 
-		final long bytesInLocal = 1L;
-		final long bytesInRemote = 2L;
+		final long bytesIn = 1L;
 		final long bytesOut = 10L;
 		final long recordsIn = 20L;
 		final long recordsOut = 30L;
 
 		final IOMetrics ioMetrics = new IOMetrics(
-			bytesInLocal,
-			bytesInRemote,
+			bytesIn,
 			bytesOut,
 			recordsIn,
-			recordsOut,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0);
+			recordsOut);
 
 		final ArchivedExecutionJobVertex archivedExecutionJobVertex = new ArchivedExecutionJobVertex(
 			new ArchivedExecutionVertex[]{
@@ -114,20 +109,21 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			"test",
 			1,
 			1,
+			ResourceProfile.UNKNOWN,
 			emptyAccumulators);
 
 		// Change some fields so we can make it different from other sub tasks.
-		final MetricFetcher<?> metricFetcher = new MetricFetcher<>(
+		final MetricFetcher metricFetcher = new MetricFetcherImpl<>(
 			() -> null,
-			path -> null,
+			address -> null,
 			TestingUtils.defaultExecutor(),
-			Time.milliseconds(1000L));
+			Time.milliseconds(1000L),
+			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
 		// Instance the handler.
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
 		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
-			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
 			Time.milliseconds(100L),
 			Collections.emptyMap(),
@@ -158,7 +154,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
 		// Verify
 		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
-			bytesInLocal + bytesInRemote,
+			bytesIn,
 			true,
 			bytesOut,
 			true,
@@ -176,7 +172,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			-1L,
 			0L,
 			-1L,
-			ioMetricsInfo
+			ioMetricsInfo,
+			"(unassigned)"
 		);
 
 		assertEquals(expectedDetailsInfo, detailsInfo);

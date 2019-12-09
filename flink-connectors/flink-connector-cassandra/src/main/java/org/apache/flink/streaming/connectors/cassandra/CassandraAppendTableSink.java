@@ -20,8 +20,10 @@ package org.apache.flink.streaming.connectors.cassandra;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -76,15 +78,27 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
-		try {
-			CassandraSink.addSink(dataStream)
-				.setClusterBuilder(this.builder)
-				.setQuery(this.cql)
-				.build()
-				.name(TableConnectorUtil.generateRuntimeName(this.getClass(), fieldNames));
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+		if (!(dataStream.getType() instanceof RowTypeInfo)) {
+			throw new TableException("No support for the type of the given DataStream: " + dataStream.getType());
 		}
+
+		CassandraRowSink sink = new CassandraRowSink(
+			dataStream.getType().getArity(),
+			cql,
+			builder,
+			CassandraSinkBaseConfig.newBuilder().build(),
+			new NoOpCassandraFailureHandler());
+
+		return dataStream
+				.addSink(sink)
+				.setParallelism(dataStream.getParallelism())
+				.name(TableConnectorUtils.generateRuntimeName(this.getClass(), fieldNames));
+
+	}
+
+	@Override
+	public void emitDataStream(DataStream<Row> dataStream) {
+		consumeDataStream(dataStream);
 	}
 }

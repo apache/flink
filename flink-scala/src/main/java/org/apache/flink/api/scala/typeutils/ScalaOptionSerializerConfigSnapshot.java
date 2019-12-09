@@ -19,8 +19,10 @@
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 
 import scala.Option;
 
@@ -30,7 +32,11 @@ import scala.Option;
  * <p>This configuration snapshot class is implemented in Java because Scala does not
  * allow calling different base class constructors from subclasses, while we need that
  * for the default empty constructor.
+ *
+ * @deprecated this snapshot class is no longer in use, and is maintained only for backwards compatibility.
+ *             It is fully replaced by {@link ScalaOptionSerializerSnapshot}.
  */
+@Deprecated
 public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
 
 	private static final int VERSION = 1;
@@ -45,5 +51,13 @@ public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeS
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<Option<E>> resolveSchemaCompatibility(TypeSerializer<Option<E>> newSerializer) {
+		return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+			newSerializer,
+			new ScalaOptionSerializerSnapshot<>(),
+			getSingleNestedSerializerAndConfig().f1);
 	}
 }

@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -56,6 +56,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 	private static final int NUM_SOURCE_ELEMENTS = 4;
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final StatefulJobSavepointMigrationITCase.ExecutionMode executionMode =
 			StatefulJobSavepointMigrationITCase.ExecutionMode.VERIFY_SAVEPOINT;
 
@@ -65,7 +66,13 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 				Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
 				Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
 				Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-				Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+				Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	private final MigrationVersion testMigrateVersion;
@@ -113,17 +120,17 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 		expectedFirstState.put(2L, 2L);
 		expectedFirstState.put(3L, 3L);
 
-		final Map<String, String> expectedSecondState = new HashMap<>();
-		expectedSecondState.put("0", "0");
-		expectedSecondState.put("1", "1");
-		expectedSecondState.put("2", "2");
-		expectedSecondState.put("3", "3");
+		final Map<String, Long> expectedSecondState = new HashMap<>();
+		expectedSecondState.put("0", 0L);
+		expectedSecondState.put("1", 1L);
+		expectedSecondState.put("2", 2L);
+		expectedSecondState.put("3", 3L);
 
-		final Map<String, String> expectedThirdState = new HashMap<>();
-		expectedThirdState.put("0", "0");
-		expectedThirdState.put("1", "1");
-		expectedThirdState.put("2", "2");
-		expectedThirdState.put("3", "3");
+		final Map<Long, String> expectedThirdState = new HashMap<>();
+		expectedThirdState.put(0L, "0");
+		expectedThirdState.put(1L, "1");
+		expectedThirdState.put(2L, "2");
+		expectedThirdState.put(3L, "3");
 
 		if (executionMode == StatefulJobSavepointMigrationITCase.ExecutionMode.PERFORM_SAVEPOINT) {
 			nonParallelSource = new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
@@ -171,12 +178,12 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 				"broadcast-state-1", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO
 		);
 
-		final MapStateDescriptor<String, String> secondBroadcastStateDesc = new MapStateDescriptor<>(
-				"broadcast-state-2", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		final MapStateDescriptor<String, Long> secondBroadcastStateDesc = new MapStateDescriptor<>(
+				"broadcast-state-2", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO
 		);
 
-		final MapStateDescriptor<String, String> thirdBroadcastStateDesc = new MapStateDescriptor<>(
-				"broadcast-state-3", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		final MapStateDescriptor<Long, String> thirdBroadcastStateDesc = new MapStateDescriptor<>(
+				"broadcast-state-3", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
 		);
 
 		BroadcastStream<Tuple2<Long, Long>> npBroadcastStream = env
@@ -234,7 +241,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 
 		private MapStateDescriptor<Long, Long> firstStateDesc;
 
-		private MapStateDescriptor<String, String> secondStateDesc;
+		private MapStateDescriptor<String, Long> secondStateDesc;
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -245,7 +252,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 			);
 
 			secondStateDesc = new MapStateDescriptor<>(
-					"broadcast-state-2", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+					"broadcast-state-2", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO
 			);
 		}
 
@@ -257,7 +264,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 		@Override
 		public void processBroadcastElement(Tuple2<Long, Long> value, Context ctx, Collector<Tuple2<Long, Long>> out) throws Exception {
 			ctx.getBroadcastState(firstStateDesc).put(value.f0, value.f1);
-			ctx.getBroadcastState(secondStateDesc).put(Long.toString(value.f0), Long.toString(value.f1));
+			ctx.getBroadcastState(secondStateDesc).put(Long.toString(value.f0), value.f1);
 		}
 	}
 
@@ -269,14 +276,14 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 
 		private static final long serialVersionUID = 1333992081671604521L;
 
-		private MapStateDescriptor<String, String> stateDesc;
+		private MapStateDescriptor<Long, String> stateDesc;
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 
 			stateDesc = new MapStateDescriptor<>(
-					"broadcast-state-3", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+					"broadcast-state-3", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
 			);
 		}
 
@@ -287,7 +294,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 
 		@Override
 		public void processBroadcastElement(Tuple2<Long, Long> value, Context ctx, Collector<Tuple2<Long, Long>> out) throws Exception {
-			ctx.getBroadcastState(stateDesc).put(Long.toString(value.f0), Long.toString(value.f1));
+			ctx.getBroadcastState(stateDesc).put(value.f0, Long.toString(value.f1));
 		}
 	}
 
@@ -301,13 +308,13 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 
 		private final Map<Long, Long> expectedFirstState;
 
-		private final Map<String, String> expectedSecondState;
+		private final Map<String, Long> expectedSecondState;
 
 		private MapStateDescriptor<Long, Long> firstStateDesc;
 
-		private MapStateDescriptor<String, String> secondStateDesc;
+		private MapStateDescriptor<String, Long> secondStateDesc;
 
-		CheckingKeyedBroadcastFunction(Map<Long, Long> firstState, Map<String, String> secondState) {
+		CheckingKeyedBroadcastFunction(Map<Long, Long> firstState, Map<String, Long> secondState) {
 			this.expectedFirstState = firstState;
 			this.expectedSecondState = secondState;
 		}
@@ -321,7 +328,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 			);
 
 			secondStateDesc = new MapStateDescriptor<>(
-					"broadcast-state-2", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+					"broadcast-state-2", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO
 			);
 		}
 
@@ -334,8 +341,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 			}
 			Assert.assertEquals(expectedFirstState, actualFirstState);
 
-			final Map<String, String> actualSecondState = new HashMap<>();
-			for (Map.Entry<String, String> entry: ctx.getBroadcastState(secondStateDesc).immutableEntries()) {
+			final Map<String, Long> actualSecondState = new HashMap<>();
+			for (Map.Entry<String, Long> entry: ctx.getBroadcastState(secondStateDesc).immutableEntries()) {
 				actualSecondState.put(entry.getKey(), entry.getValue());
 			}
 			Assert.assertEquals(expectedSecondState, actualSecondState);
@@ -357,11 +364,11 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 
 		private static final long serialVersionUID = 1333992081671604521L;
 
-		private final Map<String, String> expectedState;
+		private final Map<Long, String> expectedState;
 
-		private MapStateDescriptor<String, String> stateDesc;
+		private MapStateDescriptor<Long, String> stateDesc;
 
-		CheckingKeyedSingleBroadcastFunction(Map<String, String> state) {
+		CheckingKeyedSingleBroadcastFunction(Map<Long, String> state) {
 			this.expectedState = state;
 		}
 
@@ -370,14 +377,14 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 			super.open(parameters);
 
 			stateDesc = new MapStateDescriptor<>(
-					"broadcast-state-3", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+					"broadcast-state-3", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
 			);
 		}
 
 		@Override
 		public void processElement(Tuple2<Long, Long> value, ReadOnlyContext ctx, Collector<Tuple2<Long, Long>> out) throws Exception {
-			final Map<String, String> actualState = new HashMap<>();
-			for (Map.Entry<String, String> entry: ctx.getBroadcastState(stateDesc).immutableEntries()) {
+			final Map<Long, String> actualState = new HashMap<>();
+			for (Map.Entry<Long, String> entry: ctx.getBroadcastState(stateDesc).immutableEntries()) {
 				actualState.put(entry.getKey(), entry.getValue());
 			}
 			Assert.assertEquals(expectedState, actualState);

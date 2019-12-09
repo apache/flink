@@ -85,11 +85,6 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CharSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<Character> snapshotConfiguration() {
 		return new CharSerializerSnapshot();
 	}
@@ -99,10 +94,11 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class CharSerializerSnapshot extends SimpleTypeSerializerSnapshot<Character> {
 
 		public CharSerializerSnapshot() {
-			super(CharSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

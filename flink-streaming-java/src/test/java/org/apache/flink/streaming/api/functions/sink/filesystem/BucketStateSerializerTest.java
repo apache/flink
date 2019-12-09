@@ -115,7 +115,7 @@ public class BucketStateSerializerTest {
 		Assert.assertEquals(1L, statuses.length);
 		Assert.assertTrue(
 				statuses[0].getPath().getPath().startsWith(
-						(new Path(testBucket.getParent(), ".test.inprogress")).toString())
+						(new Path(testBucket.getParent(), ".test.inprogress")).getPath())
 		);
 	}
 
@@ -184,7 +184,7 @@ public class BucketStateSerializerTest {
 
 		for (int i = 0; i < noOfTasks; i++) {
 			for (int j = 0; j < 2 + i; j++) {
-				final String part = new Path(bucketPath, "part-" + i + '-' + j).toString();
+				final String part = new Path(bucketPath, "part-" + i + '-' + j).getPath();
 				Assert.assertTrue(paths.contains(part));
 				paths.remove(part);
 			}
@@ -195,7 +195,7 @@ public class BucketStateSerializerTest {
 
 		// verify that the in-progress file is still there
 		Assert.assertTrue(paths.iterator().next().startsWith(
-				(new Path(testBucket.getParent(), ".test-2.inprogress").toString())));
+				(new Path(testBucket.getParent(), ".test-2.inprogress").getPath())));
 	}
 
 	@Test
@@ -258,7 +258,7 @@ public class BucketStateSerializerTest {
 
 		for (int i = 0; i < noOfTasks; i++) {
 			for (int j = 0; j < 2 + i; j++) {
-				final String part = new Path(bucketPath, "test-" + i + '-' + j).toString();
+				final String part = new Path(bucketPath, "test-" + i + '-' + j).getPath();
 				Assert.assertTrue(paths.contains(part));
 				paths.remove(part);
 			}

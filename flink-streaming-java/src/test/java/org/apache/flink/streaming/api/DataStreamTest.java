@@ -79,6 +79,7 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringStartsWith;
@@ -546,26 +547,26 @@ public class DataStreamTest extends TestLogger {
 	public void testResources() throws Exception{
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		ResourceSpec minResource1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
-		ResourceSpec preferredResource1 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(200).build();
+		ResourceSpec minResource1 = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec preferredResource1 = ResourceSpec.newBuilder(2.0, 200).build();
 
-		ResourceSpec minResource2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(200).build();
-		ResourceSpec preferredResource2 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(300).build();
+		ResourceSpec minResource2 = ResourceSpec.newBuilder(1.0, 200).build();
+		ResourceSpec preferredResource2 = ResourceSpec.newBuilder(2.0, 300).build();
 
-		ResourceSpec minResource3 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(300).build();
-		ResourceSpec preferredResource3 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(400).build();
+		ResourceSpec minResource3 = ResourceSpec.newBuilder(1.0, 300).build();
+		ResourceSpec preferredResource3 = ResourceSpec.newBuilder(2.0, 400).build();
 
-		ResourceSpec minResource4 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(400).build();
-		ResourceSpec preferredResource4 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(500).build();
+		ResourceSpec minResource4 = ResourceSpec.newBuilder(1.0, 400).build();
+		ResourceSpec preferredResource4 = ResourceSpec.newBuilder(2.0, 500).build();
 
-		ResourceSpec minResource5 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(500).build();
-		ResourceSpec preferredResource5 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(600).build();
+		ResourceSpec minResource5 = ResourceSpec.newBuilder(1.0, 500).build();
+		ResourceSpec preferredResource5 = ResourceSpec.newBuilder(2.0, 600).build();
 
-		ResourceSpec minResource6 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(600).build();
-		ResourceSpec preferredResource6 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(700).build();
+		ResourceSpec minResource6 = ResourceSpec.newBuilder(1.0, 600).build();
+		ResourceSpec preferredResource6 = ResourceSpec.newBuilder(2.0, 700).build();
 
-		ResourceSpec minResource7 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(700).build();
-		ResourceSpec preferredResource7 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(800).build();
+		ResourceSpec minResource7 = ResourceSpec.newBuilder(1.0, 700).build();
+		ResourceSpec preferredResource7 = ResourceSpec.newBuilder(2.0, 800).build();
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
 		opMethod.setAccessible(true);
@@ -952,12 +953,7 @@ public class DataStreamTest extends TestLogger {
 			fail(e.getMessage());
 		}
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		SplitStream<Integer> split = unionFilter.split(outputSelector);
 		split.select("dummy").addSink(new DiscardingSink<Integer>());
@@ -1089,6 +1085,91 @@ public class DataStreamTest extends TestLogger {
 				env.getStreamGraph().getStreamEdges(src.getId(),
 						globalSink.getTransformation().getId()).get(0).getPartitioner();
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
+	}
+
+	/////////////////////////////////////////////////////////////
+	// Split testing
+	/////////////////////////////////////////////////////////////
+
+	@Test
+	public void testConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testSplitAfterSideOutputRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputTag<Integer> outputTag = new OutputTag<Integer>("dummy"){};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.getSideOutput(outputTag).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testSelectBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).select("dummy").split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testUnionBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).select("dummy").union(src.map(x -> x)).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testKeybyBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.split(outputSelector).select("dummy").keyBy(x -> x).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
 	}
 
 	/////////////////////////////////////////////////////////////
@@ -1425,6 +1506,13 @@ public class DataStreamTest extends TestLogger {
 
 		public int getI() {
 			return i;
+		}
+	}
+
+	private class DummyOutputSelector<Integer> implements OutputSelector<Integer> {
+		@Override
+		public Iterable<String> select(Integer value) {
+			return null;
 		}
 	}
 }

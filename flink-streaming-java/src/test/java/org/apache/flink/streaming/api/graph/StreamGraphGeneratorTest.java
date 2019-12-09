@@ -19,11 +19,17 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -45,10 +51,22 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -57,7 +75,20 @@ import static org.junit.Assert.assertTrue;
  * specific tests.
  */
 @SuppressWarnings("serial")
-public class StreamGraphGeneratorTest {
+public class StreamGraphGeneratorTest extends TestLogger {
+
+	@Test
+	public void generatorForwardsSavepointRestoreSettings() {
+		StreamGraphGenerator streamGraphGenerator =
+				new StreamGraphGenerator(Collections.emptyList(),
+				new ExecutionConfig(),
+				new CheckpointConfig());
+
+		streamGraphGenerator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("hello"));
+
+		StreamGraph streamGraph = streamGraphGenerator.generate();
+		assertThat(streamGraph.getSavepointRestoreSettings().getRestorePath(), is("hello"));
+	}
 
 	@Test
 	public void testBufferTimeout() {
@@ -85,16 +116,16 @@ public class StreamGraphGeneratorTest {
 			switch (node.getOperatorName()) {
 
 				case "A":
-					assertEquals(77L, node.getBufferTimeout().longValue());
+					assertEquals(77L, node.getBufferTimeout());
 					break;
 				case "B":
-					assertEquals(0L, node.getBufferTimeout().longValue());
+					assertEquals(0L, node.getBufferTimeout());
 					break;
 				case "C":
-					assertEquals(12L, node.getBufferTimeout().longValue());
+					assertEquals(12L, node.getBufferTimeout());
 					break;
 				case "D":
-					assertEquals(77L, node.getBufferTimeout().longValue());
+					assertEquals(77L, node.getBufferTimeout());
 					break;
 				default:
 					assertTrue(node.getOperator() instanceof StreamSource);
@@ -168,7 +199,7 @@ public class StreamGraphGeneratorTest {
 
 		// verify that only last partitioning takes precedence
 		assertTrue(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertEquals(rebalanceMap.getId(), graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0).getSourceVertex().getId());
+		assertEquals(rebalanceMap.getId(), graph.getSourceVertex(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0)).getId());
 
 		// verify that partitioning in unions is preserved and that it works across split/select
 		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
@@ -420,6 +451,82 @@ public class StreamGraphGeneratorTest {
 		env.getStreamGraph().getStreamingPlanAsJSON();
 	}
 
+	/**
+	 * Test iteration job, check slot sharing group and co-location group.
+	 */
+	@Test
+	public void testIteration() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		IterativeStream<Integer> iteration = source.iterate(3000);
+		iteration.name("iteration").setParallelism(2);
+		DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
+		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
+		iteration.closeWith(filter).print();
+
+		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
+		iteration.getTransformation().setResources(resources, resources);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		for (Tuple2<StreamNode, StreamNode> iterationPair : streamGraph.getIterationSourceSinkPairs()) {
+			assertNotNull(iterationPair.f0.getCoLocationGroup());
+			assertEquals(iterationPair.f0.getCoLocationGroup(), iterationPair.f1.getCoLocationGroup());
+
+			assertEquals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, iterationPair.f0.getSlotSharingGroup());
+			assertEquals(iterationPair.f0.getSlotSharingGroup(), iterationPair.f1.getSlotSharingGroup());
+
+			final ResourceSpec sourceMinResources = iterationPair.f0.getMinResources();
+			final ResourceSpec sinkMinResources = iterationPair.f1.getMinResources();
+			final ResourceSpec iterationResources = sourceMinResources.merge(sinkMinResources);
+			assertThat(iterationResources, equalsResourceSpec(resources));
+		}
+	}
+
+	private Matcher<ResourceSpec> equalsResourceSpec(ResourceSpec resources) {
+		return new EqualsResourceSpecMatcher(resources);
+	}
+
+	/**
+	 * Test slot sharing is enabled.
+	 */
+	@Test
+	public void testEnableSlotSharing() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+		DataStream<Integer> mapDataStream = sourceDataStream.map(x -> x + 1);
+
+		final List<Transformation<?>> transformations = new ArrayList<>();
+		transformations.add(sourceDataStream.getTransformation());
+		transformations.add(mapDataStream.getTransformation());
+
+		// all stream nodes share default group by default
+		StreamGraph streamGraph = new StreamGraphGenerator(
+				transformations, env.getConfig(), env.getCheckpointConfig())
+			.generate();
+
+		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
+		for (StreamNode streamNode : streamNodes) {
+			assertEquals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, streamNode.getSlotSharingGroup());
+		}
+	}
+
+	@Test
+	public void testSetManagedMemoryWeight() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		source.getTransformation().setManagedMemoryWeight(123);
+		source.print().name("sink");
+
+		final StreamGraph streamGraph = env.getStreamGraph();
+		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+			final int expectedWeight = streamNode.getOperatorName().contains("source")
+				? 123
+				: Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT;
+			assertEquals(expectedWeight, streamNode.getManagedMemoryWeight());
+		}
+	}
+
 	private static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
@@ -507,5 +614,23 @@ public class StreamGraphGeneratorTest {
 			return value;
 		}
 
+	}
+
+	private static class EqualsResourceSpecMatcher extends TypeSafeMatcher<ResourceSpec> {
+		private final ResourceSpec resources;
+
+		EqualsResourceSpecMatcher(ResourceSpec resources) {
+			this.resources = resources;
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("expected resource spec ").appendValue(resources);
+		}
+
+		@Override
+		protected boolean matchesSafely(ResourceSpec item) {
+			return resources.lessThanOrEqual(item) && item.lessThanOrEqual(resources);
+		}
 	}
 }

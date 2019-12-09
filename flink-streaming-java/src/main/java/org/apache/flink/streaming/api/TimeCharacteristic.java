@@ -47,7 +47,7 @@ public enum TimeCharacteristic {
 	 * does not affect windowing, but only the speed at which sources receive elements.
 	 *
 	 * <p>Ingestion time is often a good compromise between processing time and event time.
-	 * It does not need and special manual form of watermark generation, and events are typically
+	 * It does not need any special manual form of watermark generation, and events are typically
 	 * not too much out-or-order when they arrive at operators; in fact, out-of-orderness can
 	 * only be introduced by streaming shuffles or split/join/union operations. The fact that
 	 * elements are not very much out-of-order means that the latency increase is moderate,

@@ -21,7 +21,6 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -36,6 +35,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_ELASTICSEARCH = "elasticsearch";
 	public static final String CONNECTOR_VERSION_VALUE_6 = "6";
+	public static final String CONNECTOR_VERSION_VALUE_7 = "7";
 	public static final String CONNECTOR_HOSTS = "connector.hosts";
 	public static final String CONNECTOR_HOSTS_HOSTNAME = "hostname";
 	public static final String CONNECTOR_HOSTS_PORT = "port";
@@ -79,7 +79,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 		properties.validateEnumValues(
 			CONNECTOR_VERSION,
 			false,
-			Collections.singletonList(CONNECTOR_VERSION_VALUE_6));
+			Arrays.asList(CONNECTOR_VERSION_VALUE_6, CONNECTOR_VERSION_VALUE_7));
 	}
 
 	private void validateHosts(DescriptorProperties properties) {

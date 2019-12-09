@@ -1,0 +1,25 @@
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  %logicalSourceNode0%
+  %logicalSourceNode1%
+
+== Optimized Logical Plan ==
+DataStreamUnion(all=[true], union all=[count, word])
+  %sourceNode0%
+  %sourceNode1%
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+	content : collect elements with CollectionInputFormat
+
+Stage 2 : Data Source
+	content : collect elements with CollectionInputFormat
+
+	Stage 3 : Operator
+		content : from: (count, word)
+		ship_strategy : REBALANCE
+
+		Stage 4 : Operator
+			content : from: (count, word)
+			ship_strategy : REBALANCE
+

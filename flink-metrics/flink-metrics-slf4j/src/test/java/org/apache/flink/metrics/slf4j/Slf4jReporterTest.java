@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.slf4j;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.TestLogger;
@@ -39,6 +39,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -63,11 +65,11 @@ public class Slf4jReporterTest extends TestLogger {
 		TestUtils.addTestAppenderForRootLogger();
 
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "slf4j." +
-			ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, Slf4jReporter.class.getName());
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 
-		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+		registry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration),
+			Collections.singletonList(ReporterSetup.forReporter("slf4j", new Slf4jReporter())));
 		delimiter = registry.getDelimiter();
 
 		taskMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER_ID)

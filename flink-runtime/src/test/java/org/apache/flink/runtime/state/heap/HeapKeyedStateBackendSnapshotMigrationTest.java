@@ -58,20 +58,18 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 
 		Preconditions.checkNotNull(resource, "Binary snapshot resource not found!");
 
-		try (final HeapKeyedStateBackend<String> keyedBackend = createKeyedBackend()) {
+		final SnapshotResult<KeyedStateHandle> stateHandles;
+		try (BufferedInputStream bis = new BufferedInputStream((new FileInputStream(resource.getFile())))) {
+			stateHandles = InstantiationUtil.deserializeObject(bis, Thread.currentThread().getContextClassLoader());
+		}
+		final KeyedStateHandle stateHandle = stateHandles.getJobManagerOwnedSnapshot();
+		try (final HeapKeyedStateBackend<String> keyedBackend = createKeyedBackend(StateObjectCollection.singleton(stateHandle))) {
 			final Integer namespace1 = 1;
 			final Integer namespace2 = 2;
 			final Integer namespace3 = 3;
 
-			final SnapshotResult<KeyedStateHandle> stateHandles;
-			try (BufferedInputStream bis = new BufferedInputStream((new FileInputStream(resource.getFile())))) {
-				stateHandles = InstantiationUtil.deserializeObject(bis, Thread.currentThread().getContextClassLoader());
-			}
-
 			final MapStateDescriptor<Long, Long> stateDescr = new MapStateDescriptor<>("my-map-state", Long.class, Long.class);
 			stateDescr.initializeSerializerUnlessSet(new ExecutionConfig());
-
-			keyedBackend.restore(StateObjectCollection.singleton(stateHandles.getJobManagerOwnedSnapshot()));
 
 			InternalMapState<String, Integer, Long, Long> state = keyedBackend.createInternalState(IntSerializer.INSTANCE, stateDescr);
 
@@ -224,12 +222,11 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 		final Integer namespace2 = 2;
 		final Integer namespace3 = 3;
 
-		try (final HeapKeyedStateBackend<String> keyedBackend = createKeyedBackend()) {
-			final KeyGroupsStateHandle stateHandle;
-			try (BufferedInputStream bis = new BufferedInputStream((new FileInputStream(resource.getFile())))) {
-				stateHandle = InstantiationUtil.deserializeObject(bis, Thread.currentThread().getContextClassLoader());
-			}
-			keyedBackend.restore(StateObjectCollection.singleton(stateHandle));
+		final KeyGroupsStateHandle stateHandle;
+		try (BufferedInputStream bis = new BufferedInputStream((new FileInputStream(resource.getFile())))) {
+			stateHandle = InstantiationUtil.deserializeObject(bis, Thread.currentThread().getContextClassLoader());
+		}
+		try (final HeapKeyedStateBackend<String> keyedBackend = createKeyedBackend(StateObjectCollection.singleton(stateHandle))) {
 			final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
 			stateDescr.initializeSerializerUnlessSet(new ExecutionConfig());
 

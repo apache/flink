@@ -21,12 +21,15 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
+import org.apache.flink.cep.utils.TestTimerService;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
@@ -48,8 +51,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
-import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.anyLong;
@@ -378,9 +381,9 @@ public class NFAITCase extends TestLogger {
 		timeoutPattern4.put("start", Collections.singletonList(new Event(2, "start", 1.0)));
 
 		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern1, 11L));
-		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern2, 13L));
+		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern2, 12L));
 		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern3, 11L));
-		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern4, 13L));
+		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern4, 12L));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 7907391379273505897L;
@@ -414,7 +417,12 @@ public class NFAITCase extends TestLogger {
 			Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
 				nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp());
 			Collection<Map<String, List<Event>>> matchedPatterns =
-				nfa.process(sharedBufferAccessor, nfaState, event.getValue(), event.getTimestamp());
+				nfa.process(sharedBufferAccessor,
+					nfaState,
+					event.getValue(),
+					event.getTimestamp(),
+					AfterMatchSkipStrategy.noSkip(),
+					new TestTimerService());
 
 			resultingPatterns.addAll(matchedPatterns);
 			resultingTimeoutPatterns.addAll(timeoutPatterns);
@@ -2342,11 +2350,13 @@ public class NFAITCase extends TestLogger {
 
 		NFAState nfaState = nfa.createInitialNFAState();
 
-		nfa.process(sharedBufferAccessor, nfaState, startEvent, 1);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent1, 2);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent2, 3);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent3, 4);
-		nfa.process(sharedBufferAccessor, nfaState, end1, 6);
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+
+		nfaTestHarness.feedRecord(new StreamRecord<>(startEvent, 1));
+		nfaTestHarness.feedRecord(new StreamRecord<>(middleEvent1, 2));
+		nfaTestHarness.feedRecord(new StreamRecord<>(middleEvent2, 3));
+		nfaTestHarness.feedRecord(new StreamRecord<>(middleEvent3, 4));
+		nfaTestHarness.feedRecord(new StreamRecord<>(end1, 6));
 
 		//pruning element
 		nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
@@ -2387,10 +2397,11 @@ public class NFAITCase extends TestLogger {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		nfa.process(sharedBufferAccessor, nfaState, startEvent, 1);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent, 5);
-		nfa.process(sharedBufferAccessor, nfaState, end1, 6);
+		nfaTestHarness.feedRecord(new StreamRecord<>(startEvent, 1));
+		nfaTestHarness.feedRecord(new StreamRecord<>(middleEvent, 5));
+		nfaTestHarness.feedRecord(new StreamRecord<>(end1, 6));
 
 		//pruning element
 		nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
@@ -2432,11 +2443,12 @@ public class NFAITCase extends TestLogger {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		nfa.process(sharedBufferAccessor, nfaState, startEvent, 1);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent1, 3);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent2, 4);
-		nfa.process(sharedBufferAccessor, nfaState, end1, 6);
+		nfaTestHarness.consumeRecord(new StreamRecord<>(startEvent, 1));
+		nfaTestHarness.consumeRecord(new StreamRecord<>(middleEvent1, 3));
+		nfaTestHarness.consumeRecord(new StreamRecord<>(middleEvent2, 4));
+		nfaTestHarness.consumeRecord(new StreamRecord<>(end1, 6));
 
 		//pruning element
 		nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
@@ -2478,11 +2490,12 @@ public class NFAITCase extends TestLogger {
 		NFA<Event> nfa = compile(pattern, false);
 
 		NFAState nfaState = nfa.createInitialNFAState();
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
 
-		nfa.process(sharedBufferAccessor, nfaState, startEvent, 1);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent1, 3);
-		nfa.process(sharedBufferAccessor, nfaState, middleEvent2, 4);
-		nfa.process(sharedBufferAccessor, nfaState, end1, 6);
+		nfaTestHarness.consumeRecord(new StreamRecord<>(startEvent, 1));
+		nfaTestHarness.consumeRecord(new StreamRecord<>(middleEvent1, 3));
+		nfaTestHarness.consumeRecord(new StreamRecord<>(middleEvent2, 4));
+		nfaTestHarness.consumeRecord(new StreamRecord<>(end1, 6));
 
 		//pruning element
 		nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
@@ -2734,25 +2747,12 @@ public class NFAITCase extends TestLogger {
 					}
 				}).times(3).consecutive();
 
-		NFA<Event> nfa = compile(pattern, false);
-
-		List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
-
-		NFAState nfaState = nfa.createInitialNFAState();
-
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, List<Event>>> patterns = nfa.process(
-				sharedBufferAccessor,
-				nfaState,
-				inputEvent.getValue(),
-				inputEvent.getTimestamp());
-
-			resultingPatterns.addAll(patterns);
-		}
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
+		Collection<Map<String, List<Event>>> resultingPatterns = nfaTestHarness.consumeRecords(inputEvents);
 
 		Assert.assertEquals(1L, resultingPatterns.size());
 
-		Map<String, List<Event>> match = resultingPatterns.get(0);
+		Map<String, List<Event>> match = resultingPatterns.iterator().next();
 		Assert.assertArrayEquals(
 				match.get("start").toArray(),
 				Lists.newArrayList(startEvent1, startEvent2, startEvent3, startEvent4).toArray());
@@ -2809,25 +2809,12 @@ public class NFAITCase extends TestLogger {
 				}
 			});
 
-		NFA<Event> nfa = compile(pattern, false);
-
-		List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
-
-		NFAState nfaState = nfa.createInitialNFAState();
-
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, List<Event>>> patterns = nfa.process(
-				sharedBufferAccessor,
-				nfaState,
-				inputEvent.getValue(),
-				inputEvent.getTimestamp());
-
-			resultingPatterns.addAll(patterns);
-		}
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
+		Collection<Map<String, List<Event>>> resultingPatterns = nfaTestHarness.consumeRecords(inputEvents);
 
 		Assert.assertEquals(1L, resultingPatterns.size());
 
-		Map<String, List<Event>> match = resultingPatterns.get(0);
+		Map<String, List<Event>> match = resultingPatterns.iterator().next();
 
 		List<String> expectedOrder = Lists.newArrayList("a", "b", "aa", "bb", "ab");
 		List<String> resultOrder = new ArrayList<>();
@@ -2845,10 +2832,13 @@ public class NFAITCase extends TestLogger {
 		Event a = new Event(40, "a", 1.0);
 		Event b = new Event(41, "b", 2.0);
 
+		NFA<Event> nfa = compile(pattern, false);
+		TestTimerService timerService = new TestTimerService();
 		try (SharedBufferAccessor<Event> accessor = Mockito.spy(sharedBuffer.getAccessor())) {
-			NFA<Event> nfa = compile(pattern, false);
-			nfa.process(accessor, nfa.createInitialNFAState(), a, 1);
-			nfa.process(accessor, nfa.createInitialNFAState(), b, 2);
+			nfa.process(accessor, nfa.createInitialNFAState(), a, 1, AfterMatchSkipStrategy.noSkip(),
+				timerService);
+			nfa.process(accessor, nfa.createInitialNFAState(), b, 2, AfterMatchSkipStrategy.noSkip(),
+				timerService);
 			Mockito.verify(accessor, Mockito.never()).advanceTime(anyLong());
 			nfa.advanceTime(accessor, nfa.createInitialNFAState(), 2);
 			Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);

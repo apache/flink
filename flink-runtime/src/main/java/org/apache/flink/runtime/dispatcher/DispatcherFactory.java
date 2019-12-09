@@ -18,36 +18,31 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import javax.annotation.Nullable;
+import java.util.Collection;
+import java.util.UUID;
 
 /**
  * {@link Dispatcher} factory interface.
  */
-public interface DispatcherFactory<T extends Dispatcher> {
+public interface DispatcherFactory {
 
 	/**
-	 * Create a {@link Dispatcher} of the given type {@link T}.
+	 * Create a {@link Dispatcher}.
 	 */
-	T createDispatcher(
-		Configuration configuration,
+	Dispatcher createDispatcher(
 		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress,
-		HistoryServerArchivist historyServerArchivist) throws Exception;
+		DispatcherId fencingToken,
+		Collection<JobGraph> recoveredJobs,
+		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
+
+	default String generateEndpointIdWithUUID() {
+		return getEndpointId() + UUID.randomUUID();
+	}
+
+	default String getEndpointId() {
+		return Dispatcher.DISPATCHER_NAME;
+	}
 }

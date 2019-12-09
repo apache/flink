@@ -18,12 +18,18 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Versioned edge in {@link SharedBuffer} that allows retrieving predecessors.
@@ -65,9 +71,24 @@ public class SharedBufferEdge {
 
 		private static final long serialVersionUID = -5122474955050663979L;
 
-		static final SharedBufferEdgeSerializer INSTANCE = new SharedBufferEdgeSerializer();
+		/**
+		 * NOTE: these serializer fields should actually be final.
+		 * The reason that it isn't final is due to backward compatible deserialization
+		 * paths. See {@link #readObject(ObjectInputStream)}.
+		 */
+		private TypeSerializer<NodeId> nodeIdSerializer;
+		private TypeSerializer<DeweyNumber> deweyNumberSerializer;
 
-		private SharedBufferEdgeSerializer() {}
+		public SharedBufferEdgeSerializer() {
+			this(new NodeId.NodeIdSerializer(), DeweyNumber.DeweyNumberSerializer.INSTANCE);
+		}
+
+		private SharedBufferEdgeSerializer(
+				TypeSerializer<NodeId> nodeIdSerializer,
+				TypeSerializer<DeweyNumber> deweyNumberSerializer) {
+			this.nodeIdSerializer = checkNotNull(nodeIdSerializer);
+			this.deweyNumberSerializer = checkNotNull(deweyNumberSerializer);
+		}
 
 		@Override
 		public boolean isImmutableType() {
@@ -96,14 +117,14 @@ public class SharedBufferEdge {
 
 		@Override
 		public void serialize(SharedBufferEdge record, DataOutputView target) throws IOException {
-			NodeId.NodeIdSerializer.INSTANCE.serialize(record.target, target);
-			DeweyNumber.DeweyNumberSerializer.INSTANCE.serialize(record.deweyNumber, target);
+			nodeIdSerializer.serialize(record.target, target);
+			deweyNumberSerializer.serialize(record.deweyNumber, target);
 		}
 
 		@Override
 		public SharedBufferEdge deserialize(DataInputView source) throws IOException {
-			NodeId target = NodeId.NodeIdSerializer.INSTANCE.deserialize(source);
-			DeweyNumber deweyNumber = DeweyNumber.DeweyNumberSerializer.INSTANCE.deserialize(source);
+			NodeId target = nodeIdSerializer.deserialize(source);
+			DeweyNumber deweyNumber = deweyNumberSerializer.deserialize(source);
 			return new SharedBufferEdge(target, deweyNumber);
 		}
 
@@ -114,13 +135,63 @@ public class SharedBufferEdge {
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			NodeId.NodeIdSerializer.INSTANCE.copy(source, target);
-			DeweyNumber.DeweyNumberSerializer.INSTANCE.copy(source, target);
+			nodeIdSerializer.copy(source, target);
+			deweyNumberSerializer.copy(source, target);
 		}
 
+		// -----------------------------------------------------------------------------------
+
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(SharedBufferEdgeSerializer.class);
+		public TypeSerializerSnapshot<SharedBufferEdge> snapshotConfiguration() {
+			return new SharedBufferEdgeSerializerSnapshot(this);
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class SharedBufferEdgeSerializerSnapshot
+				extends CompositeTypeSerializerSnapshot<SharedBufferEdge, SharedBufferEdgeSerializer> {
+
+			private static final int VERSION = 1;
+
+			public SharedBufferEdgeSerializerSnapshot() {
+				super(SharedBufferEdgeSerializer.class);
+			}
+
+			public SharedBufferEdgeSerializerSnapshot(SharedBufferEdgeSerializer sharedBufferEdgeSerializer) {
+				super(sharedBufferEdgeSerializer);
+			}
+
+			@Override
+			protected int getCurrentOuterSnapshotVersion() {
+				return VERSION;
+			}
+
+			@Override
+			protected SharedBufferEdgeSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+				return new SharedBufferEdgeSerializer(
+					(NodeId.NodeIdSerializer) nestedSerializers[0],
+					(DeweyNumber.DeweyNumberSerializer) nestedSerializers[1]);
+			}
+
+			@Override
+			protected TypeSerializer<?>[] getNestedSerializers(SharedBufferEdgeSerializer outerSerializer) {
+				return new TypeSerializer<?>[] { outerSerializer.nodeIdSerializer, outerSerializer.deweyNumberSerializer };
+			}
+		}
+
+		// ------------------------------------------------------------------------
+
+		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+			in.defaultReadObject();
+
+			if (nodeIdSerializer == null) {
+				// the nested serializers will be null if this was read from a savepoint taken with versions
+				// lower than Flink 1.7; in this case, we explicitly create instances for the nested serializers
+				this.nodeIdSerializer = new NodeId.NodeIdSerializer();
+				this.deweyNumberSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
+			}
 		}
 	}
 }

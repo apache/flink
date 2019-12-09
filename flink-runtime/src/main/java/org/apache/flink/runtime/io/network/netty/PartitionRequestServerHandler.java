@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
@@ -45,22 +45,18 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final ResultPartitionProvider partitionProvider;
 
-	private final TaskEventDispatcher taskEventDispatcher;
+	private final TaskEventPublisher taskEventPublisher;
 
 	private final PartitionRequestQueue outboundQueue;
 
-	private final boolean creditBasedEnabled;
-
 	PartitionRequestServerHandler(
 		ResultPartitionProvider partitionProvider,
-		TaskEventDispatcher taskEventDispatcher,
-		PartitionRequestQueue outboundQueue,
-		boolean creditBasedEnabled) {
+		TaskEventPublisher taskEventPublisher,
+		PartitionRequestQueue outboundQueue) {
 
 		this.partitionProvider = partitionProvider;
-		this.taskEventDispatcher = taskEventDispatcher;
+		this.taskEventPublisher = taskEventPublisher;
 		this.outboundQueue = outboundQueue;
-		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	@Override
@@ -88,16 +84,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 				try {
 					NetworkSequenceViewReader reader;
-					if (creditBasedEnabled) {
-						reader = new CreditBasedSequenceNumberingViewReader(
-							request.receiverId,
-							request.credit,
-							outboundQueue);
-					} else {
-						reader = new SequenceNumberingViewReader(
-							request.receiverId,
-							outboundQueue);
-					}
+					reader = new CreditBasedSequenceNumberingViewReader(
+						request.receiverId,
+						request.credit,
+						outboundQueue);
 
 					reader.requestSubpartitionView(
 						partitionProvider,
@@ -115,7 +105,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 			else if (msgClazz == TaskEventRequest.class) {
 				TaskEventRequest request = (TaskEventRequest) msg;
 
-				if (!taskEventDispatcher.publish(request.partitionId, request.event)) {
+				if (!taskEventPublisher.publish(request.partitionId, request.event)) {
 					respondWithError(ctx, new IllegalArgumentException("Task event receiver not found."), request.receiverId);
 				}
 			} else if (msgClazz == CancelPartitionRequest.class) {

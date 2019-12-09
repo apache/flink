@@ -41,7 +41,7 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBAppendingState<K, N, V, V, V, ReducingState<V>>
+	extends AbstractRocksDBAppendingState<K, N, V, V, V>
 	implements InternalReducingState<K, N, V> {
 
 	/** User-specified reduce function. */
@@ -102,24 +102,18 @@ class RocksDBReducingState<K, N, V>
 			return;
 		}
 
-		// cache key and namespace
-		final K key = backend.getCurrentKey();
-		final int keyGroup = backend.getCurrentKeyGroupIndex();
-
 		try {
 			V current = null;
 
 			// merge the sources to the target
 			for (N source : sources) {
 				if (source != null) {
-
-					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
-
-					final byte[] sourceKey = dataOutputView.getCopyOfBuffer();
+					setCurrentNamespace(source);
+					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
+						backend.db.delete(columnFamily, writeOptions, sourceKey);
 						dataInputView.setBuffer(valueBytes);
 						V value = valueSerializer.deserialize(dataInputView);
 
@@ -136,9 +130,8 @@ class RocksDBReducingState<K, N, V>
 			// if something came out of merging the sources, merge it or write it to the target
 			if (current != null) {
 				// create the target full-binary-key
-				writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
-
-				final byte[] targetKey = dataOutputView.getCopyOfBuffer();
+				setCurrentNamespace(target);
+				final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
 				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
 				if (targetValueBytes != null) {

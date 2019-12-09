@@ -21,10 +21,14 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.util.FileUtils;
@@ -36,6 +40,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 
 public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
@@ -43,7 +48,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final long MEM_SIZE_PARAM = 128L*1024*1024;
+	private static final int TOTAL_FLINK_MEMORY_MB = 1024;
 
 	/**
 	 * This tests that the creation of {@link TaskManagerServices} correctly creates the local state root directory
@@ -64,17 +69,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		// test configuration of the local state mode
 		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
-		final ResourceID tmResourceID = ResourceID.generate();
-
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
-
-		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-			taskManagerServicesConfiguration,
-			tmResourceID,
-			Executors.directExecutor(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM);
+		TaskManagerServices taskManagerServices = createTaskManagerServices(createTaskManagerServiceConfiguration(config));
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -105,17 +100,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		final Configuration config = new Configuration();
 
-		final ResourceID tmResourceID = ResourceID.generate();
+		TaskManagerServicesConfiguration taskManagerServicesConfiguration = createTaskManagerServiceConfiguration(config);
 
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
-
-		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-			taskManagerServicesConfiguration,
-			tmResourceID,
-			Executors.directExecutor(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM);
+		TaskManagerServices taskManagerServices = createTaskManagerServices(taskManagerServicesConfiguration);
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -216,5 +203,25 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 				Assert.assertArrayEquals(new File[0], files);
 			}
 		}
+	}
+
+	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
+			Configuration config) throws IOException {
+		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEMORY_MB + "m");
+		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(config);
+		return TaskManagerServicesConfiguration.fromConfiguration(
+			config,
+			ResourceID.generate(),
+			InetAddress.getLocalHost(),
+			true,
+			spec);
+	}
+
+	private TaskManagerServices createTaskManagerServices(
+			TaskManagerServicesConfiguration config) throws Exception {
+		return TaskManagerServices.fromConfiguration(
+			config,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			Executors.directExecutor());
 	}
 }

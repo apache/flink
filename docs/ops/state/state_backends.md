@@ -146,13 +146,28 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
+If you want to use the `RocksDBStateBackend` in your IDE or configure it programmatically in your Flink job, you will have to add the following dependency to your Flink project.
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
+    <version>{{ site.version }}</version>
+    <scope>provided</scope>
+</dependency>
+{% endhighlight %}
+
+<div class="alert alert-info" markdown="span">
+  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({{ site.baseurl }}/ops/config.html#checkpointing) and [RocksDB-specific]({{ site.baseurl }}/ops/config.html#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
+</div>
+
 
 ### Setting Default State Backend
 
 A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend`.
 
 Possible values for the config entry are *jobmanager* (MemoryStateBackend), *filesystem* (FsStateBackend), *rocksdb* (RocksDBStateBackend), or the fully qualified class
-name of the class that implements the state backend factory [FsStateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/filesystem/FsStateBackendFactory.java),
+name of the class that implements the state backend factory [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java),
 such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
 
 The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.

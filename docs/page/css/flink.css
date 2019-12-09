@@ -30,6 +30,14 @@ body {
 	background: #f8f8f8;
 }
 
+.footer {
+	color: #7f8c8d;
+	margin-top: 4em;
+	padding-top: 1em;
+	border-top: 1px solid #e5e5e5;
+	font-size: .9em;
+}
+
 @media (min-width: 992px) and (max-width: 1200px) {
     #contentcol { float: left; width: 70%; }
     #sidenavcol { float: left; width: 30%; }
@@ -296,5 +304,13 @@ ul#sidenav {
 }
 
 .sidenav-versions button {
+	width: 100%;
+}
+
+.sidenav-languages {
+	padding: 10px;
+}
+
+.sidenav-languages button {
 	width: 100%;
 }

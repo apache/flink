@@ -39,8 +39,8 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.migration.MigrationVersion
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
+import org.apache.flink.testutils.migration.MigrationVersion
 import org.apache.flink.util.Collector
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -56,14 +56,21 @@ object StatefulJobWBroadcastStateMigrationITCase {
       (MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
   // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
-  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_6
-  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.MEMORY_STATE_BACKEND_NAME
+  // TODO Note: You should generate the savepoint based on the release branch instead of the master.
+  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_9
+  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME
 
   val NUM_ELEMENTS = 4
 }

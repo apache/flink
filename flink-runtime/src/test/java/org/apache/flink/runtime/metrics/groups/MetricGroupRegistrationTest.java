@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -28,11 +27,14 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
@@ -45,10 +47,9 @@ public class MetricGroupRegistrationTest extends TestLogger {
 	 */
 	@Test
 	public void testMetricInstantiation() throws Exception {
-		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl registry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Collections.singletonList(ReporterSetup.forReporter("test", new TestReporter1())));
 
 		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 

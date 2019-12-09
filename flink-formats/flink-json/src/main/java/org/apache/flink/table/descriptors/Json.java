@@ -93,14 +93,18 @@ public class Json extends FormatDescriptor {
 	}
 
 	/**
-	 * Derives the format schema from the table's schema described using {@link Schema}.
+	 * Derives the format schema from the table's schema described.
 	 *
 	 * <p>This allows for defining schema information only once.
 	 *
-	 * <p>The names, types, and field order of the format are determined by the table's
+	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
 	 * is interpreted as a field renaming in the format.
+	 *
+	 * @deprecated Derivation format schema from table's schema is the default behavior now.
+	 * 	So there is no need to explicitly declare to derive schema.
 	 */
+	@Deprecated
 	public Json deriveSchema() {
 		this.deriveSchema = true;
 		this.schema = null;

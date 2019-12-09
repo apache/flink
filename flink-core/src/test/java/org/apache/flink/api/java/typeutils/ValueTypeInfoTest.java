@@ -23,13 +23,10 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
-import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-
-import static org.junit.Assert.*;
 
 /**
  * Test for {@link ListTypeInfo}.

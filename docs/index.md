@@ -23,21 +23,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-
-
 This documentation is for Apache Flink version {{ site.version_title }}. These pages were built at: {% build_time %}.
 
 Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed computations over data streams. Flink builds batch processing on top of the streaming engine, overlaying native iteration support, managed memory, and program optimization.
 
 ## First Steps
 
-- **Concepts**: Start with the basic concepts of Flink's [Dataflow Programming Model](concepts/programming-model.html) and [Distributed Runtime Environment](concepts/runtime.html). This will help you understand other parts of the documentation, including the setup and programming guides. We recommend you read these sections first.
+* **Code Walkthroughs**: Follow step-by-step guides and implement a simple application or query in one of Flink's APIs. 
+  * [Implement a DataStream application](./getting-started/walkthroughs/datastream_api.html)
+  * [Write a Table API query](./getting-started/walkthroughs/table_api.html)
 
-- **Tutorials**: 
-  * [Implement and run a DataStream application](./tutorials/datastream_api.html)
-  * [Setup a local Flink cluster](./tutorials/local_setup.html)
+* **Docker Playgrounds**: Set up a sandboxed Flink environment in just a few minutes to explore and play with Flink.
+  * [Run and manage Flink streaming applications](./getting-started/docker-playgrounds/flink-operations-playground.html)
 
-- **Programming Guides**: You can read our guides about [basic API concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or the [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
+* **Tutorials**: Install Flink on your local machine.
+  * [Setup a local Flink cluster](./getting-started/tutorials/local_setup.html)
+
+* **Concepts**: Learn about Flink's basic concepts to better understand the documentation.
+  * [Dataflow Programming Model](concepts/programming-model.html)
+  * [Distributed Runtime](concepts/runtime.html)
+  * [Glossary](concepts/glossary.html)
+
+## API References
+
+The API references list and explain all features of Flink's APIs.
+
+* [Basic API Concepts](dev/api_concepts.html)
+* [DataStream API](dev/datastream_api.html)
+* [DataSet API](dev/batch/index.html)
+* [Table API &amp; SQL](dev/table/index.html)
 
 ## Deployment
 
@@ -47,6 +61,7 @@ Before putting your Flink job into production, read the [Production Readiness Ch
 
 Release notes cover important changes between Flink versions. Please carefully read these notes if you plan to upgrade your Flink setup to a later version. 
 
+* [Release notes for Flink 1.9](release-notes/flink-1.9.html).
 * [Release notes for Flink 1.8](release-notes/flink-1.8.html).
 * [Release notes for Flink 1.7](release-notes/flink-1.7.html).
 * [Release notes for Flink 1.6](release-notes/flink-1.6.html).
@@ -56,6 +71,6 @@ Release notes cover important changes between Flink versions. Please carefully r
 
 - **Flink Forward**: Talks from past conferences are available at the [Flink Forward](http://flink-forward.org/) website and on [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA). [Robust Stream Processing with Apache Flink](http://2016.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) is a good place to start.
 
-- **Training**: The [training materials](http://training.data-artisans.com/) from data Artisans include slides, exercises, and sample solutions.
+- **Training**: The [training materials](https://training.ververica.com/) from Ververica include slides, exercises, and sample solutions.
 
-- **Blogs**: The [Apache Flink](https://flink.apache.org/blog/) and [data Artisans](https://data-artisans.com/blog/) blogs publish frequent, in-depth technical articles about Flink.
+- **Blogs**: The [Apache Flink](https://flink.apache.org/blog/) and [Ververica](https://www.ververica.com/blog) blogs publish frequent, in-depth technical articles about Flink.

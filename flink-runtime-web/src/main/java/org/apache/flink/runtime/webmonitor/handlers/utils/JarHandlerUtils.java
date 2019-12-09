@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers.utils;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -69,12 +70,14 @@ public class JarHandlerUtils {
 		private final String entryClass;
 		private final List<String> programArgs;
 		private final int parallelism;
+		private final JobID jobId;
 
-		private JarHandlerContext(Path jarFile, String entryClass, List<String> programArgs, int parallelism) {
+		private JarHandlerContext(Path jarFile, String entryClass, List<String> programArgs, int parallelism, JobID jobId) {
 			this.jarFile = jarFile;
 			this.entryClass = entryClass;
 			this.programArgs = programArgs;
 			this.parallelism = parallelism;
+			this.jobId = jobId;
 		}
 
 		public static <R extends JarRequestBody> JarHandlerContext fromRequest(
@@ -100,7 +103,13 @@ public class JarHandlerUtils {
 				ExecutionConfig.PARALLELISM_DEFAULT,
 				log);
 
-			return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism);
+			JobID jobId = fromRequestBodyOrQueryParameter(
+				requestBody.getJobId(),
+				() -> null, // No support via query parameter
+				null, // Delegate default job ID to actual JobGraph generation
+				log);
+
+			return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism, jobId);
 		}
 
 		public JobGraph toJobGraph(Configuration configuration) {
@@ -110,11 +119,13 @@ public class JarHandlerUtils {
 			}
 
 			try {
-				final PackagedProgram packagedProgram = new PackagedProgram(
-					jarFile.toFile(),
-					entryClass,
-					programArgs.toArray(new String[0]));
-				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism);
+				final PackagedProgram packagedProgram = PackagedProgram.newBuilder()
+					.setJarFile(jarFile.toFile())
+					.setEntryPointClassName(entryClass)
+					.setConfiguration(configuration)
+					.setArguments(programArgs.toArray(new String[0]))
+					.build();
+				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId);
 			} catch (final ProgramInvocationException e) {
 				throw new CompletionException(e);
 			}

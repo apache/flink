@@ -28,7 +28,6 @@ import com.amazonaws.services.s3.model.UploadPartResult;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -59,25 +58,24 @@ public interface S3AccessHelper {
 	 * @param key the key this MPU is associated with.
 	 * @param uploadId the id of the MPU.
 	 * @param partNumber the number of the part being uploaded (has to be in [1 ... 10000]).
-	 * @param file the (local) file holding the part to be uploaded.
+	 * @param inputFile the (local) file holding the part to be uploaded.
 	 * @param length the length of the part.
 	 * @return The {@link UploadPartResult result} of the attempt to upload the part.
 	 * @throws IOException
 	 */
-	UploadPartResult uploadPart(String key, String uploadId, int partNumber, InputStream file, long length) throws IOException;
+	UploadPartResult uploadPart(String key, String uploadId, int partNumber, File inputFile, long length) throws IOException;
 
 	/**
-	 * Uploads an object to S3. Contrary to the {@link #uploadPart(String, String, int, InputStream, long)} method,
+	 * Uploads an object to S3. Contrary to the {@link #uploadPart(String, String, int, File, long)} method,
 	 * this object is not going to be associated to any MPU and, as such, it is not subject to the garbage collection
 	 * policies specified for your S3 bucket.
 	 *
 	 * @param key the key used to identify this part.
-	 * @param file the (local) file holding the data to be uploaded.
-	 * @param length the size of the data to be uploaded.
+	 * @param inputFile the (local) file holding the data to be uploaded.
 	 * @return The {@link PutObjectResult result} of the attempt to stage the incomplete part.
 	 * @throws IOException
 	 */
-	PutObjectResult putObject(String key, InputStream file, long length) throws IOException;
+	PutObjectResult putObject(String key, File inputFile) throws IOException;
 
 	/**
 	 * Finalizes a Multi-Part Upload.

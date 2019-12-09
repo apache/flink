@@ -43,6 +43,8 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -175,7 +177,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 			for (int i = 0; i < num; i++) {
 				leaderElectionService[i] = ZooKeeperUtils.createLeaderElectionService(client, configuration);
-				contenders[i] = new TestingContender(TEST_URL + "_" + i, leaderElectionService[i]);
+				contenders[i] = new TestingContender(createAddress(i), leaderElectionService[i]);
 
 				LOG.debug("Start leader election service for contender #{}.", i);
 
@@ -199,7 +201,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 					TestingContender contender = contenders[index];
 
 					// check that the retrieval service has retrieved the correct leader
-					if (address.equals(contender.getAddress()) && listener.getLeaderSessionID().equals(contender.getLeaderSessionID())) {
+					if (address.equals(createAddress(index)) && listener.getLeaderSessionID().equals(contender.getLeaderSessionID())) {
 						// kill the election service of the leader
 						LOG.debug("Stop leader election service of contender #{}.", numberSeenLeaders);
 						leaderElectionService[index].stop();
@@ -226,6 +228,11 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 				}
 			}
 		}
+	}
+
+	@Nonnull
+	private String createAddress(int i) {
+		return TEST_URL + "_" + i;
 	}
 
 	/**
@@ -367,7 +374,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			}
 
 			assertEquals(listener2.getLeaderSessionID(), contender.getLeaderSessionID());
-			assertEquals(listener2.getAddress(), contender.getAddress());
+			assertEquals(listener2.getAddress(), TEST_URL);
 
 		} finally {
 			if (leaderElectionService != null) {

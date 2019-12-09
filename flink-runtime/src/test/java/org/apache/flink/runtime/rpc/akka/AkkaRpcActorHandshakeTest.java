@@ -60,9 +60,11 @@ public class AkkaRpcActorHandshakeTest extends TestLogger {
 		final ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
 		final ActorSystem wrongVersionActorSystem = AkkaUtils.createDefaultActorSystem();
 
-		akkaRpcService1 = new AkkaRpcService(actorSystem1, timeout);
-		akkaRpcService2 = new AkkaRpcService(actorSystem2, timeout);
-		wrongVersionAkkaRpcService = new WrongVersionAkkaRpcService(wrongVersionActorSystem, timeout);
+		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.defaultConfiguration();
+		akkaRpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+		akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
+		wrongVersionAkkaRpcService = new WrongVersionAkkaRpcService(
+			wrongVersionActorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 	}
 
 	@AfterClass
@@ -135,8 +137,8 @@ public class AkkaRpcActorHandshakeTest extends TestLogger {
 
 	private static class WrongVersionAkkaRpcService extends AkkaRpcService {
 
-		WrongVersionAkkaRpcService(ActorSystem actorSystem, Time timeout) {
-			super(actorSystem, timeout);
+		WrongVersionAkkaRpcService(ActorSystem actorSystem, AkkaRpcServiceConfiguration configuration) {
+			super(actorSystem, configuration);
 		}
 
 		@Override

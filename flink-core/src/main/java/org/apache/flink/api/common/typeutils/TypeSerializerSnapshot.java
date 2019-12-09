@@ -24,6 +24,8 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
+import static org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.ADAPTER_VERSION;
+
 /**
  * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer}'s configuration.
  * The configuration snapshot of a serializer is persisted within checkpoints
@@ -87,6 +89,8 @@ public interface TypeSerializerSnapshot<T> {
 	 * @param out the {@link DataOutputView} to write the snapshot to.
 	 *
 	 * @throws IOException Thrown if the snapshot data could not be written.
+	 *
+	 * @see #writeVersionedSnapshot(DataOutputView, TypeSerializerSnapshot)
 	 */
 	void writeSnapshot(DataOutputView out) throws IOException;
 
@@ -100,7 +104,9 @@ public interface TypeSerializerSnapshot<T> {
 	 * @param in the {@link DataInputView} to read the snapshot from.
 	 * @param userCodeClassLoader the user code classloader
 	 *
-	 * * @throws IOException Thrown if the snapshot data could be read or parsed.
+	 * @throws IOException Thrown if the snapshot data could be read or parsed.
+	 *
+	 * @see #readVersionedSnapshot(DataInputView, ClassLoader)
 	 */
 	void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
 
@@ -147,7 +153,6 @@ public interface TypeSerializerSnapshot<T> {
 		snapshot.writeSnapshot(out);
 	}
 
-
 	/**
 	 * Reads a snapshot from the stream, performing resolving
 	 *
@@ -157,7 +162,15 @@ public interface TypeSerializerSnapshot<T> {
 		final TypeSerializerSnapshot<T> snapshot =
 				TypeSerializerSnapshotSerializationUtil.readAndInstantiateSnapshotClass(in, cl);
 
-		final int version = in.readInt();
+		int version = in.readInt();
+
+		if (version == ADAPTER_VERSION && !(snapshot instanceof TypeSerializerConfigSnapshot)) {
+			// the snapshot was upgraded directly in-place from a TypeSerializerConfigSnapshot;
+			// read and drop the previously Java-serialized serializer, and get the actual correct read version.
+			// NOTE: this implicitly assumes that the version was properly written before the actual snapshot content.
+			TypeSerializerSerializationUtil.tryReadSerializer(in, cl, true);
+			version = in.readInt();
+		}
 		snapshot.readSnapshot(version, in, cl);
 
 		return snapshot;

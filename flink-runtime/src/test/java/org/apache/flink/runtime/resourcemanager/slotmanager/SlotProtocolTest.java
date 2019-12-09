@@ -34,7 +34,6 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -72,9 +71,9 @@ public class SlotProtocolTest extends TestLogger {
 
 	/**
 	 * Tests whether
-	 * 1) SlotManager accepts a slot request
-	 * 2) SlotRequest leads to a container allocation
-	 * 3) Slot becomes available and TaskExecutor gets a SlotRequest
+	 * 1) SlotManager accepts a slot request.
+	 * 2) SlotRequest leads to a container allocation.
+	 * 3) Slot becomes available and TaskExecutor gets a SlotRequest.
 	 */
 	@Test
 	public void testSlotsUnavailableRequest() throws Exception {
@@ -82,11 +81,9 @@ public class SlotProtocolTest extends TestLogger {
 
 		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(scheduledExecutor)
+			.build()) {
 
 			final CompletableFuture<ResourceProfile> resourceProfileFuture = new CompletableFuture<>();
 			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
@@ -96,7 +93,7 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final String targetAddress = "foobar";
 
 			SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile, targetAddress);
@@ -131,10 +128,10 @@ public class SlotProtocolTest extends TestLogger {
 
 	/**
 	 * Tests whether
-	 * 1) a SlotRequest is routed to the SlotManager
-	 * 2) a SlotRequest is confirmed
-	 * 3) a SlotRequest leads to an allocation of a registered slot
-	 * 4) a SlotRequest is routed to the TaskExecutor
+	 * 1) a SlotRequest is routed to the SlotManager.
+	 * 2) a SlotRequest is confirmed.
+	 * 3) a SlotRequest leads to an allocation of a registered slot.
+	 * 4) a SlotRequest is routed to the TaskExecutor.
 	 */
 	@Test
 	public void testSlotAvailableRequest() throws Exception {
@@ -150,11 +147,9 @@ public class SlotProtocolTest extends TestLogger {
 			})
 			.createTestingTaskExecutorGateway();
 
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(scheduledExecutor)
+			.build()) {
 
 			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder().build();
 
@@ -162,7 +157,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			final ResourceID resourceID = ResourceID.generate();
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final SlotID slotID = new SlotID(resourceID, 0);
 
 			final SlotStatus slotStatus =

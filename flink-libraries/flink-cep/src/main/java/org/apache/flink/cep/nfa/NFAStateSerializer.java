@@ -19,8 +19,7 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
@@ -28,33 +27,51 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.types.StringValue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A {@link TypeSerializer} for {@link NFAState} that uses Java Serialization.
+ * A {@link TypeSerializer} for {@link NFAState}.
  */
 public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	private static final long serialVersionUID = 2098282423980597010L;
 
-	private NFAStateSerializer() {
+	/**
+	 * NOTE: this field should actually be final.
+	 * The reason that it isn't final is due to backward compatible deserialization
+	 * paths. See {@link #readObject(ObjectInputStream)}.
+	 */
+	private TypeSerializer<DeweyNumber> versionSerializer;
+	private TypeSerializer<NodeId> nodeIdSerializer;
+	private TypeSerializer<EventId> eventIdSerializer;
+
+	public NFAStateSerializer() {
+		this.versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
+		this.eventIdSerializer = EventId.EventIdSerializer.INSTANCE;
+		this.nodeIdSerializer = new NodeId.NodeIdSerializer();
 	}
 
-	public static final NFAStateSerializer INSTANCE = new NFAStateSerializer();
+	NFAStateSerializer(
+			final TypeSerializer<DeweyNumber> versionSerializer,
+			final TypeSerializer<NodeId> nodeIdSerializer,
+			final TypeSerializer<EventId> eventIdSerializer) {
+		this.versionSerializer = checkNotNull(versionSerializer);
+		this.nodeIdSerializer = checkNotNull(nodeIdSerializer);
+		this.eventIdSerializer = checkNotNull(eventIdSerializer);
+	}
 
 	@Override
 	public boolean isImmutableType() {
 		return false;
-	}
-
-	@Override
-	public NFAStateSerializer duplicate() {
-		return new NFAStateSerializer();
 	}
 
 	@Override
@@ -90,33 +107,10 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		return -1;
 	}
 
-	private static final StringSerializer STATE_NAME_SERIALIZER = StringSerializer.INSTANCE;
-	private static final LongSerializer TIMESTAMP_SERIALIZER = LongSerializer.INSTANCE;
-	private static final DeweyNumber.DeweyNumberSerializer VERSION_SERIALIZER = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = NodeId.NodeIdSerializer.INSTANCE;
-	private static final EventId.EventIdSerializer EVENT_ID_SERIALIZER = EventId.EventIdSerializer.INSTANCE;
-
 	@Override
 	public void serialize(NFAState record, DataOutputView target) throws IOException {
 		serializeComputationStates(record.getPartialMatches(), target);
 		serializeComputationStates(record.getCompletedMatches(), target);
-	}
-
-	private void serializeComputationStates(Queue<ComputationState> states, DataOutputView target) throws IOException {
-		target.writeInt(states.size());
-		for (ComputationState computationState : states) {
-			STATE_NAME_SERIALIZER.serialize(computationState.getCurrentStateName(), target);
-			NODE_ID_SERIALIZER.serialize(computationState.getPreviousBufferEntry(), target);
-
-			VERSION_SERIALIZER.serialize(computationState.getVersion(), target);
-			TIMESTAMP_SERIALIZER.serialize(computationState.getStartTimestamp(), target);
-			if (computationState.getStartEventID() != null) {
-				target.writeByte(1);
-				EVENT_ID_SERIALIZER.serialize(computationState.getStartEventID(), target);
-			} else {
-				target.writeByte(0);
-			}
-		}
 	}
 
 	@Override
@@ -124,27 +118,6 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		PriorityQueue<ComputationState> partialMatches = deserializeComputationStates(source);
 		PriorityQueue<ComputationState> completedMatches = deserializeComputationStates(source);
 		return new NFAState(partialMatches, completedMatches);
-	}
-
-	private PriorityQueue<ComputationState> deserializeComputationStates(DataInputView source) throws IOException {
-		PriorityQueue<ComputationState> computationStates = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
-
-		int computationStateNo = source.readInt();
-		for (int i = 0; i < computationStateNo; i++) {
-			String state = STATE_NAME_SERIALIZER.deserialize(source);
-			NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
-			DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
-			long startTimestamp = TIMESTAMP_SERIALIZER.deserialize(source);
-
-			byte isNull = source.readByte();
-			EventId startEventId = null;
-			if (isNull == 1) {
-				startEventId = EVENT_ID_SERIALIZER.deserialize(source);
-			}
-
-			computationStates.add(ComputationState.createState(state, prevState, version, startTimestamp, startEventId));
-		}
-		return computationStates;
 	}
 
 	@Override
@@ -163,28 +136,131 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		target.writeInt(computationStateNo);
 
 		for (int i = 0; i < computationStateNo; i++) {
-			String state = STATE_NAME_SERIALIZER.deserialize(source);
-			STATE_NAME_SERIALIZER.serialize(state, target);
-			NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
-			NODE_ID_SERIALIZER.serialize(prevState, target);
-			DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
-			VERSION_SERIALIZER.serialize(version, target);
-			long startTimestamp = TIMESTAMP_SERIALIZER.deserialize(source);
-			TIMESTAMP_SERIALIZER.serialize(startTimestamp, target);
-
-			byte isNull = source.readByte();
-			target.writeByte(isNull);
-
-			if (isNull == 1) {
-				EventId startEventId = EVENT_ID_SERIALIZER.deserialize(source);
-				EVENT_ID_SERIALIZER.serialize(startEventId, target);
-			}
+			copySingleComputationState(source, target);
 		}
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return true;
+	public TypeSerializerSnapshot<NFAState> snapshotConfiguration() {
+		return new NFAStateSerializerSnapshot(this);
 	}
 
+	/*
+		Getters for internal serializers to use in NFAStateSerializerSnapshot.
+	 */
+
+	TypeSerializer<DeweyNumber> getVersionSerializer() {
+		return versionSerializer;
+	}
+
+	TypeSerializer<NodeId> getNodeIdSerializer() {
+		return nodeIdSerializer;
+	}
+
+	TypeSerializer<EventId> getEventIdSerializer() {
+		return eventIdSerializer;
+	}
+
+	/*
+		De/serialization methods
+	 */
+
+	private void serializeComputationStates(Queue<ComputationState> states, DataOutputView target) throws IOException {
+		target.writeInt(states.size());
+		for (ComputationState computationState : states) {
+			serializeSingleComputationState(computationState, target);
+		}
+	}
+
+	private PriorityQueue<ComputationState> deserializeComputationStates(DataInputView source) throws IOException {
+		PriorityQueue<ComputationState> computationStates = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
+
+		int computationStateNo = source.readInt();
+		for (int i = 0; i < computationStateNo; i++) {
+			final ComputationState computationState = deserializeSingleComputationState(source);
+			computationStates.add(computationState);
+		}
+		return computationStates;
+	}
+
+	private void serializeSingleComputationState(
+			ComputationState computationState,
+			DataOutputView target) throws IOException {
+
+		StringValue.writeString(computationState.getCurrentStateName(), target);
+		nodeIdSerializer.serialize(computationState.getPreviousBufferEntry(), target);
+		versionSerializer.serialize(computationState.getVersion(), target);
+		target.writeLong(computationState.getStartTimestamp());
+		serializeStartEvent(computationState.getStartEventID(), target);
+	}
+
+	private ComputationState deserializeSingleComputationState(DataInputView source) throws IOException {
+		String stateName = StringValue.readString(source);
+		NodeId prevState = nodeIdSerializer.deserialize(source);
+		DeweyNumber version = versionSerializer.deserialize(source);
+		long startTimestamp = source.readLong();
+
+		EventId startEventId = deserializeStartEvent(source);
+
+		return ComputationState.createState(stateName,
+			prevState,
+			version,
+			startTimestamp,
+			startEventId);
+	}
+
+	private void copySingleComputationState(DataInputView source, DataOutputView target) throws IOException {
+		StringValue.copyString(source, target);
+		NodeId prevState = nodeIdSerializer.deserialize(source);
+		nodeIdSerializer.serialize(prevState, target);
+		DeweyNumber version = versionSerializer.deserialize(source);
+		versionSerializer.serialize(version, target);
+		long startTimestamp = source.readLong();
+		target.writeLong(startTimestamp);
+
+		copyStartEvent(source, target);
+	}
+
+	private void serializeStartEvent(EventId startEventID, DataOutputView target) throws IOException {
+		if (startEventID != null) {
+			target.writeByte(1);
+			eventIdSerializer.serialize(startEventID, target);
+		} else {
+			target.writeByte(0);
+		}
+	}
+
+	private EventId deserializeStartEvent(DataInputView source) throws IOException {
+		byte isNull = source.readByte();
+		EventId startEventId = null;
+		if (isNull == 1) {
+			startEventId = eventIdSerializer.deserialize(source);
+		}
+		return startEventId;
+	}
+
+	private void copyStartEvent(DataInputView source, DataOutputView target) throws IOException {
+		byte isNull = source.readByte();
+		target.writeByte(isNull);
+
+		if (isNull == 1) {
+			EventId startEventId = eventIdSerializer.deserialize(source);
+			eventIdSerializer.serialize(startEventId, target);
+		}
+	}
+
+	/*
+	* Backwards compatible deserializing of NFAStateSerializer.
+	*/
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		// the nested serializer will be null if this was read from a savepoint taken with versions
+		// lower than Flink 1.7; in this case, we explicitly create instance for the nested serializer.
+		if (versionSerializer == null || nodeIdSerializer == null || eventIdSerializer == null) {
+			this.versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
+			this.eventIdSerializer = EventId.EventIdSerializer.INSTANCE;
+			this.nodeIdSerializer = new NodeId.NodeIdSerializer();
+		}
+	}
 }

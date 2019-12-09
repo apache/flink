@@ -40,14 +40,12 @@ import java.util.concurrent.CompletableFuture;
 public class TaskManagersHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
 
 	public TaskManagersHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> messageHeaders,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

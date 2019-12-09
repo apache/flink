@@ -20,10 +20,10 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
+import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
 
 /**
- * {@link RestHandlerSpecification} for the {@link JobTerminationHandler} which is registered for
+ * {@link RestHandlerSpecification} for the {@link JobCancellationHandler} which is registered for
  * compatibility with the Yarn proxy as a GET call.
  *
  * <p>For more information @see <a href="https://issues.apache.org/jira/browse/YARN-2031">YARN-2031</a>.

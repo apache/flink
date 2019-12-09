@@ -24,6 +24,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -32,11 +33,13 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.BitSet;
 
@@ -45,6 +48,7 @@ import java.util.BitSet;
  * of slots. This effectively tests that Flink can execute jobs with blocking results
  * in a staged fashion.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
@@ -117,14 +121,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(jobName, sender, receiver);
-
-		// We need to allow queued scheduling, because there are not enough slots available
-		// to run all tasks at once. We queue tasks and then let them finish/consume the blocking
-		// result one after the other.
-		jobGraph.setAllowQueuedScheduling(true);
-
-		return jobGraph;
+		return new JobGraph(jobName, sender, receiver);
 	}
 
 	/**
@@ -140,7 +137,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<IntValue> writer = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
 			final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 
 			final IntValue subtaskIndex = new IntValue(

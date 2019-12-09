@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
  * JobManager. All slots had a default unknown resource profile. 
  */
-class AllocatedSlot implements SlotContext {
+class AllocatedSlot implements PhysicalSlot {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
@@ -87,11 +86,6 @@ class AllocatedSlot implements SlotContext {
 		return new SlotID(getTaskManagerId(), physicalSlotNumber);
 	}
 
-	/**
-	 * Gets the ID under which the slot is allocated, which uniquely identifies the slot.
-	 * 
-	 * @return The ID under which the slot is allocated
-	 */
 	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
@@ -108,50 +102,28 @@ class AllocatedSlot implements SlotContext {
 		return getTaskManagerLocation().getResourceID();
 	}
 
-	/**
-	 * Gets the resource profile of the slot.
-	 *
-	 * @return The resource profile of the slot.
-	 */
+	@Override
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}
 
-	/**
-	 * Gets the location info of the TaskManager that offers this slot.
-	 *
-	 * @return The location info of the TaskManager that offers this slot
-	 */
 	@Override
 	public TaskManagerLocation getTaskManagerLocation() {
 		return taskManagerLocation;
 	}
 
-	/**
-	 * Gets the actor gateway that can be used to send messages to the TaskManager.
-	 * <p>
-	 * This method should be removed once the new interface-based RPC abstraction is in place
-	 *
-	 * @return The actor gateway that can be used to send messages to the TaskManager.
-	 */
 	@Override
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
 	}
 
-	/**
-	 * Returns the physical slot number of the allocated slot. The physical slot number corresponds
-	 * to the slot index on the TaskExecutor.
-	 *
-	 * @return Physical slot number of the allocated slot
-	 */
 	@Override
 	public int getPhysicalSlotNumber() {
 		return physicalSlotNumber;
 	}
 
 	/**
-	 * Returns true if this slot is not being used (e.g. a logical slot is allocated from this slot).
+	 * Returns true if this slot is being used (e.g. a logical slot is allocated from this slot).
 	 *
 	 * @return true if a logical slot is allocated from this slot, otherwise false
 	 */
@@ -159,13 +131,7 @@ class AllocatedSlot implements SlotContext {
 		return payloadReference.get() != null;
 	}
 
-	/**
-	 * Tries to assign the given payload to this allocated slot. This only works if there has not
-	 * been another payload assigned to this slot.
-	 *
-	 * @param payload to assign to this slot
-	 * @return true if the payload could be assigned, otherwise false
-	 */
+	@Override
 	public boolean tryAssignPayload(Payload payload) {
 		return payloadReference.compareAndSet(null, payload);
 	}
@@ -206,22 +172,5 @@ class AllocatedSlot implements SlotContext {
 	@Override
 	public String toString() {
 		return "AllocatedSlot " + allocationId + " @ " + taskManagerLocation + " - " + physicalSlotNumber;
-	}
-
-	// -----------------------------------------------------------------------
-	// Interfaces
-	// -----------------------------------------------------------------------
-
-	/**
-	 * Payload which can be assigned to an {@link AllocatedSlot}.
-	 */
-	interface Payload {
-
-		/**
-		 * Releases the payload
-		 *
-		 * @param cause of the payload release
-		 */
-		void release(Throwable cause);
 	}
 }

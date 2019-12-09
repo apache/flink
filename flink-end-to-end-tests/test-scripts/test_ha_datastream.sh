@@ -23,17 +23,11 @@ source "$(dirname "$0")"/common_ha.sh
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 
 function ha_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   # kill the cluster and zookeeper
   stop_watchdogs
 }
 
-trap ha_cleanup INT
-trap ha_cleanup EXIT
+on_exit ha_cleanup
 
 function run_ha_test() {
     local PARALLELISM=$1
@@ -50,7 +44,8 @@ function run_ha_test() {
     create_ha_config
     # change the pid dir to start log files always from 0, this is important for checks in the
     # jm killing loop
-    set_conf "env.pid.dir" "${TEST_DATA_DIR}"
+    set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
+    set_config_key "env.java.opts" "-ea"
     start_local_zk
     start_cluster
 

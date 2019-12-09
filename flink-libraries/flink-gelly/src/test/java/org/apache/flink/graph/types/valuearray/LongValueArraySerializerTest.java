@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.types.valuearray;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.LongValue;
 
@@ -27,7 +26,7 @@ import java.util.Random;
 /**
  * A test for the {@link LongValueArraySerializer}.
  */
-public class LongValueArraySerializerTest extends SerializerTestBase<LongValueArray> {
+public class LongValueArraySerializerTest extends ValueArraySerializerTestBase<LongValueArray> {
 
 	@Override
 	protected TypeSerializer<LongValueArray> createSerializer() {

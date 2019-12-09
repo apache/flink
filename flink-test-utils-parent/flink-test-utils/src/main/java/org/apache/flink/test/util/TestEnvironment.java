@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -28,7 +27,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
@@ -66,9 +64,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		setParallelism(parallelism);
 
-		// disabled to improve build time
-		getConfig().setCodeAnalysisMode(CodeAnalysisMode.DISABLE);
-
 		if (isObjectReuseEnabled) {
 			getConfig().enableObjectReuse();
 		} else {
@@ -101,10 +96,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public void startNewSession() throws Exception {
-	}
-
-	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		OptimizedPlan op = compileProgram(jobName);
 
@@ -119,14 +110,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
 		return this.lastJobExecutionResult;
-	}
-
-	@Override
-	public String getExecutionPlan() throws Exception {
-		OptimizedPlan op = compileProgram("unused");
-
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
 
 	private OptimizedPlan compileProgram(String jobName) {

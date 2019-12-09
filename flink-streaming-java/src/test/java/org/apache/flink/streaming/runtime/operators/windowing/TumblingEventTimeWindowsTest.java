@@ -29,7 +29,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.streaming.runtime.operators.windowing.StreamRecordMatchers.timeWindow;
+import static org.apache.flink.streaming.util.StreamRecordMatchers.timeWindow;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
@@ -69,6 +69,18 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
+	public void testWindowAssignmentWithNegativeOffset() {
+		WindowAssigner.WindowAssignerContext mockContext =
+			mock(WindowAssigner.WindowAssignerContext.class);
+
+		TumblingEventTimeWindows assigner = TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
+
+		assertThat(assigner.assignWindows("String", 0L, mockContext), contains(timeWindow(-100, 4900)));
+		assertThat(assigner.assignWindows("String", 4899L, mockContext), contains(timeWindow(-100, 4900)));
+		assertThat(assigner.assignWindows("String", 4900L, mockContext), contains(timeWindow(4900, 9900)));
+	}
+
+	@Test
 	public void testTimeUnits() {
 		// sanity check with one other time unit
 
@@ -88,21 +100,21 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 			TumblingEventTimeWindows.of(Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("abs(offset) < size"));
 		}
 
 		try {
 			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(20));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("abs(offset) < size"));
 		}
 
 		try {
-			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-1));
+			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-11));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("abs(offset) < size"));
 		}
 	}
 

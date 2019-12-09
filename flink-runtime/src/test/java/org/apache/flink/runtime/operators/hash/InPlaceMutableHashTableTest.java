@@ -45,7 +45,6 @@ import java.io.EOFException;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.fail;
 
 public class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
 

@@ -20,8 +20,7 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-SCALA_VERSION=none
-HADOOP_VERSION=none
+SCALA_VERSION=${SCALA_VERSION:-none}
 SKIP_GPG=${SKIP_GPG:-false}
 MVN=${MVN:-mvn}
 
@@ -58,21 +57,16 @@ mkdir -p ${RELEASE_DIR}
 
 # build maven package, create Flink distribution, generate signature
 make_binary_release() {
-  NAME=$1
-  FLAGS=$2
-  SCALA_VERSION=$3
+  FLAGS=""
+  SCALA_VERSION=$1
 
-  echo "Creating binary release name: $NAME, flags: $FLAGS, SCALA_VERSION: ${SCALA_VERSION}"
-  if [[ -z $NAME ]]; then
-    dir_name="flink-$RELEASE_VERSION-bin-scala_${SCALA_VERSION}"
-  else
-    dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
-  fi
+  echo "Creating binary release, SCALA_VERSION: ${SCALA_VERSION}"
+  dir_name="flink-$RELEASE_VERSION-bin-scala_${SCALA_VERSION}"
 
   if [ $SCALA_VERSION = "2.12" ]; then
-      FLAGS="$FLAGS -Dscala-2.12"
+      FLAGS="-Dscala-2.12"
   elif [ $SCALA_VERSION = "2.11" ]; then
-      FLAGS="$FLAGS -Dscala-2.11"
+      FLAGS="-Dscala-2.11"
   else
       echo "Invalid Scala version ${SCALA_VERSION}"
   fi
@@ -80,7 +74,8 @@ make_binary_release() {
   # enable release profile here (to check for the maven version)
   $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
-  cd flink-dist/target/flink-*-bin/
+  cd flink-dist/target/flink-${RELEASE_VERSION}-bin
+  ${FLINK_DIR}/tools/releasing/collect_license_files.sh ./flink-${RELEASE_VERSION} ./flink-${RELEASE_VERSION}
   tar czf "${dir_name}.tgz" flink-*
 
   cp flink-*.tgz ${RELEASE_DIR}
@@ -95,27 +90,41 @@ make_binary_release() {
   cd ${FLINK_DIR}
 }
 
-if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
-  make_binary_release "" "-DwithoutHadoop" "2.12"
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.12"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.12"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.12"
-  make_binary_release "hadoop28" "-Dhadoop.version=2.8.3" "2.12"
-  make_binary_release "" "-DwithoutHadoop" "2.11"
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.11"
-  make_binary_release "hadoop28" "-Dhadoop.version=2.8.3" "2.11"
-elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
-then
-  make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
-elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
-then
-  make_binary_release "" "-DwithoutHadoop" "$SCALA_VERSION"
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "$SCALA_VERSION"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "$SCALA_VERSION"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "$SCALA_VERSION"
-  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "$SCALA_VERSION"
+make_python_release() {
+  cd flink-python/
+  # use lint-python.sh script to create a python environment.
+  dev/lint-python.sh -s basic
+  source dev/.conda/bin/activate
+  python setup.py sdist
+  conda deactivate
+  cd dist/
+  pyflink_actual_name=`echo *.tar.gz`
+  PYFLINK_VERSION=${RELEASE_VERSION/-SNAPSHOT/.dev0}
+  pyflink_release_name="apache-flink-${PYFLINK_VERSION}.tar.gz"
+
+  if [[ "$pyflink_actual_name" != "$pyflink_release_name" ]] ; then
+    echo -e "\033[31;1mThe file name of the python package: ${pyflink_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+    exit 1
+  fi
+
+  cp ${pyflink_actual_name} "${RELEASE_DIR}/${pyflink_release_name}"
+
+  cd ${RELEASE_DIR}
+
+  # Sign sha the tgz
+  if [ "$SKIP_GPG" == "false" ] ; then
+    gpg --armor --detach-sig "${pyflink_release_name}"
+  fi
+  $SHASUM "${pyflink_release_name}" > "${pyflink_release_name}.sha512"
+
+  cd ${FLINK_DIR}
+}
+
+if [ "$SCALA_VERSION" == "none" ]; then
+  make_binary_release "2.12"
+  make_binary_release "2.11"
+  make_python_release
 else
-  make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
+  make_binary_release "$SCALA_VERSION"
+  make_python_release
 fi

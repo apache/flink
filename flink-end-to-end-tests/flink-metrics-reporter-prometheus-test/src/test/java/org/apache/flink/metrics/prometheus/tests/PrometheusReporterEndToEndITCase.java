@@ -24,6 +24,7 @@ import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.FlinkDistribution;
+import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -37,6 +38,7 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +56,7 @@ import static org.apache.flink.tests.util.AutoClosableProcess.runNonBlocking;
 /**
  * End-to-end test for the PrometheusReporter.
  */
+@Category(TravisGroup1.class)
 public class PrometheusReporterEndToEndITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporterEndToEndITCase.class);
@@ -108,15 +111,17 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		final Path prometheusBinary = prometheusBinDir.resolve("prometheus");
 		Files.createDirectory(tmpPrometheusDir);
 
-		runBlocking(
-			"Download of Prometheus",
-			Duration.ofMinutes(5),
-			CommandLineWrapper
-				.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
-				.targetDir(tmpPrometheusDir)
-				.build());
+		LOG.info("Downloading Prometheus.");
+		AutoClosableProcess
+			.create(
+				CommandLineWrapper
+					.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
+					.targetDir(tmpPrometheusDir)
+					.build())
+			.runBlocking(Duration.ofMinutes(5));
 
-		runBlocking("Extraction of Prometheus archive",
+		LOG.info("Unpacking Prometheus.");
+		runBlocking(
 			CommandLineWrapper
 				.tar(prometheusArchive)
 				.extract()
@@ -124,7 +129,8 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				.targetDir(tmpPrometheusDir)
 				.build());
 
-		runBlocking("Set Prometheus scrape interval",
+		LOG.info("Setting Prometheus scrape interval.");
+		runBlocking(
 			CommandLineWrapper
 				.sed("s/\\(scrape_interval:\\).*/\\1 1s/", prometheusConfig)
 				.inPlace()
@@ -141,14 +147,15 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 			.map(port -> "'localhost:" + port + "'")
 			.collect(Collectors.joining(", "));
 
-		runBlocking("Set Prometheus scrape targets to (" + scrapeTargets + ")",
+		LOG.info("Setting Prometheus scrape targets to {}.", scrapeTargets);
+		runBlocking(
 			CommandLineWrapper
 				.sed("s/\\(targets:\\).*/\\1 [" + scrapeTargets + "]/", prometheusConfig)
 				.inPlace()
 				.build());
 
+		LOG.info("Starting Prometheus server.");
 		try (AutoClosableProcess prometheus = runNonBlocking(
-			"Start Prometheus server",
 			prometheusBinary.toAbsolutePath().toString(),
 			"--config.file=" + prometheusConfig.toAbsolutePath(),
 			"--storage.tsdb.path=" + prometheusBinDir.resolve("data").toAbsolutePath())) {

@@ -60,26 +60,7 @@ public final class IntComparator extends BasicTypeComparator<Integer> {
 
 	@Override
 	public void putNormalizedKey(Integer iValue, MemorySegment target, int offset, int numBytes) {
-		int value = iValue.intValue() - Integer.MIN_VALUE;
-		
-		// see IntValue for an explanation of the logic
-		if (numBytes == 4) {
-			// default case, full normalized key
-			target.putIntBigEndian(offset, value);
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes < 4) {
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (value >>> ((3-i)<<3)));
-			}
-		}
-		else {
-			target.putLongBigEndian(offset, value);
-			for (int i = 4; i < numBytes; i++) {
-				target.put(offset + i, (byte) 0);
-			}
-		}
+		NormalizedKeyUtil.putIntNormalizedKey(iValue, target, offset, numBytes);
 	}
 
 	@Override

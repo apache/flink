@@ -1,0 +1,318 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testMultiJoin_FullJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A FULL OUTER JOIN B ON a1 = b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[full])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[=($0, $2)], isFullOuterJoin=[true], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[{0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_FullJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A FULL OUTER JOIN B ON a1 = b1 FULL OUTER JOIN C ON a1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalJoin(condition=[=($0, $4)], joinType=[full])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[full])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[=($0, $4)], isFullOuterJoin=[true], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[{0, 1, 2, 3}, {0, 1}]])
+:- MultiJoin(joinFilter=[=($0, $2)], isFullOuterJoin=[true], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[ALL, ALL]])
+:  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B WHERE a1 = b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[=($0, $2)], isFullOuterJoin=[false], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[{0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B, C WHERE a1 = b1 AND a1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), =($0, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[AND(=($0, $4), =($0, $2), =($4, $2))], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, INNER]], outerJoinConditions=[[NULL, NULL, NULL]], projFields=[[{0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B, C, D WHERE a1 = b1 AND b1 = c1 AND c1 = d1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5], d1=[$6], d2=[$7])
++- LogicalFilter(condition=[AND(=($0, $2), =($2, $4), =($4, $6))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, D, source: [TestTableSource(d1, d2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[AND(=($4, $6), =($2, $4), =($0, $2), =($6, $2), =($4, $0), =($6, $0))], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, INNER, INNER]], outerJoinConditions=[[NULL, NULL, NULL, NULL]], projFields=[[{0, 1}, {0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, D, source: [TestTableSource(d1, d2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), >($0, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[AND(>($0, $4), =($0, $2))], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, INNER]], outerJoinConditions=[[NULL, NULL, NULL]], projFields=[[{0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_InnerJoin5">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A, B, C WHERE a1 + 1 = b1 AND a1 + 1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalFilter(condition=[AND(=(+($0, 1), $2), =(+($0, 1), $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[AND(=(+($0, 1), $4), =(+($0, 1), $2), =($4, $2))], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, INNER]], outerJoinConditions=[[NULL, NULL, NULL]], projFields=[[{0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_LeftJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A LEFT JOIN B ON a1 = b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[INNER, LEFT]], outerJoinConditions=[[NULL, =($0, $2)]], projFields=[[{0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_LeftJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A JOIN B ON a1 = b1 LEFT JOIN C ON b1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalJoin(condition=[=($2, $4)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[=($0, $2)], isFullOuterJoin=[false], joinTypes=[[INNER, INNER, LEFT]], outerJoinConditions=[[NULL, NULL, =($2, $4)]], projFields=[[{0, 1}, {0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_LeftJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A LEFT JOIN B ON a1 = b1 JOIN C ON a1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[=($0, $4)], isFullOuterJoin=[false], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[{0, 1, 2, 3}, {0, 1}]])
+:- MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[INNER, LEFT]], outerJoinConditions=[[NULL, =($0, $2)]], projFields=[[ALL, ALL]])
+:  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_RightJoin1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A RIGHT JOIN B ON a1 = b1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]], outerJoinConditions=[[=($0, $2), NULL]], projFields=[[{0, 1}, {0, 1}]])
+:- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_RightJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A JOIN B ON a1 = b1 RIGHT JOIN C ON b1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalJoin(condition=[=($2, $4)], joinType=[right])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]], outerJoinConditions=[[=($2, $4), NULL]], projFields=[[{0, 1, 2, 3}, {0, 1}]])
+:- MultiJoin(joinFilter=[=($0, $2)], isFullOuterJoin=[false], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[ALL, ALL]])
+:  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoin_RightJoin3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM A RIGHT JOIN B ON a1 = b1 JOIN C ON a1 = c1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3], c1=[$4], c2=[$5])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $2)], joinType=[right])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+MultiJoin(joinFilter=[=($0, $4)], isFullOuterJoin=[false], joinTypes=[[INNER, INNER]], outerJoinConditions=[[NULL, NULL]], projFields=[[{0, 1, 2, 3}, {0, 1}]])
+:- MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]], outerJoinConditions=[[=($0, $2), NULL]], projFields=[[ALL, ALL]])
+:  :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, C, source: [TestTableSource(c1, c2)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -52,13 +53,11 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 	public static void setup() throws Exception {
 		init();
 		final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever = () -> CompletableFuture.completedFuture(restfulGateway);
-		final CompletableFuture<String> localAddressFuture = CompletableFuture.completedFuture("shazam://localhost:12345");
 		final Time timeout = Time.seconds(10);
 		final Map<String, String> responseHeaders = Collections.emptyMap();
 		final Executor executor = TestingUtils.defaultExecutor();
 
 		handler = new JarRunHandler(
-			localAddressFuture,
 			gatewayRetriever,
 			timeout,
 			responseHeaders,
@@ -123,9 +122,15 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 			getProgramArgsString(programArgsParType),
 			getProgramArgsList(programArgsParType),
 			PARALLELISM,
+			null,
 			ALLOW_NON_RESTORED_STATE_QUERY,
 			RESTORE_PATH
 		);
+	}
+
+	@Override
+	JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
+		return new JarRunRequestBody(null, null, null, null, jobId, null, null);
 	}
 
 	@Override

@@ -1,0 +1,16 @@
+flink-connector-cassandra
+Copyright 2014-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt) 
+
+- com.datastax.cassandra:cassandra-driver-core:3.0.0
+- com.datastax.cassandra:cassandra-driver-mapping:3.0.0
+- com.google.guava:guava:18.0
+- io.netty:netty-handler:4.0.33.Final
+- io.netty:netty-buffer:4.0.33.Final
+- io.netty:netty-common:4.0.33.Final
+- io.netty:netty-transport:4.0.33.Final
+- io.netty:netty-codec:4.0.33.Final

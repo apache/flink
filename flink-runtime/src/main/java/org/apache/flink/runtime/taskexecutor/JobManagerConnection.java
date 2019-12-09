@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -49,6 +48,9 @@ public class JobManagerConnection {
 	// Checkpoint responder for the specific job manager
 	private final CheckpointResponder checkpointResponder;
 
+	// GlobalAggregateManager interface to job manager
+	private final GlobalAggregateManager aggregateManager;
+
 	// Library cache manager connected to the specific job manager
 	private final LibraryCacheManager libraryCacheManager;
 
@@ -64,6 +66,7 @@ public class JobManagerConnection {
 				JobMasterGateway jobMasterGateway,
 				TaskManagerActions taskManagerActions,
 				CheckpointResponder checkpointResponder,
+				GlobalAggregateManager aggregateManager,
 				LibraryCacheManager libraryCacheManager,
 				ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
 				PartitionProducerStateChecker partitionStateChecker) {
@@ -72,6 +75,7 @@ public class JobManagerConnection {
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
+		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
 		this.resultPartitionConsumableNotifier = Preconditions.checkNotNull(resultPartitionConsumableNotifier);
 		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
@@ -99,6 +103,10 @@ public class JobManagerConnection {
 
 	public CheckpointResponder getCheckpointResponder() {
 		return checkpointResponder;
+	}
+
+	public GlobalAggregateManager getGlobalAggregateManager() {
+		return aggregateManager;
 	}
 
 	public LibraryCacheManager getLibraryCacheManager() {

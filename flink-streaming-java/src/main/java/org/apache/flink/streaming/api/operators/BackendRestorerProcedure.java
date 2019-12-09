@@ -19,13 +19,12 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.state.Snapshotable;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.Disposable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,14 +48,14 @@ import java.util.List;
  * @param <S> type of the supplied snapshots from which the backend restores.
  */
 public class BackendRestorerProcedure<
-	T extends Closeable & Disposable & Snapshotable<?, Collection<S>>,
+	T extends Closeable & Disposable,
 	S extends StateObject> {
 
 	/** Logger for this class. */
 	private static final Logger LOG = LoggerFactory.getLogger(BackendRestorerProcedure.class);
 
 	/** Factory for new, fresh backends without state. */
-	private final SupplierWithException<T, Exception> instanceSupplier;
+	private final FunctionWithException<Collection<S>, T, Exception> instanceSupplier;
 
 	/** This registry is used so that recovery can participate in the task lifecycle, i.e. can be canceled. */
 	private final CloseableRegistry backendCloseableRegistry;
@@ -72,7 +70,7 @@ public class BackendRestorerProcedure<
 	 * @param backendCloseableRegistry registry to allow participation in task lifecycle, e.g. react to cancel.
 	 */
 	public BackendRestorerProcedure(
-		@Nonnull SupplierWithException<T, Exception> instanceSupplier,
+		@Nonnull FunctionWithException<Collection<S>, T, Exception> instanceSupplier,
 		@Nonnull CloseableRegistry backendCloseableRegistry,
 		@Nonnull String logDescription) {
 
@@ -140,29 +138,15 @@ public class BackendRestorerProcedure<
 
 	private T attemptCreateAndRestore(Collection<S> restoreState) throws Exception {
 
-		// create a new, empty backend.
-		final T backendInstance = instanceSupplier.get();
+		// create a new backend with necessary initialization.
+		final T backendInstance = instanceSupplier.apply(restoreState);
 
 		try {
 			// register the backend with the registry to participate in task lifecycle w.r.t. cancellation.
 			backendCloseableRegistry.registerCloseable(backendInstance);
-
-			// attempt to restore from snapshot (or null if no state was checkpointed).
-			backendInstance.restore(restoreState);
-
 			return backendInstance;
 		} catch (Exception ex) {
-
-			// under failure, we need do close...
-			if (backendCloseableRegistry.unregisterCloseable(backendInstance)) {
-				try {
-					backendInstance.close();
-				} catch (IOException closeEx) {
-					ex = ExceptionUtils.firstOrSuppressed(closeEx, ex);
-				}
-			}
-
-			// ... and dispose, e.g. to release native resources.
+			// dispose the backend, e.g. to release native resources, if failed to register it into registry.
 			try {
 				backendInstance.dispose();
 			} catch (Exception disposeEx) {

@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
 /**
  * An interface for state backends that pick up additional parameters from a configuration.
  */
+@Internal
 public interface ConfigurableStateBackend {
 
 	/**
@@ -37,9 +39,10 @@ public interface ConfigurableStateBackend {
 	 * Otherwise it typically returns a modified copy.
 	 *
 	 * @param config The configuration to pick the values from.
+	 * @param classLoader The class loader that should be used to load the state backend.
 	 * @return A reconfigured state backend.
 	 *
 	 * @throws IllegalConfigurationException Thrown if the configuration contained invalid entries.
 	 */
-	StateBackend configure(Configuration config) throws IllegalConfigurationException;
+	StateBackend configure(Configuration config, ClassLoader classLoader) throws IllegalConfigurationException;
 }

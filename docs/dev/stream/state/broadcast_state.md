@@ -52,9 +52,9 @@ Starting from the stream of `Items`, we just need to *key it* by `Color`, as we 
 make sure that elements of the same color end up on the same physical machine.
 
 {% highlight java %}
-// key the shapes by color
-KeyedStream<Item, Color> colorPartitionedStream = shapeStream
-                        .keyBy(new KeySelector<Shape, Color>(){...});
+// key the items by color
+KeyedStream<Item, Color> colorPartitionedStream = itemStream
+                        .keyBy(new KeySelector<Item, Color>(){...});
 {% endhighlight %}
 
 Moving on to the `Rules`, the stream containing them should be broadcasted to all downstream tasks, and these tasks 
@@ -94,7 +94,7 @@ The exact type of the function depends on the type of the non-broadcasted stream
 </div>
 
 {% highlight java %}
-DataStream<Match> output = colorPartitionedStream
+DataStream<String> output = colorPartitionedStream
                  .connect(ruleBroadcastStream)
                  .process(
                      
@@ -107,7 +107,7 @@ DataStream<Match> output = colorPartitionedStream
                      new KeyedBroadcastProcessFunction<Color, Item, Rule, String>() {
                          // my matching logic
                      }
-                 )
+                 );
 {% endhighlight %}
 
 ### BroadcastProcessFunction and KeyedBroadcastProcessFunction
@@ -275,3 +275,5 @@ manner.
 
   - **No RocksDB state backend:** Broadcast state is kept in-memory at runtime and memory provisioning should be done 
 accordingly. This holds for all operator states.
+
+{% top %}

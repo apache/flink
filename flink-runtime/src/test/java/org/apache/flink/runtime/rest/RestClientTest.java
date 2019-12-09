@@ -55,7 +55,7 @@ import static org.junit.Assert.assertThat;
  */
 public class RestClientTest extends TestLogger {
 
-	private static final String unroutableIp = "10.255.255.1";
+	private static final String unroutableIp = "240.0.0.0";
 
 	private static final long TIMEOUT = 10L;
 

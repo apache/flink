@@ -20,10 +20,14 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Either;
+
+import java.util.List;
 
 /**
  * Deprecated config snapshot retained for savepoint compatibility with Flink 1.6 and earlier.
@@ -51,34 +55,16 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 		// this class was shared between the Java Either Serializer and the
 		// Scala Either serializer
 		if (newSerializer.getClass() == EitherSerializer.class) {
-			return checkJavaSerializerCompatibility((EitherSerializer<L, R>) newSerializer);
+			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs = getNestedSerializersAndConfigs();
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				new JavaEitherSerializerSnapshot<>(),
+				nestedSerializersAndConfigs.get(0).f1,
+				nestedSerializersAndConfigs.get(1).f1);
 		}
 		else {
-			// Scala Either Serializer, or other.
 			// fall back to the backwards compatibility path
 			return super.resolveSchemaCompatibility(newSerializer);
 		}
-	}
-
-	@SuppressWarnings("unchecked")
-	private TypeSerializerSchemaCompatibility<Either<L, R>> checkJavaSerializerCompatibility(
-			EitherSerializer<L, R> serializer) {
-
-		TypeSerializer<L> leftSerializer = serializer.getLeftSerializer();
-		TypeSerializer<R> rightSerializer = serializer.getRightSerializer();
-
-		TypeSerializerSnapshot<L> leftSnapshot = (TypeSerializerSnapshot<L>) getNestedSerializersAndConfigs().get(0).f1;
-		TypeSerializerSnapshot<R> rightSnapshot = (TypeSerializerSnapshot<R>) getNestedSerializersAndConfigs().get(1).f1;
-
-		TypeSerializerSchemaCompatibility<?> leftCompatibility = leftSnapshot.resolveSchemaCompatibility(leftSerializer);
-		TypeSerializerSchemaCompatibility<?> rightCompatibility = rightSnapshot.resolveSchemaCompatibility(rightSerializer);
-
-		if (leftCompatibility.isCompatibleAsIs() && rightCompatibility.isCompatibleAsIs()) {
-			return TypeSerializerSchemaCompatibility.compatibleAsIs();
-		}
-		if (leftCompatibility.isCompatibleAfterMigration() && rightCompatibility.isCompatibleAfterMigration()) {
-			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-		}
-		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 }

@@ -27,7 +27,7 @@ import org.junit.BeforeClass;
 public class Kafka011ProducerAtLeastOnceITCase extends KafkaProducerTestBase {
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		KafkaProducerTestBase.prepare();
 		((KafkaTestEnvironmentImpl) kafkaServer).setProducerSemantic(FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE);
 	}

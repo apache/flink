@@ -98,9 +98,9 @@ public class YarnEntrypointUtils {
 			configuration.setInteger(WebOptions.PORT, 0);
 		}
 
-		if (configuration.getInteger(RestOptions.PORT) >= 0) {
+		if (!configuration.contains(RestOptions.BIND_PORT)) {
 			// set the REST port to 0 to select it randomly
-			configuration.setInteger(RestOptions.PORT, 0);
+			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the

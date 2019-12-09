@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
@@ -41,6 +41,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.flink.util.NetUtils.isValidClientPort;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,6 +55,12 @@ public class AkkaRpcServiceUtils {
 
 	private static final String AKKA_TCP = "akka.tcp";
 	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
+
+	private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
+		"akka {remote {netty.tcp {maximum-frame-size = %s}}}";
+
+	private static final String MAXIMUM_FRAME_SIZE_PATH =
+		"akka.remote.netty.tcp.maximum-frame-size";
 
 	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
@@ -97,10 +104,39 @@ public class AkkaRpcServiceUtils {
 		return instantiateAkkaRpcService(configuration, actorSystem);
 	}
 
+	/**
+	 * Utility method to create RPC service from configuration and hostname, port.
+	 *
+	 * @param hostname The hostname/address that describes the TaskManager's data location.
+	 * @param portRangeDefinition The port range to start TaskManager on.
+	 * @param configuration The configuration for the TaskManager.
+	 * @param actorSystemName The actor system name of the RpcService.
+	 * @param actorSystemExecutorConfiguration The configuration of the executor of the actor system.
+	 * @return The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
+	 * @throws IOException Thrown, if the actor system can not bind to the address
+	 * @throws Exception Thrown is some other error occurs while creating akka actor system
+	 */
+	public static RpcService createRpcService(
+		String hostname,
+		String portRangeDefinition,
+		Configuration configuration,
+		String actorSystemName,
+		@Nonnull BootstrapTools.ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+
+		final ActorSystem actorSystem = BootstrapTools.startActorSystem(
+			configuration,
+			actorSystemName,
+			hostname,
+			portRangeDefinition,
+			LOG,
+			actorSystemExecutorConfiguration);
+
+		return instantiateAkkaRpcService(configuration, actorSystem);
+	}
+
 	@Nonnull
 	private static RpcService instantiateAkkaRpcService(Configuration configuration, ActorSystem actorSystem) {
-		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
-		return new AkkaRpcService(actorSystem, timeout);
+		return new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
 	}
 
 	// ------------------------------------------------------------------------
@@ -157,7 +193,7 @@ public class AkkaRpcServiceUtils {
 
 		checkNotNull(hostname, "hostname is null");
 		checkNotNull(endpointName, "endpointName is null");
-		checkArgument(port > 0 && port <= 65535, "port must be in [1, 65535]");
+		checkArgument(isValidClientPort(port), "port must be in [1, 65535]");
 
 		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
 
@@ -197,6 +233,17 @@ public class AkkaRpcServiceUtils {
 		} while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
 
 		return prefix + '_' + nameOffset;
+	}
+
+	// ------------------------------------------------------------------------
+	//  RPC service configuration
+	// ------------------------------------------------------------------------
+
+	public static long extractMaximumFramesize(Configuration configuration) {
+		String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
+		String akkaConfigStr = String.format(SIMPLE_AKKA_CONFIG_TEMPLATE, maxFrameSizeStr);
+		Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
+		return akkaConfig.getBytes(MAXIMUM_FRAME_SIZE_PATH);
 	}
 
 	// ------------------------------------------------------------------------

@@ -49,13 +49,19 @@ fi
 cd ..
 
 #change version in all pom files
-find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(.*)</version>#<version>${1}'$NEW_VERSION'${2}</version>#' {} \;
 
 #change version of documentation
 cd docs
 perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
 perl -pi -e "s#^version_title: .*#version_title: \"${NEW_VERSION}\"#" _config.yml
 cd ..
+
+#change version of pyflink
+cd flink-python/pyflink
+perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${NEW_VERSION}\"#" version.py
+perl -pi -e "s#-SNAPSHOT#\\.dev0#" version.py
+cd ../..
 
 git commit -am "Update version to $NEW_VERSION"
 

@@ -36,9 +36,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -76,16 +74,12 @@ public class TestingJobMasterGatewayBuilder {
 	private String address = "akka.tcp://flink@localhost:6130/user/jobmanager";
 	private String hostname = "localhost";
 	private Supplier<CompletableFuture<Acknowledge>> cancelFunction = () -> CompletableFuture.completedFuture(Acknowledge.get());
-	private Supplier<CompletableFuture<Acknowledge>> stopFunction = () -> CompletableFuture.completedFuture(Acknowledge.get());
-	private BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
-	private TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction = (ignoredA, ignoredB, ignoredC) -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(new SerializedInputSplit(null));
 	private BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(ExecutionState.RUNNING);
 	private Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Consumer<ResourceManagerId> disconnectResourceManagerConsumer = ignored -> {};
-	private Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier = () -> CompletableFuture.completedFuture(new ClassloadingProps(6124, Collections.emptyList(), Collections.emptyList()));
 	private BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Collections.emptyList());
 	private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer = (ignoredA, ignoredB, ignoredC) -> {};
 	private BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
@@ -94,6 +88,7 @@ public class TestingJobMasterGatewayBuilder {
 	private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier = () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	private Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier = () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction = (targetDirectory, ignoredB) -> CompletableFuture.completedFuture(targetDirectory != null ? targetDirectory : UUID.randomUUID().toString());
+	private BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction = (targetDirectory, ignoredB) -> CompletableFuture.completedFuture(targetDirectory != null ? targetDirectory : UUID.randomUUID().toString());
 	private Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction = ignored -> CompletableFuture.completedFuture(OperatorBackPressureStatsResponse.of(null));
 	private BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer = ignored -> {};
@@ -102,6 +97,7 @@ public class TestingJobMasterGatewayBuilder {
 	private BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction = (ignoredA, registrationName) -> FutureUtils.completedExceptionally(new UnknownKvStateLocation(registrationName));
 	private Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+	private TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction = (a, b, c) -> CompletableFuture.completedFuture(new Object());
 
 	public TestingJobMasterGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -115,21 +111,6 @@ public class TestingJobMasterGatewayBuilder {
 
 	public TestingJobMasterGatewayBuilder setCancelFunction(Supplier<CompletableFuture<Acknowledge>> cancelFunction) {
 		this.cancelFunction = cancelFunction;
-		return this;
-	}
-
-	public TestingJobMasterGatewayBuilder setStopFunction(Supplier<CompletableFuture<Acknowledge>> stopFunction) {
-		this.stopFunction = stopFunction;
-		return this;
-	}
-
-	public TestingJobMasterGatewayBuilder setRescalingJobFunction(BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction) {
-		this.rescalingJobFunction = rescalingJobFunction;
-		return this;
-	}
-
-	public TestingJobMasterGatewayBuilder setRescalingOperatorsFunction(TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction) {
-		this.rescalingOperatorsFunction = rescalingOperatorsFunction;
 		return this;
 	}
 
@@ -160,11 +141,6 @@ public class TestingJobMasterGatewayBuilder {
 
 	public TestingJobMasterGatewayBuilder setDisconnectResourceManagerConsumer(Consumer<ResourceManagerId> disconnectResourceManagerConsumer) {
 		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
-		return this;
-	}
-
-	public TestingJobMasterGatewayBuilder setClassloadingPropsSupplier(Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier) {
-		this.classloadingPropsSupplier = classloadingPropsSupplier;
 		return this;
 	}
 
@@ -208,6 +184,11 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
+	public TestingJobMasterGatewayBuilder setStopWithSavepointSupplier(BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction) {
+		this.stopWithSavepointFunction = stopWithSavepointFunction;
+		return this;
+	}
+
 	public TestingJobMasterGatewayBuilder setRequestOperatorBackPressureStatsFunction(Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction) {
 		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
 		return this;
@@ -248,7 +229,39 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
+	public TestingJobMasterGatewayBuilder setUpdateAggregateFunction(TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction) {
+		this.updateAggregateFunction = updateAggregateFunction;
+		return this;
+	}
+
 	public TestingJobMasterGateway build() {
-		return new TestingJobMasterGateway(address, hostname, cancelFunction, stopFunction, rescalingJobFunction, rescalingOperatorsFunction, updateTaskExecutionStateFunction, requestNextInputSplitFunction, requestPartitionStateFunction, scheduleOrUpdateConsumersFunction, disconnectTaskManagerFunction, disconnectResourceManagerConsumer, classloadingPropsSupplier, offerSlotsFunction, failSlotConsumer, registerTaskManagerFunction, taskManagerHeartbeatConsumer, resourceManagerHeartbeatConsumer, requestJobDetailsSupplier, requestJobSupplier, triggerSavepointFunction, requestOperatorBackPressureStatsFunction, notifyAllocationFailureConsumer, acknowledgeCheckpointConsumer, declineCheckpointConsumer, fencingTokenSupplier, requestKvStateLocationFunction, notifyKvStateRegisteredFunction, notifyKvStateUnregisteredFunction);
+		return new TestingJobMasterGateway(
+			address,
+			hostname,
+			cancelFunction,
+			updateTaskExecutionStateFunction,
+			requestNextInputSplitFunction,
+			requestPartitionStateFunction,
+			scheduleOrUpdateConsumersFunction,
+			disconnectTaskManagerFunction,
+			disconnectResourceManagerConsumer,
+			offerSlotsFunction,
+			failSlotConsumer,
+			registerTaskManagerFunction,
+			taskManagerHeartbeatConsumer,
+			resourceManagerHeartbeatConsumer,
+			requestJobDetailsSupplier,
+			requestJobSupplier,
+			triggerSavepointFunction,
+			stopWithSavepointFunction,
+			requestOperatorBackPressureStatsFunction,
+			notifyAllocationFailureConsumer,
+			acknowledgeCheckpointConsumer,
+			declineCheckpointConsumer,
+			fencingTokenSupplier,
+			requestKvStateLocationFunction,
+			notifyKvStateRegisteredFunction,
+			notifyKvStateUnregisteredFunction,
+			updateAggregateFunction);
 	}
 }

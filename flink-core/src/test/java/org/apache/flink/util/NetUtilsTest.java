@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -36,7 +37,19 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link NetUtils}.
  */
-public class NetUtilsTest {
+public class NetUtilsTest extends TestLogger {
+
+	@Test
+	public void testCorrectHostnamePort() throws Exception {
+		final URL url = new URL("http", "foo.com", 8080, "/index.html");
+		assertEquals(url, NetUtils.getCorrectHostnamePort("foo.com:8080/index.html"));
+	}
+
+	@Test
+	public void testParseHostPortAddress() {
+		final InetSocketAddress socketAddress = new InetSocketAddress("foo.com", 8080);
+		assertEquals(socketAddress, NetUtils.parseHostPortAddress("foo.com:8080"));
+	}
 
 	@Test
 	public void testIPv4toURL() {
@@ -189,6 +202,12 @@ public class NetUtilsTest {
 		{
 			// IPv6
 			String host = "2001:0db8:85a3:0000:0000:8a2e:0370:7334";
+			int port = 42;
+			Assert.assertEquals("[2001:db8:85a3::8a2e:370:7334]:" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
+		{
+			// [IPv6]
+			String host = "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]";
 			int port = 42;
 			Assert.assertEquals("[2001:db8:85a3::8a2e:370:7334]:" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
 		}

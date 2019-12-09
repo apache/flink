@@ -27,11 +27,10 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
+
 import org.junit.Test;
 
 import java.io.Serializable;
-
-import static org.junit.Assert.assertEquals;
 
 public class RowSerializerTest {
 
@@ -149,17 +148,6 @@ public class RowSerializerTest {
 			TypeSerializer<Row> serializer,
 			Row... testData) {
 			super(serializer, Row.class, -1, testData);
-		}
-
-		@Override
-		protected void deepEquals(String message, Row should, Row is) {
-			int arity = should.getArity();
-			assertEquals(message, arity, is.getArity());
-			for (int i = 0; i < arity; i++) {
-				Object copiedValue = should.getField(i);
-				Object element = is.getField(i);
-				assertEquals(message, element, copiedValue);
-			}
 		}
 	}
 

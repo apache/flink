@@ -18,22 +18,25 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.test.util.SecureTestEnvironment;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Kafka Secure Connection (kerberos) IT test case.
  */
+@Category(FailsOnJava11.class)
 public class Kafka09SecuredRunITCase extends KafkaConsumerTestBase {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(Kafka09SecuredRunITCase.class);
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting Kafka09SecuredRunITCase ");
 		LOG.info("-------------------------------------------------------------------------");
@@ -54,7 +57,7 @@ public class Kafka09SecuredRunITCase extends KafkaConsumerTestBase {
 	//The timeout for the test case is 2 times timeout of ZK connection
 	@Test(timeout = 600000)
 	public void testMultipleTopics() throws Exception {
-		runProduceConsumeMultipleTopics();
+		runProduceConsumeMultipleTopics(true);
 	}
 
 }

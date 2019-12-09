@@ -122,7 +122,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
     if (set.getExecutionEnvironment.getConfig.isClosureCleanerEnabled) {
-      ClosureCleaner.clean(f, checkSerializable)
+      ClosureCleaner.clean(f,
+        checkSerializable,
+        set.getExecutionEnvironment.getConfig.getClosureCleanerLevel)
     }
     ClosureCleaner.ensureSerializable(f)
     f

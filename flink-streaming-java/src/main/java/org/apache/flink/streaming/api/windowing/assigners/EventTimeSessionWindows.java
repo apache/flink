@@ -106,6 +106,7 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 	/**
 	 * Merge overlapping {@link TimeWindow}s.
 	 */
+	@Override
 	public void mergeWindows(Collection<TimeWindow> windows, MergingWindowAssigner.MergeCallback<TimeWindow> c) {
 		TimeWindow.mergeWindows(windows, c);
 	}

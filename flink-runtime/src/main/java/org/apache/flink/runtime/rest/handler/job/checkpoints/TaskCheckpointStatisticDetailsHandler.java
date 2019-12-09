@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
@@ -51,7 +52,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -62,7 +62,6 @@ public class TaskCheckpointStatisticDetailsHandler
 	implements JsonArchivist {
 
 	public TaskCheckpointStatisticDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -71,7 +70,6 @@ public class TaskCheckpointStatisticDetailsHandler
 			Executor executor,
 			CheckpointStatsCache checkpointStatsCache) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -109,7 +107,7 @@ public class TaskCheckpointStatisticDetailsHandler
 			for (TaskStateStats subtaskStats : checkpoint.getAllTaskStateStats()) {
 				ResponseBody json = createCheckpointDetails(checkpoint, subtaskStats);
 				String path = getMessageHeaders().getTargetRestEndpointURL()
-					.replace(':' + JobVertexIdPathParameter.KEY, graph.getJobID().toString())
+					.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
 					.replace(':' + CheckpointIdPathParameter.KEY, String.valueOf(checkpoint.getCheckpointId()))
 					.replace(':' + JobVertexIdPathParameter.KEY, subtaskStats.getJobVertexId().toString());
 				archive.add(new ArchivedJson(path, json));

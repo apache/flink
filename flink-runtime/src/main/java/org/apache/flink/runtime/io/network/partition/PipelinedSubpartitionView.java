@@ -47,18 +47,13 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 
 	@Nullable
 	@Override
-	public BufferAndBacklog getNextBuffer() {
-		return parent.pollBuffer();
+	public BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
+		return parent.pollBuffer(isLocalChannel);
 	}
 
 	@Override
 	public void notifyDataAvailable() {
 		availabilityListener.notifyDataAvailable();
-	}
-
-	@Override
-	public void notifySubpartitionConsumed() {
-		releaseAllResources();
 	}
 
 	@Override
@@ -88,6 +83,11 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return parent.unsynchronizedGetNumberOfQueuedBuffers();
 	}
 
 	@Override

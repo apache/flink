@@ -91,7 +91,7 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 			try {
 				ts = deserializeTs(value);
 			} catch (IOException e) {
-				throw new FlinkRuntimeException("Unexpected timestamp deserialization failure");
+				throw new FlinkRuntimeException("Unexpected timestamp deserialization failure", e);
 			}
 			return expired(ts) ? null : value;
 		}

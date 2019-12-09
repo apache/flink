@@ -113,6 +113,14 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
 		// -----------------------------------------> test rescaling from 1 to 2 <---------------------------------------
 
+		// init state for new subtask-0
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot, maxParallelism, 1, 2, 0);
+
+		// init state for new subtask-1
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot, maxParallelism, 1, 2, 1);
+
 		KeyedOneInputStreamOperatorTestHarness<String, String, Integer>[] harness2 =
 			new KeyedOneInputStreamOperatorTestHarness[3];
 
@@ -129,7 +137,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
 			harness2[0].setStateBackend(getStateBackend());
 			harness2[0].setup();
-			harness2[0].initializeState(snapshot);
+			harness2[0].initializeState(initState1);
 			harness2[0].open();
 
 			// task's key-group [5, 9]
@@ -138,7 +146,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
 			harness2[1].setStateBackend(getStateBackend());
 			harness2[1].setup();
-			harness2[1].initializeState(snapshot);
+			harness2[1].initializeState(initState2);
 			harness2[1].open();
 
 			validHarnessResult(harness2[0], 2, records[0], records[1], records[2], records[3], records[4]);
@@ -159,6 +167,18 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
 		// -----------------------------------------> test rescaling from 2 to 3 <---------------------------------------
 
+		// init state for new subtask-0
+		initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot2, maxParallelism, 2, 3, 0);
+
+		// init state for new subtask-1
+		initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot2, maxParallelism, 2, 3, 1);
+
+		// init state for new subtask-2
+		OperatorSubtaskState initState3 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot2, maxParallelism, 2, 3, 2);
+
 		KeyedOneInputStreamOperatorTestHarness<String, String, Integer>[] harness3 =
 			new KeyedOneInputStreamOperatorTestHarness[3];
 
@@ -174,7 +194,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
 			harness3[0].setStateBackend(getStateBackend());
 			harness3[0].setup();
-			harness3[0].initializeState(snapshot2);
+			harness3[0].initializeState(initState1);
 			harness3[0].open();
 
 			// task's key-group [4, 6]
@@ -183,7 +203,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
 			harness3[1].setStateBackend(getStateBackend());
 			harness3[1].setup();
-			harness3[1].initializeState(snapshot2);
+			harness3[1].initializeState(initState2);
 			harness3[1].open();
 
 			// task's key-group [7, 9]
@@ -192,7 +212,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
 			harness3[2].setStateBackend(getStateBackend());
 			harness3[2].setup();
-			harness3[2].initializeState(snapshot2);
+			harness3[2].initializeState(initState3);
 			harness3[2].open();
 
 			validHarnessResult(harness3[0], 3, records[0], records[1], records[2], records[3]);
@@ -258,6 +278,14 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
 		// -----------------------------------------> test rescaling from 3 to 2 <---------------------------------------
 
+		// init state for new subtask-0
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot3, maxParallelism, 3, 2, 0);
+
+		// init state for new subtask-1
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot3, maxParallelism, 3, 2, 1);
+
 		KeyedOneInputStreamOperatorTestHarness<String, String, Integer>[] harness2 =
 			new KeyedOneInputStreamOperatorTestHarness[3];
 
@@ -275,7 +303,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
 			harness2[0].setStateBackend(getStateBackend());
 			harness2[0].setup();
-			harness2[0].initializeState(snapshot3);
+			harness2[0].initializeState(initState1);
 			harness2[0].open();
 
 			// task's key-group [5, 9], this will open a empty db, and insert records from two state handles.
@@ -284,7 +312,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
 			harness2[1].setStateBackend(getStateBackend());
 			harness2[1].setup();
-			harness2[1].initializeState(snapshot3);
+			harness2[1].initializeState(initState2);
 			harness2[1].open();
 
 			validHarnessResult(harness2[0], 2, records[0], records[1], records[2], records[3], records[4]);
@@ -305,6 +333,10 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
 		// -----------------------------------------> test rescaling from 2 to 1 <---------------------------------------
 
+		// init state for new subtask-0
+		initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot2, maxParallelism, 2, 1, 0);
+
 		try (
 			KeyedOneInputStreamOperatorTestHarness<String, String, Integer> harness =
 				getHarnessTest(keySelector, maxParallelism, 1, 0)) {
@@ -312,7 +344,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 			// this will choose the state handle generated by harness2[0] to init the target db without any clipping.
 			harness.setStateBackend(getStateBackend());
 			harness.setup();
-			harness.initializeState(snapshot2);
+			harness.initializeState(initState1);
 			harness.open();
 
 			validHarnessResult(harness, 3, records);

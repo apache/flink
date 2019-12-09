@@ -1,0 +1,11 @@
+flink-sql-client
+Copyright 2014-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- org.jline:jline-terminal:3.9.0
+- org.jline:jline-reader:3.9.0

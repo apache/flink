@@ -61,7 +61,7 @@ function run_test {
 
     SAVEPOINT_DIR="file:///${END_TO_END_DIR}/flink-state-evolution-test/savepoints/1.7/"
 
-    set_conf "state.backend.fs.memory-threshold" 1048576
+    set_config_key "state.backend.fs.memory-threshold" 1048576
     start_cluster
 
     # restart the job from the savepoint from Flink 1.7 with the old Avro Schema

@@ -36,9 +36,9 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,6 +73,7 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 	}
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
@@ -85,7 +86,13 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	private final MigrationVersion testMigrateVersion;
@@ -178,16 +185,6 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 			return new TestSerializerSnapshot(configPayload);
 		}
 
-		/*
-		@Override
-		public CompatibilityResult<Long> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			return (configSnapshot instanceof TestSerializerSnapshot
-				&& ((TestSerializerSnapshot) configSnapshot).configPayload.equals(configPayload))
-				? CompatibilityResult.compatible()
-				: CompatibilityResult.requiresMigration();
-		}
-		*/
-
 		@Override
 		public TypeSerializer<Long> duplicate() {
 			return this;
@@ -250,11 +247,6 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 		@Override
 		public boolean equals(Object obj) {
 			return obj instanceof TestSerializer;
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return true;
 		}
 	}
 

@@ -38,11 +38,14 @@ public class RestHandlerConfiguration {
 
 	private final File webUiDir;
 
+	private final boolean webSubmitEnabled;
+
 	public RestHandlerConfiguration(
 			long refreshInterval,
 			int maxCheckpointStatisticCacheEntries,
 			Time timeout,
-			File webUiDir) {
+			File webUiDir,
+			boolean webSubmitEnabled) {
 		Preconditions.checkArgument(refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
 		this.refreshInterval = refreshInterval;
 
@@ -50,6 +53,7 @@ public class RestHandlerConfiguration {
 
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.webUiDir = Preconditions.checkNotNull(webUiDir);
+		this.webSubmitEnabled = webSubmitEnabled;
 	}
 
 	public long getRefreshInterval() {
@@ -68,6 +72,10 @@ public class RestHandlerConfiguration {
 		return webUiDir;
 	}
 
+	public boolean isWebSubmitEnabled() {
+		return webSubmitEnabled;
+	}
+
 	public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
 		final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
 
@@ -78,10 +86,13 @@ public class RestHandlerConfiguration {
 		final String rootDir = "flink-web-ui";
 		final File webUiDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
 
+		final boolean webSubmitEnabled = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
+
 		return new RestHandlerConfiguration(
 			refreshInterval,
 			maxCheckpointStatisticCacheEntries,
 			timeout,
-			webUiDir);
+			webUiDir,
+			webSubmitEnabled);
 	}
 }

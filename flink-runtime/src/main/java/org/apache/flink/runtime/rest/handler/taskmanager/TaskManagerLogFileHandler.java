@@ -42,7 +42,6 @@ import java.util.concurrent.CompletableFuture;
 public class TaskManagerLogFileHandler extends AbstractTaskManagerFileHandler<TaskManagerMessageParameters> {
 
 	public TaskManagerLogFileHandler(
-			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
@@ -50,7 +49,7 @@ public class TaskManagerLogFileHandler extends AbstractTaskManagerFileHandler<Ta
 			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			@Nonnull TransientBlobService transientBlobService,
 			@Nonnull Time cacheEntryDuration) {
-		super(localAddressFuture, leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
+		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
 	}
 
 	@Override

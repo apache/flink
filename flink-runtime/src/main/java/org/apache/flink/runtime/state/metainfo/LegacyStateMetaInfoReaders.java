@@ -132,11 +132,6 @@ public class LegacyStateMetaInfoReaders {
 
 		static final OperatorBackendStateMetaInfoReaderV2V3 INSTANCE = new OperatorBackendStateMetaInfoReaderV2V3();
 
-		private static final String[] ORDERED_KEY_STRINGS =
-			new String[]{
-				StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
-				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()};
-
 		@Nonnull
 		@Override
 		public StateMetaInfoSnapshot readStateMetaInfoSnapshot(
@@ -156,17 +151,25 @@ public class LegacyStateMetaInfoReaders {
 			final int listSize = stateSerializerAndConfigList.size();
 			StateMetaInfoSnapshot.BackendStateType stateType = listSize == 1 ?
 				StateMetaInfoSnapshot.BackendStateType.OPERATOR : StateMetaInfoSnapshot.BackendStateType.BROADCAST;
+
 			Map<String, TypeSerializerSnapshot<?>> serializerConfigsMap = new HashMap<>(listSize);
-			for (int i = 0; i < listSize; ++i) {
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> serializerAndConf =
-					stateSerializerAndConfigList.get(i);
+			switch (stateType) {
+				case OPERATOR:
+					serializerConfigsMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+						stateSerializerAndConfigList.get(0).f1);
+					break;
+				case BROADCAST:
+					serializerConfigsMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
+						stateSerializerAndConfigList.get(0).f1);
 
-				// this particular mapping happens to support both, V2 and V3
-				String serializerKey = ORDERED_KEY_STRINGS[ORDERED_KEY_STRINGS.length - 1 - i];
-
-				serializerConfigsMap.put(
-					serializerKey,
-					serializerAndConf.f1);
+					serializerConfigsMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+						stateSerializerAndConfigList.get(1).f1);
+					break;
+				default:
+					throw new IllegalStateException("Unknown operator state type " + stateType);
 			}
 
 			return new StateMetaInfoSnapshot(

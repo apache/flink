@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.io.jdbc.split;
 
-import java.io.Serializable;
+import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import java.io.Serializable;
 
 /**
  * This query parameters generator is an helper class to parameterize from/to queries on a numeric column.
@@ -29,18 +29,31 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>For example, if there's a table <CODE>BOOKS</CODE> with a numeric PK <CODE>id</CODE>, using a query like:
  * <PRE>
- *   SELECT * FROM BOOKS WHERE id BETWEEN ? AND ?
+ * SELECT * FROM BOOKS WHERE id BETWEEN ? AND ?
  * </PRE>
  *
  * <p>You can take advantage of this class to automatically generate the parameters of the BETWEEN clause,
  * based on the passed constructor parameters.
- *
  */
 public class NumericBetweenParametersProvider implements ParameterValuesProvider {
 
-	private final long fetchSize;
 	private final long minVal;
 	private final long maxVal;
+
+	private long batchSize;
+	private int batchNum;
+
+	/**
+	 * NumericBetweenParametersProvider constructor.
+	 *
+	 * @param minVal the lower bound of the produced "from" values
+	 * @param maxVal the upper bound of the produced "to" values
+	 */
+	public NumericBetweenParametersProvider(long minVal, long maxVal) {
+		Preconditions.checkArgument(minVal <= maxVal, "minVal must not be larger than maxVal");
+		this.minVal = minVal;
+		this.maxVal = maxVal;
+	}
 
 	/**
 	 * NumericBetweenParametersProvider constructor.
@@ -50,27 +63,51 @@ public class NumericBetweenParametersProvider implements ParameterValuesProvider
 	 * @param maxVal the upper bound of the produced "to" values
 	 */
 	public NumericBetweenParametersProvider(long fetchSize, long minVal, long maxVal) {
-		checkArgument(fetchSize > 0, "Fetch size must be greater than 0.");
-		checkArgument(minVal <= maxVal, "Min value cannot be greater than max value.");
-		this.fetchSize = fetchSize;
+		Preconditions.checkArgument(minVal <= maxVal, "minVal must not be larger than maxVal");
 		this.minVal = minVal;
 		this.maxVal = maxVal;
+		ofBatchSize(fetchSize);
+	}
+
+	public NumericBetweenParametersProvider ofBatchSize(long batchSize) {
+		Preconditions.checkArgument(batchSize > 0, "Batch size must be positive");
+
+		long maxElemCount = (maxVal - minVal) + 1;
+		if (batchSize > maxElemCount) {
+			batchSize = maxElemCount;
+		}
+		this.batchSize = batchSize;
+		this.batchNum = new Double(Math.ceil((double) maxElemCount / batchSize)).intValue();
+		return this;
+	}
+
+	public NumericBetweenParametersProvider ofBatchNum(int batchNum) {
+		Preconditions.checkArgument(batchNum > 0, "Batch number must be positive");
+
+		long maxElemCount = (maxVal - minVal) + 1;
+		if (batchNum > maxElemCount) {
+			batchNum = (int) maxElemCount;
+		}
+		this.batchNum = batchNum;
+		this.batchSize = new Double(Math.ceil((double) maxElemCount / batchNum)).longValue();
+		return this;
 	}
 
 	@Override
 	public Serializable[][] getParameterValues() {
-		double maxElemCount = (maxVal - minVal) + 1;
-		int numBatches = new Double(Math.ceil(maxElemCount / fetchSize)).intValue();
-		Serializable[][] parameters = new Serializable[numBatches][2];
-		int batchIndex = 0;
-		for (long start = minVal; start <= maxVal; start += fetchSize, batchIndex++) {
-			long end = start + fetchSize - 1;
-			if (end > maxVal) {
-				end = maxVal;
-			}
-			parameters[batchIndex] = new Long[]{start, end};
+		Preconditions.checkState(batchSize > 0,
+			"Batch size and batch number must be positive. Have you called `ofBatchSize` or `ofBatchNum`?");
+
+		long maxElemCount = (maxVal - minVal) + 1;
+		long bigBatchNum = maxElemCount - (batchSize - 1) * batchNum;
+
+		Serializable[][] parameters = new Serializable[batchNum][2];
+		long start = minVal;
+		for (int i = 0; i < batchNum; i++) {
+			long end = start + batchSize - 1 - (i >= bigBatchNum ? 1 : 0);
+			parameters[i] = new Long[]{start, end};
+			start = end + 1;
 		}
 		return parameters;
 	}
-
 }

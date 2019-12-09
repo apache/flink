@@ -27,7 +27,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescript
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 
@@ -54,7 +53,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.BindException;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -112,7 +110,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
+	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props) {
 		return new FlinkKafkaConsumer08<>(topics, readSchema, props);
 	}
 
@@ -162,11 +160,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public KafkaOffsetHandler createOffsetHandler() {
 		return new KafkaOffsetHandlerImpl();
 	}
@@ -207,23 +200,15 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public void prepare(Config config) {
+	public void prepare(Config config) throws Exception {
 		this.config = config;
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
 		tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID().toString()));
-		try {
-			Files.createDirectories(tmpZkDir.toPath());
-		} catch (IOException e) {
-			fail("cannot create zookeeper temp dir: " + e.getMessage());
-		}
+		Files.createDirectories(tmpZkDir.toPath());
 
 		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir" + (UUID.randomUUID().toString()));
-		try {
-			Files.createDirectories(tmpKafkaParent.toPath());
-		} catch (IOException e) {
-			fail("cannot create kafka temp dir: " + e.getMessage());
-		}
+		Files.createDirectories(tmpKafkaParent.toPath());
 
 		tmpKafkaDirs = new ArrayList<>(config.getKafkaServersNumber());
 		for (int i = 0; i < config.getKafkaServersNumber(); i++) {
@@ -235,28 +220,22 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		zookeeper = null;
 		brokers = null;
 
-		try {
-			LOG.info("Starting Zookeeper");
-			zookeeper = new TestingServer(-1, tmpZkDir);
-			zookeeperConnectionString = zookeeper.getConnectString();
+		LOG.info("Starting Zookeeper");
+		zookeeper = new TestingServer(-1, tmpZkDir);
+		zookeeperConnectionString = zookeeper.getConnectString();
 
-			LOG.info("Starting KafkaServer");
-			brokers = new ArrayList<>(config.getKafkaServersNumber());
+		LOG.info("Starting KafkaServer");
+		brokers = new ArrayList<>(config.getKafkaServersNumber());
 
-			for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
-				SocketServer socketServer = brokers.get(i).socketServer();
+		for (int i = 0; i < config.getKafkaServersNumber(); i++) {
+			brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
+			SocketServer socketServer = brokers.get(i).socketServer();
 
-				String host = socketServer.host() == null ? "localhost" : socketServer.host();
-				brokerConnectionString += hostAndPortToUrlString(host, socketServer.port()) + ",";
-			}
-
-			LOG.info("ZK and KafkaServer started.");
+			String host = socketServer.host() == null ? "localhost" : socketServer.host();
+			brokerConnectionString += hostAndPortToUrlString(host, socketServer.port()) + ",";
 		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("Test setup failed: " + t.getMessage());
-		}
+
+		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
 		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);

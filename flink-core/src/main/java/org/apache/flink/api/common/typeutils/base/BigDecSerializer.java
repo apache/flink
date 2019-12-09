@@ -110,11 +110,6 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 		}
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof BigDecSerializer;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//                           Static Helpers for BigInteger Serialization
 	// --------------------------------------------------------------------------------------------
@@ -151,10 +146,11 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class BigDecSerializerSnapshot extends SimpleTypeSerializerSnapshot<BigDecimal> {
 
 		public BigDecSerializerSnapshot() {
-			super(BigDecSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

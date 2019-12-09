@@ -1,0 +1,202 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCALCITE1824">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, GROUP_ID() AS g, COUNT(*) as c FROM MyTable GROUP BY GROUPING SETS (a, (), ())
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], groups=[[{0}, {}]], g=[GROUP_ID()], c=[COUNT()])
++- LogicalProject(a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, 0:BIGINT AS g, c])
++- FlinkLogicalAggregate(group=[{0, 1}], c=[COUNT()])
+   +- FlinkLogicalExpand(projects=[{a=[$0], $e=[0]}, {a=[null], $e=[1]}])
+      +- FlinkLogicalCalc(select=[a])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCube">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, c,
+    AVG(a) AS a,
+    GROUP_ID() AS g,
+    GROUPING(b) AS gb,
+    GROUPING(c) AS gc,
+    GROUPING_ID(b) AS gib,
+    GROUPING_ID(c) AS gic,
+    GROUPING_ID(b, c) AS gid
+FROM MyTable
+    GROUP BY CUBE (b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
++- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
++- FlinkLogicalAggregate(group=[{1, 2, 3}], a=[AVG($0)])
+   +- FlinkLogicalExpand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingSetsWithOneGrouping">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b,
+    AVG(a) AS a,
+    GROUP_ID() as g,
+    GROUPING(b) as gb,
+    GROUPING_ID(b) as gib
+FROM MyTable
+    GROUP BY GROUPING SETS (b)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], a=[AVG($1)], g=[GROUP_ID()], gb=[GROUPING($0)], gib=[GROUPING_ID($0)])
++- LogicalProject(b=[$1], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[b, a, 0:BIGINT AS g, 0:BIGINT AS gb, 0:BIGINT AS gib])
++- FlinkLogicalAggregate(group=[{0}], a=[AVG($1)])
+   +- FlinkLogicalCalc(select=[b, a])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingSets">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, c, avg(a) AS a, GROUP_ID() AS g FROM MyTable
+GROUP BY GROUPING SETS (b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)], g=[GROUP_ID()])
++- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[b, c, a, 0:BIGINT AS g])
++- FlinkLogicalAggregate(group=[{1, 2, 3}], a=[AVG($0)])
+   +- FlinkLogicalExpand(projects=[{a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[$2], $e=[2]}])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingSetsWithDuplicateFields2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT count(a) as a, count(b) as b, count(c) as c FROM MyTable
+GROUP BY GROUPING SETS ((a, b), (a, c))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$3], b=[$4], c=[$5])
++- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], a=[COUNT($0)], b=[COUNT($1)], c=[COUNT($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[a_0 AS a, b_0 AS b, c_0 AS c])
++- FlinkLogicalAggregate(group=[{0, 1, 2, 3}], a=[COUNT($0)], b=[COUNT($4)], c=[COUNT($5)])
+   +- FlinkLogicalExpand(projects=[{a=[$0], b=[$1], c=[null], $e=[1], b_0=[$1], c_0=[$2]}, {a=[$0], b=[null], c=[$2], $e=[2], b_0=[$1], c_0=[$2]}])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRollup">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, c,
+    AVG(a) AS a,
+    GROUP_ID() AS g,
+    GROUPING(b) AS gb,
+    GROUPING(c) AS gc,
+    GROUPING_ID(b) AS gib,
+    GROUPING_ID(c) AS gic,
+    GROUPING_ID(b, c) as gid
+FROM MyTable
+     GROUP BY ROLLUP (b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], g=[GROUP_ID()], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
++- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[b, c, a, 0:BIGINT AS g, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(OR(=($e, 0:BIGINT), =($e, 1:BIGINT)), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
++- FlinkLogicalAggregate(group=[{1, 2, 3}], a=[AVG($0)])
+   +- FlinkLogicalExpand(projects=[{a=[$0], b=[$1], c=[$2], $e=[0]}, {a=[$0], b=[$1], c=[null], $e=[1]}, {a=[$0], b=[null], c=[null], $e=[3]}])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingSetsWithDuplicateFields1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT count(b) as b, count(c) as c FROM MyTable GROUP BY GROUPING SETS (b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$2], c=[$3])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], b=[COUNT($0)], c=[COUNT($1)])
+   +- LogicalProject(b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[b_0 AS b, c_0 AS c])
++- FlinkLogicalAggregate(group=[{0, 1, 2}], b=[COUNT($3)], c=[COUNT($4)])
+   +- FlinkLogicalExpand(projects=[{b=[$0], c=[null], $e=[1], b_0=[$0], c_0=[$1]}, {b=[null], c=[$1], $e=[2], b_0=[$0], c_0=[$1]}])
+      +- FlinkLogicalCalc(select=[b, c])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

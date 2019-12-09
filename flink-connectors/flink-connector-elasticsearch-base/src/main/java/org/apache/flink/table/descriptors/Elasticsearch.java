@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
@@ -54,6 +55,7 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 /**
  * Connector descriptor for the Elasticsearch search engine.
  */
+@PublicEvolving
 public class Elasticsearch extends ConnectorDescriptor {
 
 	private DescriptorProperties internalProperties = new DescriptorProperties(true);

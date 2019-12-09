@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
 
@@ -91,8 +91,11 @@ public class RpcSSLAuthITCase extends TestLogger {
 
 			// we start the RPC service with a very long timeout to ensure that the test
 			// can only pass if the connection problem is not recognized merely via a timeout
-			rpcService1 = new AkkaRpcService(actorSystem1, Time.of(10000000, TimeUnit.SECONDS));
-			rpcService2 = new AkkaRpcService(actorSystem2, Time.of(10000000, TimeUnit.SECONDS));
+			Configuration configuration = new Configuration();
+			configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
+			AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+			rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+			rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
 
 			TestEndpoint endpoint = new TestEndpoint(rpcService1);
 			endpoint.start();
@@ -139,11 +142,6 @@ public class RpcSSLAuthITCase extends TestLogger {
 
 		public TestEndpoint(RpcService rpcService) {
 			super(rpcService);
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.Preconditions;
@@ -32,7 +32,7 @@ import java.util.Objects;
 /**
  * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
  *
- * <p>These are created by {@link JsonArchivist}s, and used by the {@link MemoryArchivist} to create a directory structure
+ * <p>These are created by {@link JsonArchivist}s, and used by the {@link FsJobArchivist} to create a directory structure
  * resembling the REST API.
  */
 public class ArchivedJson {

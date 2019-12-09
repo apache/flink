@@ -23,10 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.file.Paths;
@@ -43,17 +41,6 @@ import static org.junit.Assert.assertThat;
  */
 public class WebMonitorUtilsTest extends TestLogger {
 
-	@Test
-	public void testGetArchivers() {
-		JsonArchivist[] direct = WebRuntimeMonitor.getJsonArchivists();
-		JsonArchivist[] reflected = WebMonitorUtils.getJsonArchivists();
-
-		Assert.assertEquals(direct.length, reflected.length);
-		for (int x = 0; x < direct.length; x++) {
-			Assert.assertSame(direct[x].getClass(), reflected[x].getClass());
-		}
-	}
-
 	/**
 	 * Tests dynamically loading of handlers such as {@link JarUploadHandler}.
 	 */
@@ -63,9 +50,9 @@ public class WebMonitorUtilsTest extends TestLogger {
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		final WebMonitorExtension webMonitorExtension = WebMonitorUtils.loadWebSubmissionExtension(
 			CompletableFuture::new,
-			CompletableFuture.completedFuture("localhost:12345"),
 			Time.seconds(10),
 			Collections.emptyMap(),
+			CompletableFuture.completedFuture("localhost:12345"),
 			Paths.get("/tmp"),
 			Executors.directExecutor(),
 			configuration);

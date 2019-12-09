@@ -21,15 +21,13 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A simple base class for TypeSerializerSnapshots, for serializers that have no
@@ -46,24 +44,18 @@ public abstract class SimpleTypeSerializerSnapshot<T> implements TypeSerializerS
 	 * backwards compatible code paths in case we decide to make this snapshot backwards compatible with
 	 * the {@link ParameterlessTypeSerializerConfig}.
 	 */
-	private static final int CURRENT_VERSION = 2;
+	private static final int CURRENT_VERSION = 3;
 
 	/** The class of the serializer for this snapshot.
 	 * The field is null if the serializer was created for read and has not been read, yet. */
-	@Nullable
-	private Class<? extends TypeSerializer<T>> serializerClass;
-
-	/**
-	 * Default constructor for instantiation on restore (reading the snapshot).
-	 */
-	@SuppressWarnings("unused")
-	public SimpleTypeSerializerSnapshot() {}
+	@Nonnull
+	private Supplier<? extends TypeSerializer<T>> serializerSupplier;
 
 	/**
 	 * Constructor to create snapshot from serializer (writing the snapshot).
 	 */
-	public SimpleTypeSerializerSnapshot(@Nonnull Class<? extends TypeSerializer<T>> serializerClass) {
-		this.serializerClass = checkNotNull(serializerClass);
+	public SimpleTypeSerializerSnapshot(@Nonnull Supplier<? extends TypeSerializer<T>> serializerSupplier) {
+		this.serializerSupplier = checkNotNull(serializerSupplier);
 	}
 
 	// ------------------------------------------------------------------------
@@ -77,40 +69,37 @@ public abstract class SimpleTypeSerializerSnapshot<T> implements TypeSerializerS
 
 	@Override
 	public TypeSerializer<T> restoreSerializer() {
-		checkState(serializerClass != null);
-		return InstantiationUtil.instantiate(serializerClass);
+		return serializerSupplier.get();
 	}
 
 	@Override
 	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
 
-		checkState(serializerClass != null);
-		return newSerializer.getClass() == serializerClass ?
+		return newSerializer.getClass() == serializerSupplier.get().getClass() ?
 				TypeSerializerSchemaCompatibility.compatibleAsIs() :
 				TypeSerializerSchemaCompatibility.incompatible();
 	}
 
 	@Override
 	public void writeSnapshot(DataOutputView out) throws IOException {
-		checkState(serializerClass != null);
-		out.writeUTF(serializerClass.getName());
+		//
 	}
 
 	@Override
 	public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader) throws IOException {
 		switch (readVersion) {
-			case 2:
-				read(in, classLoader);
+			case 3: {
 				break;
-			default:
+			}
+			case 2: {
+				// we don't need the classname any more; read and drop to maintain compatibility
+				in.readUTF();
+				break;
+			}
+			default: {
 				throw new IOException("Unrecognized version: " + readVersion);
+			}
 		}
-	}
-
-	private void read(DataInputView in, ClassLoader classLoader) throws IOException {
-		final String className = in.readUTF();
-		final Class<?> clazz = resolveClassName(className, classLoader, false);
-		this.serializerClass = cast(clazz);
 	}
 
 	// ------------------------------------------------------------------------
@@ -130,46 +119,5 @@ public abstract class SimpleTypeSerializerSnapshot<T> implements TypeSerializerS
 	@Override
 	public String toString() {
 		return getClass().getName();
-	}
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private static Class<?> resolveClassName(String className, ClassLoader cl, boolean allowCanonicalName) throws IOException {
-		try {
-			return Class.forName(className, false, cl);
-		}
-		catch (ClassNotFoundException e) {
-			if (allowCanonicalName) {
-				try {
-					return Class.forName(guessClassNameFromCanonical(className), false, cl);
-				}
-				catch (ClassNotFoundException ignored) {}
-			}
-
-			// throw with original ClassNotFoundException
-			throw new IOException(
-						"Failed to read SimpleTypeSerializerSnapshot: Serializer class not found: " + className, e);
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <T> Class<? extends TypeSerializer<T>> cast(Class<?> clazz) throws IOException {
-		if (!TypeSerializer.class.isAssignableFrom(clazz)) {
-			throw new IOException("Failed to read SimpleTypeSerializerSnapshot. " +
-					"Serializer class name leads to a class that is not a TypeSerializer: " + clazz.getName());
-		}
-
-		return (Class<? extends TypeSerializer<T>>) clazz;
-	}
-
-	static String guessClassNameFromCanonical(String className) {
-		int lastDot = className.lastIndexOf('.');
-		if (lastDot > 0 && lastDot < className.length() - 1) {
-			return className.substring(0, lastDot) + '$' + className.substring(lastDot + 1);
-		} else {
-			return className;
-		}
 	}
 }

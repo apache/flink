@@ -50,7 +50,7 @@ import static java.util.Objects.requireNonNull;
  * <p>Example:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> one = ...;
- * DataStream<Tuple2<String, Integer>> twp = ...;
+ * DataStream<Tuple2<String, Integer>> two = ...;
  *
  * DataStream<T> result = one.join(two)
  *     .where(new MyFirstKeySelector())

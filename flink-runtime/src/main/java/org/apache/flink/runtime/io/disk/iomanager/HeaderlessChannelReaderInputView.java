@@ -24,6 +24,8 @@ import java.util.List;
 
 import org.apache.flink.core.memory.MemorySegment;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a
  * {@link BlockChannelReader}, making it effectively a data input
@@ -31,13 +33,16 @@ import org.apache.flink.core.memory.MemorySegment;
  * a header for each block, giving a direct stream abstraction over sequence of written
  * blocks. It therefore requires specification of the number of blocks and the number of
  * bytes in the last block.
- *
  */
-public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
-{
+public class HeaderlessChannelReaderInputView extends ChannelReaderInputView {
+
 	private int numBlocksRemaining;		// the number of blocks not yet consumed
 	
 	private final int lastBlockBytes;	// the number of valid bytes in the last block
+
+	private long offset;				// offset to seek after reading the first block
+
+	private boolean isFirstBlock;		// if current block is the first block
 
 	/**
 	 * Creates a new channel reader that reads from the given channel, expecting a specified
@@ -60,16 +65,36 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 	 * @throws IOException Thrown, if the read requests for the first blocks fail to be
 	 *                     served by the reader.
 	 */
-	public HeaderlessChannelReaderInputView(BlockChannelReader<MemorySegment> reader, List<MemorySegment> memory, int numBlocks,
-			int numBytesInLastBlock, boolean waitForFirstBlock)
-	throws IOException
-	{
-		super(reader, memory, numBlocks, 0, waitForFirstBlock);
-		
+	public HeaderlessChannelReaderInputView(
+			BlockChannelReader<MemorySegment> reader,
+			List<MemorySegment> memory,
+			int numBlocks,
+			int numBytesInLastBlock,
+			boolean waitForFirstBlock) throws IOException {
+		this(reader, memory, numBlocks, numBytesInLastBlock, waitForFirstBlock, 0);
+	}
+
+	public HeaderlessChannelReaderInputView(
+			BlockChannelReader<MemorySegment> reader,
+			List<MemorySegment> memory,
+			int numBlocks,
+			int numBytesInLastBlock,
+			boolean waitForFirstBlock,
+			long offset) throws IOException {
+		// postpone wait for first block after initializing offset
+		// otherwise the offset is not set, and we can't seek input
+		super(reader, memory, numBlocks, 0, false);
+
 		this.numBlocksRemaining = numBlocks;
 		this.lastBlockBytes = numBytesInLastBlock;
+
+		checkArgument(offset >= 0, "`offset` can't be negative!");
+		this.offset = offset;
+
+		if (waitForFirstBlock) {
+			advance();
+		}
 	}
-	
 
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current) throws IOException {
@@ -84,12 +109,22 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 		if (current != null) {
 			sendReadRequest(current);
 		}
-		
+
+		// check if next segment is the first block
+		isFirstBlock = (current == null);
+
 		// get the next segment
 		this.numBlocksRemaining--;
 		return this.reader.getNextReturnedBlock();
 	}
-	
+
+	@Override
+	public void advance() throws IOException {
+		doAdvance();
+		if (isFirstBlock && offset > 0) {
+			seekInput(getCurrentSegment(), (int) offset, getCurrentSegmentLimit());
+		}
+	}
 
 	@Override
 	protected int getLimitForSegment(MemorySegment segment) {

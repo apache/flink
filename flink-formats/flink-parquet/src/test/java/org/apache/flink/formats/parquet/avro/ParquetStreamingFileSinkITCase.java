@@ -19,13 +19,14 @@
 package org.apache.flink.formats.parquet.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
-import org.apache.flink.formats.parquet.testutils.FiniteTestSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.avro.Schema;
@@ -38,7 +39,9 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -60,6 +63,9 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("serial")
 public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
+
+	@Rule
+	public final Timeout timeoutPerTest = Timeout.seconds(20);
 
 	@Test
 	public void testWriteParquetAvroSpecific() throws Exception {
@@ -156,21 +162,25 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 
 		File[] partFiles = buckets[0].listFiles();
 		assertNotNull(partFiles);
-		assertEquals(1, partFiles.length);
-		assertTrue(partFiles[0].length() > 0);
+		assertEquals(2, partFiles.length);
 
-		List<Address> results = readParquetFile(partFiles[0], dataModel);
-		assertEquals(expected, results);
+		for (File partFile : partFiles) {
+			assertTrue(partFile.length() > 0);
+
+			final List<Tuple2<Long, String>> fileContent = readParquetFile(partFile, dataModel);
+			assertEquals(expected, fileContent);
+		}
 	}
 
 	private static <T> List<T> readParquetFile(File file, GenericData dataModel) throws IOException {
 		InputFile inFile = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
-		ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build();
 
 		ArrayList<T> results = new ArrayList<>();
-		T next;
-		while ((next = reader.read()) != null) {
-			results.add(next);
+		try (ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
+			T next;
+			while ((next = reader.read()) != null) {
+				results.add(next);
+			}
 		}
 
 		return results;

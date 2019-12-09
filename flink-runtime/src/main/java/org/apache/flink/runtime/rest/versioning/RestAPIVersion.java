@@ -34,16 +34,19 @@ import java.util.Comparator;
  * - modifications to request/response bodies (excluding additions)
  */
 public enum RestAPIVersion {
-	V0(0, false), // strictly for testing purposes
-	V1(1, true);
+	V0(0, false, false), // strictly for testing purposes
+	V1(1, true, true);
 
 	private final int versionNumber;
 
 	private final boolean isDefaultVersion;
 
-	RestAPIVersion(int versionNumber, boolean isDefaultVersion) {
+	private final boolean isStable;
+
+	RestAPIVersion(int versionNumber, boolean isDefaultVersion, boolean isStable) {
 		this.versionNumber = versionNumber;
 		this.isDefaultVersion = isDefaultVersion;
+		this.isStable = isStable;
 	}
 
 	/**
@@ -62,6 +65,15 @@ public enum RestAPIVersion {
 	 */
 	public boolean isDefaultVersion() {
 		return isDefaultVersion;
+	}
+
+	/**
+	 * Returns whether this version is considered stable.
+	 *
+	 * @return whether this version is stable
+	 */
+	public boolean isStableVersion() {
+		return isStable;
 	}
 
 	/**

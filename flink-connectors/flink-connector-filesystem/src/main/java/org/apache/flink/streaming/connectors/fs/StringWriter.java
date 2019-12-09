@@ -33,6 +33,7 @@ import java.nio.charset.UnsupportedCharsetException;
  *
  * @param <T> The type of the elements that are being written by the sink.
  */
+@Deprecated
 public class StringWriter<T> extends StreamWriterBase<T> {
 	private static final long serialVersionUID = 1L;
 
@@ -40,12 +41,18 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 	private transient Charset charset;
 
+	private final String rowDelimiter;
+
+	private static final String DEFAULT_ROW_DELIMITER = "\n";
+
+	private byte[] rowDelimiterBytes;
+
 	/**
 	 * Creates a new {@code StringWriter} that uses {@code "UTF-8"} charset to convert
 	 * strings to bytes.
 	 */
 	public StringWriter() {
-		this("UTF-8");
+		this("UTF-8", DEFAULT_ROW_DELIMITER);
 	}
 
 	/**
@@ -55,12 +62,25 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
 	 */
 	public StringWriter(String charsetName) {
+		this(charsetName, DEFAULT_ROW_DELIMITER);
+	}
+
+	/**
+	 * Creates a new {@code StringWriter} that uses the given charset and row delimiter to convert
+	 * strings to bytes.
+	 *
+	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
+	 * @param rowDelimiter Parameter that specifies which character to use for delimiting rows
+	 */
+	public StringWriter(String charsetName, String rowDelimiter) {
 		this.charsetName = charsetName;
+		this.rowDelimiter = rowDelimiter;
 	}
 
 	protected StringWriter(StringWriter<T> other) {
 		super(other);
 		this.charsetName = other.charsetName;
+		this.rowDelimiter = other.rowDelimiter;
 	}
 
 	@Override
@@ -69,6 +89,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 		try {
 			this.charset = Charset.forName(charsetName);
+			this.rowDelimiterBytes = rowDelimiter.getBytes(charset);
 		}
 		catch (IllegalCharsetNameException e) {
 			throw new IOException("The charset " + charsetName + " is not valid.", e);
@@ -82,7 +103,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	public void write(T element) throws IOException {
 		FSDataOutputStream outputStream = getStream();
 		outputStream.write(element.toString().getBytes(charset));
-		outputStream.write('\n');
+		outputStream.write(rowDelimiterBytes);
 	}
 
 	@Override
@@ -92,5 +113,9 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 	String getCharsetName() {
 		return charsetName;
+	}
+
+	public String getRowDelimiter() {
+		return rowDelimiter;
 	}
 }

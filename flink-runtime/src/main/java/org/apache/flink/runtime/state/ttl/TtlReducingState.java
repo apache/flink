@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Collection;
 
 /**
@@ -34,22 +34,26 @@ import java.util.Collection;
 class TtlReducingState<K, N, T>
 	extends AbstractTtlState<K, N, T, TtlValue<T>, InternalReducingState<K, N, TtlValue<T>>>
 	implements InternalReducingState<K, N, T> {
-	TtlReducingState(
-		InternalReducingState<K, N, TtlValue<T>> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<T> valueSerializer) {
-		super(originalState, config, timeProvider, valueSerializer);
+	TtlReducingState(TtlStateContext<InternalReducingState<K, N, TtlValue<T>>, T> tTtlStateContext) {
+		super(tTtlStateContext);
 	}
 
 	@Override
 	public T get() throws Exception {
+		accessCallback.run();
 		return getInternal();
 	}
 
 	@Override
 	public void add(T value) throws Exception {
+		accessCallback.run();
 		original.add(wrapWithTs(value));
+	}
+
+	@Nullable
+	@Override
+	public TtlValue<T> getUnexpiredOrNull(@Nonnull TtlValue<T> ttlValue) {
+		return expired(ttlValue) ? null : ttlValue;
 	}
 
 	@Override

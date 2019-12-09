@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Not thread safe class for producing {@link Buffer}.
  *
  * <p>It reads data written by {@link BufferBuilder}.
- * Although it is not thread safe and can be used only by one single thread, this thread can be different then the
+ * Although it is not thread safe and can be used only by one single thread, this thread can be different than the
  * thread using/writing to {@link BufferBuilder}. Pattern here is simple: one thread writes data to
  * {@link BufferBuilder} and there can be a different thread reading from it using {@link BufferConsumer}.
  */
@@ -45,25 +45,33 @@ public class BufferConsumer implements Closeable {
 	private int currentReaderPosition;
 
 	/**
-	 * Constructs {@link BufferConsumer} instance with content that can be changed by {@link BufferBuilder}.
+	 * Constructs {@link BufferConsumer} instance with the initial reader position.
 	 */
 	public BufferConsumer(
 			MemorySegment memorySegment,
 			BufferRecycler recycler,
-			PositionMarker currentWriterPosition) {
+			PositionMarker currentWriterPosition,
+			int currentReaderPosition) {
 		this(
 			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true),
 			currentWriterPosition,
-			0);
+			currentReaderPosition);
 	}
 
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content.
 	 */
 	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
+		this(memorySegment, recycler, memorySegment.size(), isBuffer);
+	}
+
+	/**
+	 * Constructs {@link BufferConsumer} instance with static content of a certain size.
+	 */
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, boolean isBuffer) {
 		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
-			() -> -memorySegment.size(),
-			0);
+				() -> -size,
+				0);
 		checkState(memorySegment.size() > 0);
 		checkState(isFinished(), "BufferConsumer with static size must be finished after construction!");
 	}
@@ -129,6 +137,17 @@ public class BufferConsumer implements Closeable {
 		return writerPosition.getCached();
 	}
 
+	int getCurrentReaderPosition() {
+		return currentReaderPosition;
+	}
+
+	/**
+	 * Returns true if there is new data available for reading.
+	 */
+	public boolean isDataAvailable() {
+		return currentReaderPosition < writerPosition.getLatest();
+	}
+
 	/**
 	 * Cached reading wrapper around {@link PositionMarker}.
 	 *
@@ -154,6 +173,10 @@ public class BufferConsumer implements Closeable {
 
 		public int getCached() {
 			return PositionMarker.getAbsolute(cachedPosition);
+		}
+
+		private int getLatest() {
+			return PositionMarker.getAbsolute(positionMarker.get());
 		}
 
 		private void update() {

@@ -30,13 +30,16 @@ import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardSta
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kinesis.testutils.AlwaysThrowsDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcherForShardConsumerException;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -59,12 +62,16 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -811,4 +818,67 @@ public class KinesisDataFetcherTest extends TestLogger {
 		Assert.assertTrue("idle, no watermark", watermarks.isEmpty());
 	}
 
+	@Test
+	public void testOriginalExceptionIsPreservedWhenInterruptedDuringShutdown() throws Exception {
+		String stream = "fakeStream";
+
+		Map<String, List<BlockingQueue<String>>> streamsToShardQueues = new HashMap<>();
+		LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10);
+		queue.put("item1");
+		streamsToShardQueues.put(stream, Collections.singletonList(queue));
+
+		AlwaysThrowsDeserializationSchema deserializationSchema = new AlwaysThrowsDeserializationSchema();
+		KinesisProxyInterface fakeKinesis =
+			FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamsToShardQueues);
+
+		TestableKinesisDataFetcherForShardConsumerException<String> fetcher = new TestableKinesisDataFetcherForShardConsumerException<>(
+			Collections.singletonList(stream),
+			new TestSourceContext<>(),
+			TestUtils.getStandardProperties(),
+			new KinesisDeserializationSchemaWrapper<>(deserializationSchema),
+			10,
+			2,
+			new AtomicReference<>(),
+			new LinkedList<>(),
+			new HashMap<>(),
+			fakeKinesis);
+
+		DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
+			TestUtils.getStandardProperties(), fetcher, 1, 0);
+
+		CheckedThread consumerThread = new CheckedThread("FlinkKinesisConsumer") {
+			@Override
+			public void go() throws Exception {
+				consumer.run(new TestSourceContext<>());
+			}
+		};
+		consumerThread.start();
+		fetcher.waitUntilRun();
+
+		// ShardConsumer exception (from deserializer) will result in fetcher being shut down.
+		fetcher.waitUntilShutdown(20, TimeUnit.SECONDS);
+
+		// Ensure that KinesisDataFetcher has exited its while(running) loop and is inside its awaitTermination()
+		// method before we interrupt its thread, so that our interrupt doesn't get absorbed by any other mechanism.
+		fetcher.waitUntilAwaitTermination(20, TimeUnit.SECONDS);
+
+		// Interrupt the thread so that KinesisDataFetcher#awaitTermination() will throw InterruptedException.
+		consumerThread.interrupt();
+
+		try {
+			consumerThread.sync();
+		} catch (InterruptedException e) {
+			fail("Expected exception from deserializer, but got InterruptedException, probably from " +
+				"KinesisDataFetcher, which obscures the cause of the failure. " + e);
+		} catch (RuntimeException e) {
+			if (!e.getMessage().equals(AlwaysThrowsDeserializationSchema.EXCEPTION_MESSAGE)) {
+				fail("Expected exception from deserializer, but got: " + e);
+			}
+		} catch (Exception e) {
+			fail("Expected exception from deserializer, but got: " + e);
+		}
+
+		assertTrue("Expected Fetcher to have been interrupted. This test didn't accomplish its goal.",
+			fetcher.wasInterrupted);
+	}
 }

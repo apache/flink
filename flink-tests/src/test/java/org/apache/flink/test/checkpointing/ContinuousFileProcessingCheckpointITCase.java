@@ -38,9 +38,10 @@ import org.apache.flink.util.Collector;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.AssumptionViolatedException;
+import org.junit.Before;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,8 +75,14 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 	private static Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
 
-	@BeforeClass
-	public static void createHDFS() {
+	@Before
+	public void createHDFS() {
+		if (failoverStrategy.equals(FailoverStrategy.RestartPipelinedRegionStrategy)) {
+			// TODO the 'NO_OF_RETRIES' is useless for current RestartPipelinedRegionStrategy,
+			// for this ContinuousFileProcessingCheckpointITCase, using RestartPipelinedRegionStrategy would result in endless running.
+			throw new AssumptionViolatedException("ignored ContinuousFileProcessingCheckpointITCase when using RestartPipelinedRegionStrategy");
+		}
+
 		try {
 			baseDir = new File("./target/localfs/fs_tests").getAbsoluteFile();
 			FileUtil.fullyDelete(baseDir);
@@ -91,10 +98,12 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		}
 	}
 
-	@AfterClass
-	public static void destroyHDFS() {
+	@After
+	public void destroyHDFS() {
 		try {
-			FileUtil.fullyDelete(baseDir);
+			if (baseDir != null) {
+				FileUtil.fullyDelete(baseDir);
+			}
 		} catch (Throwable t) {
 			throw new RuntimeException(t);
 		}

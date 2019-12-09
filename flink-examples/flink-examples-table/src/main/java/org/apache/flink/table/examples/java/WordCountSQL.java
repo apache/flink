@@ -21,7 +21,6 @@ package org.apache.flink.table.examples.java;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 
 /**
@@ -42,15 +41,15 @@ public class WordCountSQL {
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 		DataSet<WC> input = env.fromElements(
 			new WC("Hello", 1),
 			new WC("Ciao", 1),
 			new WC("Hello", 1));
 
-		// register the DataSet as table "WordCount"
-		tEnv.registerDataSet("WordCount", input, "word, frequency");
+		// register the DataSet as a view "WordCount"
+		tEnv.createTemporaryView("WordCount", input, "word, frequency");
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(

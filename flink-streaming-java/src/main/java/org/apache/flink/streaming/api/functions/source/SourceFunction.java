@@ -92,18 +92,8 @@ import java.io.Serializable;
  * ({@link TimeCharacteristic#IngestionTime} and {@link TimeCharacteristic#ProcessingTime}),
  * the watermarks from the source function are ignored.
  *
- * <h3>Gracefully Stopping Functions</h3>
- * Functions may additionally implement the {@link org.apache.flink.api.common.functions.StoppableFunction}
- * interface. "Stopping" a function, in contrast to "canceling" means a graceful exit that leaves the
- * state and the emitted elements in a consistent state.
- *
- * <p>When a source is stopped, the executing thread is not interrupted, but expected to leave the
- * {@link #run(SourceContext)} method in reasonable time on its own, preserving the atomicity
- * of state updates and element emission.
- *
  * @param <T> The type of the elements produced by this source.
  *
- * @see org.apache.flink.api.common.functions.StoppableFunction
  * @see org.apache.flink.streaming.api.TimeCharacteristic
  */
 @Public

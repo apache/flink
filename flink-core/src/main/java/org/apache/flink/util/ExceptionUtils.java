@@ -260,6 +260,18 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Tries to throw the given exception if not null.
+	 *
+	 * @param e exception to throw if not null.
+	 * @throws Exception
+	 */
+	public static void tryRethrowException(@Nullable Exception e) throws Exception {
+		if (e != null) {
+			throw e;
+		}
+	}
+
+	/**
 	 * Tries to throw the given {@code Throwable} in scenarios where the signatures allows only IOExceptions
 	 * (and RuntimeException and Error). Throws this exception directly, if it is an IOException,
 	 * a RuntimeException, or an Error. Otherwise does nothing.
@@ -300,6 +312,38 @@ public final class ExceptionUtils {
 		else {
 			throw new IOException(t.getMessage(), t);
 		}
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific type of exception and returns it. It deserializes
+	 * any {@link SerializedThrowable} that are found using the provided {@link ClassLoader}.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchType the type of exception to search for in the chain.
+	 * @param classLoader to use for deserialization.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static <T extends Throwable> Optional<T> findSerializedThrowable(Throwable throwable, Class<T> searchType, ClassLoader classLoader) {
+		if (throwable == null || searchType == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (searchType.isAssignableFrom(t.getClass())) {
+				return Optional.of(searchType.cast(t));
+			} else if (t.getClass().isAssignableFrom(SerializedThrowable.class)) {
+				Throwable next = ((SerializedThrowable) t).deserializeError(classLoader);
+				// SerializedThrowable#deserializeError returns itself under some conditions (e.g., null cause).
+				// If that happens, exit to avoid looping infinitely. This is ok because if the user was searching
+				// for a SerializedThrowable, we would have returned it in the initial if condition.
+				t = (next == t) ? null : next;
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	/**

@@ -27,19 +27,19 @@ under the License.
 
 ## Monitoring Current Event Time
 
-Flink's [event time]({{ site.baseurl }}/dev/event_time.html) and watermark support is a powerful feature for handling
+Flink's [event time]({{ site.baseurl }}/dev/event_time.html) and watermark support are powerful features for handling
 out-of-order events. However, it's harder to understand what exactly is going on because the progress of time
 is tracked within the system.
 
 Low watermarks of each task can be accessed through Flink web interface or [metrics system]({{ site.baseurl }}/monitoring/metrics.html).
 
-Each Task in Flink exposes a metric called `currentLowWatermark` that represents the lowest watermark received
+Each Task in Flink exposes a metric called `currentInputWatermark` that represents the lowest watermark received
 by this task. This long value represents the "current event time".
 The value is calculated by taking the minimum of all watermarks received by upstream operators. This means that 
 the event time tracked with watermarks is always dominated by the furthest-behind source.
 
 The low watermark metric is accessible **using the web interface**, by choosing a task in the metric tab,
-and selecting the `<taskNr>.currentLowWatermark` metric. In the new box you'll now be able to see 
+and selecting the `<taskNr>.currentInputWatermark` metric. In the new box you'll now be able to see 
 the current low watermark of the task.
 
 Another way of getting the metric is using one of the **metric reporters**, as described in the documentation

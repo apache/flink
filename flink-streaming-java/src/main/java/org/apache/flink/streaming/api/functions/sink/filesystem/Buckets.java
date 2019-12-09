@@ -77,6 +77,8 @@ public class Buckets<IN, BucketID> {
 
 	private final RecoverableWriter fsWriter;
 
+	private final OutputFileConfig outputFileConfig;
+
 	// --------------------------- State Related Fields -----------------------------
 
 	private final BucketStateSerializer<BucketID> bucketStateSerializer;
@@ -96,7 +98,8 @@ public class Buckets<IN, BucketID> {
 			final BucketFactory<IN, BucketID> bucketFactory,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final int subtaskIndex) throws IOException {
+			final int subtaskIndex,
+			final OutputFileConfig outputFileConfig) throws IOException {
 
 		this.basePath = Preconditions.checkNotNull(basePath);
 		this.bucketAssigner = Preconditions.checkNotNull(bucketAssigner);
@@ -104,6 +107,8 @@ public class Buckets<IN, BucketID> {
 		this.partFileWriterFactory = Preconditions.checkNotNull(partFileWriterFactory);
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
 		this.subtaskIndex = subtaskIndex;
+
+		this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
 
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new Buckets.BucketerContext();
@@ -180,7 +185,8 @@ public class Buckets<IN, BucketID> {
 						maxPartCounter,
 						partFileWriterFactory,
 						rollingPolicy,
-						recoveredState
+						recoveredState,
+						outputFileConfig
 				);
 
 		updateActiveBucketId(bucketId, restoredBucket);
@@ -254,7 +260,7 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	void onElement(final IN value, final SinkFunction.Context context) throws Exception {
+	Bucket<IN, BucketID> onElement(final IN value, final SinkFunction.Context context) throws Exception {
 		final long currentProcessingTime = context.currentProcessingTime();
 
 		// setting the values in the bucketer context
@@ -272,6 +278,7 @@ public class Buckets<IN, BucketID> {
 		// another part file for the bucket, if we start from 0 we may overwrite previous parts.
 
 		this.maxPartCounter = Math.max(maxPartCounter, bucket.getPartCounter());
+		return bucket;
 	}
 
 	private Bucket<IN, BucketID> getOrCreateBucketForBucketId(final BucketID bucketId) throws IOException {
@@ -285,7 +292,8 @@ public class Buckets<IN, BucketID> {
 					bucketPath,
 					maxPartCounter,
 					partFileWriterFactory,
-					rollingPolicy);
+					rollingPolicy,
+					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
 		}
 		return bucket;
@@ -304,7 +312,11 @@ public class Buckets<IN, BucketID> {
 	}
 
 	private Path assembleBucketPath(BucketID bucketId) {
-		return new Path(basePath, bucketId.toString());
+		final String child = bucketId.toString();
+		if ("".equals(child)) {
+			return basePath;
+		}
+		return new Path(basePath, child);
 	}
 
 	/**

@@ -25,14 +25,14 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 /**
- * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
- * {@link org.apache.flink.runtime.jobmanager.JobManager} to signal that the checkpoint of an
+ * This message is sent from the {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} to the
+ * {@link org.apache.flink.runtime.jobmaster.JobMaster} to signal that the checkpoint of an
  * individual task is completed.
- * <p>
+ *
  * <p>This message may carry the handle to the task's chained operator state and the key group
  * state.
  */
-public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements java.io.Serializable {
+public class AcknowledgeCheckpoint extends AbstractCheckpointMessage {
 
 	private static final long serialVersionUID = -7606214777192401493L;
 

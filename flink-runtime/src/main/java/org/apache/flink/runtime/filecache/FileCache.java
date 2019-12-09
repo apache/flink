@@ -150,9 +150,10 @@ public class FileCache {
 			for (File dir : storageDirectories) {
 				try {
 					FileUtils.deleteDirectory(dir);
+					LOG.info("removed file cache directory {}", dir.getAbsolutePath());
 				}
 				catch (IOException e) {
-					LOG.error("File cache could not properly clean up storage directory.");
+					LOG.error("File cache could not properly clean up storage directory: {}", dir.getAbsolutePath(), e);
 				}
 			}
 

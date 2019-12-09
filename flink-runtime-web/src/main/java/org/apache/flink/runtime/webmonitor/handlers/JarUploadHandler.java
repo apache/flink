@@ -56,14 +56,13 @@ public class JarUploadHandler extends
 	private final Executor executor;
 
 	public JarUploadHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
 			final MessageHeaders<EmptyRequestBody, JarUploadResponseBody, EmptyMessageParameters> messageHeaders,
 			final Path jarDir,
 			final Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.jarDir = requireNonNull(jarDir);
 		this.executor = requireNonNull(executor);
 	}

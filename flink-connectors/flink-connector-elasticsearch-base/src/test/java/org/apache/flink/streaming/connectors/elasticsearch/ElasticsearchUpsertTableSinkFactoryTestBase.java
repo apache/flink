@@ -22,8 +22,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.Elasticsearch;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Schema;
@@ -106,10 +106,10 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 					.deriveSchema())
 			.withSchema(
 				new Schema()
-					.field(FIELD_KEY, Types.LONG())
-					.field(FIELD_FRUIT_NAME, Types.STRING())
-					.field(FIELD_COUNT, Types.DECIMAL())
-					.field(FIELD_TS, Types.SQL_TIMESTAMP()))
+					.field(FIELD_KEY, DataTypes.BIGINT())
+					.field(FIELD_FRUIT_NAME, DataTypes.STRING())
+					.field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
+					.field(FIELD_TS, DataTypes.TIMESTAMP(3)))
 			.inUpsertMode();
 
 		final Map<String, String> propertiesMap = testDesc.toProperties();
@@ -121,10 +121,10 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 
 	protected TableSchema createTestSchema() {
 		return TableSchema.builder()
-			.field(FIELD_KEY, Types.LONG())
-			.field(FIELD_FRUIT_NAME, Types.STRING())
-			.field(FIELD_COUNT, Types.DECIMAL())
-			.field(FIELD_TS, Types.SQL_TIMESTAMP())
+			.field(FIELD_KEY, DataTypes.BIGINT())
+			.field(FIELD_FRUIT_NAME, DataTypes.STRING())
+			.field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
+			.field(FIELD_TS, DataTypes.TIMESTAMP(3))
 			.build();
 	}
 

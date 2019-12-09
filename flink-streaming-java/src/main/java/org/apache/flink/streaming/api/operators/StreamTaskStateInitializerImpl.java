@@ -79,9 +79,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	 */
 	private final Environment environment;
 
-	/** This processing time service is required to construct an internal timer service manager. */
-	private final ProcessingTimeService processingTimeService;
-
 	/** The state manager of the tasks provides the information used to restore potential previous state. */
 	private final TaskStateManager taskStateManager;
 
@@ -90,13 +87,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 	public StreamTaskStateInitializerImpl(
 		Environment environment,
-		StateBackend stateBackend,
-		ProcessingTimeService processingTimeService) {
+		StateBackend stateBackend) {
 
 		this.environment = environment;
 		this.taskStateManager = Preconditions.checkNotNull(environment.getTaskStateManager());
 		this.stateBackend = Preconditions.checkNotNull(stateBackend);
-		this.processingTimeService = processingTimeService;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -105,6 +100,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	public StreamOperatorStateContext streamOperatorStateContext(
 		@Nonnull OperatorID operatorID,
 		@Nonnull String operatorClassName,
+		@Nonnull ProcessingTimeService processingTimeService,
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
@@ -155,7 +151,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
-			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, rawKeyedStateInputs);
+			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, processingTimeService, rawKeyedStateInputs);
 
 			// -------------- Preparing return value --------------
 
@@ -199,6 +195,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
+		ProcessingTimeService processingTimeService,
 		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 
 		if (keyedStatedBackend == null) {
@@ -236,14 +233,29 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		String logDescription = "operator state backend for " + operatorIdentifierText;
 
+		// Now restore processing is included in backend building/constructing process, so we need to make sure
+		// each stream constructed in restore could also be closed in case of task cancel, for example the data
+		// input stream opened for serDe during restore.
+		CloseableRegistry cancelStreamRegistryForRestore = new CloseableRegistry();
+		backendCloseableRegistry.registerCloseable(cancelStreamRegistryForRestore);
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
-				() -> stateBackend.createOperatorStateBackend(environment, operatorIdentifierText),
+				(stateHandles) -> stateBackend.createOperatorStateBackend(
+					environment,
+					operatorIdentifierText,
+					stateHandles,
+					cancelStreamRegistryForRestore),
 				backendCloseableRegistry,
 				logDescription);
 
-		return backendRestorer.createAndRestore(
-			prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState());
+		try {
+			return backendRestorer.createAndRestore(
+				prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState());
+		} finally {
+			if (backendCloseableRegistry.unregisterCloseable(cancelStreamRegistryForRestore)) {
+				IOUtils.closeQuietly(cancelStreamRegistryForRestore);
+			}
+		}
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> keyedStatedBackend(
@@ -266,9 +278,14 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			taskInfo.getNumberOfParallelSubtasks(),
 			taskInfo.getIndexOfThisSubtask());
 
+		// Now restore processing is included in backend building/constructing process, so we need to make sure
+		// each stream constructed in restore could also be closed in case of task cancel, for example the data
+		// input stream opened for serDe during restore.
+		CloseableRegistry cancelStreamRegistryForRestore = new CloseableRegistry();
+		backendCloseableRegistry.registerCloseable(cancelStreamRegistryForRestore);
 		BackendRestorerProcedure<AbstractKeyedStateBackend<K>, KeyedStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
-				() -> stateBackend.createKeyedStateBackend(
+				(stateHandles) -> stateBackend.createKeyedStateBackend(
 					environment,
 					environment.getJobID(),
 					operatorIdentifierText,
@@ -277,12 +294,20 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					keyGroupRange,
 					environment.getTaskKvStateRegistry(),
 					TtlTimeProvider.DEFAULT,
-					metricGroup),
+					metricGroup,
+					stateHandles,
+					cancelStreamRegistryForRestore),
 				backendCloseableRegistry,
 				logDescription);
 
-		return backendRestorer.createAndRestore(
-			prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());
+		try {
+			return backendRestorer.createAndRestore(
+				prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());
+		} finally {
+			if (backendCloseableRegistry.unregisterCloseable(cancelStreamRegistryForRestore)) {
+				IOUtils.closeQuietly(cancelStreamRegistryForRestore);
+			}
+		}
 	}
 
 	protected CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs(

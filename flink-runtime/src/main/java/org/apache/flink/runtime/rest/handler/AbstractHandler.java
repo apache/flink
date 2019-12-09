@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.FileUploadHandler;
+import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -31,8 +32,10 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Ascii;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,6 +53,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -62,11 +67,17 @@ import java.util.concurrent.CompletableFuture;
  * @param <R> type of the incoming request
  * @param <M> type of the message parameters
  */
-public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends RedirectHandler<T> implements AutoCloseableAsync {
+public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends LeaderRetrievalHandler<T> implements AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+
+	/**
+	 * Other response payload overhead (in bytes).
+	 * If we truncate response payload, we should leave enough buffer for this overhead.
+	 */
+	private static final int OTHER_RESP_PAYLOAD_OVERHEAD = 1024;
 
 	private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
 
@@ -76,12 +87,11 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	private final InFlightRequestTracker inFlightRequestTracker;
 
 	protected AbstractHandler(
-			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends T> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
 			@Nonnull UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders) {
-		super(localAddressFuture, leaderRetriever, timeout, responseHeaders);
+		super(leaderRetriever, timeout, responseHeaders);
 
 		this.untypedResponseMessageHeaders = Preconditions.checkNotNull(untypedResponseMessageHeaders);
 		this.inFlightRequestTracker = new InFlightRequestTracker();
@@ -117,15 +127,13 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				try {
 					request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Request did not conform to expected format.", je);
-					throw new RestHandlerException("Bad request received.", HttpResponseStatus.BAD_REQUEST, je);
+					throw new RestHandlerException("Bad request received. Request did not conform to expected format.", HttpResponseStatus.BAD_REQUEST, je);
 				}
 			} else {
 				try {
-					ByteBufInputStream in = new ByteBufInputStream(msgContent);
+					InputStream in = new ByteBufInputStream(msgContent);
 					request = MAPPER.readValue(in, untypedResponseMessageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Failed to read request.", je);
 					throw new RestHandlerException(
 						String.format("Request did not match expected format %s.", untypedResponseMessageHeaders.getRequestClass().getSimpleName()),
 						HttpResponseStatus.BAD_REQUEST,
@@ -160,28 +168,54 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 			final FileUploads finalUploadedFiles = uploadedFiles;
 			requestProcessingFuture
 				.whenComplete((Void ignored, Throwable throwable) -> {
-					inFlightRequestTracker.deregisterRequest();
-					cleanupFileUploads(finalUploadedFiles);
+					if (throwable != null) {
+						handleException(ExceptionUtils.stripCompletionException(throwable), ctx, httpRequest)
+							.whenComplete((Void ignored2, Throwable throwable2) -> finalizeRequestProcessing(finalUploadedFiles));
+					} else {
+						finalizeRequestProcessing(finalUploadedFiles);
+					}
 				});
-		} catch (RestHandlerException rhe) {
-			inFlightRequestTracker.deregisterRequest();
-			HandlerUtils.sendErrorResponse(
+		} catch (Throwable e) {
+			final FileUploads finalUploadedFiles = uploadedFiles;
+			handleException(e, ctx, httpRequest)
+				.whenComplete((Void ignored, Throwable throwable) -> finalizeRequestProcessing(finalUploadedFiles));
+		}
+	}
+
+	private void finalizeRequestProcessing(FileUploads uploadedFiles) {
+		inFlightRequestTracker.deregisterRequest();
+		cleanupFileUploads(uploadedFiles);
+	}
+
+	private CompletableFuture<Void> handleException(Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+		FlinkHttpObjectAggregator flinkHttpObjectAggregator = ctx.pipeline().get(FlinkHttpObjectAggregator.class);
+		int maxLength = flinkHttpObjectAggregator.maxContentLength() - OTHER_RESP_PAYLOAD_OVERHEAD;
+		if (throwable instanceof RestHandlerException) {
+			RestHandlerException rhe = (RestHandlerException) throwable;
+			String stackTrace = ExceptionUtils.stringifyException(rhe);
+			String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
+			if (log.isDebugEnabled()) {
+				log.error("Exception occurred in REST handler.", rhe);
+			} else {
+				log.error("Exception occurred in REST handler: {}", rhe.getMessage());
+			}
+			return HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
-				new ErrorResponseBody(rhe.getMessage()),
+				new ErrorResponseBody(truncatedStackTrace),
 				rhe.getHttpResponseStatus(),
 				responseHeaders);
-			cleanupFileUploads(uploadedFiles);
-		} catch (Throwable e) {
-			inFlightRequestTracker.deregisterRequest();
-			log.error("Request processing failed.", e);
-			HandlerUtils.sendErrorResponse(
+		} else {
+			log.error("Unhandled exception.", throwable);
+			String stackTrace = String.format("<Exception on server side:%n%s%nEnd of exception on server side>",
+				ExceptionUtils.stringifyException(throwable));
+			String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
+			return HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
-				new ErrorResponseBody("Internal server error."),
+				new ErrorResponseBody(Arrays.asList("Internal server error.", truncatedStackTrace)),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				responseHeaders);
-			cleanupFileUploads(uploadedFiles);
 		}
 	}
 

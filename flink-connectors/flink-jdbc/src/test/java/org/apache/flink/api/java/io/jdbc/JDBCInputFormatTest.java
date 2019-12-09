@@ -155,6 +155,41 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
+	public void testDefaultAutoCommitIsUsedIfNotConfiguredOtherwise() throws SQLException, ClassNotFoundException {
+
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.finish();
+		jdbcInputFormat.openInputFormat();
+
+		Class.forName(DRIVER_CLASS);
+		final boolean defaultAutoCommit = DriverManager.getConnection(DB_URL).getAutoCommit();
+
+		Assert.assertEquals(defaultAutoCommit, jdbcInputFormat.getDbConn().getAutoCommit());
+
+	}
+
+	@Test
+	public void testAutoCommitCanBeConfigured() throws SQLException {
+
+		final boolean desiredAutoCommit = false;
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setAutoCommit(desiredAutoCommit)
+			.finish();
+
+		jdbcInputFormat.openInputFormat();
+		Assert.assertEquals(desiredAutoCommit, jdbcInputFormat.getDbConn().getAutoCommit());
+
+	}
+
+	@Test
 	public void testJDBCInputFormatWithoutParallelism() throws IOException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -186,7 +221,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		final int fetchSize = 1;
 		final long min = TEST_DATA[0].id;
 		final long max = TEST_DATA[TEST_DATA.length - fetchSize].id;
-		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
+		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(min, max).ofBatchSize(fetchSize);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -222,7 +257,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		final long min = TEST_DATA[0].id;
 		final long max = TEST_DATA[TEST_DATA.length - 1].id;
 		final long fetchSize = max + 1; //generate a single split
-		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
+		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(min, max).ofBatchSize(fetchSize);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)

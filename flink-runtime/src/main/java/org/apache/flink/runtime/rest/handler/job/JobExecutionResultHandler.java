@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -49,12 +49,10 @@ public class JobExecutionResultHandler
 	extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JobExecutionResultResponseBody, JobMessageParameters> {
 
 	public JobExecutionResultHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

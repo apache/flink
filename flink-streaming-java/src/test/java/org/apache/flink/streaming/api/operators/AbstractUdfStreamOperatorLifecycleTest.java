@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
@@ -98,7 +99,6 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"setCurrentKey[class java.lang.Object], " +
 			"setKeyContextElement1[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
-			"setup[class org.apache.flink.streaming.runtime.tasks.StreamTask, class org.apache.flink.streaming.api.graph.StreamConfig, interface org.apache.flink.streaming.api.operators.Output], " +
 			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions, interface org.apache.flink.runtime.state.CheckpointStreamFactory]]";
 
 	private static final String ALL_METHODS_RICH_FUNCTION = "[close[], getIterationRuntimeContext[], getRuntimeContext[]" +
@@ -232,9 +232,10 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		@Override
 		public void run(Object lockingObject,
 						StreamStatusMaintainer streamStatusMaintainer,
-						Output<StreamRecord<OUT>> collector) throws Exception {
+						Output<StreamRecord<OUT>> collector,
+						OperatorChain<?, ?> operatorChain) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::run");
-			super.run(lockingObject, streamStatusMaintainer, collector);
+			super.run(lockingObject, streamStatusMaintainer, collector, operatorChain);
 			runStarted.trigger();
 			runFinish.await();
 		}
@@ -249,9 +250,10 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 					public void run() {
 						try {
 							runStarted.await();
-							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
+							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpointAsync(
 									new CheckpointMetaData(0, System.currentTimeMillis()),
-									CheckpointOptions.forCheckpointWithDefaultLocation())) {
+									CheckpointOptions.forCheckpointWithDefaultLocation(),
+									false).get()) {
 								LifecycleTrackingStreamSource.runFinish.trigger();
 							}
 						} catch (Exception e) {

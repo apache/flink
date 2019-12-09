@@ -44,38 +44,20 @@ example of the `org.apache.flink.runtime.webmonitor.handlers.JobSummaryHandler`.
 
 ## Dashboard Frontend 
 
-The web dashboard is implemented using *angular.js*. The dashboard build infrastructure uses *node.js*.
-The dashboard files are all pre-built, so one can try it out without building it.
+The web dashboard is implemented using *Angular*. The dashboard build infrastructure uses *node.js*.
 
 
 ### Preparing the Build Environment
 
 Depending on your version of Linux, Windows or MacOS, you may need to manually install *node.js*
-and *bower*.
+
 
 
 #### Ubuntu Linux
 
 Install *node.js* by following [these instructions](https://github.com/joyent/node/wiki/installing-node.js-via-package-manager).
 
-Verify that the installed version is at least *2.11.3*, via `npm -version`.
-
-Install *bower* via:
-
-```
-sudo npm install -g bower
-```
-
-Verify that the installed version is at least *1.4.1*, via `bower -version`.
-
-
-Install *gulp* via:
-
-```
-sudo npm install -g gulp
-```
-
-Verify that the installed version is at least *3.9.0*, via `gulp -version`.
+Verify that the installed version is at least *10.9.0*, via `npm -version`.
 
 
 #### MacOS
@@ -88,36 +70,18 @@ Install *node.js* via:
 brew install node
 ```
 
-Install *bower* via:
-
-```
-sudo npm install -g bower
-```
-
-Verify that the installed version is at least *1.4.1*, via `bower -version`.
-
-Install *gulp* via:
-
-```
-sudo npm install -g gulp
-```
-
-Verify that the installed version is at least *3.9.0*, via `gulp -version`.
-
-
 ### Building
 
 The build process downloads all requires libraries via the *node.js* package management tool (*npm*)
-and the *bower* dependency management tool. The final build tool is *gulp*.
+The final build tool is *@angular/cli*.
 
 ```
 cd flink-runtime-web/web-dashboard
 npm install
-bower install
-gulp
+npm run build
 ```
 
-The dashboard code is under `/app`. The result of the build process is under `/web`.
+The dashboard code is under `/src`. The result of the build process is under `/web`.
 
 ### Developing
 
@@ -125,7 +89,7 @@ When developing the dashboard, every change needs to recompile the files and upd
 
 ```
 cd flink-runtime-web/web-dashboard
-gulp
+npm run build
 cd ../../flink-dist
 mvn -DskipTests clean package
 ```
@@ -133,7 +97,17 @@ mvn -DskipTests clean package
 To simplify continuous development, one can use a *standalone proxy server*, together with automatic
 re-compilation:
 
-1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `jobServer` URL.
-2. Re-compile the files via `gulp`. By calling `gulp watch`, the build-tool autocompiles future changes.
-3. Start the proxy server via `node server.js`
-4. Access the dashboard at [`http://localhost:3000`](http://localhost:3000)
+1. Start the proxy server via `npm run proxy` (You can modify the proxy target in the `proxy.conf.json`, the default proxy target is `localhost:8081`)
+2. Access the dashboard at [`http://localhost:4200`](http://localhost:4200)
+
+### CodeStyle & Lint
+
+```bash
+$ npm run lint
+```
+
+### Dependency
+
+- Framework: [Angular](https://angular.io)
+- CLI Tools: [Angular CLI](https://cli.angular.io)
+- UI Components: [NG-ZORRO](https://github.com/NG-ZORRO/ng-zorro-antd)

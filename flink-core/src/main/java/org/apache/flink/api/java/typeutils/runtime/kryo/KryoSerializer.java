@@ -20,9 +20,10 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
@@ -172,6 +173,36 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 			this.kryoRegistrations.put(entry.getKey(), kryoRegistration);
 		}
+	}
+
+	// for KryoSerializerSnapshot
+	// ------------------------------------------------------------------------
+
+	KryoSerializer(Class<T> type,
+				   LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultSerializers,
+				   LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClasses,
+				   LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+
+		this.type = checkNotNull(type, "Type class cannot be null.");
+		this.defaultSerializerClasses = checkNotNull(defaultSerializerClasses, "Default serializer classes cannot be null.");
+		this.defaultSerializers = checkNotNull(defaultSerializers, "Default serializers cannot be null.");
+		this.kryoRegistrations = checkNotNull(kryoRegistrations, "Kryo registrations cannot be null.");
+	}
+
+	Class<T> getType() {
+		return type;
+	}
+
+	LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
+		return defaultSerializers;
+	}
+
+	LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
+		return defaultSerializerClasses;
+	}
+
+	LinkedHashMap<String, KryoRegistration> getKryoRegistrations() {
+		return kryoRegistrations;
 	}
 
 	// ------------------------------------------------------------------------
@@ -374,19 +405,13 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		if (obj instanceof KryoSerializer) {
 			KryoSerializer<?> other = (KryoSerializer<?>) obj;
 
-			return other.canEqual(this) &&
-				type == other.type &&
+			return type == other.type &&
 				Objects.equals(kryoRegistrations, other.kryoRegistrations) &&
 				Objects.equals(defaultSerializerClasses, other.defaultSerializerClasses) &&
 				Objects.equals(defaultSerializers, other.defaultSerializers);
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof KryoSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -458,46 +483,15 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public KryoSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new KryoSerializerConfigSnapshot<>(type, kryoRegistrations);
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
+		return new KryoSerializerSnapshot<>(
+			type,
+			defaultSerializers,
+			defaultSerializerClasses,
+			kryoRegistrations);
 	}
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof KryoSerializerConfigSnapshot) {
-			final KryoSerializerConfigSnapshot<T> config = (KryoSerializerConfigSnapshot<T>) configSnapshot;
-
-			if (type.equals(config.getTypeClass())) {
-				LinkedHashMap<String, KryoRegistration> reconfiguredRegistrations = config.getKryoRegistrations();
-
-				// reconfigure by assuring that classes which were previously registered are registered
-				// again in the exact same order; new class registrations will be appended.
-				// this also overwrites any dummy placeholders that the restored old configuration has
-				reconfiguredRegistrations.putAll(kryoRegistrations);
-
-				// check if there is still any dummy placeholders even after reconfiguration;
-				// if so, then this new Kryo serializer cannot read old data and is therefore incompatible
-				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : reconfiguredRegistrations.entrySet()) {
-					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
-						LOG.warn("The Kryo registration for a previously registered class {} does not have a " +
-							"proper serializer, because its previous serializer cannot be loaded or is no " +
-							"longer valid but a new serializer is not available", reconfiguredRegistrationEntry.getKey());
-
-						return CompatibilityResult.requiresMigration();
-					}
-				}
-
-				// there's actually no way to tell if new Kryo serializers are compatible with
-				// the previous ones they overwrite; we can only signal compatibility and hope for the best
-				this.kryoRegistrations = reconfiguredRegistrations;
-				return CompatibilityResult.compatible();
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
-	}
-
+	@Deprecated
 	public static final class KryoSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {
 
 		private static final int VERSION = 1;
@@ -515,6 +509,19 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			KryoSerializer<T> javaSerializedKryoSerializer = (KryoSerializer<T>) super.restoreSerializer();
+
+			KryoSerializerSnapshot<T> snapshot = new KryoSerializerSnapshot<>(
+				javaSerializedKryoSerializer.getType(),
+				javaSerializedKryoSerializer.getDefaultKryoSerializers(),
+				javaSerializedKryoSerializer.getDefaultKryoSerializerClasses(),
+				javaSerializedKryoSerializer.getKryoRegistrations());
+
+			return snapshot.resolveSchemaCompatibility(newSerializer);
 		}
 	}
 

@@ -48,7 +48,7 @@ public final class RestServerEndpointConfiguration {
 	@Nullable
 	private final String restBindAddress;
 
-	private final int restBindPort;
+	private final String restBindPortRange;
 
 	@Nullable
 	private final SSLHandlerFactory sslHandlerFactory;
@@ -62,18 +62,17 @@ public final class RestServerEndpointConfiguration {
 	private RestServerEndpointConfiguration(
 			final String restAddress,
 			@Nullable String restBindAddress,
-			int restBindPort,
+			String restBindPortRange,
 			@Nullable SSLHandlerFactory sslHandlerFactory,
 			final Path uploadDir,
 			final int maxContentLength,
 			final Map<String, String> responseHeaders) {
 
-		Preconditions.checkArgument(0 <= restBindPort && restBindPort < 65536, "The bing rest port " + restBindPort + " is out of range (0, 65536[");
-		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
+		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %s", maxContentLength);
 
 		this.restAddress = requireNonNull(restAddress);
 		this.restBindAddress = restBindAddress;
-		this.restBindPort = restBindPort;
+		this.restBindPortRange = requireNonNull(restBindPortRange);
 		this.sslHandlerFactory = sslHandlerFactory;
 		this.uploadDir = requireNonNull(uploadDir);
 		this.maxContentLength = maxContentLength;
@@ -97,12 +96,12 @@ public final class RestServerEndpointConfiguration {
 	}
 
 	/**
-	 * Returns the port that the REST server endpoint should listen on.
+	 * Returns the port range that the REST server endpoint should listen on.
 	 *
-	 * @return port that the REST server endpoint should listen on
+	 * @return port range that the REST server endpoint should listen on
 	 */
-	public int getRestBindPort() {
-		return restBindPort;
+	public String getRestBindPortRange() {
+		return restBindPortRange;
 	}
 
 	/**
@@ -153,7 +152,7 @@ public final class RestServerEndpointConfiguration {
 			RestOptions.ADDRESS.key());
 
 		final String restBindAddress = config.getString(RestOptions.BIND_ADDRESS);
-		final int port = config.getInteger(RestOptions.PORT);
+		final String portRangeDefinition = config.getString(RestOptions.BIND_PORT);
 
 		final SSLHandlerFactory sslHandlerFactory;
 		if (SSLUtils.isRestSSLEnabled(config)) {
@@ -179,7 +178,7 @@ public final class RestServerEndpointConfiguration {
 		return new RestServerEndpointConfiguration(
 			restAddress,
 			restBindAddress,
-			port,
+			portRangeDefinition,
 			sslHandlerFactory,
 			uploadDir,
 			maxContentLength,

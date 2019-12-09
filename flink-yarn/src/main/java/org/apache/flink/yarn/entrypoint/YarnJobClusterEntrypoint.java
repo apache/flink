@@ -21,9 +21,8 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
-import org.apache.flink.runtime.entrypoint.component.JobDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -33,8 +32,15 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
+import javax.annotation.Nullable;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
+
+import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Entry point for Yarn per-job clusters.
@@ -62,11 +68,27 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return new JobDispatcherResourceManagerComponentFactory(
-			YarnResourceManagerFactory.INSTANCE,
-			FileJobGraphRetriever.createFrom(configuration));
+	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
+		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
+			YarnResourceManagerFactory.getInstance(),
+			FileJobGraphRetriever.createFrom(configuration, getUsrLibDir(configuration)));
 	}
+
+	@Nullable
+	private static File getUsrLibDir(final Configuration configuration) {
+		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
+			.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final Optional<File> userLibDir = tryFindUserLibDirectory();
+
+		checkState(
+			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
+			"The %s is set to %s. But the usrlib directory does not exist.",
+			YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+			YarnConfigOptions.UserJarInclusion.DISABLED);
+
+		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir.get() : null;
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  The executable entry point for the Yarn Application Master Process

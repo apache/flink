@@ -38,7 +38,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -51,7 +50,6 @@ public abstract class AbstractCheckpointHandler<R extends ResponseBody, M extend
 	private final CheckpointStatsCache checkpointStatsCache;
 
 	protected AbstractCheckpointHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -59,7 +57,7 @@ public abstract class AbstractCheckpointHandler<R extends ResponseBody, M extend
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
 			CheckpointStatsCache checkpointStatsCache) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
 		this.checkpointStatsCache = Preconditions.checkNotNull(checkpointStatsCache);
 	}

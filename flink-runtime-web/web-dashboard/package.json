@@ -1,36 +1,69 @@
 {
   "name": "flink-dashboard",
-  "version": "1.0.0",
-  "description": "",
-  "repository": "",
-  "devDependencies": {
-    "browserify": "^9.0.3",
-    "coffeeify": "^1.0.0",
-    "gulp": "^3.8.11",
-    "gulp-browserify": "^0.5.1",
-    "gulp-coffee": "^2.3.1",
-    "gulp-coffeeify": "^0.1.8",
-    "gulp-concat": "^2.5.2",
-    "gulp-filter": "^2.0.2",
-    "gulp-jade": "^1.0.0",
-    "gulp-less": "^3.0.2",
-    "gulp-livereload": "^3.8.0",
-    "gulp-minify-css": "^1.0.0",
-    "gulp-ng-annotate": "^0.5.2",
-    "gulp-plumber": "^1.0.0",
-    "gulp-rename": "^1.2.0",
-    "gulp-serve": "^0.3.1",
-    "gulp-sourcemaps": "^1.5.1",
-    "gulp-stylus": "^2.0.1",
-    "gulp-uglify": "^1.1.0",
-    "gulp-util": "^3.0.4",
-    "jade": "^1.9.2",
-    "jadeify": "^4.1.0",
-    "main-bower-files": "^2.6.2",
-    "nib": "^1.1.0",
-    "path": "^0.11.14"
+  "version": "2.0.0",
+  "scripts": {
+    "ng": "node node_modules/@angular/cli/bin/ng",
+    "start": "ng serve",
+    "build": "ng build --prod --base-href ./",
+    "test": "ng test",
+    "lint": "ng lint",
+    "proxy": "ng serve --proxy-config proxy.conf.json"
   },
+  "private": true,
   "dependencies": {
-    "hapi": "^8.4.0"
+    "@angular/animations": "~7.2.0",
+    "@angular/common": "~7.2.0",
+    "@angular/compiler": "~7.2.0",
+    "@angular/core": "~7.2.0",
+    "@angular/forms": "~7.2.0",
+    "@angular/platform-browser": "~7.2.0",
+    "@angular/platform-browser-dynamic": "~7.2.0",
+    "@angular/router": "~7.2.0",
+    "@antv/g2": "^3.4.10",
+    "core-js": "^2.5.4",
+    "d3": "^5.9.1",
+    "dagre": "^0.8.4",
+    "monaco-editor": "^0.16.0",
+    "ng-zorro-antd": "^7.2.0",
+    "rxjs": "~6.3.3",
+    "tslib": "^1.9.0",
+    "zone.js": "~0.8.26"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "~0.13.0",
+    "@angular/cli": "~7.3.5",
+    "@angular/compiler-cli": "~7.2.0",
+    "@angular/language-service": "~7.2.0",
+    "@types/d3": "^5.7.1",
+    "@types/dagre": "^0.7.41",
+    "@types/jasmine": "~2.8.8",
+    "@types/jasminewd2": "~2.0.3",
+    "@types/node": "~8.9.4",
+    "codelyzer": "~4.5.0",
+    "husky": "^1.3.1",
+    "jasmine-core": "~2.99.1",
+    "jasmine-spec-reporter": "~4.2.1",
+    "karma-chrome-launcher": "~2.2.0",
+    "karma-coverage-istanbul-reporter": "~2.0.1",
+    "karma-jasmine-html-reporter": "^0.2.2",
+    "karma-jasmine": "~1.1.2",
+    "karma": "~4.0.0",
+    "lint-staged": "^8.1.5",
+    "prettier": "^1.16.4",
+    "protractor": "~5.4.0",
+    "ts-node": "~7.0.0",
+    "tslint": "~5.11.0",
+    "typescript": "~3.2.2"
+  },
+  "lint-staged": {
+    "*.{ts,less,json}": [
+      "./node_modules/.bin/prettier --write",
+      "git add"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   }
 }

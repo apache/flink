@@ -20,10 +20,16 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -33,6 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CheckpointConfig implements java.io.Serializable {
 
 	private static final long serialVersionUID = -750378776078908147L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointConfig.class);
 
 	/** The default checkpoint mode: exactly once. */
 	public static final CheckpointingMode DEFAULT_MODE = CheckpointingMode.EXACTLY_ONCE;
@@ -45,6 +53,8 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
+
+	public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -69,8 +79,24 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
-	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: true */
+	/**
+	 * Task would not fail if there is an error in their checkpointing.
+	 *
+	 * <p>{@link #tolerableCheckpointFailureNumber} would always overrule this deprecated field if they have conflicts.
+	 *
+	 * @deprecated Use {@link #tolerableCheckpointFailureNumber}.
+	 */
+	@Deprecated
 	private boolean failOnCheckpointingErrors = true;
+
+	/** Determines if a job will fallback to checkpoint when there is a more recent savepoint. **/
+	private boolean preferCheckpointForRecovery = false;
+
+	/**
+	 * Determines the threshold that we tolerance declined checkpoint failure number.
+	 * The default value is -1 meaning undetermined and not set via {@link #setTolerableCheckpointFailureNumber(int)}.
+	 * */
+	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
 	// ------------------------------------------------------------------------
 
@@ -122,8 +148,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @param checkpointInterval The checkpoint interval, in milliseconds.
 	 */
 	public void setCheckpointInterval(long checkpointInterval) {
-		if (checkpointInterval <= 0) {
-			throw new IllegalArgumentException("Checkpoint interval must be larger than zero");
+		if (checkpointInterval < MINIMAL_CHECKPOINT_TIME) {
+			throw new IllegalArgumentException(String.format("Checkpoint interval must be larger than or equal to %s ms", MINIMAL_CHECKPOINT_TIME));
 		}
 		this.checkpointInterval = checkpointInterval;
 	}
@@ -143,8 +169,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @param checkpointTimeout The checkpoint timeout, in milliseconds.
 	 */
 	public void setCheckpointTimeout(long checkpointTimeout) {
-		if (checkpointTimeout <= 0) {
-			throw new IllegalArgumentException("Checkpoint timeout must be larger than zero");
+		if (checkpointTimeout < MINIMAL_CHECKPOINT_TIME) {
+			throw new IllegalArgumentException(String.format("Checkpoint timeout must be larger than or equal to %s ms", MINIMAL_CHECKPOINT_TIME));
 		}
 		this.checkpointTimeout = checkpointTimeout;
 	}
@@ -233,20 +259,69 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * This determines the behaviour of tasks if there is an error in their local checkpointing. If this returns true,
-	 * tasks will fail as a reaction. If this returns false, task will only decline the failed checkpoint.
+	 * This determines the behaviour when meeting checkpoint errors.
+	 * If this returns true, which is equivalent to get tolerableCheckpointFailureNumber as zero, job manager would
+	 * fail the whole job once it received a decline checkpoint message.
+	 * If this returns false, which is equivalent to get tolerableCheckpointFailureNumber as the maximum of integer (means unlimited),
+	 * job manager would not fail the whole job no matter how many declined checkpoints it received.
+	 *
+	 * @deprecated Use {@link #getTolerableCheckpointFailureNumber()}.
 	 */
+	@Deprecated
 	public boolean isFailOnCheckpointingErrors() {
 		return failOnCheckpointingErrors;
 	}
 
 	/**
-	 * Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure.
-	 * If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only
-	 * decline a the checkpoint and continue running. The default is true.
+	 * Sets the expected behaviour for tasks in case that they encounter an error when checkpointing.
+	 * If this is set as true, which is equivalent to set tolerableCheckpointFailureNumber as zero, job manager would
+	 * fail the whole job once it received a decline checkpoint message.
+	 * If this is set as false, which is equivalent to set tolerableCheckpointFailureNumber as the maximum of integer (means unlimited),
+	 * job manager would not fail the whole job no matter how many declined checkpoints it received.
+	 *
+	 * <p>{@link #setTolerableCheckpointFailureNumber(int)} would always overrule this deprecated method if they have conflicts.
+	 *
+	 * @deprecated Use {@link #setTolerableCheckpointFailureNumber(int)}.
 	 */
+	@Deprecated
 	public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
+		if (tolerableCheckpointFailureNumber != UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
+			LOG.warn("Since tolerableCheckpointFailureNumber has been configured as {}, deprecated #setFailOnCheckpointingErrors(boolean) " +
+				"method would not take any effect and please use #setTolerableCheckpointFailureNumber(int) method to " +
+				"determine your expected behaviour when checkpoint errors on task side.", tolerableCheckpointFailureNumber);
+			return;
+		}
 		this.failOnCheckpointingErrors = failOnCheckpointingErrors;
+		if (failOnCheckpointingErrors) {
+			this.tolerableCheckpointFailureNumber = 0;
+		} else {
+			this.tolerableCheckpointFailureNumber = UNLIMITED_TOLERABLE_FAILURE_NUMBER;
+		}
+	}
+
+	/**
+	 * Get the tolerable checkpoint failure number which used by the checkpoint failure manager
+	 * to determine when we need to fail the job.
+	 *
+	 * <p>If the {@link #tolerableCheckpointFailureNumber} has not been configured, this method would return 0
+	 * which means the checkpoint failure manager would not tolerate any declined checkpoint failure.
+	 */
+	public int getTolerableCheckpointFailureNumber() {
+		if (tolerableCheckpointFailureNumber == UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
+			return 0;
+		}
+		return tolerableCheckpointFailureNumber;
+	}
+
+	/**
+	 * Set the tolerable checkpoint failure number, the default value is 0 that means
+	 * we do not tolerance any checkpoint failure.
+	 */
+	public void setTolerableCheckpointFailureNumber(int tolerableCheckpointFailureNumber) {
+		if (tolerableCheckpointFailureNumber < 0) {
+			throw new IllegalArgumentException("The tolerable failure checkpoint number must be non-negative.");
+		}
+		this.tolerableCheckpointFailureNumber = tolerableCheckpointFailureNumber;
 	}
 
 	/**
@@ -283,6 +358,24 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public boolean isExternalizedCheckpointsEnabled() {
 		return externalizedCheckpointCleanup != null;
+	}
+
+	/**
+	 * Returns whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
+	 *
+	 * @return <code>true</code> if a job recovery should fallback to checkpoint.
+	 */
+	@PublicEvolving
+	public boolean isPreferCheckpointForRecovery() {
+		return preferCheckpointForRecovery;
+	}
+
+	/**
+	 * Sets whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
+	 */
+	@PublicEvolving
+	public void setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
+		this.preferCheckpointForRecovery = preferCheckpointForRecovery;
 	}
 
 	/**
@@ -343,5 +436,34 @@ public class CheckpointConfig implements java.io.Serializable {
 		public boolean deleteOnCancellation() {
 			return deleteOnCancellation;
 		}
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link ExecutionCheckpointingOptions#CHECKPOINTING_MODE}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 */
+	public void configure(ReadableConfig configuration) {
+		configuration.getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_MODE)
+			.ifPresent(this::setCheckpointingMode);
+		configuration.getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
+			.ifPresent(i -> this.setCheckpointInterval(i.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT)
+			.ifPresent(t -> this.setCheckpointTimeout(t.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS)
+			.ifPresent(this::setMaxConcurrentCheckpoints);
+		configuration.getOptional(ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS)
+			.ifPresent(m -> this.setMinPauseBetweenCheckpoints(m.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.PREFER_CHECKPOINT_FOR_RECOVERY)
+			.ifPresent(this::setPreferCheckpointForRecovery);
+		configuration.getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
+			.ifPresent(this::setTolerableCheckpointFailureNumber);
+		configuration.getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT)
+			.ifPresent(this::enableExternalizedCheckpoints);
 	}
 }

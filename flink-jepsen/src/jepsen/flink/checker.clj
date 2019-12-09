@@ -149,11 +149,9 @@
           ; ignore other client operations
           this)))))
 
-(defn job-running-within-grace-period
+(defn- job-running-within-grace-period
   ([job-running-healthy-threshold job-recovery-grace-period job-cancellation-grace-period]
-   (JobRunningWithinGracePeriod. {} 0 nil job-running-healthy-threshold job-recovery-grace-period job-cancellation-grace-period false nil))
-  ([job-running-healthy-threshold job-recovery-grace-period]
-   (job-running-within-grace-period job-running-healthy-threshold job-recovery-grace-period 10)))
+   (JobRunningWithinGracePeriod. {} 0 nil job-running-healthy-threshold job-recovery-grace-period job-cancellation-grace-period false nil)))
 
 (defn- history->jobs-running?-value
   [history]
@@ -216,19 +214,24 @@
             history)))
 
 (defn job-running-checker
-  []
-  (reify
-    checker/Checker
-    (check [_ test model history _]
-      (let [job-ids (history->job-ids history)
-            individual-job-histories (map (partial history->single-job-history history) job-ids)
-            final-models (map (partial compute-final-model model) individual-job-histories)
-            inconsistent-or-unhealthy (or (empty? job-ids)
-                                          (some model/inconsistent? final-models)
-                                          (some (complement healthy?) final-models))
-            result-map (select-keys test [:nemesis-gen :deployment-mode])]
-        (if inconsistent-or-unhealthy
-          (into result-map {:valid?       false
-                            :final-models final-models})
-          (into result-map {:valid?       true
-                            :final-models final-models}))))))
+  ([job-running-healthy-threshold job-recovery-grace-period]
+   (job-running-checker job-running-healthy-threshold job-recovery-grace-period 10))
+  ([job-running-healthy-threshold job-recovery-grace-period job-cancellation-grace-period]
+   (reify
+     checker/Checker
+     (check [_ test history _]
+       (let [job-ids (history->job-ids history)
+             individual-job-histories (map (partial history->single-job-history history) job-ids)
+             model (job-running-within-grace-period job-running-healthy-threshold
+                                                    job-recovery-grace-period
+                                                    job-cancellation-grace-period)
+             final-models (map (partial compute-final-model model) individual-job-histories)
+             inconsistent-or-unhealthy (or (empty? job-ids)
+                                           (some model/inconsistent? final-models)
+                                           (some (complement healthy?) final-models))
+             result-map (select-keys test [:nemesis-gen :deployment-mode])]
+         (if inconsistent-or-unhealthy
+           (into result-map {:valid?       false
+                             :final-models final-models})
+           (into result-map {:valid?       true
+                             :final-models final-models})))))))

@@ -22,11 +22,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -35,11 +34,11 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -77,7 +76,8 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				new AllocationID(),
 				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i),
 				0,
-				taskManagerGateway);
+				taskManagerGateway,
+				ResourceProfile.ANY);
 			slots.add(as);
 		}
 
@@ -88,7 +88,6 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
-			boolean allowQueued,
 			SlotProfile slotProfile,
 			Time allocationTimeout) {
 		final SlotContext slot;
@@ -100,41 +99,49 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				slot = slots.removeFirst();
 			}
 			if (slot != null) {
-				SimpleSlot result = new SimpleSlot(slot, this, 0);
+				TestingLogicalSlot result = new TestingLogicalSlotBuilder()
+					.setTaskManagerLocation(slot.getTaskManagerLocation())
+					.setTaskManagerGateway(slot.getTaskManagerGateway())
+					.setSlotNumber(slot.getPhysicalSlotNumber())
+					.setAllocationId(slot.getAllocationId())
+					.setSlotRequestId(slotRequestId)
+					.setSlotSharingGroupId(task.getSlotSharingGroupId())
+					.setSlotOwner(this)
+					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
 				return CompletableFuture.completedFuture(result);
-			}
-			else {
+			} else {
 				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 			}
 		}
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		synchronized (lock) {
 			final SlotContext slotContext = allocatedSlots.remove(slotRequestId);
 
 			if (slotContext != null) {
 				slots.add(slotContext);
-				return CompletableFuture.completedFuture(Acknowledge.get());
 			} else {
-				return FutureUtils.completedExceptionally(new FlinkException("Unknown slot request id " + slotRequestId + '.'));
+				throw new FlinkRuntimeException("Unknown slot request id " + slotRequestId + '.');
 			}
 		}
 	}
 
 	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-		Preconditions.checkArgument(logicalSlot instanceof Slot);
-
-		final Slot slot = ((Slot) logicalSlot);
-
+	public void returnLogicalSlot(LogicalSlot logicalSlot) {
 		synchronized (lock) {
-			slots.add(slot.getSlotContext());
+			SimpleSlotContext as = new SimpleSlotContext(
+				logicalSlot.getAllocationId(),
+				logicalSlot.getTaskManagerLocation(),
+				logicalSlot.getPhysicalSlotNumber(),
+				logicalSlot.getTaskManagerGateway(),
+				ResourceProfile.ANY);
+
+			slots.add(as);
 			allocatedSlots.remove(logicalSlot.getSlotRequestId());
 		}
-		return CompletableFuture.completedFuture(true);
 	}
 
 	public int getNumberOfAvailableSlots() {

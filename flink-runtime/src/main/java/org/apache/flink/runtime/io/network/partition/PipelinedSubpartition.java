@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -30,6 +31,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -42,9 +44,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
  * {@link #createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
  * {@link #flush()} explicitly, we always only notify when the first finished buffer turns up and
- * then, the reader has to drain the buffers via {@link #pollBuffer()} until its return value shows
- * no more buffers being available. This results in a buffer queue which is either empty or has an
- * unfinished {@link BufferConsumer} left from which the notifications will eventually start again.
+ * then, the reader has to drain the buffers via {@link #pollBuffer(boolean)} until its return value
+ * shows no more buffers being available. This results in a buffer queue which is either empty or has
+ * an unfinished {@link BufferConsumer} left from which the notifications will eventually start again.
  *
  * <p>Explicit calls to {@link #flush()} will force this
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notification} for any
@@ -55,6 +57,13 @@ class PipelinedSubpartition extends ResultSubpartition {
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
 	// ------------------------------------------------------------------------
+
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	private final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
+
+	/** The number of non-event buffers currently in this subpartition. */
+	@GuardedBy("buffers")
+	private int buffersInBacklog;
 
 	/** The read view to consume this subpartition. */
 	private PipelinedSubpartitionView readView;
@@ -67,6 +76,12 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
+
+	/** The total number of buffers (both data and event buffers). */
+	private long totalNumberOfBuffers;
+
+	/** The total number of bytes (both data and event buffers). */
+	private long totalNumberOfBytes;
 
 	// ------------------------------------------------------------------------
 
@@ -142,7 +157,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Nullable
-	BufferAndBacklog pollBuffer() {
+	BufferAndBacklog pollBuffer(boolean isLocalChannel) {
 		synchronized (buffers) {
 			Buffer buffer = null;
 
@@ -154,6 +169,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 				BufferConsumer bufferConsumer = buffers.peek();
 
 				buffer = bufferConsumer.build();
+				if (!isLocalChannel && canBeCompressed(buffer)) {
+					buffer = parent.bufferCompressor.compressToOriginalBuffer(buffer);
+				}
 
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
@@ -292,11 +310,70 @@ class PipelinedSubpartition extends ResultSubpartition {
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !flushRequested && buffers.size() == 1;
-			flushRequested = true;
+			notifyDataAvailable = !flushRequested && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			flushRequested = flushRequested || buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
 			notifyDataAvailable();
+		}
+	}
+
+	@Override
+	protected long getTotalNumberOfBuffers() {
+		return totalNumberOfBuffers;
+	}
+
+	@Override
+	protected long getTotalNumberOfBytes() {
+		return totalNumberOfBytes;
+	}
+
+	Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
+
+	private void updateStatistics(BufferConsumer buffer) {
+		totalNumberOfBuffers++;
+	}
+
+	private void updateStatistics(Buffer buffer) {
+		totalNumberOfBytes += buffer.getSize();
+	}
+
+	@GuardedBy("buffers")
+	private void decreaseBuffersInBacklogUnsafe(boolean isBuffer) {
+		assert Thread.holdsLock(buffers);
+		if (isBuffer) {
+			buffersInBacklog--;
+		}
+	}
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	@GuardedBy("buffers")
+	private void increaseBuffersInBacklog(BufferConsumer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
+	}
+
+	/**
+	 * Gets the number of non-event buffers in this subpartition.
+	 *
+	 * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
+	 * scenarios since it does not make any concurrency guarantees.
+	 */
+	@SuppressWarnings("FieldAccessNotGuarded")
+	@VisibleForTesting
+	public int getBuffersInBacklog() {
+		if (flushRequested || isFinished) {
+			return buffersInBacklog;
+		} else {
+			return Math.max(buffersInBacklog - 1, 0);
 		}
 	}
 

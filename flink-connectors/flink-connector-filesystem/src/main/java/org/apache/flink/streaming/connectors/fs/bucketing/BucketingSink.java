@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.fs.Clock;
-import org.apache.flink.streaming.connectors.fs.RollingSink;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
@@ -62,7 +61,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -160,7 +158,13 @@ import java.util.UUID;
  * @see SequenceFileWriter
  *
  * @param <T> Type of the elements emitted by this sink
+ *
+ * @deprecated Please use the
+ * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ * instead.
+ *
  */
+@Deprecated
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
 		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
@@ -632,29 +636,32 @@ public class BucketingSink<T>
 
 			// verify that truncate actually works
 			Path testPath = new Path(basePath, UUID.randomUUID().toString());
-			try (FSDataOutputStream outputStream = fs.create(testPath)) {
-				outputStream.writeUTF("hello");
-			} catch (IOException e) {
-				LOG.error("Could not create file for checking if truncate works.", e);
-				throw new RuntimeException("Could not create file for checking if truncate works. " +
-					"You can disable support for truncate() completely via " +
-					"BucketingSink.setUseTruncate(false).", e);
-			}
-
 			try {
-				m.invoke(fs, testPath, 2);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				LOG.debug("Truncate is not supported.", e);
-				m = null;
-			}
+				try (FSDataOutputStream outputStream = fs.create(testPath)) {
+					outputStream.writeUTF("hello");
+				} catch (IOException e) {
+					LOG.error("Could not create file for checking if truncate works.", e);
+					throw new RuntimeException(
+							"Could not create file for checking if truncate works. " +
+									"You can disable support for truncate() completely via " +
+									"BucketingSink.setUseTruncate(false).", e);
+				}
 
-			try {
-				fs.delete(testPath, false);
-			} catch (IOException e) {
-				LOG.error("Could not delete truncate test file.", e);
-				throw new RuntimeException("Could not delete truncate test file. " +
-					"You can disable support for truncate() completely via " +
-					"BucketingSink.setUseTruncate(false).", e);
+				try {
+					m.invoke(fs, testPath, 2);
+				} catch (IllegalAccessException | InvocationTargetException e) {
+					LOG.debug("Truncate is not supported.", e);
+					m = null;
+				}
+			} finally {
+				try {
+					fs.delete(testPath, false);
+				} catch (IOException e) {
+					LOG.error("Could not delete truncate test file.", e);
+					throw new RuntimeException("Could not delete truncate test file. " +
+							"You can disable support for truncate() completely via " +
+							"BucketingSink.setUseTruncate(false).", e);
+				}
 			}
 		}
 		return m;
@@ -777,20 +784,6 @@ public class BucketingSink<T>
 		}
 	}
 
-	private void handleRestoredRollingSinkState(RollingSink.BucketState restoredState) {
-		restoredState.pendingFiles.clear();
-
-		handlePendingInProgressFile(restoredState.currentFile, restoredState.currentFileValidLength);
-
-		// Now that we've restored the bucket to a valid state, reset the current file info
-		restoredState.currentFile = null;
-		restoredState.currentFileValidLength = -1;
-
-		handlePendingFilesForPreviousCheckpoints(restoredState.pendingFilesPerCheckpoint);
-
-		restoredState.pendingFilesPerCheckpoint.clear();
-	}
-
 	private void handlePendingInProgressFile(String file, long validLength) {
 		if (file != null) {
 
@@ -899,11 +892,12 @@ public class BucketingSink<T>
 
 		LOG.debug("Moving pending files to final location on restore.");
 
-		Set<Long> pastCheckpointIds = pendingFilesPerCheckpoint.keySet();
-		for (Long pastCheckpointId : pastCheckpointIds) {
+		for (Map.Entry<Long, List<String>> entry : pendingFilesPerCheckpoint.entrySet()) {
+			Long pastCheckpointId = entry.getKey();
+			List<String> pendingFiles = entry.getValue();
 			// All the pending files are buckets that have been completed but are waiting to be renamed
 			// to their final name
-			for (String filename : pendingFilesPerCheckpoint.get(pastCheckpointId)) {
+			for (String filename : pendingFiles) {
 				Path finalPath = new Path(filename);
 				Path pendingPath = getPendingPathFor(finalPath);
 

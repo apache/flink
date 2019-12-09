@@ -38,7 +38,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -52,6 +54,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -322,13 +325,17 @@ public class StreamingRuntimeContextTest {
 						(ListStateDescriptor<String>) invocationOnMock.getArguments()[2];
 
 				AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
-						new DummyEnvironment("test_task", 1, 0),
-						new JobID(),
-						"test_op",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+					new DummyEnvironment("test_task", 1, 0),
+					new JobID(),
+					"test_op",
+					IntSerializer.INSTANCE,
+					1,
+					new KeyGroupRange(0, 0),
+					new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
 				backend.setCurrentKey(0);
 				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 			}
@@ -359,13 +366,17 @@ public class StreamingRuntimeContextTest {
 						(MapStateDescriptor<Integer, String>) invocationOnMock.getArguments()[2];
 
 				AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
-						new DummyEnvironment("test_task", 1, 0),
-						new JobID(),
-						"test_op",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+					new DummyEnvironment("test_task", 1, 0),
+					new JobID(),
+					"test_op",
+					IntSerializer.INSTANCE,
+					1,
+					new KeyGroupRange(0, 0),
+					new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
 				backend.setCurrentKey(0);
 				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 			}

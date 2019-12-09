@@ -18,32 +18,20 @@
 
 package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
-import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.contrib.streaming.state.RocksDBTestUtils;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-
-import static org.mockito.Mockito.mock;
 
 /**
  * Additional tests for the serialization and deserialization using
@@ -65,30 +53,10 @@ public final class KVStateRequestSerializerRocksDBTest {
 	public void testListSerialization() throws Exception {
 		final long key = 0L;
 
-		// objects for RocksDB state list serialisation
-		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
-		dbOptions.setCreateIfMissing(true);
-		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
-		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-			new RocksDBKeyedStateBackend<>(
-				"no-op",
-				ClassLoader.getSystemClassLoader(),
-				temporaryFolder.getRoot(),
-				dbOptions,
-				columnFamilyOptions,
-				mock(TaskKvStateRegistry.class),
-				LongSerializer.INSTANCE,
-				1,
-				new KeyGroupRange(0, 0),
-				new ExecutionConfig(),
-				false,
-				TestLocalRecoveryConfig.disabled(),
-				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT,
-				new RocksDBNativeMetricOptions(),
-				new UnregisteredMetricsGroup()
-			);
-		longHeapKeyedStateBackend.restore(null);
+		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend = RocksDBTestUtils
+			.builderForTestDefaults(temporaryFolder.getRoot(), LongSerializer.INSTANCE)
+			.build();
+
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(VoidNamespaceSerializer.INSTANCE,
@@ -110,29 +78,10 @@ public final class KVStateRequestSerializerRocksDBTest {
 		final long key = 0L;
 
 		// objects for RocksDB state list serialisation
-		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
-		dbOptions.setCreateIfMissing(true);
-		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
-		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-			new RocksDBKeyedStateBackend<>(
-				"no-op",
-				ClassLoader.getSystemClassLoader(),
-				temporaryFolder.getRoot(),
-				dbOptions,
-				columnFamilyOptions,
-				mock(TaskKvStateRegistry.class),
-				LongSerializer.INSTANCE,
-				1,
-				new KeyGroupRange(0, 0),
-				new ExecutionConfig(),
-				false,
-				TestLocalRecoveryConfig.disabled(),
-				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT,
-				new RocksDBNativeMetricOptions(),
-				new UnregisteredMetricsGroup()
-			);
-		longHeapKeyedStateBackend.restore(null);
+		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend = RocksDBTestUtils
+			.builderForTestDefaults(temporaryFolder.getRoot(), LongSerializer.INSTANCE)
+			.build();
+
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalMapState<Long, VoidNamespace, Long, String> mapState =

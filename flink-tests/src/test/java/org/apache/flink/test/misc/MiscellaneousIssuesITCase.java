@@ -30,14 +30,16 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -52,6 +54,7 @@ import static org.junit.Assert.fail;
  * test cluster.
  */
 @SuppressWarnings("serial")
+@Category(AlsoRunWithLegacyScheduler.class)
 public class MiscellaneousIssuesITCase extends TestLogger {
 
 	@ClassRule
@@ -66,7 +69,6 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(1);
-			env.getConfig().disableSysoutLogging();
 
 			DataSet<String> data = env.fromElements("hallo")
 					.map(new MapFunction<String, String>() {
@@ -82,8 +84,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 				fail("this should fail due to null values.");
 			}
 			catch (JobExecutionException e) {
-				assertNotNull(e.getCause());
-				assertTrue(e.getCause() instanceof NullPointerException);
+				assertTrue(findThrowable(e, NullPointerException.class).isPresent());
 			}
 		}
 		catch (Exception e) {
@@ -97,7 +98,6 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(5);
-			env.getConfig().disableSysoutLogging();
 
 			// generate two different flows
 			env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
@@ -118,7 +118,6 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(6);
-			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 1000000)
 					.rebalance()

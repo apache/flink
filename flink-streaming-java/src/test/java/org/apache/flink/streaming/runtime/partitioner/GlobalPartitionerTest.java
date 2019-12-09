@@ -21,6 +21,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertFalse;
+
 /**
  * Tests for {@link GlobalPartitioner}.
  */
@@ -28,7 +30,9 @@ public class GlobalPartitionerTest extends StreamPartitionerTest {
 
 	@Override
 	public StreamPartitioner<Tuple> createPartitioner() {
-		return new GlobalPartitioner<>();
+		StreamPartitioner<Tuple> partitioner = new GlobalPartitioner<>();
+		assertFalse(partitioner.isBroadcast());
+		return partitioner;
 	}
 
 	@Test

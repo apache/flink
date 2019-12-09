@@ -1,0 +1,88 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<nz-layout>
+  <nz-sider nzCollapsible [(nzCollapsed)]="collapsed" [nzTrigger]="null" [nzWidth]="256">
+    <div class="logo">
+      <a href="#/"><img src="assets/images/flink.svg">
+        <h1>Apache Flink Dashboard</h1></a>
+    </div>
+    <ul nz-menu [nzTheme]="'dark'" [nzMode]="'inline'" [nzInlineCollapsed]="collapsed" class="menu">
+      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/overview']">
+        <span><i nz-icon type="dashboard"></i><span>Overview</span></span>
+      </li>
+      <li nz-submenu [nzOpen]="true">
+          <span title>
+            <i nz-icon type="bars"></i>
+            <span>Jobs</span>
+          </span>
+        <ul>
+          <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job/running']">
+            <span><i nz-icon type="play-circle"></i><span>Running Jobs</span></span>
+          </li>
+          <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job/completed']">
+            <span><i nz-icon type="check-circle"></i><span>Completed Jobs</span></span>
+          </li>
+        </ul>
+      </li>
+      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/task-manager']">
+        <span><i nz-icon type="schedule"></i><span>Task Managers</span></span>
+      </li>
+      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
+        <span><i nz-icon type="build"></i><span>Job Manager</span></span>
+      </li>
+      <li *ngIf="webSubmitEnabled" nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
+        <span><i nz-icon type="upload"></i><span>Submit New Job</span></span>
+      </li>
+    </ul>
+  </nz-sider>
+  <nz-layout>
+    <nz-header>
+      <i class="trigger" nz-icon [type]="collapsed?'menu-unfold':'menu-fold'" (click)="toggleCollapse()">
+      </i>
+      <div class="right">
+        <span>
+          <strong>Version:</strong> {{ statusService.configuration['flink-version'] }}
+        </span>
+        <nz-divider nzType="vertical"></nz-divider>
+        <span>
+          <strong>Commit:</strong> {{ statusService.configuration['flink-revision'] }}
+        </span>
+        <nz-divider nzType="vertical"></nz-divider>
+        <span [hidden]="!(online$ | async)">
+          <strong> Message: </strong>
+          <nz-badge (click)="showMessage()" nzShowZero [class.normal]="statusService.listOfErrorMessage.length===0" [nzCount]="statusService.listOfErrorMessage.length"></nz-badge>
+        </span>
+        <span [hidden]="online$ | async">
+          <strong class="offline">Lost Connection, Reconnecting Now...</strong>
+        </span>
+      </div>
+    </nz-header>
+    <nz-content>
+      <router-outlet></router-outlet>
+    </nz-content>
+  </nz-layout>
+</nz-layout>
+
+<nz-drawer [nzVisible]="visible" [nzWidth]="500" nzPlacement="right" nzTitle="Server Response Message List" (nzOnClose)="clearMessage()">
+  <nz-alert *ngFor="let message of statusService.listOfErrorMessage"
+    [nzShowIcon]="true"
+    [nzType]="'info'"
+    [nzMessage]="'Server Response:'"
+    [nzDescription]="message">
+  </nz-alert>
+</nz-drawer>

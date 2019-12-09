@@ -1,0 +1,24 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>restart-strategy.fixed-delay.attempts</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of times that Flink retries the execution before the job is declared as failed if <span markdown="span">`restart-strategy`</span> has been set to <span markdown="span">`fixed-delay`</span>.</td>
+        </tr>
+        <tr>
+            <td><h5>restart-strategy.fixed-delay.delay</h5></td>
+            <td style="word-wrap: break-word;">1000ms</td>
+            <td>Duration</td>
+            <td>Delay between two consecutive restart attempts if <span markdown="span">`restart-strategy`</span> has been set to <span markdown="span">`fixed-delay`</span>. Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted. It can be specified using notation: "1 min", "20 s"</td>
+        </tr>
+    </tbody>
+</table>

@@ -19,8 +19,9 @@
 package org.apache.flink.streaming.tests.verify;
 
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
@@ -29,6 +30,9 @@ import java.io.Serializable;
 
 /** User state value with timestamps before and after update. */
 public class ValueWithTs<V> implements Serializable {
+
+	private static final long serialVersionUID = -8941625260587401383L;
+
 	private final V value;
 	private final long timestamp;
 
@@ -56,8 +60,10 @@ public class ValueWithTs<V> implements Serializable {
 	/** Serializer for Serializer. */
 	public static class Serializer extends CompositeSerializer<ValueWithTs<?>> {
 
-		public Serializer(TypeSerializer<?> userValueSerializer) {
-			super(true, userValueSerializer, LongSerializer.INSTANCE);
+		private static final long serialVersionUID = -7300352863212438745L;
+
+		public Serializer(TypeSerializer<?> valueSerializer, TypeSerializer<Long> timestampSerializer) {
+			super(true, valueSerializer, timestampSerializer);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -92,7 +98,58 @@ public class ValueWithTs<V> implements Serializable {
 		protected CompositeSerializer<ValueWithTs<?>> createSerializerInstance(
 				PrecomputedParameters precomputed,
 				TypeSerializer<?>... originalSerializers) {
-			return new Serializer(precomputed, (TypeSerializer<Object>) originalSerializers[0]);
+
+			return new Serializer(precomputed, originalSerializers[0], originalSerializers[1]);
+		}
+
+		TypeSerializer<?> getValueSerializer() {
+			return fieldSerializers[0];
+		}
+
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Long> getTimestampSerializer() {
+			TypeSerializer<?> fieldSerializer = fieldSerializers[1];
+			return (TypeSerializer<Long>) fieldSerializer;
+		}
+
+		@Override
+		public TypeSerializerSnapshot<ValueWithTs<?>> snapshotConfiguration() {
+			return new ValueWithTsSerializerSnapshot(this);
+		}
+	}
+
+	/**
+	 * A {@link TypeSerializerSnapshot} for ValueWithTs Serializer.
+	 */
+	public static final class ValueWithTsSerializerSnapshot extends CompositeTypeSerializerSnapshot<ValueWithTs<?>, Serializer> {
+
+		private static final int VERSION = 2;
+
+		@SuppressWarnings("unused")
+		public ValueWithTsSerializerSnapshot() {
+			super(Serializer.class);
+		}
+
+		ValueWithTsSerializerSnapshot(Serializer serializerInstance) {
+			super(serializerInstance);
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return VERSION;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(Serializer outerSerializer) {
+			return new TypeSerializer[]{outerSerializer.getValueSerializer(), outerSerializer.getTimestampSerializer()};
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected Serializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			TypeSerializer<?> valueSerializer = nestedSerializers[0];
+			TypeSerializer<Long> timestampSerializer = (TypeSerializer<Long>) nestedSerializers[1];
+			return new Serializer(valueSerializer, timestampSerializer);
 		}
 	}
 }

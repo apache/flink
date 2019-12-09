@@ -155,7 +155,7 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement>
 	}
 
 	private int globalKeyGroupToLocalIndex(int keyGroup) {
-		checkArgument(keyGroupRange.contains(keyGroup));
+		checkArgument(keyGroupRange.contains(keyGroup), "%s does not contain key group %s", keyGroupRange, keyGroup);
 		return keyGroup - keyGroupRange.getStartKeyGroup();
 	}
 

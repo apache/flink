@@ -60,14 +60,14 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkAppendedField() throws Exception {
-		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_B).isCompatibleAsIs());
+		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer());
 	}
 
 	/**
-	 * Check that removing enum fields requires migration
+	 * Check that removing enum fields makes the snapshot incompatible
 	 */
-	@Test
-	public void checkRemovedField() throws Exception {
+	@Test(expected = IllegalStateException.class)
+	public void removingFieldShouldBeIncompatible() throws Exception {
 		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
 	}
 
@@ -76,7 +76,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkDifferentFieldOrder() throws Exception {
-		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_D).isCompatibleAsIs());
+		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_D).isCompatibleWithReconfiguredSerializer());
 	}
 
 	@SuppressWarnings("unchecked")

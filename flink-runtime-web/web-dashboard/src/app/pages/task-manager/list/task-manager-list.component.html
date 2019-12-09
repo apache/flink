@@ -1,0 +1,60 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-card [nzBordered]="false" [nzTitle]="'Task Managers'" [nzLoading]="isLoading">
+  <nz-table
+    class="small"
+    [nzSize]="'small'"
+    [nzScroll]="{x:'1250px',y:'calc(100vh - 260px)'}"
+    [nzData]="listOfTaskManager"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false">
+    <thead  (nzSortChange)="sort($event)" nzSingleSort>
+      <tr>
+        <th nzLeft="0px" [nzWidth]="'280px'">Path, ID</th>
+        <th nzShowSort nzSortKey="dataPort" [nzWidth]="'100px'">Data Port</th>
+        <th nzShowSort nzSortKey="timeSinceLastHeartbeat" [nzWidth]="'160px'">Last Heartbeat</th>
+        <th nzShowSort nzSortKey="slotsNumber" [nzWidth]="'90px'">All Slots</th>
+        <th nzShowSort nzSortKey="freeSlots" [nzWidth]="'100px'">Free Slots</th>
+        <th nzShowSort nzSortKey="hardware.cpuCores" [nzWidth]="'110px'">CPU Cores</th>
+        <th nzShowSort nzSortKey="hardware.physicalMemory" [nzWidth]="'120px'">Physical MEM</th>
+        <th nzShowSort nzSortKey="hardware.freeMemory" [nzWidth]="'130px'">JVM Heap Size</th>
+        <th nzRight="0px" nzShowSort nzSortKey="hardware.managedMemory" [nzWidth]="'160px'">Flink Managed MEM</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let manager of listOfTaskManager; trackBy:trackManagerBy;">
+        <tr class="clickable" (click)="navigateTo(manager)">
+          <td nzLeft="0px">
+            <em class="break-word"><a>{{ manager.id }}</a></em>
+            <br>
+            <em class="break-word">{{ manager.path }}</em>
+          </td>
+          <td>{{ manager.dataPort }}</td>
+          <td>{{ manager.timeSinceLastHeartbeat | date:'yy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ manager.slotsNumber }}</td>
+          <td>{{ manager.freeSlots }}</td>
+          <td>{{ manager.hardware.cpuCores }}</td>
+          <td [attr.title]="manager.hardware.physicalMemory+' bytes'">{{ manager.hardware.physicalMemory | humanizeBytes }}</td>
+          <td [attr.title]="manager.hardware.freeMemory+' bytes'">{{ manager.hardware.freeMemory | humanizeBytes }}</td>
+          <td [attr.title]="manager.hardware.managedMemory+' bytes'" nzRight="0px">{{ manager.hardware.managedMemory | humanizeBytes }}</td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </nz-table>
+</nz-card>

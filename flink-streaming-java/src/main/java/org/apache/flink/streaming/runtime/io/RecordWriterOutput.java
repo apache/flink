@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
-	private StreamRecordWriter<SerializationDelegate<StreamElement>> recordWriter;
+	private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
 
 	private SerializationDelegate<StreamElement> serializationDelegate;
 
@@ -57,7 +57,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
-			StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
+			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
 			TypeSerializer<OUT> outSerializer,
 			OutputTag outputTag,
 			StreamStatusProvider streamStatusProvider) {
@@ -66,8 +66,8 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		this.outputTag = outputTag;
 		// generic hack: cast the writer to generic Object type so we can use it
 		// with multiplexed records and watermarks
-		this.recordWriter = (StreamRecordWriter<SerializationDelegate<StreamElement>>)
-				(StreamRecordWriter<?>) recordWriter;
+		this.recordWriter = (RecordWriter<SerializationDelegate<StreamElement>>)
+				(RecordWriter<?>) recordWriter;
 
 		TypeSerializer<StreamElement> outRecordSerializer =
 				new StreamElementSerializer<>(outSerializer);
@@ -82,7 +82,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	@Override
 	public void collect(StreamRecord<OUT> record) {
 		if (this.outputTag != null) {
-			// we are only responsible for emitting to the main input
+			// we are not responsible for emitting to the main output.
 			return;
 		}
 
@@ -92,7 +92,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-			// we are only responsible for emitting to the side-output specified by our
+			// we are not responsible for emitting to the side-output specified by this
 			// OutputTag.
 			return;
 		}

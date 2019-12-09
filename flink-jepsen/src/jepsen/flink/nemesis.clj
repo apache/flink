@@ -25,11 +25,23 @@
             [jepsen.flink.client :refer :all]
             [jepsen.flink.generator :as fgen]
             [jepsen.flink.hadoop :as fh]
-            [jepsen.flink.zookeeper :refer :all]))
+            [jepsen.flink.zookeeper :refer :all]
+            [slingshot.slingshot :refer [try+]]))
 
 (def job-submit-grace-period
   "Period after job submission in which job managers must not fail."
   60)
+
+(defn- grepkill!
+  [pattern]
+  (try+
+    (cu/grepkill! pattern)
+    ;; HACK:
+    ;; On Debian Stretch, Jepsen's grepkill! throws an exception if the pattern does not match any
+    ;; processes. We are swallowing the exception here because the process we are attempting to kill
+    ;; might not be (re-)started yet.
+    ;; For details, see https://github.com/jepsen-io/jepsen/issues/366
+    (catch [:type :jepsen.control/nonzero-exit :exit 123] _)))
 
 (defn kill-processes
   ([pattern] (kill-processes rand-nth pattern))
@@ -38,8 +50,7 @@
      (setup! [this test] this)
      (invoke! [this test op]
        (let [nodes (-> test :nodes targeter ju/coll)]
-         (c/on-many nodes
-                    (c/su (cu/grepkill! pattern)))
+         (c/on-many nodes (c/su (grepkill! pattern)))
          (assoc op :value nodes)))
      (teardown! [this test]))))
 

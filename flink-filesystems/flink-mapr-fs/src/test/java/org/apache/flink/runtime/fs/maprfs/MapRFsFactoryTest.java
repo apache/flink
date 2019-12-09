@@ -18,99 +18,51 @@
 
 package org.apache.flink.runtime.fs.maprfs;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.core.fs.FileSystemKind;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the MapRFsFactory.
+ * Tests for the {@link MapRFsFactory}.
  */
 public class MapRFsFactoryTest extends TestLogger {
 
-	/**
-	 * This test validates that the factory can be instantiated and configured even
-	 * when MapR and Hadoop classes are missing from the classpath.
-	 */
 	@Test
-	public void testInstantiationWithoutMapRClasses() throws Exception {
-		// we do reflection magic here to instantiate the test in another class
-		// loader, to make sure no MapR and Hadoop classes are in the classpath
+	public void testMapRFsScheme() throws Exception {
+		final Path path = new Path("maprfs:///my/path");
 
-		final String testClassName = "org.apache.flink.runtime.fs.maprfs.MapRFreeTests";
+		final FileSystem fs = path.getFileSystem();
 
-		URLClassLoader parent = (URLClassLoader) getClass().getClassLoader();
-		ClassLoader maprFreeClassLoader = new MapRFreeClassLoader(parent);
-		Class<?> testClass = Class.forName(testClassName, false, maprFreeClassLoader);
-		Method m = testClass.getDeclaredMethod("test");
-
-		try {
-			m.invoke(null);
-		}
-		catch (InvocationTargetException e) {
-			ExceptionUtils.rethrowException(e.getTargetException(), "exception in method");
-		}
+		assertEquals(path.toUri().getScheme(), fs.getUri().getScheme());
 	}
 
 	@Test
-	public void testCreateFsWithAuthority() throws Exception {
-		final URI uri = URI.create("maprfs://localhost:12345/");
+	public void testMapRFsKind() throws Exception {
+		final Path path = new Path("maprfs:///my/path");
 
-		MapRFsFactory factory = new MapRFsFactory();
+		final FileSystem fs = path.getFileSystem();
+
+		assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
+	}
+
+	@Test
+	public void testCreateWithAuthorityNoCldbFails() throws Exception {
+		final Path path = new Path("maprfs://localhost:12345/");
 
 		try {
-			factory.create(uri);
+			path.getFileSystem();
 			fail("should have failed with an exception");
 		}
 		catch (IOException e) {
 			// expected, because we have no CLDB config available
-		}
-	}
-
-	@Test
-	public void testCreateFsWithMissingAuthority() throws Exception {
-		final URI uri = URI.create("maprfs:///my/path");
-
-		MapRFsFactory factory = new MapRFsFactory();
-		factory.configure(new Configuration());
-
-		FileSystem fs = factory.create(uri);
-		assertEquals("maprfs", fs.getUri().getScheme());
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static final class MapRFreeClassLoader extends URLClassLoader {
-
-		private final ClassLoader properParent;
-
-		MapRFreeClassLoader(URLClassLoader parent) {
-			super(parent.getURLs(), null);
-			properParent = parent;
-		}
-
-		@Override
-		public Class<?> loadClass(String name) throws ClassNotFoundException {
-			if (name.startsWith("com.mapr") || name.startsWith("org.apache.hadoop")) {
-				throw new ClassNotFoundException(name);
-			}
-			else if (name.startsWith("org.apache.log4j")) {
-				return properParent.loadClass(name);
-			}
-			else {
-				return super.loadClass(name);
-			}
 		}
 	}
 }

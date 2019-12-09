@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-table</artifactId>
+		<version>1.10-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+	<name>flink-sql-client</name>
+	<description>
+		This module contains the SQL Client for exploring and
+		submitting SQL programs to Flink.
+	</description>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+
+		<!-- core dependencies -->
+
+		<!-- Flink modules -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Table ecosystem -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- logging utilities -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+
+		<!-- logging -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<!-- CLI for SQL CLI client -->
+		<dependency>
+			<groupId>org.jline</groupId>
+			<artifactId>jline-terminal</artifactId>
+			<version>3.9.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.jline</groupId>
+			<artifactId>jline-reader</artifactId>
+			<version>3.9.0</version>
+		</dependency>
+
+		<!-- configuration -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-metastore</artifactId>
+			<version>${hive.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-shims</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javolution</groupId>
+					<artifactId>javolution</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-lang</groupId>
+					<artifactId>commons-lang</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.zaxxer</groupId>
+					<artifactId>HikariCP</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>co.cask.tephra</groupId>
+					<artifactId>tephra-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>co.cask.tephra</groupId>
+					<artifactId>tephra-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>co.cask.tephra</groupId>
+					<artifactId>tephra-hbase-compat-1.0</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-cli</groupId>
+					<artifactId>commons-cli</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.thrift</groupId>
+					<artifactId>libfb303</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.transaction</groupId>
+					<artifactId>transaction-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.orc</groupId>
+					<artifactId>orc-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>joda-time</groupId>
+					<artifactId>joda-time</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-1.2-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-slf4j-impl</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.ant</groupId>
+					<artifactId>ant</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.tdunning</groupId>
+					<artifactId>json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jline</groupId>
+					<artifactId>jline</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty.aggregate</groupId>
+					<artifactId>jetty-all</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty.orbit</groupId>
+					<artifactId>javax.servlet</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-web</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.dropwizard.metrics</groupId>
+					<artifactId>metrics-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.dropwizard.metrics</groupId>
+					<artifactId>metrics-jvm</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.dropwizard.metrics</groupId>
+					<artifactId>metrics-json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.github.joshelser</groupId>
+					<artifactId>dropwizard-metrics-hadoop-metrics2-reporter</artifactId>
+				</exclusion>
+
+				<!-- org.apache.hive:hive-service-rpc -->
+				<exclusion>
+					<groupId>tomcat</groupId>
+					<artifactId>jasper-compiler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>tomcat</groupId>
+					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore</artifactId>
+				</exclusion>
+
+				<!-- org.apache.hive:hive-serde -->
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.sf.opencsv</groupId>
+					<artifactId>opencsv</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.parquet</groupId>
+					<artifactId>parquet-hadoop-bundle</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-exec</artifactId>
+			<version>${hive.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-vector-code-gen</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-llap-tez</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-shims</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-httpclient</groupId>
+					<artifactId>commons-httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-1.2-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-slf4j-impl</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.antlr</groupId>
+					<artifactId>antlr-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.antlr</groupId>
+					<artifactId>ST4</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.ant</groupId>
+					<artifactId>ant</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-compress</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.ivy</groupId>
+					<artifactId>ivy</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>apache-curator</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-framework</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.groovy</groupId>
+					<artifactId>groovy-all</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-druid</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-avatica</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.code.gson</groupId>
+					<artifactId>gson</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>stax</groupId>
+					<artifactId>stax-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-recipes</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-digester</groupId>
+					<artifactId>commons-digester</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-mapper-asl</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-test</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-yarn-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-core-asl</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+
+			<!-- Build flink-sql-client jar -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<!-- Exclude all flink-dist files -->
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.jline:*</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Test dependency classloading -->
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+					<execution>
+						<id>create-table-factories-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>table-factories</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-table-factories.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

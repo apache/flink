@@ -71,16 +71,14 @@ public class AbstractHandlerTest extends TestLogger {
 		final Path file = dir.resolve("file");
 		Files.createFile(file);
 
-		final String restAddress = "http://localhost:1234";
-		RestfulGateway mockRestfulGateway = TestingRestfulGateway.newBuilder()
-			.setRestAddress(restAddress)
+		RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder()
 			.build();
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
 		CompletableFuture<Void> requestProcessingCompleteFuture = new CompletableFuture<>();
-		TestHandler handler = new TestHandler(requestProcessingCompleteFuture, CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
+		TestHandler handler = new TestHandler(requestProcessingCompleteFuture, mockGatewayRetriever);
 
 		RouteResult<?> routeResult = new RouteResult<>("", "", Collections.emptyMap(), Collections.emptyMap(), "");
 		HttpRequest request = new DefaultFullHttpRequest(
@@ -160,8 +158,8 @@ public class AbstractHandlerTest extends TestLogger {
 	private static class TestHandler extends AbstractHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
 		private final CompletableFuture<Void> completionFuture;
 
-		protected TestHandler(CompletableFuture<Void> completionFuture, @Nonnull CompletableFuture<String> localAddressFuture, @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever) {
-			super(localAddressFuture, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), TestHeaders.INSTANCE);
+		protected TestHandler(CompletableFuture<Void> completionFuture, @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever) {
+			super(leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), TestHeaders.INSTANCE);
 			this.completionFuture = completionFuture;
 		}
 

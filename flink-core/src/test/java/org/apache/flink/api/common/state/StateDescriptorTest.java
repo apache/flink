@@ -22,13 +22,17 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -198,6 +202,34 @@ public class StateDescriptorTest {
 		final OtherTestStateDescriptor<String> descr2 = new OtherTestStateDescriptor<>(name, String.class);
 
 		assertNotEquals(descr1, descr2);
+	}
+
+	@Test
+	public void testSerializerLazyInitializeInParallel() throws Exception {
+		final String name = "testSerializerLazyInitializeInParallel";
+		// use PojoTypeInfo which will create a new serializer when createSerializer is invoked.
+		final TestStateDescriptor<String> desc =
+			new TestStateDescriptor<>(name, new PojoTypeInfo<>(String.class, new ArrayList<>()));
+		final int threadNumber = 20;
+		final ArrayList<CheckedThread> threads = new ArrayList<>(threadNumber);
+		final ExecutionConfig executionConfig = new ExecutionConfig();
+		final ConcurrentHashMap<Integer, TypeSerializer<String>> serializers = new ConcurrentHashMap<>();
+		for (int i = 0; i < threadNumber; i++) {
+			threads.add(new CheckedThread() {
+				@Override
+				public void go() {
+					desc.initializeSerializerUnlessSet(executionConfig);
+					TypeSerializer<String> serializer = desc.getOriginalSerializer();
+					serializers.put(System.identityHashCode(serializer), serializer);
+				}
+			});
+		}
+		threads.forEach(Thread::start);
+		for (CheckedThread t : threads) {
+			t.sync();
+		}
+		assertEquals("Should use only one serializer but actually: " + serializers, 1, serializers.size());
+		threads.clear();
 	}
 
 	// ------------------------------------------------------------------------

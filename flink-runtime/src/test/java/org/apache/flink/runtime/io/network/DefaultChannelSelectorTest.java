@@ -49,8 +49,7 @@ public class DefaultChannelSelectorTest {
 		StringValue record,
 		int expectedChannel) {
 
-		int[] actualResult = selector.selectChannels(record);
-		assertEquals(1, actualResult.length);
-		assertEquals(expectedChannel, actualResult[0]);
+		int actualResult = selector.selectChannel(record);
+		assertEquals(expectedChannel, actualResult);
 	}
 }

@@ -45,7 +45,7 @@ class TtlMapStateVerifier extends AbstractTtlStateVerifier<
 	}
 
 	TtlMapStateVerifier() {
-		super(new MapStateDescriptor<>("TtlMapStateVerifier", StringSerializer.INSTANCE, StringSerializer.INSTANCE));
+		super(new MapStateDescriptor<>(TtlMapStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE, StringSerializer.INSTANCE));
 	}
 
 	@Override
