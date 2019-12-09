@@ -619,8 +619,8 @@ public class LocalExecutor implements Executor {
 				removeTimeAttributes(table.getSchema()),
 				context.getExecutionConfig(),
 				context.getClassLoader());
-
-		final String jobName = sessionId + ": " + query;
+		// Job name format: "sessionId: query" with all the quotes character removed.
+		final String jobName = (sessionId + ": " + query).replaceAll("`", "");
 		final Pipeline pipeline;
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
@@ -638,6 +638,14 @@ public class LocalExecutor implements Executor {
 			result.close();
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL query.", t);
+		} finally {
+			// Remove the temporal table object.
+			context.wrapClassLoader(() -> {
+				// Quotes the table name because as a SqlIdentifier, it is invalid.
+				context.getTableEnvironment()
+						.dropTemporaryTable(String.format("`%s`", jobName));
+				return null;
+			});
 		}
 
 		// store the result with a unique id

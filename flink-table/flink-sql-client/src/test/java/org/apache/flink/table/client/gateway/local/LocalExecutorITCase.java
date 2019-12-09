@@ -450,6 +450,50 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
+	@Test(timeout = 90_000L)
+	public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "changelog");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("(true,47,Hello World)");
+		expectedResults.add("(true,27,Hello World)");
+		expectedResults.add("(true,37,Hello World)");
+		expectedResults.add("(true,37,Hello World)");
+		expectedResults.add("(true,47,Hello World)");
+		expectedResults.add("(true,57,Hello World!!!!)");
+
+		try {
+			for (int i = 0; i < 3; i++) {
+				// start job and retrieval
+				final ResultDescriptor desc = executor.executeQuery(
+						sessionId,
+						"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
+
+				assertFalse(desc.isMaterialized());
+
+				final List<String> actualResults =
+						retrieveChangelogResult(executor, sessionId, desc.getResultId());
+
+				TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+			}
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
 	@Test(timeout = 30_000L)
 	public void testStreamQueryExecutionTable() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
@@ -474,6 +518,43 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedResults.add("57,Hello World!!!!");
 
 		executeStreamQueryTable(replaceVars, query, expectedResults);
+	}
+
+	@Test(timeout = 90_000L)
+	public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("47,Hello World");
+		expectedResults.add("27,Hello World");
+		expectedResults.add("37,Hello World");
+		expectedResults.add("37,Hello World");
+		expectedResults.add("47,Hello World");
+		expectedResults.add("57,Hello World!!!!");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		try {
+			for (int i = 0; i < 3; i++) {
+				executeStreamQueryTable(replaceVars, query, expectedResults);
+			}
+		} finally {
+			executor.closeSession(sessionId);
+		}
 	}
 
 	@Test(timeout = 30_000L)
@@ -530,6 +611,46 @@ public class LocalExecutorITCase extends TestLogger {
 			expectedResults.add("57");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test(timeout = 90_000L)
+	public void testBatchQueryExecutionMultipleTimes() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("47");
+		expectedResults.add("27");
+		expectedResults.add("37");
+		expectedResults.add("37");
+		expectedResults.add("47");
+		expectedResults.add("57");
+
+		try {
+			for (int i = 0; i < 3; i++) {
+				final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+
+				assertTrue(desc.isMaterialized());
+
+				final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
+
+				TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+			}
 		} finally {
 			executor.closeSession(sessionId);
 		}
