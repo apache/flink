@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -129,6 +130,21 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 		} catch (SchemaParseException e) {
 			throw new IllegalArgumentException("Could not parse Avro schema string.", e);
 		}
+		this.datumWriter = new GenericDatumWriter<>(schema);
+		this.arrayOutputStream = new ByteArrayOutputStream();
+		this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
+	}
+
+	/**
+	 * Creates an Avro serialization schema for the given Flink SQL logical type.
+	 *
+	 * @param logicalType Logical row type to serialize Flink's row to Avro's record.
+	 */
+	public AvroRowSerializationSchema(RowType logicalType) {
+		Preconditions.checkNotNull(logicalType, "RowType must not be null.");
+		this.recordClazz = null;
+		this.schema = AvroSchemaConverter.convertToSchema(logicalType);
+		this.schemaString = schema.toString();
 		this.datumWriter = new GenericDatumWriter<>(schema);
 		this.arrayOutputStream = new ByteArrayOutputStream();
 		this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);

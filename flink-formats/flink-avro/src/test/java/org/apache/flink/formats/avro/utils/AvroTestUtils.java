@@ -18,12 +18,18 @@
 
 package org.apache.flink.formats.avro.utils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.Schema;
@@ -251,5 +257,49 @@ public final class AvroTestUtils {
 		new GenericDatumWriter<>(schema).write(record, encoder);
 		encoder.flush();
 		return stream.toByteArray();
+	}
+
+	public static TableSchema getUserTableSchema() {
+		final DataType address = DataTypes.ROW(
+			DataTypes.FIELD("num", DataTypes.INT()),
+			DataTypes.FIELD("street", DataTypes.STRING()),
+			DataTypes.FIELD("city", DataTypes.STRING()),
+			DataTypes.FIELD("state", DataTypes.STRING()),
+			DataTypes.FIELD("zip", DataTypes.STRING()));
+
+		final DataType rawType = DataTypes.RAW(
+			Object.class,
+			new KryoSerializer<>(Object.class, new ExecutionConfig()));
+
+		return TableSchema.builder()
+			.field("name", DataTypes.STRING())
+			.field("favorite_number", DataTypes.INT())
+			.field("favorite_color", DataTypes.STRING())
+			.field("type_long_test", DataTypes.BIGINT())
+			.field("type_double_test", DataTypes.DOUBLE())
+			.field("type_null_test", DataTypes.NULL())
+			.field("type_bool_test", DataTypes.BOOLEAN())
+			.field("type_array_string", DataTypes.ARRAY(DataTypes.STRING()))
+			.field("type_array_boolean", DataTypes.ARRAY(DataTypes.BOOLEAN()))
+			.field("type_nullable_array", DataTypes.ARRAY(DataTypes.STRING()))
+			.field("type_enum", DataTypes.STRING())
+			.field("type_map", DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()))
+			.field("type_fixed", DataTypes.BYTES())
+			.field("type_union", rawType)
+			.field("type_nested", address)
+			.field("type_bytes", DataTypes.BYTES())
+			.field("type_date", DataTypes.DATE())
+			.field("type_time_millis", DataTypes.TIME())
+			.field("type_time_micros", DataTypes.INT())
+			.field("type_timestamp_millis", DataTypes.TIMESTAMP(3))
+			.field("type_timestamp_micros", DataTypes.BIGINT())
+			.field("type_decimal_bytes", DataTypes.DECIMAL(4, 2))
+			.field("type_decimal_fixed", DataTypes.DECIMAL(4, 2))
+			.build();
+	}
+
+	public static RowType getUserLogicalType() {
+		TableSchema schema = getUserTableSchema();
+		return (RowType) schema.toRowDataType().getLogicalType();
 	}
 }

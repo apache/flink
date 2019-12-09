@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -57,6 +58,20 @@ public class AvroRowDeSerializationSchemaTest {
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(schemaString);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(schemaString);
+
+		final byte[] bytes = serializationSchema.serialize(testData.f2);
+		final Row actual = deserializationSchema.deserialize(bytes);
+
+		assertEquals(testData.f2, actual);
+	}
+
+	@Test
+	public void testSpecificSerializeDeserializeFromLogicalType() throws IOException {
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getSpecificTestData();
+		final RowType userType = AvroTestUtils.getUserLogicalType();
+
+		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(userType);
+		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(userType);
 
 		final byte[] bytes = serializationSchema.serialize(testData.f2);
 		final Row actual = deserializationSchema.deserialize(bytes);
@@ -155,6 +170,22 @@ public class AvroRowDeSerializationSchemaTest {
 	}
 
 	@Test
+	public void testSpecificDeserializeFromLogicalTypeSeveralTimes() throws IOException {
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getSpecificTestData();
+		final RowType userType = AvroTestUtils.getUserLogicalType();
+
+		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(userType);
+		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(userType);
+
+		final byte[] bytes = serializationSchema.serialize(testData.f2);
+		deserializationSchema.deserialize(bytes);
+		deserializationSchema.deserialize(bytes);
+		final Row actual = deserializationSchema.deserialize(bytes);
+
+		assertEquals(testData.f2, actual);
+	}
+
+	@Test
 	public void testGenericDeserializeSeveralTimes() throws IOException {
 		final Tuple3<GenericRecord, Row, Schema> testData = AvroTestUtils.getGenericTestData();
 
@@ -183,6 +214,12 @@ public class AvroRowDeSerializationSchemaTest {
 		final AvroRowSerializationSchema schemaSer = new AvroRowSerializationSchema(schemaString);
 		final AvroRowDeserializationSchema schemaDeser = new AvroRowDeserializationSchema(schemaString);
 		testSerializability(schemaSer, schemaDeser, testData.f2);
+
+		// from logical type
+		final RowType userType = AvroTestUtils.getUserLogicalType();
+		final AvroRowSerializationSchema logicalTypeSer = new AvroRowSerializationSchema(userType);
+		final AvroRowDeserializationSchema logicalTypeDeser = new AvroRowDeserializationSchema(userType);
+		testSerializability(logicalTypeSer, logicalTypeDeser, testData.f2);
 	}
 
 	private void testSerializability(AvroRowSerializationSchema ser, AvroRowDeserializationSchema deser, Row data) throws Exception {

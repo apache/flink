@@ -19,14 +19,18 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeTransformations;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -62,6 +66,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Deserialization schema from Avro bytes to {@link Row}.
@@ -99,9 +106,9 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private transient Schema schema;
 
 	/**
-	 * Type information describing the result type.
+	 * Logical type describing the result type.
 	 */
-	private transient RowTypeInfo typeInfo;
+	private transient RowType rowType;
 
 	/**
 	 * Record to deserialize byte array.
@@ -133,7 +140,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
 		this.recordClazz = recordClazz;
 		schema = SpecificData.get().getSchema(recordClazz);
-		typeInfo = (RowTypeInfo) AvroSchemaConverter.convertToTypeInfo(recordClazz);
+		rowType = (RowType) AvroSchemaConverter.convertToLogicalType(recordClazz);
 		schemaString = schema.toString();
 		record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
 		datumReader = new SpecificDatumReader<>(schema);
@@ -149,11 +156,28 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	public AvroRowDeserializationSchema(String avroSchemaString) {
 		Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
 		recordClazz = null;
-		final TypeInformation<?> typeInfo = AvroSchemaConverter.convertToTypeInfo(avroSchemaString);
-		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Row type information expected.");
-		this.typeInfo = (RowTypeInfo) typeInfo;
+		final LogicalType logicalType = AvroSchemaConverter.convertToLogicalType(avroSchemaString);
+		Preconditions.checkArgument(logicalType instanceof RowType, "Row type expected.");
+		this.rowType = (RowType) logicalType;
 		schemaString = avroSchemaString;
 		schema = new Schema.Parser().parse(avroSchemaString);
+		record = new GenericData.Record(schema);
+		datumReader = new GenericDatumReader<>(schema);
+		inputStream = new MutableByteArrayInputStream();
+		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+	}
+
+	/**
+	 * Creates a Avro deserialization schema for the given Flink SQL logical type.
+	 *
+	 * @param rowType Row type to deserialize Avro's record to Flink's row
+	 */
+	public AvroRowDeserializationSchema(RowType rowType) {
+		Preconditions.checkNotNull(rowType, "RowType must not be null.");
+		recordClazz = null;
+		this.rowType = rowType;
+		this.schema = AvroSchemaConverter.convertToSchema(rowType);
+		this.schemaString = schema.toString();
 		record = new GenericData.Record(schema);
 		datumReader = new GenericDatumReader<>(schema);
 		inputStream = new MutableByteArrayInputStream();
@@ -165,15 +189,20 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		try {
 			inputStream.setBuffer(message);
 			record = datumReader.read(record, decoder);
-			return convertAvroRecordToRow(schema, typeInfo, record);
+			return convertAvroRecordToRow(schema, rowType, record);
 		} catch (Exception e) {
 			throw new IOException("Failed to deserialize Avro record.", e);
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return typeInfo;
+		// transform to sql time conversion classes
+		DataType elementDataType = DataTypeUtils.transform(
+			TypeConversions.fromLogicalToDataType(rowType),
+			TypeTransformations.timeToSqlTypes());
+		return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(elementDataType);
 	}
 
 	@Override
@@ -196,19 +225,21 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 
 	// --------------------------------------------------------------------------------------------
 
-	private Row convertAvroRecordToRow(Schema schema, RowTypeInfo typeInfo, IndexedRecord record) {
+	private Row convertAvroRecordToRow(Schema schema, RowType rowType, IndexedRecord record) {
 		final List<Schema.Field> fields = schema.getFields();
-		final TypeInformation<?>[] fieldInfo = typeInfo.getFieldTypes();
+		final List<LogicalType> fieldTypes = rowType.getFields().stream()
+			.map(RowType.RowField::getType)
+			.collect(Collectors.toList());
 		final int length = fields.size();
 		final Row row = new Row(length);
 		for (int i = 0; i < length; i++) {
 			final Schema.Field field = fields.get(i);
-			row.setField(i, convertAvroType(field.schema(), fieldInfo[i], record.get(i)));
+			row.setField(i, convertAvroType(field.schema(), fieldTypes.get(i), record.get(i)));
 		}
 		return row;
 	}
 
-	private Object convertAvroType(Schema schema, TypeInformation<?> info, Object object) {
+	private Object convertAvroType(Schema schema, LogicalType type, Object object) {
 		// we perform the conversion based on schema information but enriched with pre-computed
 		// type information where useful (i.e., for arrays)
 
@@ -218,47 +249,45 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		switch (schema.getType()) {
 			case RECORD:
 				if (object instanceof IndexedRecord) {
-					return convertAvroRecordToRow(schema, (RowTypeInfo) info, (IndexedRecord) object);
+					return convertAvroRecordToRow(schema, (RowType) type, (IndexedRecord) object);
 				}
 				throw new IllegalStateException("IndexedRecord expected but was: " + object.getClass());
 			case ENUM:
 			case STRING:
 				return object.toString();
 			case ARRAY:
-				if (info instanceof BasicArrayTypeInfo) {
-					final TypeInformation<?> elementInfo = ((BasicArrayTypeInfo<?, ?>) info).getComponentInfo();
-					return convertToObjectArray(schema.getElementType(), elementInfo, object);
-				} else {
-					final TypeInformation<?> elementInfo = ((ObjectArrayTypeInfo<?, ?>) info).getComponentInfo();
-					return convertToObjectArray(schema.getElementType(), elementInfo, object);
-				}
+				LogicalType elementType = ((ArrayType) type).getElementType();
+				// transform to sql time conversion classes
+				DataType elementDataType = DataTypeUtils.transform(
+					TypeConversions.fromLogicalToDataType(elementType),
+					TypeTransformations.timeToSqlTypes());
+				return convertToObjectArray(schema.getElementType(), elementDataType, object);
 			case MAP:
-				final MapTypeInfo<?, ?> mapTypeInfo = (MapTypeInfo<?, ?>) info;
+				final MapType mapType = (MapType) type;
 				final Map<String, Object> convertedMap = new HashMap<>();
 				final Map<?, ?> map = (Map<?, ?>) object;
 				for (Map.Entry<?, ?> entry : map.entrySet()) {
 					convertedMap.put(
 						entry.getKey().toString(),
-						convertAvroType(schema.getValueType(), mapTypeInfo.getValueTypeInfo(), entry.getValue()));
+						convertAvroType(schema.getValueType(), mapType.getValueType(), entry.getValue()));
 				}
 				return convertedMap;
 			case UNION:
 				final List<Schema> types = schema.getTypes();
 				final int size = types.size();
-				final Schema actualSchema;
 				if (size == 2 && types.get(0).getType() == Schema.Type.NULL) {
-					return convertAvroType(types.get(1), info, object);
+					return convertAvroType(types.get(1), type, object);
 				} else if (size == 2 && types.get(1).getType() == Schema.Type.NULL) {
-					return convertAvroType(types.get(0), info, object);
+					return convertAvroType(types.get(0), type, object);
 				} else if (size == 1) {
-					return convertAvroType(types.get(0), info, object);
+					return convertAvroType(types.get(0), type, object);
 				} else {
 					// generic type
 					return object;
 				}
 			case FIXED:
 				final byte[] fixedBytes = ((GenericFixed) object).bytes();
-				if (info == Types.BIG_DEC) {
+				if (hasRoot(type, LogicalTypeRoot.DECIMAL)) {
 					return convertToDecimal(schema, fixedBytes);
 				}
 				return fixedBytes;
@@ -266,19 +295,19 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 				final ByteBuffer byteBuffer = (ByteBuffer) object;
 				final byte[] bytes = new byte[byteBuffer.remaining()];
 				byteBuffer.get(bytes);
-				if (info == Types.BIG_DEC) {
+				if (hasRoot(type, LogicalTypeRoot.DECIMAL)) {
 					return convertToDecimal(schema, bytes);
 				}
 				return bytes;
 			case INT:
-				if (info == Types.SQL_DATE) {
+				if (hasRoot(type, LogicalTypeRoot.DATE)) {
 					return convertToDate(object);
-				} else if (info == Types.SQL_TIME) {
+				} else if (hasRoot(type, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)) {
 					return convertToTime(object);
 				}
 				return object;
 			case LONG:
-				if (info == Types.SQL_TIMESTAMP) {
+				if (hasRoot(type, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
 					return convertToTimestamp(object);
 				}
 				return object;
@@ -334,13 +363,13 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		return new Timestamp(millis - LOCAL_TZ.getOffset(millis));
 	}
 
-	private Object[] convertToObjectArray(Schema elementSchema, TypeInformation<?> elementInfo, Object object) {
+	private Object[] convertToObjectArray(Schema elementSchema, DataType elementType, Object object) {
 		final List<?> list = (List<?>) object;
 		final Object[] convertedArray = (Object[]) Array.newInstance(
-			elementInfo.getTypeClass(),
+			elementType.getConversionClass(),
 			list.size());
 		for (int i = 0; i < list.size(); i++) {
-			convertedArray[i] = convertAvroType(elementSchema, elementInfo, list.get(i));
+			convertedArray[i] = convertAvroType(elementSchema, elementType.getLogicalType(), list.get(i));
 		}
 		return convertedArray;
 	}
@@ -354,7 +383,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
 		recordClazz = (Class<? extends SpecificRecord>) inputStream.readObject();
 		schemaString = inputStream.readUTF();
-		typeInfo = (RowTypeInfo) AvroSchemaConverter.<Row>convertToTypeInfo(schemaString);
+		rowType = (RowType) AvroSchemaConverter.convertToLogicalType(schemaString);
 		schema = new Schema.Parser().parse(schemaString);
 		if (recordClazz != null) {
 			record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);

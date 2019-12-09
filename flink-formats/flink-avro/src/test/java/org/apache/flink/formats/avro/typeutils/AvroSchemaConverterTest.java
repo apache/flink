@@ -22,8 +22,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.formats.avro.utils.AvroTestUtils;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.Schema;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -43,6 +46,36 @@ public class AvroSchemaConverterTest {
 	public void testAvroSchemaConversion() {
 		final String schema = User.getClassSchema().toString(true);
 		validateUserSchema(AvroSchemaConverter.convertToTypeInfo(schema));
+	}
+
+	@Test
+	public void testLogicalTypeConversion() {
+		final RowType userType = AvroTestUtils.getUserLogicalType();
+
+		String schemaString =
+			"{\"type\":\"record\",\"name\":\"row_0\",\"fields\":[{\"name\":\"name\",\"type\":[\"string\",\"null\"]}" +
+			",{\"name\":\"favorite_number\",\"type\":[\"int\",\"null\"]},{\"name\":\"favorite_color\",\"type\":" +
+			"[\"string\",\"null\"]},{\"name\":\"type_long_test\",\"type\":[\"long\",\"null\"]},{\"name\":\"type_double_test\"," +
+			"\"type\":[\"double\",\"null\"]},{\"name\":\"type_null_test\",\"type\":\"null\"}," +
+			"{\"name\":\"type_bool_test\",\"type\":[\"boolean\",\"null\"]},{\"name\":\"type_array_string\",\"type\":[" +
+			"{\"type\":\"array\",\"items\":[\"string\",\"null\"]},\"null\"]},{\"name\":\"type_array_boolean\",\"type\":[" +
+			"{\"type\":\"array\",\"items\":[\"boolean\",\"null\"]},\"null\"]},{\"name\":\"type_nullable_array\",\"type\":[" +
+			"{\"type\":\"array\",\"items\":[\"string\",\"null\"]},\"null\"]},{\"name\":\"type_enum\",\"type\":[\"string\"," +
+			"\"null\"]},{\"name\":\"type_map\",\"type\":[{\"type\":\"map\",\"values\":[\"long\",\"null\"]},\"null\"]}," +
+			"{\"name\":\"type_fixed\",\"type\":[\"bytes\",\"null\"]},{\"name\":\"type_union\",\"type\":[\"null\"," +
+			"\"boolean\",\"long\",\"double\"]},{\"name\":\"type_nested\",\"type\":{\"type\":\"record\",\"name\":\"row_1\"," +
+			"\"fields\":[{\"name\":\"num\",\"type\":[\"int\",\"null\"]},{\"name\":\"street\",\"type\":[\"string\",\"null\"]}," +
+			"{\"name\":\"city\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]}," +
+			"{\"name\":\"zip\",\"type\":[\"string\",\"null\"]}]}},{\"name\":\"type_bytes\",\"type\":[\"bytes\",\"null\"]}," +
+			"{\"name\":\"type_date\",\"type\":{\"type\":\"int\",\"logicalType\":\"date\"}},{\"name\":\"type_time_millis\"," +
+			"\"type\":{\"type\":\"int\",\"logicalType\":\"time-millis\"}},{\"name\":\"type_time_micros\",\"type\":[\"int\"," +
+			"\"null\"]},{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}}," +
+			"{\"name\":\"type_timestamp_micros\",\"type\":[\"long\",\"null\"]},{\"name\":\"type_decimal_bytes\",\"type\":" +
+			"{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}},{\"name\":\"type_decimal_fixed\"," +
+			"\"type\":{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}}]}\n";
+		final Schema expected = new Schema.Parser().parse(schemaString);
+
+		assertEquals(expected, AvroSchemaConverter.convertToSchema(userType));
 	}
 
 	private void validateUserSchema(TypeInformation<?> actual) {
