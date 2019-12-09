@@ -18,17 +18,23 @@
 
 package org.apache.flink.table.types.inference;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.inference.transforms.TimeToSqlTypesTransformation;
 
 /**
- * Transforms one data type to another.
+ * Transformations for transforming one data type to another.
+ *
+ * @see TypeTransformation
  */
-@PublicEvolving
-public interface TypeTransformation {
+@Internal
+public class TypeTransformations {
 
 	/**
-	 * Transforms the given data type to a different data type.
+	 * Returns a type transformation that transforms data type to a new data type whose conversion
+	 * class is {@link java.sql.Timestamp}/{@link java.sql.Time}/{@link java.sql.Date}
+	 * if the original data type is TIMESTAMP/TIME/DATE.
 	 */
-	DataType transform(DataType typeToTransform);
+	public static TypeTransformation timeToSqlTypes() {
+		return TimeToSqlTypesTransformation.INSTANCE;
+	}
 }
