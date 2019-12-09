@@ -318,12 +318,9 @@ tables:
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
+        group.id: testGroup
     format:
       property-version: 1
       type: json
@@ -488,12 +485,9 @@ tables:
       version: "0.11"
       topic: OutputTopic
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
+        group.id: testGroup
     format:
       property-version: 1
       type: json

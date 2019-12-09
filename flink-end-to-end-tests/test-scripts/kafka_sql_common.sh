@@ -68,10 +68,8 @@ function get_kafka_json_source_schema {
       topic: $topicName
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
     format:
       type: json
       json-schema: >

@@ -156,7 +156,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 		final String[] hosts = hostsStr.split(";");
 		final String validationExceptionMessage = "Properties '" + CONNECTOR_HOSTS + "' format should " +
-			"follow the format 'http://host_name:port', but is '" + hosts + "'.";
+			"follow the format 'http://host_name:port', but is '" + hostsStr + "'.";
 
 		if (hosts.length == 0) {
 			throw new ValidationException(validationExceptionMessage);
