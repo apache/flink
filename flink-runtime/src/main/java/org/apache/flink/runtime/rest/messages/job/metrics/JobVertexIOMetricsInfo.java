@@ -69,14 +69,14 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 		@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
 		@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
 		@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete,
-		@JsonProperty(FIELD_NAME_IS_BACKPRESSED) boolean isBackPressured,
-		@JsonProperty(FIELD_NAME_IS_BACKPRESSED_COMPLETE) boolean isBackPressuredComplete,
-		@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG) float outPoolUsageAvg,
-		@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG_COMPLETE) boolean outPoolUsageAvgComplete,
 		@JsonProperty(FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_AVG) float inputExclusiveBuffersUsageAvg,
 		@JsonProperty(FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_AVG_COMPLETE) boolean inputExclusiveBuffersUsageAvgComplete,
 		@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_AVG_USAGE) float inputFloatingBuffersUsageAvg,
-		@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_AVG_COMPLETE) boolean inputFloatingBuffersUsageAvgComplete) {
+		@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_AVG_COMPLETE) boolean inputFloatingBuffersUsageAvgComplete,
+		@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG) float outPoolUsageAvg,
+		@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG_COMPLETE) boolean outPoolUsageAvgComplete,
+		@JsonProperty(FIELD_NAME_IS_BACKPRESSED) boolean isBackPressured,
+		@JsonProperty(FIELD_NAME_IS_BACKPRESSED_COMPLETE) boolean isBackPressuredComplete) {
 		super(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete,
 			recordsWritten, recordsWrittenComplete, isBackPressured, isBackPressuredComplete);
 		this.outPoolUsageAvg = outPoolUsageAvg;

@@ -122,44 +122,44 @@ public class MutableIOMetrics extends IOMetrics {
 					 * In case a metric is missing for a parallel instance of a task, we set the complete flag as
 					 * false.
 					 */
-					updateLong(metrics, MetricNames.IO_NUM_BYTES_IN,
+					update(metrics, MetricNames.IO_NUM_BYTES_IN,
 						(String value) -> this.numBytesInComplete = false,
-						(Long value) -> this.numBytesIn += value
+						(String value) -> this.numBytesIn += Long.valueOf(value)
 					);
 
-					updateLong(metrics, MetricNames.IO_NUM_BYTES_OUT,
+					update(metrics, MetricNames.IO_NUM_BYTES_OUT,
 						(String value) -> this.numBytesOutComplete = false,
-						(Long value) -> this.numBytesOut += value
+						(String value) -> this.numBytesOut += Long.valueOf(value)
 					);
 
-					updateLong(metrics, MetricNames.IO_NUM_RECORDS_IN,
+					update(metrics, MetricNames.IO_NUM_RECORDS_IN,
 						(String value) -> this.numRecordsInComplete = false,
-						(Long value) -> this.numRecordsIn += value
+						(String value) -> this.numRecordsIn += Long.valueOf(value)
 					);
 
-					updateLong(metrics, MetricNames.IO_NUM_RECORDS_OUT,
+					update(metrics, MetricNames.IO_NUM_RECORDS_OUT,
 						(String value) -> this.numRecordsOutComplete = false,
-						(Long value) -> this.numRecordsOut += value
+						(String value) -> this.numRecordsOut += Long.valueOf(value)
 					);
 
-					updateFloat(metrics, MetricNames.USAGE_SHUFFLE_NETTY_INPUT_FLOATING_BUFFERS,
+					update(metrics, MetricNames.USAGE_SHUFFLE_NETTY_INPUT_FLOATING_BUFFERS,
 						(String value) -> this.usageInputFloatingBuffersComplete = false,
-						(Float value) -> this.usageInputFloatingBuffers += value
+						(String value) -> this.usageInputFloatingBuffers += Float.valueOf(value)
 					);
 
-					updateFloat(metrics, MetricNames.USAGE_SHUFFLE_NETTY_INPUT_EXCLUSIVE_BUFFERS,
+					update(metrics, MetricNames.USAGE_SHUFFLE_NETTY_INPUT_EXCLUSIVE_BUFFERS,
 						(String value) -> this.usageInputExclusiveBuffersComplete = false,
-						(Float value) -> this.usageInputExclusiveBuffers += value
+						(String value) -> this.usageInputExclusiveBuffers += Float.valueOf(value)
 					);
 
-					updateFloat(metrics, MetricNames.USAGE_SHUFFLE_NETTY_OUTPUT_POOL_USAGE,
+					update(metrics, MetricNames.USAGE_SHUFFLE_NETTY_OUTPUT_POOL_USAGE,
 						(String value) -> this.usageOutPoolComplete = false,
-						(Float value) -> this.usageOutPool += value
+						(String value) -> this.usageOutPool += Float.valueOf(value)
 					);
 
-					updateBoolean(metrics, MetricNames.IS_BACKPRESSURED,
+					update(metrics, MetricNames.IS_BACKPRESSURED,
 						(String value) -> this.isBackPressuredComplete = false,
-						(Boolean value) -> this.isBackPressured &= value
+						(String value) -> this.isBackPressured &= Boolean.valueOf(value)
 					);
 				}
 				else {
@@ -176,33 +176,13 @@ public class MutableIOMetrics extends IOMetrics {
 		}
 	}
 
-	private void updateLong(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<Long> noEmptyFunction) {
+	private void update(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<String> noEmptyFunction) {
 		String value = metrics.getMetric(metricKey);
 		if (value == null){
 			emptyFunction.accept(value);
 		}
 		else {
-			noEmptyFunction.accept(Long.valueOf(value));
-		}
-	}
-
-	private void updateFloat(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<Float> noEmptyFunction) {
-		String value = metrics.getMetric(metricKey);
-		if (value == null){
-			emptyFunction.accept(value);
-		}
-		else {
-			noEmptyFunction.accept(Float.valueOf(value));
-		}
-	}
-
-	private void updateBoolean(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<Boolean> noEmptyFunction) {
-		String value = metrics.getMetric(metricKey);
-		if (value == null){
-			emptyFunction.accept(value);
-		}
-		else {
-			noEmptyFunction.accept(Boolean.valueOf(value));
+			noEmptyFunction.accept(value);
 		}
 	}
 }

@@ -170,13 +170,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			true,
 			recordsOut,
 			true,
-			isBackPressured,
-			true,
-			usageOutPool,
-			true,
-			usageInputExclusiveBuffers,
-			true,
-			usageInputFloatingBuffers,
+			usageInputExclusiveBuffers, true, usageInputFloatingBuffers, true, usageOutPool, true, isBackPressured,
 			true
 		);
 
