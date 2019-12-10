@@ -404,7 +404,7 @@ public class MesosTaskManagerParameters {
 
 	private static ContaineredTaskManagerParameters createContaineredTaskManagerParameters(final Configuration flinkConfig) {
 		double cpus = getCpuCores(flinkConfig);
-		MemorySize totalProcessMemory = MemorySize.parse(flinkConfig.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
+		MemorySize totalProcessMemory = getTotalProcessMemory(flinkConfig);
 		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils
 			.newResourceSpecBuilder(flinkConfig)
 			.withCpuCores(cpus)
@@ -420,6 +420,29 @@ public class MesosTaskManagerParameters {
 	private static double getCpuCores(final Configuration configuration) {
 		double fallback = configuration.getInteger(MESOS_RM_TASKS_SLOTS);
 		return TaskExecutorResourceUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
+	}
+
+	private static MemorySize getTotalProcessMemory(final Configuration configuration) {
+		MemorySize legacyTotalProcessMemory = MemorySize.parse(configuration.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
+		MemorySize unifiedTotalProcessMemory = MemorySize.parse(configuration.getString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, "0"));
+
+		if (configuration.contains(MESOS_RM_TASKS_MEMORY_MB) &&
+			configuration.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) &&
+			!legacyTotalProcessMemory.equals(unifiedTotalProcessMemory)) {
+
+			throw new IllegalConfigurationException(String.format(
+				"Inconsistent worker memory configuration: both legacy Mesos specific and the newer unified options " +
+					"are configured but they differ - %s: %d Mb (%d bytes), %s: %d Mb (%d bytes)",
+				MESOS_RM_TASKS_MEMORY_MB.key(),
+				legacyTotalProcessMemory.getMebiBytes(),
+				legacyTotalProcessMemory.getBytes(),
+				TaskManagerOptions.TOTAL_PROCESS_MEMORY.key(),
+				unifiedTotalProcessMemory.getMebiBytes(),
+				unifiedTotalProcessMemory.getBytes()));
+		}
+
+		return configuration.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) ?
+			unifiedTotalProcessMemory : legacyTotalProcessMemory;
 	}
 
 	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {
