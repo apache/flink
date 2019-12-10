@@ -107,6 +107,10 @@ available.
         ./bin/flink run -py examples/python/table/batch/word_count.py \
                                 -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
 
+-   提交一个Python Table的作业，并指定依赖的jar包:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <jarFile>
+
 -   提交一个有多个依赖的Python Table的作业，Python作业的主入口通过pym选项指定:
 
         ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch

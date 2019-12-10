@@ -107,6 +107,10 @@ These examples about how to submit a job in CLI.
         ./bin/flink run -py examples/python/table/batch/word_count.py \
                                 -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
 
+-   Run Python Table program with a JAR file:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <jarFile>
+
 -   Run Python Table program with pyFiles and pyModule:
 
         ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch
