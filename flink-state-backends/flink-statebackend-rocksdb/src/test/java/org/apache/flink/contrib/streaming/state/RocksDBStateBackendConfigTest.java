@@ -483,16 +483,16 @@ public class RocksDBStateBackendConfigTest {
 
 		// verify legal configuration
 		{
-			configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE, "level");
-			configuration.setString(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "TRUE");
-			configuration.setString(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE, "8 mb");
-			configuration.setString(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, "128MB");
-			configuration.setString(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "4");
-			configuration.setString(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "4");
-			configuration.setString(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "2");
-			configuration.setString(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, "64 MB");
-			configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE, "4 kb");
-			configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, "512 mb");
+			configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
+			configuration.setString(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
+			configuration.setString(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE.key(), "8 mb");
+			configuration.setString(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE.key(), "128MB");
+			configuration.setString(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS.key(), "4");
+			configuration.setString(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER.key(), "4");
+			configuration.setString(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE.key(), "2");
+			configuration.setString(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE.key(), "64 MB");
+			configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE.key(), "4 kb");
+			configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
 
 			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
 			optionsFactory.configure(configuration);
@@ -740,10 +740,10 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	private void verifyIllegalArgument(
-			ConfigOption<String> configOption,
+			ConfigOption<?> configOption,
 			String configValue) {
 		Configuration configuration = new Configuration();
-		configuration.setString(configOption, configValue);
+		configuration.setString(configOption.key(), configValue);
 
 		DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
 		try {
