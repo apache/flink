@@ -219,7 +219,18 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 		void checkThrowSourceExecutionException() throws Exception {
 			if (sourceExecutionThrowable != null) {
-				throw new Exception(sourceExecutionThrowable);
+				if (sourceExecutionThrowable instanceof InterruptedException) {
+					throw (InterruptedException) sourceExecutionThrowable;
+				}
+				else if (sourceExecutionThrowable instanceof Error) {
+					throw (Error) sourceExecutionThrowable;
+				}
+				else if (sourceExecutionThrowable instanceof RuntimeException) {
+					throw (RuntimeException) sourceExecutionThrowable;
+				}
+				else {
+					throw new Exception(sourceExecutionThrowable);
+				}
 			}
 		}
 	}
