@@ -79,6 +79,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 	DBOptions getDbOptions() {
 		// initial options from pre-defined profile
 		DBOptions opt = predefinedOptions.createDBOptions(handlesToClose);
+		handlesToClose.add(opt);
 
 		// add user-defined options factory, if specified
 		if (optionsFactory != null) {
@@ -97,6 +98,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 	ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
 		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions(handlesToClose);
+		handlesToClose.add(opt);
 
 		// add user-defined options, if specified
 		if (optionsFactory != null) {
