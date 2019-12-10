@@ -150,7 +150,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		return variables[cachingIndex];
 	}
 
-
 	/**
 	 * Enters all variables specific to this {@link AbstractMetricGroup} and their associated values into the map.
 	 *
