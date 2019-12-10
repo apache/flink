@@ -152,7 +152,7 @@ of time:
 
 <img src="{{ site.baseurl }}/fig/event_ingestion_processing_time.svg" alt="Event Time, Ingestion Time, and Processing Time" class="offset" width="80%" />
 
-More details on how to handle time are in the [event time docs]({{ site.baseurl }}/dev/event_time.html).
+More details on how to handle time are in the [event time docs]{{ site.baseurl }}/concepts/time.html).
 
 {% top %}
 

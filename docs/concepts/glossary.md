@@ -1,6 +1,6 @@
 ---
 title: Glossary
-nav-pos: 3
+nav-pos: 4
 nav-title: Glossary
 nav-parent_id: concepts
 ---
@@ -42,6 +42,18 @@ An event is a statement about a change of the state of the domain modelled by th
 application. Events can be input and/or output of a stream or batch processing application.
 Events are special types of [records](#Record).
 
+#### Event Time 
+
+Event time is the time that each event occurred on its producing device.
+This time is typically embedded within the records before they enter Flink, and can be extracted from each record.
+In event time, the progress of time depends on the data, not on any wall clocks.
+
+In a perfect world, event time processing would yield entirely consistent and deterministic results, regardless of when events arrive, or their ordering.
+However, unless the events are known to arrive in-order by timestamp, event time processing incurs some latency while waiting for out-of-order events.
+As it is only possible to wait for a finite period, this places a limit on how deterministic event time applications can be.
+Assuming all of the data has arrived, event time operations will  produce correct and consistent results; even when working with out-of-order data, late events, or reprocessing historical data.
+
+
 #### ExecutionGraph
 
 see [Physical Graph](#physical-graph)
@@ -51,6 +63,21 @@ see [Physical Graph](#physical-graph)
 Functions are implemented by the user and encapsulate the
 application logic of a Flink program. Most Functions are wrapped by a corresponding
 [Operator](#operator).
+
+#### Ingestion Time
+
+Ingestion time is the time that events enter Flink.
+At the source operator, each record gets the source's current time as a timestamp, and time-based operations, like time windows, refer to that timestamp.
+
+Ingestion time sits conceptually in between [event time](#event-time) and [processing time](#processing-time).
+Compared to processing time, it is slightly more expensive but gives more predictable results.
+Because ingestion time uses stable timestamps, assigned once at the source, different window operations over the records will refer to the same timestamp.
+Whereas in processing time, each window operator may assign the record to a different window based on the local system clock and any transport delay.
+
+Compared to event time, ingestion time programs cannot handle any out-of-order events or late data.
+However, the programs don't have to specify how to generate [watermarks](#watermark).
+
+Internally, ingestion time is treated much like event time, but with automatic timestamp assignment and automatic watermark generation.
 
 #### Instance
 
@@ -119,6 +146,13 @@ A physical graph is the result of translating a [Logical Graph](#logical-graph) 
 distributed runtime. The nodes are [Tasks](#task) and the edges indicate input/output-relationships
 or [partitions](#partition) of data streams or data sets.
 
+#### Processing Time
+
+Processing time refers to the system time of the machine that is executing the respective operation.
+It is the most straightforward notion of time and requires no coordination between streams and machines.
+It provides the best performance and the lowest latency, however, in distributed and asynchronous environments processing time does not offer deterministic results.
+It is susceptible to the speed records arrive at and flow through the system, along with outages, scheduled or otherwise.
+
 #### Record
 
 Records are the constituent elements of a data set or data stream. [Operators](#operator) and
@@ -164,3 +198,8 @@ per-record basis, but might also only change its partitioning or perform an aggr
 [Operators](#operator) and [Functions](#function)) are the "physical" parts of Flink's API,
 Transformations are only an API concept. Specifically, most - but not all - transformations are
 implemented by certain [Operators](#operator).
+
+#### Watermark
+
+A special record that flows through the system to progress the current [event time](#event-time) for a Job.
+The Watermark serves as a measure of completeness stating no more records from before timestamp _t_ are expected to arrive.

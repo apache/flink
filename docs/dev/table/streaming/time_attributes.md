@@ -24,11 +24,11 @@ under the License.
 
 Flink is able to process streaming data based on different notions of *time*. 
 
-- *Processing time* refers to the system time of the machine (also known as "wall-clock time") that is executing the respective operation.
-- *Event time* refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
-- *Ingestion time* is the time that events enter Flink; internally, it is treated similarly to event time.
+- [Processing time]({{ site.baseurl }}/concepts/glossary.html#processing-time) refers to the system time of the machine (also known as "wall-clock time") that is executing the respective operation.
+- [Event time]({{ site.baseurl }}/concepts/glossary.html#event-time) refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
+- [Ingestion time]({{ site.baseurl }}/concepts/glossary.html#ingestion-time) is the time that events enter Flink; internally, it is treated similarly to event time.
 
-For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({{ site.baseurl }}/dev/event_time.html).
+For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({{ site.baseurl }}/concepts/time.html).
 
 This page explains how time attributes can be defined for time-based operations in Flink's Table API & SQL.
 
