@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.util.concurrent.CompletableFuture
-
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
@@ -36,7 +34,6 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.util.Preconditions.checkNotNull
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
@@ -743,11 +740,39 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
+   * This call clears previously registered
+   * [[org.apache.flink.api.dag.Transformation transformations]].
    *
    * @return The StreamGraph representing the transformations
    */
   @Internal
   def getStreamGraph = javaEnv.getStreamGraph
+
+  /**
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
+   * This call clears previously registered
+   * [[org.apache.flink.api.dag.Transformation transformations]].
+   *
+   * @param jobName Desired name of the job
+   * @return The StreamGraph representing the transformations
+   */
+  @Internal
+  def getStreamGraph(jobName: String) = javaEnv.getStreamGraph(jobName)
+
+  /**
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job
+   * with the option to clear previously registered
+   * [[org.apache.flink.api.dag.Transformation transformations]]. Clearing the transformations
+   * allows, for example, to not re-execute the same operations when calling
+   * [[execute()]] multiple times.
+   *
+   * @param jobName Desired name of the job
+   * @param clearTransformations Whether or not to clear previously registered transformations
+   * @return The StreamGraph representing the transformations
+   */
+  @Internal
+  def getStreamGraph(jobName: String, clearTransformations: Boolean) =
+    javaEnv.getStreamGraph(jobName, clearTransformations)
 
   /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
