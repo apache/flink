@@ -42,13 +42,16 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 	private int[] fieldPosMap;
 	private boolean emptyColumnAsNull;
 
-	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypeInfos, String lineDelimiter, String fieldDelimiter, int[] selectedFields, boolean emptyColumnAsNull) {
+	public RowCsvInputFormat(
+			Path filePath,
+			TypeInformation[] fieldTypeInfos,
+			String lineDelimiter,
+			String fieldDelimiter,
+			int[] selectedFields,
+			boolean emptyColumnAsNull) {
 
 		super(filePath);
 		this.arity = fieldTypeInfos.length;
-		if (arity == 0) {
-			throw new IllegalArgumentException("At least one field must be specified");
-		}
 		if (arity != selectedFields.length) {
 			throw new IllegalArgumentException("Number of field types and selected fields must be the same");
 		}
