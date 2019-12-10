@@ -45,6 +45,9 @@ import static org.junit.Assume.assumeThat;
 
 /**
  * A test base for testing {@link TypeSerializer} upgrades.
+ * <p>
+ * You can run {@link #generateTestSetupFiles()} on a Flink branch to (re-)generate the test data
+ * files.
  */
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT> extends TestLogger {
 
