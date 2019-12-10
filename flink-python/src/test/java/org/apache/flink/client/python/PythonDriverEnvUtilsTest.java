@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
 
@@ -34,8 +35,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -51,9 +54,9 @@ public class PythonDriverEnvUtilsTest {
 
 	@Before
 	public void prepareTestEnvironment() {
-		tmpDirPath = System.getProperty("java.io.tmpdir") +
-			File.separator + "pyflink_" + UUID.randomUUID();
-		new File(tmpDirPath).mkdirs();
+		File tmpDirFile = new File(System.getProperty("java.io.tmpdir"), "pyflink_" + UUID.randomUUID());
+		tmpDirFile.mkdirs();
+		this.tmpDirPath = tmpDirFile.getAbsolutePath();
 	}
 
 	@Test
@@ -80,9 +83,28 @@ public class PythonDriverEnvUtilsTest {
 		// test path with schema
 		pyFilesList.add(new Path("file://" + c.getAbsolutePath()));
 
-		PythonDriverEnvUtils.PythonEnvironment env = PythonDriverEnvUtils.preparePythonEnvironment(
+		List<String> pyFiles = pyFilesList.stream().map(Path::toString).collect(Collectors.toList());
+
+		Tuple2<String, String> pyRequirements = new Tuple2<>("requirements.txt", "requirements_cache");
+
+		String pyExecutable = "/usr/bin/python";
+
+		List<Tuple2<String, String>> pyArchives = new ArrayList<>();
+		pyArchives.add(new Tuple2<>("hdfs://a.zip", null));
+		pyArchives.add(new Tuple2<>("b.zip", "venv"));
+
+		PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(
+			"test",
 			pyFilesList,
-			tmpDirPath);
+			new ArrayList<>(),
+			pyFiles,
+			pyRequirements,
+			pyExecutable,
+			pyArchives);
+
+		PythonDriverEnvUtils.PythonEnvironment env = PythonDriverEnvUtils.preparePythonEnvironment(
+			pythonDriverOptions, tmpDirPath);
+
 		String base = replaceUUID(env.tempDirectory);
 		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a.zip"));
@@ -107,6 +129,13 @@ public class PythonDriverEnvUtilsTest {
 		Assert.assertEquals(
 			expectedPythonPaths,
 			actualPaths.stream().map(PythonDriverEnvUtilsTest::replaceUUID).collect(Collectors.toSet()));
+
+		Map<String, String> expectedEnv = new HashMap<>();
+		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_FILES, String.join("\n", pyFiles));
+		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_REQUIREMENTS, "requirements.txt\nrequirements_cache");
+		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_EXECUTABLE, "/usr/bin/python");
+		expectedEnv.put(PythonDriverEnvUtils.PYFLINK_PY_ARCHIVES, "hdfs://a.zip\n\nb.zip\nvenv");
+		Assert.assertEquals(expectedEnv, env.systemEnv);
 	}
 
 	@Test

@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -162,6 +162,8 @@ under the License.
 									<include>org.yaml:*</include>
 									<include>com.mifmif:*</include>
 									<include>dk.brics.automaton:*</include>
+
+									<include>META-INF/services/org.apache.flink.*</include>
 								</includes>
 							</artifactSet>
 							<filters combine.children="append">
@@ -170,7 +172,7 @@ under the License.
 									<excludes>
 										<exclude>*.aut</exclude>
 										<exclude>META-INF/maven/**</exclude>
-										<exclude>META-INF/services/**</exclude>
+										<exclude>META-INF/services/*com.fasterxml*</exclude>
 										<exclude>META-INF/proguard/**</exclude>
 										<exclude>OSGI-INF/**</exclude>
 										<exclude>schema/**</exclude>

@@ -76,6 +76,10 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -346,5 +350,45 @@ public class HiveShimV100 implements HiveShim {
 	public Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait) {
 		// PK constraints not supported until 2.1.0 -- HIVE-13290
 		return Optional.empty();
+	}
+
+	@Override
+	public Object toHiveTimestamp(Object flinkTimestamp) {
+		ensureSupportedFlinkTimestamp(flinkTimestamp);
+		return flinkTimestamp instanceof Timestamp ? flinkTimestamp : Timestamp.valueOf((LocalDateTime) flinkTimestamp);
+	}
+
+	@Override
+	public LocalDateTime toFlinkTimestamp(Object hiveTimestamp) {
+		Preconditions.checkArgument(hiveTimestamp instanceof Timestamp,
+				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
+				Timestamp.class.getName(), hiveTimestamp.getClass().getName());
+		return ((Timestamp) hiveTimestamp).toLocalDateTime();
+	}
+
+	@Override
+	public Object toHiveDate(Object flinkDate) {
+		ensureSupportedFlinkDate(flinkDate);
+		return flinkDate instanceof Date ? flinkDate : Date.valueOf((LocalDate) flinkDate);
+	}
+
+	@Override
+	public LocalDate toFlinkDate(Object hiveDate) {
+		Preconditions.checkArgument(hiveDate instanceof Date,
+				"Expecting Hive Date to be an instance of %s, but actually got %s",
+				Date.class.getName(), hiveDate.getClass().getName());
+		return ((Date) hiveDate).toLocalDate();
+	}
+
+	void ensureSupportedFlinkTimestamp(Object flinkTimestamp) {
+		Preconditions.checkArgument(flinkTimestamp instanceof Timestamp || flinkTimestamp instanceof LocalDateTime,
+				"Only support converting %s or %s to Hive timestamp, but not %s",
+				Timestamp.class.getName(), LocalDateTime.class.getName(), flinkTimestamp.getClass().getName());
+	}
+
+	void ensureSupportedFlinkDate(Object flinkDate) {
+		Preconditions.checkArgument(flinkDate instanceof Date || flinkDate instanceof LocalDate,
+				"Only support converting %s or %s to Hive date, but not %s",
+				Date.class.getName(), LocalDate.class.getName(), flinkDate.getClass().getName());
 	}
 }

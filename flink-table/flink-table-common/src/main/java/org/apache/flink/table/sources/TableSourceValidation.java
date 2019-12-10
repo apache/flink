@@ -29,6 +29,7 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.DataTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -180,7 +181,16 @@ public class TableSourceValidation {
 			DataType logicalType,
 			TableSource<?> tableSource) {
 		ResolvedField resolvedField = resolveField(fieldName, tableSource);
-		if (!resolvedField.getType().equals(logicalType)) {
+		if (!resolvedField.getType().getLogicalType().equals(logicalType.getLogicalType())) {
+
+			if (resolvedField.getType().getLogicalType() instanceof LegacyTypeInformationType &&
+				logicalType.getLogicalType().getTypeRoot() == LogicalTypeRoot.DECIMAL &&
+				logicalType.getLogicalType().getTypeRoot() == resolvedField.getType().getLogicalType().getTypeRoot()) {
+				// the resolvedField DataType may be derived from TypeInformation,
+				// then it might be LegacyTypeInformationType(BigDecimal) which doesn't equal to logical type DECIMAL(p,s)
+				// however, this doesn't break type equality for a source
+				return;
+			}
 			throw new ValidationException(String.format(
 				"Type '%s' of table field '%s' does not match with type '%s' of field '%s' of the TableSource.",
 				logicalType,

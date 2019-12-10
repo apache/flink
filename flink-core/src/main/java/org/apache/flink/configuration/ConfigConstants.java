@@ -1226,6 +1226,9 @@ public final class ConfigConstants {
 	/**	The delimiter used to assemble the metric identifier. This is used as a suffix in an actual reporter config. */
 	public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
 
+	/** The set of variables that should be excluded. */
+	public static final String METRICS_REPORTER_EXCLUDED_VARIABLES = "scope.variables.excludes";
+
 	/** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
 	@Deprecated
 	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";

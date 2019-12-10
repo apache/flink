@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 
 import java.io.Serializable;
@@ -74,6 +75,8 @@ import java.io.Serializable;
  */
 public class TaskExecutorResourceSpec implements Serializable {
 
+	private final CPUResource cpuCores;
+
 	private final MemorySize frameworkHeapSize;
 
 	private final MemorySize frameworkOffHeapMemorySize;
@@ -91,6 +94,7 @@ public class TaskExecutorResourceSpec implements Serializable {
 	private final MemorySize jvmOverheadSize;
 
 	public TaskExecutorResourceSpec(
+		CPUResource cpuCores,
 		MemorySize frameworkHeapSize,
 		MemorySize frameworkOffHeapSize,
 		MemorySize taskHeapSize,
@@ -100,6 +104,7 @@ public class TaskExecutorResourceSpec implements Serializable {
 		MemorySize jvmMetaspaceSize,
 		MemorySize jvmOverheadSize) {
 
+		this.cpuCores = cpuCores;
 		this.frameworkHeapSize = frameworkHeapSize;
 		this.frameworkOffHeapMemorySize = frameworkOffHeapSize;
 		this.taskHeapSize = taskHeapSize;
@@ -108,6 +113,10 @@ public class TaskExecutorResourceSpec implements Serializable {
 		this.managedMemorySize = managedMemorySize;
 		this.jvmMetaspaceSize = jvmMetaspaceSize;
 		this.jvmOverheadSize = jvmOverheadSize;
+	}
+
+	public CPUResource getCpuCores() {
+		return cpuCores;
 	}
 
 	public MemorySize getFrameworkHeapSize() {
@@ -161,7 +170,8 @@ public class TaskExecutorResourceSpec implements Serializable {
 	@Override
 	public String toString() {
 		return "TaskExecutorResourceSpec {"
-			+ "frameworkHeapSize=" + frameworkHeapSize.toString()
+			+ "cpuCores=" + cpuCores.getValue().doubleValue()
+			+ ", frameworkHeapSize=" + frameworkHeapSize.toString()
 			+ ", frameworkOffHeapSize=" + frameworkOffHeapMemorySize.toString()
 			+ ", taskHeapSize=" + taskHeapSize.toString()
 			+ ", taskOffHeapSize=" + taskOffHeapSize.toString()

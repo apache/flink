@@ -172,13 +172,13 @@ tableEnvironment
   // declare the schema of the table
   .withSchema(
     new Schema()
-      .field("rowtime", Types.SQL_TIMESTAMP)
+      .field("rowtime", DataTypes.TIMESTAMP(3))
         .rowtime(new Rowtime()
           .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
-      .field("user", Types.LONG)
-      .field("message", Types.STRING)
+      .field("user", DataTypes.BIGINT())
+      .field("message", DataTypes.STRING())
   )
 
   // specify the update-mode for streaming tables
@@ -217,7 +217,7 @@ table_environment \
     ) \
     .with_schema(  # declare the schema of the table
         Schema()
-        .field("rowtime", DataTypes.TIMESTAMP())
+        .field("rowtime", DataTypes.TIMESTAMP(3))
         .rowtime(
             Rowtime()
             .timestamps_from_field("timestamp")
@@ -227,7 +227,7 @@ table_environment \
         .field("message", DataTypes.STRING())
     ) \
     .in_append_mode() \
-    .create_temporary_table("MyUserTable")  
+    .create_temporary_table("MyUserTable")
     # specify the update-mode for streaming tables and
     # register as source, sink, or both and under a name
 {% endhighlight %}
@@ -247,10 +247,8 @@ tables:
       topic: test-input
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
 
     # declare a format for this system
     format:
@@ -270,7 +268,7 @@ tables:
     # declare the schema of the table
     schema:
       - name: rowtime
-        type: TIMESTAMP
+        data-type: TIMESTAMP(3)
         rowtime:
           timestamps:
             type: from-field
@@ -279,9 +277,9 @@ tables:
             type: periodic-bounded
             delay: "60000"
       - name: user
-        type: BIGINT
+        data-type: BIGINT
       - name: message
-        type: VARCHAR
+        data-type: STRING
 {% endhighlight %}
 </div>
 
@@ -289,18 +287,16 @@ tables:
 {% highlight sql %}
 CREATE TABLE MyUserTable (
   `user` BIGINT,
-  message VARCHAR,
-  ts VARCHAR
+  message STRING,
+  ts STRING
 ) WITH (
   -- declare the external system to connect to
   'connector.type' = 'kafka',
   'connector.version' = '0.10',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
-  'connector.properties.0.key' = 'zookeeper.connect',
-  'connector.properties.0.value' = 'localhost:2181',
-  'connector.properties.1.key' = 'bootstrap.servers',
-  'connector.properties.1.value' = 'localhost:9092',
+  'connector.properties.zookeeper.connect' = 'localhost:2181',
+  'connector.properties.bootstrap.servers' = 'localhost:9092',
   'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
@@ -337,9 +333,9 @@ The following example shows a simple schema without time attributes and one-to-o
 {% highlight java %}
 .withSchema(
   new Schema()
-    .field("MyField1", Types.INT)     // required: specify the fields of the table (in this order)
-    .field("MyField2", Types.STRING)
-    .field("MyField3", Types.BOOLEAN)
+    .field("MyField1", DataTypes.INT())     // required: specify the fields of the table (in this order)
+    .field("MyField2", DataTypes.STRING())
+    .field("MyField3", DataTypes.BOOLEAN())
 )
 {% endhighlight %}
 </div>
@@ -359,11 +355,11 @@ The following example shows a simple schema without time attributes and one-to-o
 {% highlight yaml %}
 schema:
   - name: MyField1    # required: specify the fields of the table (in this order)
-    type: INT
+    data-type: INT
   - name: MyField2
-    type: VARCHAR
+    data-type: STRING
   - name: MyField3
-    type: BOOLEAN
+    data-type: BOOLEAN
 {% endhighlight %}
 </div>
 </div>
@@ -375,11 +371,11 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight java %}
 .withSchema(
   new Schema()
-    .field("MyField1", Types.SQL_TIMESTAMP)
+    .field("MyField1", DataTypes.TIMESTAMP(3))
       .proctime()      // optional: declares this field as a processing-time attribute
-    .field("MyField2", Types.SQL_TIMESTAMP)
+    .field("MyField2", DataTypes.TIMESTAMP(3))
       .rowtime(...)    // optional: declares this field as a event-time attribute
-    .field("MyField3", Types.BOOLEAN)
+    .field("MyField3", DataTypes.BOOLEAN())
       .from("mf3")     // optional: original field in the input that is referenced/aliased by this field
 )
 {% endhighlight %}
@@ -389,9 +385,9 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight python %}
 .with_schema(
     Schema()
-    .field("MyField1", DataTypes.TIMESTAMP())
+    .field("MyField1", DataTypes.TIMESTAMP(3))
     .proctime()  # optional: declares this field as a processing-time attribute
-    .field("MyField2", DataTypes.TIMESTAMP())
+    .field("MyField2", DataTypes.TIMESTAMP(3))
     .rowtime(...)  # optional: declares this field as a event-time attribute
     .field("MyField3", DataTypes.BOOLEAN())
     .from_origin_field("mf3")  # optional: original field in the input that is referenced/aliased by this field
@@ -403,13 +399,13 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight yaml %}
 schema:
   - name: MyField1
-    type: TIMESTAMP
+    data-type: TIMESTAMP(3)
     proctime: true    # optional: boolean flag whether this field should be a processing-time attribute
   - name: MyField2
-    type: TIMESTAMP
+    data-type: TIMESTAMP(3)
     rowtime: ...      # optional: wether this field should be a event-time attribute
   - name: MyField3
-    type: BOOLEAN
+    data-type: BOOLEAN
     from: mf3         # optional: original field in the input that is referenced/aliased by this field
 {% endhighlight %}
 </div>
@@ -578,34 +574,8 @@ Make sure to always declare both timestamps and watermarks. Watermarks are requi
 
 ### Type Strings
 
-Because type information is only available in a programming language, the following type strings are supported for being defined in a YAML file:
-
-{% highlight yaml %}
-VARCHAR
-BOOLEAN
-TINYINT
-SMALLINT
-INT
-BIGINT
-FLOAT
-DOUBLE
-DECIMAL
-DATE
-TIME
-TIMESTAMP
-MAP<fieldtype, fieldtype>        # generic map; e.g. MAP<VARCHAR, INT> that is mapped to Flink's MapTypeInfo
-MULTISET<fieldtype>              # multiset; e.g. MULTISET<VARCHAR> that is mapped to Flink's MultisetTypeInfo
-PRIMITIVE_ARRAY<fieldtype>       # primitive array; e.g. PRIMITIVE_ARRAY<INT> that is mapped to Flink's PrimitiveArrayTypeInfo
-OBJECT_ARRAY<fieldtype>          # object array; e.g. OBJECT_ARRAY<POJO(org.mycompany.MyPojoClass)> that is mapped to
-                                 #   Flink's ObjectArrayTypeInfo
-ROW<fieldtype, ...>              # unnamed row; e.g. ROW<VARCHAR, INT> that is mapped to Flink's RowTypeInfo
-                                 #   with indexed fields names f0, f1, ...
-ROW<fieldname fieldtype, ...>    # named row; e.g., ROW<myField VARCHAR, myOtherField INT> that
-                                 #   is mapped to Flink's RowTypeInfo
-POJO<class>                      # e.g., POJO<org.mycompany.MyPojoClass> that is mapped to Flink's PojoTypeInfo
-ANY<class>                       # e.g., ANY<org.mycompany.MyClass> that is mapped to Flink's GenericTypeInfo
-ANY<class, serialized>           # used for type information that is not supported by Flink's Table & SQL API
-{% endhighlight %}
+Because `DataType` is only available in a programming language, type strings are supported for being defined in a YAML file.
+The type strings are the same to type declaration in SQL, please see the [Data Types](types.html) page about how to declare a type in SQL.
 
 {% top %}
 
@@ -792,22 +762,15 @@ connector:
                       #   "0.8", "0.9", "0.10", "0.11", and "universal"
   topic: ...          # required: topic name from which the table is read
 
-  properties:         # optional: connector specific properties
-    - key: zookeeper.connect
-      value: localhost:2181
-    - key: bootstrap.servers
-      value: localhost:9092
-    - key: group.id
-      value: testGroup
+  properties:          
+    zookeeper.connect: localhost:2181  # required: specify the ZooKeeper connection string
+    bootstrap.servers: localhost:9092  # required: specify the Kafka server connection string
+    group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
 
-  startup-mode: ...   # optional: valid modes are "earliest-offset", "latest-offset",
-                      # "group-offsets", or "specific-offsets"
-  specific-offsets:   # optional: used in case of startup mode with specific offsets
-    - partition: 0
-      offset: 42
-    - partition: 1
-      offset: 300
-
+  startup-mode: ...                                               # optional: valid modes are "earliest-offset", "latest-offset",
+                                                                  # "group-offsets", or "specific-offsets"
+  specific-offsets: partition:0,offset:42;partition:1,offset:300  # optional: used in case of startup mode with specific offsets
+  
   sink-partitioner: ...    # optional: output partitioning from Flink's partitions into Kafka's partitions
                            # valid are "fixed" (each Flink partition ends up in at most one Kafka partition),
                            # "round-robin" (a Flink partition is distributed to Kafka partitions round-robin)
@@ -831,21 +794,15 @@ CREATE TABLE MyUserTable (
   'update-mode' = 'append',         -- required: update mode when used as table sink,
                                     -- only support append mode now.
 
-  'connector.properties.0.key' = 'zookeeper.connect', -- optional: connector specific properties
-  'connector.properties.0.value' = 'localhost:2181',
-  'connector.properties.1.key' = 'bootstrap.servers',
-  'connector.properties.1.value' = 'localhost:9092',
-  'connector.properties.2.key' = 'group.id',
-  'connector.properties.2.value' = 'testGroup',
+  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specifies the ZooKeeper connection string
+  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specifies the Kafka server connection string
+  'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specifies consumer group
   'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset",
                                                    -- "latest-offset", "group-offsets",
                                                    -- or "specific-offsets"
 
   -- optional: used in case of startup mode with specific offsets
-  'connector.specific-offsets.0.partition' = '0',
-  'connector.specific-offsets.0.offset' = '42',
-  'connector.specific-offsets.1.partition' = '1',
-  'connector.specific-offsets.1.offset' = '300',
+  'connector.specific-offsets' = 'partition:0,offset:42,partition:1,offset:300',
 
   'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions
                                          -- into Kafka's partitions valid are "fixed"
@@ -969,11 +926,8 @@ The connector can be defined as follows:
 {% highlight yaml %}
 connector:
   type: elasticsearch
-  version: 6                # required: valid connector versions are "6"
-    hosts:                  # required: one or more Elasticsearch hosts to connect to
-      - hostname: "localhost"
-        port: 9200
-        protocol: "http"
+  version: 6                                            # required: valid connector versions are "6"
+    hosts: http://host_name:9092;http://host_name:9093  # required: one or more Elasticsearch hosts to connect to
     index: "MyUsers"        # required: Elasticsearch index
     document-type: "user"   # required: Elasticsearch document type
 
@@ -1015,9 +969,7 @@ CREATE TABLE MyUserTable (
 
   'connector.version' = '6',          -- required: valid connector versions are "6"
 
-  'connector.hosts.0.hostname' = 'host_name',  -- required: one or more Elasticsearch hosts to connect to
-  'connector.hosts.0.port' = '9092',
-  'connector.hosts.0.protocol' = 'http',
+  'connector.hosts' = 'http://host_name:9092;http://host_name:9093',  -- required: one or more Elasticsearch hosts to connect to
 
   'connector.index' = 'MyUsers',       -- required: Elasticsearch index
 
@@ -1332,7 +1284,8 @@ The CSV format aims to comply with [RFC-4180](https://tools.ietf.org/html/rfc418
 MIME Type for Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
 
 The format allows to read and write CSV data that corresponds to a given format schema. The format schema can be
-defined either as a Flink type or derived from the desired table schema.
+defined either as a Flink type or derived from the desired table schema. Since Flink 1.10, the format will derive
+format schema from table schema by default. Therefore, it is no longer necessary to explicitly declare the format schema.
 
 If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for
 defining schema information only once. The names, types, and fields' order of the format are determined by the
@@ -1347,11 +1300,9 @@ The CSV format can be used as follows:
 .withFormat(
   new Csv()
 
-    // required: define the schema either by using type information
+    // optional: define the schema explicitly using type information. This overrides default
+    // behavior that uses table's schema as format schema.
     .schema(Type.ROW(...))
-
-    // or use the table's schema
-    .deriveSchema()
 
     .fieldDelimiter(';')         // optional: field delimiter character (',' by default)
     .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
@@ -1375,11 +1326,9 @@ The CSV format can be used as follows:
 .with_format(
     Csv()
 
-    # required: define the schema either by using type information
+    # optional: define the schema explicitly using type information. This overrides default
+    # behavior that uses table's schema as format schema.
     .schema(DataTypes.ROW(...))
-
-    # or use the table's schema
-    .derive_schema()
 
     .field_delimiter(';')          # optional: field delimiter character (',' by default)
     .line_delimiter("\r\n")        # optional: line delimiter ("\n" by default;
@@ -1403,11 +1352,9 @@ The CSV format can be used as follows:
 format:
   type: csv
 
-  # required: define the schema either by using type information
+  # optional: define the schema explicitly using type information. This overrides default
+  # behavior that uses table's schema as format schema.
   schema: "ROW(lon FLOAT, rideTime TIMESTAMP)"
-
-  # or use the table's schema
-  derive-schema: true
 
   field-delimiter: ";"         # optional: field delimiter character (',' by default)
   line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default;
@@ -1432,12 +1379,10 @@ CREATE TABLE MyUserTable (
 ) WITH (
   'format.type' = 'csv',                  -- required: specify the schema type
 
-  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
-  'format.fields.0.type' = 'FLOAT',
+  'format.fields.0.name' = 'lon',         -- optional: define the schema explicitly using type information.
+  'format.fields.0.data-type' = 'FLOAT',  -- This overrides default behavior that uses table's schema as format schema.
   'format.fields.1.name' = 'rideTime',
-  'format.fields.1.type' = 'TIMESTAMP',
-
-  'format.derive-schema' = 'true',        -- or use the table's schema
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
@@ -1524,10 +1469,11 @@ The JSON format can be used as follows:
   new Json()
     .failOnMissingField(true)   // optional: flag whether to fail if a field is missing or not, false by default
 
-    // required: define the schema either by using type information which parses numbers to corresponding types
+    // optional: define the schema explicitly using type information. This overrides default
+    // behavior that uses table's schema as format schema.
     .schema(Type.ROW(...))
 
-    // or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    // or by using a JSON schema which parses to DECIMAL and TIMESTAMP. This also overrides default behavior.
     .jsonSchema(
       "{" +
       "  type: 'object'," +
@@ -1542,9 +1488,6 @@ The JSON format can be used as follows:
       "  }" +
       "}"
     )
-
-    // or use the table's schema
-    .deriveSchema()
 )
 {% endhighlight %}
 </div>
@@ -1555,10 +1498,11 @@ The JSON format can be used as follows:
     Json()
     .fail_on_missing_field(True)   # optional: flag whether to fail if a field is missing or not, False by default
 
-    # required: define the schema either by using type information which parses numbers to corresponding types
+    # optional: define the schema explicitly using type information. This overrides default
+    # behavior that uses table's schema as format schema.
     .schema(DataTypes.ROW(...))
 
-    # or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    # or by using a JSON schema which parses to DECIMAL and TIMESTAMP. This also overrides default behavior.
     .json_schema(
         "{"
         "  type: 'object',"
@@ -1573,9 +1517,6 @@ The JSON format can be used as follows:
         "  }"
         "}"
     )
-
-    # or use the table's schema
-    .derive_schema()
 )
 {% endhighlight %}
 </div>
@@ -1586,10 +1527,11 @@ format:
   type: json
   fail-on-missing-field: true   # optional: flag whether to fail if a field is missing or not, false by default
 
-  # required: define the schema either by using a type string which parses numbers to corresponding types
+  # optional: define the schema explicitly using type information. This overrides default
+  # behavior that uses table's schema as format schema.
   schema: "ROW(lon FLOAT, rideTime TIMESTAMP)"
 
-  # or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+  # or by using a JSON schema which parses to DECIMAL and TIMESTAMP. This also overrides the default behavior.
   json-schema: >
     {
       type: 'object',
@@ -1603,9 +1545,6 @@ format:
         }
       }
     }
-
-  # or use the table's schema
-  derive-schema: true
 {% endhighlight %}
 </div>
 
@@ -1617,13 +1556,13 @@ CREATE TABLE MyUserTable (
   'format.type' = 'json',                   -- required: specify the format type
   'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
 
-  'format.fields.0.name' = 'lon',           -- required: define the schema either by using a type string which parses numbers to corresponding types
-  'format.fields.0.type' = 'FLOAT',
+  'format.fields.0.name' = 'lon',           -- optional: define the schema explicitly using type information.
+  'format.fields.0.data-type' = 'FLOAT',    -- This overrides default behavior that uses table's schema as format schema.
   'format.fields.1.name' = 'rideTime',
-  'format.fields.1.type' = 'TIMESTAMP',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
-  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
-    '{
+  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP.
+    '{                                      -- This also overrides the default behavior.
       "type": "object",
       "properties": {
         "lon": {
@@ -1634,9 +1573,7 @@ CREATE TABLE MyUserTable (
           "format": "date-time"
         }
       }
-    }',
-
-  'format.derive-schema' = 'true'          -- or use the table's schema
+    }'
 )
 {% endhighlight %}
 </div>
@@ -1855,9 +1792,8 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight java %}
 .withFormat(
   new OldCsv()
-    .field("field1", Types.STRING)    // required: ordered format fields
-    .field("field2", Types.TIMESTAMP)
-    .deriveSchema()                   // or use the table's schema
+    .field("field1", DataTypes.STRING())    // optional: declare ordered format fields explicitly. This will overrides
+    .field("field2", DataTypes.TIMESTAMP(3)) //  the default behavior that uses table's schema as format schema.
     .fieldDelimiter(",")              // optional: string delimiter "," by default
     .lineDelimiter("\n")              // optional: string delimiter "\n" by default
     .quoteCharacter('"')              // optional: single character for string values, empty by default
@@ -1872,8 +1808,8 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight python %}
 .with_format(
     OldCsv()
-    .field("field1", DataTypes.STRING())    # required: ordered format fields
-    .field("field2", DataTypes.TIMESTAMP())
+    .field("field1", DataTypes.STRING())    # optional: declare ordered format fields explicitly. This will overrides
+    .field("field2", DataTypes.TIMESTAMP()) #  the default behavior that uses table's schema as format schema.
     .field_delimiter(",")                   # optional: string delimiter "," by default
     .line_delimiter("\n")                   # optional: string delimiter "\n" by default
     .quote_character('"')                   # optional: single character for string values, empty by default
@@ -1888,12 +1824,11 @@ Use the old one for stream/batch filesystem operations for now.
 {% highlight yaml %}
 format:
   type: csv
-  fields:                    # required: ordered format fields
-    - name: field1
-      type: VARCHAR
+  fields:                    # optional: declare ordered format fields explicitly. This will overrides
+    - name: field1           #  the default behavior that uses table's schema as format schema.
+      data-type: STRING
     - name: field2
-      type: TIMESTAMP
-  derive-schema: true        # or use the table's schema
+      data-type: TIMESTAMP(3)
   field-delimiter: ","       # optional: string delimiter "," by default
   line-delimiter: "\n"       # optional: string delimiter "\n" by default
   quote-character: '"'       # optional: single character for string values, empty by default
@@ -1910,12 +1845,10 @@ CREATE TABLE MyUserTable (
 ) WITH (
   'format.type' = 'csv',                  -- required: specify the schema type
 
-  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
-  'format.fields.0.type' = 'FLOAT',
+  'format.fields.0.name' = 'lon',         -- optional: declare ordered format fields explicitly. This will overrides
+  'format.fields.0.data-type' = 'STRING', --  the default behavior that uses table's schema as format schema.
   'format.fields.1.name' = 'rideTime',
-  'format.fields.1.type' = 'TIMESTAMP',
-
-  'format.derive-schema' = 'true',        -- or use the table's schema'
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
   'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default

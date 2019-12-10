@@ -88,6 +88,36 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("alter table cat1.db1.tb1 set ('k1'='v1', 'k2'='v2')",
 				new SqlCommandCall(SqlCommand.ALTER_TABLE,
 						new String[]{"alter table cat1.db1.tb1 set ('k1'='v1', 'k2'='v2')"}));
+		// Test create table.
+		testInvalidSqlCommand("CREATE tables");
+		testInvalidSqlCommand("CREATE   tables");
+		testValidSqlCommand("create Table hello", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"create Table hello"}));
+		testValidSqlCommand("create Table hello(a int)", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"create Table hello(a int)"}));
+		testValidSqlCommand("  CREATE TABLE hello(a int)", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"CREATE TABLE hello(a int)"}));
+		testValidSqlCommand("CREATE TABLE T(\n"
+						+ "  a int,\n"
+						+ "  b varchar(20),\n"
+						+ "  c as my_udf(b),\n"
+						+ "  watermark for b as my_udf(b, 1) - INTERVAL '5' second\n"
+						+ ") WITH (\n"
+						+ "  'k1' = 'v1',\n"
+						+ "  'k2' = 'v2')\n",
+				new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[] {"CREATE TABLE T(\n"
+						+ "  a int,\n"
+						+ "  b varchar(20),\n"
+						+ "  c as my_udf(b),\n"
+						+ "  watermark for b as my_udf(b, 1) - INTERVAL '5' second\n"
+						+ ") WITH (\n"
+						+ "  'k1' = 'v1',\n"
+						+ "  'k2' = 'v2')"}));
+		// Test drop table.
+		testInvalidSqlCommand("DROP table");
+		testInvalidSqlCommand("DROP tables");
+		testInvalidSqlCommand("DROP   tables");
+		testValidSqlCommand("DROP TABLE t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE t1"}));
+		testValidSqlCommand("DROP TABLE IF EXISTS t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS t1"}));
+		testValidSqlCommand("DROP TABLE IF EXISTS catalog1.db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS catalog1.db1.t1"}));
+		testValidSqlCommand("DROP TABLE IF EXISTS db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS db1.t1"}));
 	}
 
 	private void testInvalidSqlCommand(String stmt) {

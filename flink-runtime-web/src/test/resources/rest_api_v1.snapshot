@@ -1061,6 +1061,9 @@
               "type" : "boolean"
             }
           }
+        },
+        "state_backend" : {
+          "type" : "string"
         }
       }
     }
@@ -2328,6 +2331,27 @@
           }
         }
       }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/watermarks",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
     }
   }, {
     "url" : "/overview",

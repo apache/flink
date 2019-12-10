@@ -133,12 +133,6 @@ public class TpcdsTestProgram {
 		tEnv.getConfig().getConfiguration()
 				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
 		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, "32 mb");
-		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "32 mb");
-		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "32 mb");
-		tEnv.getConfig().getConfiguration()
 				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
 		tEnv.getConfig().getConfiguration()
 				.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);

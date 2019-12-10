@@ -109,6 +109,6 @@ public class DefaultCLITest extends CliFrontendTestBase {
 		checkState(clusterFactory != null);
 
 		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = clusterFactory.createClusterDescriptor(executorConfig);
-		return clusterDescriptor.retrieve(clusterFactory.getClusterId(executorConfig));
+		return clusterDescriptor.retrieve(clusterFactory.getClusterId(executorConfig)).getClusterClient();
 	}
 }

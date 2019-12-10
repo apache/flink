@@ -98,6 +98,34 @@ public class ResourceTest extends TestLogger {
 		v1.subtract(v2);
 	}
 
+	@Test
+	public void testDivide() {
+		final Resource resource = new TestResource(0.04);
+		final BigDecimal by = BigDecimal.valueOf(0.1);
+		assertTestResourceValueEquals(0.4, resource.divide(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideNegative() {
+		final Resource resource = new TestResource(1.2);
+		final BigDecimal by = BigDecimal.valueOf(-0.5);
+		resource.divide(by);
+	}
+
+	@Test
+	public void testDivideInteger() {
+		final Resource resource = new TestResource(0.12);
+		final int by = 4;
+		assertTestResourceValueEquals(0.03, resource.divide(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideNegativeInteger() {
+		final Resource resource = new TestResource(1.2);
+		final int by = -5;
+		resource.divide(by);
+	}
+
 	private static void assertTestResourceValueEquals(final double value, final Resource resource) {
 		assertEquals(new TestResource(value), resource);
 	}

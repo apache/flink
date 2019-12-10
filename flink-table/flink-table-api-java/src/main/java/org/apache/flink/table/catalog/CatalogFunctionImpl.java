@@ -32,15 +32,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
 	private final FunctionLanguage functionLanguage;
+	private final boolean isTemporary;
 
 	public CatalogFunctionImpl(String className) {
-		this(className, FunctionLanguage.JAVA);
+		this(className, FunctionLanguage.JAVA, false);
 	}
 
-	public CatalogFunctionImpl(String className, FunctionLanguage functionLanguage) {
+	public CatalogFunctionImpl(
+			String className,
+			FunctionLanguage functionLanguage,
+			boolean isTemporary) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
 		this.className = className;
 		this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -50,7 +55,7 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), functionLanguage);
+		return new CatalogFunctionImpl(getClassName(), functionLanguage, isTemporary);
 	}
 
 	@Override
@@ -77,6 +82,11 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
+	@Override
 	public FunctionLanguage getFunctionLanguage() {
 		return functionLanguage;
 	}
@@ -85,7 +95,9 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	public String toString() {
 		return "CatalogFunctionImpl{" +
 			"className='" + getClassName() + "', " +
-			"functionLanguage='" + getFunctionLanguage() +
+			"functionLanguage='" + getFunctionLanguage() + "', " +
+			"isGeneric='" + isGeneric() + "', " +
+			"isTemporary='" + isTemporary() +
 			"'}";
 	}
 }

@@ -272,6 +272,16 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
 		public List<String> listTables(String sessionId) throws SqlExecutionException {
 			return null;
 		}
@@ -351,7 +361,7 @@ public class CliClientTest extends TestLogger {
 			if (failExecution) {
 				throw new SqlExecutionException("Fail execution.");
 			}
-			return new ProgramTargetDescriptor("testClusterId", "testJobId", "http://testcluster:1234");
+			return new ProgramTargetDescriptor("testJobId");
 		}
 	}
 }

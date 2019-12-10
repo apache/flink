@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -77,6 +78,7 @@ import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -817,6 +819,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final SlotID slotId,
 		final JobID jobId,
 		final AllocationID allocationId,
+		final ResourceProfile resourceProfile,
 		final String targetAddress,
 		final ResourceManagerId resourceManagerId,
 		final Time timeout) {
@@ -833,7 +836,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 
 			if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
-				if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, taskManagerConfiguration.getTimeout())) {
+				if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, resourceProfile, taskManagerConfiguration.getTimeout())) {
 					log.info("Allocated slot for {}.", allocationId);
 				} else {
 					log.info("Could not allocate slot for {}.", allocationId);
@@ -993,19 +996,25 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		log.info("Connecting to ResourceManager {}.", resourceManagerAddress);
 
+		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
+			getAddress(),
+			getResourceID(),
+			taskManagerLocation.dataPort(),
+			hardwareDescription,
+			taskManagerConfiguration.getDefaultSlotResourceProfile(),
+			taskManagerConfiguration.getTotalResourceProfile()
+		);
+
 		resourceManagerConnection =
 			new TaskExecutorToResourceManagerConnection(
 				log,
 				getRpcService(),
-				getAddress(),
-				getResourceID(),
 				taskManagerConfiguration.getRetryingRegistrationConfiguration(),
-				taskManagerLocation.dataPort(),
-				hardwareDescription,
 				resourceManagerAddress.getAddress(),
 				resourceManagerAddress.getResourceManagerId(),
 				getMainThreadExecutor(),
-				new ResourceManagerRegistrationListener());
+				new ResourceManagerRegistrationListener(),
+				taskExecutorRegistration);
 		resourceManagerConnection.start();
 	}
 

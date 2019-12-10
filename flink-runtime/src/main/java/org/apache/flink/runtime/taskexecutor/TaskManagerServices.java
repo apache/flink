@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -32,7 +32,6 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
-import org.apache.flink.runtime.taskexecutor.slot.TaskSlot;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -45,12 +44,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Container for {@link TaskExecutor} services such as the {@link MemoryManager}, {@link IOManager},
@@ -248,7 +243,7 @@ public class TaskManagerServices {
 
 		final TaskSlotTable taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
-			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
+			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
 			taskManagerServicesConfiguration.getPageSize());
 
@@ -285,24 +280,18 @@ public class TaskManagerServices {
 
 	private static TaskSlotTable createTaskSlotTable(
 			final int numberOfSlots,
-			final long managedMemorySize,
+			final TaskExecutorResourceSpec taskExecutorResourceSpec,
 			final long timerServiceShutdownTimeout,
 			final int pageSize) {
-		final List<ResourceProfile> resourceProfiles =
-			Collections.nCopies(numberOfSlots, computeSlotResourceProfile(numberOfSlots, managedMemorySize));
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
-		return new TaskSlotTable(createTaskSlotsFromResources(resourceProfiles, pageSize), timerService);
-	}
-
-	private static List<TaskSlot> createTaskSlotsFromResources(
-			List<ResourceProfile> resourceProfiles,
-			int memoryPageSize) {
-		return IntStream
-			.range(0, resourceProfiles.size())
-			.mapToObj(index -> new TaskSlot(index, resourceProfiles.get(index), memoryPageSize))
-			.collect(Collectors.toList());
+		return new TaskSlotTable(
+			numberOfSlots,
+			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
+			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
+			pageSize,
+			timerService);
 	}
 
 	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
@@ -360,19 +349,5 @@ public class TaskManagerServices {
 				throw new IllegalArgumentException("Temporary file directory #$id is null.");
 			}
 		}
-	}
-
-	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
-		return ResourceProfile.newBuilder()
-			.setCpuCores(Double.MAX_VALUE)
-			.setTaskHeapMemory(MemorySize.MAX_VALUE)
-			.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
-			.setManagedMemory(new MemorySize(managedMemorySize / numOfSlots))
-			.setShuffleMemory(MemorySize.MAX_VALUE)
-			.build();
-	}
-
-	private static long bytesToMegabytes(long bytes) {
-		return bytes >> 20;
 	}
 }

@@ -173,12 +173,28 @@ public class StreamExecutionEnvironment {
 
 	public StreamExecutionEnvironment() {
 		this(new Configuration());
+		// unfortunately, StreamExecutionEnvironment always (implicitly) had a public constructor.
+		// This constructor is not useful because the execution environment cannot be used for
+		// execution. We're keeping this to appease the binary compatibiliy checks.
 	}
 
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 */
+	@PublicEvolving
 	public StreamExecutionEnvironment(final Configuration configuration) {
 		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
 	public StreamExecutionEnvironment(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
@@ -1619,10 +1635,12 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try (final JobClient jobClient = executeAsync(streamGraph).get()) {
-			return configuration.getBoolean(DeploymentOptions.ATTACHED)
-					? jobClient.getJobExecutionResult(userClassloader).get()
-					: new DetachedJobExecutionResult(jobClient.getJobID());
+		final JobClient jobClient = executeAsync(streamGraph).get();
+
+		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+			return jobClient.getJobExecutionResult(userClassloader).get();
+		} else {
+			return new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 	}
 
@@ -1633,10 +1651,6 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with a generated
 	 * default name.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
@@ -1653,10 +1667,6 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with the provided name
 	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
-	 *
 	 * @param jobName desired name of the job
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception which occurs during job execution.
@@ -1670,10 +1680,6 @@ public class StreamExecutionEnvironment {
 	 * Triggers the program execution asynchronously. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @param streamGraph the stream graph representing the transformations
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.

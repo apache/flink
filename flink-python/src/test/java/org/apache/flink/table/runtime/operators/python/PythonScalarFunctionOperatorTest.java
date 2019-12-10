@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.python;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -40,13 +41,14 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 
 	@Override
 	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row, Row> getTestOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		return new PassThroughPythonScalarFunctionOperator(
-			scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -67,12 +69,13 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {
 
 		PassThroughPythonScalarFunctionOperator(
+			Configuration config,
 			PythonFunctionInfo[] scalarFunctions,
 			RowType inputType,
 			RowType outputType,
 			int[] udfInputOffsets,
 			int[] forwardedFields) {
-			super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 		}
 
 		@Override

@@ -186,7 +186,6 @@ public class CheckpointCoordinator {
 	private final CheckpointFailureManager failureManager;
 
 	private final Clock clock;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(

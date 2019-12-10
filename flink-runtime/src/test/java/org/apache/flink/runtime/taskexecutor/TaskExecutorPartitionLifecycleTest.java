@@ -21,11 +21,14 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -355,6 +358,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 						slotStatus.getSlotID(),
 						jobId,
 						taskDeploymentDescriptor.getAllocationId(),
+						ResourceProfile.ZERO,
 						jobMasterAddress,
 						testingResourceManagerGateway.getFencingToken(),
 						timeout
@@ -421,10 +425,12 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	}
 
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker, String metricQueryServiceAddress) throws IOException {
-		Configuration configuration = new Configuration();
+		final Configuration configuration = new Configuration();
+		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, "1g");
+
 		return new TestingTaskExecutor(
 			RPC,
-			TaskManagerConfiguration.fromConfiguration(configuration),
+			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfig(configuration)),
 			haServices,
 			taskManagerServices,
 			new HeartbeatServices(10_000L, 30_000L),

@@ -20,11 +20,12 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -64,7 +65,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer;
 
-	private final Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction;
+	private final Function<Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction;
 
 	private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
@@ -84,7 +85,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer,
 			BiConsumer<JobID, Throwable> disconnectJobManagerConsumer,
 			BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer,
-			Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction,
+			Function<Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction,
 			BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
 			Consumer<ResourceID> heartbeatResourceManagerConsumer,
 			Consumer<Exception> disconnectResourceManagerConsumer,
@@ -106,8 +107,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> requestSlot(SlotID slotId, JobID jobId, AllocationID allocationId, String targetAddress, ResourceManagerId resourceManagerId, Time timeout) {
-		return requestSlotFunction.apply(Tuple5.of(slotId, jobId, allocationId, targetAddress, resourceManagerId));
+	public CompletableFuture<Acknowledge> requestSlot(SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile, String targetAddress, ResourceManagerId resourceManagerId, Time timeout) {
+		return requestSlotFunction.apply(Tuple6.of(slotId, jobId, allocationId, resourceProfile, targetAddress, resourceManagerId));
 	}
 
 	@Override

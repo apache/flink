@@ -39,6 +39,7 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -215,6 +216,10 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	public List<Partition> listPartitions(String dbName, String tblName, short max) throws TException {
 		return client.listPartitions(dbName, tblName, max);
+	}
+
+	public PartitionSpecProxy listPartitionSpecsByFilter(String dbName, String tblName, String filter, short max) throws TException {
+		return client.listPartitionSpecsByFilter(dbName, tblName, filter, max);
 	}
 
 	//-------- Start of shimmed methods ----------

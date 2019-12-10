@@ -20,12 +20,12 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -39,6 +39,9 @@ import java.io.File;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Task manager specific pod configuration.
  */
@@ -49,7 +52,7 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 	private final TaskManagerPodParameter parameter;
 
 	public TaskManagerPodDecorator(TaskManagerPodParameter parameters) {
-		Preconditions.checkNotNull(parameters);
+		checkNotNull(parameters);
 		this.parameter = parameters;
 	}
 
@@ -57,7 +60,10 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 	protected Pod decorateInternalResource(Pod pod, Configuration flinkConfig) {
 
 		final String clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
-		Preconditions.checkNotNull(clusterId, "ClusterId must be specified!");
+		checkNotNull(clusterId, "ClusterId must be specified!");
+
+		final int taskManagerRpcPort = KubernetesUtils.parsePort(flinkConfig, TaskManagerOptions.RPC_PORT);
+		checkArgument(taskManagerRpcPort > 0, "%s should not be 0.", TaskManagerOptions.RPC_PORT.key());
 
 		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
 		final boolean hasLogback = new File(confDir, Constants.CONFIG_FILE_LOGBACK_NAME).exists();
@@ -75,12 +81,16 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 
 		pod.setSpec(new PodSpecBuilder()
 			.withVolumes(configMapVolume)
-			.withContainers(createTaskManagerContainer(flinkConfig, hasLogback, hasLog4j))
+			.withContainers(createTaskManagerContainer(flinkConfig, hasLogback, hasLog4j, taskManagerRpcPort))
 			.build());
 		return pod;
 	}
 
-	private Container createTaskManagerContainer(Configuration flinkConfig, boolean hasLogBack, boolean hasLog4j) {
+	private Container createTaskManagerContainer(
+			Configuration flinkConfig,
+			boolean hasLogBack,
+			boolean hasLog4j,
+			int taskManagerRpcPort) {
 		final String flinkConfDirInPod = flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
 		return new ContainerBuilder()
 			.withName(CONTAINER_NAME)
@@ -91,7 +101,7 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 			.withResources(KubernetesUtils.getResourceRequirements(
 				parameter.getTaskManagerMemoryInMB(),
 				parameter.getTaskManagerCpus()))
-			.withPorts(new ContainerPortBuilder().withContainerPort(Constants.TASK_MANAGER_RPC_PORT).build())
+			.withPorts(new ContainerPortBuilder().withContainerPort(taskManagerRpcPort).build())
 			.withEnv(this.parameter.getEnvironmentVariables()
 				.entrySet()
 				.stream()

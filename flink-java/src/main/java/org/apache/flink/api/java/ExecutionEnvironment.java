@@ -137,23 +137,36 @@ public class ExecutionEnvironment {
 	private final ClassLoader userClassloader;
 
 	/**
-	 * Creates a new Execution Environment.
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
+	 * configure the {@link org.apache.flink.core.execution.Executor}.
 	 */
-	protected ExecutionEnvironment() {
-		this(new Configuration());
-	}
-
-	protected ExecutionEnvironment(final Configuration configuration) {
+	@PublicEvolving
+	public ExecutionEnvironment(final Configuration configuration) {
 		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
 	}
 
-	protected ExecutionEnvironment(
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+	}
+
+	/**
+	 * Creates a new Execution Environment.
+	 */
+	protected ExecutionEnvironment() {
+		this(new Configuration());
 	}
 
 	@Internal
@@ -804,13 +817,15 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
-		try (final JobClient jobClient = executeAsync(jobName).get()) {
-			lastJobExecutionResult = configuration.getBoolean(DeploymentOptions.ATTACHED)
-					? jobClient.getJobExecutionResult(userClassloader).get()
-					: new DetachedJobExecutionResult(jobClient.getJobID());
+		final JobClient jobClient = executeAsync(jobName).get();
 
-			return lastJobExecutionResult;
+		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+			lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+		} else {
+			lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
+
+		return lastJobExecutionResult;
 	}
 
 	/**
@@ -821,10 +836,6 @@ public class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
 	 * <p>The program execution will be logged and displayed with a generated default name.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
@@ -842,10 +853,6 @@ public class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
 	 * <p>The program execution will be logged and displayed with the given job name.
-	 *
-	 * <p><b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle of
-	 * the returned {@link JobClient}. This means calling {@link JobClient#close()} at the end of
-	 * its usage. In other case, there may be resource leaks depending on the JobClient implementation.
 	 *
 	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
@@ -940,8 +947,8 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -955,8 +962,8 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -971,8 +978,8 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 *

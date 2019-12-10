@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -252,6 +252,13 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-curator</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Lz4 compression library -->
+		<dependency>
+			<groupId>org.lz4</groupId>
+			<artifactId>lz4-java</artifactId>
+			<version>1.5.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -539,6 +546,7 @@ under the License.
 									<include>io.netty:netty</include>
 									<include>org.uncommons.maths:uncommons-maths</include>
 									<include>org.apache.zookeeper:*</include>
+									<include>org.lz4:lz4-java</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
@@ -569,6 +577,11 @@ under the License.
 								<relocation>
 									<pattern>org.apache.jute</pattern>
 									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute</shadedPattern>
+								</relocation>
+								<relocation>
+									<!-- Relocate org.lz4:lz4-java -->
+									<pattern>net.jpountz</pattern>
+									<shadedPattern>org.apache.flink.runtime.shaded.net.jpountz</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

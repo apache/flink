@@ -82,14 +82,9 @@ public class KafkaTest extends DescriptorTestBase {
 		props2.put("connector.version", "0.11");
 		props2.put("connector.topic", "MyTable");
 		props2.put("connector.startup-mode", "specific-offsets");
-		props2.put("connector.specific-offsets.0.partition", "0");
-		props2.put("connector.specific-offsets.0.offset", "42");
-		props2.put("connector.specific-offsets.1.partition", "1");
-		props2.put("connector.specific-offsets.1.offset", "300");
-		props2.put("connector.properties.0.key", "zookeeper.stuff");
-		props2.put("connector.properties.0.value", "12");
-		props2.put("connector.properties.1.key", "kafka.stuff");
-		props2.put("connector.properties.1.value", "42");
+		props2.put("connector.specific-offsets", "partition:0,offset:42;partition:1,offset:300");
+		props2.put("connector.properties.zookeeper.stuff", "12");
+		props2.put("connector.properties.kafka.stuff", "42");
 
 		final Map<String, String> props3 = new HashMap<>();
 		props3.put("connector.property-version", "1");
@@ -97,14 +92,9 @@ public class KafkaTest extends DescriptorTestBase {
 		props3.put("connector.version", "0.11");
 		props3.put("connector.topic", "MyTable");
 		props3.put("connector.startup-mode", "specific-offsets");
-		props3.put("connector.specific-offsets.0.partition", "0");
-		props3.put("connector.specific-offsets.0.offset", "42");
-		props3.put("connector.specific-offsets.1.partition", "1");
-		props3.put("connector.specific-offsets.1.offset", "300");
-		props3.put("connector.properties.0.key", "zookeeper.stuff");
-		props3.put("connector.properties.0.value", "12");
-		props3.put("connector.properties.1.key", "kafka.stuff");
-		props3.put("connector.properties.1.value", "42");
+		props3.put("connector.specific-offsets", "partition:0,offset:42;partition:1,offset:300");
+		props3.put("connector.properties.zookeeper.stuff", "12");
+		props3.put("connector.properties.kafka.stuff", "42");
 		props3.put("connector.sink-partitioner", "custom");
 		props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
 

@@ -21,6 +21,18 @@
             <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.blocking-shuffle.compression.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is more effective for IO bounded scenario when data compression ratio is high.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.pipelined-shuffle.compression.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle mode. Note that data is compressed per sliced buffer and compression can incur extra CPU overhead, so it is not recommended to enable compression if network is not the bottleneck or compression ratio is low.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.detailed-metrics</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

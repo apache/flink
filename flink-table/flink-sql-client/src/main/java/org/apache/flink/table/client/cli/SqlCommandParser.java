@@ -127,6 +127,10 @@ public final class SqlCommandParser {
 			"(INSERT\\s+INTO.*)",
 			SINGLE_OPERAND),
 
+		CREATE_TABLE("(CREATE\\s+TABLE\\s+.*)", SINGLE_OPERAND),
+
+		DROP_TABLE("(DROP\\s+TABLE\\s+.*)", SINGLE_OPERAND),
+
 		CREATE_VIEW(
 			"CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)",
 			(operands) -> {

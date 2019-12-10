@@ -55,6 +55,41 @@ public class NettyShuffleEnvironmentOptions {
 				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
 
 	/**
+	 * Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode.
+	 *
+	 * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is more effective for IO
+	 * bounded scenario when data compression ratio is high.
+	 */
+	public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
+		key("taskmanager.network.blocking-shuffle.compression.enabled")
+			.defaultValue(false)
+			.withDescription("Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle" +
+				" mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is" +
+				" more effective for IO bounded scenario when data compression ratio is high.");
+
+	/**
+	 * Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle mode.
+	 *
+	 * <p>Note: Data is compressed per sliced buffer and compression can incur extra CPU overhead, so it is not recommended
+	 * to enable compression if network is not the bottleneck or compression ratio is low.
+	 */
+	public static final ConfigOption<Boolean> PIPELINED_SHUFFLE_COMPRESSION_ENABLED =
+		key("taskmanager.network.pipelined-shuffle.compression.enabled")
+			.defaultValue(false)
+			.withDescription("Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle" +
+				" mode. Note that data is compressed per sliced buffer and compression can incur extra CPU overhead, so" +
+				" it is not recommended to enable compression if network is not the bottleneck or compression ratio is low.");
+
+	/**
+	 * The codec to be used when compressing shuffle data.
+	 */
+	@Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
+	public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
+		key("taskmanager.network.compression.codec")
+			.defaultValue("LZ4")
+			.withDescription("The codec to be used when compressing shuffle data.");
+
+	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
 	 * lengths.
 	 */

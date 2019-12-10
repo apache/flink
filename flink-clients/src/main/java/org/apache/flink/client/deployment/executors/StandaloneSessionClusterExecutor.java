@@ -30,7 +30,7 @@ import org.apache.flink.core.execution.Executor;
 @Internal
 public class StandaloneSessionClusterExecutor extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {
 
-	public static final String NAME = "standalone-session-cluster";
+	public static final String NAME = "standalone-session-executor";
 
 	public StandaloneSessionClusterExecutor() {
 		super(new StandaloneClientFactory());

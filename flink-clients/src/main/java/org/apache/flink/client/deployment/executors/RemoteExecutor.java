@@ -30,7 +30,7 @@ import org.apache.flink.core.execution.Executor;
 @Internal
 public class RemoteExecutor extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {
 
-	public static final String NAME = "remote-cluster";
+	public static final String NAME = "remote-executor";
 
 	public RemoteExecutor() {
 		super(new StandaloneClientFactory());

@@ -188,7 +188,7 @@ class BatchExecCorrelate(
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
     val operatorCtx = CodeGeneratorContext(config)
-    val transformation = CorrelateCodeGenerator.generateCorrelateTransformation(
+    CorrelateCodeGenerator.generateCorrelateTransformation(
       config,
       operatorCtx,
       inputTransformation,
@@ -201,9 +201,8 @@ class BatchExecCorrelate(
       inputTransformation.getParallelism,
       retainHeader = false,
       getExpressionString,
-      "BatchExecCorrelate")
-    transformation.setName(getRelDetailedDescription)
-    transformation
+      "BatchExecCorrelate",
+      getRelDetailedDescription)
   }
 
 }

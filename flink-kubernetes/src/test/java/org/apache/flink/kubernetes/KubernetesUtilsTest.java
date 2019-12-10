@@ -18,6 +18,10 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -25,13 +29,17 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.HashMap;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link KubernetesUtils}.
@@ -187,6 +195,34 @@ public class KubernetesUtilsTest extends TestLogger {
 
 	}
 
+	@Test
+	public void testParsePortRange() {
+		final Configuration cfg = new Configuration();
+		cfg.set(BlobServerOptions.PORT, "50100-50200");
+		try {
+			KubernetesUtils.parsePort(cfg, BlobServerOptions.PORT);
+			fail("Should fail with an exception.");
+		} catch (FlinkRuntimeException e) {
+			assertThat(
+				e.getMessage(),
+				containsString(BlobServerOptions.PORT.key() + " should be specified to a fixed port. Do not support a range of ports."));
+		}
+	}
+
+	@Test
+	public void testParsePortNull() {
+		final Configuration cfg = new Configuration();
+		ConfigOption<String> testingPort = ConfigOptions.key("test.port").stringType().noDefaultValue();
+		try {
+			KubernetesUtils.parsePort(cfg, testingPort);
+			fail("Should fail with an exception.");
+		} catch (NullPointerException e) {
+			assertThat(
+				e.getMessage(),
+				containsString(testingPort.key() + " should not be null."));
+		}
+	}
+
 	private String getJobManagerExpectedCommand(String jvmAllOpts, String logging, String mainClassArgs) {
 		return java + " " + classpath + " " + jmJvmMem +
 			(jvmAllOpts.isEmpty() ? "" : " " + jvmAllOpts) +
@@ -225,6 +261,7 @@ public class KubernetesUtilsTest extends TestLogger {
 			String mainClassArgs) {
 
 		final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+			new CPUResource(1.0),
 			new MemorySize(0), // frameworkHeapSize
 			new MemorySize(0), // frameworkOffHeapSize
 			new MemorySize(111), // taskHeapSize

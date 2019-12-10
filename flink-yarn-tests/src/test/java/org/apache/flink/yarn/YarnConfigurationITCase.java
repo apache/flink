@@ -114,7 +114,9 @@ public class YarnConfigurationITCase extends YarnTestBase {
 					.setSlotsPerTaskManager(slotsPerTaskManager)
 					.createClusterSpecification();
 
-				final ClusterClient<ApplicationId> clusterClient = clusterDescriptor.deployJobCluster(clusterSpecification, jobGraph, true);
+				final ClusterClient<ApplicationId> clusterClient = clusterDescriptor
+						.deployJobCluster(clusterSpecification, jobGraph, true)
+						.getClusterClient();
 
 				final ApplicationId clusterId = clusterClient.getClusterId();
 

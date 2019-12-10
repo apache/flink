@@ -40,7 +40,6 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -117,11 +116,6 @@ public class CatalogStatisticsTest {
 		properties.put("format.type", "csv");
 		properties.put("format.property-version", "1");
 		properties.put("format.field-delimiter", ";");
-
-		// schema
-		DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putTableSchema("format.fields", tableSchema);
-		properties.putAll(descriptorProperties.asMap());
 
 		catalog.createTable(
 				new ObjectPath(databaseName, "T1"),

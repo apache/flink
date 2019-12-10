@@ -81,6 +81,7 @@ class TableEnvironment(object):
         self._serializer = serializer
         self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
                                                      self._get_j_env())
+        self._dependency_manager.load_from_env(os.environ)
 
     def from_table_source(self, table_source):
         """
@@ -496,8 +497,8 @@ class TableEnvironment(object):
             ...     'connector.type' = 'kafka',
             ...     'update-mode' = 'append',
             ...     'connector.topic' = 'xxx',
-            ...     'connector.properties.0.key' = 'k0',
-            ...     'connector.properties.0.value' = 'v0'
+            ...     'connector.properties.zookeeper.connect' = 'localhost:2181',
+            ...     'connector.properties.bootstrap.servers' = 'localhost:9092'
             ... )
             ... '''
 

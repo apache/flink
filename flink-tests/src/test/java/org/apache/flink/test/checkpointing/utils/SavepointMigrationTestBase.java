@@ -40,6 +40,7 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -66,11 +67,6 @@ import static org.junit.Assert.fail;
 @Category(AlsoRunWithLegacyScheduler.class)
 public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
-	@BeforeClass
-	public static void before() {
-		SavepointSerializers.setFailWhenLegacyStateDetected(false);
-	}
-
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
@@ -78,7 +74,18 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	public final MiniClusterWithClientResource miniClusterResource;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
+
 	protected static final int DEFAULT_PARALLELISM = 4;
+
+	@BeforeClass
+	public static void before() {
+		SavepointSerializers.setFailWhenLegacyStateDetected(false);
+	}
+
+	@AfterClass
+	public static void after() {
+		SavepointSerializers.setFailWhenLegacyStateDetected(true);
+	}
 
 	protected static String getResourceFilename(String filename) {
 		ClassLoader cl = SavepointMigrationTestBase.class.getClassLoader();

@@ -30,6 +30,8 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -353,12 +355,16 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
+		final TaskExecutorResourceSpec taskExecutorResourceSpec;
+		taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
 			TaskManagerServicesConfiguration.fromConfiguration(
 				configuration,
 				resourceID,
 				remoteAddress,
-				localCommunicationOnly);
+				localCommunicationOnly,
+				taskExecutorResourceSpec);
 
 		Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
@@ -371,7 +377,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			taskManagerMetricGroup.f1,
 			rpcService.getExecutor()); // TODO replace this later with some dedicated executor for io.
 
-		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
+		TaskManagerConfiguration taskManagerConfiguration =
+			TaskManagerConfiguration.fromConfiguration(configuration, taskExecutorResourceSpec);
 
 		String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 

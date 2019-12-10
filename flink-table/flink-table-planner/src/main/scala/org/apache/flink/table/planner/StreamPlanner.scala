@@ -245,6 +245,9 @@ class StreamPlanner(
 
     logicalPlan match {
       case node: DataStreamRel =>
+        getExecutionEnvironment.configure(
+          config.getConfiguration,
+          Thread.currentThread().getContextClassLoader)
         node.translateToPlan(this, queryConfig)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +

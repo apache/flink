@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -25,12 +26,14 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -52,6 +55,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	private static final MemorySize TOTAL_PROCESS_MEM_SIZE = MemorySize.parse("1536m");
 
 	private static final TaskExecutorResourceSpec TM_RESOURCE_SPEC = new TaskExecutorResourceSpec(
+		new CPUResource(1.0),
 		MemorySize.parse("1m"),
 		MemorySize.parse("2m"),
 		MemorySize.parse("3m"),
@@ -60,6 +64,16 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		MemorySize.parse("6m"),
 		MemorySize.parse("7m"),
 		MemorySize.parse("8m"));
+
+	private static final int NUMBER_OF_SLOTS = 2;
+
+	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE = ResourceProfile.newBuilder()
+		.setCpuCores(new CPUResource(0.5))
+		.setTaskHeapMemory(MemorySize.parse("3m").divide(NUMBER_OF_SLOTS))
+		.setTaskOffHeapMemory(MemorySize.parse("2m"))
+		.setShuffleMemory(MemorySize.parse("5m").divide(NUMBER_OF_SLOTS))
+		.setManagedMemory(MemorySize.parse("3m"))
+		.build();
 
 	private static Map<String, String> oldEnvVariables;
 
@@ -80,6 +94,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		String dynamicConfigsStr = TaskExecutorResourceUtils.generateDynamicConfigsStr(TM_RESOURCE_SPEC);
 		Map<String, String> configs = ConfigurationUtils.parseTmResourceDynamicConfigs(dynamicConfigsStr);
 
+		assertThat(new CPUResource(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key()))), is(TM_RESOURCE_SPEC.getCpuCores()));
 		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key())), is(TM_RESOURCE_SPEC.getFrameworkHeapSize()));
 		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key())), is(TM_RESOURCE_SPEC.getFrameworkOffHeapMemorySize()));
 		assertThat(MemorySize.parse(configs.get(TaskManagerOptions.TASK_HEAP_MEMORY.key())), is(TM_RESOURCE_SPEC.getTaskHeapSize()));
@@ -98,6 +113,30 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		assertThat(MemorySize.parse(configs.get("-Xms")), is(TM_RESOURCE_SPEC.getFrameworkHeapSize().add(TM_RESOURCE_SPEC.getTaskHeapSize())));
 		assertThat(MemorySize.parse(configs.get("-XX:MaxDirectMemorySize=")), is(TM_RESOURCE_SPEC.getFrameworkOffHeapMemorySize().add(TM_RESOURCE_SPEC.getTaskOffHeapSize()).add(TM_RESOURCE_SPEC.getShuffleMemSize())));
 		assertThat(MemorySize.parse(configs.get("-XX:MaxMetaspaceSize=")), is(TM_RESOURCE_SPEC.getJvmMetaspaceSize()));
+	}
+
+	@Test
+	public void testConfigCpuCores() {
+		final double cpuCores = 1.0;
+
+		Configuration conf = new Configuration();
+		conf.setDouble(TaskManagerOptions.CPU_CORES, cpuCores);
+
+		validateInAllConfigurations(conf, taskExecutorResourceSpec -> assertThat(taskExecutorResourceSpec.getCpuCores(), is(new CPUResource(cpuCores))));
+	}
+
+	@Test
+	public void testConfigNoCpuCores() {
+		Configuration conf = new Configuration();
+		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+		validateInAllConfigurations(conf, taskExecutorResourceSpec -> assertThat(taskExecutorResourceSpec.getCpuCores(), is(new CPUResource(3.0))));
+	}
+
+	@Test
+	public void testConfigNegativeCpuCores() {
+		Configuration conf = new Configuration();
+		conf.setDouble(TaskManagerOptions.CPU_CORES, -0.1f);
+		validateFailInAllConfigurations(conf);
 	}
 
 	@Test
@@ -473,6 +512,20 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		conf.setString(TaskManagerOptions.JVM_OVERHEAD_MAX, jvmOverhead.getMebiBytes() + "m");
 
 		validateFail(conf);
+	}
+
+	@Test
+	public void testCreateDefaultWorkerSlotProfiles() {
+		assertThat(
+			TaskExecutorResourceUtils.createDefaultWorkerSlotProfiles(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
+			is(Arrays.asList(DEFAULT_RESOURCE_PROFILE, DEFAULT_RESOURCE_PROFILE)));
+	}
+
+	@Test
+	public void testGenerateDefaultSlotProfile() {
+		assertThat(
+			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
+			is(DEFAULT_RESOURCE_PROFILE));
 	}
 
 	private void validateInAllConfigurations(final Configuration customConfig, Consumer<TaskExecutorResourceSpec> validateFunc) {

@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -32,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.planner.sinks.CollectRowTableSink;
 import org.apache.flink.table.planner.sinks.CollectTableSink;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
@@ -49,6 +51,7 @@ import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -133,7 +136,10 @@ public class HiveTestUtils {
 	public static List<Row> collectTable(TableEnvironment tableEnv, Table table) throws Exception {
 		CollectTableSink sink = new CollectRowTableSink();
 		TableSchema tableSchema = table.getSchema();
-		sink = (CollectTableSink) sink.configure(tableSchema.getFieldNames(), tableSchema.getFieldTypes());
+		TypeInformation[] fieldTIs = Arrays.stream(tableSchema.getFieldDataTypes())
+				.map(dt -> TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(dt.getLogicalType()))
+				.toArray(TypeInformation[]::new);
+		sink = (CollectTableSink) sink.configure(tableSchema.getFieldNames(), fieldTIs);
 		final String id = new AbstractID().toString();
 		TypeSerializer serializer = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType())
 				.createSerializer(new ExecutionConfig());

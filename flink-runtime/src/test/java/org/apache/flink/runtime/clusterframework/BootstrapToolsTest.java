@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -145,6 +146,7 @@ public class BootstrapToolsTest extends TestLogger {
 	public void testGetTaskManagerShellCommand() {
 		final Configuration cfg = new Configuration();
 		final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+			new CPUResource(1.0),
 			new MemorySize(0), // frameworkHeapSize
 			new MemorySize(0), // frameworkOffHeapSize
 			new MemorySize(111), // taskHeapSize
@@ -406,5 +408,19 @@ public class BootstrapToolsTest extends TestLogger {
 		} finally {
 			portOccupier.close();
 		}
+	}
+
+	@Test
+	public void testGetDynamicProperties() {
+		Configuration baseConfig = new Configuration();
+		baseConfig.setString("key.a", "a");
+		baseConfig.setString("key.b", "b1");
+
+		Configuration targetConfig = new Configuration();
+		targetConfig.setString("key.b", "b2");
+		targetConfig.setString("key.c", "c");
+
+		String dynamicProperties = BootstrapTools.getDynamicProperties(baseConfig, targetConfig);
+		assertEquals("-Dkey.b=b2 -Dkey.c=c", dynamicProperties);
 	}
 }

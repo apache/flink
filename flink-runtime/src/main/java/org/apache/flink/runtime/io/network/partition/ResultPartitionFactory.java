@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
@@ -59,6 +60,12 @@ public class ResultPartitionFactory {
 
 	private final boolean forcePartitionReleaseOnConsumption;
 
+	private final boolean blockingShuffleCompressionEnabled;
+
+	private final boolean pipelinedShuffleCompressionEnabled;
+
+	private final String compressionCodec;
+
 	public ResultPartitionFactory(
 		ResultPartitionManager partitionManager,
 		FileChannelManager channelManager,
@@ -67,7 +74,10 @@ public class ResultPartitionFactory {
 		int networkBuffersPerChannel,
 		int floatingNetworkBuffersPerGate,
 		int networkBufferSize,
-		boolean forcePartitionReleaseOnConsumption) {
+		boolean forcePartitionReleaseOnConsumption,
+		boolean blockingShuffleCompressionEnabled,
+		boolean pipelinedShuffleCompressionEnabled,
+		String compressionCodec) {
 
 		this.partitionManager = partitionManager;
 		this.channelManager = channelManager;
@@ -77,6 +87,9 @@ public class ResultPartitionFactory {
 		this.blockingSubpartitionType = blockingSubpartitionType;
 		this.networkBufferSize = networkBufferSize;
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
+		this.compressionCodec = compressionCodec;
 	}
 
 	public ResultPartition create(
@@ -99,8 +112,13 @@ public class ResultPartitionFactory {
 			int numberOfSubpartitions,
 			int maxParallelism,
 			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
-		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
+		BufferCompressor bufferCompressor = null;
+		if (type.isBlocking() && blockingShuffleCompressionEnabled
+			|| type.isPipelined() && pipelinedShuffleCompressionEnabled) {
+			bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
+		}
 
+		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
 			? new ReleaseOnConsumptionResultPartition(
 				taskNameWithSubtaskAndId,
@@ -109,6 +127,7 @@ public class ResultPartitionFactory {
 				subpartitions,
 				maxParallelism,
 				partitionManager,
+				bufferCompressor,
 				bufferPoolFactory)
 			: new ResultPartition(
 				taskNameWithSubtaskAndId,
@@ -117,6 +136,7 @@ public class ResultPartitionFactory {
 				subpartitions,
 				maxParallelism,
 				partitionManager,
+				bufferCompressor,
 				bufferPoolFactory);
 
 		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);

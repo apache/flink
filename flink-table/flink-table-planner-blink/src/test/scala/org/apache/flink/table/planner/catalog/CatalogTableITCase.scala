@@ -25,13 +25,13 @@ import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl,
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
+import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Rule, Test}
-import java.sql.Timestamp
 import java.util
 
 import scala.collection.JavaConversions._
@@ -283,11 +283,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       toRow(2, "2019-09-10 09:23:44")
     )
     val expected = List(
-      toRow(1, "1990-02-10 12:34:56", Timestamp.valueOf("1990-02-10 12:34:56")),
-      toRow(2, "2019-09-10 09:23:41", Timestamp.valueOf("2019-09-10 9:23:41")),
-      toRow(3, "2019-09-10 09:23:42", Timestamp.valueOf("2019-09-10 9:23:42")),
-      toRow(1, "2019-09-10 09:23:43", Timestamp.valueOf("2019-09-10 9:23:43")),
-      toRow(2, "2019-09-10 09:23:44", Timestamp.valueOf("2019-09-10 9:23:44"))
+      toRow(1, "1990-02-10 12:34:56", localDateTime("1990-02-10 12:34:56")),
+      toRow(2, "2019-09-10 09:23:41", localDateTime("2019-09-10 09:23:41")),
+      toRow(3, "2019-09-10 09:23:42", localDateTime("2019-09-10 09:23:42")),
+      toRow(1, "2019-09-10 09:23:43", localDateTime("2019-09-10 09:23:43")),
+      toRow(2, "2019-09-10 09:23:44", localDateTime("2019-09-10 09:23:44"))
     )
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =

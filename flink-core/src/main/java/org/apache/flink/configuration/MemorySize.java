@@ -147,6 +147,11 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 		return new MemorySize(product.longValue());
 	}
 
+	public MemorySize divide(long by) {
+		checkArgument(by >= 0, "divisor must be >= 0");
+		return new MemorySize(bytes / by);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Parsing
 	// ------------------------------------------------------------------------

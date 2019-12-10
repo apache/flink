@@ -162,6 +162,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	@Override
 	protected CatalogFunction createAnotherFunction() {
-		return new CatalogFunctionImpl(TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA);
+		return new CatalogFunctionImpl(TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA, false);
 	}
 }

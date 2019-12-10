@@ -45,6 +45,8 @@ import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -210,4 +212,24 @@ public interface HiveShim extends Serializable {
 	 * doesn't have a primary key, or the constraint doesn't satisfy the desired trait, e.g. RELY.
 	 */
 	Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait);
+
+	/**
+	 * Converts a Flink timestamp instance to what's expected by Hive.
+	 */
+	Object toHiveTimestamp(Object flinkTimestamp);
+
+	/**
+	 * Converts a hive timestamp instance to LocalDateTime which is expected by DataFormatConverter.
+	 */
+	LocalDateTime toFlinkTimestamp(Object hiveTimestamp);
+
+	/**
+	 * Converts a Flink date instance to what's expected by Hive.
+	 */
+	Object toHiveDate(Object flinkDate);
+
+	/**
+	 * Converts a hive date instance to LocalDate which is expected by DataFormatConverter.
+	 */
+	LocalDate toFlinkDate(Object hiveDate);
 }

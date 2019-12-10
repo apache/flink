@@ -190,7 +190,10 @@ public class UtilsTest extends TestLogger {
 			hdfsDelegationTokenKind, service));
 		amCredentials.writeTokenStorageFile(new org.apache.hadoop.fs.Path(credentialFile.getAbsolutePath()), yarnConf);
 
-		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConf, MemorySize.parse("1g"));
+		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils
+			.newResourceSpecBuilder(flinkConf)
+			.withTotalProcessMemory(MemorySize.parse("1g"))
+			.build();
 		ContaineredTaskManagerParameters tmParams = new ContaineredTaskManagerParameters(spec, 1, new HashMap<>(1));
 		Configuration taskManagerConf = new Configuration();
 

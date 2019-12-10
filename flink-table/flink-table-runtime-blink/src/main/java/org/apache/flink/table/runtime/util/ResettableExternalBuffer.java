@@ -67,6 +67,9 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResettableExternalBuffer.class);
 
+	/** The minimum number of segments that are required, 320 KibiBytes. */
+	public static final int MIN_NUM_MEMORY = 10 * MemoryManager.DEFAULT_PAGE_SIZE;
+
 	// We will only read one spilled file at the same time.
 	private static final int READ_BUFFER = 2;
 

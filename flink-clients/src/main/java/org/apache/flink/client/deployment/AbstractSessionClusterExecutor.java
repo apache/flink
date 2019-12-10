@@ -21,6 +21,7 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
@@ -56,15 +57,14 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 			final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
 			checkState(clusterID != null);
 
-			final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterID);
+			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor.retrieve(clusterID);
+			ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
 			return clusterClient
 					.submitJob(jobGraph)
-					.thenApply(jobID -> new ClusterClientJobClientAdapter<ClusterID>(clusterClient, jobID) {
-						@Override
-						protected void doClose() {
-							clusterClient.close();
-						}
-					});
+					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
+							clusterClientProvider,
+							jobID))
+					.whenComplete((ignored1, ignored2) -> clusterClient.close());
 		}
 	}
 }

@@ -30,11 +30,9 @@ import org.apache.flink.core.execution.ExecutorFactory;
 @Internal
 public class LocalExecutorFactory implements ExecutorFactory {
 
-	public static final String NAME = "local-executor";
-
 	@Override
 	public boolean isCompatibleWith(final Configuration configuration) {
-		return NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
+		return LocalExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override

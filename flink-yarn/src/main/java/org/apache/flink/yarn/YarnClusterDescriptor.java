@@ -25,7 +25,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigUtils;
@@ -78,6 +78,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -363,7 +364,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	// -------------------------------------------------------------
 
 	@Override
-	public ClusterClient<ApplicationId> retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
+	public ClusterClientProvider<ApplicationId> retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
 
 		try {
 			// check if required Hadoop environment variables are set. If not, warn user
@@ -383,25 +384,22 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				throw new RuntimeException("The Yarn application " + applicationId + " doesn't run anymore.");
 			}
 
-			final String host = report.getHost();
-			final int port = report.getRpcPort();
+			setClusterEntrypointInfoToConfig(report);
 
-			LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, applicationId);
-
-			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-			flinkConfiguration.setString(RestOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.PORT, port);
-
-			return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+			return () -> {
+				try {
+					return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+				} catch (Exception e) {
+					throw new RuntimeException("Couldn't retrieve Yarn cluster", e);
+				}
+			};
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
 		}
 	}
 
 	@Override
-	public ClusterClient<ApplicationId> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
+	public ClusterClientProvider<ApplicationId> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
 		try {
 			return deployInternal(
 					clusterSpecification,
@@ -415,7 +413,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	}
 
 	@Override
-	public ClusterClient<ApplicationId> deployJobCluster(
+	public ClusterClientProvider<ApplicationId> deployJobCluster(
 		ClusterSpecification clusterSpecification,
 		JobGraph jobGraph,
 		boolean detached) throws ClusterDeploymentException {
@@ -454,7 +452,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private void validateClusterSpecification(ClusterSpecification clusterSpecification) throws FlinkException {
 		MemorySize totalProcessMemory = MemorySize.parse(clusterSpecification.getTaskManagerMemoryMB() + "m");
 		try {
-			TaskExecutorResourceUtils.resourceSpecFromConfig(flinkConfiguration, totalProcessMemory);
+			TaskExecutorResourceUtils
+				.newResourceSpecBuilder(flinkConfiguration)
+				.withTotalProcessMemory(totalProcessMemory)
+				.build();
 		} catch (IllegalArgumentException iae) {
 			throw new FlinkException("Inconsistent cluster specification.", iae);
 		}
@@ -469,7 +470,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
 	 * @param detached True if the cluster should be started in detached mode
 	 */
-	private ClusterClient<ApplicationId> deployInternal(
+	private ClusterClientProvider<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
 			String applicationName,
 			String yarnClusterEntrypoint,
@@ -561,16 +562,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				"temporary files of the YARN session in the home directory will not be removed.");
 		}
 
-		final String host = report.getHost();
-		final int port = report.getRpcPort();
+		setClusterEntrypointInfoToConfig(report);
 
-		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-		flinkConfiguration.setString(RestOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.PORT, port);
-
-		return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+		return () -> {
+			try {
+				return new RestClusterClient<>(flinkConfiguration, report.getApplicationId());
+			} catch (Exception e) {
+				throw new RuntimeException("Error while creating RestClusterClient.", e);
+			}
+		};
 	}
 
 	private ClusterSpecification validateClusterResources(
@@ -858,6 +858,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				homeDir,
 				"");
 
+		paths.add(remotePathJar);
+		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
+
 		// set the right configuration values for the TaskManager
 		configuration.setInteger(
 				TaskManagerOptions.NUM_TASK_SLOTS,
@@ -869,25 +872,28 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// Upload the flink configuration
 		// write out configuration file
-		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
-		tmpConfigurationFile.deleteOnExit();
-		BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
+		File tmpConfigurationFile = null;
+		try {
+			tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+			BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
 
-		String flinkConfigKey = "flink-conf.yaml";
-		Path remotePathConf = setupSingleLocalResource(
-			flinkConfigKey,
+			String flinkConfigKey = "flink-conf.yaml";
+			Path remotePathConf = setupSingleLocalResource(
+				flinkConfigKey,
 				fs,
 				appId,
 				new Path(tmpConfigurationFile.getAbsolutePath()),
 				localResources,
 				homeDir,
 				"");
-		envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
-
-		paths.add(remotePathJar);
-		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
-		paths.add(remotePathConf);
-		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
+			envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
+			paths.add(remotePathConf);
+			classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
+		} finally {
+			if (tmpConfigurationFile != null && !tmpConfigurationFile.delete()) {
+				LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());
+			}
+		}
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
 			for (String userClassPath : userClassPaths) {
@@ -898,10 +904,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// write job graph to tmp file and add it to local resource
 		// TODO: server use user main method to generate job graph
 		if (jobGraph != null) {
+			File tmpJobGraphFile = null;
 			try {
-				File fp = File.createTempFile(appId.toString(), null);
-				fp.deleteOnExit();
-				try (FileOutputStream output = new FileOutputStream(fp);
+				tmpJobGraphFile = File.createTempFile(appId.toString(), null);
+				try (FileOutputStream output = new FileOutputStream(tmpJobGraphFile);
 					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
 					obOutput.writeObject(jobGraph);
 				}
@@ -913,7 +919,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 						jobGraphFilename,
 						fs,
 						appId,
-						new Path(fp.toURI()),
+						new Path(tmpJobGraphFile.toURI()),
 						localResources,
 						homeDir,
 						"");
@@ -922,6 +928,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			} catch (Exception e) {
 				LOG.warn("Add job graph to local resource fail");
 				throw e;
+			} finally {
+				if (tmpJobGraphFile != null && !tmpJobGraphFile.delete()) {
+					LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());
+				}
 			}
 		}
 
@@ -1685,6 +1695,24 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			.filter(File::isDirectory)
 			.map(File::getName)
 			.noneMatch(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR));
+	}
+
+	private void setClusterEntrypointInfoToConfig(final ApplicationReport report) {
+		checkNotNull(report);
+
+		final ApplicationId clusterId = report.getApplicationId();
+		final String host = report.getHost();
+		final int port = report.getRpcPort();
+
+		LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, clusterId);
+
+		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
+
+		flinkConfiguration.setString(RestOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(RestOptions.PORT, port);
+
+		flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(clusterId));
 	}
 }
 

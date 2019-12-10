@@ -20,80 +20,58 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.RemoteExecutor;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.JobResult.Builder;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link RemoteStreamEnvironment}.
  */
-@RunWith(PowerMockRunner.class)
-// TODO: I don't like that I have to do this
-@PrepareForTest({RemoteStreamEnvironment.class, RemoteExecutor.class})
 public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 
 	/**
-	 * Verifies that the port passed to the RemoteStreamEnvironment is used for connecting to the cluster.
+	 * Verifies that the port passed to the RemoteStreamEnvironment is used for connecting to the
+	 * cluster.
 	 */
 	@Test
 	public void testPortForwarding() throws Exception {
-
 		String host = "fakeHost";
 		int port = 99;
-		JobID jobID = new JobID();
-		JobResult jobResult = (new JobResult.Builder())
-			.jobId(jobID)
-			.netRuntime(0)
-			.applicationStatus(ApplicationStatus.SUCCEEDED)
-			.build();
-
-		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-		when(mockedClient.submitJob(any())).thenReturn(CompletableFuture.completedFuture(jobID));
-		when(mockedClient.requestJobResult(any())).thenReturn(CompletableFuture.completedFuture(jobResult));
-
-		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenAnswer((invocation) -> {
-				Object[] args = invocation.getArguments();
-				Configuration config = (Configuration) args[0];
-
-				Assert.assertEquals(host, config.getString(RestOptions.ADDRESS));
-				Assert.assertEquals(port, config.getInteger(RestOptions.PORT));
-				return mockedClient;
-			}
-		);
+		JobID jobId = new JobID();
 
 		final Configuration clientConfiguration = new Configuration();
+		TestExecutorServiceLoader testExecutorServiceLoader = new TestExecutorServiceLoader(jobId);
 		final StreamExecutionEnvironment env = new RemoteStreamEnvironment(
-				new TestExecutorServiceLoader(jobID, mockedClient, SavepointRestoreSettings.none()),
+				testExecutorServiceLoader,
 				host,
 				port,
 				clientConfiguration,
@@ -102,29 +80,22 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 				null
 		);
 		env.fromElements(1).map(x -> x * 2);
+
 		JobExecutionResult actualResult = env.execute("fakeJobName");
-		Assert.assertEquals(jobID, actualResult.getJobID());
+		TestClusterClient testClient = testExecutorServiceLoader.getCreatedClusterClient();
+		assertThat(actualResult.getJobID(), is(jobId));
+		assertThat(testClient.getConfiguration().getString(RestOptions.ADDRESS), is(host));
+		assertThat(testClient.getConfiguration().getInteger(RestOptions.PORT), is(99));
 	}
 
 	@Test
 	public void testRemoteExecutionWithSavepoint() throws Exception {
 		SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
-
 		JobID jobID = new JobID();
-		JobResult jobResult = (new JobResult.Builder())
-			.jobId(jobID)
-			.netRuntime(0)
-			.applicationStatus(ApplicationStatus.SUCCEEDED)
-			.build();
 
-		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-
-		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
-		when(mockedClient.submitJob(any())).thenReturn(CompletableFuture.completedFuture(jobID));
-		when(mockedClient.requestJobResult(eq(jobID))).thenReturn(CompletableFuture.completedFuture(jobResult));
-
+		TestExecutorServiceLoader testExecutorServiceLoader = new TestExecutorServiceLoader(jobID);
 		RemoteStreamEnvironment env = new RemoteStreamEnvironment(
-				new TestExecutorServiceLoader(jobID, mockedClient, restoreSettings),
+				testExecutorServiceLoader,
 				"fakeHost",
 				1,
 				null,
@@ -135,22 +106,28 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		env.fromElements(1).map(x -> x * 2);
 
 		JobExecutionResult actualResult = env.execute("fakeJobName");
-		Assert.assertEquals(jobID, actualResult.getJobID());
+		assertThat(actualResult.getJobID(), is(jobID));
+		assertThat(
+				testExecutorServiceLoader.getActualSavepointRestoreSettings(), is(restoreSettings));
 	}
 
 	private static final class TestExecutorServiceLoader implements ExecutorServiceLoader {
 
 		private final JobID jobID;
-		private final ClusterClient<?> clusterClient;
-		private final SavepointRestoreSettings expectedSavepointRestoreSettings;
 
-		TestExecutorServiceLoader(
-				final JobID jobID,
-				final ClusterClient<?> clusterClient,
-				final SavepointRestoreSettings savepointRestoreSettings) {
+		private TestClusterClient clusterClient;
+		private SavepointRestoreSettings actualSavepointRestoreSettings;
+
+		TestExecutorServiceLoader(final JobID jobID) {
 			this.jobID = checkNotNull(jobID);
-			this.clusterClient = checkNotNull(clusterClient);
-			this.expectedSavepointRestoreSettings = checkNotNull(savepointRestoreSettings);
+		}
+
+		public TestClusterClient getCreatedClusterClient() {
+			return clusterClient;
+		}
+
+		public SavepointRestoreSettings getActualSavepointRestoreSettings() {
+			return actualSavepointRestoreSettings;
 		}
 
 		@Override
@@ -166,14 +143,123 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 					return (pipeline, config) -> {
 						assertTrue(pipeline instanceof StreamGraph);
 
-						final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(config);
-						assertEquals(expectedSavepointRestoreSettings, savepointRestoreSettings);
+						actualSavepointRestoreSettings =
+								SavepointRestoreSettings.fromConfiguration(config);
+
+						clusterClient = new TestClusterClient(configuration, jobID);
 
 						return CompletableFuture.completedFuture(
-								new ClusterClientJobClientAdapter<>(clusterClient, jobID));
+								new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
 					};
 				}
 			};
 		}
 	}
+
+	private static final class TestClusterClient implements ClusterClient<Object> {
+
+		private final Configuration configuration;
+		private final JobID jobId;
+
+		public TestClusterClient(Configuration config, JobID jobId) {
+			this.configuration = config;
+			this.jobId = jobId;
+		}
+
+		public Configuration getConfiguration() {
+			return configuration;
+		}
+
+		@Override
+		public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
+			assertThat(jobId, is(this.jobId));
+			JobResult jobResult = new Builder()
+					.jobId(this.jobId)
+					.netRuntime(0)
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
+					.build();
+			return CompletableFuture.completedFuture(jobResult);
+		}
+
+		@Override
+		public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
+			return CompletableFuture.completedFuture(jobId);
+		}
+
+		@Override
+		public void close() {
+
+		}
+
+		@Override
+		public Object getClusterId() {
+			return null;
+		}
+
+		@Override
+		public Configuration getFlinkConfiguration() {
+			return null;
+		}
+
+		@Override
+		public void shutDownCluster() {
+
+		}
+
+		@Override
+		public String getWebInterfaceURL() {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<Collection<JobStatusMessage>> listJobs() throws Exception {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath)
+				throws FlinkException {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<Map<String, Object>> getAccumulators(
+				JobID jobID,
+				ClassLoader loader) {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> cancel(JobID jobId) {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<String> cancelWithSavepoint(
+				JobID jobId,
+				@Nullable String savepointDirectory) {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<String> stopWithSavepoint(
+				JobID jobId,
+				boolean advanceToEndOfEventTime,
+				@Nullable String savepointDirectory) {
+			return null;
+		}
+
+		@Override
+		public CompletableFuture<String> triggerSavepoint(
+				JobID jobId,
+				@Nullable String savepointDirectory) {
+			return null;
+		}
+	}
+
 }

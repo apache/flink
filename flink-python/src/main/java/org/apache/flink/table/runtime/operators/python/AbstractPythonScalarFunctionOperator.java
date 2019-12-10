@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
@@ -116,12 +117,13 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	protected transient LinkedBlockingQueue<UDFOUT> udfResultQueue;
 
 	AbstractPythonScalarFunctionOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		super();
+		super(config);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
