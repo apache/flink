@@ -29,10 +29,6 @@ import java.util.Objects;
  */
 public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 
-	private static final String FIELD_NAME_OUT_POOL_USAGE = "out-pool-usage";
-
-	private static final String FIELD_NAME_OUT_POOL_USAGE_COMPLETE = "out-pool-usage-complete";
-
 	private static final String FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE = "input-exclusive-buffers-usage";
 
 	private static final String FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_COMPLETE = "input-exclusive-buffers-usage-complete";
@@ -41,11 +37,9 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 
 	private static final String FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_COMPLETE = "input-floating-buffers-usage-complete";
 
-	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE)
-	private final float outPoolUsage;
+	private static final String FIELD_NAME_OUT_POOL_USAGE = "out-pool-usage";
 
-	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_COMPLETE)
-	private final boolean outPoolUsageComplete;
+	private static final String FIELD_NAME_OUT_POOL_USAGE_COMPLETE = "out-pool-usage-complete";
 
 	@JsonProperty(FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE)
 	private final float inputExclusiveBuffersUsage;
@@ -58,6 +52,12 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 
 	@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_COMPLETE)
 	private final boolean inputFloatingBuffersUsageComplete;
+
+	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE)
+	private final float outPoolUsage;
+
+	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_COMPLETE)
+	private final boolean outPoolUsageComplete;
 
 	@JsonCreator
 	public SubTaskIOMetricsInfo(
@@ -88,16 +88,6 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 	}
 
 	@JsonIgnore
-	public float getOutPoolUsage() {
-		return outPoolUsage;
-	}
-
-	@JsonIgnore
-	public boolean isOutPoolUsageComplete() {
-		return outPoolUsageComplete;
-	}
-
-	@JsonIgnore
 	public float getInputExclusiveBuffersUsage() {
 		return inputExclusiveBuffersUsage;
 	}
@@ -117,6 +107,16 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 		return inputFloatingBuffersUsageComplete;
 	}
 
+	@JsonIgnore
+	public float getOutPoolUsage() {
+		return outPoolUsage;
+	}
+
+	@JsonIgnore
+	public boolean isOutPoolUsageComplete() {
+		return outPoolUsageComplete;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -134,23 +134,23 @@ public final class SubTaskIOMetricsInfo extends IOMetricsInfo {
 			this.isRecordsReadComplete() == that.isRecordsReadComplete() &&
 			this.getRecordsWritten() == that.getRecordsWritten() &&
 			this.isRecordsWrittenComplete() == that.isRecordsWrittenComplete() &&
-			this.isBackPressured() == that.isBackPressured() &&
-			that.isBackPressuredComplete() == that.isBackPressuredComplete() &&
-			this.getOutPoolUsage() == that.getOutPoolUsage() &&
-			this.isOutPoolUsageComplete() == that.isOutPoolUsageComplete() &&
 			this.getInputExclusiveBuffersUsage() == that.getInputExclusiveBuffersUsage() &&
 			this.isInputExclusiveBuffersUsageComplete() == that.isInputExclusiveBuffersUsageComplete() &&
 			this.getInputFloatingBuffersUsage() == that.getInputFloatingBuffersUsage() &&
-			this.isInputFloatingBuffersUsageComplete() == that.isInputFloatingBuffersUsageComplete();
+			this.isInputFloatingBuffersUsageComplete() == that.isInputFloatingBuffersUsageComplete() &&
+			this.isBackPressured() == that.isBackPressured() &&
+			that.isBackPressuredComplete() == that.isBackPressuredComplete() &&
+			this.getOutPoolUsage() == that.getOutPoolUsage() &&
+			this.isOutPoolUsageComplete() == that.isOutPoolUsageComplete();
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(this.getBytesRead(), this.isBytesReadComplete(), this.getBytesWritten(), this.isBytesWrittenComplete(),
 			this.getRecordsRead(), this.isRecordsReadComplete(), this.getRecordsWritten(), this.isRecordsWrittenComplete(),
-			this.isBackPressured(), this.isBackPressuredComplete(), this.getOutPoolUsage(), this.isOutPoolUsageComplete(),
 			this.getInputExclusiveBuffersUsage(), this.isInputExclusiveBuffersUsageComplete(), this.getInputFloatingBuffersUsage(),
-			this.isInputFloatingBuffersUsageComplete());
+			this.isInputFloatingBuffersUsageComplete(), this.getOutPoolUsage(), this.isOutPoolUsageComplete(),
+			this.isBackPressured(), this.isBackPressuredComplete());
 	}
 
 }

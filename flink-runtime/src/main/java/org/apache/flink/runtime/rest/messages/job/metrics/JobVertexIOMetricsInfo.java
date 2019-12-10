@@ -29,10 +29,6 @@ import java.util.Objects;
  */
 public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 
-	private static final String FIELD_NAME_OUT_POOL_USAGE_AVG = "out-pool-usage-avg";
-
-	private static final String FIELD_NAME_OUT_POOL_USAGE_AVG_COMPLETE = "out-pool-usage-avg-complete";
-
 	private static final String FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_AVG = "input-exclusive-buffers-usage-avg";
 
 	private static final String FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_AVG_COMPLETE = "input-exclusive-buffers-usage-avg-complete";
@@ -41,11 +37,9 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 
 	private static final String FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_AVG_COMPLETE = "input-floating-buffers-usage-avg-complete";
 
-	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG)
-	private final float outPoolUsageAvg;
+	private static final String FIELD_NAME_OUT_POOL_USAGE_AVG = "out-pool-usage-avg";
 
-	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG_COMPLETE)
-	private final boolean outPoolUsageAvgComplete;
+	private static final String FIELD_NAME_OUT_POOL_USAGE_AVG_COMPLETE = "out-pool-usage-avg-complete";
 
 	@JsonProperty(FIELD_NAME_INPUT_EXCLUSIVE_BUFFERS_USAGE_AVG)
 	private final float inputExclusiveBuffersUsageAvg;
@@ -58,6 +52,12 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 
 	@JsonProperty(FIELD_NAME_INPUT_FLOATING_BUFFERS_USAGE_AVG_COMPLETE)
 	private final boolean inputFloatingBuffersUsageAvgComplete;
+
+	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG)
+	private final float outPoolUsageAvg;
+
+	@JsonProperty(FIELD_NAME_OUT_POOL_USAGE_AVG_COMPLETE)
+	private final boolean outPoolUsageAvgComplete;
 
 	@JsonCreator
 	public JobVertexIOMetricsInfo(
@@ -88,16 +88,6 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 	}
 
 	@JsonIgnore
-	public float getOutPoolUsageAvg() {
-		return outPoolUsageAvg;
-	}
-
-	@JsonIgnore
-	public boolean isOutPoolUsageAvgComplete() {
-		return outPoolUsageAvgComplete;
-	}
-
-	@JsonIgnore
 	public float getInputExclusiveBuffersUsageAvg() {
 		return inputExclusiveBuffersUsageAvg;
 	}
@@ -117,6 +107,16 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 		return inputFloatingBuffersUsageAvgComplete;
 	}
 
+	@JsonIgnore
+	public float getOutPoolUsageAvg() {
+		return outPoolUsageAvg;
+	}
+
+	@JsonIgnore
+	public boolean isOutPoolUsageAvgComplete() {
+		return outPoolUsageAvgComplete;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -134,23 +134,23 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 			this.isRecordsReadComplete() == that.isRecordsReadComplete() &&
 			this.getRecordsWritten() == that.getRecordsWritten() &&
 			this.isRecordsWrittenComplete() == that.isRecordsWrittenComplete() &&
-			this.isBackPressured() == that.isBackPressured() &&
-			that.isBackPressuredComplete() == that.isBackPressuredComplete() &&
-			this.getOutPoolUsageAvg() == that.getOutPoolUsageAvg() &&
-			this.isOutPoolUsageAvgComplete() == that.isOutPoolUsageAvgComplete() &&
 			this.getInputExclusiveBuffersUsageAvg() == that.getInputExclusiveBuffersUsageAvg() &&
 			this.isInputExclusiveBuffersUsageAvgComplete() == that.isInputExclusiveBuffersUsageAvgComplete() &&
 			this.getInputFloatingBuffersUsageAvg() == that.getInputFloatingBuffersUsageAvg() &&
-			this.isInputFloatingBuffersUsageAvgComplete() == that.isInputFloatingBuffersUsageAvgComplete();
+			this.isInputFloatingBuffersUsageAvgComplete() == that.isInputFloatingBuffersUsageAvgComplete() &&
+			this.getOutPoolUsageAvg() == that.getOutPoolUsageAvg() &&
+			this.isOutPoolUsageAvgComplete() == that.isOutPoolUsageAvgComplete() &&
+			this.isBackPressured() == that.isBackPressured() &&
+			this.isBackPressuredComplete() == that.isBackPressuredComplete();
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(this.getBytesRead(), this.isBytesReadComplete(), this.getBytesWritten(), this.isBytesWrittenComplete(),
 			this.getRecordsRead(), this.isRecordsReadComplete(), this.getRecordsWritten(), this.isRecordsWrittenComplete(),
-			this.isBackPressured(), this.isBackPressuredComplete(), this.getOutPoolUsageAvg(), this.isOutPoolUsageAvgComplete(),
 			this.getInputExclusiveBuffersUsageAvg(), this.isInputExclusiveBuffersUsageAvgComplete(), this.getInputFloatingBuffersUsageAvg(),
-			this.isInputFloatingBuffersUsageAvgComplete());
+			this.isInputFloatingBuffersUsageAvgComplete(), this.getOutPoolUsageAvg(), this.isOutPoolUsageAvgComplete(),
+			this.isBackPressured(), this.isBackPressuredComplete());
 	}
 
 }
