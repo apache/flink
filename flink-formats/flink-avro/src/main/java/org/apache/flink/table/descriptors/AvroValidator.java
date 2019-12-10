@@ -42,8 +42,7 @@ public class AvroValidator extends FormatDescriptorValidator {
 			properties.validateString(FORMAT_RECORD_CLASS, false, 1);
 		} else if (hasAvroSchema) {
 			properties.validateString(FORMAT_AVRO_SCHEMA, false, 1);
-		} else {
-			throw new ValidationException("A definition of an Avro specific record class or Avro schema is required.");
 		}
+		// derive format schema from table's schema if no avro schema is defined
 	}
 }

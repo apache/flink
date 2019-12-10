@@ -20,11 +20,13 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.AvroValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.TableFormatFactoryBase;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.specific.SpecificRecord;
@@ -60,8 +62,12 @@ public class AvroRowFormatFactory extends TableFormatFactoryBase<Row>
 		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
 			return new AvroRowDeserializationSchema(
 				descriptorProperties.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
-		} else {
+		} else if (descriptorProperties.containsKey(AvroValidator.FORMAT_AVRO_SCHEMA)) {
 			return new AvroRowDeserializationSchema(descriptorProperties.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
+		} else {
+			TableSchema schema = deriveSchema(properties);
+			RowType rowType = (RowType) schema.toRowDataType().getLogicalType();
+			return new AvroRowDeserializationSchema(rowType);
 		}
 	}
 
@@ -73,8 +79,12 @@ public class AvroRowFormatFactory extends TableFormatFactoryBase<Row>
 		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
 			return new AvroRowSerializationSchema(
 				descriptorProperties.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
-		} else {
+		} else if (descriptorProperties.containsKey(AvroValidator.FORMAT_AVRO_SCHEMA)) {
 			return new AvroRowSerializationSchema(descriptorProperties.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
+		} else {
+			TableSchema schema = deriveSchema(properties);
+			RowType rowType = (RowType) schema.toRowDataType().getLogicalType();
+			return new AvroRowSerializationSchema(rowType);
 		}
 	}
 

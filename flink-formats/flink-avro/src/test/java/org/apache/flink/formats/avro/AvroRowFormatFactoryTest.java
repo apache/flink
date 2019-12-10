@@ -21,7 +21,10 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.formats.avro.utils.AvroTestUtils;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.Avro;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -60,6 +63,19 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 		testAvroSchemaDeserializationSchema(properties);
 	}
 
+	@Test
+	public void testDeriveSchema() {
+		TableSchema schema = AvroTestUtils.getUserTableSchema();
+		DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putTableSchema("schema", schema);
+		descriptorProperties.putProperties(new Avro().toProperties());
+		final Map<String, String> properties = descriptorProperties.asMap();
+
+		testDeriveSchemaSerializationSchema(properties);
+
+		testDeriveSchemaDeserializationSchema(properties);
+	}
+
 	private void testRecordClassSerializationSchema(Map<String, String> properties) {
 		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
@@ -89,6 +105,24 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
 		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SCHEMA);
+		assertEquals(expected1, actual1);
+	}
+
+	private void testDeriveSchemaDeserializationSchema(Map<String, String> properties) {
+		final DeserializationSchema<?> actual2 = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+		final AvroRowDeserializationSchema expected2 = new AvroRowDeserializationSchema(
+			AvroTestUtils.getUserLogicalType());
+		assertEquals(expected2, actual2);
+	}
+
+	private void testDeriveSchemaSerializationSchema(Map<String, String> properties) {
+		final SerializationSchema<?> actual1 = TableFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(
+			AvroTestUtils.getUserLogicalType());
 		assertEquals(expected1, actual1);
 	}
 }

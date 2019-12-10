@@ -155,18 +155,6 @@ tableEnvironment
   // declare a format for this system
   .withFormat(
     new Avro()
-      .avroSchema(
-        "{" +
-        "  \"namespace\": \"org.myorganization\"," +
-        "  \"type\": \"record\"," +
-        "  \"name\": \"UserMessage\"," +
-        "    \"fields\": [" +
-        "      {\"name\": \"timestamp\", \"type\": \"string\"}," +
-        "      {\"name\": \"user\", \"type\": \"long\"}," +
-        "      {\"name\": \"message\", \"type\": [\"string\", \"null\"]}" +
-        "    ]" +
-        "}"
-      )
   )
 
   // declare the schema of the table
@@ -202,18 +190,6 @@ table_environment \
     ) \
     .with_format(  # declare a format for this system
         Avro()
-        .avro_schema(
-            "{"
-            "  \"namespace\": \"org.myorganization\","
-            "  \"type\": \"record\","
-            "  \"name\": \"UserMessage\","
-            "    \"fields\": ["
-            "      {\"name\": \"timestamp\", \"type\": \"string\"},"
-            "      {\"name\": \"user\", \"type\": \"long\"},"
-            "      {\"name\": \"message\", \"type\": [\"string\", \"null\"]}"
-            "    ]"
-            "}"
-        )
     ) \
     .with_schema(  # declare the schema of the table
         Schema()
@@ -253,17 +229,6 @@ tables:
     # declare a format for this system
     format:
       type: avro
-      avro-schema: >
-        {
-          "namespace": "org.myorganization",
-          "type": "record",
-          "name": "UserMessage",
-            "fields": [
-              {"name": "ts", "type": "string"},
-              {"name": "user", "type": "long"},
-              {"name": "message", "type": ["string", "null"]}
-            ]
-        }
 
     # declare the schema of the table
     schema:
@@ -299,17 +264,7 @@ CREATE TABLE MyUserTable (
   'connector.properties.bootstrap.servers' = 'localhost:9092',
   'update-mode' = 'append',
   -- declare a format for this system
-  'format.type' = 'avro',
-  'format.avro-schema' = '{
-                            "namespace": "org.myorganization",
-                            "type": "record",
-                            "name": "UserMessage",
-                            "fields": [
-                                {"name": "ts", "type": "string"},
-                                {"name": "user", "type": "long"},
-                                {"name": "message", "type": ["string", "null"]}
-                            ]
-                         }'
+  'format.type' = 'avro'
 )
 {% endhighlight %}
 </div>
@@ -1663,10 +1618,12 @@ The Avro format can be used as follows:
 .withFormat(
   new Avro()
 
-    // required: define the schema either by using an Avro specific record class
+    // optional: define the schema explicitly using an Avro specific record class.
+    // This overrides default behavior that uses table's schema as format schema.
     .recordClass(User.class)
 
-    // or by using an Avro schema
+    // optional: define the schema explicitly using an Avro schema.
+    // This overrides default behavior that uses table's schema as format schema.
     .avroSchema(
       "{" +
       "  \"type\": \"record\"," +
@@ -1686,10 +1643,12 @@ The Avro format can be used as follows:
 .with_format(
     Avro()
 
-    # required: define the schema either by using an Avro specific record class
+    # optional: define the schema explicitly using an Avro specific record class.
+    # This overrides default behavior that uses table's schema as format schema.
     .record_class("full.qualified.user.class.name")
 
-    # or by using an Avro schema
+    # optional: define the schema explicitly using an Avro schema.
+    # This overrides default behavior that uses table's schema as format schema.
     .avro_schema(
         "{"
         "  \"type\": \"record\","
@@ -1709,10 +1668,12 @@ The Avro format can be used as follows:
 format:
   type: avro
 
-  # required: define the schema either by using an Avro specific record class
+  # optional: define the schema explicitly using an Avro specific record class.
+  # This overrides default behavior that uses table's schema as format schema.
   record-class: "org.organization.types.User"
 
-  # or by using an Avro schema
+  # optional: define the schema explicitly using an Avro schema.
+  # This overrides default behavior that uses table's schema as format schema.
   avro-schema: >
     {
       "type": "record",
@@ -1731,10 +1692,12 @@ CREATE TABLE MyUserTable (
   ...
 ) WITH (
   'format.type' = 'avro',                                 -- required: specify the schema type
-  'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
 
-  'format.avro-schema' =                                  -- or by using an Avro schema
-    '{
+  'format.record-class' = 'org.organization.types.User',  -- optional: define the schema explicitly using an Avro specific record class.
+                                                          -- This overrides default behavior that uses table's schema as format schema.
+
+  'format.avro-schema' =                                  -- optional: define the schema explicitly using an Avro schema.
+    '{                                                    -- This overrides default behavior that uses table's schema as format schema.
       "type": "record",
       "name": "test",
       "fields" : [

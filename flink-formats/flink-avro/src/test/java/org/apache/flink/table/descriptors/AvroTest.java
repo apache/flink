@@ -34,11 +34,6 @@ import java.util.Map;
 public class AvroTest extends DescriptorTestBase {
 
 	@Test(expected = ValidationException.class)
-	public void testMissingRecordClass() {
-		removePropertyAndVerify(descriptors().get(0), "format.record-class");
-	}
-
-	@Test(expected = ValidationException.class)
 	public void testRecordClassAndAvroSchema() {
 		addPropertyAndVerify(descriptors().get(0), "format.avro-schema", "{...}");
 	}
