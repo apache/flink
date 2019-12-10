@@ -648,18 +648,6 @@
                   "write-records-complete" : {
                     "type" : "boolean"
                   },
-                  "is-backpressed" : {
-                    "type" : "boolean"
-                  },
-                  "is-backpressed-complete" : {
-                    "type" : "boolean"
-                  },
-                  "out-pool-usage-avg" : {
-                    "type" : "number"
-                  },
-                  "out-pool-usage-avg-complete" : {
-                    "type" : "boolean"
-                  },
                   "input-exclusive-buffers-usage-avg" : {
                     "type" : "number"
                   },
@@ -670,6 +658,18 @@
                     "type" : "number"
                   },
                   "input-floating-buffers-usage-avg-complete" : {
+                    "type" : "boolean"
+                  },
+                  "out-pool-usage-avg" : {
+                    "type" : "number"
+                  },
+                  "out-pool-usage-avg-complete" : {
+                    "type" : "boolean"
+                  },
+                  "is-backpressed" : {
+                    "type" : "boolean"
+                  },
+                  "is-backpressed-complete" : {
                     "type" : "boolean"
                   }
                 }
@@ -1716,18 +1716,6 @@
                   "write-records-complete" : {
                     "type" : "boolean"
                   },
-                  "is-backpressed" : {
-                    "type" : "boolean"
-                  },
-                  "is-backpressed-complete" : {
-                    "type" : "boolean"
-                  },
-                  "out-pool-usage" : {
-                    "type" : "number"
-                  },
-                  "out-pool-usage-complete" : {
-                    "type" : "boolean"
-                  },
                   "input-exclusive-buffers-usage" : {
                     "type" : "number"
                   },
@@ -1738,6 +1726,18 @@
                     "type" : "number"
                   },
                   "input-floating-buffers-usage-complete" : {
+                    "type" : "boolean"
+                  },
+                  "out-pool-usage" : {
+                    "type" : "number"
+                  },
+                  "out-pool-usage-complete" : {
+                    "type" : "boolean"
+                  },
+                  "is-backpressed" : {
+                    "type" : "boolean"
+                  },
+                  "is-backpressed-complete" : {
                     "type" : "boolean"
                   }
                 }
@@ -2046,18 +2046,6 @@
             "write-records-complete" : {
               "type" : "boolean"
             },
-            "is-backpressed" : {
-              "type" : "boolean"
-            },
-            "is-backpressed-complete" : {
-              "type" : "boolean"
-            },
-            "out-pool-usage" : {
-              "type" : "number"
-            },
-            "out-pool-usage-complete" : {
-              "type" : "boolean"
-            },
             "input-exclusive-buffers-usage" : {
               "type" : "number"
             },
@@ -2068,6 +2056,18 @@
               "type" : "number"
             },
             "input-floating-buffers-usage-complete" : {
+              "type" : "boolean"
+            },
+            "out-pool-usage" : {
+              "type" : "number"
+            },
+            "out-pool-usage-complete" : {
+              "type" : "boolean"
+            },
+            "is-backpressed" : {
+              "type" : "boolean"
+            },
+            "is-backpressed-complete" : {
               "type" : "boolean"
             }
           }
@@ -2156,18 +2156,6 @@
             "write-records-complete" : {
               "type" : "boolean"
             },
-            "is-backpressed" : {
-              "type" : "boolean"
-            },
-            "is-backpressed-complete" : {
-              "type" : "boolean"
-            },
-            "out-pool-usage" : {
-              "type" : "number"
-            },
-            "out-pool-usage-complete" : {
-              "type" : "boolean"
-            },
             "input-exclusive-buffers-usage" : {
               "type" : "number"
             },
@@ -2178,6 +2166,18 @@
               "type" : "number"
             },
             "input-floating-buffers-usage-complete" : {
+              "type" : "boolean"
+            },
+            "out-pool-usage" : {
+              "type" : "number"
+            },
+            "out-pool-usage-complete" : {
+              "type" : "boolean"
+            },
+            "is-backpressed" : {
+              "type" : "boolean"
+            },
+            "is-backpressed-complete" : {
               "type" : "boolean"
             }
           }
