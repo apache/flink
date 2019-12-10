@@ -42,7 +42,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -75,31 +74,6 @@ public class StreamTaskTimerTest extends TestLogger {
 		});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
-	}
-
-	@Test
-	public void timeTriggerIsCalledWithAcquiredCheckpointLock() throws Exception {
-		AtomicReference<Throwable> errorRef = new AtomicReference<>();
-		OneShotLatch latch = new OneShotLatch();
-		Object checkpointLock = testHarness.getTask().getCheckpointLock();
-		ProcessingTimeCallback callback = timestamp -> {
-			try {
-				assertTrue(Thread.holdsLock(checkpointLock));
-				latch.trigger();
-			}
-			catch (Throwable t) {
-				errorRef.compareAndSet(null, t);
-				latch.trigger();
-			}
-		};
-
-		timeService.registerTimer(System.currentTimeMillis(), callback);
-		latch.await();
-		verifyNoException(errorRef.get());
-
-		timeService.scheduleAtFixedRate(callback, 0, 100);
-		latch.await();
-		verifyNoException(errorRef.get());
 	}
 
 	@Test
