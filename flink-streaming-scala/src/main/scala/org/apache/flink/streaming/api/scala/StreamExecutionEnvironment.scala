@@ -733,6 +733,26 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getStreamGraph = javaEnv.getStreamGraph
 
   /**
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
+   *
+   * @param jobName Desired name of the job
+   * @return The StreamGraph representing the transformations
+   */
+  @Internal
+  def getStreamGraph(jobName: String) = javaEnv.getStreamGraph(jobName)
+
+  /**
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
+   *
+   * @param jobName Desired name of the job
+   * @param clearTransformations Whether or not to start a new stage of execution
+   * @return The StreamGraph representing the transformations
+   */
+  @Internal
+  def getStreamGraph(jobName: String, clearTransformations: Boolean) =
+    javaEnv.getStreamGraph(jobName, clearTransformations)
+
+  /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
  *
    * @return The encased ExecutionEnvironment
