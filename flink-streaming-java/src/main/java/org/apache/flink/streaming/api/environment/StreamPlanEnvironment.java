@@ -49,8 +49,6 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
-
 		if (env instanceof OptimizerPlanEnvironment) {
 			((OptimizerPlanEnvironment) env).setPipeline(streamGraph);
 		}

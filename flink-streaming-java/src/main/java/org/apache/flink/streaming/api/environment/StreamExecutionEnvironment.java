@@ -1760,24 +1760,45 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job. This call
+	 * clears previously registered {@link Transformation transformations}.
 	 *
 	 * @return The streamgraph representing the transformations
 	 */
 	@Internal
 	public StreamGraph getStreamGraph() {
-		return getStreamGraphGenerator().generate();
+		return getStreamGraph(DEFAULT_JOB_NAME);
 	}
 
 	/**
-	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job. This call
+	 * clears previously registered {@link Transformation transformations}.
 	 *
 	 * @param jobName Desired name of the job
 	 * @return The streamgraph representing the transformations
 	 */
 	@Internal
 	public StreamGraph getStreamGraph(String jobName) {
-		return getStreamGraphGenerator().setJobName(jobName).generate();
+		return getStreamGraph(jobName, true);
+	}
+
+	/**
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph StreamGraph} of the streaming job
+	 * with the option to clear previously registered {@link Transformation transformations}. Clearing the
+	 * transformations allows, for example, to not re-execute the same operations when calling
+	 * {@link #execute()} multiple times.
+	 *
+	 * @param jobName Desired name of the job
+	 * @param clearTransformations Whether or not to clear previously registered transformations
+	 * @return The streamgraph representing the transformations
+	 */
+	@Internal
+	public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
+		StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+		if (clearTransformations) {
+			this.transformations.clear();
+		}
+		return streamGraph;
 	}
 
 	private StreamGraphGenerator getStreamGraphGenerator() {
@@ -1801,7 +1822,7 @@ public class StreamExecutionEnvironment {
 	 * @return The execution plan of the program, as a JSON String.
 	 */
 	public String getExecutionPlan() {
-		return getStreamGraph().getStreamingPlanAsJSON();
+		return getStreamGraph(DEFAULT_JOB_NAME, false).getStreamingPlanAsJSON();
 	}
 
 	/**
