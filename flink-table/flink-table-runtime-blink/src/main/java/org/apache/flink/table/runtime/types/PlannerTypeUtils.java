@@ -115,9 +115,7 @@ public class PlannerTypeUtils {
 	 * Now in the conversion to the TypeInformation from DataType, type may loose some information
 	 * about nullable and precision. So we add this method to do a soft check.
 	 *
-	 * <p>The difference of {@link #isInteroperable} is ignore decimal precision.
-	 *
-	 * <p>Now not ignore timestamp precision, because we only support one precision for timestamp type now.
+	 * <p>The difference of {@link #isInteroperable} is ignore precisions.
 	 */
 	public static boolean isAssignable(LogicalType t1, LogicalType t2) {
 		// Soft check for CharType, it is converted to String TypeInformation and loose char information.
@@ -134,7 +132,12 @@ public class PlannerTypeUtils {
 		}
 
 		switch (t1.getTypeRoot()) {
+			// only support precisions for DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE
+			// still consider precision for others (e.g. TIME).
+			// TODO: add other precision types here in the future
 			case DECIMAL:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				return true;
 			default:
 				if (t1.getChildren().isEmpty()) {
