@@ -35,10 +35,10 @@ import static org.rocksdb.CompactionStyle.UNIVERSAL;
 /**
  * This class contains the configuration options for the {@link DefaultConfigurableOptionsFactory}.
  *
- * <p>If nothing specified, RocksDB's options would be configured by {@link PredefinedOptions} and user-defined {@link OptionsFactory}.
+ * <p>If nothing specified, RocksDB's options would be configured by {@link PredefinedOptions} and user-defined {@link RocksDBOptionsFactory}.
  *
  * <p>If some options has been specifically configured, a corresponding {@link DefaultConfigurableOptionsFactory} would be created
- * and applied on top of {@link PredefinedOptions} except if a user-defined {@link OptionsFactory} overrides it.
+ * and applied on top of {@link PredefinedOptions} except if a user-defined {@link RocksDBOptionsFactory} overrides it.
  */
 public class RocksDBConfigurableOptions implements Serializable {
 

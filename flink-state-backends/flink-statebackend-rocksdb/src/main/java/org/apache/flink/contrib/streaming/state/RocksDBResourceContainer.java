@@ -44,7 +44,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 
 	/** The options factory to create the RocksDB options. */
 	@Nullable
-	private final OptionsFactory optionsFactory;
+	private final RocksDBOptionsFactory optionsFactory;
 
 	/** The shared resource among RocksDB instances. This resource is not part of the 'handlesToClose',
 	 * because the handles to close are closed quietly, whereas for this one, we want exceptions to be reported. */
@@ -58,13 +58,13 @@ final class RocksDBResourceContainer implements AutoCloseable {
 		this(PredefinedOptions.DEFAULT, null, null);
 	}
 
-	public RocksDBResourceContainer(PredefinedOptions predefinedOptions, @Nullable OptionsFactory optionsFactory) {
+	public RocksDBResourceContainer(PredefinedOptions predefinedOptions, @Nullable RocksDBOptionsFactory optionsFactory) {
 		this(predefinedOptions, optionsFactory, null);
 	}
 
 	public RocksDBResourceContainer(
 		PredefinedOptions predefinedOptions,
-		@Nullable OptionsFactory optionsFactory,
+		@Nullable RocksDBOptionsFactory optionsFactory,
 		@Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
 
 		this.predefinedOptions = checkNotNull(predefinedOptions);
@@ -119,7 +119,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 	}
 
 	@Nullable
-	OptionsFactory getOptionsFactory() {
+	RocksDBOptionsFactory getOptionsFactory() {
 		return optionsFactory;
 	}
 
