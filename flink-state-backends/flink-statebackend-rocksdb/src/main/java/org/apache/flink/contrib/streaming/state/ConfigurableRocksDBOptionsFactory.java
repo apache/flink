@@ -21,9 +21,9 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * @deprecated Replaced by {@link ConfigurableRocksDBOptionsFactory}.
+ * An interface for options factory that pick up additional parameters from a configuration.
  */
-public interface ConfigurableOptionsFactory extends OptionsFactory {
+public interface ConfigurableRocksDBOptionsFactory extends RocksDBOptionsFactory {
 
 	/**
 	 * Creates a variant of the options factory that applies additional configuration parameters.
@@ -35,5 +35,5 @@ public interface ConfigurableOptionsFactory extends OptionsFactory {
 	 * @param configuration The configuration to pick the values from.
 	 * @return A reconfigured options factory.
 	 */
-	OptionsFactory configure(Configuration configuration);
+	RocksDBOptionsFactory configure(Configuration configuration);
 }

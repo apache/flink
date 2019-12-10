@@ -49,7 +49,7 @@ public class RocksDBResource extends ExternalResource {
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBResource.class);
 
 	/** Factory for {@link DBOptions} and {@link ColumnFamilyOptions}. */
-	private final OptionsFactory optionsFactory;
+	private final RocksDBOptionsFactory optionsFactory;
 
 	/** Temporary folder that provides the working directory for the RocksDB instance. */
 	private TemporaryFolder temporaryFolder;
@@ -79,7 +79,7 @@ public class RocksDBResource extends ExternalResource {
 	private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
 	public RocksDBResource() {
-		this(new OptionsFactory() {
+		this(new RocksDBOptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				//close it before reuse the reference.
@@ -106,7 +106,7 @@ public class RocksDBResource extends ExternalResource {
 		});
 	}
 
-	public RocksDBResource(@Nonnull OptionsFactory optionsFactory) {
+	public RocksDBResource(@Nonnull RocksDBOptionsFactory optionsFactory) {
 		this.optionsFactory = optionsFactory;
 	}
 

@@ -521,6 +521,7 @@ public class RocksDBStateBackendConfigTest {
 
 		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
 
+		assertTrue(rocksDbBackend.getRocksDBOptions() instanceof TestOptionsFactory);
 		assertTrue(rocksDbBackend.getOptions() instanceof TestOptionsFactory);
 
 		try (RocksDBResourceContainer optionsContainer = rocksDbBackend.createOptionsAndResourceContainer()) {
@@ -529,7 +530,7 @@ public class RocksDBStateBackendConfigTest {
 		}
 
 		// verify that user-defined options factory could be set programmatically and override pre-configured one.
-		rocksDbBackend.setOptions(new OptionsFactory() {
+		rocksDbBackend.setRocksDBOptions(new RocksDBOptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions;
@@ -549,7 +550,7 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testPredefinedAndOptionsFactory() throws Exception {
-		final OptionsFactory optionsFactory = new OptionsFactory() {
+		final RocksDBOptionsFactory optionsFactory = new RocksDBOptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions;
@@ -598,8 +599,8 @@ public class RocksDBStateBackendConfigTest {
 		assertNotEquals(predOptions, original.getPredefinedOptions());
 		original.setPredefinedOptions(predOptions);
 
-		final OptionsFactory optionsFactory = mock(OptionsFactory.class);
-		original.setOptions(optionsFactory);
+		final RocksDBOptionsFactory optionsFactory = mock(RocksDBOptionsFactory.class);
+		original.setRocksDBOptions(optionsFactory);
 
 		final String[] localDirs = new String[] {
 				tempFolder.newFolder().getAbsolutePath(), tempFolder.newFolder().getAbsolutePath() };
@@ -744,7 +745,7 @@ public class RocksDBStateBackendConfigTest {
 	/**
 	 * An implementation of options factory for testing.
 	 */
-	public static class TestOptionsFactory implements ConfigurableOptionsFactory {
+	public static class TestOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 		public static final String BACKGROUND_JOBS_OPTION = "my.custom.rocksdb.backgroundJobs";
 
 		private static final int DEFAULT_BACKGROUND_JOBS = 2;
@@ -761,7 +762,7 @@ public class RocksDBStateBackendConfigTest {
 		}
 
 		@Override
-		public OptionsFactory configure(Configuration configuration) {
+		public RocksDBOptionsFactory configure(Configuration configuration) {
 			this.backgroundJobs = configuration.getInteger(BACKGROUND_JOBS_OPTION, DEFAULT_BACKGROUND_JOBS);
 			return this;
 		}
