@@ -668,7 +668,7 @@ public class LocalExecutorITCase extends TestLogger {
 			boolean isRunning = true;
 			while (isRunning) {
 				Thread.sleep(50); // slow the processing down
-				final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+				final JobStatus jobStatus = clusterClient.getJobStatus(targetDescriptor.getJobId()).get();
 				switch (jobStatus) {
 					case CREATED:
 					case RUNNING:
@@ -731,7 +731,7 @@ public class LocalExecutorITCase extends TestLogger {
 			boolean isRunning = true;
 			while (isRunning) {
 				Thread.sleep(50); // slow the processing down
-				final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+				final JobStatus jobStatus = clusterClient.getJobStatus(targetDescriptor.getJobId()).get();
 				switch (jobStatus) {
 					case CREATED:
 					case RUNNING:
