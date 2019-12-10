@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter
 import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
@@ -43,6 +44,7 @@ import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, P
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 import org.apache.flink.types.Row
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -100,9 +102,10 @@ class StreamExecTableSourceScan(
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
+    val rowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      tableSourceTable.getRowType,
+      rowType,
       tableSourceTable.isStreamingMode)
 
     val inputDataType = inputTransform.getOutputType
@@ -134,11 +137,17 @@ class StreamExecTableSourceScan(
         }
       val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
         classOf[AbstractProcessStreamOperator[BaseRow]])
+      // the produced type may not carry the correct precision user defined in DDL, because
+      // it may be converted from legacy type. Fix precision using logical schema from DDL.
+      // Code generation requires the correct precision of input fields.
+      val fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
+        tableSource,
+        rowType)
       val conversionTransform = ScanUtil.convertToInternalRow(
         ctx,
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
-        producedDataType,
+        fixedProducedDataType,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -182,7 +191,7 @@ class StreamExecTableSourceScan(
   private def needInternalConversion: Boolean = {
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      tableSourceTable.getRowType,
+      FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType),
       tableSourceTable.isStreamingMode)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)

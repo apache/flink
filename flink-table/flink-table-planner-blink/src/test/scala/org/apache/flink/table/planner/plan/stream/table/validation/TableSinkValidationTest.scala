@@ -91,21 +91,21 @@ class TableSinkValidationTest extends TableTestBase {
     expectedException.expectMessage(
       "Field types of query result and registered TableSink `default_catalog`." +
       "`default_database`.`testSink` do not match.\n" +
-      "Query result schema: [a: INT, b: BIGINT, c: STRING, d: DECIMAL(10, 8)]\n" +
-      "TableSink schema:    [a: INT, b: BIGINT, c: STRING, d: DECIMAL(10, 7)]")
+      "Query result schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
+      "TableSink schema:    [a: INT, b: BIGINT, c: STRING, d: INT]")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val sourceTable = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("source", sourceTable)
-    val resultTable = tEnv.sqlQuery("select a, b, c, cast(b as decimal(10, 8)) as d from source")
+    val resultTable = tEnv.sqlQuery("select a, b, c, b as d from source")
 
     val sinkSchema = TableSchema.builder()
       .field("a", DataTypes.INT())
       .field("b", DataTypes.BIGINT())
       .field("c", DataTypes.STRING())
-      .field("d", DataTypes.DECIMAL(10, 7))
+      .field("d", DataTypes.INT())
       .build()
     val sink = new DataTypeOutputFormatTableSink(sinkSchema)
     tEnv.registerTableSink("testSink", sink)

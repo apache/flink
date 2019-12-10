@@ -31,6 +31,7 @@ import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternal
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.TableSink
@@ -223,7 +224,10 @@ object SinkCodeGenerator {
           case (fieldTypeInfo, i) =>
             val requestedTypeInfo = tt.getTypeAt(i)
             validateFieldType(requestedTypeInfo)
-            if (!areTypesCompatible(
+            // it's safe to be only assignable, because the conversion from internal type (Decimal)
+            // to external type (BigDecimal) doesn't loose precision, the internal type already
+            // matches to the expected type defined in DDL.
+            if (!PlannerTypeUtils.isAssignable(
               fromTypeInfoToLogicalType(fieldTypeInfo),
               fromTypeInfoToLogicalType(requestedTypeInfo)) &&
               !requestedTypeInfo.isInstanceOf[GenericTypeInfo[Object]]) {
