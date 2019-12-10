@@ -31,6 +31,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -52,6 +53,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.SinkTableEntry;
@@ -154,6 +156,7 @@ public class ExecutionContext<ClusterID> {
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 				dependencies.toArray(new URL[dependencies.size()]),
 				this.getClass().getClassLoader());
+		flinkConfig.set(PipelineOptions.JARS, dependencies.stream().map(URL::toString).collect(Collectors.toList()));
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
@@ -349,6 +352,11 @@ public class ExecutionContext<ClusterID> {
 		return factory.createModule(moduleProperties);
 	}
 
+	private void createAndRegisterCatalog(String name, CatalogEntry entry) {
+		Catalog catalog = createCatalog(name, entry.asMap(), Thread.currentThread().getContextClassLoader());
+		tableEnv.registerCatalog(name, catalog);
+	}
+
 	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
 		final CatalogFactory factory =
 			TableFactoryService.find(CatalogFactory.class, catalogProperties, classLoader);
@@ -523,12 +531,10 @@ public class ExecutionContext<ClusterID> {
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.1 Create catalogs and register them.
 		//--------------------------------------------------------------------------------------------------------------
-		Map<String, Catalog> catalogs = new LinkedHashMap<>();
-		environment.getCatalogs().forEach((name, entry) ->
-				catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
-		);
-		// register catalogs
-		catalogs.forEach(tableEnv::registerCatalog);
+		wrapClassLoader((Supplier<Void>) () -> {
+			environment.getCatalogs().forEach(this::createAndRegisterCatalog);
+			return null;
+		});
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.2 create table sources & sinks, and register them.
