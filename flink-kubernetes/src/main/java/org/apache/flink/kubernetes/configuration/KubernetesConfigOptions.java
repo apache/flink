@@ -93,6 +93,18 @@ public class KubernetesConfigOptions {
 	// The following config options could be overridden by KubernetesCliOptions.
 	// ---------------------------------------------------------------------------------
 
+	public static final ConfigOption<String> JOB_MAIN_CLASS_NAME =
+		key("kubernetes.program.main-class")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("The name of the main class of the job.");
+
+	public static final ConfigOption<String> JOB_ID =
+		key("kubernetes.program.id")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("The id of the job to run.");
+
 	public static final ConfigOption<String> CLUSTER_ID =
 		key("kubernetes.cluster-id")
 		.stringType()

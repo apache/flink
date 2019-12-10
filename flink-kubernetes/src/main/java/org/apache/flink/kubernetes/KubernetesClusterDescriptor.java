@@ -45,6 +45,8 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -68,6 +70,9 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		this.clusterId = checkNotNull(
 			flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID),
 			"ClusterId must be specified!");
+
+		constructEntryPointClassArgs(flinkConfig).ifPresent(args ->
+				this.flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS_ARGS, args));
 	}
 
 	@Override
@@ -214,5 +219,20 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			client.handleException(e);
 			LOG.error("failed to close client, exception {}", e.toString());
 		}
+	}
+
+	private Optional<String> constructEntryPointClassArgs(Configuration flinkConfig) {
+		final StringBuilder entryPointClassArgs = new StringBuilder();
+		flinkConfig
+				.getOptional(KubernetesConfigOptions.JOB_MAIN_CLASS_NAME)
+				.ifPresent(classname -> entryPointClassArgs.append(" --job-classname ").append(classname));
+
+		flinkConfig.
+				getOptional(KubernetesConfigOptions.JOB_ID)
+				.ifPresent(id -> entryPointClassArgs.append(" --job-id ").append(id));
+
+		return entryPointClassArgs.toString().isEmpty()
+				? Optional.empty()
+				: Optional.of(entryPointClassArgs.toString());
 	}
 }

@@ -105,7 +105,7 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 		formatter.printHelp(" ", options);
 	}
 
-	protected static int handleCliArgsException(CliArgsException e, Logger logger) {
+	public static int handleCliArgsException(CliArgsException e, Logger logger) {
 		logger.error("Could not parse the command line arguments.", e);
 
 		System.out.println(e.getMessage());
@@ -114,7 +114,7 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 		return 1;
 	}
 
-	protected static int handleError(Throwable t, Logger logger) {
+	public static int handleError(Throwable t, Logger logger) {
 		logger.error("Error while running the Flink session.", t);
 
 		System.err.println();
