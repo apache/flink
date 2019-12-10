@@ -1087,6 +1087,8 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", kubeSessionCLI, e);
 		}
 
+		customCommandLines.add(new ExecutorCLI(configuration));
+
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		customCommandLines.add(new DefaultCLI(configuration));
