@@ -156,7 +156,9 @@ public class ExecutionContext<ClusterID> {
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 				dependencies.toArray(new URL[dependencies.size()]),
 				this.getClass().getClassLoader());
-		flinkConfig.set(PipelineOptions.JARS, dependencies.stream().map(URL::toString).collect(Collectors.toList()));
+		if (!dependencies.isEmpty()) {
+			flinkConfig.set(PipelineOptions.JARS, dependencies.stream().map(URL::toString).collect(Collectors.toList()));
+		}
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
