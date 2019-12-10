@@ -51,6 +51,12 @@ import static org.junit.Assume.assumeThat;
  */
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT> extends TestLogger {
 
+	protected static final MigrationVersion[] migrationVersions = new MigrationVersion[]{
+			MigrationVersion.v1_7,
+			MigrationVersion.v1_8,
+			MigrationVersion.v1_9,
+	};
+
 	private final TestSpecification<PreviousElementT, UpgradedElementT> testSpecification;
 
 	protected TypeSerializerUpgradeTestBase(TestSpecification<PreviousElementT, UpgradedElementT> testSpecification) {
