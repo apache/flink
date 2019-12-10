@@ -56,7 +56,10 @@ object TableSinkUtils {
     if (srcLogicalTypes.length != sinkLogicalTypes.length ||
       srcLogicalTypes.zip(sinkLogicalTypes).exists {
         case (srcType, sinkType) =>
-          !PlannerTypeUtils.isInteroperable(srcType, sinkType)
+          // it's safe to be only assignable, because the conversion from internal type (Decimal)
+          // to external type (BigDecimal) doesn't loose precision, the internal type already
+          // matches to the expected type defined in DDL.
+          !PlannerTypeUtils.isAssignable(srcType, sinkType)
       }) {
 
       val srcFieldNames = query.getTableSchema.getFieldNames
