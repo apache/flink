@@ -25,6 +25,7 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -58,24 +59,15 @@ public enum PredefinedOptions {
 
 		@Override
 		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-			DBOptions dbOptions =
-				new DBOptions()
+			return new DBOptions()
 					.setUseFsync(false)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			if (handlesToClose != null) {
-				handlesToClose.add(dbOptions);
-			}
-			return dbOptions;
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
-			if (handlesToClose != null) {
-				handlesToClose.add(columnFamilyOptions);
-			}
-			return columnFamilyOptions;
+			return new ColumnFamilyOptions();
 		}
 
 	},
@@ -106,29 +98,19 @@ public enum PredefinedOptions {
 
 		@Override
 		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-			DBOptions dbOptions =
-				new DBOptions()
+			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			if (handlesToClose != null) {
-				handlesToClose.add(dbOptions);
-			}
-			return dbOptions;
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-			ColumnFamilyOptions columnFamilyOptions =
-				new ColumnFamilyOptions()
+			return new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
-			if (handlesToClose != null) {
-				handlesToClose.add(columnFamilyOptions);
-			}
-			return columnFamilyOptions;
 		}
 	},
 
@@ -164,18 +146,12 @@ public enum PredefinedOptions {
 
 		@Override
 		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-
-			DBOptions dbOptions =
-				new DBOptions()
+			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			if (handlesToClose != null) {
-				handlesToClose.add(dbOptions);
-			}
-			return dbOptions;
 		}
 
 		@Override
@@ -187,8 +163,9 @@ public enum PredefinedOptions {
 			final long writeBufferSize = 64 * 1024 * 1024;
 
 			BloomFilter bloomFilter = new BloomFilter();
-			ColumnFamilyOptions columnFamilyOptions =
-				new ColumnFamilyOptions()
+			handlesToClose.add(bloomFilter);
+
+			return new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true)
 					.setTargetFileSizeBase(targetFileSize)
@@ -202,11 +179,6 @@ public enum PredefinedOptions {
 									.setBlockSize(blockSize)
 									.setFilter(bloomFilter)
 					);
-			if (handlesToClose != null) {
-				handlesToClose.add(bloomFilter);
-				handlesToClose.add(columnFamilyOptions);
-			}
-			return columnFamilyOptions;
 		}
 	},
 
@@ -233,26 +205,17 @@ public enum PredefinedOptions {
 
 		@Override
 		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-			DBOptions dbOptions =
-				new DBOptions()
+			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
 					.setStatsDumpPeriodSec(0);
-			if (handlesToClose != null) {
-				handlesToClose.add(dbOptions);
-			}
-			return dbOptions;
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-			ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
-			if (handlesToClose != null) {
-				handlesToClose.add(columnFamilyOptions);
-			}
-			return columnFamilyOptions;
+			return new ColumnFamilyOptions();
 		}
 	};
 
@@ -271,7 +234,7 @@ public enum PredefinedOptions {
 	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
 	 */
 	public DBOptions createDBOptions() {
-		return createDBOptions(null);
+		return createDBOptions(new ArrayList<>());
 	}
 
 	/**
@@ -287,7 +250,7 @@ public enum PredefinedOptions {
 	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
 	 */
 	public ColumnFamilyOptions createColumnOptions() {
-		return createColumnOptions(null);
+		return createColumnOptions(new ArrayList<>());
 	}
 
 }
