@@ -57,7 +57,6 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -412,19 +411,10 @@ public class RocksDBStateBackendConfigTest {
 		// verify that predefined options could be set programmatically and override pre-configured one.
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
-
-		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
-			assertEquals(CompactionStyle.LEVEL, colCreated.compactionStyle());
-		}
 	}
 
 	@Test
 	public void testSetConfigurableOptions() throws Exception  {
-		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-
-		assertNull(rocksDbBackend.getOptions());
-
 		DefaultConfigurableOptionsFactory customizedOptions = new DefaultConfigurableOptionsFactory()
 			.setMaxBackgroundThreads(4)
 			.setMaxOpenFiles(-1)
@@ -438,13 +428,13 @@ public class RocksDBStateBackendConfigTest {
 			.setBlockSize("64KB")
 			.setBlockCacheSize("512mb");
 
-		rocksDbBackend.setOptions(customizedOptions);
+		try (RocksDBResourceContainer optionsContainer =
+				new RocksDBResourceContainer(PredefinedOptions.DEFAULT, customizedOptions)) {
 
-		try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
+			DBOptions dbOptions = optionsContainer.getDbOptions();
 			assertEquals(-1, dbOptions.maxOpenFiles());
-		}
 
-		try (ColumnFamilyOptions columnOptions = rocksDbBackend.getColumnOptions()) {
+			ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
 			assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
 			assertTrue(columnOptions.levelCompactionDynamicLevelBytes());
 			assertEquals(4 * SizeUnit.MB, columnOptions.targetFileSizeBase());
@@ -459,7 +449,7 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	@Test
-	public void testConfigurableOptionsFromConfig() throws IOException {
+	public void testConfigurableOptionsFromConfig() throws Exception {
 		Configuration configuration = new Configuration();
 		DefaultConfigurableOptionsFactory defaultOptionsFactory = new DefaultConfigurableOptionsFactory();
 		assertTrue(defaultOptionsFactory.configure(configuration).getConfiguredOptions().isEmpty());
@@ -496,15 +486,14 @@ public class RocksDBStateBackendConfigTest {
 
 			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
 			optionsFactory.configure(configuration);
-			String checkpointPath = tempFolder.newFolder().toURI().toString();
-			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-			rocksDbBackend.setOptions(optionsFactory);
 
-			try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
+			try (RocksDBResourceContainer optionsContainer =
+					new RocksDBResourceContainer(PredefinedOptions.DEFAULT, optionsFactory)) {
+
+				DBOptions dbOptions = optionsContainer.getDbOptions();
 				assertEquals(-1, dbOptions.maxOpenFiles());
-			}
 
-			try (ColumnFamilyOptions columnOptions = rocksDbBackend.getColumnOptions()) {
+				ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
 				assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
 				assertTrue(columnOptions.levelCompactionDynamicLevelBytes());
 				assertEquals(8 * SizeUnit.MB, columnOptions.targetFileSizeBase());
@@ -533,7 +522,9 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
 
 		assertTrue(rocksDbBackend.getOptions() instanceof TestOptionsFactory);
-		try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
+
+		try (RocksDBResourceContainer optionsContainer = rocksDbBackend.createOptionsAndResourceContainer()) {
+			DBOptions dbOptions = optionsContainer.getDbOptions();
 			assertEquals(4, dbOptions.maxBackgroundJobs());
 		}
 
@@ -550,21 +541,15 @@ public class RocksDBStateBackendConfigTest {
 			}
 		});
 
-		assertNotNull(rocksDbBackend.getOptions());
-		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
+		try (RocksDBResourceContainer optionsContainer = rocksDbBackend.createOptionsAndResourceContainer()) {
+			ColumnFamilyOptions colCreated = optionsContainer.getColumnOptions();
 			assertEquals(CompactionStyle.FIFO, colCreated.compactionStyle());
 		}
 	}
 
 	@Test
 	public void testPredefinedAndOptionsFactory() throws Exception {
-		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-
-		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
-
-		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
-		rocksDbBackend.setOptions(new OptionsFactory() {
+		final OptionsFactory optionsFactory = new OptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions;
@@ -574,12 +559,14 @@ public class RocksDBStateBackendConfigTest {
 			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
 			}
-		});
+		};
 
-		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
-		assertNotNull(rocksDbBackend.getOptions());
-		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
-			assertEquals(CompactionStyle.UNIVERSAL, colCreated.compactionStyle());
+		try (final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer(
+				PredefinedOptions.SPINNING_DISK_OPTIMIZED, optionsFactory)) {
+
+			final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
+			assertNotNull(columnFamilyOptions);
+			assertEquals(CompactionStyle.UNIVERSAL, columnFamilyOptions.compactionStyle());
 		}
 	}
 

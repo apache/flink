@@ -131,9 +131,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private File[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
+	@Nullable
 	private PredefinedOptions predefinedOptions;
 
 	/** The options factory to create the RocksDB options in the cluster. */
+	@Nullable
 	private OptionsFactory optionsFactory;
 
 	/** This determines if incremental checkpointing is enabled. */
@@ -505,8 +507,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		final OpaqueMemoryResource<RocksDBSharedResources> sharedResources = RocksDBOperationUtils
 				.allocateSharedCachesIfConfigured(memoryConfiguration, env.getMemoryManager(), LOG);
 
-		final RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer(
-				getConfiguredPredefinedOptionsOrDefault(), optionsFactory, sharedResources);
+		final RocksDBResourceContainer resourceContainer = createOptionsAndResourceContainer(sharedResources);
 
 		final DBOptions dbOptions = resourceContainer.getDbOptions();
 		final Function<String, ColumnFamilyOptions> createColumnOptions;
@@ -826,31 +827,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @return The options factory.
 	 */
-	@VisibleForTesting
+	@Nullable
 	public OptionsFactory getOptions() {
 		return optionsFactory;
-	}
-
-	/**
-	 * Gets the RocksDB {@link DBOptions} to be used for all RocksDB instances. Only for testing.
-	 */
-	@VisibleForTesting
-	public DBOptions getDbOptions() {
-		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer(
-				getConfiguredPredefinedOptionsOrDefault(),
-				optionsFactory);
-		return resourceContainer.getDbOptions();
-	}
-
-	/**
-	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances. Only for testing.
-	 */
-	@VisibleForTesting
-	public ColumnFamilyOptions getColumnOptions() {
-		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer(
-			getConfiguredPredefinedOptionsOrDefault(),
-			optionsFactory);
-		return resourceContainer.getColumnOptions();
 	}
 
 	/**
@@ -888,13 +867,24 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		setNumberOfTransferThreads(numberOfTransferingThreads);
 	}
 
-	private PredefinedOptions getConfiguredPredefinedOptionsOrDefault() {
-		return predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT;
-	}
-
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	RocksDBResourceContainer createOptionsAndResourceContainer() {
+		return createOptionsAndResourceContainer(null);
+	}
+
+	@VisibleForTesting
+	private RocksDBResourceContainer createOptionsAndResourceContainer(
+		@Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
+
+		return new RocksDBResourceContainer(
+			predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
+			optionsFactory,
+			sharedResources);
+	}
 
 	@Override
 	public String toString() {
