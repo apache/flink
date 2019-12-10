@@ -42,6 +42,7 @@ public class PojoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 		MigrationVersion[] migrationVersions = new MigrationVersion[]{
 				MigrationVersion.v1_7,
 				MigrationVersion.v1_8,
+				MigrationVersion.v1_9,
 		};
 
 		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
