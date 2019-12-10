@@ -51,10 +51,10 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BUFFER_SIZE;
 
 /**
- * An implementation of {@link ConfigurableOptionsFactory} using options provided by {@link RocksDBConfigurableOptions}.
- * It acts as the default options factory within {@link RocksDBStateBackend} if the user did not define a {@link OptionsFactory}.
+ * An implementation of {@link ConfigurableRocksDBOptionsFactory} using options provided by {@link RocksDBConfigurableOptions}.
+ * It acts as the default options factory within {@link RocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
  */
-public class DefaultConfigurableOptionsFactory implements ConfigurableOptionsFactory {
+public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
 	private static final long serialVersionUID = 1L;
 

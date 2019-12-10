@@ -93,7 +93,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The behavior of the RocksDB instances can be parametrized by setting RocksDB Options
  * using the methods {@link #setPredefinedOptions(PredefinedOptions)} and
- * {@link #setOptions(OptionsFactory)}.
+ * {@link #setRocksDBOptions(RocksDBOptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractStateBackend implements ConfigurableStateBackend {
 
@@ -136,7 +136,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** The options factory to create the RocksDB options in the cluster. */
 	@Nullable
-	private OptionsFactory optionsFactory;
+	private RocksDBOptionsFactory rocksDbOptionsFactory;
 
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
@@ -359,8 +359,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		// configure RocksDB options factory
 		try {
-			optionsFactory = configureOptionsFactory(
-				original.optionsFactory,
+			rocksDbOptionsFactory = configureOptionsFactory(
+				original.rocksDbOptionsFactory,
 				config.getString(RocksDBOptions.OPTIONS_FACTORY),
 				config,
 				classLoader);
@@ -582,15 +582,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			cancelStreamRegistry).build();
 	}
 
-	private OptionsFactory configureOptionsFactory(
-			@Nullable OptionsFactory originalOptionsFactory,
+	private RocksDBOptionsFactory configureOptionsFactory(
+			@Nullable RocksDBOptionsFactory originalOptionsFactory,
 			String factoryClassName,
 			Configuration config,
 			ClassLoader classLoader) throws DynamicCodeLoadingException {
 
 		if (originalOptionsFactory != null) {
-			if (originalOptionsFactory instanceof ConfigurableOptionsFactory) {
-				originalOptionsFactory = ((ConfigurableOptionsFactory) originalOptionsFactory).configure(config);
+			if (originalOptionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
+				originalOptionsFactory = ((ConfigurableRocksDBOptionsFactory) originalOptionsFactory).configure(config);
 			}
 			LOG.info("Using application-defined options factory: {}.", originalOptionsFactory);
 
@@ -607,13 +607,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		} else {
 			try {
 				@SuppressWarnings("rawtypes")
-				Class<? extends OptionsFactory> clazz =
+				Class<? extends RocksDBOptionsFactory> clazz =
 					Class.forName(factoryClassName, false, classLoader)
-						.asSubclass(OptionsFactory.class);
+						.asSubclass(RocksDBOptionsFactory.class);
 
-				OptionsFactory optionsFactory = clazz.newInstance();
-				if (optionsFactory instanceof ConfigurableOptionsFactory) {
-					optionsFactory = ((ConfigurableOptionsFactory) optionsFactory).configure(config);
+				RocksDBOptionsFactory optionsFactory = clazz.newInstance();
+				if (optionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
+					optionsFactory = ((ConfigurableRocksDBOptionsFactory) optionsFactory).configure(config);
 				}
 				LOG.info("Using configured options factory: {}.", optionsFactory);
 
@@ -776,7 +776,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Sets the predefined options for RocksDB.
 	 *
 	 * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through flink-conf.yaml)
-	 * or a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * or a user-defined options factory is set (via {@link #setRocksDBOptions(RocksDBOptionsFactory)}),
 	 * then the options from the factory are applied on top of the here specified
 	 * predefined options and customized options.
 	 *
@@ -792,7 +792,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * are {@link PredefinedOptions#DEFAULT}.
 	 *
 	 * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through flink-conf.yaml)
-	 * of a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * of a user-defined options factory is set (via {@link #setRocksDBOptions(RocksDBOptionsFactory)}),
 	 * then the options from the factory are applied on top of the predefined and customized options.
 	 *
 	 * @return The currently set predefined options for RocksDB.
@@ -818,18 +818,45 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @param optionsFactory The options factory that lazily creates the RocksDB options.
 	 */
-	public void setOptions(OptionsFactory optionsFactory) {
-		this.optionsFactory = optionsFactory;
+	public void setRocksDBOptions(RocksDBOptionsFactory optionsFactory) {
+		this.rocksDbOptionsFactory = optionsFactory;
 	}
 
 	/**
-	 * Gets the options factory that lazily creates the RocksDB options.
+	 * Gets {@link org.rocksdb.Options} for the RocksDB instances.
 	 *
-	 * @return The options factory.
+	 * <p>The options created by the factory here are applied on top of the pre-defined
+	 * options profile selected via {@link #setPredefinedOptions(PredefinedOptions)}.
+	 * If the pre-defined options profile is the default
+	 * ({@link PredefinedOptions#DEFAULT}), then the factory fully controls the RocksDB options.
 	 */
 	@Nullable
+	public RocksDBOptionsFactory getRocksDBOptions() {
+		return rocksDbOptionsFactory;
+	}
+
+	/**
+	 * The options factory supplied here was prone to resource leaks, because it did not have a way
+	 * to register native handles / objects that need to be disposed when the state backend is closed.
+	 *
+	 * @deprecated Use {@link #setRocksDBOptions(RocksDBOptionsFactory)} instead.
+	 */
+	@Deprecated
+	public void setOptions(OptionsFactory optionsFactory) {
+		this.rocksDbOptionsFactory = optionsFactory instanceof RocksDBOptionsFactory
+				? (RocksDBOptionsFactory) optionsFactory
+				: new RocksDBOptionsFactoryAdapter(optionsFactory);
+	}
+
+	/**
+	 * The options factory supplied here was prone to resource leaks, because it did not have a way
+	 * to register native handles / objects that need to be disposed when the state backend is closed.
+	 *
+	 * @deprecated Use {@link #setRocksDBOptions(RocksDBOptionsFactory)} and {@link #getRocksDBOptions()} instead.
+	 */
+	@Deprecated
 	public OptionsFactory getOptions() {
-		return optionsFactory;
+		return RocksDBOptionsFactoryAdapter.unwrapIfAdapter(rocksDbOptionsFactory);
 	}
 
 	/**
@@ -882,7 +909,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		return new RocksDBResourceContainer(
 			predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
-			optionsFactory,
+			rocksDbOptionsFactory,
 			sharedResources);
 	}
 
