@@ -119,7 +119,7 @@ RocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Backend (�
 
 可以使用一些 RocksDB 的本地指标(metrics)，但默认是关闭的。你能在 [这里]({{ site.baseurl }}/zh/ops/config.html#rocksdb-native-metrics) 找到关于 RocksDB 本地指标的文档。
 
-The total memory amount of RocksDB instance(s) per slot could also be bounded, please refer to documentation [here](large_state_tuning.html#bound-total-memory-usage-of-rocksdb-instances-per-slot) for details.
+The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here](large_state_tuning.html#bounding-rocksdb-memory-usage) for details.
 
 ## 设置 State Backend
 

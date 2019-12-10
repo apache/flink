@@ -123,7 +123,7 @@ RocksDBStateBackend is currently the only backend that offers incremental checkp
 
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
 
-The total memory amount of RocksDB instance(s) per slot could also be bounded, please refer to documentation [here](large_state_tuning.html#bound-total-memory-usage-of-rocksdb-instances-per-slot) for details.
+The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here](large_state_tuning.html#bounding-rocksdb-memory-usage) for details.
 
 ## Configuring a State Backend
 

@@ -122,7 +122,7 @@ Unfortunately, RocksDB's performance can vary with configuration, and there is l
 RocksDB properly. For example, the default configuration is tailored towards SSDs and performs suboptimal
 on spinning disks.
 
-#### Incremental Checkpoints
+### Incremental Checkpoints
 
 Incremental checkpoints can dramatically reduce the checkpointing time in comparison to full checkpoints, at the cost of a (potentially) longer
 recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
@@ -138,7 +138,7 @@ by default. To enable this feature, users can instantiate a `RocksDBStateBackend
         new RocksDBStateBackend(filebackend, true);
 {% endhighlight %}
 
-#### RocksDB Timers
+### RocksDB Timers
 
 For RocksDB, a user can chose whether timers are stored on the heap or inside RocksDB (default). Heap-based timers can have a better performance for smaller numbers of
 timers, while storing timers inside RocksDB offers higher scalability as the number of timers in RocksDB can exceed the available main memory (spilling to disk).
@@ -149,7 +149,7 @@ Possible choices are `heap` (to store timers on the heap, default) and `rocksdb`
 <span class="label label-info">Note</span> *The combination RocksDB state backend with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
 Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
 
-#### Predefined Options
+### Predefined Options
 
 Flink provides some predefined collections of option for RocksDB for different settings, and there existed two ways
 to pass these predefined options to RocksDB:
@@ -162,7 +162,7 @@ found a set of options that work well and seem representative for certain worklo
 
 <span class="label label-info">Note</span> Predefined options which set programmatically would override the one configured via `flink-conf.yaml`.
 
-#### Passing Options Factory to RocksDB
+### Passing Options Factory to RocksDB
 
 There existed two ways to pass options factory to RocksDB in Flink:
 
@@ -210,27 +210,29 @@ and not from the JVM. Any memory you assign to RocksDB will have to be accounted
 of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
 allocating more memory than configured.
 
-#### Bound total memory usage of RocksDB instance(s) per slot
+### Bounding RocksDB Memory Usage
 
-RocksDB allocates native memory without control of JVM, and might lead the process to exceed total memory budget of the container to get killed in container environment (e.g. Kubernetes).
-From Flink-1.10, we provide a solution to limit total memory usage for RocksDb instance(s) per slot by leveraging RocksDB's mechanism to 
-share [cache](https://github.com/facebook/rocksdb/wiki/Block-Cache) and [write buffer manager](https://github.com/facebook/rocksdb/wiki/Write-Buffer-Manager) among instance(s).
-Generally speaking, we mainly have three parts of memory usage for RocksDB in Flink scenario: block cache, index & bloom filters and memtables 
-(refer to [memory-usage-in-rocksdb](https://github.com/facebook/rocksdb/wiki/Memory-usage-in-RocksDB)).
-The basic idea is to share a `Cache` object with desired capacity among all RocksDB instances, 
-and [cost memory used in memtable to that cache](https://github.com/facebook/rocksdb/wiki/Write-Buffer-Manager#cost-memory-used-in-memtable-to-block-cache) via write buffer manager.
-Besides, we also cache index & filters into that cache, then the major use of memory would be well capped.
+RocksDB allocates native memory outside of the JVM, which could lead the process to exceed the total memory budget.
+This can be especially problematic in containerized environments such as Kubernetes that kill processes who exceed their memory budgets.
+Flink can limit total memory usage of RocksDB instance(s) per slot by leveraging shareable [cache](https://github.com/facebook/rocksdb/wiki/Block-Cache)
+and [write buffer manager](https://github.com/facebook/rocksdb/wiki/Write-Buffer-Manager) among all instances in a single slot.
+The shared cache will place an upper limit on the [three components](https://github.com/facebook/rocksdb/wiki/Memory-usage-in-RocksDB) that use the majority of memory
+when RocksDB is deployed as a state backend: block cache, index and bloom filters, and MemTables.
 There exist two ways to enable this feature:
   -  Turn `state.backend.rocksdb.memory.managed` as true. If so, RocksDB state backend will use the managed memory budget of the task slot to set the capacity of that shared cache object.
-  -  Configure the memory size of `state.backend.rocksdb.memory.fixed-per-slot` to set the fixed total amount of memory per slot. 
-  This option will override `state.backend.rocksdb.memory.managed` option when configured.
+  This operation is recommend to take with the configuration to managed memory per task manager.
+  -  Configure the memory size of `state.backend.rocksdb.memory.fixed-per-slot` to set the fixed total amount of memory per slot.
+  This option will override `state.backend.rocksdb.memory.managed` option when configured and ignore calculated managed memory per slot from task manager.
 
-We also provide two parameters to tune the memory fraction of memtable and index & filters:
+Flink also provides two parameters to tune the memory fraction of MemTable and index & filters:
   - `state.backend.rocksdb.memory.write-buffer-ratio`, by default `0.5`. If RocksDB memory bounded feature is turned on, 50% of memory size would be used by write buffer manager by default.
-  - `state.backend.rocksdb.memory.high-prio-pool-ratio`, by default `0.1`. 
-  If RocksDB memory bounded feature is turned on, 10% 0f memory size would be set as high priority for index and filters in shared block cache by default. 
+  - `state.backend.rocksdb.memory.high-prio-pool-ratio`, by default `0.1`.
+  If RocksDB memory bounded feature is turned on, 10% 0f memory size would be set as high priority for index and filters in shared block cache by default.
   By enabling this, index and filters would not need to compete against data blocks for staying in cache to minimize performance problem if those index and filters are evicted by data blocks frequently.
-  Moreover, we also pin L0 level filter and index into cache by default to mitigate performance problem, more details could refer to [RocksDB-doc](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
+  Moreover, the L0 level filter and index are pinned into the cache by default to mitigate performance problems,
+  more details could refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
+
+<span class="label label-info">Note</span> The shared `cahe` and `write buffer manager` will override customized settings of block cache and write buffer via `PredefinedOptions` and `OptionsFactory`.
 
 ## Capacity Planning
 
