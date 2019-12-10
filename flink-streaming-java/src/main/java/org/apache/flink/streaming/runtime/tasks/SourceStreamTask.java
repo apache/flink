@@ -23,12 +23,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -52,6 +54,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	extends StreamTask<OUT, OP> {
 
 	private final LegacySourceFunctionThread sourceThread;
+	private final Object lock;
 
 	private volatile boolean externallyInducedCheckpoints;
 
@@ -62,7 +65,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	private volatile boolean isFinished = false;
 
 	public SourceStreamTask(Environment env) {
-		super(env);
+		this(env, new Object());
+	}
+
+	private SourceStreamTask(Environment env, Object lock) {
+		super(env, null, FatalExitExceptionHandler.INSTANCE, StreamTaskActionExecutor.synchronizedExecutor(lock));
+		this.lock = Preconditions.checkNotNull(lock);
 		this.sourceThread = new LegacySourceFunctionThread();
 	}
 
@@ -162,7 +170,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		}
 		else {
 			// we do not trigger checkpoints here, we simply state whether we can trigger them
-			synchronized (getCheckpointLock()) {
+			synchronized (lock) {
 				return CompletableFuture.completedFuture(isRunning());
 			}
 		}
@@ -197,7 +205,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		@Override
 		public void run() {
 			try {
-				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
+				headOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
 				completionFuture.complete(null);
 			} catch (Throwable t) {
 				// Note, t can be also an InterruptedException

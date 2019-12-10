@@ -285,6 +285,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * @deprecated Checkpoint lock in {@link StreamTask} is replaced by {@link org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor StreamTaskActionExecutor}.
+	 */
+	@Deprecated
 	public Object getCheckpointLock() {
 		return mockTask.getCheckpointLock();
 	}

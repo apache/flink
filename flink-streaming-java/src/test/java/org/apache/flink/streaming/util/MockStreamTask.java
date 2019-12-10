@@ -104,7 +104,11 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		return name;
 	}
 
-	@Override
+	/**
+	 * Checkpoint lock in {@link StreamTask} is replaced by {@link StreamTaskActionExecutor}.
+	 * <code>getCheckpointLock</code> method was moved from to the {@link org.apache.flink.streaming.runtime.tasks.SourceStreamTask SourceStreamTask}.
+	 */
+	@Deprecated
 	public Object getCheckpointLock() {
 		return checkpointLock;
 	}

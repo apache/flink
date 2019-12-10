@@ -144,14 +144,14 @@ public class StreamSourceOperatorWatermarksTest {
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
-		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, processingTimeService);
+		MockStreamTask<?, ?> task = setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, processingTimeService);
 
 		final List<StreamElement> output = new ArrayList<>();
 
 		StreamSourceContexts.getSourceContext(
 			TimeCharacteristic.IngestionTime,
 			processingTimeService,
-			operator.getContainingTask().getCheckpointLock(),
+			task.getCheckpointLock(),
 			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),
 			operator.getExecutionConfig().getAutoWatermarkInterval(),
@@ -178,7 +178,7 @@ public class StreamSourceOperatorWatermarksTest {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(
+	private static <T> MockStreamTask setupSourceOperator(
 			StreamSource<T, ?> operator,
 			TimeCharacteristic timeChar,
 			long watermarkInterval,
@@ -206,6 +206,7 @@ public class StreamSourceOperatorWatermarksTest {
 			.build();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
+		return mockTask;
 	}
 
 	private static <T> StreamTaskTestHarness<T> setupSourceStreamTask(
