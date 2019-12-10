@@ -640,7 +640,7 @@ public class LocalExecutorITCase extends TestLogger {
 		return throwableWithMessage;
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
 	public void testStreamQueryExecutionSink() throws Exception {
 		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
@@ -660,27 +660,16 @@ public class LocalExecutorITCase extends TestLogger {
 
 		try {
 			// Case 1: Registered sink
-			final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
-				sessionId,
-				"INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1");
-
-			// wait for job completion and verify result
-			boolean isRunning = true;
-			while (isRunning) {
-				Thread.sleep(50); // slow the processing down
-				final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
-				switch (jobStatus) {
-					case CREATED:
-					case RUNNING:
-						continue;
-					case FINISHED:
-						isRunning = false;
-						verifySinkResult(csvOutputPath);
-						break;
-					default:
-						fail("Unexpected job status.");
-				}
-			}
+			// Case 1.1: Registered sink with uppercase insert into keyword.
+			final String statement1 = "INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1";
+			executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
+			// Case 1.2: Registered sink with lowercase insert into keyword.
+			final String statement2 = "insert Into TableSourceSink \n "
+					+ "SELECT IntegerField1 = 42, StringField1 "
+					+ "FROM TableNumber1";
+			executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
+			// Case 1.3: Execute the same statement again, the results should expect to be the same.
+			executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 
 			// Case 2: Temporary sink
 			executor.useCatalog(sessionId, "simple-catalog");
@@ -697,53 +686,6 @@ public class LocalExecutorITCase extends TestLogger {
 				SimpleCatalogFactory.TABLE_CONTENTS.stream().map(Row::toString).collect(Collectors.toList()),
 				otherCatalogResults,
 				Comparator.naturalOrder());
-		} finally {
-			executor.closeSession(sessionId);
-		}
-	}
-
-	@Test(timeout = 30_000L)
-	public void testExecuteInsertInto() throws Exception {
-		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
-		final URL url = getClass().getClassLoader().getResource("test-data.csv");
-		Objects.requireNonNull(url);
-		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_PLANNER", planner);
-		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
-		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
-		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-		replaceVars.put("$VAR_MAX_ROWS", "100");
-
-		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-		final SessionContext session = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(session);
-		assertEquals("test-session", sessionId);
-
-		try {
-			final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
-					sessionId,
-					"insert Into TableSourceSink \n " +
-					"SELECT IntegerField1 = 42, StringField1 " +
-					"FROM TableNumber1");
-
-			// wait for job completion and verify result
-			boolean isRunning = true;
-			while (isRunning) {
-				Thread.sleep(50); // slow the processing down
-				final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
-				switch (jobStatus) {
-					case CREATED:
-					case RUNNING:
-						continue;
-					case FINISHED:
-						isRunning = false;
-						verifySinkResult(csvOutputPath);
-						break;
-					default:
-						fail("Unexpected job status.");
-				}
-			}
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -955,7 +897,7 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
-	public void testCreateTableWithMultiSession() throws Exception {
+	public void testCreateTableWithPropertiesChanged() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
@@ -1097,6 +1039,34 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedResults.add("true,Hello World");
 		expectedResults.add("false,Hello World!!!!");
 		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+	}
+
+	private void executeAndVerifySinkResult(
+			Executor executor,
+			String sessionId,
+			String statement,
+			String resultPath) throws Exception {
+		final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
+				sessionId,
+				statement);
+
+		// wait for job completion and verify result
+		boolean isRunning = true;
+		while (isRunning) {
+			Thread.sleep(50); // slow the processing down
+			final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+			switch (jobStatus) {
+			case CREATED:
+			case RUNNING:
+				continue;
+			case FINISHED:
+				isRunning = false;
+				verifySinkResult(resultPath);
+				break;
+			default:
+				fail("Unexpected job status.");
+			}
+		}
 	}
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
