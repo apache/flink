@@ -1702,7 +1702,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public StreamGraph getStreamGraph() {
-		return getStreamGraphGenerator().generate();
+		return getStreamGraph(DEFAULT_JOB_NAME);
 	}
 
 	/**
@@ -1713,7 +1713,23 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public StreamGraph getStreamGraph(String jobName) {
-		return getStreamGraphGenerator().setJobName(jobName).generate();
+		return getStreamGraph(jobName, true);
+	}
+
+	/**
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+	 *
+	 * @param jobName Desired name of the job
+	 * @param clearTransformations Whether or not to start a new stage of execution
+	 * @return The streamgraph representing the transformations
+	 */
+	@Internal
+	public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
+		StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+		if (clearTransformations) {
+			this.transformations.clear();
+		}
+		return streamGraph;
 	}
 
 	private StreamGraphGenerator getStreamGraphGenerator() {
@@ -1737,7 +1753,7 @@ public class StreamExecutionEnvironment {
 	 * @return The execution plan of the program, as a JSON String.
 	 */
 	public String getExecutionPlan() {
-		return getStreamGraph().getStreamingPlanAsJSON();
+		return getStreamGraph(DEFAULT_JOB_NAME, false).getStreamingPlanAsJSON();
 	}
 
 	/**

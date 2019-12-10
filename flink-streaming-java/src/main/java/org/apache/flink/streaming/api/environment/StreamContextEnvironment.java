@@ -60,8 +60,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
-
 		JobClient jobClient = executeAsync(streamGraph).get();
 
 		JobExecutionResult jobExecutionResult;

@@ -215,7 +215,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
 		try {
 			return super.execute(streamGraph);
 		}
