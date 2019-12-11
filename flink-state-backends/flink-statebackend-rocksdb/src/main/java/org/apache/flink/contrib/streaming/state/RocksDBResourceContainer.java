@@ -95,7 +95,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 	/**
 	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances.
 	 */
-	ColumnFamilyOptions getColumnOptions() {
+	public ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
 		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions(handlesToClose);
 		handlesToClose.add(opt);
