@@ -57,6 +57,12 @@ public class MesosTaskManagerParameters {
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
 		TaskManagerOptions.NUM_TASK_SLOTS;
 
+	/**
+	 * Total task executor container memory in megabytes to allocate.
+	 *
+	 * @deprecated set explicitly {@link TaskManagerOptions#TOTAL_PROCESS_MEMORY} instead
+	 */
+	@Deprecated
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
 		key("mesos.resourcemanager.tasks.mem")
 		.defaultValue(1024)
