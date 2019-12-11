@@ -35,9 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -46,17 +43,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final AtomicReference<JobExecutionResult> jobExecutionResult;
-
 	private boolean alreadyCalled;
 
 	ContextEnvironment(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader,
-			final AtomicReference<JobExecutionResult> jobExecutionResult) {
+			final ClassLoader userCodeClassLoader) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-		this.jobExecutionResult = checkNotNull(jobExecutionResult);
 
 		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 		if (parallelism > 0) {
@@ -96,7 +89,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 
-		setJobExecutionResult(jobExecutionResult);
 		return jobExecutionResult;
 	}
 
@@ -114,10 +106,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
 		}
 		alreadyCalled = true;
-	}
-
-	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
-		this.jobExecutionResult.set(jobExecutionResult);
 	}
 
 	@Override
