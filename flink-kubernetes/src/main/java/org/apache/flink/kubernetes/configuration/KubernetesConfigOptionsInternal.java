@@ -40,12 +40,6 @@ public class KubernetesConfigOptionsInternal {
 		.noDefaultValue()
 		.withDescription("The entrypoint class for jobmanager. It will be set in kubernetesClusterDescriptor.");
 
-	public static final ConfigOption<String> ENTRY_POINT_CLASS_ARGS = ConfigOptions
-		.key("kubernetes.internal.jobmanager.entrypoint.class.args")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("The args of entrypoint class for jobmanager. It will be set in FlinkKubernetesCustomCli.");
-
 	/** This class is not meant to be instantiated. */
 	private KubernetesConfigOptionsInternal() {}
 }
