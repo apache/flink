@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
-import java.util.Set;
 
 /**
  * Simple factory for the S3 file system.
@@ -51,7 +50,8 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	private static final String[][] MIRRORED_CONFIG_KEYS = {
 			{ "presto.s3.access.key", "presto.s3.access-key" },
-			{ "presto.s3.secret.key", "presto.s3.secret-key" }
+			{ "presto.s3.secret.key", "presto.s3.secret-key" },
+			{ "presto.s3.path.style.access", "presto.s3.path-style-access" }
 	};
 
 	public S3FileSystemFactory() {
