@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options,
  * and should be properly (and necessarily) closed to prevent resource leak.
  */
-final class RocksDBResourceContainer implements AutoCloseable {
+public final class RocksDBResourceContainer implements AutoCloseable {
 
 	/** The pre-configured option settings. */
 	private final PredefinedOptions predefinedOptions;
@@ -76,7 +76,7 @@ final class RocksDBResourceContainer implements AutoCloseable {
 	/**
 	 * Gets the RocksDB {@link DBOptions} to be used for RocksDB instances.
 	 */
-	DBOptions getDbOptions() {
+	public DBOptions getDbOptions() {
 		// initial options from pre-defined profile
 		DBOptions opt = predefinedOptions.createDBOptions(handlesToClose);
 		handlesToClose.add(opt);
