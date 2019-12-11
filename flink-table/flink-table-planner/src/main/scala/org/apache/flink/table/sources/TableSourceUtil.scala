@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.sources
 
-import java.sql.Timestamp
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -26,13 +25,15 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{DataTypes, TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall}
 import org.apache.flink.table.expressions.{PlannerExpressionConverter, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -78,10 +79,10 @@ object TableSourceUtil {
 
     // get types of selected fields
     val tableFieldTypes = if (selectedFields.isDefined) {
-      val types = tableSchema.getFieldTypes
+      val types = tableSchema.getFieldDataTypes
       selectedFields.get.map(types(_))
     } else {
-      tableSchema.getFieldTypes
+      tableSchema.getFieldDataTypes
     }
 
     // get rowtime and proctime attributes
@@ -90,34 +91,36 @@ object TableSourceUtil {
 
     // compute mapping of selected fields and time attributes
     val mapping: Array[Int] = tableFieldTypes.zip(tableFieldNames).map {
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && proctimeAttributes.contains(name) =>
+      case (t: DataType, name: String)
+        if t.getLogicalType.getClass == classOf[TimestampType]
+          && proctimeAttributes.contains(name) =>
         if (isStreamTable) {
           TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER
         } else {
           TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER
         }
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
+      case (t: DataType, name: String)
+        if t.getLogicalType.getClass == classOf[TimestampType]
+          && rowtimeAttributes.contains(name) =>
         if (isStreamTable) {
           TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER
         } else {
           TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER
         }
-      case (t: TypeInformation[_], name) =>
+      case (t: DataType, name) =>
         // check if field is registered as time indicator
         if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
-            s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Processing time attributes must be of type TimestampType.")
         }
         if (getRowtimeAttributes(tableSource).contains(name)) {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
-            s"Rowtime attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Rowtime attributes must be of type TimestampType.")
         }
 
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
-        if (tpe != t) {
+        if (tpe != fromDataTypeToLegacyInfo(t)) {
           throw new ValidationException(s"Type $t of table field '$name' does not " +
             s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
         }

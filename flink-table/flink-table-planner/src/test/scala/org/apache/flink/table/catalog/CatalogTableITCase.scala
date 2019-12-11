@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog
 
+import java.time.LocalDateTime
+
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
@@ -435,6 +437,46 @@ class CatalogTableITCase(isStreaming: Boolean) {
     tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
+  }
+
+  @Test
+  def testBatchTableWithLocalDateTime(): Unit = {
+    val sourceData = List(
+      toRow(1, LocalDateTime.of(2019, 10, 3, 15, 43, 32)),
+      toRow(2, LocalDateTime.of(2019, 11, 4, 15, 43, 32)),
+      toRow(3, LocalDateTime.of(2019, 12, 5, 15, 43, 32))
+    )
+
+    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  b timestamp(3)
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  b timestamp(3)
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select a, b from t1
+      """.stripMargin
+
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(sourceData, TestCollectionTableFactory.RESULT.sorted)
   }
 
   @Test
