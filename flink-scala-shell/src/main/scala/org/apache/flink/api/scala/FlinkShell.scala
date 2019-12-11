@@ -20,6 +20,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.executors.RemoteExecutor
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader
@@ -132,7 +133,8 @@ object FlinkShell {
     }
   }
 
-  private def ensureYarnConfig(config: Config) = config.yarnConfig match {
+
+  @Internal def ensureYarnConfig(config: Config) = config.yarnConfig match {
     case Some(yarnConfig) => yarnConfig
     case None => YarnConfig()
   }
@@ -196,7 +198,7 @@ object FlinkShell {
     println(" good bye ..")
   }
 
-  private def fetchConnectionInfo(
+  @Internal def fetchConnectionInfo(
       config: Config,
       flinkConfig: Configuration): (Configuration, Option[ClusterClient[_]]) = {
 

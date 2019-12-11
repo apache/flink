@@ -58,8 +58,10 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
@@ -135,6 +137,8 @@ public class ExecutionEnvironment {
 	private final Configuration configuration;
 
 	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
 
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
@@ -817,15 +821,44 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
-		final JobClient jobClient = executeAsync(jobName).get();
+		final JobClient jobClient = executeAsync(jobName);
 
-		if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-			lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
-		} else {
-			lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+		try {
+			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+			} else {
+				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+			}
+
+			jobListeners.forEach(
+					jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
+
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
 		}
 
 		return lastJobExecutionResult;
+	}
+
+	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
 	}
 
 	/**
@@ -837,11 +870,11 @@ public class ExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with a generated default name.
 	 *
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
 	 */
 	@PublicEvolving
-	public final CompletableFuture<JobClient> executeAsync() throws Exception {
+	public final JobClient executeAsync() throws Exception {
 		return executeAsync(getDefaultName());
 	}
 
@@ -854,11 +887,11 @@ public class ExecutionEnvironment {
 	 *
 	 * <p>The program execution will be logged and displayed with the given job name.
 	 *
-	 * @return A future of {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
 	 * @throws Exception Thrown, if the program submission fails.
 	 */
 	@PublicEvolving
-	public CompletableFuture<JobClient> executeAsync(String jobName) throws Exception {
+	public JobClient executeAsync(String jobName) throws Exception {
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
 		consolidateParallelismDefinitionsInConfiguration();
@@ -872,9 +905,21 @@ public class ExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
-		return executorFactory
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(plan, configuration);
+
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.rethrow(t);
+
+			// make javac happy, this code path will not be reached
+			return null;
+		}
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
