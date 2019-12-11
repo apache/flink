@@ -33,9 +33,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
-
 /**
  * Unit tests for {@link MailboxProcessor}.
  */
@@ -59,7 +56,7 @@ public class TaskMailboxProcessorTest {
 
 	@Test
 	public void testSubmittingRunnableWithException() throws Exception {
-		expectedException.expectCause(hasMessage(containsString("Expected")));
+		expectedException.expectMessage("Expected");
 		try (MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {})) {
 			final Thread submitThread = new Thread(() -> {
 				mailboxProcessor.getMainMailboxExecutor().execute(

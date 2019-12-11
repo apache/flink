@@ -76,6 +76,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -466,7 +467,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// let the task do its work
 			isRunning = true;
-			mailboxProcessor.runMailboxLoop();
+			runMailboxLoop();
 
 			// if this left the run() method cleanly despite the fact that this was canceled,
 			// make sure the "clean shutdown" is not attempted
@@ -478,6 +479,37 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 		finally {
 			cleanUpInvoke();
+		}
+	}
+
+	private void runMailboxLoop() throws Exception {
+		try {
+			try {
+				mailboxProcessor.runMailboxLoop();
+			}
+			catch (WrappingRuntimeException wrappingException) {
+				Throwable unwrapped = wrappingException.unwrap();
+				if (unwrapped instanceof Exception) {
+					throw (Exception) unwrapped;
+				}
+				else {
+					throw wrappingException;
+				}
+			}
+		}
+		catch (InterruptedException e) {
+			if (!canceled) {
+				Thread.currentThread().interrupt();
+				throw e;
+			}
+		}
+		catch (Exception e) {
+			if (canceled) {
+				LOG.warn("Error while canceling task.", e);
+			}
+			else {
+				throw e;
+			}
 		}
 	}
 

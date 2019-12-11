@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.types.LongValue;
 
 import org.junit.Test;
@@ -56,9 +57,20 @@ import static org.junit.Assert.assertFalse;
  */
 public class ShuffleCompressionITCase {
 
-	private static final int NUM_RECORDS_TO_SEND = 10 * 1024 * 1024;
+	private static final int NUM_BUFFERS_TO_SEND = 1000;
+
+	private static final int BUFFER_SIZE = 32 * 1024;
+
+	private static final int BYTES_PER_RECORD = 12;
+
+	/** We plus 1 to guarantee that the last buffer contains no more than one record and can not be compressed. */
+	private static final int NUM_RECORDS_TO_SEND = NUM_BUFFERS_TO_SEND * BUFFER_SIZE / BYTES_PER_RECORD + 1;
 
 	private static final int PARALLELISM = 2;
+
+	private static final LongValue RECORD_TO_SEND = new LongValue(4387942071694473832L);
+
+	private static boolean useBroadcastPartitioner = false;
 
 	@Test
 	public void testDataCompressionForPipelineShuffle() throws Exception {
@@ -67,6 +79,12 @@ public class ShuffleCompressionITCase {
 
 	@Test
 	public void testDataCompressionForBlockingShuffle() throws Exception {
+		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
+	}
+
+	@Test
+	public void testDataCompressionForBlockingShuffleWithBroadcastPartitioner() throws Exception {
+		useBroadcastPartitioner = true;
 		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
 	}
 
@@ -110,7 +128,7 @@ public class ShuffleCompressionITCase {
 		sink.setParallelism(PARALLELISM);
 		sink.setSlotSharingGroup(slotSharingGroup);
 
-		sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, resultPartitionType);
+		sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 		JobGraph jobGraph = new JobGraph(source, sink);
 		jobGraph.setScheduleMode(scheduleMode);
 
@@ -138,13 +156,16 @@ public class ShuffleCompressionITCase {
 				// enable output flush for pipeline mode
 				recordWriterBuilder.setTimeout(100);
 			}
+			if (useBroadcastPartitioner) {
+				recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
+			}
 			RecordWriter<LongValue> writer = recordWriterBuilder.build(resultPartitionWriter);
 
 			for (int i = 0; i < NUM_RECORDS_TO_SEND; ++i) {
-				LongValue value = new LongValue(i);
-				writer.broadcastEmit(value);
+				writer.broadcastEmit(RECORD_TO_SEND);
 			}
 			writer.flushAll();
+			writer.clearBuffers();
 		}
 	}
 
@@ -164,9 +185,9 @@ public class ShuffleCompressionITCase {
 				new String[]{EnvironmentInformation.getTemporaryFileDirectory()});
 
 			LongValue value = new LongValue();
-			for (int i = 0; i < NUM_RECORDS_TO_SEND; ++i) {
+			for (int i = 0; i < PARALLELISM * NUM_RECORDS_TO_SEND; ++i) {
 				reader.next(value);
-				assertEquals(i, value.getValue());
+				assertEquals(RECORD_TO_SEND.getValue(), value.getValue());
 			}
 		}
 	}

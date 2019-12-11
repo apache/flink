@@ -375,7 +375,7 @@ public class HiveShimV100 implements HiveShim {
 	@Override
 	public LocalDate toFlinkDate(Object hiveDate) {
 		Preconditions.checkArgument(hiveDate instanceof Date,
-				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
+				"Expecting Hive Date to be an instance of %s, but actually got %s",
 				Date.class.getName(), hiveDate.getClass().getName());
 		return ((Date) hiveDate).toLocalDate();
 	}

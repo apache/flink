@@ -195,7 +195,15 @@ public class MailboxProcessor implements Closeable {
 	public void reportThrowable(Throwable throwable) {
 		sendControlMail(
 			() -> {
-				throw WrappingRuntimeException.wrapIfNecessary(throwable);
+				if (throwable instanceof Exception) {
+					throw (Exception) throwable;
+				}
+				else if (throwable instanceof Error) {
+					throw (Error) throwable;
+				}
+				else {
+					throw WrappingRuntimeException.wrapIfNecessary(throwable);
+				}
 			},
 			"Report throwable %s", throwable);
 	}

@@ -19,11 +19,9 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import javax.annotation.Nonnull;
 
@@ -67,20 +65,5 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		effectiveConfiguration.set(DeploymentOptions.TARGET, "local-executor");
 		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 		return effectiveConfiguration;
-	}
-
-	/**
-	 * Executes the JobGraph of the on a mini cluster of ClusterUtil with a user
-	 * specified name.
-	 *
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try {
-			return super.execute(streamGraph);
-		} finally {
-			transformations.clear();
-		}
 	}
 }
