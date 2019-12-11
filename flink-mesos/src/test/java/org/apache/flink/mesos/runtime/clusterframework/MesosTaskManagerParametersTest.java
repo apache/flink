@@ -238,6 +238,14 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	}
 
 	@Test
+	public void testLegacyConfigCpuCores() {
+		Configuration config = getConfiguration();
+		config.setDouble(MesosTaskManagerParameters.MESOS_RM_TASKS_CPUS, 1.5);
+		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(config);
+		assertThat(mesosTaskManagerParameters.cpus(), is(1.5));
+	}
+
+	@Test
 	public void testUnifiedTotalProcessMemoryConfiguration() {
 		assertTotalProcessMemory(MesosTaskManagerParameters.create(getConfiguration()));
 	}
