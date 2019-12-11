@@ -78,35 +78,25 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 	//						PREPARING FOR THE TESTS
 
 	@Before
-	public void createHDFS() {
-		try {
-			baseDir = new File("./target/hdfs/hdfsTesting").getAbsoluteFile();
-			FileUtil.fullyDelete(baseDir);
+	public void createHDFS() throws IOException {
+		baseDir = new File("./target/hdfs/hdfsTesting").getAbsoluteFile();
+		FileUtil.fullyDelete(baseDir);
 
-			org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
-			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
-			hdConf.set("dfs.block.size", String.valueOf(1048576)); // this is the minimum we can set.
+		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
+		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+		hdConf.set("dfs.block.size", String.valueOf(1048576)); // this is the minimum we can set.
 
-			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-			hdfsCluster = builder.build();
+		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+		hdfsCluster = builder.build();
 
-			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
-			hdfs = new org.apache.hadoop.fs.Path(hdfsURI).getFileSystem(hdConf);
-
-		} catch (Throwable e) {
-			e.printStackTrace();
-			Assert.fail("Test failed " + e.getMessage());
-		}
+		hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
+		hdfs = new org.apache.hadoop.fs.Path(hdfsURI).getFileSystem(hdConf);
 	}
 
 	@After
 	public void destroyHDFS() {
-		try {
-			FileUtil.fullyDelete(baseDir);
-			hdfsCluster.shutdown();
-		} catch (Throwable t) {
-			throw new RuntimeException(t);
-		}
+		FileUtil.fullyDelete(baseDir);
+		hdfsCluster.shutdown();
 	}
 
 	//						END OF PREPARATIONS
