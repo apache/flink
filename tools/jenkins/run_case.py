@@ -167,7 +167,7 @@ def run_cases(scenario_file_name, flink_home, am_seserver_dddress, test_jar, int
 
 
 def usage():
-    logger.info("python3 run_case.py scenario_file flink_home am_seserver_dddress test_jar inter_nums wait_minute")
+    logger.info("python3 run_case.py am_seserver_dddress scenario_file flink_home test_jar inter_nums wait_minute")
 
 
 if __name__ == "__main__":
