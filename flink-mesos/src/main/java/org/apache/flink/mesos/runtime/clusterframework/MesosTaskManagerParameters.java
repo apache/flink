@@ -424,7 +424,7 @@ public class MesosTaskManagerParameters {
 	}
 
 	private static double getCpuCores(final Configuration configuration) {
-		double fallback = configuration.getInteger(MESOS_RM_TASKS_SLOTS);
+		double fallback = configuration.getDouble(MESOS_RM_TASKS_CPUS);
 		return TaskExecutorResourceUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
 	}
 
