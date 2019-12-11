@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests of {@link RowTimeMiniBatchAssginerOperator}.
  */
-public class RowTimeWatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
+public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
 	@Test
 	public void testRowTimeWatermarkAssigner() throws Exception {
