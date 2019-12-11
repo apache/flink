@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -413,17 +414,48 @@ public class BootstrapToolsTest extends TestLogger {
 	}
 
 	@Test
-	public void testGetDynamicProperties() {
-		Configuration baseConfig = new Configuration();
+	public void testGetDynamicPropertiesAsString() {
+		final Configuration baseConfig = new Configuration();
 		baseConfig.setString("key.a", "a");
 		baseConfig.setString("key.b", "b1");
 
-		Configuration targetConfig = new Configuration();
+		final Configuration targetConfig = new Configuration();
 		targetConfig.setString("key.b", "b2");
 		targetConfig.setString("key.c", "c");
 
-		String dynamicProperties = BootstrapTools.getDynamicProperties(baseConfig, targetConfig);
-		assertEquals("-Dkey.b=b2 -Dkey.c=c", dynamicProperties);
+		final String dynamicProperties = BootstrapTools.getDynamicPropertiesAsString(baseConfig, targetConfig);
+		if (OperatingSystem.isWindows()) {
+			assertEquals("-Dkey.b=\"b2\" -Dkey.c=\"c\"", dynamicProperties);
+		} else {
+			assertEquals("-Dkey.b='b2' -Dkey.c='c'", dynamicProperties);
+		}
+	}
+
+	@Test
+	public void testEscapeDynamicPropertyValueWithSingleQuote() {
+		final String value1 = "#a,b&c^d*e@f(g!h";
+		assertEquals("'" + value1 + "'", BootstrapTools.escapeWithSingleQuote(value1));
+
+		final String value2 = "'foobar";
+		assertEquals("''\\''foobar'", BootstrapTools.escapeWithSingleQuote(value2));
+
+		final String value3 = "foo''bar";
+		assertEquals("'foo'\\'''\\''bar'", BootstrapTools.escapeWithSingleQuote(value3));
+
+		final String value4 = "'foo' 'bar'";
+		assertEquals("''\\''foo'\\'' '\\''bar'\\'''", BootstrapTools.escapeWithSingleQuote(value4));
+	}
+
+	@Test
+	public void testEscapeDynamicPropertyValueWithDoubleQuote() {
+		final String value1 = "#a,b&c^d*e@f(g!h";
+		assertEquals("\"#a,b&c\"^^\"d*e@f(g!h\"", BootstrapTools.escapeWithDoubleQuote(value1));
+
+		final String value2 = "foo\"bar'";
+		assertEquals("\"foo\\\"bar'\"", BootstrapTools.escapeWithDoubleQuote(value2));
+
+		final String value3 = "\"foo\" \"bar\"";
+		assertEquals("\"\\\"foo\\\" \\\"bar\\\"\"", BootstrapTools.escapeWithDoubleQuote(value3));
 	}
 
 	@Test
