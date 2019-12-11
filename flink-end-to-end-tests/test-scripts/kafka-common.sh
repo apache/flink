@@ -146,7 +146,7 @@ function start_confluent_schema_registry {
 
   if ! get_and_verify_schema_subjects_exist; then
       echo "Could not start confluent schema registry"
-      exit 1
+      return 1
   fi
 }
 
