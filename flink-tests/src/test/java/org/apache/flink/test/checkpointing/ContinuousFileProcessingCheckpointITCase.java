@@ -229,15 +229,6 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		}
 
 		@Override
-		public void close() {
-			try {
-				super.close();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-
-		@Override
 		public List<Tuple2<Long, Map<Integer, Set<String>>>> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 			Tuple2<Long, Map<Integer, Set<String>>> state = new Tuple2<>(elementCounter, actualContent);
 			return Collections.singletonList(state);
