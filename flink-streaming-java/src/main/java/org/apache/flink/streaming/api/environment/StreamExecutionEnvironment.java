@@ -1642,13 +1642,15 @@ public class StreamExecutionEnvironment {
 		final JobClient jobClient = executeAsync(streamGraph);
 
 		try {
-			JobExecutionResult jobExecutionResult =
-					configuration.getBoolean(DeploymentOptions.ATTACHED) ?
-							jobClient.getJobExecutionResult(userClassloader).get()
-							: new DetachedJobExecutionResult(jobClient.getJobID());
+			final JobExecutionResult jobExecutionResult;
 
-			jobListeners
-					.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
+			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+				jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+			} else {
+				jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+			}
+
+			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
 
 			return jobExecutionResult;
 		} catch (Throwable t) {
