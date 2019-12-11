@@ -30,9 +30,7 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -319,7 +317,7 @@ public class ExecutionContext<ClusterID> {
 		try {
 			final ProgramOptions programOptions = new ProgramOptions(commandLine);
 			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromProgramOptions(programOptions, dependencies);
-			ConfigUtils.encodeCollectionToConfig(executionConfig, PipelineOptions.JARS, executionConfigAccessor.getJars(), URL::toString);
+			executionConfigAccessor.applyToConfiguration(executionConfig);
 		} catch (CliArgsException e) {
 			throw new SqlExecutionException("Invalid deployment run options.", e);
 		}
