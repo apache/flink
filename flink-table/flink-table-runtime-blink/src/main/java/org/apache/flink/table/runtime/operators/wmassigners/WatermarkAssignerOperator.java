@@ -164,10 +164,8 @@ public class WatermarkAssignerOperator
 
 	@Override
 	public void close() throws Exception {
-		super.close();
-
-		// emit a final watermark
-		advanceWatermark();
+		// all records have been processed, emit a final watermark
+		processWatermark(Watermark.MAX_WATERMARK);
 
 		functionsClosed = true;
 		FunctionUtils.closeFunction(watermarkGenerator);
