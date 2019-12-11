@@ -86,7 +86,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 
-		ctx.setJobExecutionResult(jobExecutionResult);
 		return jobExecutionResult;
 	}
 
