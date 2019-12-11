@@ -20,11 +20,8 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
@@ -663,26 +660,8 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected void executeProgram(
-			final Configuration configuration,
-			final PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
-		logAndSysout("Starting execution of program");
-
-		JobSubmissionResult result = ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
-
-		if (result.isJobExecutionResult()) {
-			logAndSysout("Program execution finished");
-			JobExecutionResult execResult = result.getJobExecutionResult();
-			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
-			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
-			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
-			if (accumulatorsResult.size() > 0) {
-				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormatted(accumulatorsResult));
-			}
-		} else {
-			logAndSysout("Job has been submitted with JobID " + result.getJobID());
-		}
+	protected void executeProgram(final Configuration configuration, final PackagedProgram program) throws ProgramInvocationException {
+		ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
 	}
 
 	/**
