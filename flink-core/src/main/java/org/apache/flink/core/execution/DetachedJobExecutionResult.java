@@ -34,8 +34,6 @@ public final class DetachedJobExecutionResult extends JobExecutionResult {
 
 	public static final String DETACHED_MESSAGE = "Job was submitted in detached mode. ";
 
-	public static final String EXECUTE_TWICE_MESSAGE = "Only one call to execute is allowed. ";
-
 	public static final String EAGER_FUNCTION_MESSAGE = "Please make sure your program doesn't call " +
 			"an eager execution function [collect, print, printToErr, count]. ";
 

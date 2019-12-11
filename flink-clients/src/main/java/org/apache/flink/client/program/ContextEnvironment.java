@@ -19,7 +19,6 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
@@ -43,8 +42,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private boolean alreadyCalled;
-
 	ContextEnvironment(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
@@ -55,14 +52,10 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		}
-
-		this.alreadyCalled = false;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		verifyExecuteIsCalledOnceWhenInDetachedMode();
-
 		JobClient jobClient = executeAsync(jobName);
 
 		JobExecutionResult jobExecutionResult;
@@ -99,13 +92,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
 
 		return jobClient;
-	}
-
-	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
-		if (alreadyCalled && !getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
-			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
-		}
-		alreadyCalled = true;
 	}
 
 	@Override
