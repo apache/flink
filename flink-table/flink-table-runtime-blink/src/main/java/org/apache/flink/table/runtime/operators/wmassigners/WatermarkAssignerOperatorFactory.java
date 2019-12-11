@@ -40,7 +40,7 @@ public class WatermarkAssignerOperatorFactory implements OneInputStreamOperatorF
 
 	private final GeneratedWatermarkGenerator generatedWatermarkGenerator;
 
-	private ChainingStrategy strategy = ChainingStrategy.HEAD;
+	private ChainingStrategy strategy = ChainingStrategy.ALWAYS;
 
 	public WatermarkAssignerOperatorFactory(
 			int rowtimeFieldIndex,
