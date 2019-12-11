@@ -304,7 +304,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 
 		final String mainClassArgs = "--" + CommandLineOptions.CONFIG_DIR_OPTION.getLongOpt() + " " +
 			flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR) + " " +
-			BootstrapTools.getDynamicProperties(flinkClientConfig, flinkConfig);
+			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, flinkConfig);
 
 		final String command = KubernetesUtils.getTaskManagerStartCommand(
 			flinkConfig,
