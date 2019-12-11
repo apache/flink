@@ -103,7 +103,7 @@ def get_scenarios(scenario_file_name, test_jar):
                             cmd = "--%s %s" % (param, value)
                         else:
                             cmd = "%s --%s %s" % (cmd, param, value)
-                scenario_name = "%s_%s" % (scenario_name, value)
+                    scenario_name = "%s_%s" % (scenario_name, value)
             scenario_names.append(scenario_name[1:-1])
             if cmd!="":
                 scenarios.append(cmd)

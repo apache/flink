@@ -47,7 +47,7 @@ def run_command(cmd, timeout=12000):
             if line_buff == "" and not p.poll() is None:
                 break
             else:
-                lines.append(buff)
+                lines.append(line)
     except Exception as e:
         logger.error(traceback.format_exc())
         return False, "", ""

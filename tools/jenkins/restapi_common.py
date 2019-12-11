@@ -77,7 +77,7 @@ def get_avg_qps_by_restful_interface(am_seserver_dddress, job_id):
                                                                                   metrics_name)
                     value_result = execute_get(url)
                     for value in value_result:
-                        tps = value.getDouble("avg", 0)
+                        tps = value.get("avg", 0)
                         if tps > 0:
                             totaltps = totaltps + tps
     return totaltps
