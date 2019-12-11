@@ -19,7 +19,6 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -1054,7 +1053,7 @@ public class LocalExecutorITCase extends TestLogger {
 		boolean isRunning = true;
 		while (isRunning) {
 			Thread.sleep(50); // slow the processing down
-			final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+			final JobStatus jobStatus = clusterClient.getJobStatus(targetDescriptor.getJobId()).get();
 			switch (jobStatus) {
 			case CREATED:
 			case RUNNING:

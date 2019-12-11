@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
@@ -361,7 +362,8 @@ public class CliClientTest extends TestLogger {
 			if (failExecution) {
 				throw new SqlExecutionException("Fail execution.");
 			}
-			return new ProgramTargetDescriptor("testJobId");
+			JobID jobID = JobID.generate();
+			return new ProgramTargetDescriptor(jobID);
 		}
 	}
 }
