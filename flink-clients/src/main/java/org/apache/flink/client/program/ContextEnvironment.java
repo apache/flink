@@ -91,12 +91,22 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			}
 
 			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
 		} else {
 			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 
 		setJobExecutionResult(jobExecutionResult);
 		return jobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		final JobClient jobClient = super.executeAsync(jobName);
+
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return jobClient;
 	}
 
 	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
