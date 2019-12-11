@@ -80,4 +80,9 @@ public final class DetachedJobExecutionResult extends JobExecutionResult {
 	public JobExecutionResult getJobExecutionResult() {
 		return this;
 	}
+
+	@Override
+	public String toString() {
+		return "Job has been submitted with JobID " + getJobID();
+	}
 }
