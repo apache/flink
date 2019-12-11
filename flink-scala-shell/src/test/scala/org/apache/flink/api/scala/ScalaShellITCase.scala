@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
-import org.apache.flink.client.deployment.executors.RemoteExecutor
+import org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutor
 import org.apache.flink.configuration.{Configuration, DeploymentOptions, JobManagerOptions, RestOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.minicluster.MiniCluster
@@ -482,7 +482,7 @@ object ScalaShellITCase {
     val port: Int = clusterResource.getRestAddres.getPort
     val hostname : String = clusterResource.getRestAddres.getHost
 
-    configuration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME)
+    configuration.setString(DeploymentOptions.TARGET, StandaloneSessionClusterExecutor.NAME)
     configuration.setBoolean(DeploymentOptions.ATTACHED, true)
 
     configuration.setString(JobManagerOptions.ADDRESS, hostname)

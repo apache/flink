@@ -21,7 +21,7 @@ package org.apache.flink.api.scala
 import java.io._
 
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
-import org.apache.flink.client.deployment.executors.RemoteExecutor
+import org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutor
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader
 import org.apache.flink.client.program.{ClusterClient, MiniClusterClient}
 import org.apache.flink.configuration.{Configuration, DeploymentOptions, GlobalConfiguration, JobManagerOptions, RestOptions}
@@ -316,7 +316,7 @@ object FlinkShell {
 
     val effectiveConfig = new Configuration(flinkConfig)
     setJobManagerInfoToConfig(effectiveConfig, config.host.get, config.port.get)
-    effectiveConfig.set(DeploymentOptions.TARGET, RemoteExecutor.NAME)
+    effectiveConfig.set(DeploymentOptions.TARGET, StandaloneSessionClusterExecutor.NAME)
     effectiveConfig.setBoolean(DeploymentOptions.ATTACHED, true)
 
     (effectiveConfig, None)
@@ -330,7 +330,7 @@ object FlinkShell {
     val port = cluster.getRestAddress.get.getPort
 
     setJobManagerInfoToConfig(config, "localhost", port)
-    config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME)
+    config.set(DeploymentOptions.TARGET, StandaloneSessionClusterExecutor.NAME)
     config.setBoolean(DeploymentOptions.ATTACHED, true)
 
     println(s"\nStarting local Flink cluster (host: localhost, port: ${port}).\n")
