@@ -30,8 +30,7 @@ from utils import run_command
 
 def init_standalone_env(host_list, user, source_path, dest_path):
     for host in host_list:
-        cmd = "sudo su %s -c 'ssh %s \" rm -rf %s\"; scp -r %s %s@%s:%s'" % (user, host, dest_path, source_path,
-                                                                             user, host, dest_path)
+        cmd = "scp -r %s %s:%s'" % (source_path, host, dest_path)
         logger.info("init_standalone_env  cmd:%s" % cmd)
         run_command(cmd)
 
@@ -55,7 +54,7 @@ def package(flink_home):
 
 
 def get_target(flink_home):
-    cmd = "ls -lt %s/flink-dist/target/flink-*-bin/ |grep -v tar.gz"
+    cmd = "ls %s/flink-dist/target/flink-*-bin/ |grep -v tar.gz" % flink_home
     status, output = run_command(cmd)
     if status:
         target_file = output.split("\n")[0]
@@ -69,35 +68,35 @@ def update_conf_slaves(dest_path, slave_file):
     run_command(cmd)
 
 
-def init_env(user, flink_home):
+def init_env(user, flink_home, slaves_file):
     package_result = package(flink_home)
     if not package_result:
         logger.error("package error")
         return False
-    slave_file = "%s/tool/jenkins/slaves" % flink_home
-    host_list = get_host_list(slave_file)
+    host_list = get_host_list(slaves_file)
     flink_path, source_path = get_target(flink_home)
     dest_path = "/home/%s/%s" % (user, flink_path)
     if source_path != "":
-        update_conf_slaves(source_path, slave_file)
+        update_conf_slaves(source_path, slaves_file)
         init_standalone_env(host_list, user, source_path, dest_path)
-        return True
+        return True, dest_path
     else:
         logger.error("find target file error")
-        return False
+        return False, ""
 
 
 def usage():
-    logger.info("python3 init_env.py user")
+    logger.info("python3 init_env.py user flink_home, slaves_file")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        logger.error("The param's number must be larger than 1")
+    if len(sys.argv) < 3:
+        logger.error("The param's number must be larger than 3")
         usage()
         sys.exit(1)
     user = sys.argv[1]
     flink_home = sys.argv[2]
-    init_env(user, flink_home)
+    slaves_file = sys.argv[3]
+    init_env(user, flink_home, slaves_file)
 
 
