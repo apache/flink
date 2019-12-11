@@ -75,36 +75,26 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 	private static Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
 
 	@Before
-	public void createHDFS() {
+	public void createHDFS() throws IOException {
 		if (failoverStrategy.equals(FailoverStrategy.RestartPipelinedRegionStrategy)) {
 			// TODO the 'NO_OF_RETRIES' is useless for current RestartPipelinedRegionStrategy,
 			// for this ContinuousFileProcessingCheckpointITCase, using RestartPipelinedRegionStrategy would result in endless running.
 			throw new AssumptionViolatedException("ignored ContinuousFileProcessingCheckpointITCase when using RestartPipelinedRegionStrategy");
 		}
 
-		try {
-			baseDir = new File("./target/localfs/fs_tests").getAbsoluteFile();
-			FileUtil.fullyDelete(baseDir);
+		baseDir = new File("./target/localfs/fs_tests").getAbsoluteFile();
+		FileUtil.fullyDelete(baseDir);
 
-			org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
+		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
 
-			localFsURI = "file:///" + baseDir + "/";
-			localFs = new org.apache.hadoop.fs.Path(localFsURI).getFileSystem(hdConf);
-
-		} catch (Throwable e) {
-			e.printStackTrace();
-			Assert.fail("Test failed " + e.getMessage());
-		}
+		localFsURI = "file:///" + baseDir + "/";
+		localFs = new org.apache.hadoop.fs.Path(localFsURI).getFileSystem(hdConf);
 	}
 
 	@After
 	public void destroyHDFS() {
-		try {
-			if (baseDir != null) {
-				FileUtil.fullyDelete(baseDir);
-			}
-		} catch (Throwable t) {
-			throw new RuntimeException(t);
+		if (baseDir != null) {
+			FileUtil.fullyDelete(baseDir);
 		}
 	}
 
