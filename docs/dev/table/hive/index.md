@@ -341,7 +341,7 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
         <td class="text-center">DATE</td>
     </tr>
     <tr>
-        <td class="text-center">TIMESTAMP</td>
+        <td class="text-center">TIMESTAMP(9)</td>
         <td class="text-center">TIMESTAMP</td>
     </tr>
     <tr>
@@ -372,5 +372,6 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 Note that:
 
 * Flink doesn't support Hive's `UNION` type is not supported
+* Hive's `TIMESTAMP` always has precision 9 and doesn't support other precisions. As a result, `HiveCatalog` cannot store `TIMESTAMP` columns whose precisions are not 9. Hive UDFs, on the other hand, can process `TIMESTAMP` values with a precision <= 9.
 * Hive doesn't support Flink's `TIMESTAMP_WITH_TIME_ZONE`, `TIMESTAMP_WITH_LOCAL_TIME_ZONE`, and `MULTISET`
 * Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type yet
