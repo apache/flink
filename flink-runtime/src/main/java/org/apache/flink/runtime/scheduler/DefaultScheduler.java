@@ -423,8 +423,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private void handleTaskDeploymentFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
-		log.info("Error while scheduling or deploying task {}.", executionVertexId, error);
-		handleTaskFailure(executionVertexId, error);
+		executionVertexOperations.markFailed(getExecutionVertex(executionVertexId), error);
 	}
 
 	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {

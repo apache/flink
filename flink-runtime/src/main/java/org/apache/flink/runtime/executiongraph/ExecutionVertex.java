@@ -739,6 +739,16 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	/**
+	 * This method marks the task as failed, but will make no attempt to remove task execution from the task manager.
+	 * It is intended for cases where the task is known not to be deployed yet.
+	 *
+	 * @param t The exception that caused the task to fail.
+	 */
+	public void markFailed(Throwable t) {
+		currentExecution.markFailed(t);
+	}
+
+	/**
 	 * Schedules or updates the consumer tasks of the result partition with the given ID.
 	 */
 	void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
