@@ -22,6 +22,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -526,6 +528,18 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		assertThat(
 			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(TM_RESOURCE_SPEC, NUMBER_OF_SLOTS),
 			is(DEFAULT_RESOURCE_PROFILE));
+	}
+
+	@Test
+	public void testExceptionShouldContainRequiredConfigOptions() {
+		try {
+			TaskExecutorResourceUtils.resourceSpecFromConfig(new Configuration());
+		} catch (final IllegalConfigurationException e) {
+			assertThat(e.getMessage(), containsString(TaskManagerOptions.TASK_HEAP_MEMORY.key()));
+			assertThat(e.getMessage(), containsString(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
+			assertThat(e.getMessage(), containsString(TaskManagerOptions.TOTAL_FLINK_MEMORY.key()));
+			assertThat(e.getMessage(), containsString(TaskManagerOptions.TOTAL_PROCESS_MEMORY.key()));
+		}
 	}
 
 	private void validateInAllConfigurations(final Configuration customConfig, Consumer<TaskExecutorResourceSpec> validateFunc) {
