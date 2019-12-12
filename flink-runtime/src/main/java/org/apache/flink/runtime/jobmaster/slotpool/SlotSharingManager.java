@@ -145,16 +145,13 @@ public class SlotSharingManager {
 			SlotRequestId slotRequestId,
 			CompletableFuture<? extends SlotContext> slotContextFuture,
 			SlotRequestId allocatedSlotRequestId) {
-		final CompletableFuture<SlotContext> slotContextFutureAfterRootSlotResolution = new CompletableFuture<>();
-		final MultiTaskSlot rootMultiTaskSlot = new MultiTaskSlot(
-			slotRequestId,
-			slotContextFutureAfterRootSlotResolution,
-			allocatedSlotRequestId);
-
 		LOG.debug("Create multi task slot [{}] in slot [{}].", slotRequestId, allocatedSlotRequestId);
 
-		allTaskSlots.put(slotRequestId, rootMultiTaskSlot);
-		unresolvedRootSlots.put(slotRequestId, rootMultiTaskSlot);
+		final CompletableFuture<SlotContext> slotContextFutureAfterRootSlotResolution = new CompletableFuture<>();
+		final MultiTaskSlot rootMultiTaskSlot = createAndRegisterRootSlot(
+			slotRequestId,
+			allocatedSlotRequestId,
+			slotContextFutureAfterRootSlotResolution);
 
 		FutureUtils.forward(
 			slotContextFuture.thenApply(
@@ -166,6 +163,20 @@ public class SlotSharingManager {
 				}),
 			slotContextFutureAfterRootSlotResolution);
 
+		return rootMultiTaskSlot;
+	}
+
+	private SlotSharingManager.MultiTaskSlot createAndRegisterRootSlot(
+			SlotRequestId slotRequestId,
+			SlotRequestId allocatedSlotRequestId,
+			CompletableFuture<? extends SlotContext> slotContextFuture) {
+		final MultiTaskSlot rootMultiTaskSlot = new MultiTaskSlot(
+			slotRequestId,
+			slotContextFuture,
+			allocatedSlotRequestId);
+
+		allTaskSlots.put(slotRequestId, rootMultiTaskSlot);
+		unresolvedRootSlots.put(slotRequestId, rootMultiTaskSlot);
 		return rootMultiTaskSlot;
 	}
 
