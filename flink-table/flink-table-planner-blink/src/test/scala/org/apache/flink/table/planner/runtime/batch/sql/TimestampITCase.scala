@@ -44,10 +44,9 @@ class TimestampITCase extends BatchTestBase {
         DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
         DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
         DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime]),
-        DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])
+        DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp]),
         DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant])
-      )
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]))
     ).build()
 
     val ints = List(1, 2, 3, 4, null)
