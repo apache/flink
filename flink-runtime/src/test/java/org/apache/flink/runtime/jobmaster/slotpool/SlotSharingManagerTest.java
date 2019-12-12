@@ -53,11 +53,13 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -270,11 +272,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	public void testSlotContextFutureCompletion() throws Exception {
 		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
-		final SlotContext slotContext = new SimpleSlotContext(
-			new AllocationID(),
-			new LocalTaskManagerLocation(),
-			0,
-			new SimpleAckingTaskManagerGateway());
+		final SlotContext slotContext = createSimpleSlotContext();
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
@@ -330,6 +328,14 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertEquals(slotContext.getAllocationId(), logicalSlot3.getAllocationId());
 	}
 
+	private SimpleSlotContext createSimpleSlotContext() {
+		return new SimpleSlotContext(
+			new AllocationID(),
+			new LocalTaskManagerLocation(),
+			0,
+			new SimpleAckingTaskManagerGateway());
+	}
+
 	/**
 	 * Tests that slot context future failures will release the root slot.
 	 */
@@ -378,12 +384,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertFalse(slotSharingManager.getResolvedRootSlots().contains(rootSlot));
 
 		// now complete the slotContextFuture
-		slotContextFuture.complete(
-			new SimpleSlotContext(
-				new AllocationID(),
-				new LocalTaskManagerLocation(),
-				0,
-				new SimpleAckingTaskManagerGateway()));
+		slotContextFuture.complete(createSimpleSlotContext());
 
 		assertFalse(slotSharingManager.getUnresolvedRootSlots().contains(rootSlot));
 		assertTrue(slotSharingManager.getResolvedRootSlots().contains(rootSlot));
@@ -869,6 +870,34 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		assertThat(utilizationPerTaskExecutor.get(firstTaskExecutorLocation), is(closeTo(1.0 / 2, 0.1)));
 		assertThat(utilizationPerTaskExecutor.get(secondTaskExecutorLocation), is(closeTo(0, 0.1)));
+	}
+
+	@Test
+	public void shouldResolveRootSlotBeforeCompletingChildSlots() {
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
+
+		final CompletableFuture<SlotContext> slotFuture = new CompletableFuture<>();
+		// important to add additional completion stage in order to reverse the execution order of callbacks
+		final CompletableFuture<SlotContext> identityFuture = slotFuture.thenApply(Function.identity());
+
+		final SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
+			new SlotRequestId(),
+			identityFuture,
+			new SlotRequestId());
+
+		final SlotSharingManager.SingleTaskSlot singleTaskSlot = rootSlot.allocateSingleTaskSlot(
+			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
+			new AbstractID(),
+			Locality.UNCONSTRAINED);
+
+		final CompletableFuture<Void> assertionFuture = singleTaskSlot.getLogicalSlotFuture().thenRun(() -> assertThat(
+			slotSharingManager.getResolvedRootSlots(),
+			contains(rootSlot)));
+
+		slotFuture.complete(createSimpleSlotContext());
+
+		assertionFuture.join();
 	}
 
 	private SlotSharingManager.MultiTaskSlot createRootSlot(TaskManagerLocation firstTaskExecutorLocation, SlotSharingManager slotSharingManager) {
