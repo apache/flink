@@ -29,6 +29,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
@@ -65,7 +66,21 @@ public class KubernetesUtilsTest extends TestLogger {
 	// Memory variables
 	private static final int jobManagerMem = 768;
 	private static final String jmJvmMem = String.format("-Xms%dm -Xmx%dm", jobManagerMem, jobManagerMem);
+
+	private static final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+		new CPUResource(1.0),
+		new MemorySize(0), // frameworkHeapSize
+		new MemorySize(0), // frameworkOffHeapSize
+		new MemorySize(111), // taskHeapSize
+		new MemorySize(0), // taskOffHeapSize
+		new MemorySize(222), // shuffleMemSize
+		new MemorySize(0), // managedMemorySize
+		new MemorySize(333), // jvmMetaspaceSize
+		new MemorySize(0)); // jvmOverheadSize
+
 	private static final String tmJvmMem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
+	private static final String tmMemDynamicProperties =
+		TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
 
 	@Test
 	public void testGetJobManagerStartCommand() {
@@ -181,7 +196,7 @@ public class KubernetesUtilsTest extends TestLogger {
 			java + " 1 " + classpath + " 2 " + tmJvmMem +
 				" " + jvmOpts + " " + tmJvmOpts + // jvmOpts
 				" " + tmLogfile + " " + logback + " " + log4j +
-				" " + mainClass + " " + mainClassArgs + " " + tmLogRedirects,
+				" " + mainClass + " " + tmMemDynamicProperties + " " + mainClassArgs + " " + tmLogRedirects,
 			getTaskManagerStartCommand(cfg, true, true, mainClassArgs));
 
 		cfg.setString(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE,
@@ -234,7 +249,7 @@ public class KubernetesUtilsTest extends TestLogger {
 		return java + " " + classpath + " " + tmJvmMem +
 			(jvmAllOpts.isEmpty() ? "" : " " + jvmAllOpts) +
 			(logging.isEmpty() ? "" : " " + tmLogfile + " " + logging) +
-			" " + mainClass + (mainClassArgs.isEmpty() ? "" : " " + mainClassArgs) + " " + tmLogRedirects;
+			" " + mainClass + " " + tmMemDynamicProperties + (mainClassArgs.isEmpty() ? "" : " " + mainClassArgs) + " " + tmLogRedirects;
 	}
 
 	private String getJobManagerStartCommand(
@@ -260,16 +275,6 @@ public class KubernetesUtilsTest extends TestLogger {
 			boolean hasLog4j,
 			String mainClassArgs) {
 
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
-			new CPUResource(1.0),
-			new MemorySize(0), // frameworkHeapSize
-			new MemorySize(0), // frameworkOffHeapSize
-			new MemorySize(111), // taskHeapSize
-			new MemorySize(0), // taskOffHeapSize
-			new MemorySize(222), // shuffleMemSize
-			new MemorySize(0), // managedMemorySize
-			new MemorySize(333), // jvmMetaspaceSize
-			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =
 			new ContaineredTaskManagerParameters(taskExecutorResourceSpec, 4, new HashMap<>());
 
