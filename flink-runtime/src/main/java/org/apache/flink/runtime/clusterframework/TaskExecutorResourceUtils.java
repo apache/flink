@@ -142,8 +142,12 @@ public class TaskExecutorResourceUtils {
 			// derive from total process memory
 			return deriveResourceSpecWithTotalProcessMemory(config);
 		} else {
-			throw new IllegalConfigurationException("Either Task Heap Memory size and Managed Memory size, or Total Flink"
-				+ " Memory size, or Total Process Memory size need to be configured explicitly.");
+			throw new IllegalConfigurationException(String.format("Either Task Heap Memory size (%s) and Managed Memory size (%s), or Total Flink"
+				+ " Memory size (%s), or Total Process Memory size (%s) need to be configured explicitly.",
+				TaskManagerOptions.TASK_HEAP_MEMORY.key(),
+				TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+				TaskManagerOptions.TOTAL_FLINK_MEMORY.key(),
+				TaskManagerOptions.TOTAL_PROCESS_MEMORY.key()));
 		}
 	}
 
