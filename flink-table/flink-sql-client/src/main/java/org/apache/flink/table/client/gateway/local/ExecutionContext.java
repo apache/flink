@@ -31,7 +31,6 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -53,7 +52,6 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.SinkTableEntry;
@@ -156,9 +154,6 @@ public class ExecutionContext<ClusterID> {
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 				dependencies.toArray(new URL[dependencies.size()]),
 				this.getClass().getClassLoader());
-		if (!dependencies.isEmpty()) {
-			flinkConfig.set(PipelineOptions.JARS, dependencies.stream().map(URL::toString).collect(Collectors.toList()));
-		}
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
@@ -234,6 +229,15 @@ public class ExecutionContext<ClusterID> {
 	public <R> R wrapClassLoader(Supplier<R> supplier) {
 		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
 			return supplier.get();
+		}
+	}
+
+	/**
+	 * Executes the given Runnable using the execution context's classloader as thread classloader.
+	 */
+	private void wrapClassLoader(Runnable runnable) {
+		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+			runnable.run();
 		}
 	}
 
@@ -352,11 +356,6 @@ public class ExecutionContext<ClusterID> {
 		final ModuleFactory factory =
 			TableFactoryService.find(ModuleFactory.class, moduleProperties, classLoader);
 		return factory.createModule(moduleProperties);
-	}
-
-	private void createAndRegisterCatalog(String name, CatalogEntry entry) {
-		Catalog catalog = createCatalog(name, entry.asMap(), Thread.currentThread().getContextClassLoader());
-		tableEnv.registerCatalog(name, catalog);
 	}
 
 	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
@@ -533,9 +532,11 @@ public class ExecutionContext<ClusterID> {
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.1 Create catalogs and register them.
 		//--------------------------------------------------------------------------------------------------------------
-		wrapClassLoader((Supplier<Void>) () -> {
-			environment.getCatalogs().forEach(this::createAndRegisterCatalog);
-			return null;
+		wrapClassLoader(() -> {
+			environment.getCatalogs().forEach((name, entry) -> {
+				Catalog catalog = createCatalog(name, entry.asMap(), classLoader);
+				tableEnv.registerCatalog(name, catalog);
+			});
 		});
 
 		//--------------------------------------------------------------------------------------------------------------

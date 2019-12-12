@@ -23,7 +23,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -44,8 +43,6 @@ import org.apache.commons.cli.Options;
 import org.junit.Test;
 
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,7 +50,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -272,25 +268,6 @@ public class ExecutionContextTest {
 				new DefaultClusterClientServiceLoader(),
 				new Options(),
 				Collections.singletonList(new DefaultCLI(flinkConfig))).build();
-	}
-
-	@Test
-	public void testDependencyJars() throws Exception {
-		final Map<String, String> replaceVars = createDefaultReplaceVars();
-		Environment env = EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
-
-		Configuration flinkConfig = new Configuration();
-		Path path = Files.createTempFile(null, ".jar");
-		List<URL> dependencies = Collections.singletonList(path.toUri().toURL());
-		ExecutionContext executionContext = ExecutionContext.builder(env,
-				new SessionContext("test-session", new Environment()),
-				dependencies,
-				flinkConfig,
-				new DefaultClusterClientServiceLoader(),
-				new Options(),
-				Collections.singletonList(new DefaultCLI(flinkConfig))).build();
-		assertEquals(dependencies.stream().map(URL::toString).collect(Collectors.toList()),
-				executionContext.getFlinkConfig().get(PipelineOptions.JARS));
 	}
 
 	@SuppressWarnings("unchecked")
