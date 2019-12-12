@@ -325,16 +325,20 @@ public class FlinkKinesisProducerTest {
 		};
 		moreElementsThread.start();
 
-		moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
 		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
 
 		// consume msg-2 from the queue, leaving msg-3 in the queue and msg-4 blocked
+		while (producer.getPendingRecordFutures().size() < 2) {
+			Thread.sleep(50);
+		}
 		producer.getPendingRecordFutures().get(1).set(result);
 
-		moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
 		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
 
 		// consume msg-3, blocked msg-4 can be inserted into the queue and block is released
+		while (producer.getPendingRecordFutures().size() < 3) {
+			Thread.sleep(50);
+		}
 		producer.getPendingRecordFutures().get(2).set(result);
 
 		moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
