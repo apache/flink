@@ -536,7 +536,7 @@ function tm_watchdog {
 
 # Kills all job manager.
 function jm_kill_all {
-  kill_all 'StandaloneSessionClusterEntrypoint'
+  kill_all 'ClusterEntrypoint'
 }
 
 # Kills all task manager.
