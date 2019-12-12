@@ -324,7 +324,7 @@ public class NettyShuffleEnvironmentConfiguration {
 	}
 
 	private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(Configuration config) {
-		String transport = config.getString(NettyShuffleEnvironmentOptions.NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE);
+		String transport = config.getString(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE);
 
 		switch (transport) {
 			case "mmap":

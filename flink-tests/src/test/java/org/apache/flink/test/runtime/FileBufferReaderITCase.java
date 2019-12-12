@@ -87,7 +87,7 @@ public class FileBufferReaderITCase extends TestLogger {
 		// setup
 		final Configuration configuration = new Configuration();
 		configuration.setString(RestOptions.BIND_PORT, "0");
-		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE, "file");
+		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
 		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
