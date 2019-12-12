@@ -13,6 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutorFactory
 org.apache.flink.client.deployment.executors.RemoteExecutorFactory
 org.apache.flink.client.deployment.executors.LocalExecutorFactory
