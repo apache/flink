@@ -24,7 +24,7 @@
             <td><h5>taskmanager.network.blocking-shuffle.compression.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is more effective for IO bounded scenario when data compression ratio is high.</td>
+            <td>Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is more effective for IO bounded scenario when data compression ratio is high. Currently, shuffle data compression is an experimental feature and the config option can be changed in the future.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.blocking-shuffle.type</h5></td>
@@ -54,7 +54,7 @@
             <td><h5>taskmanager.network.pipelined-shuffle.compression.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle mode. Note that data is compressed per sliced buffer and compression can incur extra CPU overhead, so it is not recommended to enable compression if network is not the bottleneck or compression ratio is low.</td>
+            <td>Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle mode. Note that data is compressed per sliced buffer and compression is disabled for operators using broadcast partitioner. Because of the extra CPU overhead, it is not recommended to enable compression if network is not the bottleneck or compression ratio is low. Currently, shuffle data compression is an experimental feature and the config option can be changed in the future.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.request-backoff.initial</h5></td>
