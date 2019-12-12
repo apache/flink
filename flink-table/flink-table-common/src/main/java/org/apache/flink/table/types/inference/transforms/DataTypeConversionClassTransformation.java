@@ -24,31 +24,28 @@ import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import java.util.Map;
 
 /**
- * Type transformation that transforms one data type to a new data type whose
- * conversion class is {@link java.sql.Timestamp}/{@link java.sql.Time}/{@link java.sql.Date}
- * if the original data type is TIMESTAMP/TIME/DATE.
+ * This type transformation transforms the specified data types to a new one with the expected
+ * conversion class. The mapping from data type to conversion class is defined by the constructor
+ * parameter {@link #conversions} map that maps from type root to the expected conversion class.
  */
 @Internal
-public class TimeToSqlTypesTransformation implements TypeTransformation {
+public class DataTypeConversionClassTransformation implements TypeTransformation {
 
-	public static final TypeTransformation INSTANCE = new TimeToSqlTypesTransformation();
+	private final Map<LogicalTypeRoot, Class<?>> conversions;
+
+	public DataTypeConversionClassTransformation(Map<LogicalTypeRoot, Class<?>> conversions) {
+		this.conversions = conversions;
+	}
 
 	@Override
 	public DataType transform(DataType dataType) {
 		LogicalType logicalType = dataType.getLogicalType();
-		if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
-			return dataType.bridgedTo(Timestamp.class);
-		} else if (hasRoot(logicalType, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)) {
-			return dataType.bridgedTo(Time.class);
-		} else if (hasRoot(logicalType, LogicalTypeRoot.DATE)) {
-			return dataType.bridgedTo(Date.class);
+		Class<?> conversionClass = conversions.get(logicalType.getTypeRoot());
+		if (conversionClass != null) {
+			return dataType.bridgedTo(conversionClass);
 		} else {
 			return dataType;
 		}

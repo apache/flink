@@ -19,7 +19,14 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.types.inference.transforms.TimeToSqlTypesTransformation;
+import org.apache.flink.table.types.inference.transforms.DataTypeConversionClassTransformation;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Transformations for transforming one data type to another.
@@ -35,6 +42,10 @@ public class TypeTransformations {
 	 * if the original data type is TIMESTAMP/TIME/DATE.
 	 */
 	public static TypeTransformation timeToSqlTypes() {
-		return TimeToSqlTypesTransformation.INSTANCE;
+		Map<LogicalTypeRoot, Class<?>> conversions = new HashMap<>();
+		conversions.put(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE, Timestamp.class);
+		conversions.put(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE, Time.class);
+		conversions.put(LogicalTypeRoot.DATE, Date.class);
+		return new DataTypeConversionClassTransformation(conversions);
 	}
 }
