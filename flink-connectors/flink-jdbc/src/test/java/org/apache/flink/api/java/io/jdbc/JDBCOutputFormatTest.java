@@ -25,12 +25,14 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
+import java.sql.Time;
+import java.sql.Timestamp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -97,12 +99,15 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		Row row = new Row(5);
+		Row row = new Row(8);
 		row.setField(0, 4);
 		row.setField(1, "hello");
 		row.setField(2, "world");
 		row.setField(3, 0.99);
 		row.setField(4, "imthewrongtype");
+		row.setField(5, Date.valueOf("2011-01-11"));
+		row.setField(6, Time.valueOf("01:11:11"));
+		row.setField(7, Timestamp.valueOf("2011-01-11 01:11:11"));
 
 		jdbcOutputFormat.writeRecord(row);
 		jdbcOutputFormat.close();
@@ -114,22 +119,20 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 			.setDrivername(DRIVER_CLASS)
 			.setDBUrl(DB_URL)
 			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
-			.setSqlTypes(new int[] {
-				Types.INTEGER,
-				Types.VARCHAR,
-				Types.VARCHAR,
-				Types.DOUBLE,
-				Types.INTEGER})
+			.setSqlTypes(SQL_TYPES)
 			.finish();
 		jdbcOutputFormat.open(0, 1);
 
 		JDBCTestBase.TestEntry entry = TEST_DATA[0];
-		Row row = new Row(5);
+		Row row = new Row(8);
 		row.setField(0, entry.id);
 		row.setField(1, entry.title);
 		row.setField(2, entry.author);
 		row.setField(3, 0L); // use incompatible type (Long instead of Double)
 		row.setField(4, entry.qty);
+		row.setField(5, entry.printDate);
+		row.setField(6, entry.printTime);
+		row.setField(7, entry.printTimestamp);
 		jdbcOutputFormat.writeRecord(row);
 	}
 
@@ -140,22 +143,20 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 			.setDrivername(DRIVER_CLASS)
 			.setDBUrl(DB_URL)
 			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
-			.setSqlTypes(new int[] {
-				Types.INTEGER,
-				Types.VARCHAR,
-				Types.VARCHAR,
-				Types.DOUBLE,
-				Types.INTEGER})
+			.setSqlTypes(SQL_TYPES)
 			.finish();
 		jdbcOutputFormat.open(0, 1);
 
 		JDBCTestBase.TestEntry entry = TEST_DATA[0];
-		Row row = new Row(5);
+		Row row = new Row(8);
 		row.setField(0, entry.id);
 		row.setField(1, entry.title);
 		row.setField(2, entry.author);
 		row.setField(3, entry.price);
 		row.setField(4, entry.qty);
+		row.setField(5, entry.printDate);
+		row.setField(6, entry.printTime);
+		row.setField(7, entry.printTimestamp);
 		jdbcOutputFormat.writeRecord(row);
 		jdbcOutputFormat.writeRecord(row); // writing the same record twice must yield a unique key violation.
 
@@ -182,17 +183,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
 			ResultSet resultSet = statement.executeQuery()
 		) {
-			int recordCount = 0;
-			while (resultSet.next()) {
-				assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-				assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-				assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-				assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-				assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
-
-				recordCount++;
-			}
-			assertEquals(TEST_DATA.length, recordCount);
+			checkEquals(resultSet, TEST_DATA.length);
 		}
 	}
 
@@ -217,16 +208,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 			}
 			jdbcOutputFormat.writeRecord(toRow(TEST_DATA[2]));
 			try (ResultSet resultSet = statement.executeQuery()) {
-				int recordCount = 0;
-				while (resultSet.next()) {
-					assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-					assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-					assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-					assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-					assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
-					recordCount++;
-				}
-				assertEquals(3, recordCount);
+				checkEquals(resultSet, 3);
 			}
 		} finally {
 			jdbcOutputFormat.close();
@@ -247,12 +229,31 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 	}
 
 	static Row toRow(TestEntry entry) {
-		Row row = new Row(5);
+		Row row = new Row(8);
 		row.setField(0, entry.id);
 		row.setField(1, entry.title);
 		row.setField(2, entry.author);
 		row.setField(3, entry.price);
 		row.setField(4, entry.qty);
+		row.setField(5, entry.printDate);
+		row.setField(6, entry.printTime);
+		row.setField(7, entry.printTimestamp);
 		return row;
+	}
+
+	private void checkEquals(ResultSet resultSet, int expectedCnt) throws SQLException {
+		int recordCount = 0;
+		while (resultSet.next()) {
+			assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+			assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+			assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+			assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+			assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+			assertEquals(TEST_DATA[recordCount].printDate, resultSet.getObject("print_date"));
+			assertEquals(TEST_DATA[recordCount].printTime, resultSet.getObject("print_time"));
+			assertEquals(TEST_DATA[recordCount].printTimestamp, resultSet.getObject("print_timestamp"));
+			recordCount++;
+		}
+		assertEquals(expectedCnt, recordCount);
 	}
 }

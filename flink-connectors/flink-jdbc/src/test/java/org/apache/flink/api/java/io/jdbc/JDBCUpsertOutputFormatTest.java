@@ -53,7 +53,7 @@ public class JDBCUpsertOutputFormatTest extends JDBCTestBase {
 
 	@Before
 	public void setup() {
-		fieldNames = new String[]{"id", "title", "author", "price", "qty"};
+		fieldNames = FIELD_NAMES;
 		keyFields = new String[]{"id"};
 	}
 
@@ -65,6 +65,7 @@ public class JDBCUpsertOutputFormatTest extends JDBCTestBase {
 						.setTableName(OUTPUT_TABLE)
 						.build())
 				.setFieldNames(fieldNames)
+				.setFieldTypes(SQL_TYPES)
 				.setKeyFields(keyFields)
 				.build();
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);

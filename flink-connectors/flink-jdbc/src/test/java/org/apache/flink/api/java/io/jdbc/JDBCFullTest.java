@@ -22,6 +22,10 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
@@ -29,12 +33,16 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.sql.Types;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Arrays;
 
+import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormatTest.check;
 import static org.hamcrest.core.StringContains.containsString;
 
 /**
@@ -43,13 +51,23 @@ import static org.hamcrest.core.StringContains.containsString;
 public class JDBCFullTest extends JDBCTestBase {
 
 	@Test
-	public void testWithoutParallelism() throws Exception {
-		runTest(false);
+	public void testInputOutputFormatWithoutParallelism() throws Exception {
+		runInputOutputFormatTest(false);
 	}
 
 	@Test
-	public void testWithParallelism() throws Exception {
-		runTest(true);
+	public void testInputOutputFormatWithParallelism() throws Exception {
+		runInputOutputFormatTest(true);
+	}
+
+	@Test
+	public void testSourceSinkWithoutParallelism() throws Exception {
+		runSourceSinkTest(false);
+	}
+
+	@Test
+	public void testSourceSinkWithParallelism() throws Exception {
+		runSourceSinkTest(true);
 	}
 
 	@Test
@@ -60,17 +78,20 @@ public class JDBCFullTest extends JDBCTestBase {
 		JDBCOutputFormat jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 			.setDrivername(JDBCTestBase.DRIVER_CLASS)
 			.setDBUrl(JDBCTestBase.DB_URL)
-			.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
-			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
+			.setQuery("insert into newbooks (" +
+				"id, title, author, price, qty, print_date, print_time, print_timestamp) values (?,?,?,?,?,?,?,?)")
+			.setSqlTypes(SQL_TYPES)
 			.finish();
 
 		jdbcOutputFormat.open(1, 1);
-		Row inputRow = Row.of(1001, "Java public for dummies", "Tan Ah Teck", "11.11", 11);
+		Row inputRow = Row.of(
+			1001, "Java public for dummies", "Tan Ah Teck", "11.11", 11,
+			Date.valueOf("2011-01-11"), Time.valueOf("01:11:11"), Timestamp.valueOf("2011-01-11 01:11:11"));
 		jdbcOutputFormat.writeRecord(inputRow);
 		jdbcOutputFormat.close();
 	}
 
-	private void runTest(boolean exploitParallelism) throws Exception {
+	private void runInputOutputFormatTest(boolean exploitParallelism) throws Exception {
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
 		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
@@ -95,8 +116,9 @@ public class JDBCFullTest extends JDBCTestBase {
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
 				.setDBUrl(JDBCTestBase.DB_URL)
-				.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
-				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
+				.setQuery("insert into newbooks (" +
+					"id, title, author, price, qty, print_date, print_time, print_timestamp) values (?,?,?,?,?,?,?,?)")
+				.setSqlTypes(SQL_TYPES)
 				.finish());
 
 		environment.execute();
@@ -112,6 +134,75 @@ public class JDBCFullTest extends JDBCTestBase {
 			}
 			Assert.assertEquals(JDBCTestBase.TEST_DATA.length, count);
 		}
+	}
+
+	private void runSourceSinkTest(boolean exploitParallelism) throws Exception {
+		TableSchema schema = TableSchema.builder()
+			.field("id", DataTypes.INT())
+			.field("title", DataTypes.STRING())
+			.field("author", DataTypes.STRING())
+			.field("price", DataTypes.DOUBLE())
+			.field("qty", DataTypes.INT())
+			.field("print_date", DataTypes.DATE())
+			.field("print_time", DataTypes.TIME())
+			.field("print_timestamp", DataTypes.TIMESTAMP())
+			.build();
+
+		JDBCTableSource.Builder sourceBuilder = JDBCTableSource.builder()
+			.setOptions(JDBCOptions.builder()
+				.setDBUrl(DB_URL)
+				.setTableName(INPUT_TABLE)
+				.build())
+			.setSchema(schema);
+		if (exploitParallelism) {
+			sourceBuilder.setReadOptions(JDBCReadOptions.builder()
+				.setPartitionColumnName("id")
+				.setPartitionLowerBound(TEST_DATA[0].id)
+				.setPartitionUpperBound(TEST_DATA[TEST_DATA.length - 1].id)
+				.setNumPartitions(3)
+				.build());
+		}
+		JDBCTableSource source = sourceBuilder.build();
+
+		JDBCUpsertTableSink.Builder sinkBuilder = JDBCUpsertTableSink.builder()
+			.setOptions(JDBCOptions.builder()
+				.setDBUrl(DB_URL)
+				.setTableName(OUTPUT_TABLE)
+				.build())
+			.setTableSchema(schema);
+		JDBCUpsertTableSink sink = sinkBuilder.build();
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+		tEnv.registerTableSource(INPUT_TABLE, source);
+		tEnv.registerTableSink(OUTPUT_TABLE, sink);
+		tEnv.sqlUpdate(
+			"INSERT INTO " + OUTPUT_TABLE + " " +
+				"SELECT id, title, author, price, qty, " +
+				"print_date + interval '1' day, " +
+				"print_time + interval '1' hour, " +
+				"print_timestamp + interval '1' day + interval '1' hour " +
+				"FROM " + INPUT_TABLE);
+		env.execute();
+
+		check(
+			Arrays.stream(TEST_DATA).map(entry -> {
+				Row row = new Row(8);
+				row.setField(0, entry.id);
+				row.setField(1, entry.title);
+				row.setField(2, entry.author);
+				row.setField(3, entry.price);
+				row.setField(4, entry.qty);
+				row.setField(5,
+					entry.printDate == null ? null : Date.valueOf(entry.printDate.toLocalDate().plusDays(1)));
+				row.setField(6,
+					entry.printTime == null ? null : Time.valueOf(entry.printTime.toLocalTime().plusHours(1)));
+				row.setField(7,
+					entry.printTimestamp == null ?
+						null : Timestamp.valueOf(entry.printTimestamp.toLocalDateTime().plusDays(1).plusHours(1)));
+				return row;
+			}).toArray(Row[]::new),
+			DB_URL, OUTPUT_TABLE, FIELD_NAMES);
 	}
 
 	@After
