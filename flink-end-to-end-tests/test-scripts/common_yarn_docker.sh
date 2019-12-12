@@ -19,6 +19,7 @@
 set -o pipefail
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
 FLINK_TARBALL_DIR=$TEST_DATA_DIR
 FLINK_TARBALL=flink.tar.gz
@@ -31,8 +32,6 @@ echo "Flink Tarball directory $FLINK_TARBALL_DIR"
 echo "Flink tarball filename $FLINK_TARBALL"
 echo "Flink distribution directory name $FLINK_DIRNAME"
 echo "End-to-end directory $END_TO_END_DIR"
-docker --version
-docker-compose --version
 
 start_time=$(date +%s)
 
@@ -62,13 +61,7 @@ function start_hadoop_cluster() {
     done
 
     # perform health checks
-    if ! { [ $(docker inspect -f '{{.State.Running}}' master 2>&1) = 'true' ] &&
-           [ $(docker inspect -f '{{.State.Running}}' slave1 2>&1) = 'true' ] &&
-           [ $(docker inspect -f '{{.State.Running}}' slave2 2>&1) = 'true' ] &&
-           [ $(docker inspect -f '{{.State.Running}}' kdc 2>&1) = 'true' ]; };
-    then
-        return 1
-    fi
+    containers_health_check "master" "slave1" "slave2" "kdc"
 
     # try and see if NodeManagers are up, otherwise the Flink job will not have enough resources
     # to run

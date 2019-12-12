@@ -230,25 +230,32 @@ function start_local_zk {
     done < <(grep "^server\." "${FLINK_DIR}/conf/zoo.cfg")
 }
 
-function wait_dispatcher_running {
-  # wait at most 10 seconds until the dispatcher is up
-  local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+function wait_rest_endpoint_up {
+  local query_url=$1
+  local endpoint_name=$2
+  local successful_response_regex=$3
+  # wait at most 10 seconds until the endpoint is up
   local TIMEOUT=20
   for i in $(seq 1 ${TIMEOUT}); do
-    # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
+    # without the || true this would exit our script if the endpoint is not yet up
+    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$query_url" 2> /dev/null || true)
 
-    # ensure the taskmanagers field is there at all and is not empty
-    if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
-      echo "Dispatcher REST endpoint is up."
+    # ensure the response adapts with the suceessful regex
+    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+      echo "${endpoint_name} REST endpoint is up."
       return
     fi
 
-    echo "Waiting for dispatcher REST endpoint to come up..."
+    echo "Waiting for ${endpoint_name} REST endpoint to come up..."
     sleep 1
   done
-  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  echo "${endpoint_name} REST endpoint has not started within a timeout of ${TIMEOUT} sec"
   exit 1
+}
+
+function wait_dispatcher_running {
+  local query_url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  wait_rest_endpoint_up "${query_url}" "Dispatcher" "\{\"taskmanagers\":\[.+\]\}"
 }
 
 function start_cluster {
