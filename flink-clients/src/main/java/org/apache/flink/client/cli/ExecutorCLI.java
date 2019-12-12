@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A generic implementation of the {@link CustomCommandLine} that only expects
@@ -92,8 +91,6 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	@Override
 	public Configuration applyCommandLineOptionsToConfiguration(final CommandLine commandLine) {
-		checkState(isActive(commandLine));
-
 		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
 
 		final String executorName = commandLine.getOptionValue(executorOption.getOpt());

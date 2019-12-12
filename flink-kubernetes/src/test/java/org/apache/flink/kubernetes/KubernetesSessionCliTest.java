@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -44,6 +45,16 @@ import static org.junit.Assert.assertTrue;
  * Tests for the {@link KubernetesSessionCli}.
  */
 public class KubernetesSessionCliTest {
+
+	@Test
+	public void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
+		final KubernetesSessionCli cli = new KubernetesSessionCli(new Configuration());
+
+		final String[] args = {};
+		final Configuration configuration = cli.getEffectiveConfiguration(args);
+
+		assertEquals(KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+	}
 
 	@Test
 	public void testDynamicProperties() throws Exception {
