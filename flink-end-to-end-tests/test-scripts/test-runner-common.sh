@@ -101,7 +101,7 @@ function cleanup_proc {
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    rm ${FLINK_DIR}/log/*
+    rm -f ${FLINK_DIR}/log/*
     echo "Deleted all files under ${FLINK_DIR}/log/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null
