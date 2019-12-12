@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.cli;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
@@ -50,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Kubernetes customized commandline.
  */
+@Internal
 public class KubernetesSessionCli {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesSessionCli.class);
