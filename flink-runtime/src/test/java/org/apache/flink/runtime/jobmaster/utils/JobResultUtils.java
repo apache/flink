@@ -19,6 +19,9 @@ package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.runtime.jobmaster.JobResult;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 /**
  * Testing utils surrounding the {@link JobResult}.
  */
@@ -29,6 +32,25 @@ public final class JobResultUtils {
 				throw new AssertionError("Job failed.", result.getSerializedThrowable().get().deserializeError(JobResultUtils.class.getClassLoader()));
 			} else {
 				throw new AssertionError("Job was not successful but did not fail with an error.");
+			}
+		}
+	}
+
+	public static void assertIncomplete(final CompletableFuture<JobResult> result) {
+		if (result.isDone()) {
+			final JobResult jobResult;
+			try {
+				jobResult = result.get();
+			} catch (InterruptedException | ExecutionException e) {
+				// we already know it is done so this doesn't happen
+				throw new AssertionError("Unexpected exception when processing finished future.", e);
+			}
+
+			if (jobResult.isSuccess()) {
+				throw new AssertionError("Job finished successfully.");
+			} else {
+				// this is guarantee to fail with an error
+				assertSuccess(jobResult);
 			}
 		}
 	}
