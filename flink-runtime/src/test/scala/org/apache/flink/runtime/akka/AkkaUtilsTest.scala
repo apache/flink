@@ -19,19 +19,17 @@
 package org.apache.flink.runtime.akka
 
 import java.net.{InetAddress, InetSocketAddress}
+import java.util.Collections
 
-import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, MetricOptions}
+import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, MetricOptions, SecurityOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools.FixedThreadPoolExecutorConfiguration
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
-import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
 import org.apache.flink.util.NetUtils
-import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
-import org.slf4j.LoggerFactory
 
 @RunWith(classOf[JUnitRunner])
 class AkkaUtilsTest
@@ -219,5 +217,37 @@ class AkkaUtilsTest
 
     akkaConfig.getString("akka.remote.netty.tcp.hostname") should
       equal(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString))
+  }
+
+  test("getAkkaConfig for ssl engine provider without cert fingerprint") {
+    val configuration = new Configuration()
+    configuration.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true)
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+
+    val sslConfig = akkaConfig.getConfig("akka.remote.netty.ssl")
+
+    sslConfig.getString("ssl-engine-provider") should
+      equal("org.apache.flink.runtime.akka.CustomSSLEngineProvider")
+
+    sslConfig.getStringList("security.cert-fingerprints") shouldBe empty
+  }
+
+  test("getAkkaConfig for ssl engine provider with cert fingerprint") {
+    val configuration = new Configuration()
+    configuration.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true)
+
+    val fingerprint = "A8:98:5D:3A:65:E5:E5:C4:B2:D7:D6:6D:40:C6:DD:2F:B1:9C:54:36"
+    configuration.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, fingerprint)
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+
+    val sslConfig = akkaConfig.getConfig("akka.remote.netty.ssl")
+
+    sslConfig.getString("ssl-engine-provider") should
+      equal("org.apache.flink.runtime.akka.CustomSSLEngineProvider")
+
+    sslConfig.getStringList("security.cert-fingerprints") should
+      equal(Collections.singletonList(fingerprint))
   }
 }
