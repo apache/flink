@@ -619,16 +619,16 @@ public class LocalExecutor implements Executor {
 				removeTimeAttributes(table.getSchema()),
 				context.getExecutionConfig(),
 				context.getClassLoader());
-		// Job name format: "sessionId: query" with all the quotes character removed.
-		final String jobName = (sessionId + ": " + query).replaceAll("`", "");
+		final String jobName = sessionId + ": " + query;
+		final String tableName = String.format("_tmp_table_%s", Math.abs(query.hashCode()));
 		final Pipeline pipeline;
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				context.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
+				context.getTableEnvironment().registerTableSink(tableName, result.getTableSink());
 				table.insertInto(
 						context.getQueryConfig(),
-						jobName);
+						tableName);
 				return null;
 			});
 			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
@@ -641,9 +641,7 @@ public class LocalExecutor implements Executor {
 		} finally {
 			// Remove the temporal table object.
 			context.wrapClassLoader(() -> {
-				// Quotes the table name because as a SqlIdentifier, it is invalid.
-				context.getTableEnvironment()
-						.dropTemporaryTable(String.format("`%s`", jobName));
+				context.getTableEnvironment().dropTemporaryTable(tableName);
 				return null;
 			});
 		}
