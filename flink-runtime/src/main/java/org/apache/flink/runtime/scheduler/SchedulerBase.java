@@ -340,6 +340,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			.transitionState(ExecutionState.SCHEDULED));
 	}
 
+	protected void setGlobalFailureCause(final Throwable cause) {
+		getExecutionGraph().initFailureCause(cause);
+	}
+
 	protected ComponentMainThreadExecutor getMainThreadExecutor() {
 		return mainThreadExecutor;
 	}
