@@ -19,9 +19,11 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import javax.annotation.Nonnull;
 
@@ -65,5 +67,10 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		effectiveConfiguration.set(DeploymentOptions.TARGET, "local-executor");
 		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 		return effectiveConfiguration;
+	}
+
+	@Override
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		return super.execute(streamGraph);
 	}
 }
