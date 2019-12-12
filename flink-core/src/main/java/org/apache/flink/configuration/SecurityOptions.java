@@ -221,6 +221,16 @@ public class SecurityOptions {
 					.withDescription("The password to decrypt the truststore " +
 							"for Flink's internal endpoints (rpc, data transport, blob server).");
 
+	/**
+	 * For internal SSL, the sha1 fingerprint of the internal certificate to verify the client.
+	 */
+	public static final ConfigOption<String> SSL_INTERNAL_CERT_FINGERPRINT =
+		key("security.ssl.internal.cert.fingerprint")
+			.noDefaultValue()
+			.withDescription("The sha1 fingerprint of the internal certificate. " +
+				"This further protects the internal communication to present the exact certificate used by Flink." +
+				"This is necessary where one cannot use private CA(self signed) or there is internal firm wide CA is required");
+
 	// ----------------------- certificates (external) ------------------------
 
 	/**
@@ -267,6 +277,16 @@ public class SecurityOptions {
 					.noDefaultValue()
 					.withDescription("The password to decrypt the truststore " +
 							"for Flink's external REST endpoints.");
+
+	/**
+	 * For external (REST) SSL, the sha1 fingerprint of the rest client certificate to verify.
+	 */
+	public static final ConfigOption<String> SSL_REST_CERT_FINGERPRINT =
+		key("security.ssl.rest.cert.fingerprint")
+			.noDefaultValue()
+			.withDescription("The sha1 fingerprint of the rest certificate. " +
+				"This further protects the rest REST endpoints to present certificate which is only used by proxy server" +
+				"This is necessary where once uses public CA or internal firm wide CA");
 
 	// ------------------------ ssl parameters --------------------------------
 
