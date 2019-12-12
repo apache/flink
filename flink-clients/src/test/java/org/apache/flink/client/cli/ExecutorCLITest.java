@@ -51,16 +51,6 @@ public class ExecutorCLITest {
 		cliUnderTest.addGeneralOptions(testOptions);
 	}
 
-	@Test(expected = IllegalStateException.class)
-	public void testExceptionWithUnspecifiedExecutor() throws CliArgsException {
-		final ExecutorCLI cliUnderTest = new ExecutorCLI(new Configuration());
-
-		final String[] args = {"-Dtest=tsetD-"};
-		final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
-
-		cliUnderTest.applyCommandLineOptionsToConfiguration(commandLine);
-	}
-
 	@Test
 	public void testExecutorInBaseConfigIsPickedUp() throws CliArgsException {
 		final String expectedExecutorName = "test-executor";
