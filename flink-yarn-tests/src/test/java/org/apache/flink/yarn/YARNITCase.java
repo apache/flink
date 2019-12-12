@@ -79,7 +79,7 @@ public class YARNITCase extends YarnTestBase {
 	public void testPerJobModeWithDistributedCache() throws Exception {
 		runTest(() -> deployPerjob(
 			YarnConfigOptions.UserJarInclusion.DISABLED,
-			YarnTestCacheJob.getDistributedCacheJobGraph()));
+			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
 	}
 
 	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion, JobGraph jobGraph) throws Exception {
