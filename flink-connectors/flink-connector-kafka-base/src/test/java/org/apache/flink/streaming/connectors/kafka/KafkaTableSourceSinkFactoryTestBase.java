@@ -52,6 +52,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -84,6 +85,12 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	private static final String TIME = "time";
 	private static final String EVENT_TIME = "event-time";
 	private static final String PROC_TIME = "proc-time";
+	private static final String WATERMARK_EXPRESSION = EVENT_TIME + " - INTERVAL '5' SECOND";
+	private static final DataType WATERMARK_DATATYPE = DataTypes.TIMESTAMP(3);
+	private static final String COMPUTED_COLUMN_NAME = "computed-column";
+	private static final String COMPUTED_COLUMN_EXPRESSION = COUNT + " + 1.0";
+	private static final DataType COMPUTED_COLUMN_DATATYPE = DataTypes.DECIMAL(10, 3);
+
 	private static final Properties KAFKA_PROPERTIES = new Properties();
 	static {
 		KAFKA_PROPERTIES.setProperty("zookeeper.connect", "dummy");
@@ -144,7 +151,15 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		TableSourceValidation.validateTableSource(expected);
 
 		// construct table source using descriptors and table source factory
-		final Map<String, String> propertiesMap = createKafkaSourceProperties();
+		final Map<String, String> propertiesMap = new HashMap<>();
+		propertiesMap.putAll(createKafkaSourceProperties());
+		propertiesMap.put("schema.watermark.0.rowtime", EVENT_TIME);
+		propertiesMap.put("schema.watermark.0.strategy.expr", WATERMARK_EXPRESSION);
+		propertiesMap.put("schema.watermark.0.strategy.data-type", WATERMARK_DATATYPE.toString());
+		propertiesMap.put("schema.4.name", COMPUTED_COLUMN_NAME);
+		propertiesMap.put("schema.4.data-type", COMPUTED_COLUMN_DATATYPE.toString());
+		propertiesMap.put("schema.4.expr", COMPUTED_COLUMN_EXPRESSION);
+
 		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, propertiesMap)
 			.createStreamTableSource(propertiesMap);
 
@@ -255,7 +270,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 						.field(COUNT, DataTypes.DECIMAL(10, 3)) // no from so it must match with the input
 						.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
 							new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
-							.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
+						.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
 				.toProperties();
 	}
 

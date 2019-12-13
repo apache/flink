@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util.Optional
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Types}
 import org.apache.flink.table.descriptors.RowtimeTest.CustomExtractor
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp}
 import org.apache.flink.table.sources.wmstrategies.{BoundedOutOfOrderTimestamps, PreserveWatermarks}
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
+
+import java.util.Optional
 
 import scala.collection.JavaConverters._
 
@@ -163,4 +165,30 @@ class SchemaValidatorTest {
     assertTrue(extractor.equals(new CustomExtractor("f3")))
     assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[BoundedOutOfOrderTimestamps])
   }
+
+  @Test
+  def testSchemaWithGeneratedColumnAndWatermark(): Unit = {
+    val descriptor = new Schema()
+      .field("f1", DataTypes.STRING)
+      .field("f2", DataTypes.INT)
+      .field("f3", DataTypes.TIMESTAMP(3))
+
+    val properties = new DescriptorProperties()
+    properties.putProperties(descriptor.toProperties)
+    properties.putString("schema.3.name", "generated-column")
+    properties.putString("schema.3.data-type", DataTypes.INT.toString)
+    properties.putString("schema.3.expr", "f2 + 1")
+    properties.putString("schema.watermark.0.rowtime", "f3")
+    properties.putString("schema.watermark.0.strategy.expr", "f3 - INTERVAL '5' SECOND")
+    properties.putString("schema.watermark.0.strategy.data-type", DataTypes.TIMESTAMP(3).toString)
+
+    new SchemaValidator(true, true, false).validate(properties)
+    val expectd = TableSchema.builder()
+      .field("f1", DataTypes.STRING)
+      .field("f2", DataTypes.INT)
+      .field("f3", DataTypes.TIMESTAMP(3))
+      .build()
+    val schema = SchemaValidator.deriveTableSinkSchema(properties)
+    assertEquals(expectd, schema)
+   }
 }
