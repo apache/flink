@@ -32,6 +32,8 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 
 	// message that indicates the current matching step
 	private final String message;
+	// message that indicates the best matched factory
+	private final String matchCandidatesMessage;
 	// required factory class
 	private final Class<?> factoryClass;
 	// all found factories
@@ -41,6 +43,7 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 
 	public NoMatchingTableFactoryException(
 		String message,
+		String matchCandidatesMessage,
 		Class<?> factoryClass,
 		List<TableFactory> factories,
 		Map<String, String> properties,
@@ -48,6 +51,7 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 
 		super(cause);
 		this.message = message;
+		this.matchCandidatesMessage = matchCandidatesMessage;
 		this.factoryClass = factoryClass;
 		this.factories = factories;
 		this.properties = properties;
@@ -58,24 +62,32 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 		Class<?> factoryClass,
 		List<TableFactory> factories,
 		Map<String, String> properties) {
+		this(message, null, factoryClass, factories, properties, null);
+	}
 
-		this(message, factoryClass, factories, properties, null);
+	public NoMatchingTableFactoryException(
+			String message,
+			String matchCandidatesMessage,
+			Class<?> factoryClass,
+			List<TableFactory> factories,
+			Map<String, String> properties) {
+		this(message, matchCandidatesMessage, factoryClass, factories, properties, null);
 	}
 
 	@Override
 	public String getMessage() {
+		String matchCandidatesString = matchCandidatesMessage == null ?
+				"" :
+				"The match candidates: \n" + matchCandidatesMessage + "\n\n";
 		return String.format(
 			"Could not find a suitable table factory for '%s' in\nthe classpath.\n\n" +
-				"Reason: %s\n\n" +
+				"Reason: %s\n\n" + matchCandidatesString +
 				"The following properties are requested:\n%s\n\n" +
 				"The following factories have been considered:\n%s",
 			factoryClass.getName(),
 			message,
 			DescriptorProperties.toString(properties),
-			String.join(
-				"\n",
-				factories.stream().map(p -> p.getClass().getName()).collect(Collectors.toList())
-			)
+				factories.stream().map(p -> p.getClass().getName()).collect(Collectors.joining("\n"))
 		);
 	}
 }

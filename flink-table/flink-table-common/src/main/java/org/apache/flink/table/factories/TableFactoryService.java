@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.AmbiguousTableFactoryException;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
@@ -30,6 +31,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -189,13 +191,12 @@ public class TableFactoryService {
 		List<T> contextFactories = filterByContext(
 			factoryClass,
 			properties,
-			foundFactories,
 			classFactories);
 
 		return filterBySupportedProperties(
 			factoryClass,
 			properties,
-			foundFactories,
+			classFactories,
 			contextFactories);
 	}
 
@@ -255,10 +256,11 @@ public class TableFactoryService {
 	private static <T extends TableFactory> List<T> filterByContext(
 			Class<T> factoryClass,
 			Map<String, String> properties,
-			List<TableFactory> foundFactories,
 			List<T> classFactories) {
 
-		List<T> matchingFactories = classFactories.stream().filter(factory -> {
+		List<T> matchingFactories = new ArrayList<>();
+		Tuple3<T, Integer, Map<String, Tuple2<String, String>>> bestMatched = null;
+		for (T factory : classFactories) {
 			Map<String, String> requestedContext = normalizeContext(factory);
 
 			Map<String, String> plainContext = new HashMap<>(requestedContext);
@@ -269,16 +271,67 @@ public class TableFactoryService {
 			plainContext.remove(CATALOG_PROPERTY_VERSION);
 
 			// check if required context is met
-			return plainContext.keySet()
-				.stream()
-				.allMatch(e -> properties.containsKey(e) && properties.get(e).equals(plainContext.get(e)));
-		}).collect(Collectors.toList());
+			int matchedSize = 0;
+			Map<String, Tuple2<String, String>> unMatchedProperties = new HashMap<>();
+			for (Map.Entry<String, String> e : plainContext.entrySet()) {
+				if (properties.containsKey(e.getKey()) &&
+						properties.get(e.getKey()).equals(e.getValue())) {
+					matchedSize++;
+				} else {
+					unMatchedProperties.put(
+							e.getKey(),
+							new Tuple2<>(e.getValue(), properties.get(e.getKey())));
+				}
+			}
+			if (matchedSize == plainContext.size()) {
+				matchingFactories.add(factory);
+			} else {
+				if (bestMatched == null || matchedSize > bestMatched.f1) {
+					bestMatched = new Tuple3<>(factory, matchedSize, unMatchedProperties);
+				}
+			}
+		}
 
 		if (matchingFactories.isEmpty()) {
+			String bestMatchedMessage = null;
+			if (bestMatched != null && bestMatched.f1 > 0) {
+				StringBuilder builder = new StringBuilder();
+				builder.append(bestMatched.f0.getClass().getName()).append("\n");
+
+				Map<String, String> missing = new HashMap<>();
+				Map<String, Tuple2<String, String>> mismatched = new HashMap<>();
+				bestMatched.f2.forEach((key, value) -> {
+					if (value.f1 == null) {
+						missing.put(key, value.f0);
+					} else {
+						mismatched.put(key, value);
+					}
+				});
+
+				if (missing.size() > 0) {
+					builder.append("Missing properties: ");
+					missing.forEach((k, v) -> builder.append("\n").append(k).append("=").append(v));
+				}
+
+				if (mismatched.size() > 0) {
+					builder.append("Mismatched properties: ");
+					bestMatched.f2.entrySet().stream().filter(e -> e.getValue().f1 != null).forEach(e ->
+							builder.append("\n")
+									.append(e.getKey())
+									.append("=")
+									.append(e.getValue().f0)
+									.append(" <=> ")
+									.append(e.getValue().f1));
+				}
+
+				bestMatchedMessage = builder.toString();
+			}
+			//noinspection unchecked
 			throw new NoMatchingTableFactoryException(
-				"No context matches.",
+				"Required context properties mismatch.",
+				bestMatchedMessage,
 				factoryClass,
-				foundFactories,
+				(List<TableFactory>) classFactories,
 				properties);
 		}
 
@@ -304,8 +357,8 @@ public class TableFactoryService {
 	private static <T extends TableFactory> List<T> filterBySupportedProperties(
 			Class<T> factoryClass,
 			Map<String, String> properties,
-			List<TableFactory> foundFactories,
-			List<T> classFactories) {
+			List<T> classFactories,
+			List<T> contextFactories) {
 
 		final List<String> plainGivenKeys = new LinkedList<>();
 		properties.keySet().forEach(k -> {
@@ -317,9 +370,9 @@ public class TableFactoryService {
 			}
 		});
 
-		Optional<String> lastKey = Optional.empty();
 		List<T> supportedFactories = new LinkedList<>();
-		for (T factory: classFactories) {
+		Tuple2<T, List<String>> bestMatched = null;
+		for (T factory: contextFactories) {
 			Set<String> requiredContextKeys = normalizeContext(factory).keySet();
 			Tuple2<List<String>, List<String>> tuple2 = normalizeSupportedProperties(factory);
 			// ignore context keys
@@ -331,41 +384,40 @@ public class TableFactoryService {
 				givenContextFreeKeys);
 
 			boolean allTrue = true;
-			for (String k: givenFilteredKeys) {
-				lastKey = Optional.of(k);
+			List<String> unsupportedKeys = new ArrayList<>();
+			for (String k : givenFilteredKeys) {
 				if (!(tuple2.f0.contains(k) || tuple2.f1.stream().anyMatch(k::startsWith))) {
 					allTrue = false;
-					break;
+					unsupportedKeys.add(k);
 				}
 			}
 			if (allTrue) {
 				supportedFactories.add(factory);
+			} else {
+				if (bestMatched == null || unsupportedKeys.size() < bestMatched.f1.size()) {
+					bestMatched = new Tuple2<>(factory, unsupportedKeys);
+				}
 			}
 		}
 
-		if (supportedFactories.isEmpty() && classFactories.size() == 1 && lastKey.isPresent()) {
-			// special case: when there is only one matching factory but the last property key
-			// was incorrect
-			TableFactory factory = classFactories.get(0);
-			Tuple2<List<String>, List<String>> tuple2 = normalizeSupportedProperties(factory);
+		if (supportedFactories.isEmpty()) {
+			String bestMatchedMessage = null;
+			if (bestMatched != null) {
+				StringBuilder builder = new StringBuilder();
+				builder
+						.append(bestMatched.f0.getClass().getName())
+						.append("\n")
+						.append("Unsupported property keys: ");
+				bestMatched.f1.forEach(k -> builder.append("\n").append(k));
+				bestMatchedMessage = builder.toString();
+			}
 
-			String errorMessage = String.format(
-				"The matching factory '%s' doesn't support '%s'.\n\nSupported properties of " +
-					"this factory are:\n%s",
-				factory.getClass().getName(),
-				lastKey.get(),
-				String.join("\n", tuple2.f0));
-
-			throw new NoMatchingTableFactoryException(
-				errorMessage,
-				factoryClass,
-				foundFactories,
-				properties);
-		} else if (supportedFactories.isEmpty()) {
+			//noinspection unchecked
 			throw new NoMatchingTableFactoryException(
 				"No factory supports all properties.",
+				bestMatchedMessage,
 				factoryClass,
-				foundFactories,
+				(List<TableFactory>) classFactories,
 				properties);
 		}
 
