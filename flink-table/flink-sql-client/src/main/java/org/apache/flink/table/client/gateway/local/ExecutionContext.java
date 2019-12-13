@@ -232,6 +232,15 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
+	/**
+	 * Executes the given Runnable using the execution context's classloader as thread classloader.
+	 */
+	void wrapClassLoader(Runnable runnable) {
+		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+			runnable.run();
+		}
+	}
+
 	public QueryConfig getQueryConfig() {
 		if (streamExecEnv != null) {
 			final StreamQueryConfig config = new StreamQueryConfig();
@@ -523,12 +532,12 @@ public class ExecutionContext<ClusterID> {
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.1 Create catalogs and register them.
 		//--------------------------------------------------------------------------------------------------------------
-		Map<String, Catalog> catalogs = new LinkedHashMap<>();
-		environment.getCatalogs().forEach((name, entry) ->
-				catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
-		);
-		// register catalogs
-		catalogs.forEach(tableEnv::registerCatalog);
+		wrapClassLoader(() -> {
+			environment.getCatalogs().forEach((name, entry) -> {
+				Catalog catalog = createCatalog(name, entry.asMap(), classLoader);
+				tableEnv.registerCatalog(name, catalog);
+			});
+		});
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.2 create table sources & sinks, and register them.
