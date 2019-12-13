@@ -493,8 +493,9 @@ public final class FileUtils {
 		FileSystem sourceFs = directory.getFileSystem();
 		FileSystem targetFs = target.getFileSystem();
 
+		Path absolutePath = absolutizePath(directory);
 		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
-			addToZip(directory, sourceFs, directory.getParent(), out);
+			addToZip(absolutePath, sourceFs, absolutePath.getParent(), out);
 		}
 		return target;
 	}
@@ -574,6 +575,21 @@ public final class FileUtils {
 			filterFileVisitor);
 
 		return filterFileVisitor.getFiles();
+	}
+
+	/**
+	 * Absolutize the given path if it is relative.
+	 *
+	 * @param pathToAbsolutize path which is being absolutized if it is a relative path
+	 * @return the absolutized path
+	 */
+	public static Path absolutizePath(Path pathToAbsolutize) throws IOException {
+		if (!pathToAbsolutize.isAbsolute()) {
+			FileSystem fs = pathToAbsolutize.getFileSystem();
+			return new Path(fs.getWorkingDirectory(), pathToAbsolutize);
+		} else {
+			return pathToAbsolutize;
+		}
 	}
 
 	/**
