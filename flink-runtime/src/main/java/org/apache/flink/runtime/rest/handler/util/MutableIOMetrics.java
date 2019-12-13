@@ -108,7 +108,7 @@ public class MutableIOMetrics extends IOMetrics {
 				this.usageInputExclusiveBuffers += ioMetrics.getUsageInputExclusiveBuffers();
 				this.usageInputFloatingBuffers += ioMetrics.getUsageInputFloatingBuffers();
 				this.usageOutPool += ioMetrics.getUsageOutPool();
-				this.isBackPressured &= ioMetrics.isBackPressured();
+				this.isBackPressured |= ioMetrics.isBackPressured();
 			}
 		} else { // execAttempt is still running, use MetricQueryService instead
 			if (fetcher != null) {
@@ -159,7 +159,7 @@ public class MutableIOMetrics extends IOMetrics {
 
 					update(metrics, MetricNames.IS_BACKPRESSURED,
 						(String value) -> this.isBackPressuredComplete = false,
-						(String value) -> this.isBackPressured &= Boolean.valueOf(value)
+						(String value) -> this.isBackPressured |= Boolean.valueOf(value)
 					);
 				}
 				else {
