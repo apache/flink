@@ -246,6 +246,14 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	}
 
 	@Test
+	public void testConfigNoCpuCores() {
+		Configuration conf = new Configuration();
+		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(conf);
+		assertThat(mesosTaskManagerParameters.cpus(), is(3.0));
+	}
+
+	@Test
 	public void testUnifiedTotalProcessMemoryConfiguration() {
 		assertTotalProcessMemory(MesosTaskManagerParameters.create(getConfiguration()));
 	}
