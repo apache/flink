@@ -567,7 +567,9 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 		// Table comment
-		properties.put(HiveCatalogConfig.COMMENT, table.getComment());
+		if (table.getComment() != null) {
+			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
+		}
 
 		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
 
