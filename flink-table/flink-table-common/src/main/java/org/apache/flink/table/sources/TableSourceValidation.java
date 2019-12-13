@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.DataTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,6 +65,7 @@ public class TableSourceValidation {
 		List<RowtimeAttributeDescriptor> rowtimeAttributes = getRowtimeAttributes(tableSource);
 		Optional<String> proctimeAttribute = getProctimeAttribute(tableSource);
 
+		validateNoGeneratedColumns(schema);
 		validateSingleRowtimeAttribute(rowtimeAttributes);
 		validateRowtimeAttributesExistInSchema(rowtimeAttributes, schema);
 		validateProctimeAttributesExistInSchema(proctimeAttribute, schema);
@@ -213,6 +215,13 @@ public class TableSourceValidation {
 				.toArray(TypeInformation[]::new);
 			// validate timestamp extractor
 			descriptor.getTimestampExtractor().validateArgumentFields(physicalTypes);
+		}
+	}
+
+	private static void validateNoGeneratedColumns(TableSchema tableSchema) {
+		if (TableSchemaUtils.containsGeneratedColumns(tableSchema)) {
+			throw new ValidationException(
+				"TableSource#getTableSchema shouldn't contain generated columns, schema: \n" + tableSchema);
 		}
 	}
 

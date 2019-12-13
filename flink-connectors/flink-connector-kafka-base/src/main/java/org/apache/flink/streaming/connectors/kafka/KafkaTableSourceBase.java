@@ -35,6 +35,7 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -114,7 +115,7 @@ public abstract class KafkaTableSourceBase implements
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
-		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
+		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
 		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
 		this.fieldMapping = fieldMapping;

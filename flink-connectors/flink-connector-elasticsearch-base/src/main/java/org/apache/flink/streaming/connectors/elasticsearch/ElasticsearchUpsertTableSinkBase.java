@@ -33,6 +33,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.typeutils.TypeCheckUtils;
 import org.apache.flink.table.utils.TableConnectorUtils;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -113,7 +114,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			RequestFactory requestFactory) {
 
 		this.isAppendOnly = isAppendOnly;
-		this.schema = Preconditions.checkNotNull(schema);
+		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.hosts = Preconditions.checkNotNull(hosts);
 		this.index = Preconditions.checkNotNull(index);
 		this.keyDelimiter = Preconditions.checkNotNull(keyDelimiter);
