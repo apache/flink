@@ -315,7 +315,11 @@ public final class FileUtils {
 	}
 
 	private static void deleteDirectoryInternal(File directory) throws IOException {
-		if (directory.isDirectory()) {
+		if (Files.isSymbolicLink(directory.toPath())) {
+			//noinspection ResultOfMethodCallIgnored
+			Files.delete(directory.toPath());
+		}
+		else if (directory.isDirectory()) {
 			// directory exists and is a directory
 
 			// empty the directory first
