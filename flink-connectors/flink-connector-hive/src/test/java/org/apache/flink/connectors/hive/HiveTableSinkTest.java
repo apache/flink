@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.sources.InputFormatTableSource;
@@ -87,7 +88,7 @@ public class HiveTableSinkTest {
 	public void testInsertIntoNonPartitionTable() throws Exception {
 		String dbName = "default";
 		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
+		RowTypeInfo rowTypeInfo = createHiveDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
@@ -116,7 +117,7 @@ public class HiveTableSinkTest {
 				DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
 				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING()))});
 
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		RowTypeInfo rowTypeInfo = createHiveDestTable(dbName, tblName, builder.build(), 0);
 		List<Row> toWrite = new ArrayList<>();
 		Row row = new Row(rowTypeInfo.getArity());
 		Object[] array = new Object[]{1, 2, 3};
@@ -159,7 +160,7 @@ public class HiveTableSinkTest {
 		// array of rows
 		builder.fields(new String[]{"a"}, new DataType[]{DataTypes.ARRAY(
 				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING())))});
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		RowTypeInfo rowTypeInfo = createHiveDestTable(dbName, tblName, builder.build(), 0);
 		Row row = new Row(rowTypeInfo.getArity());
 		Object[] array = new Object[3];
 		row.setField(0, array);
@@ -186,13 +187,13 @@ public class HiveTableSinkTest {
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
-	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
-		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
+	private RowTypeInfo createHiveDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
+		CatalogTable catalogTable = createHiveCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);
 		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
-	private RowTypeInfo createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
+	private RowTypeInfo createHiveDestTable(String dbName, String tblName, int numPartCols) throws Exception {
 		TableSchema.Builder builder = new TableSchema.Builder();
 		builder.fields(new String[]{"i", "l", "d", "s"},
 				new DataType[]{
@@ -200,16 +201,29 @@ public class HiveTableSinkTest {
 						DataTypes.BIGINT(),
 						DataTypes.DOUBLE(),
 						DataTypes.STRING()});
-		return createDestTable(dbName, tblName, builder.build(), numPartCols);
+		return createHiveDestTable(dbName, tblName, builder.build(), numPartCols);
 	}
 
-	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
+	private CatalogTable createHiveCatalogTable(TableSchema tableSchema, int numPartCols) {
 		if (numPartCols == 0) {
-			return new CatalogTableImpl(tableSchema, new HashMap<>(), "");
+			return new CatalogTableImpl(
+				tableSchema,
+				new HashMap<String, String>() {{
+					// creating a hive table needs explicit is_generic=false flag
+					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+				}},
+				"");
 		}
 		String[] partCols = new String[numPartCols];
 		System.arraycopy(tableSchema.getFieldNames(), tableSchema.getFieldNames().length - numPartCols, partCols, 0, numPartCols);
-		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
+		return new CatalogTableImpl(
+			tableSchema,
+			Arrays.asList(partCols),
+			new HashMap<String, String>() {{
+				// creating a hive table needs explicit is_generic=false flag
+				put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+			}},
+			"");
 	}
 
 	private void verifyWrittenData(List<Row> expected, List<String> results) throws Exception {
