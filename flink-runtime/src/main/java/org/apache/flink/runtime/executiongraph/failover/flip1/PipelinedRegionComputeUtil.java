@@ -59,6 +59,27 @@ public final class PipelinedRegionComputeUtil {
 			.collect(Collectors.toSet());
 	}
 
+	protected static <V> V getRegion(Map<V, V> vertexToRegion, V vertex) {
+		V region = vertexToRegion.get(vertex);
+		if (region == null) {
+			vertexToRegion.put(vertex, vertex);
+			return vertex;
+		}
+		if (region == vertex) {
+			return vertex;
+		}
+		region = getRegion(vertexToRegion, region);
+		vertexToRegion.put(vertex, region);
+		return region;
+	}
+
+	protected static <V> V mergeRegion(Map<V, V> vertexToRegion, V region1,  V region2) {
+		region1 = getRegion(vertexToRegion, region1);
+		region2 = getRegion(vertexToRegion, region2);
+		vertexToRegion.put(region2, region1);
+		return region1;
+	}
+
 	public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> computePipelinedRegions(
 			final Topology<?, ?, V, R> topology) {
 
@@ -68,49 +89,32 @@ public final class PipelinedRegionComputeUtil {
 			return uniqueRegions(buildOneRegionForAllVertices(topology));
 		}
 
+		final Map<V, V> vertexUnionSet = new IdentityHashMap<>();
 		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
 		// iterate all the vertices which are topologically sorted
 		for (V vertex : topology.getVertices()) {
-			Set<V> currentRegion = new HashSet<>(1);
-			currentRegion.add(vertex);
-			vertexToRegion.put(vertex, currentRegion);
-
+			if (vertexUnionSet.get(vertex) == null) {
+				vertexUnionSet.put(vertex, vertex);
+			}
 			for (R consumedResult : vertex.getConsumedResults()) {
 				if (consumedResult.getResultType().isPipelined()) {
 					final V producerVertex = consumedResult.getProducer();
-					final Set<V> producerRegion = vertexToRegion.get(producerVertex);
-
-					if (producerRegion == null) {
-						throw new IllegalStateException("Producer task " + producerVertex.getId()
-							+ " failover region is null while calculating failover region for the consumer task "
-							+ vertex.getId() + ". This should be a failover region building bug.");
-					}
-
-					// check if it is the same as the producer region, if so skip the merge
-					// this check can significantly reduce compute complexity in All-to-All PIPELINED edge case
-					if (currentRegion != producerRegion) {
-						// merge current region and producer region
-						// merge the smaller region into the larger one to reduce the cost
-						final Set<V> smallerSet;
-						final Set<V> largerSet;
-						if (currentRegion.size() < producerRegion.size()) {
-							smallerSet = currentRegion;
-							largerSet = producerRegion;
-						} else {
-							smallerSet = producerRegion;
-							largerSet = currentRegion;
-						}
-						for (V v : smallerSet) {
-							vertexToRegion.put(v, largerSet);
-						}
-						largerSet.addAll(smallerSet);
-						currentRegion = largerSet;
-					}
+					mergeRegion(vertexUnionSet, producerVertex, vertex);
 				}
 			}
 		}
 
+		for(V vertex : topology.getVertices()) {
+			V region = getRegion(vertexUnionSet, vertex);
+			Set<V> set = vertexToRegion.get(region);
+			if (set == null) {
+				set = new HashSet<>(1);
+				vertexToRegion.put(region, set);
+			}
+			vertexToRegion.put(vertex, set);
+			set.add(vertex);
+		}
 		return uniqueRegions(vertexToRegion);
 	}
 
