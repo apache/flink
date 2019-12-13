@@ -197,6 +197,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 			service.getStatus().getLoadBalancer().getIngress() != null)) {
 			if (service.getStatus().getLoadBalancer().getIngress().size() > 0) {
 				address = service.getStatus().getLoadBalancer().getIngress().get(0).getIp();
+				if (address == null) {
+					address = service.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
+				}
 			} else {
 				address = this.internalClient.getMasterUrl().getHost();
 				restPort = getServiceNodePort(service, RestOptions.PORT);
