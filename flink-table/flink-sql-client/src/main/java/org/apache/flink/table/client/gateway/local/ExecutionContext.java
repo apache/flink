@@ -235,7 +235,7 @@ public class ExecutionContext<ClusterID> {
 	/**
 	 * Executes the given Runnable using the execution context's classloader as thread classloader.
 	 */
-	private void wrapClassLoader(Runnable runnable) {
+	void wrapClassLoader(Runnable runnable) {
 		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
 			runnable.run();
 		}

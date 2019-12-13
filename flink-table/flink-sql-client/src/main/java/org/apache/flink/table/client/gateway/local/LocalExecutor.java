@@ -410,7 +410,6 @@ public class LocalExecutor implements Executor {
 			} catch (CatalogException e) {
 				throw new SqlExecutionException("Failed to switch to catalog " + catalogName, e);
 			}
-			return null;
 		});
 	}
 
@@ -426,7 +425,6 @@ public class LocalExecutor implements Executor {
 			} catch (CatalogException e) {
 				throw new SqlExecutionException("Failed to switch to database " + databaseName, e);
 			}
-			return null;
 		});
 	}
 
@@ -629,7 +627,6 @@ public class LocalExecutor implements Executor {
 				table.insertInto(
 						context.getQueryConfig(),
 						tableName);
-				return null;
 			});
 			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
 		} catch (Throwable t) {
@@ -642,7 +639,6 @@ public class LocalExecutor implements Executor {
 			// Remove the temporal table object.
 			context.wrapClassLoader(() -> {
 				context.getTableEnvironment().dropTemporaryTable(tableName);
-				return null;
 			});
 		}
 
@@ -695,7 +691,6 @@ public class LocalExecutor implements Executor {
 				} else {
 					tableEnv.sqlUpdate(updateStatement);
 				}
-				return null;
 			});
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
