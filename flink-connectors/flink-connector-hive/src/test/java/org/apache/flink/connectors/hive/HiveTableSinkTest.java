@@ -90,7 +90,7 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		List<Row> toWrite = generateRecords(5);
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("src", src);
@@ -133,7 +133,7 @@ public class HiveTableSinkTest {
 		row.setField(2, struct);
 		toWrite.add(row);
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("complexSrc", src);
 
@@ -172,7 +172,7 @@ public class HiveTableSinkTest {
 		List<Row> toWrite = new ArrayList<>();
 		toWrite.add(row);
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);

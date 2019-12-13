@@ -104,7 +104,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{4, 4, "d", 4000L, 4.44})
 				.commit();
 
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test");
 		List<Row> rows = TableUtils.collectToList(src);
@@ -131,7 +131,7 @@ public class HiveTableSourceTest {
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{array, map, struct})
 				.commit();
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.complex_test");
 		List<Row> rows = TableUtils.collectToList(src);
@@ -160,7 +160,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt");
 		List<Row> rows = TableUtils.collectToList(src);
@@ -185,7 +185,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt_1 where pt = 0");
 		// first check execution plan to ensure partition prunning works
@@ -215,7 +215,7 @@ public class HiveTableSourceTest {
 					.addRow(new Object[]{2}).commit("p1=2,p2='b'");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
 					.addRow(new Object[]{3}).commit("p1=3,p2='c'");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
 					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
 			tableEnv.registerCatalog(catalog.getName(), catalog);
@@ -268,7 +268,7 @@ public class HiveTableSourceTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
 					.addRow(new Object[]{3, "c"})
 					.commit("p1=2014, p2='2014'");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select p1, count(y) from hive.`default`.src group by p1");
 			String[] explain = tableEnv.explain(table).split("==.*==\n");
@@ -302,7 +302,7 @@ public class HiveTableSourceTest {
 						.commit();
 			//Add this to obtain correct stats of table to avoid FLINK-14965 problem
 			hiveShell.execute("analyze table src COMPUTE STATISTICS");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
 			String[] explain = tableEnv.explain(table).split("==.*==\n");
@@ -338,7 +338,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism");
 		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
