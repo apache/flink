@@ -115,6 +115,12 @@ run_test "Run Kubernetes test" "$END_TO_END_DIR/test-scripts/test_kubernetes_emb
 run_test "Run kubernetes session test" "$END_TO_END_DIR/test-scripts/test_kubernetes_session.sh"
 
 ################################################################################
+# Mesos
+################################################################################
+
+run_test "Run Mesos WordCount test" "$END_TO_END_DIR/test-scripts/test_mesos_wordcount.sh"
+
+################################################################################
 # Miscellaneous
 ################################################################################
 
