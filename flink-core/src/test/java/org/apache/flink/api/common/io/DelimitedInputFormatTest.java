@@ -26,6 +26,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.function.FunctionWithException;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -407,12 +409,25 @@ public class DelimitedInputFormatTest {
 	@Test
 	public void testDelimiterOnBufferBoundary() throws IOException {
 
+		testDelimiterOnBufferBoundary(fileContent -> createTempFile(fileContent));
+	}
+
+	@Test
+	public void testDelimiterOnBufferBoundaryWithWholeFileSplit() throws IOException {
+
+		testDelimiterOnBufferBoundary(fileContent -> {
+			final FileInputSplit split = createTempFile(fileContent);
+			return new FileInputSplit(0, split.getPath(), 0, -1, split.getHostnames());
+		});
+	}
+
+	private void testDelimiterOnBufferBoundary(FunctionWithException<String, FileInputSplit, IOException> splitCreator) throws IOException {
 		String[] records = new String[]{"1234567890<DEL?NO!>1234567890", "1234567890<DEL?NO!>1234567890", "<DEL?NO!>"};
 		String delimiter = "<DELIM>";
 		String fileContent = StringUtils.join(records, delimiter);
 
 
-		final FileInputSplit split = createTempFile(fileContent);
+		final FileInputSplit split = splitCreator.apply(fileContent);
 		final Configuration parameters = new Configuration();
 
 		format.setBufferSize(12);
