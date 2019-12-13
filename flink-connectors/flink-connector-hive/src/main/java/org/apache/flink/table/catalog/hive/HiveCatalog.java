@@ -357,7 +357,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.createTable(hiveTable);
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new TableAlreadyExistException(getName(), tablePath);
+				throw new TableAlreadyExistException(getName(), tablePath, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
@@ -559,7 +559,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private  static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	@VisibleForTesting
+	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
 		// let Hive set default parameters for us, e.g. serialization.format
 		Table hiveTable = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(tablePath.getDatabaseName(),
 			tablePath.getObjectName());
@@ -567,15 +568,29 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 		// Table comment
-		properties.put(HiveCatalogConfig.COMMENT, table.getComment());
+		if (table.getComment() != null) {
+			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
+		}
 
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+		// A hive table needs explicitly have a key is_generic = false, otherwise this is a generic table
+		String isGenericValue = properties.get(CatalogConfig.IS_GENERIC);
+		boolean isGeneric = true;
+
+		if (isGenericValue != null && !Boolean.valueOf(isGenericValue)) {
+			// this is a hive table
+			isGeneric = false;
+		}
 
 		if (isGeneric) {
 			properties = maskFlinkProperties(properties);
 		}
+		properties.put(CatalogConfig.IS_GENERIC, "true");
+
 		// Table properties
 		hiveTable.setParameters(properties);
+
+		// Make sure there's no null in properties
+		properties = cleanNullProperties(properties);
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
@@ -614,6 +629,12 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 
 		return hiveTable;
+	}
+
+	private static Map<String, String> cleanNullProperties(Map<String, String> properties) {
+		return properties.entrySet().stream()
+			.filter(e -> e.getKey() != null && e.getValue() != null)
+			.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 	}
 
 	private static void setStorageFormat(StorageDescriptor sd, Map<String, String> properties) {

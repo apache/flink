@@ -21,8 +21,11 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.connectors.hive.FlinkStandaloneHiveRunner;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -49,6 +52,7 @@ import java.io.FileReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -88,7 +92,37 @@ public class HiveCatalogITCase {
 	}
 
 	@Test
-	public void testGenericTable() throws Exception {
+	public void testCsvTableViaSQL() throws Exception {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
+
+		String path = this.getClass().getResource("/csv/test.csv").getPath();
+
+		tableEnv.sqlUpdate("create table test2 (name String, age Int) with (\n" +
+			"   'connector.type' = 'filesystem',\n" +
+			"   'connector.path' = 'file://" + path + "',\n" +
+			"   'format.type' = 'csv'\n" +
+			")");
+
+		Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
+
+		List<Row> result = TableUtils.collectToList(t);
+
+		// assert query result
+		assertEquals(
+			new HashSet<>(Arrays.asList(
+				Row.of("1", 1),
+				Row.of("2", 2),
+				Row.of("3", 3))),
+			new HashSet<>(result)
+		);
+	}
+
+	@Test
+	public void testCsvTableViaAPI() throws Exception {
 		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
 
