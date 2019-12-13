@@ -27,11 +27,14 @@ import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
-
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+import java.math.{BigDecimal => JDecimal}
+import java.sql.Timestamp
+import java.time.{Instant, LocalDateTime, ZoneId}
+
+import scala.collection.mutable
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -225,28 +228,80 @@ class TableSourceITCase extends BatchTestBase {
   }
 
   @Test
-  def testDecimalSource(): Unit = {
+  def testMultiTypeSource(): Unit = {
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d"),
+      Array("a", "b", "c", "d", "e", "f", "g"),
       Array(
         DataTypes.INT(),
         DataTypes.DECIMAL(5, 2),
         DataTypes.VARCHAR(5),
-        DataTypes.CHAR(5))).build()
+        DataTypes.CHAR(5),
+        DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
+        DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
+      )
+    ).build()
+
+    val ints = List(1, 2, 3, 4, null)
+    val decimals = List(
+      new JDecimal(5.1), new JDecimal(6.1), new JDecimal(7.1), new JDecimal(8.123), null)
+    val varchars = List("1", "12", "123", "1234", null)
+    val chars = List("1", "12", "123", "1234", null)
+    val datetimes = List(
+      LocalDateTime.of(1969, 1, 1, 0, 0, 0, 123456789),
+      LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456000),
+      LocalDateTime.of(1971, 1, 1, 0, 0, 0, 123000000),
+      LocalDateTime.of(1972, 1, 1, 0, 0, 0, 0),
+      null)
+    val timestamps = List(
+      Timestamp.valueOf("1969-01-01 00:00:00.123456789"),
+      Timestamp.valueOf("1970-01-01 00:00:00.123456"),
+      Timestamp.valueOf("1971-01-01 00:00:00.123"),
+      Timestamp.valueOf("1972-01-01 00:00:00"),
+      null
+    )
+
+    val instants = new mutable.MutableList[Instant]
+    for (i <- datetimes.indices) {
+      if (datetimes(i) == null) {
+        instants += null
+      } else {
+        // Assume the time zone of source side is UTC
+        instants += datetimes(i).toInstant(ZoneId.of("UTC").getRules.getOffset(datetimes(i)))
+      }
+    }
+
+    val data = new mutable.MutableList[Row]
+
+    for (i <- ints.indices) {
+      data += row(
+        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), timestamps(i), instants(i))
+    }
+
     val tableSource = new TestDataTypeTableSource(
       tableSchema,
-      Seq(
-        row(1, new java.math.BigDecimal(5.1), "1", "1"),
-        row(2, new java.math.BigDecimal(6.1), "12", "12"),
-        row(3, new java.math.BigDecimal(7.1), "123", "123")
-      ))
+      data.seq)
     tEnv.registerTableSource("MyInputFormatTable", tableSource)
     checkResult(
-      "SELECT a, b, c, d FROM MyInputFormatTable",
+      "SELECT a, b, c, d, e, f, g FROM MyInputFormatTable",
       Seq(
-        row(1, "5.10", "1", "1"),
-        row(2, "6.10", "12", "12"),
-        row(3, "7.10", "123", "123"))
+        row(1, "5.10", "1", "1",
+          "1969-01-01T00:00:00.123456789",
+          "1969-01-01T00:00:00.123456789",
+          "1969-01-01T00:00:00.123456789Z"),
+        row(2, "6.10", "12", "12",
+          "1970-01-01T00:00:00.123456",
+          "1970-01-01T00:00:00.123456",
+          "1970-01-01T00:00:00.123456Z"),
+        row(3, "7.10", "123", "123",
+          "1971-01-01T00:00:00.123",
+          "1971-01-01T00:00:00.123",
+          "1971-01-01T00:00:00.123Z"),
+        row(4, "8.12", "1234", "1234",
+          "1972-01-01T00:00",
+          "1972-01-01T00:00",
+          "1972-01-01T00:00:00Z"),
+        row(null, null, null, null, null, null, null))
     )
   }
 

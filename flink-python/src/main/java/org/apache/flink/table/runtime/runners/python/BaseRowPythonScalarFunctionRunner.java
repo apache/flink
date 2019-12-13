@@ -20,9 +20,9 @@ package org.apache.flink.table.runtime.runners.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
@@ -41,11 +41,10 @@ public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunct
 		String taskName,
 		FnDataReceiver<BaseRow> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
-		PythonEnv pythonEnv,
+		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType,
-		String[] tempDirs) {
-		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
+		RowType outputType) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
 	}
 
 	@Override

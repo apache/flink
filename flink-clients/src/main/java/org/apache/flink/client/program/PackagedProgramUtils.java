@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.CompilerException;
@@ -33,6 +32,9 @@ import javax.annotation.Nullable;
  */
 public class PackagedProgramUtils {
 
+	private static final String PYTHON_DRIVER_CLASS_NAME = "org.apache.flink.client.python.PythonDriver";
+
+	private static final String PYTHON_GATEWAY_CLASS_NAME = "org.apache.flink.client.python.PythonGatewayServer";
 	/**
 	 * Creates a {@link JobGraph} with a specified {@link JobID}
 	 * from the given {@link PackagedProgram}.
@@ -61,7 +63,7 @@ public class PackagedProgramUtils {
 		if (jobID != null) {
 			jobGraph.setJobID(jobID);
 		}
-		ClientUtils.addJarFiles(jobGraph, packagedProgram.getAllLibraries());
+		jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
 		jobGraph.setClasspaths(packagedProgram.getClasspaths());
 		jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
 
@@ -100,6 +102,11 @@ public class PackagedProgramUtils {
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
+	}
+
+	public static Boolean isPython(String entryPointClassName) {
+		return (entryPointClassName != null) &&
+			(entryPointClassName.equals(PYTHON_DRIVER_CLASS_NAME) || entryPointClassName.equals(PYTHON_GATEWAY_CLASS_NAME));
 	}
 
 	private PackagedProgramUtils() {}

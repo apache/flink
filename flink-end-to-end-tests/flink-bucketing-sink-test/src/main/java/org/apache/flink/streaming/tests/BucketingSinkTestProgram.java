@@ -62,7 +62,7 @@ public class BucketingSinkTestProgram {
 
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-				10,
+				Integer.MAX_VALUE,
 				Time.of(10, TimeUnit.SECONDS)
 			));
 		sEnv.enableCheckpointing(4000);

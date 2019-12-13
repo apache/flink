@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 
+import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +64,7 @@ public class NettyConfig {
 
 		this.serverAddress = checkNotNull(serverAddress);
 
-		checkArgument(serverPort >= 0 && serverPort <= 65536, "Invalid port number.");
+		checkArgument(NetUtils.isValidHostPort(serverPort), "Invalid port number.");
 		this.serverPort = serverPort;
 
 		checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");

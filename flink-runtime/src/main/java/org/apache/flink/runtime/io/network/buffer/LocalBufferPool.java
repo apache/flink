@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -156,8 +157,6 @@ class LocalBufferPool implements BufferPool {
 		this.currentPoolSize = numberOfRequiredMemorySegments;
 		this.maxNumberOfMemorySegments = maxNumberOfMemorySegments;
 		this.bufferPoolOwner = bufferPoolOwner;
-
-		availabilityHelper.resetAvailable();
 	}
 
 	// ------------------------------------------------------------------------
@@ -202,17 +201,12 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public Buffer requestBuffer() throws IOException {
-		try {
-			return toBuffer(requestMemorySegment(false));
-		}
-		catch (InterruptedException e) {
-			throw new IOException(e);
-		}
+		return toBuffer(requestMemorySegment());
 	}
 
 	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
-		return toBufferBuilder(requestMemorySegment(true));
+		return toBufferBuilder(requestMemorySegmentBlocking());
 	}
 
 	private Buffer toBuffer(MemorySegment memorySegment) {
@@ -229,27 +223,34 @@ class LocalBufferPool implements BufferPool {
 		return new BufferBuilder(memorySegment, this);
 	}
 
+	private MemorySegment requestMemorySegmentBlocking() throws InterruptedException, IOException {
+		MemorySegment segment;
+		while ((segment = requestMemorySegment()) == null) {
+			try {
+				// wait until available
+				getAvailableFuture().get();
+			} catch (ExecutionException e) {
+				LOG.error("The available future is completed exceptionally.", e);
+				ExceptionUtils.rethrow(e);
+			}
+		}
+		return segment;
+	}
+
 	@Nullable
-	private MemorySegment requestMemorySegment(boolean isBlocking) throws InterruptedException, IOException {
+	private MemorySegment requestMemorySegment() throws IOException {
 		MemorySegment segment = null;
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
 
-			// fill availableMemorySegments with at least one element, wait if required
-			while (availableMemorySegments.isEmpty()) {
+			if (availableMemorySegments.isEmpty()) {
 				segment = requestMemorySegmentFromGlobal();
-				if (segment != null || !isBlocking) {
-					break;
-				}
-
-				availableMemorySegments.wait(2000);
 			}
-
+			// segment may have been released by buffer pool owner
 			if (segment == null) {
 				segment = availableMemorySegments.poll();
 			}
-
-			if (isBlocking && isUnavailable()) {
+			if (segment == null) {
 				availabilityHelper.resetUnavailable();
 			}
 		}
@@ -292,9 +293,8 @@ class LocalBufferPool implements BufferPool {
 				} else {
 					listener = registeredListeners.poll();
 					if (listener == null) {
-						boolean wasUnavailable = isUnavailable();
+						boolean wasUnavailable = availableMemorySegments.isEmpty();
 						availableMemorySegments.add(segment);
-						availableMemorySegments.notify();
 						if (wasUnavailable) {
 							toNotify = availabilityHelper.getUnavailableToResetAvailable();
 						}
@@ -305,9 +305,7 @@ class LocalBufferPool implements BufferPool {
 			notificationResult = fireBufferAvailableNotification(listener, segment);
 		}
 
-		if (toNotify != null) {
-			toNotify.complete(null);
-		}
+		mayNotifyAvailable(toNotify);
 	}
 
 	private NotificationResult fireBufferAvailableNotification(BufferListener listener, MemorySegment segment) {
@@ -329,20 +327,12 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	/**
-	 * @return true if there is no available buffers in queue and the global quota is also exhausted.
-	 */
-	private boolean isUnavailable() {
-		assert Thread.holdsLock(availableMemorySegments);
-
-		return availableMemorySegments.isEmpty() && numberOfRequestedMemorySegments >= currentPoolSize;
-	}
-
-	/**
 	 * Destroy is called after the produce or consume phase of a task finishes.
 	 */
 	@Override
 	public void lazyDestroy() {
 		// NOTE: if you change this logic, be sure to update recycle() as well!
+		CompletableFuture<?> toNotify = null;
 		synchronized (availableMemorySegments) {
 			if (!isDestroyed) {
 				MemorySegment segment;
@@ -355,9 +345,15 @@ class LocalBufferPool implements BufferPool {
 					listener.notifyBufferDestroyed();
 				}
 
+				if (!isAvailable()) {
+					toNotify = availabilityHelper.getAvailableFuture();
+				}
+
 				isDestroyed = true;
 			}
 		}
+
+		mayNotifyAvailable(toNotify);
 
 		try {
 			networkBufferPool.destroyBufferPool(this);
@@ -381,6 +377,7 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
 		int numExcessBuffers;
+		CompletableFuture<?> toNotify = null;
 		synchronized (availableMemorySegments) {
 			checkArgument(numBuffers >= numberOfRequiredMemorySegments,
 					"Buffer pool needs at least %s buffers, but tried to set to %s",
@@ -395,7 +392,12 @@ class LocalBufferPool implements BufferPool {
 			returnExcessMemorySegments();
 
 			numExcessBuffers = numberOfRequestedMemorySegments - currentPoolSize;
+			if (numExcessBuffers < 0 && availableMemorySegments.isEmpty() && networkBufferPool.isAvailable()) {
+				toNotify = availabilityHelper.getUnavailableToResetUnavailable();
+			}
 		}
+
+		mayNotifyAvailable(toNotify);
 
 		// If there is a registered owner and we have still requested more buffers than our
 		// size, trigger a recycle via the owner.
@@ -405,8 +407,14 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return availabilityHelper.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		if (numberOfRequestedMemorySegments >= currentPoolSize) {
+			return availabilityHelper.getAvailableFuture();
+		} else if (availabilityHelper.isApproximatelyAvailable() || networkBufferPool.isApproximatelyAvailable()) {
+			return AVAILABLE;
+		} else {
+			return CompletableFuture.anyOf(availabilityHelper.getAvailableFuture(), networkBufferPool.getAvailableFuture());
+		}
 	}
 
 	@Override
@@ -420,6 +428,16 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Notifies the potential segment consumer of the new available segments by
+	 * completing the previous uncompleted future.
+	 */
+	private void mayNotifyAvailable(@Nullable CompletableFuture<?> toNotify) {
+		if (toNotify != null) {
+			toNotify.complete(null);
+		}
+	}
 
 	private void returnMemorySegment(MemorySegment segment) {
 		assert Thread.holdsLock(availableMemorySegments);

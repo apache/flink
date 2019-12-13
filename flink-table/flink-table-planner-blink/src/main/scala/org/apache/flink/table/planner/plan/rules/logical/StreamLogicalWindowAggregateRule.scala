@@ -58,7 +58,8 @@ class StreamLogicalWindowAggregateRule
 
     rexBuilder.makeLiteral(
       0L,
-      rexBuilder.getTypeFactory.createSqlType(SqlTypeName.TIMESTAMP),
+      rexBuilder.getTypeFactory.createSqlType(
+        SqlTypeName.TIMESTAMP, windowExpression.getType.getPrecision),
       true)
   }
 

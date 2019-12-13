@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -37,6 +38,10 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -49,13 +54,14 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
+import org.apache.flink.runtime.testtasks.OutputBlockedInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
@@ -63,6 +69,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -70,13 +78,13 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
+import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.newBuilder;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.instanceOf;
@@ -99,11 +107,37 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 	private JobID jobId = new JobID();
 
+	private MetricRegistryImpl metricRegistry;
+
+	private TestingRpcService rpcService;
+
+	private String metricQueryServiceAddress;
+
+	@Before
+	public void setup() {
+		rpcService = new TestingRpcService();
+		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
+		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
+	}
+
+	@After
+	public void teardown() throws ExecutionException, InterruptedException {
+		if (rpcService != null) {
+			rpcService.stopService().get();
+		}
+
+		if (metricRegistry != null) {
+			metricRegistry.shutdown().get();
+		}
+	}
+
 	/**
 	 * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
 	 */
 	@Test(timeout = 10000L)
 	public void testTaskSubmission() throws Exception {
+
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, TaskExecutorTest.TestInvokable.class);
@@ -114,6 +148,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -141,6 +176,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		try (TaskSubmissionTestEnvironment env =
 			new TaskSubmissionTestEnvironment.Builder(jobId)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -173,6 +209,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid1, ExecutionState.RUNNING, task1RunningFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.CANCELED, task1CanceledFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
@@ -221,6 +258,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, task1FailedFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.FAILED, task2FailedFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setSlotSize(2)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
@@ -274,6 +312,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FINISHED, task1FinishedFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.FINISHED, task2FinishedFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.useRealNonMockShuffleEnvironment()
@@ -340,6 +379,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid2, ExecutionState.RUNNING, task2RunningFuture)
 				.addTaskManagerActionListener(eid1, ExecutionState.FAILED, task1FailedFuture)
 				.addTaskManagerActionListener(eid2, ExecutionState.CANCELED, task2CanceledFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
 				.useRealNonMockShuffleEnvironment()
@@ -390,6 +430,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(2)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.setConfiguration(config)
 				.setLocalCommunication(false)
 				.useRealNonMockShuffleEnvironment()
@@ -423,6 +464,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setShuffleEnvironment(shuffleEnvironment)
 				.setSlotSize(1)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.build()) {
@@ -474,6 +516,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setResourceID(producerLocation)
 				.setSlotSize(1)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.setConfiguration(config)
@@ -533,6 +576,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			new TaskSubmissionTestEnvironment.Builder(jobId)
 				.setSlotSize(1)
 				.setConfiguration(configuration)
+				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
 				.setJobMasterId(jobMasterId)
 				.setJobMasterGateway(testingJobMasterGateway)
@@ -555,138 +599,88 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	// Stack trace sample
+	// Back pressure request
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Tests sampling of task stack traces.
+	 * Tests request of task back pressure.
 	 */
-	@Test(timeout = 10000L)
-	@SuppressWarnings("unchecked")
-	public void testRequestStackTraceSample() throws Exception {
-		final ExecutionAttemptID eid = new ExecutionAttemptID();
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
-
-		final int sampleId1 = 112223;
-		final int sampleId2 = 19230;
-		final int sampleId3 = 1337;
-		final int sampleId4 = 44;
+	@Test(timeout = 20000L)
+	public void testRequestTaskBackPressure() throws Exception {
+		final NettyShuffleDescriptor shuffleDescriptor = newBuilder().buildLocal();
+		final TaskDeploymentDescriptor tdd = createSender(shuffleDescriptor, OutputBlockedInvokable.class);
+		final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
 
-		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.Builder(jobId)
-				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
-				.addTaskManagerActionListener(eid, ExecutionState.CANCELED, taskCanceledFuture)
-				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+		final Configuration configuration = new Configuration();
+		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 40);
+		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+
+		try (final TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId)
+					.setSlotSize(1)
+					.setMetricQueryServiceAddress(metricQueryServiceAddress)
+					.setConfiguration(configuration)
+					.useRealNonMockShuffleEnvironment()
+					.addTaskManagerActionListener(executionAttemptID, ExecutionState.RUNNING, taskRunningFuture)
+					.addTaskManagerActionListener(executionAttemptID, ExecutionState.CANCELED, taskCanceledFuture)
+					.build()) {
+			final TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+			final TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 			taskRunningFuture.get();
 
-			//
-			// 1) Trigger sample for non-existing task
-			//
-			ExecutionAttemptID nonExistTaskEid = new ExecutionAttemptID();
+			// 1) trigger request for non-existing task.
+			final int requestId = 1234;
+			final ExecutionAttemptID nonExistTaskEid = new ExecutionAttemptID();
 
-			CompletableFuture<StackTraceSampleResponse> failedSampleFuture =
-				tmGateway.requestStackTraceSample(nonExistTaskEid, sampleId1, 100, Time.seconds(60L), 0, timeout);
+			final CompletableFuture<TaskBackPressureResponse> failedRequestFuture =
+				tmGateway.requestTaskBackPressure(nonExistTaskEid, requestId, timeout);
 			try {
-				failedSampleFuture.get();
+				failedRequestFuture.get();
 			} catch (Exception e) {
 				assertThat(e.getCause(), instanceOf(IllegalStateException.class));
-				assertThat(e.getCause().getMessage(), startsWith("Cannot sample task"));
+				assertThat(e.getCause().getMessage(), startsWith("Cannot request back pressure"));
 			}
 
-			//
-			// 2) Trigger sample for the blocking task
-			//
-			int numSamples = 5;
+			// 2) trigger request for the blocking task.
+			double backPressureRatio = 0;
 
-			CompletableFuture<StackTraceSampleResponse> successfulSampleFuture =
-				tmGateway.requestStackTraceSample(eid, sampleId2, numSamples, Time.milliseconds(100L), 0, timeout);
+			for (int i = 0; i < 5; ++i) {
+				CompletableFuture<TaskBackPressureResponse> successfulRequestFuture =
+					tmGateway.requestTaskBackPressure(executionAttemptID, i, timeout);
 
-			StackTraceSampleResponse response = successfulSampleFuture.get();
+				TaskBackPressureResponse response = successfulRequestFuture.get();
 
-			assertEquals(response.getSampleId(), sampleId2);
-			assertEquals(response.getExecutionAttemptID(), eid);
+				assertEquals(response.getRequestId(), i);
+				assertEquals(response.getExecutionAttemptID(), executionAttemptID);
 
-			List<StackTraceElement[]> traces = response.getSamples();
-
-			assertEquals("Number of samples", numSamples, traces.size());
-
-			for (StackTraceElement[] trace : traces) {
-				boolean success = false;
-				for (StackTraceElement elem : trace) {
-					// Look for BlockingNoOpInvokable#invoke
-					if (elem.getClassName().equals(
-						BlockingNoOpInvokable.class.getName())) {
-
-						assertEquals("invoke", elem.getMethodName());
-
-						success = true;
-						break;
-					}
-					// The BlockingNoOpInvokable might not be invoked here
-					if (elem.getClassName().equals(TestTaskManagerActions.class.getName())) {
-
-						assertEquals("updateTaskExecutionState", elem.getMethodName());
-
-						success = true;
-						break;
-					}
-					if (elem.getClassName().equals(Thread.class) && elem.getMethodName().equals("setContextClassLoader")) {
-						success = true;
-					}
+				if ((backPressureRatio = response.getBackPressureRatio()) >= 1.0) {
+					break;
 				}
-
-				assertTrue("Unexpected stack trace: " +
-					Arrays.toString(trace), success);
 			}
 
-			//
-			// 3) Trigger sample for the blocking task with max depth
-			//
-			int maxDepth = 2;
+			assertEquals("Task was not back pressured in given time.", 1.0, backPressureRatio, 0.0);
 
-			CompletableFuture<StackTraceSampleResponse> successfulSampleFutureWithMaxDepth =
-				tmGateway.requestStackTraceSample(eid, sampleId3, numSamples, Time.milliseconds(100L), maxDepth, timeout);
+			// 3) trigger request for the blocking task, but cancel it before request finishes.
+			final int sleepTime = 1000;
 
-			StackTraceSampleResponse responseWithMaxDepth = successfulSampleFutureWithMaxDepth.get();
-
-			assertEquals(sampleId3, responseWithMaxDepth.getSampleId());
-			assertEquals(eid, responseWithMaxDepth.getExecutionAttemptID());
-
-			List<StackTraceElement[]> tracesWithMaxDepth = responseWithMaxDepth.getSamples();
-
-			assertEquals("Number of samples", numSamples, tracesWithMaxDepth.size());
-
-			for (StackTraceElement[] trace : tracesWithMaxDepth) {
-				assertEquals("Max depth", maxDepth, trace.length);
-			}
-
-			//
-			// 4) Trigger sample for the blocking task, but cancel it during sampling
-			//
-			int sleepTime = 100;
-			numSamples = 100;
-
-			CompletableFuture<StackTraceSampleResponse> canceldSampleFuture =
-				tmGateway.requestStackTraceSample(eid, sampleId4, numSamples, Time.milliseconds(10L), maxDepth, timeout);
+			CompletableFuture<TaskBackPressureResponse> canceledRequestFuture =
+				tmGateway.requestTaskBackPressure(executionAttemptID, requestId, timeout);
 
 			Thread.sleep(sleepTime);
 
-			tmGateway.cancelTask(eid, timeout);
+			tmGateway.cancelTask(executionAttemptID, timeout);
 			taskCanceledFuture.get();
 
-			StackTraceSampleResponse responseAfterCancel = canceldSampleFuture.get();
+			TaskBackPressureResponse responseAfterCancel = canceledRequestFuture.get();
 
-			assertEquals(eid, responseAfterCancel.getExecutionAttemptID());
-			assertEquals(sampleId4, responseAfterCancel.getSampleId());
+			assertEquals(executionAttemptID, responseAfterCancel.getExecutionAttemptID());
+			assertEquals(requestId, responseAfterCancel.getRequestId());
+			assertTrue(responseAfterCancel.getBackPressureRatio() > 0);
 		}
 	}
 
@@ -697,12 +691,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	private TaskDeploymentDescriptor createSender(
 			NettyShuffleDescriptor shuffleDescriptor,
 			Class<? extends AbstractInvokable> abstractInvokable) throws IOException {
-		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-			new IntermediateDataSetID(),
-			shuffleDescriptor.getResultPartitionID().getPartitionId(),
-			ResultPartitionType.PIPELINED,
-			1,
-			0);
+		PartitionDescriptor partitionDescriptor = PartitionDescriptorBuilder
+			.newBuilder()
+			.setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
+			.build();
 		ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = new ResultPartitionDeploymentDescriptor(
 			partitionDescriptor,
 			shuffleDescriptor,

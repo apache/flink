@@ -20,7 +20,12 @@ package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -48,12 +53,14 @@ public class BaseRowPythonScalarFunctionOperatorTest
 
 	@Override
 	public AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow, BaseRow> getTestOperator(
+		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
 		return new PassThroughPythonScalarFunctionOperator(
+			config,
 			scalarFunctions,
 			inputType,
 			outputType,
@@ -76,20 +83,29 @@ public class BaseRowPythonScalarFunctionOperatorTest
 		assertor.assertOutputEquals(message, expected, actual);
 	}
 
+	@Override
+	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+		return StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
+	}
+
 	private static class PassThroughPythonScalarFunctionOperator extends BaseRowPythonScalarFunctionOperator {
 
 		PassThroughPythonScalarFunctionOperator(
+			Configuration config,
 			PythonFunctionInfo[] scalarFunctions,
 			RowType inputType,
 			RowType outputType,
 			int[] udfInputOffsets,
 			int[] forwardedFields) {
-			super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 		}
 
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
-			FnDataReceiver<BaseRow> resultReceiver) {
+				FnDataReceiver<BaseRow> resultReceiver,
+				PythonEnvironmentManager pythonEnvironmentManager) {
 			return new PassThroughPythonFunctionRunner<BaseRow>(resultReceiver) {
 				@Override
 				public BaseRow copy(BaseRow element) {

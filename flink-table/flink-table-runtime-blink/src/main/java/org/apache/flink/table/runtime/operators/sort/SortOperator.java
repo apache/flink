@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -45,7 +46,6 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 
 	private static final Logger LOG = LoggerFactory.getLogger(SortOperator.class);
 
-	private final long reservedMemorySize;
 	private GeneratedNormalizedKeyComputer gComputer;
 	private GeneratedRecordComparator gComparator;
 
@@ -53,9 +53,9 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 	private transient StreamRecordCollector<BinaryRow> collector;
 	private transient BinaryRowSerializer binarySerializer;
 
-	public SortOperator(long reservedMemorySize,
-			GeneratedNormalizedKeyComputer gComputer, GeneratedRecordComparator gComparator) {
-		this.reservedMemorySize = reservedMemorySize;
+	public SortOperator(
+			GeneratedNormalizedKeyComputer gComputer,
+			GeneratedRecordComparator gComparator) {
 		this.gComputer = gComputer;
 		this.gComparator = gComparator;
 	}
@@ -74,8 +74,10 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 		RecordComparator comparator = gComparator.newInstance(cl);
 		gComputer = null;
 		gComparator = null;
+
+		MemoryManager memManager = getContainingTask().getEnvironment().getMemoryManager();
 		this.sorter = new BinaryExternalSorter(this.getContainingTask(),
-				getContainingTask().getEnvironment().getMemoryManager(), reservedMemorySize,
+				memManager, computeMemorySize(),
 				this.getContainingTask().getEnvironment().getIOManager(), inputSerializer,
 				binarySerializer, computer, comparator, getContainingTask().getJobConfiguration());
 		this.sorter.startThreads();

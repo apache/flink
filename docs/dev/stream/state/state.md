@@ -115,6 +115,7 @@ added using `add(T)` are folded into an aggregate using a specified `FoldFunctio
 retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
 views for mappings, keys and values can be retrieved using `entries()`, `keys()` and `values()` respectively.
+You can also use `isEmpty()` to check whether this map contains any key-value mappings.
 
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
@@ -355,11 +356,32 @@ If the serializer does not support null values, it can be wrapped with `Nullable
 
 #### Cleanup of Expired State
 
-By default, expired values are only removed when they are read out explicitly, 
-e.g. by calling `ValueState.value()`.
+By default, expired values are explicitly removed on read, such as `ValueState#value`, and periodically garbage collected
+in the background if supported by the configured state backend. Background cleanup can be disabled in the `StateTtlConfig`:
 
-<span class="label label-danger">Attention</span> This means that by default if expired state is not read, 
-it won't be removed, possibly leading to ever growing state. This might change in future releases. 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .disableCleanupInBackground()
+    .build();
+{% endhighlight %}
+</div>
+ <div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .disableCleanupInBackground
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
+Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
 
 ##### Cleanup in full snapshot
 
@@ -399,35 +421,6 @@ This option is not applicable for the incremental checkpointing in the RocksDB s
 **Notes:** 
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
-
-#### Cleanup in background
-
-Besides cleanup in full snapshot, you can also activate the cleanup in background. The following option 
-will activate a default background cleanup in StateTtlConfig if it is supported for the used backend:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-import org.apache.flink.api.common.state.StateTtlConfig;
-StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInBackground()
-    .build();
-{% endhighlight %}
-</div>
- <div data-lang="scala" markdown="1">
-{% highlight scala %}
-import org.apache.flink.api.common.state.StateTtlConfig
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInBackground
-    .build
-{% endhighlight %}
-</div>
-</div>
-
-For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
-Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
 
 ##### Incremental cleanup
 

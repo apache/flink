@@ -84,7 +84,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 		MyObj inputObj = new MyObj(114514, 1919810);
 		BaseArray inputArray = new GenericArray(new BinaryGeneric[] {
-			new BinaryGeneric<>(inputObj, new KryoSerializer<>(MyObj.class, config))
+			new BinaryGeneric<>(inputObj)
 		}, 1);
 
 		byte[] serialized;
@@ -112,7 +112,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 	private BaseArraySerializer createSerializerWithConfig(ExecutionConfig config) {
 		return new BaseArraySerializer(
-			DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType(), config);
+			DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType(), config);
 	}
 
 	@Override

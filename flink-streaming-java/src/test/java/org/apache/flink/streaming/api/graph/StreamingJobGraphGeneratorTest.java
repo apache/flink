@@ -28,10 +28,10 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
@@ -57,23 +57,31 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -213,17 +221,14 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 */
 	@Test
 	public void testResourcesForChainedSourceSink() throws Exception {
-		ResourceSpec resource1 = ResourceSpec.newBuilder().setCpuCores(0.1).setHeapMemoryInMB(100).build();
-		ResourceSpec resource2 = ResourceSpec.newBuilder().setCpuCores(0.2).setHeapMemoryInMB(200).build();
-		ResourceSpec resource3 = ResourceSpec.newBuilder().setCpuCores(0.3).setHeapMemoryInMB(300).build();
-		ResourceSpec resource4 = ResourceSpec.newBuilder().setCpuCores(0.4).setHeapMemoryInMB(400).build();
-		ResourceSpec resource5 = ResourceSpec.newBuilder().setCpuCores(0.5).setHeapMemoryInMB(500).build();
+		ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
+		ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
+		ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
+		ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
+		ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
 
-		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
-		opMethod.setAccessible(true);
-
-		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class);
-		sinkMethod.setAccessible(true);
+		Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
+		Method sinkMethod = getSetResourcesMethodAndSetAccessible(DataStreamSink.class);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -275,7 +280,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		JobVertex sourceMapFilterVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		JobVertex reduceSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
-		assertTrue(sourceMapFilterVertex.getMinResources().equals(resource1.merge(resource2).merge(resource3)));
+		assertTrue(sourceMapFilterVertex.getMinResources().equals(resource3.merge(resource2).merge(resource1)));
 		assertTrue(reduceSinkVertex.getPreferredResources().equals(resource4.merge(resource5)));
 	}
 
@@ -285,17 +290,14 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 */
 	@Test
 	public void testResourcesForIteration() throws Exception {
-		ResourceSpec resource1 = ResourceSpec.newBuilder().setCpuCores(0.1).setHeapMemoryInMB(100).build();
-		ResourceSpec resource2 = ResourceSpec.newBuilder().setCpuCores(0.2).setHeapMemoryInMB(200).build();
-		ResourceSpec resource3 = ResourceSpec.newBuilder().setCpuCores(0.3).setHeapMemoryInMB(300).build();
-		ResourceSpec resource4 = ResourceSpec.newBuilder().setCpuCores(0.4).setHeapMemoryInMB(400).build();
-		ResourceSpec resource5 = ResourceSpec.newBuilder().setCpuCores(0.5).setHeapMemoryInMB(500).build();
+		ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
+		ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
+		ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
+		ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
+		ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
 
-		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
-		opMethod.setAccessible(true);
-
-		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class);
-		sinkMethod.setAccessible(true);
+		Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
+		Method sinkMethod = getSetResourcesMethodAndSetAccessible(DataStreamSink.class);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -539,60 +541,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	}
 
 	/**
-	 * Test slot sharing group is enabled or disabled for iteration.
-	 */
-	@Test
-	public void testDisableSlotSharingForIteration() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-		IterativeStream<Integer> iteration = source.iterate(3000);
-		iteration.name("iteration").setParallelism(2);
-		DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
-		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
-		iteration.closeWith(filter).print();
-
-		List<Transformation<?>> transformations = new ArrayList<>();
-		transformations.add(source.getTransformation());
-		transformations.add(iteration.getTransformation());
-		transformations.add(map.getTransformation());
-		transformations.add(filter.getTransformation());
-		// when slot sharing group is disabled
-		// all job vertices except iteration vertex would have no slot sharing group
-		// iteration vertices would be set slot sharing group automatically
-		StreamGraphGenerator generator = new StreamGraphGenerator(transformations, env.getConfig(), env.getCheckpointConfig());
-		generator.setSlotSharingEnabled(false);
-
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(generator.generate());
-
-		SlotSharingGroup iterationSourceSlotSharingGroup = null;
-		SlotSharingGroup iterationSinkSlotSharingGroup = null;
-
-		CoLocationGroup iterationSourceCoLocationGroup = null;
-		CoLocationGroup iterationSinkCoLocationGroup = null;
-
-		for (JobVertex jobVertex : jobGraph.getVertices()) {
-			if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
-				iterationSourceSlotSharingGroup = jobVertex.getSlotSharingGroup();
-				iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
-			} else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
-				iterationSinkSlotSharingGroup = jobVertex.getSlotSharingGroup();
-				iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
-			} else {
-				assertNull(jobVertex.getSlotSharingGroup());
-			}
-		}
-
-		assertNotNull(iterationSourceSlotSharingGroup);
-		assertNotNull(iterationSinkSlotSharingGroup);
-		assertEquals(iterationSourceSlotSharingGroup, iterationSinkSlotSharingGroup);
-
-		assertNotNull(iterationSourceCoLocationGroup);
-		assertNotNull(iterationSinkCoLocationGroup);
-		assertEquals(iterationSourceCoLocationGroup, iterationSinkCoLocationGroup);
-	}
-
-	/**
 	 * Test default schedule mode.
 	 */
 	@Test
@@ -709,5 +657,204 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			.print();
 
 		StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+	}
+
+	@Test
+	public void testManagedMemoryFractionForSpecifiedResourceSpec() throws Exception {
+		// these specific values are needed to produce the double precision issue,
+		// i.e. 100.0 / 1100 + 300.0 / 1100 + 700.0 / 1100 can be larger than 1.0.
+		final ResourceSpec resource1 = ResourceSpec.newBuilder(1, 100)
+			.setManagedMemory(new MemorySize(100))
+			.build();
+		final ResourceSpec resource2 = ResourceSpec.newBuilder(1, 100)
+			.setManagedMemory(new MemorySize(300))
+			.build();
+		final ResourceSpec resource3 = ResourceSpec.newBuilder(1, 100)
+			.setManagedMemory(new MemorySize(700))
+			.build();
+		final ResourceSpec resource4 = ResourceSpec.newBuilder(1, 100)
+			.setManagedMemory(new MemorySize(123))
+			.build();
+		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource1, resource2, resource3, resource4);
+
+		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
+		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, null);
+		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
+
+		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
+		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFraction(), 0.000001);
+
+		final StreamConfig map1Config = Iterables.getOnlyElement(
+			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
+		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFraction(), 0.000001);
+
+		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
+		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFraction(), 0.000001);
+
+		final BigDecimal sumFraction = BigDecimal.valueOf(sourceConfig.getManagedMemoryFraction())
+			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFraction()))
+			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFraction()));
+		assertThat(sumFraction, lessThanOrEqualTo(BigDecimal.ONE));
+
+		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
+		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
+	}
+
+	@Test
+	public void testManagedMemoryFractionForUnknownResourceSpec() throws Exception {
+		final ResourceSpec resource = ResourceSpec.UNKNOWN;
+		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource, resource, resource, resource);
+		final List<Integer> managedMemoryWeights = Arrays.asList(1, 2, 3, 4);
+
+		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
+		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, managedMemoryWeights);
+		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
+
+		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
+		assertEquals(1.0 / 6, sourceConfig.getManagedMemoryFraction(), 0.000001);
+
+		final StreamConfig map1Config = Iterables.getOnlyElement(
+			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
+		assertEquals(2.0 / 6, map1Config.getManagedMemoryFraction(), 0.000001);
+
+		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
+		assertEquals(3.0 / 6, map2Config.getManagedMemoryFraction(), 0.000001);
+
+		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
+		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
+
+	}
+
+	private JobGraph createJobGraphForManagedMemoryFractionTest(
+		final List<ResourceSpec> resourceSpecs,
+		@Nullable final List<Integer> managedMemoryWeights) throws Exception {
+
+		final Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		final DataStream<Integer> source = env.addSource(new ParallelSourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		});
+		opMethod.invoke(source, resourceSpecs.get(0));
+
+		// CHAIN(source -> map1) in default slot sharing group
+		final DataStream<Integer> map1 = source.map((MapFunction<Integer, Integer>) value -> value);
+		opMethod.invoke(map1, resourceSpecs.get(1));
+
+		// CHAIN(map2) in default slot sharing group
+		final DataStream<Integer> map2 = map1.rebalance().map((MapFunction<Integer, Integer>) value -> value);
+		opMethod.invoke(map2, resourceSpecs.get(2));
+
+		// CHAIN(map3) in test slot sharing group
+		final DataStream<Integer> map3 = map2.rebalance().map(value -> value).slotSharingGroup("test");
+		opMethod.invoke(map3, resourceSpecs.get(3));
+
+		if (managedMemoryWeights != null) {
+			source.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(0));
+			map1.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(1));
+			map2.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(2));
+			map3.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(3));
+		}
+
+		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+	}
+
+	@Test
+	public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultEnabled() {
+		final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
+		// specify slot sharing group for map1
+		streamGraph.getStreamNodes().stream()
+			.filter(n -> "map1".equals(n.getOperatorName()))
+			.findFirst()
+			.get()
+			.setSlotSharingGroup("testSlotSharingGroup");
+		streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(true);
+		final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+
+		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(4, verticesSorted.size());
+
+		final JobVertex source1Vertex = verticesSorted.get(0);
+		final JobVertex source2Vertex = verticesSorted.get(1);
+		final JobVertex map1Vertex = verticesSorted.get(2);
+		final JobVertex map2Vertex = verticesSorted.get(3);
+
+		// all vertices should be in the same default slot sharing group
+		// except for map1 which has a specified slot sharing group
+		assertSameSlotSharingGroup(source1Vertex, source2Vertex, map2Vertex);
+		assertDistinctSharingGroups(source1Vertex, map1Vertex);
+	}
+
+	@Test
+	public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultDisabled() {
+		final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
+		streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
+		final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+
+		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(4, verticesSorted.size());
+
+		final JobVertex source1Vertex = verticesSorted.get(0);
+		final JobVertex source2Vertex = verticesSorted.get(1);
+		final JobVertex map1Vertex = verticesSorted.get(2);
+		final JobVertex map2Vertex = verticesSorted.get(3);
+
+		// vertices in the same region should be in the same slot sharing group
+		assertSameSlotSharingGroup(source1Vertex, map1Vertex);
+
+		// vertices in different regions should be in different slot sharing groups
+		assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex);
+	}
+
+	/**
+	 * Create a StreamGraph as below.
+	 *
+	 * <p>source1 --(rebalance & pipelined)--> Map1
+	 *
+	 * <p>source2 --(rebalance & blocking)--> Map2
+	 */
+	private StreamGraph createStreamGraphForSlotSharingTest() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		final DataStream<Integer> source1 = env.fromElements(1, 2, 3).name("source1");
+		source1.rebalance().map(v -> v).name("map1");
+
+		final DataStream<Integer> source2 = env.fromElements(4, 5, 6).name("source2");
+		final DataStream<Integer> partitioned = new DataStream<>(env, new PartitionTransformation<>(
+			source2.getTransformation(), new RebalancePartitioner<>(), ShuffleMode.BATCH));
+		partitioned.map(v -> v).name("map2");
+
+		return env.getStreamGraph();
+	}
+
+	private void assertSameSlotSharingGroup(JobVertex... vertices) {
+		for (int i = 0; i < vertices.length - 1; i++) {
+			assertEquals(vertices[i].getSlotSharingGroup(), vertices[i + 1].getSlotSharingGroup());
+		}
+	}
+
+	private void assertDistinctSharingGroups(JobVertex... vertices) {
+		for (int i = 0; i < vertices.length - 1; i++) {
+			for (int j = i + 1; j < vertices.length; j++) {
+				assertNotEquals(vertices[i].getSlotSharingGroup(), vertices[j].getSlotSharingGroup());
+			}
+		}
+	}
+
+	private static Method getSetResourcesMethodAndSetAccessible(final Class<?> clazz) throws NoSuchMethodException {
+		final Method setResourcesMethod = clazz.getDeclaredMethod("setResources", ResourceSpec.class);
+		setResourcesMethod.setAccessible(true);
+		return setResourcesMethod;
 	}
 }

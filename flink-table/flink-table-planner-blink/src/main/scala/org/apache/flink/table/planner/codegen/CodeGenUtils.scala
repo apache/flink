@@ -97,6 +97,8 @@ object CodeGenUtils {
 
   val STRING_UTIL: String = className[BinaryStringUtil]
 
+  val SQL_TIMESTAMP: String = className[SqlTimestamp]
+
   // ----------------------------------------------------------------------------------------
 
   private val nameCounter = new AtomicInteger
@@ -133,7 +135,6 @@ object CodeGenUtils {
 
     case DATE => "int"
     case TIME_WITHOUT_TIME_ZONE => "int"
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => "long"
     case INTERVAL_YEAR_MONTH => "int"
     case INTERVAL_DAY_TIME => "long"
 
@@ -151,7 +152,6 @@ object CodeGenUtils {
 
     case DATE => className[JInt]
     case TIME_WITHOUT_TIME_ZONE => className[JInt]
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[JLong]
     case INTERVAL_YEAR_MONTH => className[JInt]
     case INTERVAL_DAY_TIME => className[JLong]
 
@@ -162,8 +162,9 @@ object CodeGenUtils {
     case ARRAY => className[BaseArray]
     case MULTISET | MAP => className[BaseMap]
     case ROW => className[BaseRow]
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
 
-    case ANY => className[BinaryGeneric[_]]
+    case RAW => className[BinaryGeneric[_]]
   }
 
   /**
@@ -190,7 +191,6 @@ object CodeGenUtils {
     case VARCHAR | CHAR => s"$BINARY_STRING.EMPTY_UTF8"
 
     case DATE | TIME_WITHOUT_TIME_ZONE => "-1"
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => "-1L"
     case INTERVAL_YEAR_MONTH => "-1"
     case INTERVAL_DAY_TIME => "-1L"
 
@@ -224,7 +224,7 @@ object CodeGenUtils {
     case DATE => s"${className[JInt]}.hashCode($term)"
     case TIME_WITHOUT_TIME_ZONE => s"${className[JInt]}.hashCode($term)"
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-      s"${className[JLong]}.hashCode($term)"
+      s"$term.hashCode()"
     case INTERVAL_YEAR_MONTH => s"${className[JInt]}.hashCode($term)"
     case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
     case ARRAY => throw new IllegalArgumentException(s"Not support type to hash: $t")
@@ -239,8 +239,8 @@ object CodeGenUtils {
       ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
       ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
       s"$hashFunc.hashCode($term)"
-    case ANY =>
-      val gt = t.asInstanceOf[TypeInformationAnyType[_]]
+    case RAW =>
+      val gt = t.asInstanceOf[TypeInformationRawType[_]]
       val serTerm = ctx.addReusableObject(
         gt.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
       s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
@@ -322,7 +322,7 @@ object CodeGenUtils {
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
     val split = genExpr.resultTerm.split('.')
     val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[TypeInformationAnyType[_]]
+    val clazz = genExpr.resultType.asInstanceOf[TypeInformationRawType[_]]
         .getTypeInformation.getTypeClass
     enumValueOf(clazz, value)
   }
@@ -414,8 +414,12 @@ object CodeGenUtils {
       // temporal types
       case DATE => s"$rowTerm.getInt($indexTerm)"
       case TIME_WITHOUT_TIME_ZONE => s"$rowTerm.getInt($indexTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$rowTerm.getLong($indexTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = t.asInstanceOf[TimestampType]
+        s"$rowTerm.getTimestamp($indexTerm, ${dt.getPrecision})"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = t.asInstanceOf[LocalZonedTimestampType]
+        s"$rowTerm.getTimestamp($indexTerm, ${dt.getPrecision})"
       case INTERVAL_YEAR_MONTH => s"$rowTerm.getInt($indexTerm)"
       case INTERVAL_DAY_TIME => s"$rowTerm.getLong($indexTerm)"
 
@@ -424,7 +428,7 @@ object CodeGenUtils {
       case MULTISET | MAP  => s"$rowTerm.getMap($indexTerm)"
       case ROW => s"$rowTerm.getRow($indexTerm, ${t.asInstanceOf[RowType].getFieldCount})"
 
-      case ANY => s"$rowTerm.getGeneric($indexTerm)"
+      case RAW => s"$rowTerm.getGeneric($indexTerm)"
     }
 
   // -------------------------- BaseRow Set Field -------------------------------
@@ -514,6 +518,10 @@ object CodeGenUtils {
   def binaryRowSetNull(indexTerm: String, rowTerm: String, t: LogicalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
       s"$rowTerm.setDecimal($indexTerm, null, ${d.getPrecision})"
+    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
+    case d: LocalZonedTimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$rowTerm.setNullAt($indexTerm)"
   }
 
@@ -539,8 +547,12 @@ object CodeGenUtils {
       case BOOLEAN => s"$binaryRowTerm.setBoolean($index, $fieldValTerm)"
       case DATE =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case TIME_WITHOUT_TIME_ZONE =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$binaryRowTerm.setLong($index, $fieldValTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = t.asInstanceOf[TimestampType]
+        s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${dt.getPrecision})"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = t.asInstanceOf[LocalZonedTimestampType]
+        s"$binaryRowTerm.setTimestamp($index, $fieldValTerm, ${dt.getPrecision})"
       case INTERVAL_YEAR_MONTH =>  s"$binaryRowTerm.setInt($index, $fieldValTerm)"
       case INTERVAL_DAY_TIME =>  s"$binaryRowTerm.setLong($index, $fieldValTerm)"
       case DECIMAL =>
@@ -568,8 +580,6 @@ object CodeGenUtils {
       case BOOLEAN => s"$rowTerm.setBoolean($indexTerm, $fieldTerm)"
       case DATE =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
       case TIME_WITHOUT_TIME_ZONE =>  s"$rowTerm.setInt($indexTerm, $fieldTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$rowTerm.setLong($indexTerm, $fieldTerm)"
       case INTERVAL_YEAR_MONTH => s"$rowTerm.setInt($indexTerm, $fieldTerm)"
       case INTERVAL_DAY_TIME => s"$rowTerm.setLong($indexTerm, $fieldTerm)"
       case _ => s"$rowTerm.setNonPrimitiveValue($indexTerm, $fieldTerm)"
@@ -585,15 +595,11 @@ object CodeGenUtils {
     case TINYINT => s"$arrayTerm.setNullByte($index)"
     case SMALLINT => s"$arrayTerm.setNullShort($index)"
     case INTEGER => s"$arrayTerm.setNullInt($index)"
-    case BIGINT => s"$arrayTerm.setNullLong($index)"
     case FLOAT => s"$arrayTerm.setNullFloat($index)"
     case DOUBLE => s"$arrayTerm.setNullDouble($index)"
     case TIME_WITHOUT_TIME_ZONE => s"$arrayTerm.setNullInt($index)"
     case DATE => s"$arrayTerm.setNullInt($index)"
-    case TIMESTAMP_WITHOUT_TIME_ZONE |
-         TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$arrayTerm.setNullLong($index)"
     case INTERVAL_YEAR_MONTH => s"$arrayTerm.setNullInt($index)"
-    case INTERVAL_DAY_TIME => s"$arrayTerm.setNullLong($index)"
     case _ => s"$arrayTerm.setNullLong($index)"
   }
 
@@ -608,6 +614,10 @@ object CodeGenUtils {
       t: LogicalType): String = t match {
     case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
       s"$writerTerm.writeDecimal($indexTerm, null, ${d.getPrecision})"
+    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
+    case d: LocalZonedTimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+      s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$writerTerm.setNullAt($indexTerm)"
   }
 
@@ -640,8 +650,12 @@ object CodeGenUtils {
         s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${dt.getPrecision})"
       case DATE => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
       case TIME_WITHOUT_TIME_ZONE => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
-      case TIMESTAMP_WITHOUT_TIME_ZONE |
-           TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = t.asInstanceOf[TimestampType]
+        s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${dt.getPrecision})"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = t.asInstanceOf[LocalZonedTimestampType]
+        s"$writerTerm.writeTimestamp($indexTerm, $fieldValTerm, ${dt.getPrecision})"
       case INTERVAL_YEAR_MONTH => s"$writerTerm.writeInt($indexTerm, $fieldValTerm)"
       case INTERVAL_DAY_TIME => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
 
@@ -655,8 +669,9 @@ object CodeGenUtils {
       case ROW =>
         val ser = ctx.addReusableTypeSerializer(t)
         s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
-
-      case ANY => s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm)"
+      case RAW =>
+        val ser = ctx.addReusableTypeSerializer(t)
+        s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm, $ser)"
     }
 
   private def isConverterIdentity(t: DataType): Boolean = {

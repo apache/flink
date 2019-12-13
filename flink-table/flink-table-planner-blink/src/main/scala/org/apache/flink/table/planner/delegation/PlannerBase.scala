@@ -71,7 +71,7 @@ abstract class PlannerBase(
     executor: Executor,
     config: TableConfig,
     val functionCatalog: FunctionCatalog,
-    catalogManager: CatalogManager,
+    val catalogManager: CatalogManager,
     isStreamingMode: Boolean)
   extends Planner {
 
@@ -85,6 +85,7 @@ abstract class PlannerBase(
     new PlannerContext(
       config,
       functionCatalog,
+      catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
@@ -139,7 +140,12 @@ abstract class PlannerBase(
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
-    mergeParameters()
+    // prepare the execEnv before translating
+    getExecEnv.configure(
+      getTableConfig.getConfiguration,
+      Thread.currentThread().getContextClassLoader)
+    overrideEnvParallelism()
+
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
@@ -151,7 +157,7 @@ abstract class PlannerBase(
     val defaultParallelism = getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
     if (defaultParallelism > 0) {
-      getExecEnv.setParallelism(defaultParallelism)
+      getExecEnv.getConfig.setParallelism(defaultParallelism)
     }
   }
 
@@ -280,28 +286,6 @@ abstract class PlannerBase(
           .createTableSink(sinkProperties))
 
       case _ => None
-    }
-  }
-
-  /**
-    * Merge global job parameters and table config parameters,
-    * and set the merged result to GlobalJobParameters
-    */
-  private def mergeParameters(): Unit = {
-    val execEnv = getExecEnv
-    if (execEnv != null && execEnv.getConfig != null) {
-      val parameters = new Configuration()
-      if (config != null && config.getConfiguration != null) {
-        parameters.addAll(config.getConfiguration)
-      }
-
-      if (execEnv.getConfig.getGlobalJobParameters != null) {
-        execEnv.getConfig.getGlobalJobParameters.toMap.foreach {
-          kv => parameters.setString(kv._1, kv._2)
-        }
-      }
-
-      execEnv.getConfig.setGlobalJobParameters(parameters)
     }
   }
 }

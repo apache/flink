@@ -226,6 +226,12 @@ abstract class ExpressionTestBase {
     addTableApiTestExpr(exprString, expected)
   }
 
+  def testTableApi(
+      expr: Expression,
+      expected: String): Unit = {
+    addTableApiTestExpr(expr, expected)
+  }
+
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
     addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected)
   }

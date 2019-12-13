@@ -61,7 +61,7 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Rule;
@@ -139,15 +139,15 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		protected void processInput(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			if (!isRunning) {
 				isRunning = true;
 				eventQueue.put(Event.TASK_IS_RUNNING);
 			}
 			if (isCanceled()) {
-				context.allActionsCompleted();
+				controller.allActionsCompleted();
 			} else {
-				context.suspendDefaultAction();
+				controller.suspendDefaultAction();
 			}
 		}
 

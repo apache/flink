@@ -449,20 +449,19 @@ public class RecordWriterTest {
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
 
 		try {
-			// record writer is available because of initial available local pool
-			assertTrue(recordWriter.isAvailable().isDone());
-			assertEquals(recordWriter.AVAILABLE, recordWriter.isAvailable());
+			// record writer is available because of initial available global pool
+			assertTrue(recordWriter.getAvailableFuture().isDone());
 
 			// request one buffer from the local pool to make it unavailable afterwards
 			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder();
 			assertNotNull(bufferBuilder);
-			assertFalse(recordWriter.isAvailable().isDone());
+			assertFalse(recordWriter.getAvailableFuture().isDone());
 
 			// recycle the buffer to make the local pool available again
 			final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder);
 			buffer.recycleBuffer();
-			assertTrue(recordWriter.isAvailable().isDone());
-			assertEquals(recordWriter.AVAILABLE, recordWriter.isAvailable());
+			assertTrue(recordWriter.getAvailableFuture().isDone());
+			assertEquals(recordWriter.AVAILABLE, recordWriter.getAvailableFuture());
 		} finally {
 			localPool.lazyDestroy();
 			globalPool.destroy();
@@ -596,7 +595,7 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public CompletableFuture<?> isAvailable() {
+		public CompletableFuture<?> getAvailableFuture() {
 			return AVAILABLE;
 		}
 
@@ -605,7 +604,7 @@ public class RecordWriterTest {
 		}
 	}
 
-	private static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		Buffer buffer = buildSingleBuffer(bufferConsumer);
 		if (buffer.isBuffer()) {
 			return new BufferOrEvent(buffer, targetChannel);
@@ -677,7 +676,7 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public CompletableFuture<?> isAvailable() {
+		public CompletableFuture<?> getAvailableFuture() {
 			return AVAILABLE;
 		}
 

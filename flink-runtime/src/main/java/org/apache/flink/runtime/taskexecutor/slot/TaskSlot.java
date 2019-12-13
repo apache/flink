@@ -19,12 +19,18 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,7 +54,8 @@ import java.util.Map;
  * <p>An allocated or active slot can only be freed if it is empty. If it is not empty, then it's state
  * can be set to releasing indicating that it can be freed once it becomes empty.
  */
-public class TaskSlot {
+public class TaskSlot implements AutoCloseable {
+	private static final Logger LOG = LoggerFactory.getLogger(TaskSlot.class);
 
 	/** Index of the task slot. */
 	private final int index;
@@ -59,25 +66,34 @@ public class TaskSlot {
 	/** Tasks running in this slot. */
 	private final Map<ExecutionAttemptID, Task> tasks;
 
+	private final MemoryManager memoryManager;
+
 	/** State of this slot. */
 	private TaskSlotState state;
 
 	/** Job id to which the slot has been allocated; null if not allocated. */
-	private JobID jobId;
+	private final JobID jobId;
 
 	/** Allocation id of this slot; null if not allocated. */
-	private AllocationID allocationId;
+	private final AllocationID allocationId;
 
-	TaskSlot(final int index, final ResourceProfile resourceProfile) {
-		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
+	public TaskSlot(
+		final int index,
+		final ResourceProfile resourceProfile,
+		final int memoryPageSize,
+		final JobID jobId,
+		final AllocationID allocationId) {
+
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
 
 		this.tasks = new HashMap<>(4);
-		this.state = TaskSlotState.FREE;
+		this.state = TaskSlotState.ALLOCATED;
 
-		this.jobId = null;
-		this.allocationId = null;
+		this.jobId = jobId;
+		this.allocationId = allocationId;
+
+		this.memoryManager = createMemoryManager(resourceProfile, memoryPageSize);
 	}
 
 	// ----------------------------------------------------------------------------------
@@ -108,10 +124,6 @@ public class TaskSlot {
 		return tasks.isEmpty();
 	}
 
-	public boolean isFree() {
-		return TaskSlotState.FREE == state;
-	}
-
 	public boolean isActive(JobID activeJobId, AllocationID activeAllocationId) {
 		Preconditions.checkNotNull(activeJobId);
 		Preconditions.checkNotNull(activeAllocationId);
@@ -140,6 +152,10 @@ public class TaskSlot {
 	 */
 	public Iterator<Task> getTasks() {
 		return tasks.values().iterator();
+	}
+
+	public MemoryManager getMemoryManager() {
+		return memoryManager;
 	}
 
 	// ----------------------------------------------------------------------------------
@@ -195,39 +211,6 @@ public class TaskSlot {
 	}
 
 	/**
-	 * Allocate the task slot for the given job and allocation id. If the slot could be allocated,
-	 * or is already allocated/active for the given job and allocation id, then the method returns
-	 * true. Otherwise it returns false.
-	 *
-	 * <p>A slot can only be allocated if it's current state is free.
-	 *
-	 * @param newJobId to allocate the slot for
-	 * @param newAllocationId to identify the slot allocation
-	 * @return True if the slot was allocated for the given job and allocation id; otherwise false
-	 */
-	public boolean allocate(JobID newJobId, AllocationID newAllocationId) {
-		if (TaskSlotState.FREE == state) {
-			// sanity checks
-			Preconditions.checkState(allocationId == null);
-			Preconditions.checkState(jobId == null);
-
-			this.jobId = Preconditions.checkNotNull(newJobId);
-			this.allocationId = Preconditions.checkNotNull(newAllocationId);
-
-			state = TaskSlotState.ALLOCATED;
-
-			return true;
-		} else if (TaskSlotState.ALLOCATED == state || TaskSlotState.ACTIVE == state) {
-			Preconditions.checkNotNull(newJobId);
-			Preconditions.checkNotNull(newAllocationId);
-
-			return newJobId.equals(jobId) && newAllocationId.equals(allocationId);
-		} else {
-			return false;
-		}
-	}
-
-	/**
 	 * Mark this slot as active. A slot can only be marked active if it's in state allocated.
 	 *
 	 * <p>The method returns true if the slot was set to active. Otherwise it returns false.
@@ -253,23 +236,6 @@ public class TaskSlot {
 	public boolean markInactive() {
 		if (TaskSlotState.ACTIVE == state || TaskSlotState.ALLOCATED == state) {
 			state = TaskSlotState.ALLOCATED;
-
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	/**
-	 * Mark the slot as free. A slot can only be marked as free if it's empty.
-	 *
-	 * @return True if the new state is free; otherwise false
-	 */
-	public boolean markFree() {
-		if (isEmpty()) {
-			state = TaskSlotState.FREE;
-			this.jobId = null;
-			this.allocationId = null;
 
 			return true;
 		} else {
@@ -304,5 +270,23 @@ public class TaskSlot {
 	public String toString() {
 		return "TaskSlot(index:" + index + ", state:" + state + ", resource profile: " + resourceProfile +
 			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") + ", jobId: " + (jobId != null ? jobId.toString() : "none") + ')';
+	}
+
+	@Override
+	public void close() {
+		verifyMemoryFreed();
+		this.memoryManager.shutdown();
+	}
+
+	private void verifyMemoryFreed() {
+		if (!memoryManager.verifyEmpty()) {
+			LOG.warn("Not all slot memory is freed, potential memory leak at {}", this);
+		}
+	}
+
+	private static MemoryManager createMemoryManager(ResourceProfile resourceProfile, int pageSize) {
+		Map<MemoryType, Long> memorySizeByType =
+			Collections.singletonMap(MemoryType.OFF_HEAP, resourceProfile.getManagedMemory().getBytes());
+		return new MemoryManager(memorySizeByType, pageSize);
 	}
 }

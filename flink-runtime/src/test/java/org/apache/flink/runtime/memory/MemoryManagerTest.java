@@ -40,6 +40,7 @@ import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.of
 import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofType;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -296,6 +297,30 @@ public class MemoryManagerTest {
 
 		memoryManager.releaseAll(owner1);
 		memoryManager.releaseAllMemory(owner2, type);
+	}
+
+	@Test
+	public void testComputeMemorySize() {
+		double fraction = 0.6;
+		assertEquals((long) (memoryManager.getMemorySize() * fraction), memoryManager.computeMemorySize(fraction));
+
+		fraction = 1.0;
+		assertEquals((long) (memoryManager.getMemorySize() * fraction), memoryManager.computeMemorySize(fraction));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testComputeMemorySizeFailForZeroFraction() {
+		memoryManager.computeMemorySize(0.0);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testComputeMemorySizeFailForTooLargeFraction() {
+		memoryManager.computeMemorySize(1.1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testComputeMemorySizeFailForNegativeFraction() {
+		memoryManager.computeMemorySize(-0.1);
 	}
 
 	private void testCannotAllocateAnymore(AllocationRequest request) {

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -149,6 +149,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
@@ -173,28 +181,27 @@ under the License.
 				<artifactId>protobuf-java</artifactId>
 				<version>${protoc.version}</version>
 			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-core</artifactId>
-				<version>2.9.9</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-databind</artifactId>
-				<version>2.9.9</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-annotations</artifactId>
-				<version>2.9.9</version>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<build>
+		<resources>
+			<resource>
+				<directory>lib</directory>
+				<includes>
+					<include>*.zip</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>bin</directory>
+				<includes>
+					<include>pyflink-udf-runner.sh</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -291,6 +298,11 @@ under the License.
 								<relocation>
 									<pattern>py4j</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
+									<includes>
+										<!-- prevent it from relocating the py4j zip file and
+										replacing the py4j file name string in source code -->
+										<include>py4j/**</include>
+									</includes>
 								</relocation>
 								<relocation>
 									<pattern>net.razorvine</pattern>

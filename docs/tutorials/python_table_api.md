@@ -65,7 +65,7 @@ t_env.connect(FileSystem().path('/tmp/input')) \
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
-    .register_table_source('mySource')
+    .create_temporary_table('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
@@ -75,7 +75,7 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
-    .register_table_sink('mySink')
+    .create_temporary_table('mySink')
 {% endhighlight %}
 
 This registers a table named `mySource` and a table named `mySink` in the
@@ -87,7 +87,7 @@ Then we need to create a job which reads input from table `mySource`, preforms s
 operations and writes the results to table `mySink`.
 
 {% highlight python %}
-t_env.scan('mySource') \
+t_env.from_path('mySource') \
     .group_by('word') \
     .select('word, count(1)') \
     .insert_into('mySink')
@@ -120,7 +120,7 @@ t_env.connect(FileSystem().path('/tmp/input')) \
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
-    .register_table_source('mySource')
+    .create_temporary_table('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
@@ -130,9 +130,9 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
-    .register_table_sink('mySink')
+    .create_temporary_table('mySink')
 
-t_env.scan('mySource') \
+t_env.from_path('mySource') \
     .group_by('word') \
     .select('word, count(1)') \
     .insert_into('mySink')

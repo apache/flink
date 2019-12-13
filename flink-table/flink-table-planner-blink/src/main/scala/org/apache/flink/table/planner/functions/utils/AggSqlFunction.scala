@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -41,7 +40,7 @@ import java.util
   * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
   * an [[AggregateFunction]] or a [[TableAggregateFunction]]
   *
-  * @param name function name (used by SQL parser)
+  * @param identifier function identifier to uniquely identify this function
   * @param displayName name to be displayed in operator name
   * @param aggregateFunction aggregate function to be called
   * @param externalResultType the type information of returned value
@@ -49,7 +48,7 @@ import java.util
   * @param typeFactory type factory for converting Flink's between Calcite's types
   */
 class AggSqlFunction(
-    name: String,
+    identifier: FunctionIdentifier,
     displayName: String,
     val aggregateFunction: UserDefinedAggregateFunction[_, _],
     val externalResultType: DataType,
@@ -58,11 +57,11 @@ class AggSqlFunction(
     requiresOver: Boolean,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
-    new SqlIdentifier(name, SqlParserPos.ZERO),
+    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
-    createOperandTypeInference(name, aggregateFunction, typeFactory, externalAccType),
-    createOperandTypeChecker(name, aggregateFunction, externalAccType),
+    createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
+    createOperandTypeChecker(displayName, aggregateFunction, externalAccType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
@@ -90,7 +89,7 @@ class AggSqlFunction(
 object AggSqlFunction {
 
   def apply(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       aggregateFunction: UserDefinedAggregateFunction[_, _],
       externalResultType: DataType,
@@ -99,7 +98,7 @@ object AggSqlFunction {
       requiresOver: Boolean): AggSqlFunction = {
 
     new AggSqlFunction(
-      name,
+      identifier,
       displayName,
       aggregateFunction,
       externalResultType,

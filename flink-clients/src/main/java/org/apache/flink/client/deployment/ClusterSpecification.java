@@ -21,6 +21,7 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 
 /**
  * Description of the cluster to start by the {@link ClusterDescriptor}.
@@ -68,7 +69,10 @@ public final class ClusterSpecification {
 		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		int jobManagerMemoryMb = ConfigurationUtils.getJobManagerHeapMemory(configuration).getMebiBytes();
-		int taskManagerMemoryMb = ConfigurationUtils.getTaskManagerHeapMemory(configuration).getMebiBytes();
+		int taskManagerMemoryMb = TaskExecutorResourceUtils
+			.resourceSpecFromConfig(configuration)
+			.getTotalProcessMemorySize()
+			.getMebiBytes();
 
 		return new ClusterSpecificationBuilder()
 			.setMasterMemoryMB(jobManagerMemoryMb)

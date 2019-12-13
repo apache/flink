@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
@@ -37,7 +38,7 @@ import scala.collection.mutable
 
 trait CommonPythonCalc {
 
-  private def loadClass(className: String): Class[_] = {
+  def loadClass(className: String): Class[_] = {
     try {
       Class.forName(className, false, Thread.currentThread.getContextClassLoader)
     } catch {
@@ -100,6 +101,7 @@ trait CommonPythonCalc {
   }
 
   private def getPythonScalarFunctionOperator(
+      config: Configuration,
       inputRowTypeInfo: BaseRowTypeInfo,
       outputRowTypeInfo: BaseRowTypeInfo,
       udfInputOffsets: Array[Int],
@@ -107,12 +109,14 @@ trait CommonPythonCalc {
       forwardedFields: Array[Int])= {
     val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
+      classOf[Configuration],
       classOf[Array[PythonFunctionInfo]],
       classOf[RowType],
       classOf[RowType],
       classOf[Array[Int]],
       classOf[Array[Int]])
     ctor.newInstance(
+      config,
       pythonFunctionInfos,
       inputRowTypeInfo.toRowType,
       outputRowTypeInfo.toRowType,
@@ -124,7 +128,8 @@ trait CommonPythonCalc {
   def createPythonOneInputTransformation(
       inputTransform: Transformation[BaseRow],
       calcProgram: RexProgram,
-      name: String): OneInputTransformation[BaseRow, BaseRow] = {
+      name: String,
+      config: Configuration): OneInputTransformation[BaseRow, BaseRow] = {
     val pythonRexCalls = calcProgram.getProjectList
       .map(calcProgram.expandLocalRef)
       .collect { case call: RexCall => call }
@@ -146,6 +151,7 @@ trait CommonPythonCalc {
         pythonRexCalls.map(node => FlinkTypeFactory.toLogicalType(node.getType)): _*)
 
     val pythonOperator = getPythonScalarFunctionOperator(
+      config,
       pythonOperatorInputTypeInfo,
       pythonOperatorResultTyeInfo,
       pythonUdfInputOffsets,

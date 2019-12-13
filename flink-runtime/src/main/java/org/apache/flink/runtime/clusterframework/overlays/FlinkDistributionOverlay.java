@@ -43,13 +43,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  * possible to bypass this overlay and rely on the normal installation method.
  *
  * <p>The following files are copied to the container:
- *  - flink/bin/
- *  - flink/conf/
- *  - flink/lib/
+ *  - bin/
+ *  - conf/
+ *  - lib/
+ *  - plugins/
  */
 public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 
-	static final Path TARGET_ROOT = new Path("flink");
+	static final String TARGET_ROOT_STR = Path.CUR_DIR;
+
+	static final Path TARGET_ROOT = new Path(TARGET_ROOT_STR);
 
 	private final File flinkBinPath;
 	private final File flinkConfPath;
@@ -67,7 +70,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 	@Override
 	public void configure(ContainerSpecification container) throws IOException {
 
-		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT.toString());
+		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT_STR);
 
 		// add the paths to the container specification.
 		addPathRecursively(flinkBinPath, TARGET_ROOT, container);

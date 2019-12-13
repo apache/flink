@@ -78,7 +78,7 @@ class StreamExecGroupWindowTableAggregateRule
       -1
     }
 
-    val config = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
 
     new StreamExecGroupWindowTableAggregate(

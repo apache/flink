@@ -80,12 +80,16 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	/**
 	 * Blocking call waiting for next {@link BufferOrEvent}.
 	 *
+	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before getting next one.
+	 *
 	 * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
 	 */
 	public abstract Optional<BufferOrEvent> getNext() throws IOException, InterruptedException;
 
 	/**
 	 * Poll the {@link BufferOrEvent}.
+	 *
+	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before polling next one.
 	 *
 	 * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()} returns true.
 	 */
@@ -99,8 +103,8 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	 * not completed futures should become completed once there are more records available.
 	 */
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return availabilityHelper.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return availabilityHelper.getAvailableFuture();
 	}
 
 	/**

@@ -15,9 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -247,3 +247,43 @@ class PythonAPICompletenessTestCase(object):
 
     def test_completeness(self):
         self.check_methods()
+
+
+def replace_uuid(input_obj):
+    if isinstance(input_obj, str):
+        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
+                      '{uuid}', input_obj)
+    elif isinstance(input_obj, dict):
+        input_obj_copy = dict()
+        for key in input_obj:
+            input_obj_copy[replace_uuid(key)] = replace_uuid(input_obj[key])
+        return input_obj_copy
+
+
+class Tuple2(object):
+
+    def __init__(self, f0, f1):
+        self.f0 = f0
+        self.f1 = f1
+        self.field = [f0, f1]
+
+    def getField(self, index):
+        return self.field[index]
+
+
+class TestEnv(object):
+
+    def __init__(self):
+        self.result = []
+
+    def registerCachedFile(self, file_path, key):
+        self.result.append(Tuple2(key, file_path))
+
+    def getCachedFiles(self):
+        return self.result
+
+    def to_dict(self):
+        result = dict()
+        for item in self.result:
+            result[item.f0] = item.f1
+        return result

@@ -84,6 +84,11 @@ public final class FileUtils {
 
 	private static final String JAR_FILE_EXTENSION = "jar";
 
+	public static final String CLASS_FILE_EXTENSION = "class";
+
+	public static final String PACKAGE_SEPARATOR = ".";
+
+
 	// ------------------------------------------------------------------------
 
 	public static void writeCompletely(WritableByteChannel channel, ByteBuffer src) throws IOException {
@@ -596,6 +601,16 @@ public final class FileUtils {
 	}
 
 	/**
+	 * Checks whether the given file has a class extension.
+	 *
+	 * @param file to check
+	 * @return true if the file has a class extension, otherwise false
+	 */
+	public static boolean isClassFile(java.nio.file.Path file) {
+		return CLASS_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
 	 * Checks whether the given file has a jar extension.
 	 *
 	 * @param file to check
@@ -603,6 +618,19 @@ public final class FileUtils {
 	 */
 	public static boolean isJarFile(java.nio.file.Path file) {
 		return JAR_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
+	 * Remove the extension of the file name.
+	 * @param fileName to strip
+	 * @return the file name without extension
+	 */
+	public static String stripFileExtension(String fileName) {
+		final String extension = org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(fileName);
+		if (!extension.isEmpty()) {
+			return fileName.substring(0, fileName.lastIndexOf(extension) - 1);
+		}
+		return fileName;
 	}
 
 	/**

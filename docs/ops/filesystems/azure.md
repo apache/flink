@@ -62,17 +62,24 @@ cp ./opt/flink-azure-fs-hadoop-{{ site.version }}.jar ./plugins/azure-fs-hadoop/
 
 `flink-azure-fs-hadoop` registers default FileSystem wrappers for URIs with the *wasb://* and *wasbs://* (SSL encrypted access) scheme.
 
-#### Configurations setup
-After setting up the Azure Blob Storage FileSystem wrapper, you need to configure credentials to make sure that Flink is allowed to access Azure Blob Storage.
+### Credentials Configuration
 
-To allow for easy adoption, you can use the same configuration keys in `flink-conf.yaml` as in Hadoop's `core-site.xml`
-
-You can see the configuration keys in the [Hadoop Azure Blob Storage documentation](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials).
-
-There are some required configurations that must be added to `flink-conf.yaml`:
+Hadoop's Azure Filesystem supports configuration of credentials via the Hadoop configuration as 
+outlined in the [Hadoop Azure Blob Storage documentation](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials).
+For convenience Flink forwards all Flink configurations with a key prefix of `fs.azure` to the 
+Hadoop configuration of the filesystem. Consequentially, the azure blob storage key can be configured 
+in `flink-conf.yaml` via:
 
 {% highlight yaml %}
-fs.azure.account.key.youraccount.blob.core.windows.net: Azure Blob Storage access key
+fs.azure.account.key.<account_name>.blob.core.windows.net: <azure_storage_key>
+{% endhighlight %}
+
+Alternatively, the the filesystem can be configured to read the Azure Blob Storage key from an 
+environment variable `AZURE_STORAGE_KEY` by setting the following configuration keys in 
+`flink-conf.yaml`.  
+
+{% highlight yaml %}
+fs.azure.account.keyprovider.<account_name>.blob.core.windows.net: org.apache.flink.fs.azurefs.EnvironmentVariableKeyProvider
 {% endhighlight %}
 
 {% top %}

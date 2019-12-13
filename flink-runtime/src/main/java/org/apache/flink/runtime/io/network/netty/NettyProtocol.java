@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
@@ -35,12 +34,9 @@ public class NettyProtocol {
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventPublisher taskEventPublisher;
 
-	private final boolean creditBasedEnabled;
-
-	NettyProtocol(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher, boolean creditBasedEnabled) {
+	NettyProtocol(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher) {
 		this.partitionProvider = partitionProvider;
 		this.taskEventPublisher = taskEventPublisher;
-		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	/**
@@ -79,11 +75,13 @@ public class NettyProtocol {
 	public ChannelHandler[] getServerChannelHandlers() {
 		PartitionRequestQueue queueOfPartitionQueues = new PartitionRequestQueue();
 		PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
-			partitionProvider, taskEventPublisher, queueOfPartitionQueues, creditBasedEnabled);
+			partitionProvider,
+			taskEventPublisher,
+			queueOfPartitionQueues);
 
 		return new ChannelHandler[] {
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(!creditBasedEnabled),
+			new NettyMessage.NettyMessageDecoder(),
 			serverHandler,
 			queueOfPartitionQueues
 		};
@@ -122,13 +120,10 @@ public class NettyProtocol {
 	 * @return channel handlers
 	 */
 	public ChannelHandler[] getClientChannelHandlers() {
-		NetworkClientHandler networkClientHandler =
-			creditBasedEnabled ? new CreditBasedPartitionRequestClientHandler() :
-				new PartitionRequestClientHandler();
 		return new ChannelHandler[] {
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(!creditBasedEnabled),
-			networkClientHandler};
+			new NettyMessage.NettyMessageDecoder(),
+			new CreditBasedPartitionRequestClientHandler()};
 	}
 
 }

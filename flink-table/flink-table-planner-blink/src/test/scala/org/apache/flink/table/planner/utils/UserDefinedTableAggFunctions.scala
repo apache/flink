@@ -276,6 +276,8 @@ class EmptyTableAggFuncWithoutEmit extends TableAggregateFunction[JTuple2[JInt, 
 
   override def createAccumulator(): Top3Accum = new Top3Accum
 
+  def accumulate(acc: Top3Accum, catagory: Timestamp, value: Timestamp): Unit = {}
+
   def accumulate(acc: Top3Accum, category: Long, value: Timestamp): Unit = {}
 
   def accumulate(acc: Top3Accum, category: Long, value: Int): Unit = {}

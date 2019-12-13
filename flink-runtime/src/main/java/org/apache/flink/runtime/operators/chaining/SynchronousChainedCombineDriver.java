@@ -130,9 +130,6 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 	@Override
 	public void closeTask() throws Exception {
-		this.sorter.dispose();
-		this.parent.getEnvironment().getMemoryManager().release(this.memory);
-
 		if (this.running) {
 			BatchTask.closeUserCode(this.combiner);
 		}
@@ -141,14 +138,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 	@Override
 	public void cancelTask() {
 		this.running = false;
-		try {
-			this.sorter.dispose();
-		}
-		catch (Exception e) {
-			// may happen during concurrent modification when canceling
-		}
-		
-		this.parent.getEnvironment().getMemoryManager().release(this.memory);
+		dispose(true);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -199,8 +189,21 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		} catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
-
 		this.outputCollector.close();
+		dispose(false);
+	}
+
+	private void dispose(boolean ignoreException) {
+		try {
+			sorter.dispose();
+		} catch (Exception e) {
+			// May happen during concurrent modification when canceling. Ignore.
+			if (!ignoreException) {
+				throw e;
+			}
+		} finally {
+			parent.getEnvironment().getMemoryManager().release(this.memory);
+		}
 	}
 
 	private void sortAndCombine() throws Exception {

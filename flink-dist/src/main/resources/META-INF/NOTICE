@@ -6,7 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.data-artisans:frocksdbjni:5.17.2-artisans-1.0
+- com.data-artisans:frocksdbjni:5.17.2-artisans-2.0
 - com.google.code.findbugs:jsr305:1.3.9
 - com.twitter:chill-java:0.7.6
 - com.twitter:chill_2.11:0.7.6
@@ -49,6 +49,12 @@ See bundled license files for details.
 
 - com.github.scopt:scopt_2.11:3.5.0
 - org.slf4j:slf4j-api:1.7.15
+
+This project bundles the following dependencies under the CDDL 1.1 license.
+See bundled license files for details.
+
+- javax.activation:javax.activation-api:1.2.0
+- javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles "org.tukaani:xz:1.5".
 This Java implementation of XZ has been put into the public domain, thus you can do

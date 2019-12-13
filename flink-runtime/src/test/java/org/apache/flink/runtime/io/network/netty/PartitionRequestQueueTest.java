@@ -171,7 +171,10 @@ public class PartitionRequestQueueTest {
 
 		final InputChannelID receiverId = new InputChannelID();
 		final PartitionRequestQueue queue = new PartitionRequestQueue();
-		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, queue);
+		final CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(
+			receiverId,
+			Integer.MAX_VALUE,
+			queue);
 		final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
 		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
@@ -192,7 +195,7 @@ public class PartitionRequestQueueTest {
 	}
 
 	private static class DefaultBufferResultSubpartitionView extends NoOpResultSubpartitionView {
-		/** Number of buffer in the backlog to report with every {@link #getNextBuffer()} call. */
+		/** Number of buffer in the backlog to report with every {@link #getNextBuffer(boolean)} call. */
 		private final AtomicInteger buffersInBacklog;
 
 		private DefaultBufferResultSubpartitionView(int buffersInBacklog) {
@@ -201,7 +204,7 @@ public class PartitionRequestQueueTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer() {
+		public BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
 			int buffers = buffersInBacklog.decrementAndGet();
 			return new BufferAndBacklog(
 				TestBufferFactory.createBuffer(10),
@@ -223,8 +226,8 @@ public class PartitionRequestQueueTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer() {
-			BufferAndBacklog nextBuffer = super.getNextBuffer();
+		public BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
+			BufferAndBacklog nextBuffer = super.getNextBuffer(isLocalChannel);
 			return new BufferAndBacklog(
 				nextBuffer.buffer().readOnlySlice(),
 				nextBuffer.isMoreAvailable(),

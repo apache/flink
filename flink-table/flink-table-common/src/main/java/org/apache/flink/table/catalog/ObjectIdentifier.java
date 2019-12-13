@@ -84,6 +84,13 @@ public final class ObjectIdentifier implements Serializable {
 			escapeIdentifier(objectName));
 	}
 
+	/**
+	 * Returns a string that summarizes this instance for printing to a console or log.
+	 */
+	public String asSummaryString() {
+		return String.join(".", catalogName, databaseName, objectName);
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

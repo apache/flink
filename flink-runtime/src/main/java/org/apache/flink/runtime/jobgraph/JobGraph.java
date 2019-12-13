@@ -31,6 +31,7 @@ import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -72,9 +73,6 @@ public class JobGraph implements Serializable {
 
 	/** Name of this job. */
 	private final String jobName;
-
-	/** flag to enable queued scheduling */
-	private boolean allowQueuedScheduling;
 
 	/** The mode in which the job is scheduled */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
@@ -218,14 +216,6 @@ public class JobGraph implements Serializable {
 	 */
 	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
 		return serializedExecutionConfig;
-	}
-
-	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {
-		this.allowQueuedScheduling = allowQueuedScheduling;
-	}
-
-	public boolean getAllowQueuedScheduling() {
-		return allowQueuedScheduling;
 	}
 
 	public void setScheduleMode(ScheduleMode scheduleMode) {
@@ -485,6 +475,22 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}.
+	 *
+	 * @param jarFilesToAttach a list of the {@link URL URLs} of the jar files to attach to the jobgraph.
+	 * @throws RuntimeException if a jar URL is not valid.
+	 */
+	public void addJars(final List<URL> jarFilesToAttach) {
+		for (URL jar : jarFilesToAttach) {
+			try {
+				addJar(new Path(jar.toURI()));
+			} catch (URISyntaxException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+	}
+
+	/**
 	 * Gets the list of assigned user jar paths.
 	 *
 	 * @return The list of assigned user jar paths
@@ -563,6 +569,15 @@ public class JobGraph implements Serializable {
 			originalEntry.filePath,
 			originalEntry.isExecutable,
 			serializedBlobKey,
+			originalEntry.isZipped
+		));
+	}
+
+	public void setUserArtifactRemotePath(String entryName, String remotePath) {
+		userArtifacts.computeIfPresent(entryName, (key, originalEntry) -> new DistributedCache.DistributedCacheEntry(
+			remotePath,
+			originalEntry.isExecutable,
+			null,
 			originalEntry.isZipped
 		));
 	}

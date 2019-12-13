@@ -135,7 +135,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
 				if (checkpointedInputGate.isFinished()) {
-					checkState(checkpointedInputGate.isAvailable().isDone(), "Finished BarrierHandler should be available");
+					checkState(checkpointedInputGate.getAvailableFuture().isDone(), "Finished BarrierHandler should be available");
 					if (!checkpointedInputGate.isEmpty()) {
 						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
 					}
@@ -190,11 +190,11 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		if (currentRecordDeserializer != null) {
 			return AVAILABLE;
 		}
-		return checkpointedInputGate.isAvailable();
+		return checkpointedInputGate.getAvailableFuture();
 	}
 
 	@Override

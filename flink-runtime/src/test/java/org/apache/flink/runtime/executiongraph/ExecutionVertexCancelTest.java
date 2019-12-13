@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -293,7 +293,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// it can occur as the result of races
 			{
 				vertex.scheduleForExecution(
-					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
+					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
 					LocationPreferenceConstraint.ALL,
 					Collections.emptySet());
 
@@ -333,7 +333,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 				vertex.scheduleForExecution(
-					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
+					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
 					LocationPreferenceConstraint.ALL,
 					Collections.emptySet());
 			}

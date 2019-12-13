@@ -21,9 +21,12 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
@@ -31,6 +34,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,12 +82,21 @@ public class PythonTypeUtilsTest {
 
 	@Test
 	public void testUnsupportedTypeSerializer() {
-		LogicalType logicalType = new UnresolvedUserDefinedType("", "", "");
-		String expectedTestException = "Python UDF doesn't support logical type ``.``.`` currently.";
+		LogicalType logicalType = new UnresolvedUserDefinedType(UnresolvedIdentifier.of("cat", "db", "MyType"));
+		String expectedTestException = "Python UDF doesn't support logical type `cat`.`db`.`MyType` currently.";
 		try {
 			PythonTypeUtils.toFlinkTypeSerializer(logicalType);
 		} catch (Exception e) {
 			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());
 		}
+	}
+
+	@Test
+	public void testLogicalTypeToConversionClassConverter() {
+		PythonTypeUtils.LogicalTypeToConversionClassConverter converter =
+			PythonTypeUtils.LogicalTypeToConversionClassConverter.INSTANCE;
+		ArrayType arrayType = new ArrayType(new ArrayType(new DateType()));
+		Class<?> conversionClass = converter.visit(arrayType);
+		assertEquals(Date[][].class, conversionClass);
 	}
 }

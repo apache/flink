@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction
@@ -32,23 +32,22 @@ import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.{getDefaul
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isAny
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isRaw
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
-
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
-
 import java.lang.reflect.{Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
+import java.time.{Instant, LocalDateTime}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -170,7 +169,7 @@ object UserDefinedFunctionUtils {
     udiTypes.zipWithIndex.map {
       case (t: DataType, i) =>
         // we don't trust GenericType.
-        if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.ANY) {
+        if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.RAW) {
           val returnType = fromLogicalTypeToDataType(expectedTypes(i))
           if (expectedTypes(i).supportsOutputConversion(t.getConversionClass)) {
             returnType.bridgedTo(t.getConversionClass)
@@ -449,17 +448,17 @@ object UserDefinedFunctionUtils {
   /**
     * Create [[SqlFunction]] for a [[ScalarFunction]]
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param function scalar function
     * @param typeFactory type factory
     * @return the ScalarSqlFunction
     */
   def createScalarSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       function: ScalarFunction,
       typeFactory: FlinkTypeFactory): SqlFunction = {
-    new ScalarSqlFunction(name, displayName, function, typeFactory)
+    new ScalarSqlFunction(identifier, displayName, function, typeFactory)
   }
 
   /**
@@ -478,34 +477,34 @@ object UserDefinedFunctionUtils {
     * For all the other cases, please use
     * createTableSqlFunction (String, String, TableFunction, FlinkTypeFactory) instead.
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param tableFunction table function
     * @param implicitResultType the implicit type information of returned table
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createTableSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       tableFunction: TableFunction[_],
       implicitResultType: DataType,
       typeFactory: FlinkTypeFactory): TableSqlFunction = {
     // we don't know the exact result type yet.
     val function = new DeferredTypeFlinkTableFunction(tableFunction, implicitResultType)
-    new TableSqlFunction(name, displayName, tableFunction, implicitResultType,
+    new TableSqlFunction(identifier, displayName, tableFunction, implicitResultType,
       typeFactory, function)
   }
 
   /**
     * Create [[SqlFunction]] for an [[AggregateFunction]]
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param aggFunction aggregate function
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createAggregateSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       aggFunction: AggregateFunction[_, _],
       externalResultType: DataType,
@@ -516,7 +515,7 @@ object UserDefinedFunctionUtils {
     checkAndExtractMethods(aggFunction, "accumulate")
 
     AggSqlFunction(
-      name,
+      identifier,
       displayName,
       aggFunction,
       externalResultType,
@@ -728,10 +727,14 @@ object UserDefinedFunctionUtils {
         expected.isPrimitive && Primitives.wrap(expected) == candidate ||
         candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
         candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
-        candidate == classOf[Timestamp] && (expected == classOf[Long] ||
-            expected == classOf[JLong]) ||
         candidate == classOf[BinaryString] && expected == classOf[String] ||
         candidate == classOf[String] && expected == classOf[BinaryString] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[LocalDateTime] ||
+        candidate == classOf[Timestamp] && expected == classOf[SqlTimestamp] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[Timestamp] ||
+        candidate == classOf[LocalDateTime] && expected == classOf[SqlTimestamp] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[Instant] ||
+        candidate == classOf[Instant] && expected == classOf[SqlTimestamp] ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
         candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||
@@ -747,7 +750,7 @@ object UserDefinedFunctionUtils {
       internal: LogicalType,
       parameterType: DataType): Boolean = {
     val paraInternalType = fromDataTypeToLogicalType(parameterType)
-    if (isAny(internal) && isAny(paraInternalType)) {
+    if (isRaw(internal) && isRaw(paraInternalType)) {
       getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
     } else {
       // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...

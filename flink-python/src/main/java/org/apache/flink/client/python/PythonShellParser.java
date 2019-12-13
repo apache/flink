@@ -39,14 +39,6 @@ public class PythonShellParser {
 		.desc("Show the help message with descriptions of all options.")
 		.build();
 
-	private static final Option OPTION_CONTAINER = Option
-		.builder("n")
-		.required(false)
-		.longOpt("container")
-		.hasArg()
-		.desc("Number of YARN container to allocate (=Number of Task Managers)")
-		.build();
-
 	private static final Option OPTION_JM_MEMORY = Option
 		.builder("jm")
 		.required(false)
@@ -156,7 +148,6 @@ public class PythonShellParser {
 
 	private static Options getYarnOptions(Options options) {
 		buildGeneralOptions(options);
-		options.addOption(OPTION_CONTAINER);
 		options.addOption(OPTION_JM_MEMORY);
 		options.addOption(OPTION_NAME);
 		options.addOption(OPTION_QUEUE);
@@ -257,7 +248,6 @@ public class PythonShellParser {
 		options.add(args[0]);
 		options.add("-m");
 		options.add("yarn-cluster");
-		constructYarnOption(options, OPTION_CONTAINER, commandLine);
 		constructYarnOption(options, OPTION_JM_MEMORY, commandLine);
 		constructYarnOption(options, OPTION_NAME, commandLine);
 		constructYarnOption(options, OPTION_QUEUE, commandLine);

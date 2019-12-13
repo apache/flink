@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, boxedTypeTermForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, SQL_TIMESTAMP, boxedTypeTermForType, newName}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -47,7 +47,6 @@ import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
-
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
@@ -632,17 +631,17 @@ abstract class WindowCodeGenerator(
       // get assigned window start timestamp
       def windowProps(size: Expression) = {
         val (startWValue, endWValue, rowTimeValue) = (
-            s"$currentWindowTerm.getStart()",
-            s"$currentWindowTerm.getEnd()",
-            s"$currentWindowTerm.maxTimestamp()")
+            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.getStart())",
+            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.getEnd())",
+            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.maxTimestamp())")
         val start = if (startPos.isDefined) {
-          s"$propTerm.setLong($lastPos + ${startPos.get}, $startWValue);"
+          s"$propTerm.setTimestamp($lastPos + ${startPos.get}, $startWValue, 3);"
         } else ""
         val end = if (endPos.isDefined) {
-          s"$propTerm.setLong($lastPos + ${endPos.get}, $endWValue);"
+          s"$propTerm.setTimestamp($lastPos + ${endPos.get}, $endWValue, 3);"
         } else ""
         val rowTime = if (rowTimePos.isDefined) {
-          s"$propTerm.setLong($lastPos + ${rowTimePos.get}, $rowTimeValue);"
+          s"$propTerm.setTimestamp($lastPos + ${rowTimePos.get}, $rowTimeValue, 3);"
         } else ""
         (start, end, rowTime)
       }

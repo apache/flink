@@ -33,7 +33,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
@@ -48,7 +48,7 @@ import java.util.BitSet;
  * of slots. This effectively tests that Flink can execute jobs with blocking results
  * in a staged fashion.
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
@@ -121,14 +121,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(jobName, sender, receiver);
-
-		// We need to allow queued scheduling, because there are not enough slots available
-		// to run all tasks at once. We queue tasks and then let them finish/consume the blocking
-		// result one after the other.
-		jobGraph.setAllowQueuedScheduling(true);
-
-		return jobGraph;
+		return new JobGraph(jobName, sender, receiver);
 	}
 
 	/**

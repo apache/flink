@@ -16,20 +16,104 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testDDLTableScan">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[ts, a, b], where=[>(a, 1)])
++- TableSourceScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]], fields=[ts, a, b])
+]]>
+
+    </Resource>
+  </TestCase>
   <TestCase name="testTableSourceScan">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
+
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
+
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithWatermarkComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
+]]>
+
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+
     </Resource>
   </TestCase>
 </Root>

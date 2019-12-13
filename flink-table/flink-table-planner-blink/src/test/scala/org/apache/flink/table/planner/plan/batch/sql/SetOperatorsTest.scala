@@ -128,4 +128,9 @@ class SetOperatorsTest extends TableTestBase {
       Array("a", "b"))
     util.verifyPlan("SELECT a FROM A UNION ALL SELECT b FROM A")
   }
+
+  @Test
+  def testIntersectWithOuterProject(): Unit = {
+    util.verifyPlan("SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)")
+  }
 }

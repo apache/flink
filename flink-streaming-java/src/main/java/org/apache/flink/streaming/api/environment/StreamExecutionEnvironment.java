@@ -46,11 +46,24 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -72,9 +85,12 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -85,6 +101,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -100,7 +119,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see org.apache.flink.streaming.api.environment.RemoteStreamEnvironment
  */
 @Public
-public abstract class StreamExecutionEnvironment {
+public class StreamExecutionEnvironment {
 
 	/** The default name to use for a streaming job if no other name has been specified. */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
@@ -144,10 +163,54 @@ public abstract class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
+	private final ExecutorServiceLoader executorServiceLoader;
+
+	private final Configuration configuration;
+
+	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
+
+	public StreamExecutionEnvironment() {
+		this(new Configuration());
+		// unfortunately, StreamExecutionEnvironment always (implicitly) had a public constructor.
+		// This constructor is not useful because the execution environment cannot be used for
+		// execution. We're keeping this to appease the binary compatibiliy checks.
+	}
+
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+	}
+
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
+		this.executorServiceLoader = checkNotNull(executorServiceLoader);
+		this.configuration = checkNotNull(configuration);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+	}
+
+	protected Configuration getConfiguration() {
+		return this.configuration;
+	}
 
 	/**
 	 * Gets the config object.
@@ -656,6 +719,66 @@ public abstract class StreamExecutionEnvironment {
 	@PublicEvolving
 	public TimeCharacteristic getStreamTimeCharacteristic() {
 		return timeCharacteristic;
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure
+	 * {@link StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 * @param classLoader a class loader to use when loading classes
+	 */
+	@PublicEvolving
+	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+		configuration.getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
+			.ifPresent(this::setStreamTimeCharacteristic);
+		Optional.ofNullable(loadStateBackend(configuration, classLoader))
+			.ifPresent(this::setStateBackend);
+		configuration.getOptional(PipelineOptions.OPERATOR_CHAINING)
+			.ifPresent(c -> this.isChainingEnabled = c);
+		configuration.getOptional(ExecutionOptions.BUFFER_TIMEOUT)
+			.ifPresent(t -> this.setBufferTimeout(t.toMillis()));
+		configuration.getOptional(PipelineOptions.CACHED_FILES)
+			.ifPresent(f -> {
+				this.cacheFile.clear();
+				parseCachedFiles(f).forEach(t -> registerCachedFile(t.f1, t.f0, t.f2));
+			});
+		config.configure(configuration, classLoader);
+		checkpointCfg.configure(configuration);
+	}
+
+	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
+		try {
+			return StateBackendLoader.loadStateBackendFromConfig(
+				new ReadableConfigToConfigurationAdapter(configuration),
+				classLoader,
+				null);
+		} catch (DynamicCodeLoadingException | IOException e) {
+			throw new WrappingRuntimeException(e);
+		}
+	}
+
+	private List<Tuple3<String, String, Boolean>> parseCachedFiles(List<String> s) {
+		return s.stream()
+			.map(v -> Arrays.stream(v.split(","))
+				.map(p -> p.split(":"))
+				.collect(
+					Collectors.toMap(
+						arr -> arr[0], // key name
+						arr -> arr[1] // value
+					)
+				)
+			)
+			.map(m -> Tuple3.of(
+				m.get("name"),
+				m.get("path"),
+				Optional.ofNullable(m.get("executable")).map(Boolean::parseBoolean).orElse(false)))
+			.collect(Collectors.toList());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1515,27 +1638,167 @@ public abstract class StreamExecutionEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	@Internal
-	public abstract JobExecutionResult execute(StreamGraph streamGraph) throws Exception;
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		final JobClient jobClient = executeAsync(streamGraph);
+
+		try {
+			JobExecutionResult jobExecutionResult =
+					configuration.getBoolean(DeploymentOptions.ATTACHED) ?
+							jobClient.getJobExecutionResult(userClassloader).get()
+							: new DetachedJobExecutionResult(jobClient.getJobID());
+
+			jobListeners
+					.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
+
+			return jobExecutionResult;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
+	}
 
 	/**
-	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
+	}
+
+	/**
+	 * Triggers the program asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated
+	 * default name.
+	 *
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public final JobClient executeAsync() throws Exception {
+		return executeAsync(DEFAULT_JOB_NAME);
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * @param jobName desired name of the job
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public JobClient executeAsync(String jobName) throws Exception {
+		return executeAsync(getStreamGraph(checkNotNull(jobName)));
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * @param streamGraph the stream graph representing the transformations
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Internal
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+		checkNotNull(streamGraph, "StreamGraph cannot be null.");
+		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
+
+		consolidateParallelismDefinitionsInConfiguration();
+
+		final ExecutorFactory executorFactory =
+			executorServiceLoader.getExecutorFactory(configuration);
+
+		checkNotNull(
+			executorFactory,
+			"Cannot find compatible factory for specified execution.target (=%s)",
+			configuration.get(DeploymentOptions.TARGET));
+
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
+			.getExecutor(configuration)
+			.execute(streamGraph, configuration);
+
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.rethrow(t);
+
+			// make javac happy, this code path will not be reached
+			return null;
+		}
+	}
+
+	private void consolidateParallelismDefinitionsInConfiguration() {
+		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
+		}
+	}
+
+	/**
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job. This call
+	 * clears previously registered {@link Transformation transformations}.
 	 *
 	 * @return The streamgraph representing the transformations
 	 */
 	@Internal
 	public StreamGraph getStreamGraph() {
-		return getStreamGraphGenerator().generate();
+		return getStreamGraph(DEFAULT_JOB_NAME);
 	}
 
 	/**
-	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job. This call
+	 * clears previously registered {@link Transformation transformations}.
 	 *
 	 * @param jobName Desired name of the job
 	 * @return The streamgraph representing the transformations
 	 */
 	@Internal
 	public StreamGraph getStreamGraph(String jobName) {
-		return getStreamGraphGenerator().setJobName(jobName).generate();
+		return getStreamGraph(jobName, true);
+	}
+
+	/**
+	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph StreamGraph} of the streaming job
+	 * with the option to clear previously registered {@link Transformation transformations}. Clearing the
+	 * transformations allows, for example, to not re-execute the same operations when calling
+	 * {@link #execute()} multiple times.
+	 *
+	 * @param jobName Desired name of the job
+	 * @param clearTransformations Whether or not to clear previously registered transformations
+	 * @return The streamgraph representing the transformations
+	 */
+	@Internal
+	public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
+		StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+		if (clearTransformations) {
+			this.transformations.clear();
+		}
+		return streamGraph;
 	}
 
 	private StreamGraphGenerator getStreamGraphGenerator() {
@@ -1559,7 +1822,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The execution plan of the program, as a JSON String.
 	 */
 	public String getExecutionPlan() {
-		return getStreamGraph().getStreamingPlanAsJSON();
+		return getStreamGraph(DEFAULT_JOB_NAME, false).getStreamingPlanAsJSON();
 	}
 
 	/**

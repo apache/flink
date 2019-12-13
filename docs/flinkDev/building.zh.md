@@ -121,6 +121,9 @@ If you want to build against Hadoop version that is *NOT* 2.4.1, 2.6.5, 2.7.5 or
 then it is first necessary to build [flink-shaded](https://github.com/apache/flink-shaded) against this version.
 You can find the source for this project in the [Additional Components]({{ site.download_url }}#additional-components) section of the download page.
 
+<span class="label label-info">Note</span> If you want to build `flink-shaded` against a vendor specific Hadoop version, you first have to configure the
+vendor-specific maven repository in your local maven setup as described [here](https://maven.apache.org/guides/mini/guide-multiple-repositories.html).
+
 Run the following command to build and install `flink-shaded` against your desired Hadoop version (e.g., for version `2.6.5-custom`):
 
 {% highlight bash %}
@@ -128,16 +131,6 @@ mvn clean install -Dhadoop.version=2.6.5-custom
 {% endhighlight %}
 
 After this step is complete, follow the steps for [Pre-bundled versions](#pre-bundled-versions).
-
-To build Flink against a vendor specific Hadoop version, additionally activate `-Pvendor-repos` profile when building flink-shaded:
-
-{% highlight bash %}
-mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
-{% endhighlight %}
-
-The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
-
-The list of supported vendor versions can be checked [here](https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera).
 
 {% top %}
 

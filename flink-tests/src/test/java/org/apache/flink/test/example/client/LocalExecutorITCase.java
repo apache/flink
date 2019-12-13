@@ -22,9 +22,10 @@ package org.apache.flink.test.example.client;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.LocalExecutor;
+import org.apache.flink.client.deployment.executors.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.util.TestLogger;
@@ -34,7 +35,6 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Collections;
 
 /**
  * Integration tests for {@link LocalExecutor}.
@@ -58,12 +58,13 @@ public class LocalExecutorITCase extends TestLogger {
 
 			final Configuration config = new Configuration();
 			config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+			config.setBoolean(DeploymentOptions.ATTACHED, true);
 
-			final LocalExecutor executor = new LocalExecutor(config);
+			final LocalExecutor executor = new LocalExecutor();
 
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
-			executor.executePlan(wcPlan, Collections.emptyList(), Collections.emptyList());
+			executor.execute(wcPlan, config);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

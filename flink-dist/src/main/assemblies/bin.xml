@@ -108,6 +108,9 @@ under the License.
 			<directory>../flink-python/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
+			<excludes>
+				<exclude>pyflink-udf-runner.sh</exclude>
+			</excludes>
 		</fileSet>
 
 		<!-- copy SQL client -->
@@ -134,6 +137,13 @@ under the License.
 		<!-- copy Mesos start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/mesos-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy kubernetes start scripts -->
+		<fileSet>
+			<directory>src/main/flink-bin/kubernetes-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>

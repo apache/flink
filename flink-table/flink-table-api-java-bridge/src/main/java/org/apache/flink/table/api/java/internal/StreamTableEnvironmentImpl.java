@@ -40,6 +40,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -56,6 +57,7 @@ import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
@@ -228,6 +230,21 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	}
 
 	@Override
+	protected QueryOperation qualifyQueryOperation(ObjectIdentifier identifier, QueryOperation queryOperation) {
+		if (queryOperation instanceof JavaDataStreamQueryOperation) {
+			JavaDataStreamQueryOperation<?> operation = (JavaDataStreamQueryOperation) queryOperation;
+			return new JavaDataStreamQueryOperation<>(
+				identifier,
+				operation.getDataStream(),
+				operation.getFieldIndices(),
+				operation.getTableSchema()
+			);
+		} else {
+			return queryOperation;
+		}
+	}
+
+	@Override
 	public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
 		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
 		return toAppendStream(table, typeInfo);
@@ -348,6 +365,12 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	protected boolean isEagerOperationTranslation() {
 		return true;
+	}
+
+	@Override
+	public String explain(boolean extended) {
+		// throw exception directly, because the operations to explain are always empty
+		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {

@@ -1,5 +1,5 @@
 ---
-title: "Hive Functions"
+title: "Hive UDF and Built-in Functions"
 nav-parent_id: hive_tableapi
 nav-pos: 3
 ---
@@ -165,3 +165,44 @@ Support for Hive functions has only been tested for Flink batch in Blink planner
 Hive functions currently cannot be used across catalogs in Flink.
 
 Please reference to [Hive]({{ site.baseurl }}/dev/table/hive/index.html) for data type limitations.
+
+
+## Use Hive Built-in Functions via HiveModule
+
+The `HiveModule` provides Hive built-in functions as Flink system (built-in) functions to Flink SQL and Table API users.
+
+For detailed information, please refer to [HiveModule]({{ site.baseurl }}/dev/table/modules.html#hivemodule).
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+
+String name            = "myhive";
+String version         = "2.3.4";
+
+tableEnv.loadModue(name, new HiveModule(version));
+{% endhighlight %}
+</div>
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+val name            = "myhive"
+val version         = "2.3.4"
+
+tableEnv.loadModue(name, new HiveModule(version));
+{% endhighlight %}
+</div>
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+modules:
+   - name: core
+     type: core
+   - name: myhive
+     type: hive
+     hive-version: 2.3.4
+{% endhighlight %}
+</div>
+</div>
+
+* NOTE that some Hive built-in functions in older versions have [thread safety issues](https://issues.apache.org/jira/browse/HIVE-16183).
+We recommend users patch their own Hive to fix them.

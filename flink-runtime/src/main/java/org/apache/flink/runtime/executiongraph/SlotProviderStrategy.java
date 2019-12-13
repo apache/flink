@@ -39,15 +39,8 @@ public abstract class SlotProviderStrategy {
 
 	protected final SlotProvider slotProvider;
 
-	protected final boolean allowQueuedScheduling;
-
-	SlotProviderStrategy(SlotProvider slotProvider, boolean allowQueuedScheduling) {
+	SlotProviderStrategy(SlotProvider slotProvider) {
 		this.slotProvider = Preconditions.checkNotNull(slotProvider);
-		this.allowQueuedScheduling = allowQueuedScheduling;
-	}
-
-	boolean isQueuedSchedulingAllowed() {
-		return allowQueuedScheduling;
 	}
 
 	/**
@@ -80,15 +73,14 @@ public abstract class SlotProviderStrategy {
 	public static SlotProviderStrategy from(
 		ScheduleMode scheduleMode,
 		SlotProvider slotProvider,
-		Time allocationTimeout,
-		boolean allowQueuedScheduling) {
+		Time allocationTimeout) {
 
 		switch (scheduleMode) {
 			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
-				return new BatchSlotProviderStrategy(slotProvider, allowQueuedScheduling);
+				return new BatchSlotProviderStrategy(slotProvider);
 			case LAZY_FROM_SOURCES:
 			case EAGER:
-				return new NormalSlotProviderStrategy(slotProvider, allocationTimeout, allowQueuedScheduling);
+				return new NormalSlotProviderStrategy(slotProvider, allocationTimeout);
 			default:
 				throw new IllegalArgumentException(String.format("Unknown scheduling mode: %s", scheduleMode));
 		}
@@ -100,27 +92,27 @@ public abstract class SlotProviderStrategy {
 
 	static class BatchSlotProviderStrategy extends SlotProviderStrategy {
 
-		BatchSlotProviderStrategy(SlotProvider slotProvider, boolean allowQueuedScheduling) {
-			super(slotProvider, allowQueuedScheduling);
+		BatchSlotProviderStrategy(SlotProvider slotProvider) {
+			super(slotProvider);
 		}
 
 		@Override
 		public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile) {
-			return slotProvider.allocateBatchSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling);
+			return slotProvider.allocateBatchSlot(slotRequestId, scheduledUnit, slotProfile);
 		}
 	}
 
 	static class NormalSlotProviderStrategy extends SlotProviderStrategy {
 		private final Time allocationTimeout;
 
-		NormalSlotProviderStrategy(SlotProvider slotProvider, Time allocationTimeout, boolean allowQueuedScheduling) {
-			super(slotProvider, allowQueuedScheduling);
+		NormalSlotProviderStrategy(SlotProvider slotProvider, Time allocationTimeout) {
+			super(slotProvider);
 			this.allocationTimeout = Preconditions.checkNotNull(allocationTimeout);
 		}
 
 		@Override
 		public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile) {
-			return slotProvider.allocateSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, allocationTimeout);
+			return slotProvider.allocateSlot(slotRequestId, scheduledUnit, slotProfile, allocationTimeout);
 		}
 	}
 }

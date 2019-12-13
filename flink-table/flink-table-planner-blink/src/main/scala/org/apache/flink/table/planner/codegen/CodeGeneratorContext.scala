@@ -410,7 +410,8 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val fieldTerm = s"timestamp"
     val field =
       s"""
-         |final long $fieldTerm = java.lang.System.currentTimeMillis();
+         |final $SQL_TIMESTAMP $fieldTerm =
+         |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -431,7 +432,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
     val field =
       s"""
-         |$fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+         |$fieldTerm = (int) ($timestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
          |if (time < 0) {
          |  time += ${DateTimeUtils.MILLIS_PER_DAY};
          |}
@@ -449,12 +450,14 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val timestamp = addReusableTimestamp()
 
     // declaration
-    reusableMemberStatements.add(s"private long $fieldTerm;")
+    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
 
     // assignment
     val field =
       s"""
-         |$fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset($timestamp);
+         |$fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(
+         |  $timestamp.getMillisecond() +
+         |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -475,7 +478,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
     val field =
     s"""
-       |$fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+       |$fieldTerm = (int) ($localtimestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
        |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -497,7 +500,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
     val field =
       s"""
-         |$fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+         |$fieldTerm = (int) ($timestamp.getMillisecond() / ${DateTimeUtils.MILLIS_PER_DAY});
          |if ($time < 0) {
          |  $fieldTerm -= 1;
          |}

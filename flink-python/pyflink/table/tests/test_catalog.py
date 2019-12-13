@@ -67,7 +67,9 @@ class CatalogTestBase(PyFlinkTestCase):
 
     def check_catalog_function_equals(self, f1, f2):
         self.assertEqual(f1.get_class_name(), f2.get_class_name())
-        self.assertEqual(f1.get_properties(), f2.get_properties())
+        self.assertEqual(f1.is_generic(), f2.is_generic())
+        self.assertEqual(f1.is_temporary(), f2.is_temporary())
+        self.assertEqual(f1.get_function_language(), f2.get_function_language())
 
     def check_catalog_partition_equals(self, p1, p2):
         self.assertEqual(p1.get_properties(), p2.get_properties())
@@ -178,13 +180,15 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_function():
         gateway = get_gateway()
-        j_function = gateway.jvm.CatalogFunctionImpl("MyFunction", {})
+        j_function = gateway.jvm.CatalogFunctionImpl(
+            "org.apache.flink.table.functions.python.SimplePythonFunction")
         return CatalogFunction(j_function)
 
     @staticmethod
     def create_another_function():
         gateway = get_gateway()
-        j_function = gateway.jvm.CatalogFunctionImpl("MyAnotherFunction", {})
+        j_function = gateway.jvm.CatalogFunctionImpl(
+            "org.apache.flink.table.functions.ScalarFunction")
         return CatalogFunction(j_function)
 
     @staticmethod

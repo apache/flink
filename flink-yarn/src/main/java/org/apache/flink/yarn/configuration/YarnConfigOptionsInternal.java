@@ -31,7 +31,13 @@ public class YarnConfigOptionsInternal {
 
 	public static final ConfigOption<String> DYNAMIC_PROPERTIES =
 			key("$internal.yarn.dynamic-properties")
+					.stringType()
 					.noDefaultValue()
 					.withDescription("**DO NOT USE** Specify YARN dynamic properties.");
 
+	public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILE =
+			key("$internal.yarn.log-config-file")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("**DO NOT USE** The location of the log config file, e.g. the path to your log4j.properties for log4j.");
 }

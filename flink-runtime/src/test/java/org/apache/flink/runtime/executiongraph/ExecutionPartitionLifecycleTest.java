@@ -233,7 +233,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
 		final SlotProvider slotProvider = new SlotProvider() {
 			@Override
-			public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile, boolean allowQueuedScheduling, Time allocationTimeout) {
+			public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile, Time allocationTimeout) {
 				return CompletableFuture.completedFuture(
 					new TestingLogicalSlotBuilder()
 						.setTaskManagerLocation(taskManagerLocation)

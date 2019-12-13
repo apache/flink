@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -494,7 +494,12 @@ object AggregateUtil extends Enumeration {
 
       case DATE => DataTypes.INT
       case TIME_WITHOUT_TIME_ZONE => DataTypes.INT
-      case TIMESTAMP_WITHOUT_TIME_ZONE => DataTypes.BIGINT
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[TimestampType]
+        DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
 
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT

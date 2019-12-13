@@ -22,8 +22,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.Elasticsearch;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Schema;
@@ -83,48 +83,55 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			createTestSinkOptions());
 
 		// construct table sink using descriptors and table sink factory
+		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
+		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, elasticSearchProperties)
+			.createStreamTableSink(elasticSearchProperties);
 
-		final TestTableDescriptor testDesc = new TestTableDescriptor(
-				new Elasticsearch()
-					.version(getElasticsearchVersion())
-					.host(HOSTNAME, PORT, SCHEMA)
-					.index(INDEX)
-					.documentType(DOC_TYPE)
-					.keyDelimiter(KEY_DELIMITER)
-					.keyNullLiteral(KEY_NULL_LITERAL)
-					.bulkFlushBackoffExponential()
-					.bulkFlushBackoffDelay(123L)
-					.bulkFlushBackoffMaxRetries(3)
-					.bulkFlushInterval(100L)
-					.bulkFlushMaxActions(1000)
-					.bulkFlushMaxSize("1 MB")
-					.failureHandlerCustom(DummyFailureHandler.class)
-					.connectionMaxRetryTimeout(100)
-					.connectionPathPrefix("/myapp"))
-			.withFormat(
-				new Json()
-					.deriveSchema())
-			.withSchema(
-				new Schema()
-					.field(FIELD_KEY, Types.LONG())
-					.field(FIELD_FRUIT_NAME, Types.STRING())
-					.field(FIELD_COUNT, Types.DECIMAL())
-					.field(FIELD_TS, Types.SQL_TIMESTAMP()))
-			.inUpsertMode();
+		assertEquals(expectedSink, actualSink);
+	}
 
-		final Map<String, String> propertiesMap = testDesc.toProperties();
-		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, propertiesMap)
-			.createStreamTableSink(propertiesMap);
+	@Test
+	public void testTableSinkWithLegacyProperties() {
+		// prepare parameters for Elasticsearch table sink
+		final TableSchema schema = createTestSchema();
+
+		final ElasticsearchUpsertTableSinkBase expectedSink = getExpectedTableSink(
+			false,
+			schema,
+			Collections.singletonList(new Host(HOSTNAME, PORT, SCHEMA)),
+			INDEX,
+			DOC_TYPE,
+			KEY_DELIMITER,
+			KEY_NULL_LITERAL,
+			new JsonRowSerializationSchema(schema.toRowType()),
+			XContentType.JSON,
+			new DummyFailureHandler(),
+			createTestSinkOptions());
+
+		// construct table sink using descriptors and table sink factory
+		final Map<String, String> elasticSearchProperties = createElasticSearchProperties();
+
+		final Map<String, String> legacyPropertiesMap = new HashMap<>();
+		legacyPropertiesMap.putAll(elasticSearchProperties);
+		// use legacy properties
+		legacyPropertiesMap.remove("connector.hosts");
+
+		legacyPropertiesMap.put("connector.hosts.0.hostname", "host1");
+		legacyPropertiesMap.put("connector.hosts.0.port", "1234");
+		legacyPropertiesMap.put("connector.hosts.0.protocol", "https");
+
+		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, legacyPropertiesMap)
+			.createStreamTableSink(legacyPropertiesMap);
 
 		assertEquals(expectedSink, actualSink);
 	}
 
 	protected TableSchema createTestSchema() {
 		return TableSchema.builder()
-			.field(FIELD_KEY, Types.LONG())
-			.field(FIELD_FRUIT_NAME, Types.STRING())
-			.field(FIELD_COUNT, Types.DECIMAL())
-			.field(FIELD_TS, Types.SQL_TIMESTAMP())
+			.field(FIELD_KEY, DataTypes.BIGINT())
+			.field(FIELD_FRUIT_NAME, DataTypes.STRING())
+			.field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
+			.field(FIELD_TS, DataTypes.TIMESTAMP(3))
 			.build();
 	}
 
@@ -140,6 +147,37 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 		sinkOptions.put(SinkOption.REST_MAX_RETRY_TIMEOUT, "100");
 		sinkOptions.put(SinkOption.REST_PATH_PREFIX, "/myapp");
 		return sinkOptions;
+	}
+
+	protected Map<String, String> createElasticSearchProperties() {
+		return new TestTableDescriptor(
+			new Elasticsearch()
+				.version(getElasticsearchVersion())
+				.host(HOSTNAME, PORT, SCHEMA)
+				.index(INDEX)
+				.documentType(DOC_TYPE)
+				.keyDelimiter(KEY_DELIMITER)
+				.keyNullLiteral(KEY_NULL_LITERAL)
+				.bulkFlushBackoffExponential()
+				.bulkFlushBackoffDelay(123L)
+				.bulkFlushBackoffMaxRetries(3)
+				.bulkFlushInterval(100L)
+				.bulkFlushMaxActions(1000)
+				.bulkFlushMaxSize("1 MB")
+				.failureHandlerCustom(DummyFailureHandler.class)
+				.connectionMaxRetryTimeout(100)
+				.connectionPathPrefix("/myapp"))
+			.withFormat(
+				new Json()
+					.deriveSchema())
+			.withSchema(
+				new Schema()
+					.field(FIELD_KEY, DataTypes.BIGINT())
+					.field(FIELD_FRUIT_NAME, DataTypes.STRING())
+					.field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
+					.field(FIELD_TS, DataTypes.TIMESTAMP(3)))
+			.inUpsertMode()
+			.toProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------

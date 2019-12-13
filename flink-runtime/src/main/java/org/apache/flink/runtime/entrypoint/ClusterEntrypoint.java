@@ -476,7 +476,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	// Abstract methods
 	// --------------------------------------------------
 
-	protected abstract DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration);
+	protected abstract DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException;
 
 	protected abstract ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 		Configuration configuration,

@@ -433,7 +433,7 @@ You can configure which delimiter to use for the identifier (default: `.`) by se
 
 ### User Scope
 
-You can define a user scope by calling `MetricGroup#addGroup(String name)`, `MetricGroup#addGroup(int name)` or `Metric#addGroup(String key, String value)`.
+You can define a user scope by calling `MetricGroup#addGroup(String name)`, `MetricGroup#addGroup(int name)` or `MetricGroup#addGroup(String key, String value)`.
 These methods affect what `MetricGroup#getMetricIdentifier` and `MetricGroup#getScopeComponents` return.
 
 <div class="codetabs" markdown="1">
@@ -563,6 +563,7 @@ reporters will be instantiated on each job and task manager when they are starte
 - `metrics.reporter.<name>.factory.class`: The reporter factory class to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
+- `metrics.reporter.<name>.scope.variables.excludes`: (optional) A semicolon (;) separated list of variables that should be ignored by tag-based reporters. 
 - `metrics.reporters`: (optional) A comma-separated include list of reporter names. By default all configured reporters will be used.
 
 All reporters must at least have either the `class` or `factory.class` property. Which property may/should be used depends on the reporter implementation. See the individual reporter configuration sections for more information.
@@ -659,6 +660,7 @@ Parameters:
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
 - `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
+- `consistency` - (optional) InfluxDB consistency level for metrics. Possible values: [ALL, ANY, ONE, QUORUM], default is ONE
 - `connectTimeout` - (optional) the InfluxDB client connect timeout in milliseconds, default is 10000 ms
 - `writeTimeout` - (optional) the InfluxDB client write timeout in milliseconds, default is 10000 ms
 
@@ -673,6 +675,7 @@ metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
 metrics.reporter.influxdb.retentionPolicy: one_hour
+metrics.reporter.influxdb.consistency: ANY
 metrics.reporter.influxdb.connectTimeout: 60000
 metrics.reporter.influxdb.writeTimeout: 60000
 
@@ -1051,12 +1054,12 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>inputFloatingBuffersUsage</td>
-      <td>An estimate of the floating input buffers usage, dedicated for credit-based mode. (ignores LocalInputChannels)</td>
+      <td>An estimate of the floating input buffers usage. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>inputExclusiveBuffersUsage</td>
-      <td>An estimate of the exclusive input buffers usage, dedicated for credit-based mode. (ignores LocalInputChannels)</td>
+      <td>An estimate of the exclusive input buffers usage. (ignores LocalInputChannels)</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1253,7 +1256,7 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="4"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="5"><strong>Job (only available on JobManager)</strong></th>
       <td>restartingTime</td>
       <td>The time it took to restart the job, or how long the current restart has been in progress (in milliseconds).</td>
       <td>Gauge</td>
@@ -1276,7 +1279,12 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td>fullRestarts</td>
-      <td>The total number of full restarts since this job was submitted.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>numRestarts</td>
+      <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1369,7 +1377,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="12"><strong>Task</strong></th>
+      <th rowspan="13"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1428,6 +1436,11 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>numBuffersOutPerSecond</td>
       <td>The number of network buffers this task emits per second.</td>
       <td>Meter</td>
+    </tr>
+    <tr>
+      <td>isBackPressured</td>
+      <td>Whether the task is back-pressured.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="6"><strong>Task/Operator</strong></th>

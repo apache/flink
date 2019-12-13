@@ -18,15 +18,19 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.TableImpl;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.planner.runtime.utils.TableUtil;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -40,6 +44,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,9 +55,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import scala.collection.JavaConverters;
-
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -91,9 +98,9 @@ public class TableEnvHiveConnectorTest {
 		FileSystem fs = defaultPartPath.getFileSystem(hiveConf);
 		assertTrue(fs.exists(defaultPartPath));
 
-		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select * from db1.part order by x");
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect(flinkTable)).asJava();
-		assertEquals(Arrays.toString(new String[]{"1,1", "2,null"}), rows.toString());
+		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select y, x from db1.part order by x");
+		List<Row> rows = TableUtils.collectToList(flinkTable);
+		assertEquals(Arrays.toString(new String[]{"1,1", "null,2"}), rows.toString());
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -117,7 +124,7 @@ public class TableEnvHiveConnectorTest {
 	public void testDifferentFormats() throws Exception {
 		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
 		for (String format : formats) {
-			if (format.equals("orc") && hmsClient.getHiveVersion().startsWith("2.0")) {
+			if (format.equals("orc") && HiveShimLoader.getHiveVersion().startsWith("2.0")) {
 				// Ignore orc test for Hive version 2.0.x for now due to FLINK-13998
 				continue;
 			}
@@ -137,19 +144,21 @@ public class TableEnvHiveConnectorTest {
 		} else {
 			suffix = "stored as " + format;
 		}
-		hiveShell.execute("create table db1.src (i int,s string) " + suffix);
-		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
+		hiveShell.execute("create table db1.src (i int,s string,ts timestamp,dt date) " + suffix);
+		hiveShell.execute("create table db1.dest (i int,s string,ts timestamp,dt date) " + suffix);
 
 		// prepare source data with Hive
 		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
-		hiveShell.execute("insert into table db1.src values (1,'a'),(2,'b')");
+		hiveShell.execute("insert into table db1.src values " +
+				"(1,'a','2018-08-20 00:00:00.1','2018-08-20'),(2,'b','2019-08-26 00:00:00.1','2019-08-26')");
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
 		tableEnv.execute("test_" + format);
 
 		// verify data on hive side
-		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
+		verifyHiveQueryResult("select * from db1.dest",
+				Arrays.asList("1\ta\t2018-08-20 00:00:00.1\t2018-08-20", "2\tb\t2019-08-26 00:00:00.1\t2019-08-26"));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -299,9 +308,118 @@ public class TableEnvHiveConnectorTest {
 			results = HiveTestUtils.collectTable(tableEnv,
 					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
 			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
+
+			hiveShell.execute("create table db1.ts (a array<timestamp>)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "ts").addRow(new Object[]{
+					new Object[]{Timestamp.valueOf("2015-04-28 15:23:00"), Timestamp.valueOf("2016-06-03 17:05:52")}})
+					.commit();
+			results = HiveTestUtils.collectTable(tableEnv,
+					tableEnv.sqlQuery("select x from db1.ts, lateral table(hiveudtf(a)) as T(x)"));
+			assertEquals("[2015-04-28T15:23, 2016-06-03T17:05:52]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 			hiveShell.execute("drop function hiveudtf");
+		}
+	}
+
+	@Test
+	public void testNotNullConstraints() throws Exception {
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.tbl (x int,y bigint not null enable rely,z string not null enable norely)");
+			CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl"));
+			TableSchema tableSchema = catalogTable.getSchema();
+			assertTrue("By default columns should be nullable",
+					tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable());
+			assertFalse("NOT NULL columns should be reflected in table schema",
+					tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
+			assertTrue("NOT NULL NORELY columns should be considered nullable",
+					tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testPKConstraint() throws Exception {
+		// While PK constraints are supported since Hive 2.1.0, the constraints cannot be RELY in 2.x versions.
+		// So let's only test for 3.x.
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		hiveShell.execute("create database db1");
+		try {
+			// test rely PK constraints
+			hiveShell.execute("create table db1.tbl1 (x tinyint,y smallint,z int, primary key (x,z) disable novalidate rely)");
+			CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl1"));
+			TableSchema tableSchema = catalogTable.getSchema();
+			assertTrue(tableSchema.getPrimaryKey().isPresent());
+			UniqueConstraint pk = tableSchema.getPrimaryKey().get();
+			assertEquals(2, pk.getColumns().size());
+			assertTrue(pk.getColumns().containsAll(Arrays.asList("x", "z")));
+
+			// test norely PK constraints
+			hiveShell.execute("create table db1.tbl2 (x tinyint,y smallint, primary key (x) disable norely)");
+			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl2"));
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
+
+			// test table w/o PK
+			hiveShell.execute("create table db1.tbl3 (x tinyint)");
+			catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl3"));
+			tableSchema = catalogTable.getSchema();
+			assertFalse(tableSchema.getPrimaryKey().isPresent());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testTimestamp() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (ts timestamp)");
+			hiveShell.execute("create table db1.dest (ts timestamp)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{Timestamp.valueOf("2019-11-11 00:00:00")})
+					.addRow(new Object[]{Timestamp.valueOf("2019-12-03 15:43:32.123456789")})
+					.commit();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			// test read timestamp from hive
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.src"));
+			assertEquals(2, results.size());
+			assertEquals(LocalDateTime.of(2019, 11, 11, 0, 0), results.get(0).getField(0));
+			assertEquals(LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789), results.get(1).getField(0));
+			// test write timestamp to hive
+			tableEnv.sqlUpdate("insert into db1.dest select max(ts) from db1.src");
+			tableEnv.execute("write timestamp to hive");
+			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-03 15:43:32.123456789"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testDate() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (dt date)");
+			hiveShell.execute("create table db1.dest (dt date)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{Date.valueOf("2019-12-09")})
+					.addRow(new Object[]{Date.valueOf("2019-12-12")})
+					.commit();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			// test read date from hive
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.src"));
+			assertEquals(2, results.size());
+			assertEquals(LocalDate.of(2019, 12, 9), results.get(0).getField(0));
+			assertEquals(LocalDate.of(2019, 12, 12), results.get(1).getField(0));
+			// test write date to hive
+			tableEnv.sqlUpdate("insert into db1.dest select max(dt) from db1.src");
+			tableEnv.execute("write date to hive");
+			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-12"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
 		}
 	}
 

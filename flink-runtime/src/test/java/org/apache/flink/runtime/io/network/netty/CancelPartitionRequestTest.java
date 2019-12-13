@@ -92,8 +92,7 @@ public class CancelPartitionRequestTest {
 					}
 				});
 
-			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class), true);
+			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -142,8 +141,7 @@ public class CancelPartitionRequestTest {
 						}
 					});
 
-			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class), true);
+			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -188,7 +186,7 @@ public class CancelPartitionRequestTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer() throws IOException {
+		public BufferAndBacklog getNextBuffer(boolean isLocalChannel) throws IOException {
 			Buffer buffer = bufferProvider.requestBuffer();
 			if (buffer != null) {
 				buffer.setSize(buffer.getMaxCapacity()); // fake some data

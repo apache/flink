@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 
 import javax.annotation.Nonnull;
@@ -31,6 +32,7 @@ import java.util.Set;
 
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Utility class for {@link Configuration} related helper functions.
@@ -55,25 +57,6 @@ public class ConfigurationUtils {
 		} else {
 			//use default value
 			return MemorySize.parse(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue());
-		}
-	}
-
-	/**
-	 * Get task manager's heap memory. This method will check the new key
-	 * {@link TaskManagerOptions#TASK_MANAGER_HEAP_MEMORY} and
-	 * the old key {@link TaskManagerOptions#TASK_MANAGER_HEAP_MEMORY_MB} for backwards compatibility.
-	 *
-	 * @param configuration the configuration object
-	 * @return the memory size of task manager's heap memory.
-	 */
-	public static MemorySize getTaskManagerHeapMemory(Configuration configuration) {
-		if (configuration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
-			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
-		} else if (configuration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB.key())) {
-			return MemorySize.parse(configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) + "m");
-		} else {
-			//use default value
-			return MemorySize.parse(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue());
 		}
 	}
 
@@ -170,8 +153,70 @@ public class ConfigurationUtils {
 	}
 
 	@Nonnull
-	private static String[] splitPaths(@Nonnull String separatedPaths) {
+	public static String[] splitPaths(@Nonnull String separatedPaths) {
 		return separatedPaths.length() > 0 ? separatedPaths.split(",|" + File.pathSeparator) : EMPTY;
+	}
+
+	@VisibleForTesting
+	public static Map<String, String> parseTmResourceDynamicConfigs(String dynamicConfigsStr) {
+		Map<String, String> configs = new HashMap<>();
+		String[] configStrs = dynamicConfigsStr.split(" ");
+
+		checkArgument(
+			configStrs.length % 2 == 0,
+			"Dynamic option string contained odd number of arguments: #arguments=%s, (%s)", configStrs.length, dynamicConfigsStr);
+		for (int i = 0; i < configStrs.length; ++i) {
+			String configStr = configStrs[i];
+			if (i % 2 == 0) {
+				checkArgument(configStr.equals("-D"));
+			} else {
+				String[] configKV = configStr.split("=");
+				checkArgument(configKV.length == 2);
+				configs.put(configKV[0], configKV[1]);
+			}
+		}
+
+		checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.TASK_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key());
+		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
+		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MIN.key());
+		checkConfigContains(configs, TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
+
+		return configs;
+	}
+
+	private static void checkConfigContains(Map<String, String> configs, String key) {
+		checkArgument(configs.containsKey(key), "Key %s is missing present from dynamic configs.", key);
+	}
+
+	@VisibleForTesting
+	public static Map<String, String> parseTmResourceJvmParams(String jvmParamsStr) {
+		final String xmx = "-Xmx";
+		final String xms = "-Xms";
+		final String maxDirect = "-XX:MaxDirectMemorySize=";
+		final String maxMetadata = "-XX:MaxMetaspaceSize=";
+
+		Map<String, String> configs = new HashMap<>();
+		for (String paramStr : jvmParamsStr.split(" ")) {
+			if (paramStr.startsWith(xmx)) {
+				configs.put(xmx, paramStr.substring(xmx.length()));
+			} else if (paramStr.startsWith(xms)) {
+				configs.put(xms, paramStr.substring(xms.length()));
+			} else if (paramStr.startsWith(maxDirect)) {
+				configs.put(maxDirect, paramStr.substring(maxDirect.length()));
+			} else if (paramStr.startsWith(maxMetadata)) {
+				configs.put(maxMetadata, paramStr.substring(maxMetadata.length()));
+			}
+		}
+
+		checkArgument(configs.containsKey(xmx));
+		checkArgument(configs.containsKey(xms));
+		checkArgument(configs.containsKey(maxDirect));
+		checkArgument(configs.containsKey(maxMetadata));
+
+		return configs;
 	}
 
 	// Make sure that we cannot instantiate this class

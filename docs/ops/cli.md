@@ -107,6 +107,10 @@ These examples about how to submit a job in CLI.
         ./bin/flink run -py examples/python/table/batch/word_count.py \
                                 -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
 
+-   Run Python Table program with a JAR file:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <jarFile>
+
 -   Run Python Table program with pyFiles and pyModule:
 
         ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch
@@ -307,19 +311,73 @@ Action "run" compiles and runs a program.
                                           program. Optional flag to override the
                                           default value specified in the
                                           configuration.
-     -py,--python <python-file>           Python script with the program entry 
-                                          point.The dependent resources can be 
-                                          configured with the `--pyFiles` option.
-     -pyfs,--pyFiles <python-files>       Attach custom python files for job. 
-                                          Comma can be used as the separator to 
-                                          specify multiple files. The standard 
-                                          python resource file suffixes such as 
-                                          .py/.egg/.zip are all supported.
-                                          (eg:--pyFiles file:///tmp/myresource.zip
-                                          ,hdfs:///$namenode_address/myresource2.zip)
-     -pym,--pyModule <python-module>      Python module with the program entry 
-                                          point. This option must be used in 
-                                          conjunction with ` --pyFiles`.                                                                                                                
+     -py,--python <pythonFile>            Python script with the program entry
+                                          point. The dependent resources can be
+                                          configured with the `--pyFiles`
+                                          option.
+     -pyarch,--pyArchives <arg>           Add python archive files for job. The
+                                          archive files will be extracted to the
+                                          working directory of python UDF
+                                          worker. Currently only zip-format is
+                                          supported. For each archive file, a
+                                          target directory be specified. If the
+                                          target directory name is specified,
+                                          the archive file will be extracted to
+                                          a name can directory with the
+                                          specified name. Otherwise, the archive
+                                          file will be extracted to a directory
+                                          with the same name of the archive
+                                          file. The files uploaded via this
+                                          option are accessible via relative
+                                          path. '#' could be used as the
+                                          separator of the archive file path and
+                                          the target directory name. Comma (',')
+                                          could be used as the separator to
+                                          specify multiple archive files. This
+                                          option can be used to upload the
+                                          virtual environment, the data files
+                                          used in Python UDF (e.g.: --pyArchives
+                                          file:///tmp/py37.zip,file:///tmp/data.
+                                          zip#data --pyExecutable
+                                          py37.zip/py37/bin/python). The data
+                                          files could be accessed in Python UDF,
+                                          e.g.: f = open('data/data.txt', 'r').
+     -pyexec,--pyExecutable <arg>         Specify the path of the python
+                                          interpreter used to execute the python
+                                          UDF worker (e.g.: --pyExecutable
+                                          /usr/local/bin/python3). The python
+                                          UDF worker depends on Python 3.5+,
+                                          Apache Beam (version == 2.15.0), Pip
+                                          (version >= 7.1.0) and SetupTools
+                                          (version >= 37.0.0). Please ensure
+                                          that the specified environment meets
+                                          the above requirements.
+     -pyfs,--pyFiles <pythonFiles>        Attach custom python files for job.
+                                          These files will be added to the
+                                          PYTHONPATH of both the local client
+                                          and the remote python UDF worker. The
+                                          standard python resource file suffixes
+                                          such as .py/.egg/.zip or directory are
+                                          all supported. Comma (',') could be
+                                          used as the separator to specify
+                                          multiple files (e.g.: --pyFiles
+                                          file:///tmp/myresource.zip,hdfs:///$na
+                                          menode_address/myresource2.zip).
+     -pym,--pyModule <pythonModule>       Python module with the program entry
+                                          point. This option must be used in
+                                          conjunction with `--pyFiles`.
+     -pyreq,--pyRequirements <arg>        Specify a requirements.txt file which
+                                          defines the third-party dependencies.
+                                          These dependencies will be installed
+                                          and added to the PYTHONPATH of the
+                                          python UDF worker. A directory which
+                                          contains the installation packages of
+                                          these dependencies could be specified
+                                          optionally. Use '#' as the separator
+                                          if the optional parameter exists
+                                          (e.g.: --pyRequirements
+                                          file:///tmp/requirements.txt#file:///t
+                                          mp/cached_dir).                                                                          
      -q,--sysoutLogging                   If present, suppress logging output to
                                           standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
@@ -360,7 +418,6 @@ Action "run" compiles and runs a program.
                                           (memory, cores)
      -yqu,--yarnqueue <arg>               Specify YARN queue.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
-     -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
                                           (t for transfer), multiple options are 
                                           supported.

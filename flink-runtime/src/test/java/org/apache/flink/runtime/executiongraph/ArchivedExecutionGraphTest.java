@@ -21,13 +21,11 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
@@ -36,15 +34,12 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -54,7 +49,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -93,8 +87,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 
-		List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2));
-
+		JobGraph jobGraph = new JobGraph(v1, v2);
 		ExecutionConfig config = new ExecutionConfig();
 
 		config.setExecutionMode(ExecutionMode.BATCH_FORCED);
@@ -103,20 +96,14 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		config.enableObjectReuse();
 		config.setGlobalJobParameters(new TestJobParameters());
 
-		runtimeGraph = new ExecutionGraph(
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			new JobID(),
-			"test job",
-			new Configuration(),
-			new SerializedValue<>(config),
-			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy(),
-			mock(SlotProvider.class));
+		jobGraph.setExecutionConfig(config);
+
+		runtimeGraph = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
+			.build();
 
 		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		runtimeGraph.attachJobGraph(vertices);
 
 		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
 		jobVertices.add(runtimeGraph.getJobVertex(v1ID));

@@ -248,32 +248,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
 	/**
-	 * The config parameter defining the amount of memory to be allocated by the task manager's
-	 * memory manager (in megabytes). If not set, a relative fraction will be allocated, as defined
-	 * by {@link #TASK_MANAGER_MEMORY_FRACTION_KEY}.
-	 *
-	 * @deprecated Use {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE} instead
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
-
-	/**
-	 * The config parameter defining the fraction of free memory allocated by the memory manager.
-	 *
-	 * @deprecated Use {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_FRACTION} instead
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
-
-	/**
-	 * The config parameter defining the memory allocation method (JVM heap or off-heap).
-	 *
-	 * @deprecated Use {@link TaskManagerOptions#MEMORY_OFF_HEAP} instead
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
-
-	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
 	 *
@@ -813,7 +787,7 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = "jobmanager.web.backpressure.refresh-interval";
 
 	/**
-	 * Number of stack trace samples to take to determine back pressure.
+	 * Number of samples to take to determine back pressure.
 	 *
 	 * @deprecated Use {@link WebOptions#BACKPRESSURE_NUM_SAMPLES} instead.
 	 */
@@ -821,7 +795,7 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = "jobmanager.web.backpressure.num-samples";
 
 	/**
-	 * Delay between stack trace samples to determine back pressure.
+	 * Delay between samples to determine back pressure.
 	 *
 	 * @deprecated Use {@link WebOptions#BACKPRESSURE_DELAY} instead.
 	 */
@@ -1252,6 +1226,9 @@ public final class ConfigConstants {
 	/**	The delimiter used to assemble the metric identifier. This is used as a suffix in an actual reporter config. */
 	public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
 
+	/** The set of variables that should be excluded. */
+	public static final String METRICS_REPORTER_EXCLUDED_VARIABLES = "scope.variables.excludes";
+
 	/** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
 	@Deprecated
 	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
@@ -1414,14 +1391,6 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
-
-	/**
-	 * Config key has been deprecated. Therefore, no default value required.
-	 *
-	 * @deprecated {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_FRACTION} provides the default value now
-	 */
-	@Deprecated
-	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
 
 	/**
 	 * Config key has been deprecated. Therefore, no default value required.
@@ -2020,6 +1989,9 @@ public final class ConfigConstants {
 
 	/** The environment variable name which contains the Flink installation root directory. */
 	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
+
+	/** The user lib directory name. */
+	public static final String DEFAULT_FLINK_USR_LIB_DIR = "usrlib";
 
 	// ---------------------------- Encoding ------------------------------
 

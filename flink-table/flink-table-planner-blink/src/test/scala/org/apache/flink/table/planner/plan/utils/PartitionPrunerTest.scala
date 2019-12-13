@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{DataTypes, TableConfig}
+import org.apache.flink.table.functions.FunctionIdentifier
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 
@@ -78,7 +79,12 @@ class PartitionPrunerTest extends RexNodeTestBase {
     // amount
     val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 1)
     // MyUdf(amount)
-    val t1 = rexBuilder.makeCall(new ScalarSqlFunction("MyUdf", "MyUdf", Func1, typeFactory), t0)
+    val t1 = rexBuilder.makeCall(new ScalarSqlFunction(
+      FunctionIdentifier.of("MyUdf"),
+      "MyUdf",
+      Func1,
+      typeFactory),
+      t0)
     // 100
     val t2 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
     // MyUdf(amount) > 100

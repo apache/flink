@@ -37,6 +37,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -68,11 +69,13 @@ import java.util.Set;
 import static org.apache.flink.table.dataformat.BinaryString.fromBytes;
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 import static org.apache.flink.table.dataformat.DataFormatTestUtil.MyObj;
+import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -444,18 +447,18 @@ public class BinaryRowTest {
 	public void testGeneric() {
 		BinaryRow row = new BinaryRow(3);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
-		BinaryGeneric<String> hahah = new BinaryGeneric<>("hahah", StringSerializer.INSTANCE);
-		writer.writeGeneric(0, hahah);
+		BinaryGenericSerializer<String> binarySerializer = new BinaryGenericSerializer<>(StringSerializer.INSTANCE);
+		BinaryGeneric<String> hahah = new BinaryGeneric<>("hahah");
+		writer.writeGeneric(0, hahah, binarySerializer);
 		writer.setNullAt(1);
-		hahah.ensureMaterialized();
-		writer.writeGeneric(2, hahah);
+		writer.writeGeneric(2, hahah, binarySerializer);
 		writer.complete();
 
 		BinaryGeneric<String> generic0 = row.getGeneric(0);
-		assertEquals(hahah, generic0);
+		assertThat(generic0, equivalent(hahah, binarySerializer));
 		assertTrue(row.isNullAt(1));
 		BinaryGeneric<String> generic2 = row.getGeneric(2);
-		assertEquals(hahah, generic2);
+		assertThat(generic2, equivalent(hahah, binarySerializer));
 	}
 
 	@Test
@@ -619,18 +622,18 @@ public class BinaryRowTest {
 
 		GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
 		TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+		BinaryGenericSerializer<MyObj> binarySerializer = new BinaryGenericSerializer<>(genericSerializer);
 
 		BinaryRow row = new BinaryRow(4);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeInt(0, 0);
 
-		BinaryGeneric<MyObj> myObj1 = new BinaryGeneric<>(new MyObj(0, 1), genericSerializer);
-		writer.writeGeneric(1, myObj1);
-		BinaryGeneric<MyObj> myObj2 = new BinaryGeneric<>(new MyObj(123, 5.0), genericSerializer);
-		myObj2.ensureMaterialized();
-		writer.writeGeneric(2, myObj2);
-		BinaryGeneric<MyObj> myObj3 = new BinaryGeneric<>(new MyObj(1, 1), genericSerializer);
-		writer.writeGeneric(3, myObj3);
+		BinaryGeneric<MyObj> myObj1 = new BinaryGeneric<>(new MyObj(0, 1));
+		writer.writeGeneric(1, myObj1, binarySerializer);
+		BinaryGeneric<MyObj> myObj2 = new BinaryGeneric<>(new MyObj(123, 5.0));
+		writer.writeGeneric(2, myObj2, binarySerializer);
+		BinaryGeneric<MyObj> myObj3 = new BinaryGeneric<>(new MyObj(1, 1));
+		writer.writeGeneric(3, myObj3, binarySerializer);
 		writer.complete();
 
 		assertTestGenericObjectRow(row, genericSerializer);
@@ -670,12 +673,30 @@ public class BinaryRowTest {
 		LocalDateTime localDateTime = LocalDateTime.of(localDate, localTime);
 
 		writer.writeInt(0, 0);
-		writer.writeGeneric(1, new BinaryGeneric<>(new Date(123), SqlDateSerializer.INSTANCE));
-		writer.writeGeneric(2, new BinaryGeneric<>(new Time(456), SqlTimeSerializer.INSTANCE));
-		writer.writeGeneric(3, new BinaryGeneric<>(new Timestamp(789), SqlTimestampSerializer.INSTANCE));
-		writer.writeGeneric(4, new BinaryGeneric<>(localDate, LocalDateSerializer.INSTANCE));
-		writer.writeGeneric(5, new BinaryGeneric<>(localTime, LocalTimeSerializer.INSTANCE));
-		writer.writeGeneric(6, new BinaryGeneric<>(localDateTime, LocalDateTimeSerializer.INSTANCE));
+		writer.writeGeneric(
+			1,
+			new BinaryGeneric<>(new Date(123)),
+			new BinaryGenericSerializer<>(SqlDateSerializer.INSTANCE));
+		writer.writeGeneric(
+			2,
+			new BinaryGeneric<>(new Time(456)),
+			new BinaryGenericSerializer<>(SqlTimeSerializer.INSTANCE));
+		writer.writeGeneric(
+			3,
+			new BinaryGeneric<>(new Timestamp(789)),
+			new BinaryGenericSerializer<>(SqlTimestampSerializer.INSTANCE));
+		writer.writeGeneric(
+			4,
+			new BinaryGeneric<>(localDate),
+			new BinaryGenericSerializer<>(LocalDateSerializer.INSTANCE));
+		writer.writeGeneric(
+			5,
+			new BinaryGeneric<>(localTime),
+			new BinaryGenericSerializer<>(LocalTimeSerializer.INSTANCE));
+		writer.writeGeneric(
+			6,
+			new BinaryGeneric<>(localDateTime),
+			new BinaryGenericSerializer<>(LocalDateTimeSerializer.INSTANCE));
 		writer.complete();
 
 		assertEquals(new Date(123), BinaryGeneric.getJavaObjectFromBinaryGeneric(
@@ -781,7 +802,7 @@ public class BinaryRowTest {
 		random.nextBytes(bytes);
 		writer.writeBinary(0, bytes);
 		writer.reset();
-		writer.writeGeneric(0, new BinaryGeneric<>(new MyObj(0, 1), genericSerializer));
+		writer.writeGeneric(0, new BinaryGeneric<>(new MyObj(0, 1)), new BinaryGenericSerializer<>(genericSerializer));
 		writer.complete();
 		int hash1 = row.hashCode();
 
@@ -789,7 +810,7 @@ public class BinaryRowTest {
 		random.nextBytes(bytes);
 		writer.writeBinary(0, bytes);
 		writer.reset();
-		writer.writeGeneric(0, new BinaryGeneric<>(new MyObj(0, 1), genericSerializer));
+		writer.writeGeneric(0, new BinaryGeneric<>(new MyObj(0, 1)), new BinaryGenericSerializer<>(genericSerializer));
 		writer.complete();
 		int hash2 = row.hashCode();
 
@@ -978,6 +999,45 @@ public class BinaryRowTest {
 			}
 			assertEquals(row24, rets.get(0));
 			assertEquals(row160, rets.get(1));
+		}
+	}
+
+	@Test
+	public void testSqlTimestamp() {
+		// 1. compact
+		{
+			final int precision = 3;
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeTimestamp(0, SqlTimestamp.fromEpochMillis(123L), precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("1970-01-01T00:00:00.123", row.getTimestamp(0, 3).toString());
+			assertTrue(row.isNullAt(1));
+			row.setTimestamp(0, SqlTimestamp.fromEpochMillis(-123L), precision);
+			assertEquals("1969-12-31T23:59:59.877", row.getTimestamp(0, 3).toString());
+		}
+
+		// 2. not compact
+		{
+			final int precision = 9;
+			SqlTimestamp sqlTimestamp1 = SqlTimestamp.fromLocalDateTime(LocalDateTime.of(1969, 1, 1, 0, 0, 0, 123456789));
+			SqlTimestamp sqlTimestamp2 = SqlTimestamp.fromTimestamp(Timestamp.valueOf("1970-01-01 00:00:00.123456789"));
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeTimestamp(0, sqlTimestamp1, precision);
+			writer.writeTimestamp(1, null, precision);
+			writer.complete();
+
+			// the size of row should be 8 + (8 + 8) * 2
+			// (8 bytes nullBits, 8 bytes fixed-length part and 8 bytes variable-length part for each timestamp(9))
+			assertEquals(40, row.getSizeInBytes());
+
+			assertEquals("1969-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
+			assertTrue(row.isNullAt(1));
+			row.setTimestamp(0, sqlTimestamp2, precision);
+			assertEquals("1970-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
 		}
 	}
 }

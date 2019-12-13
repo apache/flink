@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -275,7 +275,7 @@ under the License.
 									<excludes>
 										<!-- Only some of these licenses actually apply to the JAR and have been manually
 										 	placed in this module's resources directory. -->
-										<exclude>META-INF/license</exclude>
+										<exclude>META-INF/license/**</exclude>
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 										 	copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>

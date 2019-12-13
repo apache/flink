@@ -21,8 +21,10 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.JarUtils;
 
 import javax.annotation.Nullable;
 
@@ -46,13 +48,17 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Random;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.client.program.PackagedProgramUtils.isPython;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class encapsulates represents a program, packaged in a jar file. It supplies
@@ -83,9 +89,9 @@ public class PackagedProgram {
 
 	private final List<URL> classpaths;
 
-	private ClassLoader userCodeClassLoader;
+	private final ClassLoader userCodeClassLoader;
 
-	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
+	private final SavepointRestoreSettings savepointSettings;
 
 	/**
 	 * Flag indicating whether the job is a Python job.
@@ -94,140 +100,57 @@ public class PackagedProgram {
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
-	 * argument.
-	 *
-	 * @param jarFile
-	 *        The jar file which contains the plan and a Manifest which defines
-	 *        the program-class
-	 * @param args
-	 *        Optional. The arguments used to create the pact plan, depend on
-	 *        implementation of the pact plan. See getDescription().
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 */
-	public PackagedProgram(File jarFile, String... args) throws ProgramInvocationException {
-		this(jarFile, Collections.<URL>emptyList(), null, args);
-	}
-
-	/**
-	 * Creates an instance that wraps the plan defined in the jar file using the given
-	 * argument.
-	 *
-	 * @param jarFile
-	 *        The jar file which contains the plan and a Manifest which defines
-	 *        the program-class
-	 * @param classpaths
-	 *        Additional classpath URLs needed by the Program.
-	 * @param args
-	 *        Optional. The arguments used to create the pact plan, depend on
-	 *        implementation of the pact plan. See getDescription().
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 */
-	public PackagedProgram(File jarFile, List<URL> classpaths, String... args) throws ProgramInvocationException {
-		this(jarFile, classpaths, null, args);
-	}
-
-	/**
-	 * Creates an instance that wraps the plan defined in the jar file using the given
 	 * arguments. For generating the plan the class defined in the className parameter
 	 * is used.
 	 *
-	 * @param jarFile
-	 *        The jar file which contains the plan.
-	 * @param entryPointClassName
-	 *        Name of the class which generates the plan. Overrides the class defined
-	 *        in the jar file manifest
-	 * @param args
-	 *        Optional. The arguments used to create the pact plan, depend on
-	 *        implementation of the pact plan. See getDescription().
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
+	 * @param jarFile             The jar file which contains the plan.
+	 * @param classpaths          Additional classpath URLs needed by the Program.
+	 * @param entryPointClassName Name of the class which generates the plan. Overrides the class defined
+	 *                            in the jar file manifest.
+	 * @param configuration       Flink configuration which affects the classloading policy of the Program execution.
+	 * @param args                Optional. The arguments used to create the pact plan, depend on
+	 *                            implementation of the pact plan. See getDescription().
+	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
+	 *                                    may be a missing / wrong class or manifest files.
 	 */
-	public PackagedProgram(File jarFile, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		this(jarFile, Collections.<URL>emptyList(), entryPointClassName, args);
-	}
+	private PackagedProgram(
+			@Nullable File jarFile,
+			List<URL> classpaths,
+			@Nullable String entryPointClassName,
+			Configuration configuration,
+			SavepointRestoreSettings savepointRestoreSettings,
+			String... args) throws ProgramInvocationException {
+		this.classpaths = checkNotNull(classpaths);
+		this.savepointSettings = checkNotNull(savepointRestoreSettings);
+		this.args = checkNotNull(args);
 
-	/**
-	 * Creates an instance that wraps the plan defined in the jar file using the given
-	 * arguments. For generating the plan the class defined in the className parameter
-	 * is used.
-	 *
-	 * @param jarFile
-	 *        The jar file which contains the plan.
-	 * @param classpaths
-	 *        Additional classpath URLs needed by the Program.
-	 * @param entryPointClassName
-	 *        Name of the class which generates the plan. Overrides the class defined
-	 *        in the jar file manifest
-	 * @param args
-	 *        Optional. The arguments used to create the pact plan, depend on
-	 *        implementation of the pact plan. See getDescription().
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
-	 */
-	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
-		// Whether the job is a Python job.
-		isPython = entryPointClassName != null && (entryPointClassName.equals("org.apache.flink.client.python.PythonDriver")
-			|| entryPointClassName.equals("org.apache.flink.client.python.PythonGatewayServer"));
+		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
 
-		URL jarFileUrl = null;
-		if (jarFile != null) {
-			try {
-				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-			} catch (MalformedURLException e1) {
-				throw new IllegalArgumentException("The jar file path is invalid.");
-			}
+		// whether the job is a Python job.
+		this.isPython = isPython(entryPointClassName);
 
-			checkJarFile(jarFileUrl);
-		} else if (!isPython) {
-			throw new IllegalArgumentException("The jar file must not be null.");
-		}
+		// load the jar file if exists
+		this.jarFile = loadJarFile(jarFile);
 
-		this.jarFile = jarFileUrl;
-		this.args = args == null ? new String[0] : args;
-
-		// if no entryPointClassName name was given, we try and look one up through the manifest
-		if (entryPointClassName == null) {
-			entryPointClassName = getEntryPointClassNameFromJar(jarFileUrl);
-		}
+		assert this.jarFile != null || entryPointClassName != null;
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
-		this.classpaths = classpaths;
-		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		this.extractedTempLibraries = this.jarFile == null ? Collections.emptyList() : extractContainedLibraries(this.jarFile);
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
+			getJobJarAndDependencies(),
+			classpaths,
+			getClass().getClassLoader(),
+			configuration);
 
 		// load the entry point class
-		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
+		this.mainClass = loadMainClass(
+			// if no entryPointClassName name was given, we try and look one up through the manifest
+			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(this.jarFile),
+			userCodeClassLoader);
 
 		if (!hasMainMethod(mainClass)) {
 			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
-	}
-
-	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
-		this.jarFile = null;
-		this.args = args == null ? new String[0] : args;
-
-		this.extractedTempLibraries = Collections.emptyList();
-		this.classpaths = Collections.emptyList();
-		this.userCodeClassLoader = entryPointClass.getClassLoader();
-
-		// load the entry point class
-		this.mainClass = entryPointClass;
-		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.client.python.PythonDriver");
-
-		if (!hasMainMethod(mainClass)) {
-			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
-		}
-	}
-
-	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
-		this.savepointSettings = savepointSettings;
 	}
 
 	public SavepointRestoreSettings getSavepointSettings() {
@@ -247,9 +170,8 @@ public class PackagedProgram {
 	 * may contain a description of the plan itself and its arguments.
 	 *
 	 * @return The description of the PactProgram's input parameters.
-	 * @throws ProgramInvocationException
-	 *         This invocation is thrown if the Program can't be properly loaded. Causes
-	 *         may be a missing / wrong class or manifest files.
+	 * @throws ProgramInvocationException This invocation is thrown if the Program can't be properly loaded. Causes
+	 *                                    may be a missing / wrong class or manifest files.
 	 */
 	@Nullable
 	public String getDescription() throws ProgramInvocationException {
@@ -258,17 +180,16 @@ public class PackagedProgram {
 			ProgramDescription descr;
 			try {
 				descr = InstantiationUtil.instantiate(
-						this.mainClass.asSubclass(ProgramDescription.class), ProgramDescription.class);
+					this.mainClass.asSubclass(ProgramDescription.class), ProgramDescription.class);
 			} catch (Throwable t) {
 				return null;
 			}
 
 			try {
 				return descr.getDescription();
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				throw new ProgramInvocationException("Error while getting the program description" +
-						(t.getMessage() == null ? "." : ": " + t.getMessage()), t);
+					(t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 			}
 
 		} else {
@@ -280,7 +201,7 @@ public class PackagedProgram {
 	 * This method assumes that the context environment is prepared, or the execution
 	 * will be a local execution by default.
 	 */
-	public void invokeInteractiveModeForExecution() throws ProgramInvocationException{
+	public void invokeInteractiveModeForExecution() throws ProgramInvocationException {
 		callMainMethod(mainClass, args);
 	}
 
@@ -305,7 +226,7 @@ public class PackagedProgram {
 	/**
 	 * Returns all provided libraries needed to run the program.
 	 */
-	public List<URL> getAllLibraries() {
+	public List<URL> getJobJarAndDependencies() {
 		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
 
 		if (jarFile != null) {
@@ -314,8 +235,7 @@ public class PackagedProgram {
 		for (File tmpLib : this.extractedTempLibraries) {
 			try {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
-			}
-			catch (MalformedURLException e) {
+			} catch (MalformedURLException e) {
 				throw new RuntimeException("URL is invalid. This should not happen.", e);
 			}
 		}
@@ -367,10 +287,9 @@ public class PackagedProgram {
 			mainMethod = entryClass.getMethod("main", String[].class);
 		} catch (NoSuchMethodException e) {
 			return false;
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new RuntimeException("Could not look up the main(String[]) method from the class " +
-					entryClass.getName() + ": " + t.getMessage(), t);
+				entryClass.getName() + ": " + t.getMessage(), t);
 		}
 
 		return Modifier.isStatic(mainMethod.getModifiers()) && Modifier.isPublic(mainMethod.getModifiers());
@@ -386,10 +305,9 @@ public class PackagedProgram {
 			mainMethod = entryClass.getMethod("main", String[].class);
 		} catch (NoSuchMethodException e) {
 			throw new ProgramInvocationException("The class " + entryClass.getName() + " has no main(String[]) method.");
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new ProgramInvocationException("Could not look up the main(String[]) method from the class " +
-					entryClass.getName() + ": " + t.getMessage(), t);
+				entryClass.getName() + ": " + t.getMessage(), t);
 		}
 
 		if (!Modifier.isStatic(mainMethod.getModifiers())) {
@@ -401,14 +319,11 @@ public class PackagedProgram {
 
 		try {
 			mainMethod.invoke(null, (Object) args);
-		}
-		catch (IllegalArgumentException e) {
+		} catch (IllegalArgumentException e) {
 			throw new ProgramInvocationException("Could not invoke the main method, arguments are not matching.", e);
-		}
-		catch (IllegalAccessException e) {
+		} catch (IllegalAccessException e) {
 			throw new ProgramInvocationException("Access to the main method was denied: " + e.getMessage(), e);
-		}
-		catch (InvocationTargetException e) {
+		} catch (InvocationTargetException e) {
 			Throwable exceptionInMethod = e.getTargetException();
 			if (exceptionInMethod instanceof Error) {
 				throw (Error) exceptionInMethod;
@@ -419,8 +334,7 @@ public class PackagedProgram {
 			} else {
 				throw new ProgramInvocationException("The main method caused an error: " + exceptionInMethod.getMessage(), exceptionInMethod);
 			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new ProgramInvocationException("An error occurred while invoking the program's main method: " + t.getMessage(), t);
 		}
 	}
@@ -468,15 +382,33 @@ public class PackagedProgram {
 				return className;
 			} else {
 				throw new ProgramInvocationException("Neither a '" + MANIFEST_ATTRIBUTE_MAIN_CLASS + "', nor a '" +
-						MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS + "' entry was found in the jar file.");
+					MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS + "' entry was found in the jar file.");
 			}
-		}
-		finally {
+		} finally {
 			try {
 				jar.close();
 			} catch (Throwable t) {
 				throw new ProgramInvocationException("Could not close the JAR file: " + t.getMessage(), t);
 			}
+		}
+	}
+
+	@Nullable
+	private static URL loadJarFile(File jar) throws ProgramInvocationException {
+		if (jar != null) {
+			URL jarFileUrl;
+
+			try {
+				jarFileUrl = jar.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
+
+			checkJarFile(jarFileUrl);
+
+			return jarFileUrl;
+		} else {
+			return null;
 		}
 	}
 
@@ -486,20 +418,16 @@ public class PackagedProgram {
 			contextCl = Thread.currentThread().getContextClassLoader();
 			Thread.currentThread().setContextClassLoader(cl);
 			return Class.forName(className, false, cl);
-		}
-		catch (ClassNotFoundException e) {
+		} catch (ClassNotFoundException e) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
 				+ "' was not found in the jar file.", e);
-		}
-		catch (ExceptionInInitializerError e) {
+		} catch (ExceptionInInitializerError e) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
 				+ "' threw an error during initialization.", e);
-		}
-		catch (LinkageError e) {
+		} catch (LinkageError e) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
 				+ "' could not be loaded due to a linkage failure.", e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
 				+ "' caused an exception during initialization: " + t.getMessage(), t);
 		} finally {
@@ -517,106 +445,80 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
 	public static List<File> extractContainedLibraries(URL jarFile) throws ProgramInvocationException {
+		try (final JarFile jar = new JarFile(new File(jarFile.toURI()))) {
 
-		Random rnd = new Random();
-
-		JarFile jar = null;
-		try {
-			jar = new JarFile(new File(jarFile.toURI()));
-			final List<JarEntry> containedJarFileEntries = new ArrayList<JarEntry>();
-
-			Enumeration<JarEntry> entries = jar.entries();
-			while (entries.hasMoreElements()) {
-				JarEntry entry = entries.nextElement();
-				String name = entry.getName();
-
-				if (name.length() > 8 && name.startsWith("lib/") && name.endsWith(".jar")) {
-					containedJarFileEntries.add(entry);
-				}
-			}
-
+			final List<JarEntry> containedJarFileEntries = getContainedJarEntries(jar);
 			if (containedJarFileEntries.isEmpty()) {
 				return Collections.emptyList();
 			}
-			else {
-				// go over all contained jar files
-				final List<File> extractedTempLibraries = new ArrayList<File>(containedJarFileEntries.size());
+
+			final List<File> extractedTempLibraries = new ArrayList<>(containedJarFileEntries.size());
+			boolean incomplete = true;
+
+			try {
+				final Random rnd = new Random();
 				final byte[] buffer = new byte[4096];
 
-				boolean incomplete = true;
-
-				try {
-					for (int i = 0; i < containedJarFileEntries.size(); i++) {
-						final JarEntry entry = containedJarFileEntries.get(i);
-						String name = entry.getName();
-						// '/' as in case of zip, jar
-						// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
-						name = name.replace('/', '_');
-
-						File tempFile;
-						try {
-							tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
-							tempFile.deleteOnExit();
-						}
-						catch (IOException e) {
-							throw new ProgramInvocationException(
-								"An I/O error occurred while creating temporary file to extract nested library '" +
-										entry.getName() + "'.", e);
-						}
-
-						extractedTempLibraries.add(tempFile);
-
-						// copy the temp file contents to a temporary File
-						OutputStream out = null;
-						InputStream in = null;
-						try {
-
-							out = new FileOutputStream(tempFile);
-							in = new BufferedInputStream(jar.getInputStream(entry));
-
-							int numRead = 0;
-							while ((numRead = in.read(buffer)) != -1) {
-								out.write(buffer, 0, numRead);
-							}
-						}
-						catch (IOException e) {
-							throw new ProgramInvocationException("An I/O error occurred while extracting nested library '"
-									+ entry.getName() + "' to temporary file '" + tempFile.getAbsolutePath() + "'.");
-						}
-						finally {
-							if (out != null) {
-								out.close();
-							}
-							if (in != null) {
-								in.close();
-							}
-						}
-					}
-
-					incomplete = false;
-				}
-				finally {
-					if (incomplete) {
-						deleteExtractedLibraries(extractedTempLibraries);
-					}
+				for (final JarEntry entry : containedJarFileEntries) {
+					// '/' as in case of zip, jar
+					// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
+					final String name = entry.getName().replace('/', '_');
+					final File tempFile = copyLibToTempFile(name, rnd, jar, entry, buffer);
+					extractedTempLibraries.add(tempFile);
 				}
 
-				return extractedTempLibraries;
+				incomplete = false;
+			} finally {
+				if (incomplete) {
+					deleteExtractedLibraries(extractedTempLibraries);
+				}
 			}
-		}
-		catch (Throwable t) {
+
+			return extractedTempLibraries;
+		} catch (Throwable t) {
 			throw new ProgramInvocationException("Unknown I/O error while extracting contained jar files.", t);
-		}
-		finally {
-			if (jar != null) {
-				try {
-					jar.close();
-				} catch (Throwable t) {}
-			}
 		}
 	}
 
-	public static void deleteExtractedLibraries(List<File> tempLibraries) {
+	private static File copyLibToTempFile(String name, Random rnd, JarFile jar, JarEntry input, byte[] buffer) throws ProgramInvocationException {
+		final File output = createTempFile(rnd, input, name);
+		try (
+				final OutputStream out = new FileOutputStream(output);
+				final InputStream in = new BufferedInputStream(jar.getInputStream(input))
+		) {
+			int numRead = 0;
+			while ((numRead = in.read(buffer)) != -1) {
+				out.write(buffer, 0, numRead);
+			}
+			return output;
+		} catch (IOException e) {
+			throw new ProgramInvocationException("An I/O error occurred while extracting nested library '"
+					+ input.getName() + "' to temporary file '" + output.getAbsolutePath() + "'.");
+		}
+	}
+
+	private static File createTempFile(Random rnd, JarEntry entry, String name) throws ProgramInvocationException {
+		try {
+			final File tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
+			tempFile.deleteOnExit();
+			return tempFile;
+		} catch (IOException e) {
+			throw new ProgramInvocationException(
+					"An I/O error occurred while creating temporary file to extract nested library '" +
+							entry.getName() + "'.", e);
+		}
+	}
+
+	private static List<JarEntry> getContainedJarEntries(JarFile jar) {
+		return jar.stream()
+				.filter(jarEntry -> {
+					final String name = jarEntry.getName();
+					return name.length() > 8 && name.startsWith("lib/") && name.endsWith(".jar");
+				})
+				.collect(Collectors.toList());
+	}
+
+	private static void deleteExtractedLibraries(List<File> tempLibraries) {
 		for (File f : tempLibraries) {
 			f.delete();
 		}
@@ -624,14 +526,81 @@ public class PackagedProgram {
 
 	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
-			ClientUtils.checkJarFile(jarfile);
-		}
-		catch (IOException e) {
+			JarUtils.checkJarFile(jarfile);
+		} catch (IOException e) {
 			throw new ProgramInvocationException(e.getMessage(), e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 		}
 	}
 
+	/**
+	 * A Builder For {@link PackagedProgram}.
+	 */
+	public static class Builder {
+
+		@Nullable
+		private File jarFile;
+
+		@Nullable
+		private String entryPointClassName;
+
+		private String[] args = new String[0];
+
+		private List<URL> userClassPaths = Collections.emptyList();
+
+		private Configuration configuration = new Configuration();
+
+		private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
+
+		public Builder setJarFile(@Nullable File jarFile) {
+			this.jarFile = jarFile;
+			return this;
+		}
+
+		public Builder setUserClassPaths(List<URL> userClassPaths) {
+			this.userClassPaths = userClassPaths;
+			return this;
+		}
+
+		public Builder setEntryPointClassName(@Nullable String entryPointClassName) {
+			this.entryPointClassName = entryPointClassName;
+			return this;
+		}
+
+		public Builder setArguments(String... args) {
+			this.args = args;
+			return this;
+		}
+
+		public Builder setConfiguration(Configuration configuration) {
+			this.configuration = configuration;
+			return this;
+		}
+
+		public Builder setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
+			this.savepointRestoreSettings = savepointRestoreSettings;
+			return this;
+		}
+
+		public PackagedProgram build() throws ProgramInvocationException {
+			if (jarFile == null && entryPointClassName == null) {
+				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
+			}
+			return new PackagedProgram(
+				jarFile,
+				userClassPaths,
+				entryPointClassName,
+				configuration,
+				savepointRestoreSettings,
+				args);
+		}
+
+		private Builder() {
+		}
+	}
+
+	public static Builder newBuilder() {
+		return new Builder();
+	}
 }

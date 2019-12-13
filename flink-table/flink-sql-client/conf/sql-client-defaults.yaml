@@ -78,6 +78,15 @@ catalogs: [] # empty list
 #    hive-conf-dir: /opt/hive_conf/
 #    default-database: ...
 
+#==============================================================================
+# Modules
+#==============================================================================
+
+# Define modules here.
+
+#modules: # note the following modules will be of the order they are specified
+#  - name: core
+#    type: core
 
 #==============================================================================
 # Execution properties

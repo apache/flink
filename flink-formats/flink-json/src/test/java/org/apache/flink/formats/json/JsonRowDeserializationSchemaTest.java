@@ -32,6 +32,8 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
@@ -53,6 +55,17 @@ public class JsonRowDeserializationSchemaTest {
 		String name = "asdlkjasjkdla998y1122";
 		byte[] bytes = new byte[1024];
 		ThreadLocalRandom.current().nextBytes(bytes);
+		Timestamp timestamp = Timestamp.valueOf("1990-10-14 12:12:43");
+		Date date = Date.valueOf("1990-10-14");
+		Time time = Time.valueOf("12:12:43");
+
+		Map<String, Long> map = new HashMap<>();
+		map.put("flink", 123L);
+
+		Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
+		Map<String, Integer> innerMap = new HashMap<>();
+		innerMap.put("key", 234);
+		nestedMap.put("inner_map", innerMap);
 
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -61,19 +74,40 @@ public class JsonRowDeserializationSchemaTest {
 		root.put("id", id);
 		root.put("name", name);
 		root.put("bytes", bytes);
+		root.put("date1", "1990-10-14");
+		root.put("date2", "1990-10-14");
+		root.put("time1", "12:12:43Z");
+		root.put("time2", "12:12:43Z");
+		root.put("timestamp1", "1990-10-14T12:12:43Z");
+		root.put("timestamp2", "1990-10-14T12:12:43Z");
+		root.putObject("map").put("flink", 123);
+		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
 			Types.ROW_NAMED(
-				new String[]{"id", "name", "bytes"},
-				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE))
+				new String[]{"id", "name", "bytes", "date1", "date2",
+					"time1", "time2", "timestamp1", "timestamp2", "map", "map2map"},
+				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE),
+				Types.SQL_DATE, Types.LOCAL_DATE, Types.SQL_TIME, Types.LOCAL_TIME,
+				Types.SQL_TIMESTAMP, Types.LOCAL_DATE_TIME,
+				Types.MAP(Types.STRING, Types.LONG),
+				Types.MAP(Types.STRING, Types.MAP(Types.STRING, Types.INT)))
 		).build();
 
-		Row row = new Row(3);
+		Row row = new Row(11);
 		row.setField(0, id);
 		row.setField(1, name);
 		row.setField(2, bytes);
+		row.setField(3, date);
+		row.setField(4, date.toLocalDate());
+		row.setField(5, time);
+		row.setField(6, time.toLocalTime());
+		row.setField(7, timestamp);
+		row.setField(8, timestamp.toLocalDateTime());
+		row.setField(9, map);
+		row.setField(10, nestedMap);
 
 		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
 	}

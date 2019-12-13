@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -41,7 +41,9 @@ under the License.
 		<module>flink-avro-confluent-registry</module>
 		<module>flink-parquet</module>
 		<module>flink-sequence-file</module>
+		<module>flink-compress</module>
 		<module>flink-csv</module>
+		<module>flink-orc</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

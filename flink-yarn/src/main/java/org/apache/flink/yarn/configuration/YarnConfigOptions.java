@@ -62,14 +62,15 @@ public class YarnConfigOptions {
 	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
 	 * in the path. They can be positioned at the beginning ("FIRST"), at the end ("LAST"), or be positioned based on
-	 * their name ("ORDER").
+	 * their name ("ORDER"). "DISABLED" means the user-jars are excluded from the system class path.
 	 */
 	public static final ConfigOption<String> CLASSPATH_INCLUDE_USER_JAR =
 		key("yarn.per-job-cluster.include-user-jar")
 			.defaultValue("ORDER")
 			.withDescription("Defines whether user-jars are included in the system class path for per-job-clusters as" +
 				" well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the" +
-				" end (\"LAST\"), or be positioned based on their name (\"ORDER\").");
+				" end (\"LAST\"), or be positioned based on their name (\"ORDER\"). \"DISABLED\" means the user-jars" +
+				" are excluded from the system class path.");
 
 	/**
 	 * The vcores exposed by YARN.
@@ -208,12 +209,6 @@ public class YarnConfigOptions {
 
 	// ----------------------- YARN CLI OPTIONS ------------------------------------
 
-	public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILE =
-			key("yarn.log-config-file")
-				.stringType()
-				.noDefaultValue()
-				.withDescription("The location of the log config file, e.g. the path to your log4j.properties for log4j.");
-
 	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
 			key("yarn.ship-directories")
 				.stringType()
@@ -265,6 +260,7 @@ public class YarnConfigOptions {
 
 	/** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
 	public enum UserJarInclusion {
+		DISABLED,
 		FIRST,
 		LAST,
 		ORDER

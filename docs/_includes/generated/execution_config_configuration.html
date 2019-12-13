@@ -3,23 +3,27 @@
         <tr>
             <th class="text-left" style="width: 20%">Key</th>
             <th class="text-left" style="width: 15%">Default</th>
-            <th class="text-left" style="width: 65%">Description</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td><h5>table.exec.async-lookup.buffer-capacity</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
             <td>The max number of async i/o operation that the async lookup join can trigger.</td>
         </tr>
         <tr>
             <td><h5>table.exec.async-lookup.timeout</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"3 min"</td>
+            <td>String</td>
             <td>The async timeout for the asynchronous operation to complete.</td>
         </tr>
         <tr>
             <td><h5>table.exec.disabled-operators</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
             <td>Mainly for testing. A comma-separated list of operator names, each name represents a kind of disabled operator.
 Operators that can be disabled include "NestedLoopJoin", "ShuffleHashJoin", "BroadcastHashJoin", "SortMergeJoin", "HashAgg", "SortAgg".
 By default no operator is disabled.</td>
@@ -27,46 +31,55 @@ By default no operator is disabled.</td>
         <tr>
             <td><h5>table.exec.mini-batch.allow-latency</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"-1 ms"</td>
+            <td>String</td>
             <td>The maximum latency can be used for MiniBatch to buffer input records. MiniBatch is an optimization to buffer input records to reduce state access. MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. NOTE: If table.exec.mini-batch.enabled is set true, its value must be greater than zero.</td>
         </tr>
         <tr>
             <td><h5>table.exec.mini-batch.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
             <td>Specifies whether to enable MiniBatch optimization. MiniBatch is an optimization to buffer input records to reduce state access. This is disabled by default. To enable this, users should set this config to true. NOTE: If mini-batch is enabled, 'table.exec.mini-batch.allow-latency' and 'table.exec.mini-batch.size' must be set.</td>
         </tr>
         <tr>
             <td><h5>table.exec.mini-batch.size</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">-1</td>
+            <td>Long</td>
             <td>The maximum number of input records can be buffered for MiniBatch. MiniBatch is an optimization to buffer input records to reduce state access. MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. NOTE: MiniBatch only works for non-windowed aggregations currently. If table.exec.mini-batch.enabled is set true, its value must be positive.</td>
         </tr>
         <tr>
             <td><h5>table.exec.resource.default-parallelism</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
             <td>Sets default parallelism for all operators (such as aggregate, join, filter) to run with parallel instances. This config has a higher priority than parallelism of StreamExecutionEnvironment (actually, this config overrides the parallelism of StreamExecutionEnvironment). A value of -1 indicates that no default parallelism is set, then it will fallback to use the parallelism of StreamExecutionEnvironment.</td>
         </tr>
         <tr>
             <td><h5>table.exec.resource.external-buffer-memory</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"10 mb"</td>
-            <td>Sets the external buffer memory size that is used in sort merge join and nested join and over window.</td>
+            <td>String</td>
+            <td>Sets the external buffer memory size that is used in sort merge join and nested join and over window. Note: memory size is only a weight hint, it will affect the weight of memory that can be applied by a single operator in the task, the actual memory used depends on the running environment.</td>
         </tr>
         <tr>
             <td><h5>table.exec.resource.hash-agg.memory</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"128 mb"</td>
-            <td>Sets the managed memory size of hash aggregate operator.</td>
+            <td>String</td>
+            <td>Sets the managed memory size of hash aggregate operator. Note: memory size is only a weight hint, it will affect the weight of memory that can be applied by a single operator in the task, the actual memory used depends on the running environment.</td>
         </tr>
         <tr>
             <td><h5>table.exec.resource.hash-join.memory</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"128 mb"</td>
-            <td>Sets the managed memory for hash join operator. It defines the lower limit.</td>
+            <td>String</td>
+            <td>Sets the managed memory for hash join operator. It defines the lower limit. Note: memory size is only a weight hint, it will affect the weight of memory that can be applied by a single operator in the task, the actual memory used depends on the running environment.</td>
         </tr>
         <tr>
             <td><h5>table.exec.resource.sort.memory</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"128 mb"</td>
-            <td>Sets the managed buffer memory size for sort operator.</td>
+            <td>String</td>
+            <td>Sets the managed buffer memory size for sort operator. Note: memory size is only a weight hint, it will affect the weight of memory that can be applied by a single operator in the task, the actual memory used depends on the running environment.</td>
         </tr>
         <tr>
             <td><h5>table.exec.shuffle-mode</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"batch"</td>
+            <td>String</td>
             <td>Sets exec shuffle mode. Only batch or pipeline can be set.
 batch: the job will run stage by stage. 
 pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when the sender holds resource to wait to send data to the receiver.</td>
@@ -74,36 +87,43 @@ pipeline: the job will run in streaming mode, but it may cause resource deadlock
         <tr>
             <td><h5>table.exec.sort.async-merge-enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
             <td>Whether to asynchronously merge sorted spill files.</td>
         </tr>
         <tr>
             <td><h5>table.exec.sort.default-limit</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
             <td>Default limit when user don't set a limit after order by. -1 indicates that this configuration is ignored.</td>
         </tr>
         <tr>
             <td><h5>table.exec.sort.max-num-file-handles</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">128</td>
+            <td>Integer</td>
             <td>The maximal fan-in for external merge sort. It limits the number of file handles per operator. If it is too small, may cause intermediate merging. But if it is too large, it will cause too many files opened at the same time, consume memory and lead to random reading.</td>
         </tr>
         <tr>
             <td><h5>table.exec.source.idle-timeout</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"-1 ms"</td>
+            <td>String</td>
             <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle.</td>
         </tr>
         <tr>
             <td><h5>table.exec.spill-compression.block-size</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">"64 kb"</td>
+            <td>String</td>
             <td>The memory size used to do compress when spilling data. The larger the memory, the higher the compression ratio, but more memory resource will be consumed by the job.</td>
         </tr>
         <tr>
             <td><h5>table.exec.spill-compression.enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
             <td>Whether to compress spilled data. Currently we only support compress spilled data for sort and hash-agg and hash-join operators.</td>
         </tr>
         <tr>
             <td><h5>table.exec.window-agg.buffer-size-limit</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">100000</td>
+            <td>Integer</td>
             <td>Sets the window elements buffer size limit used in group window agg operator.</td>
         </tr>
     </tbody>

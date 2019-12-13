@@ -42,9 +42,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  */
 @PublicEvolving
-public class MemorySize implements java.io.Serializable {
+public class MemorySize implements java.io.Serializable, Comparable<MemorySize> {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final MemorySize ZERO = new MemorySize(0L);
+
+	public static final MemorySize MAX_VALUE = new MemorySize(Long.MAX_VALUE);
 
 	// ------------------------------------------------------------------------
 
@@ -116,6 +120,11 @@ public class MemorySize implements java.io.Serializable {
 		return bytes + " bytes";
 	}
 
+	@Override
+	public int compareTo(MemorySize that) {
+		return Long.compare(this.bytes, that.bytes);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Calculations
 	// ------------------------------------------------------------------------
@@ -136,6 +145,11 @@ public class MemorySize implements java.io.Serializable {
 			throw new ArithmeticException("long overflow");
 		}
 		return new MemorySize(product.longValue());
+	}
+
+	public MemorySize divide(long by) {
+		checkArgument(by >= 0, "divisor must be >= 0");
+		return new MemorySize(bytes / by);
 	}
 
 	// ------------------------------------------------------------------------

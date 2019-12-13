@@ -71,6 +71,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(CONNECTOR_PATH);
 		// format
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
+		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
 		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
@@ -82,7 +83,10 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(CONNECTOR_PATH);
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		// schema watermark
+		properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
 		return properties;
 	}
 
@@ -102,11 +106,10 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
 
 		TableSchema tableSchema = params.getTableSchema(SCHEMA);
-		boolean isDerived = params
-			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
-			.orElse(false);
 
-		if (!isDerived) {
+		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
+		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
+		if (hasSchema) {
 			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 			// the CsvTableSource needs some rework first
 			// for now the schema must be equal to the encoding
@@ -121,7 +124,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		params.getOptionalString(FORMAT_LINE_DELIMITER).ifPresent(csvTableSourceBuilder::lineDelimiter);
 
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
-			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldTypes()[i]);
+			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldDataTypes()[i]);
 		}
 		params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER).ifPresent(csvTableSourceBuilder::quoteCharacter);
 		params.getOptionalString(FORMAT_COMMENT_PREFIX).ifPresent(csvTableSourceBuilder::commentPrefix);

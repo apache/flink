@@ -19,8 +19,8 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -31,8 +31,9 @@ import java.util.Optional;
  * Logical type of a user-defined representation for one or more built-in types. A user-defined
  * type is either a distinct type or a structured type.
  *
- * <p>A {@link UserDefinedType} instance is the result of a catalog lookup or an explicit definition.
- * Therefore, the serialized string representation is a unique {@link ObjectIdentifier}.
+ * <p>A {@link UserDefinedType} instance is the result of a catalog lookup or an anonymous, inline
+ * definition (for structured types only). Therefore, the serialized string representation is a unique
+ * {@link ObjectIdentifier} (if registered) or a representation does not exist (if unregistered).
  *
  * <p>NOTE: Compared to the SQL standard, this class and subclasses are incomplete. We might add new
  * features such as method declarations in the future.
@@ -43,7 +44,7 @@ import java.util.Optional;
 @PublicEvolving
 public abstract class UserDefinedType extends LogicalType {
 
-	private final ObjectIdentifier objectIdentifier;
+	private final @Nullable ObjectIdentifier objectIdentifier;
 
 	private final boolean isFinal;
 
@@ -52,19 +53,17 @@ public abstract class UserDefinedType extends LogicalType {
 	UserDefinedType(
 			boolean isNullable,
 			LogicalTypeRoot typeRoot,
-			ObjectIdentifier objectIdentifier,
+			@Nullable ObjectIdentifier objectIdentifier,
 			boolean isFinal,
 			@Nullable String description) {
 		super(isNullable, typeRoot);
-		this.objectIdentifier = Preconditions.checkNotNull(
-			objectIdentifier,
-			"Object identifier must not be null.");
+		this.objectIdentifier = objectIdentifier;
 		this.isFinal = isFinal;
 		this.description = description;
 	}
 
-	public ObjectIdentifier getObjectIdentifier() {
-		return objectIdentifier;
+	public Optional<ObjectIdentifier> getOptionalObjectIdentifier() {
+		return Optional.ofNullable(objectIdentifier);
 	}
 
 	public boolean isFinal() {
@@ -77,6 +76,9 @@ public abstract class UserDefinedType extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
+		if (objectIdentifier == null) {
+			throw new TableException("An unregistered user-defined type has no serializable string representation.");
+		}
 		return withNullability(objectIdentifier.asSerializableString());
 	}
 
@@ -93,7 +95,7 @@ public abstract class UserDefinedType extends LogicalType {
 		}
 		UserDefinedType that = (UserDefinedType) o;
 		return isFinal == that.isFinal &&
-			objectIdentifier.equals(that.objectIdentifier) &&
+			Objects.equals(objectIdentifier, that.objectIdentifier) &&
 			Objects.equals(description, that.description);
 	}
 

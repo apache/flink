@@ -33,15 +33,18 @@ import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => J
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions._
+import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
@@ -57,15 +60,19 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.commons.lang3.SystemUtils
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
-import _root_.java.util
 
-import org.apache.flink.table.module.ModuleManager
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -140,6 +147,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val tableEnv = getTableEnv
     tableEnv.registerTableSink(sinkName, sink)
     tableEnv.insertInto(sinkName, table)
+  }
+
+  /**
+    * Creates a table with the given DDL SQL string.
+    */
+  def addTable(ddl: String): Unit = {
+    getTableEnv.sqlUpdate(ddl)
   }
 
   /**
@@ -531,7 +545,14 @@ abstract class TableTestUtil(
     // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
     //  instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
-    val operation = new RichTableSourceQueryOperation(tableSource, statistic)
+    val identifier = ObjectIdentifier.of(
+      testingTableEnv.getCurrentCatalog,
+      testingTableEnv.getCurrentDatabase,
+      name)
+    val operation = new RichTableSourceQueryOperation(
+      identifier,
+      tableSource,
+      statistic)
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
     testingTableEnv.scan(name)
@@ -719,12 +740,18 @@ case class StreamTableTestUtil(
     if (rowtimeFieldIdx < 0) {
       throw new TableException(s"$rowtimeField does not exist, please check it")
     }
+    val rexBuilder = sourceRel.getCluster.getRexBuilder
+    val inputRef = rexBuilder.makeInputRef(sourceRel, rowtimeFieldIdx)
+    val offsetLiteral = rexBuilder.makeIntervalLiteral(
+      JBigDecimal.valueOf(offset),
+      new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO))
+    val expr = rexBuilder.makeCall(FlinkSqlOperatorTable.MINUS, inputRef, offsetLiteral)
     val watermarkAssigner = new LogicalWatermarkAssigner(
       sourceRel.getCluster,
       sourceRel.getTraitSet,
       sourceRel,
-      Some(rowtimeFieldIdx),
-      Option(offset)
+      rowtimeFieldIdx,
+      expr
     )
     val queryOperation = new PlannerQueryOperation(watermarkAssigner)
     testingTableEnv.registerTable(tableName, testingTableEnv.createTable(queryOperation))
@@ -1005,6 +1032,11 @@ class TestingTableEnvironment private(
         } else {
           buffer(modifyOperations)
         }
+      case createOperation: CreateTableOperation =>
+        catalogManager.createTable(
+          createOperation.getCatalogTable,
+          createOperation.getTableIdentifier,
+          createOperation.isIgnoreIfExists)
       case _ => throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.")
     }
@@ -1118,6 +1150,7 @@ object TableTestUtil {
 
     val fieldCnt = typeInfoSchema.getFieldTypes.length
     val dataStreamQueryOperation = new DataStreamQueryOperation(
+      ObjectIdentifier.of(tEnv.getCurrentCatalog, tEnv.getCurrentDatabase, name),
       dataStream,
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema,

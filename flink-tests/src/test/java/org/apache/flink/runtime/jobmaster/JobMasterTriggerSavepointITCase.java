@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
@@ -30,7 +31,6 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -184,7 +184,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 		setUpWithCheckpointInterval(10L);
 
 		try {
-			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null);
+			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null).get();
 		} catch (Exception e) {
 			if (!ExceptionUtils.findThrowableWithMessage(e, "savepoint directory").isPresent()) {
 				throw e;
@@ -254,7 +254,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 	private String cancelWithSavepoint() throws Exception {
 		return clusterClient.cancelWithSavepoint(
 			jobGraph.getJobID(),
-			savepointDirectory.toAbsolutePath().toString());
+			savepointDirectory.toAbsolutePath().toString()).get();
 	}
 
 }

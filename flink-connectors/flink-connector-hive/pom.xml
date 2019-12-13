@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -63,6 +63,40 @@ under the License.
 			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- format dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-orc_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.orc</groupId>
+					<artifactId>orc-core</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Hadoop dependency -->
@@ -345,13 +379,6 @@ under the License.
 			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -662,6 +689,30 @@ under the License.
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.flink:flink-hadoop-fs</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
@@ -676,9 +727,10 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
-			<id>hive-1.1.1</id>
+			<!-- Hive-1.1.1 has issue that it can't handle 'stored as file_format' syntax. So test against 1.1.0 -->
+			<id>hive-1.1.0</id>
 			<properties>
-				<hive.version>1.1.1</hive.version>
+				<hive.version>1.1.0</hive.version>
 				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
 			</properties>

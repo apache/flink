@@ -137,8 +137,8 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 		listener.resetAvailable();
 		assertFalse(listener.isAvailable);
 
-		final BufferAndBacklog buffer1 = subpartitionView.getNextBuffer();
-		final BufferAndBacklog buffer2 = subpartitionView.getNextBuffer();
+		final BufferAndBacklog buffer1 = subpartitionView.getNextBuffer(true);
+		final BufferAndBacklog buffer2 = subpartitionView.getNextBuffer(true);
 		assertNotNull(buffer1);
 		assertNotNull(buffer2);
 

@@ -1,0 +1,96 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>kubernetes.cluster-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The cluster id used for identifying the unique flink cluster. If it's not set, the client will generate a random UUID name.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.config.file</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The kubernetes config file will be used to create the client. The default is located at ~/.kube/config</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.container-start-command-template</h5></td>
+            <td style="word-wrap: break-word;">"%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%"</td>
+            <td>String</td>
+            <td>Template for the kubernetes jobmanager and taskmanager container start invocation.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.container.image</h5></td>
+            <td style="word-wrap: break-word;">"flink:latest"</td>
+            <td>String</td>
+            <td>Image to use for Flink containers.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.container.image.pull-policy</h5></td>
+            <td style="word-wrap: break-word;">"IfNotPresent"</td>
+            <td>String</td>
+            <td>Kubernetes image pull policy. Valid values are Always, Never, and IfNotPresent. The default policy is IfNotPresent to avoid putting pressure to image repository.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.entry.path</h5></td>
+            <td style="word-wrap: break-word;">"/opt/flink/bin/kubernetes-entry.sh"</td>
+            <td>String</td>
+            <td>The entrypoint script of kubernetes in the image. It will be used as command for jobmanager and taskmanager container.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.flink.conf.dir</h5></td>
+            <td style="word-wrap: break-word;">"/opt/flink/conf"</td>
+            <td>String</td>
+            <td>The flink conf directory that will be mounted in pod. The flink-conf.yaml, log4j.properties, logback.xml in this path will be overwritten from config map.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.flink.log.dir</h5></td>
+            <td style="word-wrap: break-word;">"/opt/flink/log"</td>
+            <td>String</td>
+            <td>The directory that logs of jobmanager and taskmanager be saved in the pod.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.cpu</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Double</td>
+            <td>The number of cpu used by job manager</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.namespace</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>The namespace that will be used for running the jobmanager and taskmanager pods.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.rest-service.exposed.type</h5></td>
+            <td style="word-wrap: break-word;">"LoadBalancer"</td>
+            <td>String</td>
+            <td>It could be ClusterIP/NodePort/LoadBalancer(default). When set to ClusterIP, the rest servicewill not be created.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.service.create-timeout</h5></td>
+            <td style="word-wrap: break-word;">"1 min"</td>
+            <td>String</td>
+            <td>Timeout used for creating the service. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.cpu</h5></td>
+            <td style="word-wrap: break-word;">-1.0</td>
+            <td>Double</td>
+            <td>The number of cpu used by task manager. By default, the cpu is set to the number of slots per TaskManager</td>
+        </tr>
+    </tbody>
+</table>

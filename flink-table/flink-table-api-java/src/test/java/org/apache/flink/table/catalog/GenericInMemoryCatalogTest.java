@@ -28,6 +28,8 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.functions.TestGenericUDF;
+import org.apache.flink.table.functions.TestSimpleUDF;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -123,9 +125,9 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 		// Clean up
 		catalog.dropTable(path1, false);
-		catalog.dropDatabase(db1, false);
+		catalog.dropDatabase(db1, false, false);
 		catalog.dropTable(path2, false);
-		catalog.dropDatabase(db2, false);
+		catalog.dropDatabase(db2, false, false);
 	}
 
 	// ------ utilities ------
@@ -140,7 +142,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		CatalogColumnStatisticsDataLong longColStats = new CatalogColumnStatisticsDataLong(-123L, 763322L, 23L, 79L);
 		CatalogColumnStatisticsDataString stringColStats = new CatalogColumnStatisticsDataString(152L, 43.5D, 20L, 0L);
 		CatalogColumnStatisticsDataDate dateColStats = new CatalogColumnStatisticsDataDate(new Date(71L),
-			new Date(17923L), 1321, 0L);
+			new Date(17923L), 1321L, 0L);
 		CatalogColumnStatisticsDataDouble doubleColStats = new CatalogColumnStatisticsDataDouble(-123.35D, 7633.22D, 23L, 79L);
 		CatalogColumnStatisticsDataBinary binaryColStats = new CatalogColumnStatisticsDataBinary(755L, 43.5D, 20L);
 		Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>(6);
@@ -151,5 +153,15 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		colStatsMap.put("dd5", doubleColStats);
 		colStatsMap.put("bb6", binaryColStats);
 		return new CatalogColumnStatistics(colStatsMap);
+	}
+
+	@Override
+	protected CatalogFunction createFunction() {
+		return new CatalogFunctionImpl(TestGenericUDF.class.getCanonicalName());
+	}
+
+	@Override
+	protected CatalogFunction createAnotherFunction() {
+		return new CatalogFunctionImpl(TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA, false);
 	}
 }

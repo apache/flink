@@ -152,12 +152,12 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
+	public CompletableFuture<?> getAvailableFuture() {
 		if (inputSelectionHandler.areAllInputsSelected()) {
 			return isAnyInputAvailable();
 		} else {
 			StreamTaskInput input = (inputSelectionHandler.isFirstInputSelected()) ? input1 : input2;
-			return input.isAvailable();
+			return input.getAvailableFuture();
 		}
 	}
 
@@ -283,7 +283,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	private void updateAvailability(InputStatus status, StreamTaskInput input) {
-		if (status == InputStatus.MORE_AVAILABLE || (status != InputStatus.END_OF_INPUT && input.isAvailable() == AVAILABLE)) {
+		if (status == InputStatus.MORE_AVAILABLE || (status != InputStatus.END_OF_INPUT && input.isApproximatelyAvailable())) {
 			inputSelectionHandler.setAvailableInput(input.getInputIndex());
 		} else {
 			inputSelectionHandler.setUnavailableInput(input.getInputIndex());
@@ -295,29 +295,26 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		if (status == InputStatus.END_OF_INPUT) {
 			return;
 		}
-		CompletableFuture<?> inputAvailable = getInput(inputIndex).isAvailable();
-		// TODO: inputAvailable.isDone() can be a costly operation (checking volatile). If one of
+
+		// TODO: isAvailable() can be a costly operation (checking volatile). If one of
 		// the input is constantly available and another is not, we will be checking this volatile
 		// once per every record. This might be optimized to only check once per processed NetworkBuffer
-		if (inputAvailable == AVAILABLE || inputAvailable.isDone()) {
+		if (getInput(inputIndex).isAvailable()) {
 			inputSelectionHandler.setAvailableInput(inputIndex);
 		}
 	}
 
 	private CompletableFuture<?> isAnyInputAvailable() {
 		if (firstInputStatus == InputStatus.END_OF_INPUT) {
-			return input2.isAvailable();
+			return input2.getAvailableFuture();
 		}
 
 		if (secondInputStatus == InputStatus.END_OF_INPUT) {
-			return input1.isAvailable();
+			return input1.getAvailableFuture();
 		}
 
-		CompletableFuture<?> input1Available = input1.isAvailable();
-		CompletableFuture<?> input2Available = input2.isAvailable();
-
-		return (input1Available == AVAILABLE || input2Available == AVAILABLE) ?
-			AVAILABLE : CompletableFuture.anyOf(input1Available, input2Available);
+		return (input1.isApproximatelyAvailable() || input2.isApproximatelyAvailable()) ?
+			AVAILABLE : CompletableFuture.anyOf(input1.getAvailableFuture(), input2.getAvailableFuture());
 	}
 
 	private StreamTaskInput getInput(int inputIndex) {

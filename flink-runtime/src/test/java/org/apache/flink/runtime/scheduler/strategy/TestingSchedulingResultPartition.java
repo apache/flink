@@ -97,7 +97,7 @@ public class TestingSchedulingResultPartition
 	public static final class Builder {
 		private IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 		private ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
-		private ResultPartitionState resultPartitionState = ResultPartitionState.DONE;
+		private ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
 
 		Builder withIntermediateDataSetID(IntermediateDataSetID intermediateDataSetId) {
 			this.intermediateDataSetId = intermediateDataSetId;

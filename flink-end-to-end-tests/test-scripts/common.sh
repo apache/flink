@@ -154,7 +154,7 @@ function create_ha_config() {
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
     jobmanager.heap.size: 1024m
-    taskmanager.heap.size: 1024m
+    taskmanager.memory.total-process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
     #==============================================================================
@@ -321,7 +321,7 @@ function check_logs_for_errors {
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
       | grep -v "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -v "jvm-exit-on-fatal-error" \
-      | grep -v '^INFO:.*AWSErrorCode=\[400 Bad Request\].*ServiceEndpoint=\[https://.*\.s3\.amazonaws\.com\].*RequestType=\[HeadBucketRequest\]' \
+      | grep -v 'INFO.*AWSErrorCode' \
       | grep -v "RejectedExecutionException" \
       | grep -v "An exception was thrown by an exception handler" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
@@ -350,7 +350,7 @@ function check_logs_for_exceptions {
    | grep -v "AskTimeoutException" \
    | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
    | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
-   | grep -v '^INFO:.*AWSErrorCode=\[400 Bad Request\].*ServiceEndpoint=\[https://.*\.s3\.amazonaws\.com\].*RequestType=\[HeadBucketRequest\]' \
+   | grep -v 'INFO.*AWSErrorCode' \
    | grep -v "RejectedExecutionException" \
    | grep -v "An exception was thrown by an exception handler" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.yarn.exceptions.YarnException" \
@@ -364,6 +364,7 @@ function check_logs_for_exceptions {
    | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
    | grep -v "org.elasticsearch.ElasticsearchException" \
    | grep -v "Elasticsearch exception" \
+   | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files:"

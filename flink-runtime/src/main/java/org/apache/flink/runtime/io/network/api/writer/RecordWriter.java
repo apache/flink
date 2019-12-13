@@ -154,7 +154,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
-		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event, true)) {
 			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);
 
@@ -190,8 +190,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return targetPartition.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return targetPartition.getAvailableFuture();
 	}
 
 	/**

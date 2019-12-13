@@ -52,7 +52,7 @@ abstract class FlinkLogicalRankRuleBase
     val condition = calc.getProgram.getCondition
     val predicate = calc.getProgram.expandLocalRef(condition)
 
-    val config = calc.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = calc.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val (rankRange, remainingPreds) = RankUtil.extractRankRange(
       predicate,
       rankFieldIndex,
@@ -177,7 +177,12 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
         val predicate = calc.getProgram.expandLocalRef(condition)
         // the rank function is the last field of FlinkLogicalOverAggregate
         val rankFieldIndex = window.getRowType.getFieldCount - 1
-        val config = calc.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+        val config = calc
+          .getCluster
+          .getPlanner
+          .getContext
+          .unwrap(classOf[FlinkContext])
+          .getTableConfig
         val (rankRange, remainingPreds) = RankUtil.extractRankRange(
           predicate,
           rankFieldIndex,
@@ -242,7 +247,12 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
         val predicate = calc.getProgram.expandLocalRef(condition)
         // the rank function is the last field of FlinkLogicalOverAggregate
         val rankFieldIndex = window.getRowType.getFieldCount - 1
-        val config = calc.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+        val config = calc
+          .getCluster
+          .getPlanner
+          .getContext
+          .unwrap(classOf[FlinkContext])
+          .getTableConfig
         val (rankRange, remainingPreds) = RankUtil.extractRankRange(
           predicate,
           rankFieldIndex,

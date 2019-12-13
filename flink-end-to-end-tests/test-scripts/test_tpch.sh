@@ -39,6 +39,7 @@ java -cp "$TARGET_DIR/TpchTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.ta
 
 echo "Preparing Flink..."
 
+set_config_key "taskmanager.memory.managed.fraction" "0.55f"
 start_cluster
 
 ################################################################################

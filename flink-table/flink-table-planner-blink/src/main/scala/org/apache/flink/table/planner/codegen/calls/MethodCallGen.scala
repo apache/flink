@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, quali
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.LogicalType
-
 import java.lang.reflect.Method
 import java.util.TimeZone
 

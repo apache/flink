@@ -80,6 +80,15 @@ message Schema {
     FieldType value_type = 2;
   }
 
+  message DateTimeType {
+    int32 precision = 1;
+  }
+
+  message DecimalType {
+    int32 precision = 1;
+    int32 scale = 2;
+  }
+
   message FieldType {
     TypeName type_name = 1;
     bool nullable = 2;
@@ -87,6 +96,8 @@ message Schema {
       FieldType collection_element_type = 3;
       MapType map_type = 4;
       Schema row_schema = 5;
+      DateTimeType date_time_type = 6;
+      DecimalType decimal_type = 7;
     }
   }
 

@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.Gauge;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
@@ -64,9 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, BoundedMultiInput {
 
-	private final long reservedSortMemory1;
-	private final long reservedSortMemory2;
-	private final long externalBufferMemory;
+	private final double externalBufferMemRatio;
 	private final FlinkJoinType type;
 	private final boolean leftIsSmaller;
 	private final boolean[] filterNulls;
@@ -81,6 +79,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private GeneratedRecordComparator comparator2;
 	private GeneratedRecordComparator genKeyComparator;
 
+	private transient long externalBufferMemory;
 	private transient MemoryManager memManager;
 	private transient IOManager ioManager;
 	private transient BinaryRowSerializer serializer1;
@@ -98,33 +97,16 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private transient BaseRow rightNullRow;
 	private transient JoinedRow joinedRow;
 
-	@VisibleForTesting
 	public SortMergeJoinOperator(
-			long reservedSortMemory, long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
+			double externalBufferMemRatio,
+			FlinkJoinType type, boolean leftIsSmaller,
 			GeneratedJoinCondition condFuncCode,
 			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
 			GeneratedNormalizedKeyComputer computer1, GeneratedRecordComparator comparator1,
 			GeneratedNormalizedKeyComputer computer2, GeneratedRecordComparator comparator2,
 			GeneratedRecordComparator genKeyComparator,
 			boolean[] filterNulls) {
-		this(reservedSortMemory, reservedSortMemory,
-				externalBufferMemory, type, leftIsSmaller, condFuncCode, projectionCode1, projectionCode2, computer1,
-				comparator1, computer2, comparator2, genKeyComparator, filterNulls);
-	}
-
-	public SortMergeJoinOperator(
-			long reservedSortMemory1,
-			long reservedSortMemory2,
-			long externalBufferMemory, FlinkJoinType type, boolean leftIsSmaller,
-			GeneratedJoinCondition condFuncCode,
-			GeneratedProjection projectionCode1, GeneratedProjection projectionCode2,
-			GeneratedNormalizedKeyComputer computer1, GeneratedRecordComparator comparator1,
-			GeneratedNormalizedKeyComputer computer2, GeneratedRecordComparator comparator2,
-			GeneratedRecordComparator genKeyComparator,
-			boolean[] filterNulls) {
-		this.reservedSortMemory1 = reservedSortMemory1;
-		this.reservedSortMemory2 = reservedSortMemory2;
-		this.externalBufferMemory = externalBufferMemory;
+		this.externalBufferMemRatio = externalBufferMemRatio;
 		this.type = type;
 		this.leftIsSmaller = leftIsSmaller;
 		this.condFuncCode = condFuncCode;
@@ -158,17 +140,42 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		this.memManager = this.getContainingTask().getEnvironment().getMemoryManager();
 		this.ioManager = this.getContainingTask().getEnvironment().getIOManager();
 
+		long totalMemory = computeMemorySize();
+
+		externalBufferMemory = (long) (totalMemory * externalBufferMemRatio);
+		externalBufferMemory = Math.max(externalBufferMemory, ResettableExternalBuffer.MIN_NUM_MEMORY);
+
+		long totalSortMem = totalMemory -
+				(type.equals(FlinkJoinType.FULL) ? externalBufferMemory * 2 : externalBufferMemory);
+		if (totalSortMem < 0) {
+			throw new TableException("Memory size is too small: " +
+					totalMemory + ", please increase manage memory of task manager.");
+		}
+
 		// sorter1
-		this.sorter1 = new BinaryExternalSorter(this.getContainingTask(),
-				memManager, reservedSortMemory1,
-				ioManager, inputSerializer1, serializer1,
-				computer1.newInstance(cl), comparator1.newInstance(cl), conf);
+		this.sorter1 = new BinaryExternalSorter(
+				this.getContainingTask(),
+				memManager,
+				totalSortMem / 2,
+				ioManager,
+				inputSerializer1,
+				serializer1,
+				computer1.newInstance(cl),
+				comparator1.newInstance(cl),
+				conf);
 		this.sorter1.startThreads();
 
 		// sorter2
-		this.sorter2 = new BinaryExternalSorter(this.getContainingTask(),
-				memManager, reservedSortMemory2, ioManager, inputSerializer2, serializer2,
-				computer2.newInstance(cl), comparator2.newInstance(cl), conf);
+		this.sorter2 = new BinaryExternalSorter(
+				this.getContainingTask(),
+				memManager,
+				totalSortMem / 2,
+				ioManager,
+				inputSerializer2,
+				serializer2,
+				computer2.newInstance(cl),
+				comparator2.newInstance(cl),
+				conf);
 		this.sorter2.startThreads();
 
 		keyComparator = genKeyComparator.newInstance(cl);

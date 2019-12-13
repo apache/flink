@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -34,8 +34,8 @@ public interface ExecutionSlotAllocator {
 	 *
 	 * @param executionVertexSchedulingRequirements The requirements for scheduling the executions.
 	 */
-	Collection<SlotExecutionVertexAssignment> allocateSlotsFor(
-			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements);
+	List<SlotExecutionVertexAssignment> allocateSlotsFor(
+			List<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements);
 
 	/**
 	 * Cancel an ongoing slot request.

@@ -106,6 +106,20 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(properties);
 	}
 
+	@Test
+	public void testSchemaDerivationByDefault() {
+		final Map<String, String> properties = toMap(
+			new Schema()
+				.field("field1", Types.BOOLEAN())
+				.field("field2", Types.INT())
+				.field("proctime", Types.SQL_TIMESTAMP()).proctime(),
+			new Json());
+
+		testSchemaSerializationSchema(properties);
+
+		testSchemaDeserializationSchema(properties);
+	}
+
 	private void testSchemaDeserializationSchema(Map<String, String> properties) {
 		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)

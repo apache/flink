@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -42,7 +43,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -89,8 +89,6 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Timeout for the async collectors. */
 	private final long timeout;
 
-	private transient Object checkpointingLock;
-
 	/** {@link TypeSerializer} for inputs while making snapshots. */
 	private transient StreamElementSerializer<IN> inStreamElementSerializer;
 
@@ -130,8 +128,6 @@ public class AsyncWaitOperator<IN, OUT>
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
-
-		this.checkpointingLock = getContainingTask().getCheckpointLock();
 
 		this.inStreamElementSerializer = new StreamElementSerializer<>(
 			getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
@@ -255,7 +251,6 @@ public class AsyncWaitOperator<IN, OUT>
 	 * @return a handle that allows to set the result of the async computation for the given element.
 	 */
 	private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement) throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
 
 		Optional<ResultFuture<OUT>> queueEntry;
 		while (!(queueEntry = queue.tryPut(streamElement)).isPresent()) {
@@ -266,7 +261,6 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	private void waitInFlightInputsFinished() throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
 
 		while (!queue.isEmpty()) {
 			mailboxExecutor.yield();
@@ -282,9 +276,7 @@ public class AsyncWaitOperator<IN, OUT>
 	private void outputCompletedElement() {
 		if (queue.hasCompletedElements()) {
 			// emit only one element to not block the mailbox thread unnecessarily
-			synchronized (checkpointingLock) {
-				queue.emitCompletedElement(timestampedCollector);
-			}
+			queue.emitCompletedElement(timestampedCollector);
 			// if there are more completed elements, emit them with subsequent mails
 			if (queue.hasCompletedElements()) {
 				mailboxExecutor.execute(this::outputCompletedElement, "AsyncWaitOperator#outputCompletedElement");

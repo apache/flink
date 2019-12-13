@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAgg
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.DataStreamTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
 import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
 
@@ -59,8 +59,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(rel: TableScan, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     val monotonicity: RelModifiedMonotonicity = rel match {
       case _: FlinkLogicalDataStreamTableScan | _: StreamExecDataStreamScan =>
-        val table = rel.getTable.unwrap(classOf[DataStreamTable[Any]])
-        table.statistic.getRelModifiedMonotonicity
+        val table = rel.getTable.unwrap(classOf[FlinkPreparingTableBase])
+        table.getStatistic.getRelModifiedMonotonicity
       case _ => null
     }
 
@@ -211,6 +211,12 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(
       rel: StreamExecWatermarkAssigner,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
+  }
+
+  def getRelModifiedMonotonicity(
+    rel: StreamExecMiniBatchAssigner,
+    mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 

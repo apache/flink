@@ -38,21 +38,44 @@ You do not need to modify your existing Hive Metastore or change the data placem
 * This will be replaced by the TOC
 {:toc}
 
-## Supported Hive Version's
+## Supported Hive Versions
 
-Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guarantee's for other minor versions.
+Flink supports the following Hive versions.
 
-If you use a different minor Hive version such as `1.2.2` or `2.3.1`, it should also be ok to 
-choose the closest version `1.2.1` (for `1.2.2`) or `2.3.4` (for `2.3.1`) to workaround. For 
-example, you want to use Flink to integrate `2.3.1` hive version in sql client, just set the 
-hive-version to `2.3.4` in YAML config. Similarly pass the version string when creating 
-HiveCatalog instance via Table API.
+- 1.0
+    - 1.0.0
+    - 1.0.1
+- 1.1
+    - 1.1.0
+    - 1.1.1
+- 1.2
+    - 1.2.0
+    - 1.2.1
+    - 1.2.2
+- 2.0
+    - 2.0.0
+    - 2.0.1
+- 2.1
+    - 2.1.0
+    - 2.1.1
+- 2.2
+    - 2.2.0
+- 2.3
+    - 2.3.0
+    - 2.3.1
+    - 2.3.2
+    - 2.3.3
+    - 2.3.4
+    - 2.3.5
+    - 2.3.6
+- 3.1
+    - 3.1.0
+    - 3.1.1
+    - 3.1.2
 
-Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
+### Dependencies
 
-### Depedencies 
-
-To integrate with Hive, users need the following dependencies in their project.
+To integrate with Hive, users need some dependencies in their project. We are using Hive 2.3.4 and 1.2.1 as examples here.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Hive 2.3.4" markdown="1">
@@ -73,7 +96,9 @@ To integrate with Hive, users need the following dependencies in their project.
   <scope>provided</scope>
 </dependency>
 
-<!-- Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop is pre-built with, but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.7.2 -->
+<!-- Pick the correct Hadoop dependency for your project.
+Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop is pre-built with,
+ but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.7.2 -->
 
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -109,7 +134,9 @@ To integrate with Hive, users need the following dependencies in their project.
   <scope>provided</scope>
 </dependency>
 
-<!-- Hive 1.2.1 is built with Hadoop 2.6.0. We pick 2.6.5 which flink-shaded-hadoop is pre-built with, but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.6.0 -->
+<!-- Pick the correct Hadoop dependency for your project.
+Hive 1.2.1 is built with Hadoop 2.6.0. We pick 2.6.5 which flink-shaded-hadoop is pre-built with,
+but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.6.0 -->
 
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -144,13 +171,16 @@ To integrate with Hive, users need the following dependencies in their project.
 
 Connect to an existing Hive installation using the Hive [Catalog]({{ site.baseurl }}/dev/table/catalogs.html) through the table environment or YAML configuration.
 
+If the `hive-conf/hive-site.xml` file is stored in remote storage system, users should download 
+the hive configuration file to their local environment first. 
+
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
 {% highlight java %}
 
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
-String hiveConfDir     = "/opt/hive-conf";
+String hiveConfDir     = "/opt/hive-conf"; // a local path
 String version         = "2.3.4"; // or 1.2.1
 
 HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
@@ -162,7 +192,7 @@ tableEnv.registerCatalog("myhive", hive);
 
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
-val hiveConfDir     = "/opt/hive-conf"
+val hiveConfDir     = "/opt/hive-conf" // a local path
 val version         = "2.3.4" // or 1.2.1
 
 val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
@@ -260,15 +290,14 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
   </tbody>
 </table>
 
-### Limitations
 
-The following limitations in Hive's data types impact the mapping between Flink and Hive:
-
-* `CHAR(p)` has a maximum length of 255
-* `VARCHAR(p)` has a maximum length of 65535
+* Hive's `CHAR(p)` has a maximum length of 255
+* Hive's `VARCHAR(p)` has a maximum length of 65535
 * Hive's `MAP` only supports primitive key types while Flink's `MAP` can be any data type
-* Hive's `UNION` type is not supported
-* Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type
-* Flink's `TIMESTAMP_WITH_TIME_ZONE` and `TIMESTAMP_WITH_LOCAL_TIME_ZONE` are not supported by Hive
-* Flink's `TIMESTAMP_WITHOUT_TIME_ZONE` type cannot be mapped to Hive's `TIMESTAMP` type due to precision difference.
-* Flink's `MULTISET` is not supported by Hive
+
+
+Note that:
+
+* Flink doesn't support Hive's `UNION` type is not supported
+* Hive doesn't support Flink's `TIMESTAMP_WITH_TIME_ZONE`, `TIMESTAMP_WITH_LOCAL_TIME_ZONE`, and `MULTISET`
+* Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type yet

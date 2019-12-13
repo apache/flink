@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.runtime.leaderelection;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
@@ -25,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -33,7 +33,7 @@ import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -55,7 +55,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Test the election of a new JobManager leader.
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 	private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5L);
@@ -128,7 +128,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			}
 
 			final DispatcherGateway leaderDispatcherGateway = getNextLeadingDispatcherGateway(miniCluster, previousLeaderAddress, timeout);
-
+			CommonTestUtils.waitUntilCondition(() -> leaderDispatcherGateway.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 50L);
 			CompletableFuture<JobResult> jobResultFuture = leaderDispatcherGateway.requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
 			BlockingOperator.unblock();
 

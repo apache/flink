@@ -27,6 +27,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +81,19 @@ public final class ReporterSetup {
 
 	public Optional<String> getIntervalSettings() {
 		return Optional.ofNullable(configuration.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null));
+	}
+
+	public Set<String> getExcludedVariables() {
+		String excludedVariablesList = configuration.getString(ConfigConstants.METRICS_REPORTER_EXCLUDED_VARIABLES, null);
+		if (excludedVariablesList == null) {
+			return Collections.emptySet();
+		} else {
+			final Set<String> excludedVariables = new HashSet<>();
+			for (String exclusion : excludedVariablesList.split(";")) {
+				excludedVariables.add(ScopeFormat.asVariable(exclusion));
+			}
+			return Collections.unmodifiableSet(excludedVariables);
+		}
 	}
 
 	public String getName() {
@@ -223,7 +238,7 @@ public final class ReporterSetup {
 		MetricReporterFactory factory = reporterFactories.get(factoryClassName);
 
 		if (factory == null) {
-			LOG.warn("The reporter factory ({}) could not be found for reporter {}. Available factories: ", factoryClassName, reporterName, reporterFactories.keySet());
+			LOG.warn("The reporter factory ({}) could not be found for reporter {}. Available factories: {}.", factoryClassName, reporterName, reporterFactories.keySet());
 			return Optional.empty();
 		} else {
 			final MetricConfig metricConfig = new MetricConfig();

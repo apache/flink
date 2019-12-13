@@ -21,7 +21,8 @@ import logging
 import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
-    SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder
+    SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
+    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder
 
 
 class CodersTest(unittest.TestCase):
@@ -45,7 +46,7 @@ class CodersTest(unittest.TestCase):
 
     def test_tinyint_coder(self):
         coder = TinyIntCoder()
-        self.check_coder(coder, 1, 10, 127)
+        self.check_coder(coder, 1, 10, 127, -128)
 
     def test_boolean_coder(self):
         coder = BooleanCoder()
@@ -73,12 +74,44 @@ class CodersTest(unittest.TestCase):
 
     def test_char_coder(self):
         coder = CharCoder()
-        self.check_coder(coder, 'flink')
+        self.check_coder(coder, 'flink', '🐿')
 
     def test_date_coder(self):
         import datetime
         coder = DateCoder()
         self.check_coder(coder, datetime.date(2019, 9, 10))
+
+    def test_time_coder(self):
+        import datetime
+        coder = TimeCoder()
+        self.check_coder(coder, datetime.time(hour=11, minute=11, second=11, microsecond=123000))
+
+    def test_timestamp_coder(self):
+        import datetime
+        coder = TimestampCoder(3)
+        self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123000))
+        coder = TimestampCoder(6)
+        self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123456))
+
+    def test_array_coder(self):
+        element_coder = BigIntCoder()
+        coder = ArrayCoder(element_coder)
+        self.check_coder(coder, [1, 2, 3, None])
+
+    def test_map_coder(self):
+        key_coder = CharCoder()
+        value_coder = BigIntCoder()
+        coder = MapCoder(key_coder, value_coder)
+        self.check_coder(coder, {'flink': 1, 'pyflink': 2, 'coder': None})
+
+    def test_decimal_coder(self):
+        import decimal
+        coder = DecimalCoder(38, 18)
+        self.check_coder(coder, decimal.Decimal('0.00001'), decimal.Decimal('1.23E-8'))
+        coder = DecimalCoder(4, 3)
+        decimal.getcontext().prec = 2
+        self.check_coder(coder, decimal.Decimal('1.001'))
+        self.assertEqual(decimal.getcontext().prec, 2)
 
 
 if __name__ == '__main__':

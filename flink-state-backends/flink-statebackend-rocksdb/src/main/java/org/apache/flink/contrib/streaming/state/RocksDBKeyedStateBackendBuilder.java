@@ -93,8 +93,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 	/** Factory function to create column family options from state name. */
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
-	/** The DB options from the options factory. */
-	private final DBOptions dbOptions;
+	/** The container of RocksDB option factory and predefined options. */
+	private final RocksDBResourceContainer optionsContainer;
 
 	/** Path where this configured instance stores its data directory. */
 	private final File instanceBasePath;
@@ -118,7 +118,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
-		DBOptions dbOptions,
+		RocksDBResourceContainer optionsContainer,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
@@ -150,7 +150,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		this.localRecoveryConfig = localRecoveryConfig;
 		// ensure that we use the right merge operator, because other code relies on this
 		this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
-		this.dbOptions = dbOptions;
+		this.optionsContainer = optionsContainer;
 		this.instanceBasePath = instanceBasePath;
 		this.instanceRocksDBPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING);
 		this.metricGroup = metricGroup;
@@ -164,7 +164,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
-		DBOptions dbOptions,
+		RocksDBResourceContainer optionsContainer,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
@@ -184,7 +184,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			operatorIdentifier,
 			userCodeClassLoader,
 			instanceBasePath,
-			dbOptions,
+			optionsContainer,
 			columnFamilyOptionsFactory,
 			kvStateRegistry,
 			keySerializer,
@@ -239,8 +239,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		ColumnFamilyHandle defaultColumnFamilyHandle = null;
 		RocksDBNativeMetricMonitor nativeMetricMonitor = null;
 		CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
-		//The write options to use in the states. We disable write ahead logging.
-		WriteOptions writeOptions = new WriteOptions().setDisableWAL(true);
+		// The write options to use in the states.
+		WriteOptions writeOptions = null;
 		LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation = new LinkedHashMap<>();
 		RocksDB db = null;
 		AbstractRocksDBRestoreOperation restoreOperation = null;
@@ -278,6 +278,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				}
 			}
 
+			// Init after db instantiated thus native library loaded. We disable write ahead logging.
+			writeOptions = new WriteOptions().setDisableWAL(true);
 			writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeOptions);
 			// it is important that we only create the key builder after the restore, and not before;
 			// restore operations may reconfigure the key serializer, so accessing the key serializer
@@ -308,7 +310,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			// it's possible that db has been initialized but later restore steps failed
 			IOUtils.closeQuietly(restoreOperation);
 			IOUtils.closeAllQuietly(columnFamilyOptions);
-			IOUtils.closeQuietly(dbOptions);
+			IOUtils.closeQuietly(optionsContainer);
 			IOUtils.closeQuietly(writeOptions);
 			ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();
 			kvStateInformation.clear();
@@ -333,7 +335,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		return new RocksDBKeyedStateBackend<>(
 			this.userCodeClassLoader,
 			this.instanceBasePath,
-			this.dbOptions,
+			this.optionsContainer,
 			columnFamilyOptionsFactory,
 			this.kvStateRegistry,
 			this.keySerializerProvider.currentSchemaSerializer(),
@@ -361,6 +363,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		CloseableRegistry cancelStreamRegistry,
 		LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		DBOptions dbOptions = optionsContainer.getDbOptions();
 		if (restoreStateHandles.isEmpty()) {
 			return new RocksDBNoneRestoreOperation<>(
 				keyGroupRange,

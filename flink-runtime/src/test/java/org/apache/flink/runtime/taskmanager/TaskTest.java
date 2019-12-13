@@ -43,10 +43,10 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteChannelStateChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -83,8 +83,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -245,12 +248,7 @@ public class TaskTest extends TestLogger {
 
 	@Test
 	public void testExecutionFailsInNetworkRegistrationForPartitions() throws Exception {
-		final PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-			new IntermediateDataSetID(),
-			new IntermediateResultPartitionID(),
-			ResultPartitionType.PIPELINED,
-			1,
-			1);
+		final PartitionDescriptor partitionDescriptor = PartitionDescriptorBuilder.newBuilder().build();
 		final ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
 		final ResultPartitionDeploymentDescriptor dummyPartition = new ResultPartitionDeploymentDescriptor(
 			partitionDescriptor,
@@ -831,6 +829,42 @@ public class TaskTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that a fatal error gotten from canceling task is notified.
+	 */
+	@Test
+	public void testFatalErrorOnCanceling() throws Exception {
+		final AwaitFatalErrorTaskManagerActions taskManagerActions =
+			new AwaitFatalErrorTaskManagerActions();
+
+		final Configuration config = new Configuration();
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+
+		final Task task = spy(createTaskBuilder()
+			.setInvokable(InvokableBlockingWithTrigger.class)
+			.setTaskManagerConfig(config)
+			.setTaskManagerActions(taskManagerActions)
+			.build());
+
+		doThrow(OutOfMemoryError.class).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
+
+		try {
+			task.startTaskThread();
+
+			awaitLatch.await();
+
+			task.cancelExecution();
+
+			// wait for the notification of notifyFatalError
+			taskManagerActions.latch.await();
+		} catch (Throwable t) {
+			fail("No exception is expected to be thrown by fatal error handling");
+		} finally {
+			triggerLatch.trigger();
+		}
+	}
+
+	/**
 	 * Tests that the task configuration is respected and overwritten by the execution config.
 	 */
 	@Test
@@ -923,10 +957,9 @@ public class TaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testReturnsEmptyStackTraceIfTaskNotStarted() throws Exception {
+	public void testNoBackPressureIfTaskNotStarted() throws Exception {
 		final Task task = createTaskBuilder().build();
-		final StackTraceElement[] actualStackTrace = task.getStackTraceOfExecutingThread();
-		assertEquals(0, actualStackTrace.length);
+		assertFalse(task.isBackPressured());
 	}
 
 	// ------------------------------------------------------------------------

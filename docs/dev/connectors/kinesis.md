@@ -414,17 +414,14 @@ starting point. If the queue size limits throughput (below 1MB per second per
 shard), try increasing the queue limit slightly.
 
 
-## Using Non-AWS Kinesis Endpoints for Testing
+## Using Custom Kinesis Endpoints
 
-It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as
-[Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing functional testing of a Flink
-application. The AWS endpoint that would normally be inferred by the AWS region set in the Flink configuration must be overridden via a configuration property.
+It is sometimes desirable to have Flink operate as a consumer or producer against a Kinesis VPC endpoint or a non-AWS
+Kinesis endpoint such as [Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing
+functional testing of a Flink application. The AWS endpoint that would normally be inferred by the AWS region set in the
+Flink configuration must be overridden via a configuration property.
 
-To override the AWS endpoint, taking the producer for example, set the `AWSConfigConstants.AWS_ENDPOINT` property in the
-Flink configuration, in addition to the `AWSConfigConstants.AWS_REGION` required by Flink. Although the region is
-required, it will not be used to determine the AWS endpoint URL.
-
-The following example shows how one might supply the `AWSConfigConstants.AWS_ENDPOINT` configuration property:
+To override the AWS endpoint, set the `AWSConfigConstants.AWS_ENDPOINT` and `AWSConfigConstants.AWS_REGION` properties. The region will be used to sign the endpoint URL.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

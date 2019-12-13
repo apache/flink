@@ -40,7 +40,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val empsNames =
     "empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat"
   private val nullableOfEmps: Array[Boolean] =
-    Array(false, false, false, true, true, false, true, true, false, false)
+    Array(true, true, true, true, true, true, true, true, true, true)
   private lazy val empsData = Seq(
     row(100L, "Fred", 10, null, null, 40L, 25, true, false, localDate("1996-08-03")),
     row(110L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, localDate("2001-01-01")),
@@ -52,7 +52,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val TABLE_NAME_EMP = "emp"
   private val empTypes = new RowTypeInfo(Types.STRING, Types.INT, Types.STRING)
   private val empNames = "ename, deptno, gender"
-  private val nullableOfEmp = Array(false, true, false)
+  private val nullableOfEmp = Array(true, true, true)
   private lazy val empData = Seq(
     row("Adam", 50, "M"),
     row("Alice", 30, "F"),
@@ -68,7 +68,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val TABLE_NAME_DEPT = "dept"
   private val deptTypes = new RowTypeInfo(Types.INT, Types.STRING)
   private val deptNames = "deptno, dname"
-  private val nullableOfDept = Array(false, false)
+  private val nullableOfDept = Array(true, true)
   private lazy val deptData = Seq(
     row(10, "Sales"),
     row(20, "Marketing"),
@@ -80,7 +80,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val scottEmpTypes = new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.INT,
     Types.LOCAL_DATE, Types.DOUBLE, Types.DOUBLE, Types.INT)
   private val scottEmpNames = "empno, ename, job, mgr, hiredate, sal, comm, deptno"
-  private val nullableOfScottEmp = Array(false, false, false, true, false, false, true, false)
+  private val nullableOfScottEmp = Array(true, true, true, true, true, true, true, true)
   private lazy val scottEmpData = Seq(
     row(7369, "SMITH", "CLERK", 7902, localDate("1980-12-17"), 800.00, null, 20),
     row(7499, "ALLEN", "SALESMAN", 7698, localDate("1981-02-20"), 1600.00, 300.00, 30),
@@ -110,7 +110,7 @@ class GroupingSetsITCase extends BatchTestBase {
       }
       row(r.getField(0), r.getField(1), newField2)
     }
-    val nullablesOfNullsData3 = Array(false, false, true)
+    val nullablesOfNullsData3 = Array(true, true, true)
     registerCollection(TABLE_WITH_NULLS_NAME, nullableData3, type3, "f0, f1, f2",
       nullablesOfNullsData3)
 

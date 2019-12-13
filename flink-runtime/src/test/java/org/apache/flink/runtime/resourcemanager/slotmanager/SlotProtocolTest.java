@@ -71,9 +71,9 @@ public class SlotProtocolTest extends TestLogger {
 
 	/**
 	 * Tests whether
-	 * 1) SlotManager accepts a slot request
-	 * 2) SlotRequest leads to a container allocation
-	 * 3) Slot becomes available and TaskExecutor gets a SlotRequest
+	 * 1) SlotManager accepts a slot request.
+	 * 2) SlotRequest leads to a container allocation.
+	 * 3) Slot becomes available and TaskExecutor gets a SlotRequest.
 	 */
 	@Test
 	public void testSlotsUnavailableRequest() throws Exception {
@@ -93,7 +93,7 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final String targetAddress = "foobar";
 
 			SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile, targetAddress);
@@ -128,10 +128,10 @@ public class SlotProtocolTest extends TestLogger {
 
 	/**
 	 * Tests whether
-	 * 1) a SlotRequest is routed to the SlotManager
-	 * 2) a SlotRequest is confirmed
-	 * 3) a SlotRequest leads to an allocation of a registered slot
-	 * 4) a SlotRequest is routed to the TaskExecutor
+	 * 1) a SlotRequest is routed to the SlotManager.
+	 * 2) a SlotRequest is confirmed.
+	 * 3) a SlotRequest leads to an allocation of a registered slot.
+	 * 4) a SlotRequest is routed to the TaskExecutor.
 	 */
 	@Test
 	public void testSlotAvailableRequest() throws Exception {
@@ -157,7 +157,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			final ResourceID resourceID = ResourceID.generate();
 			final AllocationID allocationID = new AllocationID();
-			final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
+			final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
 			final SlotID slotID = new SlotID(resourceID, 0);
 
 			final SlotStatus slotStatus =

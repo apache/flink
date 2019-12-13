@@ -151,7 +151,7 @@ Scala-Flink> val textSource = stenv.fromDataStream(
     "The slings and arrows of outrageous fortune",
     "Or to take arms against a sea of troubles,"), 
   'text)
-Scala-Flink> stenv.registerTable("text_source", textSource)
+Scala-Flink> stenv.createTemporaryView("text_source", textSource)
 Scala-Flink> class $Split extends TableFunction[String] {
     def eval(s: String): Unit = {
       s.toLowerCase.split("\\W+").foreach(collect)
@@ -177,7 +177,7 @@ Scala-Flink> val textSource = btenv.fromDataSet(
     "The slings and arrows of outrageous fortune",
     "Or to take arms against a sea of troubles,"), 
   'text)
-Scala-Flink> btenv.registerTable("text_source", textSource)
+Scala-Flink> btenv.createTemporaryView("text_source", textSource)
 Scala-Flink> class $Split extends TableFunction[String] {
     def eval(s: String): Unit = {
       s.toLowerCase.split("\\W+").foreach(collect)
@@ -234,7 +234,7 @@ bin/start-scala-shell.sh remote <hostname> <portnumber>
 ### Yarn Scala Shell cluster
 
 The shell can deploy a Flink cluster to YARN, which is used exclusively by the
-shell. The number of YARN containers can be controlled by the parameter `-n <arg>`.
+shell.
 The shell deploys a new Flink cluster on YARN and connects the
 cluster. You can also specify options for YARN cluster such as memory for
 JobManager, name of YARN application, etc.
@@ -280,8 +280,6 @@ Starts Flink scala shell connecting to a remote cluster
         Specifies additional jars to be used in Flink
 Command: yarn [options]
 Starts Flink scala shell connecting to a yarn cluster
-  -n arg | --container arg
-        Number of YARN container to allocate (= Number of TaskManagers)
   -jm arg | --jobManagerMemory arg
         Memory for JobManager container with optional unit (default: MB)
   -nm <value> | --name <value>

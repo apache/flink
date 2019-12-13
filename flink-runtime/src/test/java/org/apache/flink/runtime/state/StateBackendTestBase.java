@@ -2573,7 +2573,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		List<Integer> expectedKeys = Arrays.asList(103, 1031, 1032);
 		assertEquals(keys.size(), expectedKeys.size());
 		keys.removeAll(expectedKeys);
-		assertTrue(keys.isEmpty());
 
 		List<String> values = new ArrayList<>();
 		for (String value : state.values()) {
@@ -2582,7 +2581,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		List<String> expectedValues = Arrays.asList("103", "1031", "1032");
 		assertEquals(values.size(), expectedValues.size());
 		values.removeAll(expectedValues);
-		assertTrue(values.isEmpty());
 
 		// make some more modifications
 		backend.setCurrentKey("1");
@@ -2653,6 +2651,34 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				getSerializedMap(restoredKvState2, "3", keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 
 		backend.dispose();
+	}
+
+	@Test
+	public void testMapStateIsEmpty() throws Exception {
+		MapStateDescriptor<Integer, Long> kvId = new MapStateDescriptor<>("id", Integer.class, Long.class);
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			MapState<Integer, Long> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			backend.setCurrentKey(1);
+			assertTrue(state.isEmpty());
+
+			int stateSize = 1024;
+			for (int i = 0; i < stateSize; i++) {
+				state.put(i, i * 2L);
+				assertFalse(state.isEmpty());
+			}
+
+			for (int i = 0; i < stateSize; i++) {
+				assertFalse(state.isEmpty());
+				state.remove(i);
+			}
+			assertTrue(state.isEmpty());
+
+		} finally {
+			backend.dispose();
+		}
 	}
 
 	/**

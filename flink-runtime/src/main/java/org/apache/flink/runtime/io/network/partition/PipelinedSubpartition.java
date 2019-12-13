@@ -44,9 +44,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
  * {@link #createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
  * {@link #flush()} explicitly, we always only notify when the first finished buffer turns up and
- * then, the reader has to drain the buffers via {@link #pollBuffer()} until its return value shows
- * no more buffers being available. This results in a buffer queue which is either empty or has an
- * unfinished {@link BufferConsumer} left from which the notifications will eventually start again.
+ * then, the reader has to drain the buffers via {@link #pollBuffer(boolean)} until its return value
+ * shows no more buffers being available. This results in a buffer queue which is either empty or has
+ * an unfinished {@link BufferConsumer} left from which the notifications will eventually start again.
  *
  * <p>Explicit calls to {@link #flush()} will force this
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notification} for any
@@ -96,7 +96,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), true);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
@@ -157,7 +157,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Nullable
-	BufferAndBacklog pollBuffer() {
+	BufferAndBacklog pollBuffer(boolean isLocalChannel) {
 		synchronized (buffers) {
 			Buffer buffer = null;
 
@@ -169,6 +169,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 				BufferConsumer bufferConsumer = buffers.peek();
 
 				buffer = bufferConsumer.build();
+				if (!isLocalChannel && !bufferConsumer.isShareable() && canBeCompressed(buffer)) {
+					buffer = parent.bufferCompressor.compressToOriginalBuffer(buffer);
+				}
 
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");

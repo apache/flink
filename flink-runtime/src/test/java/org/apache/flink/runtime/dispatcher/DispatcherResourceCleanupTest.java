@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -31,13 +32,13 @@ import org.apache.flink.runtime.blob.TestingBlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -46,6 +47,8 @@ import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
@@ -101,6 +104,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	private static TestingRpcService rpcService;
 
+	private static MetricRegistryImpl metricRegistry;
+
 	private JobID jobId;
 
 	private JobGraph jobGraph;
@@ -141,7 +146,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		testVertex.setInvokableClass(NoOpInvokable.class);
 		jobId = new JobID();
 		jobGraph = new JobGraph(jobId, "testJob", testVertex);
-		jobGraph.setAllowQueuedScheduling(true);
 
 		configuration = new Configuration();
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -175,6 +179,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(storedHABlobFuture.get(), equalTo(permanentBlobKey));
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
+
+		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 	}
 
 	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
@@ -193,6 +199,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
+
+		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
+		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
+
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
@@ -207,7 +217,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				null,
+				metricQueryServiceAddress,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				jobGraphWriter,
 				jobManagerRunnerFactory));
@@ -232,6 +242,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	public static void teardownClass() throws ExecutionException, InterruptedException {
 		if (rpcService != null) {
 			rpcService.stopService().get();
+		}
+
+		if (metricRegistry != null) {
+			metricRegistry.shutdown().get();
 		}
 	}
 

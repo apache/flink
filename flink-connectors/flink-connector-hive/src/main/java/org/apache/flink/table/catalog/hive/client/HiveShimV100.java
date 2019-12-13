@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -37,14 +38,13 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
@@ -76,10 +76,17 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Shim for Hive version 1.0.0.
@@ -110,23 +117,6 @@ public class HiveShimV100 implements HiveShim {
 			}
 		}
 		return views;
-	}
-
-	@Override
-	public Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException {
-		try {
-			// hive-1.x doesn't throw NoSuchObjectException if function doesn't exist, instead it throws a MetaException
-			return client.getFunction(dbName, functionName);
-		} catch (MetaException e) {
-			// need to check the cause and message of this MetaException to decide whether it should actually be a NoSuchObjectException
-			if (e.getCause() instanceof NoSuchObjectException) {
-				throw (NoSuchObjectException) e.getCause();
-			}
-			if (e.getMessage().startsWith(NoSuchObjectException.class.getSimpleName())) {
-				throw new NoSuchObjectException(e.getMessage());
-			}
-			throw e;
-		}
 	}
 
 	@Override
@@ -334,5 +324,71 @@ public class HiveShimV100 implements HiveShim {
 		} catch (Exception e) {
 			throw new CatalogException("Failed to get table schema from deserializer", e);
 		}
+	}
+
+	@Override
+	public Set<String> listBuiltInFunctions() {
+		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
+		// prior to Hive 1.2.0
+		throw new UnsupportedOperationException("Listing built in functions are not supported until Hive 1.2.0");
+	}
+
+	@Override
+	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
+		// FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
+		// prior to Hive 1.2.0
+		throw new UnsupportedOperationException("Getting built in functions are not supported until Hive 1.2.0");
+	}
+
+	@Override
+	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
+		// NOT NULL constraints not supported until 3.0.0 -- HIVE-16575
+		return Collections.emptySet();
+	}
+
+	@Override
+	public Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait) {
+		// PK constraints not supported until 2.1.0 -- HIVE-13290
+		return Optional.empty();
+	}
+
+	@Override
+	public Object toHiveTimestamp(Object flinkTimestamp) {
+		ensureSupportedFlinkTimestamp(flinkTimestamp);
+		return flinkTimestamp instanceof Timestamp ? flinkTimestamp : Timestamp.valueOf((LocalDateTime) flinkTimestamp);
+	}
+
+	@Override
+	public LocalDateTime toFlinkTimestamp(Object hiveTimestamp) {
+		Preconditions.checkArgument(hiveTimestamp instanceof Timestamp,
+				"Expecting Hive timestamp to be an instance of %s, but actually got %s",
+				Timestamp.class.getName(), hiveTimestamp.getClass().getName());
+		return ((Timestamp) hiveTimestamp).toLocalDateTime();
+	}
+
+	@Override
+	public Object toHiveDate(Object flinkDate) {
+		ensureSupportedFlinkDate(flinkDate);
+		return flinkDate instanceof Date ? flinkDate : Date.valueOf((LocalDate) flinkDate);
+	}
+
+	@Override
+	public LocalDate toFlinkDate(Object hiveDate) {
+		Preconditions.checkArgument(hiveDate instanceof Date,
+				"Expecting Hive Date to be an instance of %s, but actually got %s",
+				Date.class.getName(), hiveDate.getClass().getName());
+		return ((Date) hiveDate).toLocalDate();
+	}
+
+	void ensureSupportedFlinkTimestamp(Object flinkTimestamp) {
+		Preconditions.checkArgument(flinkTimestamp instanceof Timestamp || flinkTimestamp instanceof LocalDateTime,
+				"Only support converting %s or %s to Hive timestamp, but not %s",
+				Timestamp.class.getName(), LocalDateTime.class.getName(), flinkTimestamp.getClass().getName());
+	}
+
+	void ensureSupportedFlinkDate(Object flinkDate) {
+		Preconditions.checkArgument(flinkDate instanceof Date || flinkDate instanceof LocalDate,
+				"Only support converting %s or %s to Hive date, but not %s",
+				Date.class.getName(), LocalDate.class.getName(), flinkDate.getClass().getName());
 	}
 }

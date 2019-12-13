@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.utils;
 
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction;
@@ -77,13 +78,15 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	private final TableFunction hiveUdtf;
 	private final HiveOperandTypeChecker operandTypeChecker;
 
-	public HiveTableSqlFunction(String name, String displayName,
+	public HiveTableSqlFunction(
+			FunctionIdentifier identifier,
 			TableFunction hiveUdtf,
 			DataType implicitResultType,
 			FlinkTypeFactory typeFactory,
 			FlinkTableFunction functionImpl,
 			HiveOperandTypeChecker operandTypeChecker) {
-		super(name, displayName, hiveUdtf, implicitResultType, typeFactory, functionImpl, scala.Option.apply(operandTypeChecker));
+		super(identifier, identifier.toString(), hiveUdtf, implicitResultType, typeFactory,
+				functionImpl, scala.Option.apply(operandTypeChecker));
 		this.hiveUdtf = hiveUdtf;
 		this.operandTypeChecker = operandTypeChecker;
 	}
@@ -208,8 +211,10 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	private static class NonLiteralException extends Exception {
 	}
 
-	public static HiveOperandTypeChecker operandTypeChecker(String name, TableFunction udtf) {
-		return new HiveOperandTypeChecker(name, udtf, UserDefinedFunctionUtils.checkAndExtractMethods(udtf, "eval"));
+	public static HiveOperandTypeChecker operandTypeChecker(
+			String name, TableFunction udtf) {
+		return new HiveOperandTypeChecker(
+				name, udtf, UserDefinedFunctionUtils.checkAndExtractMethods(udtf, "eval"));
 	}
 
 	/**
@@ -222,7 +227,8 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 
 		private LogicalType[] previousArgTypes;
 
-		private HiveOperandTypeChecker(String name, TableFunction udtf, Method[] methods) {
+		private HiveOperandTypeChecker(
+				String name, TableFunction udtf, Method[] methods) {
 			super(name, udtf, methods);
 		}
 

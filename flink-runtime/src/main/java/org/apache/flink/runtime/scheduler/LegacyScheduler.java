@@ -78,7 +78,13 @@ public class LegacyScheduler extends SchedulerBase {
 			jobManagerJobMetricGroup,
 			slotRequestTimeout,
 			shuffleMaster,
-			partitionTracker);
+			partitionTracker,
+			true);
+	}
+
+	@Override
+	protected long getNumberOfRestarts() {
+		return getExecutionGraph().getNumberOfRestarts();
 	}
 
 	@Override

@@ -219,10 +219,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 	private static JobGraph createJobGraph() {
 		final JobVertex testVertex = new JobVertex("testVertex");
 		testVertex.setInvokableClass(NoOpInvokable.class);
-		final JobGraph testJob = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
-		testJob.setAllowQueuedScheduling(true);
-
-		return testJob;
+		return new JobGraph(TEST_JOB_ID, "testJob", testVertex);
 	}
 
 	private DispatcherRunner createDispatcherRunner() throws Exception {

@@ -90,8 +90,8 @@ class TableSinkITCase extends AbstractTestBase {
     tEnv.registerTableSink(
       "csvSink",
       new CsvTableSink(path).configure(
-        Array[String]("c", "b"),
-        Array[TypeInformation[_]](Types.STRING, Types.SQL_TIMESTAMP)))
+        Array[String]("nullableCol", "c", "b"),
+        Array[TypeInformation[_]](Types.INT, Types.STRING, Types.SQL_TIMESTAMP)))
 
     val input = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._2)
@@ -99,20 +99,20 @@ class TableSinkITCase extends AbstractTestBase {
 
     input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
-      .select('c, 'b)
+      .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
       .insertInto("csvSink")
 
     env.execute()
 
     val expected = Seq(
-      "Hi,1970-01-01 00:00:00.001",
-      "Hello,1970-01-01 00:00:00.002",
-      "Hello world,1970-01-01 00:00:00.002",
-      "Hello world, how are you?,1970-01-01 00:00:00.003",
-      "Comment#12,1970-01-01 00:00:00.006",
-      "Comment#13,1970-01-01 00:00:00.006",
-      "Comment#14,1970-01-01 00:00:00.006",
-      "Comment#15,1970-01-01 00:00:00.006").mkString("\n")
+      ",Hello world,1970-01-01 00:00:00.002",
+      ",Hello,1970-01-01 00:00:00.002",
+      ",Hi,1970-01-01 00:00:00.001",
+      "18,Comment#12,1970-01-01 00:00:00.006",
+      "19,Comment#13,1970-01-01 00:00:00.006",
+      "20,Comment#14,1970-01-01 00:00:00.006",
+      "21,Comment#15,1970-01-01 00:00:00.006",
+      "4,Hello world, how are you?,1970-01-01 00:00:00.003").mkString("\n")
 
     TestBaseUtils.compareResultsByLinesInMemory(expected, path)
   }

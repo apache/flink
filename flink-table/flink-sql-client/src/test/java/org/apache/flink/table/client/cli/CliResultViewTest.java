@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -36,6 +37,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -80,6 +82,7 @@ public class CliResultViewTest {
 		final CountDownLatch cancellationCounterLatch = new CountDownLatch(expectedCancellationCount);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		final MockExecutor executor = new MockExecutor(typedResult, cancellationCounterLatch);
+		String sessionId = executor.openSession(session);
 		final ResultDescriptor descriptor = new ResultDescriptor(
 			"result-id",
 			TableSchema.builder().field("Null Field", Types.STRING()).build(),
@@ -88,7 +91,7 @@ public class CliResultViewTest {
 		Thread resultViewRunner = null;
 		CliClient cli = null;
 		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), session, executor);
+			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, executor);
 			resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
 			resultViewRunner.start();
 		} finally {
@@ -121,74 +124,124 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException {
+		public String openSession(SessionContext session) throws SqlExecutionException {
+			return UUID.randomUUID().toString();
+		}
+
+		@Override
+		public void closeSession(String sessionId) throws SqlExecutionException {
+			// do nothing
+		}
+
+		@Override
+		public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
+		public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void addView(String sessionId, String name, String query) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void removeView(String sessionId, String name) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
+		public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listTables(SessionContext session) throws SqlExecutionException {
+		public List<String> listDatabases(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException {
+		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public List<String> listTables(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> listFunctions(SessionContext session) throws SqlExecutionException {
+		public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
+		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public String explainStatement(SessionContext session, String statement) throws SqlExecutionException {
+		public List<String> listModules(String sessionId) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public List<String> completeStatement(SessionContext session, String statement, int position) {
+		public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
-		public ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException {
+		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
+		public List<String> completeStatement(String sessionId, String statement, int position) {
+			return null;
+		}
+
+		@Override
+		public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
 			return null;
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session, String resultId) throws SqlExecutionException {
+		public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException {
 			return (TypedResult<List<Tuple2<Boolean, Row>>>) typedResult;
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public TypedResult<Integer> snapshotResult(SessionContext session, String resultId, int pageSize) throws SqlExecutionException {
+		public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize) throws SqlExecutionException {
 			return (TypedResult<Integer>) typedResult;
 		}
 
@@ -198,23 +251,13 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException {
+		public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
 			cancellationCounter.countDown();
 		}
 
 		@Override
-		public ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException {
+		public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
 			return null;
-		}
-
-		@Override
-		public void validateSession(SessionContext session) throws SqlExecutionException {
-			// do nothing
-		}
-
-		@Override
-		public void stop(SessionContext session) {
-			// do nothing
 		}
 	}
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.functions.TableFunction;
 
 import org.apache.commons.lang3.StringUtils;
@@ -36,10 +37,10 @@ public class JavaUserDefinedTableFunctions {
 	 * Emit inputs as long.
 	 */
 	public static class JavaTableFunc0 extends TableFunction<Long> {
-		public void eval(Integer a, Long b, Long c) {
+		public void eval(Integer a, Long b, SqlTimestamp c) {
 			collect(a.longValue());
 			collect(b);
-			collect(c);
+			collect(c.getMillisecond());
 		}
 	}
 

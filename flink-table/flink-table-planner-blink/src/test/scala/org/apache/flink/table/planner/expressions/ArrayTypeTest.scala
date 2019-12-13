@@ -23,6 +23,8 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
+import java.time.{LocalDateTime => JLocalDateTime}
+
 import org.junit.Test
 
 class ArrayTypeTest extends ArrayTypeTestBase {
@@ -92,7 +94,49 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       Array(localDateTime("1985-04-11 14:15:16"), localDateTime("2018-07-26 17:18:19")),
       "array('1985-04-11 14:15:16'.toTimestamp, '2018-07-26 17:18:19'.toTimestamp)",
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16', TIMESTAMP '2018-07-26 17:18:19']",
-      "[1985-04-11 14:15:16.000, 2018-07-26 17:18:19.000]")
+      "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
+
+    // localDateTime use DateTimeUtils.timestampStringToUnixDate to parse a time string,
+    // which only support millisecond's precision.
+    testTableApi(
+      Array(
+        JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456789),
+        JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123456789)),
+        "[1985-04-11 14:15:16.123456789, 2018-07-26 17:18:19.123456789]")
+
+    testTableApi(
+      Array(
+        JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456700),
+        JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123456700)),
+      "[1985-04-11 14:15:16.1234567, 2018-07-26 17:18:19.1234567]")
+
+    testTableApi(
+      Array(
+        JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456000),
+        JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123456000)),
+      "[1985-04-11 14:15:16.123456, 2018-07-26 17:18:19.123456]")
+
+    testTableApi(
+      Array(
+        JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123400000),
+        JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123400000)),
+      "[1985-04-11 14:15:16.1234, 2018-07-26 17:18:19.1234]")
+
+    testSqlApi(
+      "ARRAY[TIMESTAMP '1985-04-11 14:15:16.123456789', TIMESTAMP '2018-07-26 17:18:19.123456789']",
+      "[1985-04-11 14:15:16.123456789, 2018-07-26 17:18:19.123456789]")
+
+    testSqlApi(
+      "ARRAY[TIMESTAMP '1985-04-11 14:15:16.1234567', TIMESTAMP '2018-07-26 17:18:19.1234567']",
+      "[1985-04-11 14:15:16.1234567, 2018-07-26 17:18:19.1234567]")
+
+    testSqlApi(
+      "ARRAY[TIMESTAMP '1985-04-11 14:15:16.123456', TIMESTAMP '2018-07-26 17:18:19.123456']",
+      "[1985-04-11 14:15:16.123456, 2018-07-26 17:18:19.123456]")
+
+    testSqlApi(
+      "ARRAY[TIMESTAMP '1985-04-11 14:15:16.1234', TIMESTAMP '2018-07-26 17:18:19.1234']",
+      "[1985-04-11 14:15:16.1234, 2018-07-26 17:18:19.1234]")
 
     testAllApis(
       Array(BigDecimal(2.0002), BigDecimal(2.0003)),

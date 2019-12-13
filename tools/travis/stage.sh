@@ -25,8 +25,8 @@ STAGE_BLINK_PLANNER="blink_planner"
 STAGE_CONNECTORS="connectors"
 STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
-STAGE_SCHEDULER_NG_CORE="scheduler_ng_core"
-STAGE_SCHEDULER_NG_TESTS="scheduler_ng_tests"
+STAGE_LEGACY_SCHEDULER_CORE="legacy_scheduler_core"
+STAGE_LEGACY_SCHEDULER_TESTS="legacy_scheduler_tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 
@@ -81,12 +81,12 @@ flink-formats/flink-parquet,\
 flink-formats/flink-sequence-file,\
 flink-formats/flink-json,\
 flink-formats/flink-csv,\
+flink-formats/flink-orc,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors/flink-jdbc,\
 flink-connectors,\
-flink-connectors/flink-orc,\
 flink-connectors/flink-connector-cassandra,\
 flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
@@ -160,10 +160,10 @@ function get_compile_modules_for_stage() {
         (${STAGE_TESTS})
             echo "-pl $MODULES_TESTS -am"
         ;;
-        (${STAGE_SCHEDULER_NG_CORE})
+        (${STAGE_LEGACY_SCHEDULER_CORE})
             echo "-pl $MODULES_CORE -am"
         ;;
-        (${STAGE_SCHEDULER_NG_TESTS})
+        (${STAGE_LEGACY_SCHEDULER_TESTS})
             echo "-pl $MODULES_TESTS -am"
         ;;
         (${STAGE_MISC})
@@ -209,11 +209,11 @@ function get_test_modules_for_stage() {
         (${STAGE_TESTS})
             echo "-pl $modules_tests"
         ;;
-        (${STAGE_SCHEDULER_NG_CORE})
-            echo "-Dscheduler-ng -pl $MODULES_CORE"
+        (${STAGE_LEGACY_SCHEDULER_CORE})
+            echo "-Dlegacy-scheduler -pl $MODULES_CORE"
         ;;
-        (${STAGE_SCHEDULER_NG_TESTS})
-            echo "-Dscheduler-ng -pl $MODULES_TESTS"
+        (${STAGE_LEGACY_SCHEDULER_TESTS})
+            echo "-Dlegacy-scheduler -pl $MODULES_TESTS"
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"

@@ -16,8 +16,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import atexit
 import codecs
+import os
 import platform
+import signal
 import sys
 
 from pyflink.common import *
@@ -28,6 +31,23 @@ from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
 from pyflink.table.window import *
 
+
+def _register_exit_handler():
+    def clean(*args, **kwargs):
+        try:
+            if "PYFLINK_INTERNAL_LIB" in os.environ:
+                files = os.environ["PYFLINK_INTERNAL_LIB"].split(os.pathsep)
+                for file in files:
+                    if os.path.exists(file):
+                        os.remove(file)
+        finally:
+            sys.exit()
+    atexit.register(clean)
+    # we already ignore the SIGINT so only process the SIGTERM
+    signal.signal(signal.SIGTERM, clean)
+
+
+_register_exit_handler()
 utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 print("Using Python version %s (%s, %s)" % (

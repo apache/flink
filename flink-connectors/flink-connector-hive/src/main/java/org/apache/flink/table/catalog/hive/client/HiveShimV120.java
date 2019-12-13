@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -31,6 +32,9 @@ import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.thrift.TException;
@@ -38,6 +42,9 @@ import org.apache.thrift.TException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Shim for Hive version 1.2.0.
@@ -125,14 +132,26 @@ public class HiveShimV120 extends HiveShimV111 {
 	public ColumnStatisticsData toHiveDateColStats(CatalogColumnStatisticsDataDate flinkDateColStats) {
 		try {
 			Class dateStatsClz = Class.forName("org.apache.hadoop.hive.metastore.api.DateColumnStatsData");
-			Object dateStats = dateStatsClz.getDeclaredConstructor(long.class, long.class)
-					.newInstance(flinkDateColStats.getNullCount(), flinkDateColStats.getNdv());
+			Object dateStats = dateStatsClz.getDeclaredConstructor().newInstance();
+			dateStatsClz.getMethod("clear").invoke(dateStats);
+			if (null != flinkDateColStats.getNdv()) {
+				dateStatsClz.getMethod("setNumDVs", long.class).invoke(dateStats, flinkDateColStats.getNdv());
+			}
+			if (null != flinkDateColStats.getNullCount()) {
+				dateStatsClz.getMethod("setNumNulls", long.class).invoke(dateStats, flinkDateColStats.getNullCount());
+			}
 			Class hmsDateClz = Class.forName("org.apache.hadoop.hive.metastore.api.Date");
-			Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
-			Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
 			Constructor hmsDateConstructor = hmsDateClz.getConstructor(long.class);
-			setHigh.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMax().getDaysSinceEpoch()));
-			setLow.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMin().getDaysSinceEpoch()));
+			if (null != flinkDateColStats.getMax()) {
+				Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
+				setHigh.invoke(dateStats,
+							hmsDateConstructor.newInstance(flinkDateColStats.getMax().getDaysSinceEpoch()));
+			}
+			if (null != flinkDateColStats.getMin()) {
+				Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
+				setLow.invoke(dateStats,
+							hmsDateConstructor.newInstance(flinkDateColStats.getMin().getDaysSinceEpoch()));
+			}
 			Class colStatsClz = ColumnStatisticsData.class;
 			return (ColumnStatisticsData) colStatsClz.getDeclaredMethod("dateStats", dateStatsClz).invoke(null, dateStats);
 		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
@@ -155,17 +174,67 @@ public class HiveShimV120 extends HiveShimV111 {
 		try {
 			Object dateStats = ColumnStatisticsData.class.getDeclaredMethod("getDateStats").invoke(hiveDateColStats);
 			Class dateStatsClz = dateStats.getClass();
-			long numDV = (long) dateStatsClz.getMethod("getNumDVs").invoke(dateStats);
-			long numNull = (long) dateStatsClz.getMethod("getNumNulls").invoke(dateStats);
+			boolean isSetNumDv = (boolean) dateStatsClz.getMethod("isSetNumDVs").invoke(dateStats);
+			boolean isSetNumNull = (boolean) dateStatsClz.getMethod("isSetNumNulls").invoke(dateStats);
+			boolean isSetHighValue = (boolean) dateStatsClz.getMethod("isSetHighValue").invoke(dateStats);
+			boolean isSetLowValue = (boolean) dateStatsClz.getMethod("isSetLowValue").invoke(dateStats);
+			Long numDV = isSetNumDv ? (Long) dateStatsClz.getMethod("getNumDVs").invoke(dateStats) : null;
+			Long numNull = isSetNumNull ? (Long) dateStatsClz.getMethod("getNumNulls").invoke(dateStats) : null;
 			Object hmsHighDate = dateStatsClz.getMethod("getHighValue").invoke(dateStats);
 			Object hmsLowDate = dateStatsClz.getMethod("getLowValue").invoke(dateStats);
 			Class hmsDateClz = hmsHighDate.getClass();
 			Method hmsDateDays = hmsDateClz.getMethod("getDaysSinceEpoch");
-			long highDateDays = (long) hmsDateDays.invoke(hmsHighDate);
-			long lowDateDays = (long) hmsDateDays.invoke(hmsLowDate);
-			return new CatalogColumnStatisticsDataDate(new Date(lowDateDays), new Date(highDateDays), numDV, numNull);
+			Date highDateDays = isSetHighValue ? new Date((Long) hmsDateDays.invoke(hmsHighDate)) : null;
+			Date lowDateDays = isSetLowValue ? new Date((Long) hmsDateDays.invoke(hmsLowDate)) : null;
+			return new CatalogColumnStatisticsDataDate(lowDateDays, highDateDays, numDV, numNull);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create Flink statistics for date column", e);
+		}
+	}
+
+	@Override
+	public Set<String> listBuiltInFunctions() {
+		try {
+			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
+			// getFunctionNames is a static method
+			Set<String> names = (Set<String>) method.invoke(null);
+
+			return names.stream()
+				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
+				.collect(Collectors.toSet());
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
+		}
+	}
+
+	@Override
+	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
+		Optional<FunctionInfo> functionInfo = getFunctionInfo(name);
+
+		if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
+			return functionInfo;
+		} else {
+			return Optional.empty();
+		}
+	}
+
+	private Optional<FunctionInfo> getFunctionInfo(String name) {
+		try {
+			return Optional.of(FunctionRegistry.getFunctionInfo(name));
+		} catch (SemanticException e) {
+			throw new FlinkHiveException(
+				String.format("Failed getting function info for %s", name), e);
+		} catch (NullPointerException e) {
+			return Optional.empty();
+		}
+	}
+
+	private boolean isBuiltInFunctionInfo(FunctionInfo info) {
+		try {
+			Method method = FunctionInfo.class.getMethod("isBuiltIn", null);
+			return (boolean) method.invoke(info);
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);
 		}
 	}
 }

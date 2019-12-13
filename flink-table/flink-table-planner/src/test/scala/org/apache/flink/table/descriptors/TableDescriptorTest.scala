@@ -84,6 +84,9 @@ class TableDescriptorTest extends TableTestBase {
     // tests the table factory discovery and thus validates the result automatically
     descriptor.registerTableSourceAndSink("MyTable")
 
+    val personArrayString = "ARRAY<LEGACY('STRUCTURED_TYPE', " +
+      "'POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>')>"
+
     val expectedCommonProperties = Seq(
       "connector.property-version" -> "1",
       "connector.type" -> "filesystem",
@@ -91,38 +94,36 @@ class TableDescriptorTest extends TableTestBase {
       "format.property-version" -> "1",
       "format.type" -> "csv",
       "format.fields.0.name" -> "myfield",
-      "format.fields.0.type" -> "VARCHAR",
+      "format.fields.0.data-type" -> "VARCHAR(2147483647)",
       "format.fields.1.name" -> "myfield2",
-      "format.fields.1.type" -> "INT",
+      "format.fields.1.data-type" -> "INT",
       "format.fields.2.name" -> "myfield3",
-      "format.fields.2.type" -> "MAP<VARCHAR, INT>",
+      "format.fields.2.data-type" -> "MAP<VARCHAR(2147483647), INT>",
       "format.fields.3.name" -> "myfield4",
-      "format.fields.3.type" -> "MULTISET<BIGINT>",
+      "format.fields.3.data-type" -> "MULTISET<BIGINT>",
       "format.fields.4.name" -> "myfield5",
-      "format.fields.4.type" -> "PRIMITIVE_ARRAY<SMALLINT>",
+      "format.fields.4.data-type" -> "ARRAY<SMALLINT NOT NULL>",
       "format.fields.5.name" -> "myfield6",
-      "format.fields.5.type" ->
-        "OBJECT_ARRAY<POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>>",
+      "format.fields.5.data-type" -> personArrayString,
       "format.field-delimiter" -> "#",
       "schema.0.name" -> "myfield",
-      "schema.0.type" -> "VARCHAR",
+      "schema.0.data-type" -> "VARCHAR(2147483647)",
       "schema.1.name" -> "myfield2",
-      "schema.1.type" -> "INT",
+      "schema.1.data-type" -> "INT",
       "schema.2.name" -> "myfield3",
-      "schema.2.type" -> "MAP<VARCHAR, INT>",
+      "schema.2.data-type" -> "MAP<VARCHAR(2147483647), INT>",
       "schema.3.name" -> "myfield4",
-      "schema.3.type" -> "MULTISET<BIGINT>",
+      "schema.3.data-type" -> "MULTISET<BIGINT>",
       "schema.4.name" -> "myfield5",
-      "schema.4.type" -> "PRIMITIVE_ARRAY<SMALLINT>",
+      "schema.4.data-type" -> "ARRAY<SMALLINT NOT NULL>",
       "schema.5.name" -> "myfield6",
-      "schema.5.type" ->
-        "OBJECT_ARRAY<POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>>"
+      "schema.5.data-type" -> personArrayString
     )
 
     val expectedProperties = if (isStreaming) {
       expectedCommonProperties ++ Seq(
         //"schema.2.name" -> "proctime",
-        //"schema.2.type" -> "TIMESTAMP",
+        //"schema.2.data-type" -> "TIMESTAMP",
         //"schema.2.proctime" -> "true",
         "update-mode" -> "append"
       )

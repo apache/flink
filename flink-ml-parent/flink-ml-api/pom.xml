@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-ml-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-ml-api</artifactId>
@@ -39,7 +39,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
-			<version>${jackson.version}-${flink.shaded.version}</version>
 		</dependency>
 	</dependencies>
 </project>

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -120,7 +119,7 @@ public class InputProcessorUtil {
 			IOManager ioManager,
 			int pageSize,
 			Configuration taskManagerConfig,
-			String taskName) throws IOException {
+			String taskName) {
 		switch (checkpointMode) {
 			case EXACTLY_ONCE: {
 				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
@@ -129,12 +128,7 @@ public class InputProcessorUtil {
 						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
 							+ " must be positive or -1 (infinite)");
 				}
-
-				if (taskManagerConfig.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
-					return new CachedBufferStorage(pageSize, maxAlign, taskName);
-				} else {
-					return new BufferSpiller(ioManager, pageSize, maxAlign, taskName);
-				}
+				return new CachedBufferStorage(pageSize, maxAlign, taskName);
 			}
 			case AT_LEAST_ONCE:
 				return new EmptyBufferStorage();

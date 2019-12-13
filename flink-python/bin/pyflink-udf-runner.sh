@@ -16,54 +16,35 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
-. "$bin"/find-flink-home.sh
+python=${python:-python}
 
-_FLINK_HOME_DETERMINED=1
-
-. "$FLINK_HOME"/bin/config.sh
-
-if [[ "$FLINK_IDENT_STRING" = "" ]]; then
-    FLINK_IDENT_STRING="$USER"
+if [[ "$FLINK_TESTING" = "1" ]]; then
+    ACTUAL_FLINK_HOME=`cd $FLINK_HOME; pwd -P`
+    FLINK_SOURCE_ROOT_DIR=`cd $ACTUAL_FLINK_HOME/../../../../; pwd`
+    FLINK_PYTHON="${FLINK_SOURCE_ROOT_DIR}/flink-python"
+    if [[ -f "${FLINK_PYTHON}/pyflink/fn_execution/boot.py" ]]; then
+        # use pyflink source code to override the pyflink.zip in PYTHONPATH
+        # to ensure loading latest code
+        export PYTHONPATH="$FLINK_PYTHON:$PYTHONPATH"
+    fi
 fi
 
-if [[ "$python" = "" ]]; then
-    python="python"
+if [[ "$_PYTHON_WORKING_DIR" != "" ]]; then
+    # set current working directory to $_PYTHON_WORKING_DIR
+    cd "$_PYTHON_WORKING_DIR"
+    if [[ "$python" == ${_PYTHON_WORKING_DIR}* ]]; then
+        # The file extracted from archives may not preserve its original permission.
+        # Set minimum execution permission to prevent from permission denied error.
+        chmod +x "$python"
+    fi
 fi
 
-CURRENT_DIR=`pwd -P`
-FLINK_SOURCE_ROOT_DIR=`cd $bin/../../../../../; pwd -P`
-cd $CURRENT_DIR
-
-# Add pyflink to PYTHONPATH
-FLINK_PYTHON="${FLINK_SOURCE_ROOT_DIR}/flink-python"
-if [[ ! -f "${FLINK_PYTHON}/pyflink/fn_execution/boot.py" ]]; then
-  # Add pyflink.zip to PYTHONPATH if directory pyflink does not exist
-  PYFLINK_ZIP="$FLINK_OPT_DIR/python/pyflink.zip"
-  if [[ ! ${PYTHONPATH} =~ ${PYFLINK_ZIP} ]]; then
-    export PYTHONPATH="$PYFLINK_ZIP:$PYTHONPATH"
-  fi
+if [[ "$FLINK_LOG_DIR" != "" ]]; then
+    if [[ "$FLINK_IDENT_STRING" = "" ]]; then
+        FLINK_IDENT_STRING="$USER"
+    fi
+    log="$FLINK_LOG_DIR/flink-$USER-python-udf-boot-$HOSTNAME.log"
+    ${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}
 else
-  # Add directory flink-python/pyflink to PYTHONPATH if it exists, this is helpful during
-  # development as this script is used to start up the Python worker and putting the
-  # directory of flink-python/pyflink to PYTHONPATH makes sure the Python source code will
-  # take effect immediately after changed.
-  export PYTHONPATH="$FLINK_PYTHON:$PYTHONPATH"
+    ${python} -m pyflink.fn_execution.boot $@
 fi
-
-# Add py4j to PYTHONPATH
-PY4J_ZIP=`echo "$FLINK_OPT_DIR"/python/py4j-*-src.zip`
-if [[ ! ${PYTHONPATH} =~ ${PY4J_ZIP} ]]; then
-    export PYTHONPATH="$PY4J_ZIP:$PYTHONPATH"
-fi
-
-# Add cloudpickle to PYTHONPATH
-CLOUDPICKLE_ZIP=`echo "$FLINK_OPT_DIR"/python/cloudpickle-*-src.zip`
-if [[ ! ${PYTHONPATH} =~ ${CLOUDPICKLE_ZIP} ]]; then
-    export PYTHONPATH="$CLOUDPICKLE_ZIP:$PYTHONPATH"
-fi
-
-log="$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-python-udf-boot-$HOSTNAME.log"
-
-${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}

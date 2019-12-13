@@ -19,5 +19,7 @@
 
 function dummy_fs_setup() {
     mkdir -p "$FLINK_DIR/plugins/dummy-fs"
-    cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/plugins/dummy-fs/"
+    mkdir -p "$FLINK_DIR/plugins/another-dummy-fs"
+    cp "${END_TO_END_DIR}/flink-plugins-test/dummy-fs/target/flink-dummy-fs.jar" "${FLINK_DIR}/plugins/dummy-fs/"
+    cp "${END_TO_END_DIR}/flink-plugins-test/another-dummy-fs/target/flink-another-dummy-fs.jar" "${FLINK_DIR}/plugins/another-dummy-fs/"
 }

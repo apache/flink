@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
@@ -27,11 +28,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
@@ -53,13 +55,13 @@ import scala.collection.JavaConversions._
 class BatchExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
-  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
+    tableSourceTable: TableSourceTable[_])
+  extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
   with BatchExecNode[BaseRow]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
+    new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -90,10 +92,11 @@ class BatchExecTableSourceScan(
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
+    val rowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = false,
-      tableSourceTable.selectedFields)
+      rowType,
+      tableSourceTable.isStreamingMode)
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
@@ -109,16 +112,22 @@ class BatchExecTableSourceScan(
     // get expression to extract rowtime attribute
     val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
       tableSource,
-      tableSourceTable.selectedFields,
+      tableSourceTable.getRowType,
       cluster,
       planner.getRelBuilder
     )
     if (needInternalConversion) {
+      // the produced type may not carry the correct precision user defined in DDL, because
+      // it may be converted from legacy type. Fix precision using logical schema from DDL.
+      // code generation requires the correct precision of input fields.
+      val fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
+        tableSource,
+        rowType)
       ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
-        producedDataType,
+        fixedProducedDataType,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -132,8 +141,8 @@ class BatchExecTableSourceScan(
   def needInternalConversion: Boolean = {
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      isStreamTable = false,
-      tableSourceTable.selectedFields)
+      FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType),
+      tableSourceTable.isStreamingMode)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
@@ -151,6 +160,7 @@ class BatchExecTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
-    env.addSource(func, tableSource.explainSource(), t).getTransformation
+    ExecNode.setManagedMemoryWeight(env.addSource(func, tableSource.explainSource(), t)
+        .getTransformation)
   }
 }

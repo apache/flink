@@ -139,7 +139,7 @@ bin/pyflink-shell.sh remote <hostname> <portnumber>
 ### Yarn Python Shell cluster
 
 The shell can deploy a Flink cluster to YARN, which is used exclusively by the
-shell. The number of YARN containers can be controlled by the parameter `-n <arg>`.
+shell.
 The shell deploys a new Flink cluster on YARN and connects the
 cluster. You can also specify options for YARN cluster such as memory for
 JobManager, name of YARN application, etc.
@@ -190,8 +190,6 @@ usage:
                                      all options.
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container with
                                      optional unit (default: MB)
-     -n,--container <arg>            Number of YARN container to allocate
-                                     (=Number of Task Managers)
      -nm,--name <arg>                Set a custom name for the application on
                                      YARN
      -qu,--queue <arg>               Specify YARN queue.

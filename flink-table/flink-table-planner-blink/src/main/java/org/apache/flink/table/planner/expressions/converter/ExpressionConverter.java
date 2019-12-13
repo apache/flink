@@ -30,15 +30,15 @@ import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.planner.calcite.FlinkContext;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.type.RelDataType;
@@ -50,10 +50,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
-import org.apache.calcite.util.TimestampString;
-import org.apache.calcite.util.TimestampWithTimeZoneString;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -63,6 +63,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime;
 
 /**
  * Visit expression to generator {@link RexNode}.
@@ -135,18 +136,22 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				return relBuilder.getRexBuilder().makeTimeLiteral(TimeString.fromCalendarFields(
 						valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return relBuilder.getRexBuilder().makeTimestampLiteral(TimestampString.fromCalendarFields(
-						valueAsCalendar(extractValue(valueLiteral, java.sql.Timestamp.class))), 3);
+				TimestampType timestampType = (TimestampType) type;
+				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
+				return relBuilder.getRexBuilder().makeTimestampLiteral(
+					fromLocalDateTime(datetime), timestampType.getPrecision());
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				TimeZone timeZone = TimeZone.getTimeZone(((FlinkContext) ((FlinkRelBuilder) this.relBuilder)
-						.getCluster().getPlanner().getContext()).getTableConfig().getLocalTimeZone());
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
+				TimeZone timeZone = TimeZone.getTimeZone(this.relBuilder.getCluster()
+					.getPlanner()
+					.getContext()
+					.unwrap(FlinkContext.class)
+					.getTableConfig()
+					.getLocalTimeZone());
+				Instant instant = extractValue(valueLiteral, Instant.class);
 				return this.relBuilder.getRexBuilder().makeTimestampWithLocalTimeZoneLiteral(
-						new TimestampWithTimeZoneString(
-								TimestampString.fromMillisSinceEpoch(
-										extractValue(valueLiteral, java.time.Instant.class).toEpochMilli()),
-								timeZone)
-								.withTimeZone(DateTimeUtils.UTC_ZONE)
-								.getLocalTimestampString(), 3);
+					fromLocalDateTime(LocalDateTime.ofInstant(instant, timeZone.toZoneId())),
+					lzTs.getPrecision());
 			case INTERVAL_YEAR_MONTH:
 				return this.relBuilder.getRexBuilder().makeIntervalLiteral(
 						BigDecimal.valueOf(extractValue(valueLiteral, Integer.class)),

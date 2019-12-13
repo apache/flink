@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.sources._
 import org.apache.flink.util.CollectionUtil
+
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
@@ -64,8 +65,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       return
     }
 
-    val relOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
-    val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     val oldTableSource = tableSourceTable.tableSource
     val (newTableSource, isProjectSuccess) = oldTableSource match {
       case nested: NestedFieldsProjectableTableSource[_] =>
@@ -94,16 +94,11 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     }
 
     // project push down does not change the statistic, we can reuse origin statistic
-    val newTableSourceTable = new TableSourceTable(
+    val newTableSourceTable = tableSourceTable.copy(
       newTableSource,
-      tableSourceTable.isStreamingMode,
-      tableSourceTable.statistic,
-      Option(usedFields),
-      tableSourceTable.catalogTable)
+      usedFields)
     // row type is changed after project push down
-    val newRowType = newTableSourceTable.getRowType(scan.getCluster.getTypeFactory)
-    val newRelOptTable = relOptTable.copy(newTableSourceTable, newRowType)
-    val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newRelOptTable)
+    val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newTableSourceTable)
 
     // rewrite input field in projections
     val newProjects = RexNodeRewriter.rewriteWithNewFieldInput(project.getProjects, usedFields)

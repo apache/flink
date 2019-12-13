@@ -66,6 +66,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -122,7 +123,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable, TaskActions, PartitionProducerStateProvider, CheckpointListener {
+public class Task implements Runnable, TaskActions, PartitionProducerStateProvider, CheckpointListener, BackPressureSampleableTask {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -461,16 +462,16 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return invokable;
 	}
 
-	public StackTraceElement[] getStackTraceOfExecutingThread() {
-		final AbstractInvokable invokable = this.invokable;
-
-		if (invokable == null) {
-			return new StackTraceElement[0];
+	@Override
+	public boolean isBackPressured() {
+		if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
+			return false;
 		}
-
-		return invokable.getExecutingThread()
-			.orElse(executingThread)
-			.getStackTrace();
+		final CompletableFuture<?>[] outputFutures = new CompletableFuture[consumableNotifyingPartitionWriters.length];
+		for (int i = 0; i < outputFutures.length; ++i) {
+			outputFutures[i] = consumableNotifyingPartitionWriters[i].getAvailableFuture();
+		}
+		return !CompletableFuture.allOf(outputFutures).isDone();
 	}
 
 	// ------------------------------------------------------------------------
@@ -493,6 +494,11 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return executionState == ExecutionState.CANCELING ||
 				executionState == ExecutionState.CANCELED ||
 				executionState == ExecutionState.FAILED;
+	}
+
+	@Override
+	public boolean isRunning() {
+		return executionState == ExecutionState.RUNNING;
 	}
 
 	/**
@@ -983,6 +989,20 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	}
 
 	private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
+		try {
+			cancelOrFailAndCancelInvokableInternal(targetState, cause);
+		} catch (Throwable t) {
+			if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(t)) {
+				String message = String.format("FATAL - exception in cancelling task %s (%s).", taskNameWithSubtask, executionId);
+				notifyFatalError(message, t);
+			} else {
+				throw t;
+			}
+		}
+	}
+
+	@VisibleForTesting
+	void cancelOrFailAndCancelInvokableInternal(ExecutionState targetState, Throwable cause) {
 		while (true) {
 			ExecutionState current = executionState;
 

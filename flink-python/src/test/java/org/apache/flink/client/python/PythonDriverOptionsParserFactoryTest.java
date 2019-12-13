@@ -18,12 +18,14 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,6 +50,41 @@ public class PythonDriverOptionsParserFactoryTest {
 	public void testPymoduleOptionParsing() throws FlinkParseException {
 		final String[] args = {"--pyModule", "xxx", "--pyFiles", "xxx.py,a.py,b.py,c.py", "--input", "in.txt"};
 		verifyPythonDriverOptionsParsing(args);
+	}
+
+	@Test
+	public void testPythonDependencyOptionsParsing() throws FlinkParseException {
+		final String[] args = {
+			"--python", "xxx.py",
+			"--pyFiles", "/absolute/a.py,relative/b.py,relative/c.py",
+			"--pyRequirements", "d.txt#e_dir",
+			"--pyExecutable", "/usr/bin/python",
+			"--pyArchives", "g.zip,h.zip#data,h.zip#data2",
+		};
+		verifyPythonDependencyOptionsParsing(args);
+	}
+
+	@Test
+	public void testPythonDependencyShortOptionsParsing() throws FlinkParseException {
+		final String[] args = {
+			"-py", "xxx.py",
+			"-pyfs", "/absolute/a.py,relative/b.py,relative/c.py",
+			"-pyreq", "d.txt#e_dir",
+			"-pyexec", "/usr/bin/python",
+			"-pyarch", "g.zip,h.zip#data,h.zip#data2",
+		};
+		verifyPythonDependencyOptionsParsing(args);
+	}
+
+	@Test
+	public void testRequirementsOptionsWithoutCachedDir() throws FlinkParseException {
+		final String[] args = {
+			"-py", "xxx.py",
+			"-pyreq", "d.txt",
+		};
+		PythonDriverOptions pythonCommandOptions = commandLineParser.parse(args);
+
+		assertEquals(new Tuple2<>("d.txt", null), pythonCommandOptions.getPyRequirements().get());
 	}
 
 	@Test
@@ -94,5 +131,21 @@ public class PythonDriverOptionsParserFactoryTest {
 		assertEquals(2, programArgs.size());
 		assertEquals("--input", programArgs.get(0));
 		assertEquals("in.txt", programArgs.get(1));
+	}
+
+	private void verifyPythonDependencyOptionsParsing(final String[] args) throws FlinkParseException {
+		PythonDriverOptions pythonCommandOptions = commandLineParser.parse(args);
+		List<String> expectedPythonFiles = new ArrayList<>();
+		expectedPythonFiles.add("/absolute/a.py");
+		expectedPythonFiles.add("relative/b.py");
+		expectedPythonFiles.add("relative/c.py");
+		assertEquals(expectedPythonFiles, pythonCommandOptions.getPyFiles());
+		assertEquals(new Tuple2<>("d.txt", "e_dir"), pythonCommandOptions.getPyRequirements().get());
+		List<Tuple2<String, String>> expectedPythonArchives = new ArrayList<>();
+		expectedPythonArchives.add(new Tuple2<>("g.zip", null));
+		expectedPythonArchives.add(new Tuple2<>("h.zip", "data"));
+		expectedPythonArchives.add(new Tuple2<>("h.zip", "data2"));
+		assertEquals(expectedPythonArchives, pythonCommandOptions.getPyArchives());
+		assertEquals("/usr/bin/python", pythonCommandOptions.getPyExecutable().get());
 	}
 }

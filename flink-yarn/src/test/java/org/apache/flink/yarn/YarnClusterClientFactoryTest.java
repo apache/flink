@@ -23,6 +23,8 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
+import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.Test;
@@ -35,9 +37,18 @@ import static org.junit.Assert.assertTrue;
 public class YarnClusterClientFactoryTest {
 
 	@Test
-	public void testYarnClusterClientFactoryDiscovery() {
+	public void testYarnClusterClientFactoryDiscoveryWithPerJobExecutor() {
+		testYarnClusterClientFactoryDiscoveryHelper(YarnJobClusterExecutor.NAME);
+	}
+
+	@Test
+	public void testYarnClusterClientFactoryDiscoveryWithSessionExecutor() {
+		testYarnClusterClientFactoryDiscoveryHelper(YarnSessionClusterExecutor.NAME);
+	}
+
+	private void testYarnClusterClientFactoryDiscoveryHelper(final String targetName) {
 		final Configuration configuration = new Configuration();
-		configuration.setString(DeploymentOptions.TARGET, YarnClusterClientFactory.ID);
+		configuration.setString(DeploymentOptions.TARGET, targetName);
 
 		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
 		final ClusterClientFactory<ApplicationId> factory = serviceLoader.getClusterClientFactory(configuration);
