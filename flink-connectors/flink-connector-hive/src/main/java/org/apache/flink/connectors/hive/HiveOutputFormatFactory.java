@@ -167,7 +167,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 					recordSerDe.getSerializedClass(),
 					isCompressed,
 					tableProperties,
-					new org.apache.hadoop.fs.Path(outPath.getPath()));
+					new org.apache.hadoop.fs.Path(outPath.toUri()));
 			return new HiveOutputFormat(recordWriter);
 		} catch (Exception e) {
 			throw new FlinkHiveException(e);
