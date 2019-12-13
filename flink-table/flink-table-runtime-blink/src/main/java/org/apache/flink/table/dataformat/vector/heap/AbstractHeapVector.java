@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.vector.AbstractColumnVector;
-import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
@@ -109,18 +107,7 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 			case TIME_WITHOUT_TIME_ZONE:
 				return new HeapIntVector(maxRows);
 			case BIGINT:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				return new HeapLongVector(maxRows);
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) fieldType;
-				if (Decimal.is32BitDecimal(decimalType.getPrecision())) {
-					return new HeapIntVector(maxRows);
-				} else if (Decimal.is64BitDecimal(decimalType.getPrecision())) {
-					return new HeapLongVector(maxRows);
-				} else {
-					return new HeapBytesVector(maxRows);
-				}
 			case SMALLINT:
 				return new HeapShortVector(maxRows);
 			case CHAR:
