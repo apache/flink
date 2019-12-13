@@ -517,10 +517,18 @@ public class HiveCatalog extends AbstractCatalog {
 		// When retrieving a table, a generic table needs explicitly have a key is_generic = true
 		// otherwise, this is a Hive table if 1) the key is missing 2) is_generic = true
 		// this is opposite to creating a table. See instantiateHiveTable()
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
-		if (isGeneric) {
-			properties = retrieveFlinkProperties(properties);
+
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a hive table
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+		} else {
+			boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+			if (isGeneric) {
+				properties = retrieveFlinkProperties(properties);
+			}
 		}
+
 		String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
 		// Table schema
@@ -575,20 +583,25 @@ public class HiveCatalog extends AbstractCatalog {
 			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
 
+		// Make sure there's no null in properties
+		properties = cleanNullProperties(properties);
+
 		// When creating a table, A hive table needs explicitly have a key is_generic = false
 		// otherwise, this is a generic table if 1) the key is missing 2) is_generic = true
 		// this is opposite to reading a table and instantiating a CatalogTable. See instantiateCatalogTable()
-		String key = properties.get(CatalogConfig.IS_GENERIC);
-		if (key == null || Boolean.valueOf(key)) {
-			properties = maskFlinkProperties(properties);
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a generic catalog
 			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+		} else {
+			boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+			if (isGeneric) {
+				properties = maskFlinkProperties(properties);
+			}
 		}
 
 		// Table properties
 		hiveTable.setParameters(properties);
-
-		// Make sure there's no null in properties
-		properties = cleanNullProperties(properties);
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
