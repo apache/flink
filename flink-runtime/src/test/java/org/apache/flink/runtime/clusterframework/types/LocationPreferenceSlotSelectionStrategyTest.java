@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyTestBase {
@@ -71,6 +72,7 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
 		Assert.assertTrue(match.isPresent());
 		final SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = match.get();
 		assertThat(candidates, hasItem(withSlotInfo(slotInfoAndLocality.getSlotInfo())));
+		assertThat(slotInfoAndLocality, hasLocality(Locality.UNCONSTRAINED));
 	}
 
 	@Test
@@ -83,6 +85,11 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
 		final SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = match.get();
 		final SlotInfo slotInfo = slotInfoAndLocality.getSlotInfo();
 		assertThat(candidates, hasItem(withSlotInfo(slotInfo)));
+		assertThat(slotInfoAndLocality, hasLocality(Locality.HOST_LOCAL));
+	}
+
+	private Matcher<SlotSelectionStrategy.SlotInfoAndLocality> hasLocality(Locality locality) {
+		return new LocalityFeatureMatcher(locality);
 	}
 
 	private Matcher<SlotSelectionStrategy.SlotInfoAndResources> withSlotInfo(SlotInfo slotInfo) {
@@ -123,13 +130,24 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
 	}
 
 	private static class SlotInfoFeatureMatcher extends FeatureMatcher<SlotSelectionStrategy.SlotInfoAndResources, SlotInfo> {
-		public SlotInfoFeatureMatcher(SlotInfo slotInfo) {
-			super(CoreMatchers.is(slotInfo), "Slot info of a SlotInfoAndResources instance", "slotInfo");
+		SlotInfoFeatureMatcher(SlotInfo slotInfo) {
+			super(is(slotInfo), "Slot info of a SlotInfoAndResources instance", "slotInfo");
 		}
 
 		@Override
 		protected SlotInfo featureValueOf(SlotSelectionStrategy.SlotInfoAndResources actual) {
 			return actual.getSlotInfo();
+		}
+	}
+
+	private static class LocalityFeatureMatcher extends FeatureMatcher<SlotSelectionStrategy.SlotInfoAndLocality, Locality> {
+		LocalityFeatureMatcher(Locality locality) {
+			super(is(locality), "Locality of SlotInfoAndLocality instance", "locality");
+		}
+
+		@Override
+		protected Locality featureValueOf(SlotSelectionStrategy.SlotInfoAndLocality actual) {
+			return actual.getLocality();
 		}
 	}
 }
