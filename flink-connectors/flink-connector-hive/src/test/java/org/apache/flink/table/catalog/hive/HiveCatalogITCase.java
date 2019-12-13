@@ -119,6 +119,8 @@ public class HiveCatalogITCase {
 				Row.of("3", 3))),
 			new HashSet<>(result)
 		);
+
+		tableEnv.sqlUpdate("drop table tests2");
 	}
 
 	@Test
@@ -200,5 +202,9 @@ public class HiveCatalogITCase {
 
 		// No more line
 		assertNull(reader.readLine());
+
+		tableEnv.sqlUpdate(String.format("drop table myhive.`default`.%s", sourceTableName));
+
+		tableEnv.sqlUpdate(String.format("drop table myhive.`default`.%s", sinkTableName));
 	}
 }

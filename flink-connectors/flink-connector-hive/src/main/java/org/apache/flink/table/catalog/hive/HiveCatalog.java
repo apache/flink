@@ -514,6 +514,9 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
+		// When retrieving a table, a generic table needs explicitly have a key is_generic = true
+		// otherwise, this is a Hive table if 1) the key is missing 2) is_generic = true
+		// this is opposite to creating a table. See instantiateHiveTable()
 		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
@@ -572,19 +575,14 @@ public class HiveCatalog extends AbstractCatalog {
 			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
 
-		// A hive table needs explicitly have a key is_generic = false, otherwise this is a generic table
-		String isGenericValue = properties.get(CatalogConfig.IS_GENERIC);
-		boolean isGeneric = true;
-
-		if (isGenericValue != null && !Boolean.valueOf(isGenericValue)) {
-			// this is a hive table
-			isGeneric = false;
-		}
-
-		if (isGeneric) {
+		// When creating a table, A hive table needs explicitly have a key is_generic = false
+		// otherwise, this is a generic table if 1) the key is missing 2) is_generic = true
+		// this is opposite to reading a table and instantiating a CatalogTable. See instantiateCatalogTable()
+		String key = properties.get(CatalogConfig.IS_GENERIC);
+		if (key == null || Boolean.valueOf(key)) {
 			properties = maskFlinkProperties(properties);
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
 		}
-		properties.put(CatalogConfig.IS_GENERIC, "true");
 
 		// Table properties
 		hiveTable.setParameters(properties);
