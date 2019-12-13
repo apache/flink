@@ -189,7 +189,7 @@ public class SlotSharingManager {
 
 			final Map<AllocationID, MultiTaskSlot> innerMap = resolvedRootSlots.computeIfAbsent(
 				slotInfo.getTaskManagerLocation(),
-				taskManagerLocation -> new HashMap<>(4));
+				taskManagerLocation -> new HashMap<>());
 
 			MultiTaskSlot previousValue = innerMap.put(allocationId, resolvedRootNode);
 			Preconditions.checkState(previousValue == null);
