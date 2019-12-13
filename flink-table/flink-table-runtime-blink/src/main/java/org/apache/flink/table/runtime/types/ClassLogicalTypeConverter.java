@@ -51,11 +51,11 @@ public class ClassLogicalTypeConverter {
 				return Short.class;
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return Integer.class;
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
+			case TIME_WITHOUT_TIME_ZONE:
 				return Long.class;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:

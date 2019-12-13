@@ -352,7 +352,7 @@ class RexNodeToExpressionConverter(
 
       case TIME_WITHOUT_TIME_ZONE =>
         val v = literal.getValueAs(classOf[Integer])
-        LocalTimeConverter.INSTANCE.toExternal(v)
+        new LocalTimeConverter(3).toExternal(v * 1000000L)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])

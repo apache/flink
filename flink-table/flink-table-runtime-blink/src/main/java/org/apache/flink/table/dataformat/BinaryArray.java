@@ -66,7 +66,6 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 			case INTEGER:
 			case FLOAT:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return 4;
 			default:

@@ -38,7 +38,7 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      LocalTimeConverter.INSTANCE.toExternal(DateTimeUtils.timeStringToUnixDate(s))
+      new LocalTimeConverter(3).toExternal(DateTimeUtils.timeStringToUnixDate(s) * 1000000L)
     }
   }
 

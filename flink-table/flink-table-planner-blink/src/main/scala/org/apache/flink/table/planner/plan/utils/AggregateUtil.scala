@@ -493,7 +493,7 @@ object AggregateUtil extends Enumeration {
       case BOOLEAN => DataTypes.BOOLEAN
 
       case DATE => DataTypes.INT
-      case TIME_WITHOUT_TIME_ZONE => DataTypes.INT
+      case TIME_WITHOUT_TIME_ZONE => DataTypes.BIGINT
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val dt = argTypes(0).asInstanceOf[TimestampType]
         DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])

@@ -61,11 +61,11 @@ public class InternalSerializers {
 				return ShortSerializer.INSTANCE;
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return IntSerializer.INSTANCE;
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
+			case TIME_WITHOUT_TIME_ZONE:
 				return LongSerializer.INSTANCE;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) type;

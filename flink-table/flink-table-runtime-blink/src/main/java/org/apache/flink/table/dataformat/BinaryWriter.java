@@ -94,12 +94,12 @@ public interface BinaryWriter {
 				break;
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				writer.writeInt(pos, (int) o);
 				break;
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
+			case TIME_WITHOUT_TIME_ZONE:
 				writer.writeLong(pos, (long) o);
 				break;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:

@@ -187,11 +187,11 @@ public interface TypeGetterSetters {
 				return row.getShort(ordinal);
 			case INTEGER:
 			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return row.getInt(ordinal);
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
+			case TIME_WITHOUT_TIME_ZONE:
 				return row.getLong(ordinal);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) type;
