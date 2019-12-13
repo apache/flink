@@ -633,12 +633,7 @@ function wait_oper_metric_num_in_records {
 function wait_num_of_occurence_in_logs {
     local text=$1
     local number=$2
-    local logs
-    if [ -z "$3" ]; then
-        logs="standalonesession"
-    else
-        logs="$3"
-    fi
+    local logs=${3:-standalonesession}
 
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 

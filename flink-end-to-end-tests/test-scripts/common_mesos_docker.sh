@@ -72,3 +72,9 @@ function wait_job_terminal_state_mesos {
   local expected_terminal_state=$2
   wait_job_terminal_state $1 $2 "mesos-appmaster"
 }
+
+function wait_num_of_occurence_in_logs_mesos() {
+    local text=$1
+    local number=$2
+    wait_num_of_occurence_in_logs $1 $2 "mesos-appmaster"
+}
