@@ -23,11 +23,14 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 
 import java.util.Optional;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Module to provide Hive built-in metadata.
@@ -35,9 +38,13 @@ import java.util.Set;
 public class HiveModule implements Module {
 
 	private final HiveFunctionDefinitionFactory factory;
+	private final String hiveVersion;
 	private final HiveShim hiveShim;
 
 	public HiveModule(String hiveVersion) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null");
+
+		this.hiveVersion = hiveVersion;
 		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		this.factory = new HiveFunctionDefinitionFactory(hiveShim);
 	}
@@ -54,5 +61,9 @@ public class HiveModule implements Module {
 		return info.isPresent() ?
 			Optional.of(factory.createFunctionDefinitionFromHiveFunction(name, info.get().getFunctionClass().getName()))
 			: Optional.empty();
+	}
+
+	public String getHiveVersion() {
+		return hiveVersion;
 	}
 }
