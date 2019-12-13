@@ -342,6 +342,10 @@ public final class FileUtils {
 	}
 
 	private static void cleanDirectoryInternal(File directory) throws IOException {
+		if (Files.isSymbolicLink(directory.toPath())) {
+			// the user directories which symbolic links point to should not be cleaned.
+			return;
+		}
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
 
