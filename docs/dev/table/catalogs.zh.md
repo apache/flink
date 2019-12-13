@@ -136,6 +136,7 @@ catalog.createTable(
     );
     
 List<String> tables = catalog.listTables("mydb); // tables should contain "mytable"
+{% endhighlight %}
 
 </div>
 </div>
