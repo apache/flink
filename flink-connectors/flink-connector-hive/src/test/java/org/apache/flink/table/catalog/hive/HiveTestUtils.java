@@ -125,7 +125,7 @@ public class HiveTestUtils {
 		throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
 	}
 
-	public static TableEnvironment createTableEnv() {
+	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
