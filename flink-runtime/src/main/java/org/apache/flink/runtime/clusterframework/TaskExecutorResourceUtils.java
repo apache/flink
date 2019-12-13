@@ -568,17 +568,22 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static CPUResource getCpuCores(final Configuration config, double fallback) {
-		double cpuCores;
+		final double cpuCores;
 		if (config.contains(TaskManagerOptions.CPU_CORES)) {
 			cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
-			if (cpuCores < 0) {
-				throw new IllegalConfigurationException("Configured cpu cores must be non-negative.");
-			}
-		} else if (fallback >= 0.0) {
+		} else if (fallback > 0.0) {
 			cpuCores = fallback;
 		} else {
 			cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 		}
+
+		if (cpuCores <= 0) {
+			throw new IllegalConfigurationException(
+				String.format(
+					"TaskExecutors need to be started with a positive number of CPU cores. Please configure %s accordingly.",
+					TaskManagerOptions.CPU_CORES.key()));
+		}
+
 		return new CPUResource(cpuCores);
 	}
 
