@@ -66,3 +66,9 @@ function build_image() {
         exit 1
     fi
 }
+
+function wait_job_terminal_state_mesos {
+  local job=$1
+  local expected_terminal_state=$2
+  wait_job_terminal_state $1 $2 "mesos-appmaster"
+}

@@ -459,11 +459,12 @@ function wait_job_running {
 function wait_job_terminal_state {
   local job=$1
   local expected_terminal_state=$2
+  local log_file_name=${3:-standalonesession}
 
   echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
+    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*$log_file_name*.log | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else
