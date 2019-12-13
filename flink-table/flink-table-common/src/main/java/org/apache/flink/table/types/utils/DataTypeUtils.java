@@ -19,6 +19,9 @@
 package org.apache.flink.table.types.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -34,9 +37,12 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +77,31 @@ public final class DataTypeUtils {
 			newType = newType.accept(new DataTypeTransformer(transformation));
 		}
 		return newType;
+	}
+
+	/**
+	 * Expands a composite {@link DataType} to a corresponding {@link TableSchema}. Useful for
+	 * flattening a column or mapping a physical to logical type of a table source
+	 *
+	 * <p>Throws an exception for a non composite type. You can use
+	 * {@link LogicalTypeChecks#isCompositeType(LogicalType)} to check that.
+	 *
+	 * <p>It does not expand an atomic type on purpose, because that operation depends on the
+	 * context. E.g. in case of a {@code FLATTEN} function such operation is not allowed, whereas
+	 * when mapping a physical type to logical the field name should be derived from the logical schema.
+	 *
+	 * @param dataType Data type to expand. Must be a composite type.
+	 * @return A corresponding table schema.
+	 */
+	public static TableSchema expandCompositeTypeToSchema(DataType dataType) {
+		if (dataType instanceof FieldsDataType) {
+			return expandCompositeType((FieldsDataType) dataType);
+		} else if (dataType.getLogicalType() instanceof LegacyTypeInformationType &&
+			dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.STRUCTURED_TYPE) {
+			return expandLegacyCompositeType(dataType);
+		}
+
+		throw new IllegalArgumentException("Expected a composite type");
 	}
 
 	private DataTypeUtils() {
@@ -151,5 +182,72 @@ public final class DataTypeUtils {
 			}
 			return transformation.transform(new KeyValueDataType(newLogicalType, newKeyType, newValueType));
 		}
+	}
+
+	private static TableSchema expandCompositeType(FieldsDataType dataType) {
+		Map<String, DataType> fieldDataTypes = dataType.getFieldDataTypes();
+		return dataType.getLogicalType().accept(new LogicalTypeDefaultVisitor<TableSchema>() {
+			@Override
+			public TableSchema visit(RowType rowType) {
+				return expandRowType(rowType, fieldDataTypes);
+			}
+
+			@Override
+			public TableSchema visit(StructuredType structuredType) {
+				return expandStructuredType(structuredType, fieldDataTypes);
+			}
+
+			@Override
+			public TableSchema visit(DistinctType distinctType) {
+				return distinctType.getSourceType().accept(this);
+			}
+
+			@Override
+			protected TableSchema defaultMethod(LogicalType logicalType) {
+				throw new IllegalArgumentException("Expected a composite type");
+			}
+		});
+	}
+
+	private static TableSchema expandLegacyCompositeType(DataType dataType) {
+		// legacy composite type
+		CompositeType<?> compositeType = (CompositeType<?>) ((LegacyTypeInformationType<?>) dataType.getLogicalType())
+			.getTypeInformation();
+
+		String[] fieldNames = compositeType.getFieldNames();
+		TypeInformation<?>[] fieldTypes = Arrays.stream(fieldNames)
+			.map(compositeType::getTypeAt)
+			.toArray(TypeInformation[]::new);
+
+		return new TableSchema(fieldNames, fieldTypes);
+	}
+
+	private static TableSchema expandStructuredType(
+		StructuredType structuredType,
+		Map<String, DataType> fieldDataTypes) {
+		String[] fieldNames = structuredType.getAttributes()
+			.stream()
+			.map(StructuredType.StructuredAttribute::getName)
+			.toArray(String[]::new);
+		DataType[] dataTypes = structuredType.getAttributes()
+			.stream()
+			.map(attr -> fieldDataTypes.get(attr.getName()))
+			.toArray(DataType[]::new);
+		return TableSchema.builder()
+			.fields(fieldNames, dataTypes)
+			.build();
+	}
+
+	private static TableSchema expandRowType(
+		RowType rowType,
+		Map<String, DataType> fieldDataTypes) {
+		String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
+		DataType[] dataTypes = rowType.getFields()
+			.stream()
+			.map(field -> fieldDataTypes.get(field.getName()))
+			.toArray(DataType[]::new);
+		return TableSchema.builder()
+			.fields(fieldNames, dataTypes)
+			.build();
 	}
 }
