@@ -53,16 +53,16 @@ import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
-import org.apache.flink.table.operations.ddl.AlterFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
-import org.apache.flink.table.operations.ddl.CreateFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
-import org.apache.flink.table.operations.ddl.DropFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -172,8 +172,7 @@ public class SqlToOperationConverter {
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-				((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable);
 		String tableComment = sqlCreateTable.getComment().map(comment ->
@@ -223,8 +222,7 @@ public class SqlToOperationConverter {
 				Map<String, String> properties = new HashMap<>();
 				properties.putAll(originalCatalogTable.getProperties());
 				((SqlAlterTableProperties) sqlAlterTable).getPropertyList().getList().forEach(p ->
-					properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-						((SqlTableOption) p).getValueString()));
+					properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 				CatalogTable catalogTable = new CatalogTableImpl(
 					originalCatalogTable.getSchema(),
 					originalCatalogTable.getPartitionKeys(),
@@ -258,7 +256,7 @@ public class SqlToOperationConverter {
 				sqlCreateFunction.isTemporary());
 			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-			return new CreateFunctionOperation(
+			return new CreateCatalogFunctionOperation(
 				identifier,
 				catalogFunction,
 				sqlCreateFunction.isIfNotExists()
@@ -280,7 +278,7 @@ public class SqlToOperationConverter {
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		return new AlterFunctionOperation(
+		return new AlterCatalogFunctionOperation(
 			identifier,
 			catalogFunction,
 			sqlAlterFunction.isIfExists()
@@ -298,7 +296,7 @@ public class SqlToOperationConverter {
 		} else {
 			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-			return new DropFunctionOperation(
+			return new DropCatalogFunctionOperation(
 				identifier,
 				sqlDropFunction.isTemporary(),
 				sqlDropFunction.isSystemFunction(),
@@ -386,8 +384,7 @@ public class SqlToOperationConverter {
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateDatabase.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
-				((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
 		return new CreateDatabaseOperation(catalogName, databaseName, catalogDatabase, ignoreIfExists);
 	}
@@ -430,7 +427,7 @@ public class SqlToOperationConverter {
 		}
 		// set with properties
 		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString().toLowerCase(), ((SqlTableOption) p).getValueString()));
+			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 		CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
 		return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
 	}

@@ -304,13 +304,39 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 #### 过期数据的清理
 
-默认情况下，仅在用户读取过期数据时才会删除过对应的状态，例如调用 `ValueState.value()`。
+默认情况下，过期数据会在读取的时候被删除，例如 `ValueState#value`，同时会有后台线程定期清理（如果 StateBackend 支持的话）。可以通过 `StateTtlConfig` 配置关闭后台清理：
 
-<span class="label label-danger">注意</span> 默认情况下，如果不显示读取过期数据，则不会进行删除，可能导致状态持续增加。这种行为在未来可能会进行改变。
 
-##### 全量快照时清理
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
 
-此外，你可以在进行全量快照时进行清理，这将减少快照的大小。 当前实现中不会清除本地状态，但是在从先前快照恢复时则会移除过期数据。可以通过 `StateTtlConfig` 配置：
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .disableCleanupInBackground()
+    .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .disableCleanupInBackground
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+可以按照如下所示配置更细粒度的后台清理策略。当前的实现中 `HeapStateBackend` 依赖增量数据清理，`RocksDBStateBackend` 利用压缩过滤器进行后台清理。
+
+#### 全量快照时进行清理
+
+另外，你可以启用全量快照时进行清理的策略，这可以减少整个快照的大小。当前实现中不会清理本地的状态，但从上次快照恢复时，不会恢复那些已经删除的过期数据。
+该策略可以通过 `StateTtlConfig` 配置进行配置：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -325,7 +351,7 @@ StateTtlConfig ttlConfig = StateTtlConfig
 {% endhighlight %}
 </div>
 
-<div data-lang="scala" markdown="1">
+ <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.state.StateTtlConfig
 import org.apache.flink.api.common.time.Time
@@ -338,39 +364,10 @@ val ttlConfig = StateTtlConfig
 </div>
 </div>
 
-这个配置对 RocksDB 增量 checkpoint 无效。
+这种策略在 `RocksDBStateBackend` 的增量 checkpoint 模式下无效。
 
 **注意:**
-- 这种清理方式可以在任何时候通过  `StateTtlConfig` 启用或者关闭，比如在从 savepoint 恢复时。
-
-#### Cleanup in background
-
-Besides cleanup in full snapshot, you can also activate the cleanup in background. The following option
-will activate a default background cleanup in StateTtlConfig if it is supported for the used backend:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-import org.apache.flink.api.common.state.StateTtlConfig;
-StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInBackground()
-    .build();
-{% endhighlight %}
-</div>
- <div data-lang="scala" markdown="1">
-{% highlight scala %}
-import org.apache.flink.api.common.state.StateTtlConfig
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInBackground
-    .build
-{% endhighlight %}
-</div>
-</div>
-
-For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
-Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
+- 这种清理方式可以在任何时候通过 `StateTtlConfig` 启用或者关闭，比如在从 savepoint 恢复时。
 
 ##### 增量数据清理
 

@@ -247,10 +247,8 @@ tables:
       topic: test-input
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
 
     # declare a format for this system
     format:
@@ -297,10 +295,8 @@ CREATE TABLE MyUserTable (
   'connector.version' = '0.10',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
-  'connector.properties.0.key' = 'zookeeper.connect',
-  'connector.properties.0.value' = 'localhost:2181',
-  'connector.properties.1.key' = 'bootstrap.servers',
-  'connector.properties.1.value' = 'localhost:9092',
+  'connector.properties.zookeeper.connect' = 'localhost:2181',
+  'connector.properties.bootstrap.servers' = 'localhost:9092',
   'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
@@ -766,22 +762,15 @@ connector:
                       #   "0.8", "0.9", "0.10", "0.11", and "universal"
   topic: ...          # required: topic name from which the table is read
 
-  properties:         # optional: connector specific properties
-    - key: zookeeper.connect
-      value: localhost:2181
-    - key: bootstrap.servers
-      value: localhost:9092
-    - key: group.id
-      value: testGroup
+  properties:          
+    zookeeper.connect: localhost:2181  # required: specify the ZooKeeper connection string
+    bootstrap.servers: localhost:9092  # required: specify the Kafka server connection string
+    group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
 
-  startup-mode: ...   # optional: valid modes are "earliest-offset", "latest-offset",
-                      # "group-offsets", or "specific-offsets"
-  specific-offsets:   # optional: used in case of startup mode with specific offsets
-    - partition: 0
-      offset: 42
-    - partition: 1
-      offset: 300
-
+  startup-mode: ...                                               # optional: valid modes are "earliest-offset", "latest-offset",
+                                                                  # "group-offsets", or "specific-offsets"
+  specific-offsets: partition:0,offset:42;partition:1,offset:300  # optional: used in case of startup mode with specific offsets
+  
   sink-partitioner: ...    # optional: output partitioning from Flink's partitions into Kafka's partitions
                            # valid are "fixed" (each Flink partition ends up in at most one Kafka partition),
                            # "round-robin" (a Flink partition is distributed to Kafka partitions round-robin)
@@ -805,21 +794,15 @@ CREATE TABLE MyUserTable (
   'update-mode' = 'append',         -- required: update mode when used as table sink,
                                     -- only support append mode now.
 
-  'connector.properties.0.key' = 'zookeeper.connect', -- optional: connector specific properties
-  'connector.properties.0.value' = 'localhost:2181',
-  'connector.properties.1.key' = 'bootstrap.servers',
-  'connector.properties.1.value' = 'localhost:9092',
-  'connector.properties.2.key' = 'group.id',
-  'connector.properties.2.value' = 'testGroup',
+  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specifies the ZooKeeper connection string
+  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specifies the Kafka server connection string
+  'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specifies consumer group
   'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset",
                                                    -- "latest-offset", "group-offsets",
                                                    -- or "specific-offsets"
 
   -- optional: used in case of startup mode with specific offsets
-  'connector.specific-offsets.0.partition' = '0',
-  'connector.specific-offsets.0.offset' = '42',
-  'connector.specific-offsets.1.partition' = '1',
-  'connector.specific-offsets.1.offset' = '300',
+  'connector.specific-offsets' = 'partition:0,offset:42,partition:1,offset:300',
 
   'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions
                                          -- into Kafka's partitions valid are "fixed"
@@ -943,11 +926,8 @@ The connector can be defined as follows:
 {% highlight yaml %}
 connector:
   type: elasticsearch
-  version: 6                # required: valid connector versions are "6"
-    hosts:                  # required: one or more Elasticsearch hosts to connect to
-      - hostname: "localhost"
-        port: 9200
-        protocol: "http"
+  version: 6                                            # required: valid connector versions are "6"
+    hosts: http://host_name:9092;http://host_name:9093  # required: one or more Elasticsearch hosts to connect to
     index: "MyUsers"        # required: Elasticsearch index
     document-type: "user"   # required: Elasticsearch document type
 
@@ -989,9 +969,7 @@ CREATE TABLE MyUserTable (
 
   'connector.version' = '6',          -- required: valid connector versions are "6"
 
-  'connector.hosts.0.hostname' = 'host_name',  -- required: one or more Elasticsearch hosts to connect to
-  'connector.hosts.0.port' = '9092',
-  'connector.hosts.0.protocol' = 'http',
+  'connector.hosts' = 'http://host_name:9092;http://host_name:9093',  -- required: one or more Elasticsearch hosts to connect to
 
   'connector.index' = 'MyUsers',       -- required: Elasticsearch index
 

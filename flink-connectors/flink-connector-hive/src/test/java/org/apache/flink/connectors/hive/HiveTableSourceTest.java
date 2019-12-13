@@ -23,6 +23,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -41,6 +46,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -50,6 +57,7 @@ import java.util.Map;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -183,11 +191,8 @@ public class HiveTableSourceTest {
 		// first check execution plan to ensure partition prunning works
 		String[] explain = tEnv.explain(src).split("==.*==\n");
 		assertEquals(4, explain.length);
-		String abstractSyntaxTree = explain[1];
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
-		assertTrue(abstractSyntaxTree, abstractSyntaxTree.contains(
-				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
 		assertTrue(optimizedLogicalPlan, optimizedLogicalPlan.contains(
 				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
@@ -197,6 +202,58 @@ public class HiveTableSourceTest {
 		assertEquals(2, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
+	}
+
+	@Test
+	public void testPartitionFilter() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.part(x int) partitioned by (p1 int,p2 string)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{1}).commit("p1=1,p2='a'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{2}).commit("p1=2,p2='b'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{3}).commit("p1=3,p2='c'");
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
+					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
+			tableEnv.registerCatalog(catalog.getName(), catalog);
+			tableEnv.useCatalog(catalog.getName());
+			Table query = tableEnv.sqlQuery("select x from db1.part where p1>1 or p2<>'a' order by x");
+			String[] explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			String optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[2, 3]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
+			results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where p1 in (1,3,5) order by x");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[1, 3]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d') order by x");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			results = HiveTestUtils.collectTable(tableEnv, query);
+			assertEquals("[1, 2]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
 	}
 
 	@Test
@@ -219,7 +276,7 @@ public class HiveTableSourceTest {
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];
 			String expectedExplain =
-					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: 2, ProjectedFields: [2, 1]";
+					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: null, ProjectedFields: [2, 1]";
 			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
@@ -253,7 +310,7 @@ public class HiveTableSourceTest {
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];
 			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
-									"PartitionNums: 1, LimitPushDown true, Limit 1";
+									"PartitionNums: null, LimitPushDown true, Limit 1";
 			assertTrue(logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan.contains(expectedExplain));
 
@@ -290,5 +347,22 @@ public class HiveTableSourceTest {
 		@SuppressWarnings("unchecked")
 		Transformation transformation = execNode.translateToPlan(planner);
 		Assert.assertEquals(2, transformation.getParallelism());
+	}
+
+	// A sub-class of HiveCatalog to test list partitions by filter.
+	private static class TestPartitionFilterCatalog extends HiveCatalog {
+
+		private boolean fallback = false;
+
+		TestPartitionFilterCatalog(String catalogName, String defaultDatabase,
+				@Nullable HiveConf hiveConf, String hiveVersion) {
+			super(catalogName, defaultDatabase, hiveConf, hiveVersion);
+		}
+
+		@Override
+		public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath) throws TableNotExistException, TableNotPartitionedException, CatalogException {
+			fallback = true;
+			return super.listPartitions(tablePath);
+		}
 	}
 }

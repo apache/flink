@@ -24,7 +24,6 @@ under the License.
 
 Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine. Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.  
 
-
 * This will be replaced by the TOC
 {:toc}
 
@@ -118,14 +117,16 @@ Similarly, data can be written into hive using an `INSERT INTO` clause.
 Flink SQL> INSERT INTO mytable (name, value) VALUES ('Tom', 4.72);
 {% endhighlight %}
 
-### Limitations
+## Formats
 
-The following is a list of major limitations of the Hive connector. And we're actively working to close these gaps.
+We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
 
-1. INSERT OVERWRITE is not supported.
-2. Inserting into partitioned tables is not supported.
-3. ACID tables are not supported.
-4. Bucketed tables are not supported.
-5. Some data types are not supported. See the [limitations]({{ site.baseurl }}/dev/table/hive/#limitations) for details.
-6. Only a limited number of table storage formats have been tested, namely text, SequenceFile, ORC, and Parquet.
-7. Views are not supported.
+## Roadmap
+
+We are planning and actively working on supporting features like
+
+- ACID tables
+- bucketed tables
+- more formats
+
+Please reach out to the community for more feature request https://flink.apache.org/community.html#mailing-lists

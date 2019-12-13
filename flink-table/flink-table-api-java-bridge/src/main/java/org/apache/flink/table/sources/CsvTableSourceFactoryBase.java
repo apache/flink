@@ -85,6 +85,8 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		// schema watermark
+		properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
 		return properties;
 	}
 
@@ -122,7 +124,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		params.getOptionalString(FORMAT_LINE_DELIMITER).ifPresent(csvTableSourceBuilder::lineDelimiter);
 
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
-			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldTypes()[i]);
+			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldDataTypes()[i]);
 		}
 		params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER).ifPresent(csvTableSourceBuilder::quoteCharacter);
 		params.getOptionalString(FORMAT_COMMENT_PREFIX).ifPresent(csvTableSourceBuilder::commentPrefix);

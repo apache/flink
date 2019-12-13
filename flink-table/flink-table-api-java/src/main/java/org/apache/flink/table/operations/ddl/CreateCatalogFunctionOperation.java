@@ -28,14 +28,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Operation to describe a CREATE FUNCTION statement for catalog function.
+ * Operation to describe a CREATE FUNCTION statement for catalog functions.
  */
-public class CreateFunctionOperation implements CreateOperation {
+public class CreateCatalogFunctionOperation implements CreateOperation {
 	private final ObjectIdentifier functionIdentifier;
 	private CatalogFunction catalogFunction;
 	private boolean ignoreIfExists;
 
-	public CreateFunctionOperation(
+	public CreateCatalogFunctionOperation(
 		ObjectIdentifier functionIdentifier,
 		CatalogFunction catalogFunction,
 		boolean ignoreIfExists) {

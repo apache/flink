@@ -69,18 +69,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		return effectiveConfiguration;
 	}
 
-	/**
-	 * Executes the JobGraph of the on a mini cluster of ClusterUtil with a user
-	 * specified name.
-	 *
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try {
-			return super.execute(streamGraph);
-		} finally {
-			transformations.clear();
-		}
+		return super.execute(streamGraph);
 	}
 }

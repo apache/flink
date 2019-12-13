@@ -20,6 +20,14 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionVisitor;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.TypeLiteralExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.commons.lang3.StringUtils;
@@ -32,8 +40,10 @@ import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -173,6 +183,91 @@ public class HiveTableUtil {
 	// returns whether a trait requires RELY constraint
 	public static boolean requireRelyConstraint(byte trait) {
 		return (trait & HIVE_CONSTRAINT_RELY) != 0;
+	}
+
+	/**
+	 * Generates a filter string for partition columns from the given filter expressions.
+	 *
+	 * @param partColOffset The number of non-partition columns -- used to shift field reference index
+	 * @param partColNames The names of all partition columns
+	 * @param expressions  The filter expressions in CNF form
+	 * @return an Optional filter string equivalent to the expressions, which is empty if the expressions can't be handled
+	 */
+	public static Optional<String> makePartitionFilter(int partColOffset, List<String> partColNames, List<Expression> expressions) {
+		List<String> filters = new ArrayList<>(expressions.size());
+		ExpressionExtractor extractor = new ExpressionExtractor(partColOffset, partColNames);
+		for (Expression expression : expressions) {
+			String str = expression.accept(extractor);
+			if (str == null) {
+				return Optional.empty();
+			}
+			filters.add(str);
+		}
+		return Optional.of(String.join(" and ", filters));
+	}
+
+	private static class ExpressionExtractor implements ExpressionVisitor<String> {
+
+		// maps a supported function to its name
+		private static final Map<FunctionDefinition, String> FUNC_TO_STR = new HashMap<>();
+
+		static {
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.EQUALS, "=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.NOT_EQUALS, "<>");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.GREATER_THAN, ">");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, ">=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.LESS_THAN, "<");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, "<=");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.AND, "and");
+			FUNC_TO_STR.put(BuiltInFunctionDefinitions.OR, "or");
+		}
+
+		// used to shift field reference index
+		private final int partColOffset;
+		private final List<String> partColNames;
+
+		ExpressionExtractor(int partColOffset, List<String> partColNames) {
+			this.partColOffset = partColOffset;
+			this.partColNames = partColNames;
+		}
+
+		@Override
+		public String visit(CallExpression call) {
+			FunctionDefinition funcDef = call.getFunctionDefinition();
+			if (FUNC_TO_STR.containsKey(funcDef)) {
+				List<String> operands = new ArrayList<>();
+				for (Expression child : call.getChildren()) {
+					String operand = child.accept(this);
+					if (operand == null) {
+						return null;
+					}
+					operands.add(operand);
+				}
+				return "(" + String.join(" " + FUNC_TO_STR.get(funcDef) + " ", operands) + ")";
+			}
+			return null;
+		}
+
+		@Override
+		public String visit(ValueLiteralExpression valueLiteral) {
+			return valueLiteral.asSummaryString();
+		}
+
+		@Override
+		public String visit(FieldReferenceExpression fieldReference) {
+			return partColNames.get(fieldReference.getFieldIndex() - partColOffset);
+		}
+
+		@Override
+		public String visit(TypeLiteralExpression typeLiteral) {
+			return typeLiteral.getOutputDataType().toString();
+		}
+
+		@Override
+		public String visit(Expression other) {
+			// only support resolved expressions
+			return null;
+		}
 	}
 
 }

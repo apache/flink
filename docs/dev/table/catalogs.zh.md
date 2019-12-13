@@ -54,7 +54,253 @@ To use custom catalogs in SQL CLI, users should develop both a catalog and its c
 The catalog factory defines a set of properties for configuring the catalog when the SQL CLI bootstraps.
 The set of properties will be passed to a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate a corresponding catalog instance.
 
+## How to Create and Register Flink Tables to Catalog
+
+### Using SQL DDL
+
+Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
+
+For Table API:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableEnvironment tableEnv = ...
+
+// Create a HiveCatalog 
+Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>");
+
+// Register the catalog
+tableEnv.registerCatalog("myhive", catalog);
+
+// Create a catalog database
+tableEnv.sqlUpdate("CREATE DATABASE mydb WITH (...)");
+
+// Create a catalog table
+tableEnv.sqlUpdate("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
+
+tableEnv.sqlQuery("SHOW TABLES"); // should see the table
+
+{% endhighlight %}
+</div>
+</div>
+
+For SQL Client:
+
+{% highlight sql %}
+// the catalog should have been registered via yaml file
+Flink SQL> CREATE DATABASE mydb WITH (...);
+
+Flink SQL> CREATE TABLE mytable (name STRING, age INT) WITH (...);
+
+Flink SQL> SHOW TABLES;
+mytable
+{% endhighlight %}
+
+For detailed information, please check out [Flink SQL DDL](({{ site.baseurl }}/dev/table/sql.html#create-table)).
+
+### Using Java/Scala/Python API
+
+Users can use Java, Scala, or Python API to create catalog tables programmatically.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableEnvironment tableEnv = ...
+
+// Create a HiveCatalog 
+Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>");
+
+// Register the catalog
+tableEnv.registerCatalog("myhive", catalog);
+
+// Create a catalog database 
+catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
+
+// Create a catalog table
+TableSchema schema = TableSchema.builder()
+    .field("name", DataTypes.STRING())
+    .field("age", DataTypes.INT())
+    .build();
+
+catalog.createTable(
+        new ObjectPath("mydb", "mytable"), 
+        new CatalogTableImpl(
+            schema,
+            new Kafka()
+                .version("0.11")
+                ....
+                .startFromEarlist(),
+            "my comment"
+        )
+    );
+    
+List<String> tables = catalog.listTables("mydb); // tables should contain "mytable"
+{% endhighlight %}
+
+</div>
+</div>
+
 ## Catalog API
+
+Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL. 
+For detailed DDL information, please refer to [SQL DDL](https://ci.apache.org/projects/flink/flink-docs-release-1.9/dev/table/sql.html#ddl).
+
+
+### Database operations
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+// create database
+catalog.createDatabase("mydb", new CatalogDatabaseImpl(...), false);
+
+// drop database
+catalog.dropDatabase("mydb", false);
+
+// alter database
+catalog.alterDatabase("mydb", new CatalogDatabaseImpl(...), false);
+
+// get databse
+catalog.getDatabase("mydb");
+
+// check if a database exist
+catalog.databaseExists("mydb");
+
+// list databases in a catalog
+catalog.listDatabases("mycatalog");
+{% endhighlight %}
+</div>
+</div>
+
+### Table operations
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+// create table
+catalog.createTable(new ObjectPath("mydb", "mytable"), new CatalogTableImpl(...), false);
+
+// drop table
+catalog.dropTable(new ObjectPath("mydb", "mytable"), false);
+
+// alter table
+catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogTableImpl(...), false);
+
+// rename table
+catalog.renameTable(new ObjectPath("mydb", "mytable"), "my_new_table");
+
+// get table
+catalog.getTable("mytable");
+
+// check if a table exist or not
+catalog.tableExists("mytable");
+
+// list tables in a database
+catalog.listTables("mydb");
+{% endhighlight %}
+</div>
+</div>
+
+### View operations
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+// create view
+catalog.createTable(new ObjectPath("mydb", "myview"), new CatalogViewImpl(...), false);
+
+// drop view
+catalog.dropTable(new ObjectPath("mydb", "myview"), false);
+
+// alter view
+catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogViewImpl(...), false);
+
+// rename view
+catalog.renameTable(new ObjectPath("mydb", "myview"), "my_new_view");
+
+// get view
+catalog.getTable("myview");
+
+// check if a view exist or not
+catalog.tableExists("mytable");
+
+// list views in a database
+catalog.listViews("mydb");
+{% endhighlight %}
+</div>
+</div>
+
+
+### Partition operations
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+// create view
+catalog.createPartition(
+    new ObjectPath("mydb", "mytable"),
+    new CatalogPartitionSpec(...),
+    new CatalogPartitionImpl(...),
+    false);
+
+// drop partition
+catalog.dropPartition(new ObjectPath("mydb", "mytable"), new CatalogPartitionSpec(...), false);
+
+// alter partition
+catalog.alterPartition(
+    new ObjectPath("mydb", "mytable"),
+    new CatalogPartitionSpec(...),
+    new CatalogPartitionImpl(...),
+    false);
+
+// get partition
+catalog.getPartition(new ObjectPath("mydb", "mytable"), new CatalogPartitionSpec(...));
+
+// check if a partition exist or not
+catalog.partitionExists(new ObjectPath("mydb", "mytable"), new CatalogPartitionSpec(...));
+
+// list partitions of a table
+catalog.listPartitions(new ObjectPath("mydb", "mytable"));
+
+// list partitions of a table under a give partition spec
+catalog.listPartitions(new ObjectPath("mydb", "mytable"), new CatalogPartitionSpec(...));
+
+// list partitions of a table by expression filter
+catalog.listPartitions(new ObjectPath("mydb", "mytable"), Arrays.asList(epr1, ...));
+{% endhighlight %}
+</div>
+</div>
+
+
+### Function operations
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+// create function
+catalog.createFunction(new ObjectPath("mydb", "myfunc"), new CatalogFunctionImpl(...), false);
+
+// drop function
+catalog.dropFunction(new ObjectPath("mydb", "myfunc"), false);
+
+// alter function
+catalog.alterFunction(new ObjectPath("mydb", "myfunc"), new CatalogFunctionImpl(...), false);
+
+// get function
+catalog.getFunction("myfunc");
+
+// check if a function exist or not
+catalog.functionExists("myfunc");
+
+// list functions in a database
+catalog.listFunctions("mydb");
+{% endhighlight %}
+</div>
+</div>
+
+
+## Table API and SQL for Catalog
 
 ### Registering a Catalog
 

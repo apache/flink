@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
-
-import org.junit.Test;
+package org.apache.flink.streaming.runtime.io.benchmark;
 
 /**
- * This test checks that the RocksDB native code loader still responds to resetting the init flag.
+ * Tests for various network benchmarks based on {@link StreamNetworkCompressionThroughputBenchmark}.
  */
-public class RocksDBInitResetTest {
-
-	@Test
-	public void testResetInitFlag() throws Exception {
-		RocksDBStateBackend.resetRocksDBLoadedFlag();
+public class StreamNetworkCompressionThroughputBenchmarkTest extends StreamNetworkThroughputBenchmarkTest {
+	@Override
+	protected StreamNetworkThroughputBenchmark createBenchmark() {
+		return new StreamNetworkCompressionThroughputBenchmark();
 	}
 }

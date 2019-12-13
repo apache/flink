@@ -73,15 +73,6 @@ public class HiveReflectionUtils {
 		}
 	}
 
-	public static Object convertToHiveDate(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
-		try {
-			Method method = hiveShim.getDateDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Date.valueOf()", e);
-		}
-	}
-
 	public static Object invokeMethod(Class clz, Object obj, String methodName, Class[] argClz, Object[] args)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		Method method;

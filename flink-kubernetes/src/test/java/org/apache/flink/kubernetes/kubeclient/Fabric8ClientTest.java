@@ -106,6 +106,8 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 
 		assertEquals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.toString(), service.getSpec().getType());
 
+		// The selector labels should contain jobmanager component
+		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
 		assertEquals(labels, service.getSpec().getSelector());
 
 		assertThat(service.getSpec().getPorts().stream().map(ServicePort::getPort).collect(Collectors.toList()),
@@ -133,6 +135,7 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 
 		assertEquals(KubernetesConfigOptions.ServiceExposedType.LoadBalancer.toString(), service.getSpec().getType());
 
+		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
 		assertEquals(labels, service.getSpec().getSelector());
 
 		assertThat(service.getSpec().getPorts().stream().map(ServicePort::getPort).collect(Collectors.toList()),

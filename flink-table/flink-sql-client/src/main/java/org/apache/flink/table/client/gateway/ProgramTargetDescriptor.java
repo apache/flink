@@ -27,13 +27,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ProgramTargetDescriptor {
 
-	private final String jobId;
+	private final JobID jobId;
 
-	public ProgramTargetDescriptor(String jobId) {
+	public ProgramTargetDescriptor(JobID jobId) {
 		this.jobId = checkNotNull(jobId);
 	}
 
-	public String getJobId() {
+	public JobID getJobId() {
 		return jobId;
 	}
 
@@ -49,6 +49,6 @@ public class ProgramTargetDescriptor {
 	 * @return program target descriptor
 	 */
 	public static ProgramTargetDescriptor of(JobID jobId) {
-		return new ProgramTargetDescriptor(jobId.toString());
+		return new ProgramTargetDescriptor(jobId);
 	}
 }

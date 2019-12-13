@@ -47,7 +47,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Update state with TTL for each verifier.
@@ -114,19 +113,13 @@ class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String
 			TtlStateVerifier<?, ?> verifier,
 			Object update) throws Exception {
 
-		final long timestampBeforeUpdate = MonotonicTTLTimeProvider.freeze();
-		State state = states.get(verifier.getId());
-		Object valueBeforeUpdate = verifier.get(state);
-		verifier.update(state, update);
-		Object updatedValue = verifier.get(state);
-		final long timestampAfterUpdate = MonotonicTTLTimeProvider.unfreezeTime();
-
-		checkState(
-				timestampAfterUpdate == timestampBeforeUpdate,
-				"Timestamps before and after the update do not match."
-		);
-
-		return new TtlUpdateContext<>(valueBeforeUpdate, update, updatedValue, timestampAfterUpdate);
+		return MonotonicTTLTimeProvider.doWithFrozenTime(frozenTimestamp -> {
+			State state = states.get(verifier.getId());
+			Object valueBeforeUpdate = verifier.get(state);
+			verifier.update(state, update);
+			Object updatedValue = verifier.get(state);
+			return new TtlUpdateContext<>(valueBeforeUpdate, update, updatedValue, frozenTimestamp);
+		});
 	}
 
 	@Override

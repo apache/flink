@@ -18,8 +18,6 @@
 
 package org.apache.flink.kubernetes.cli;
 
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-
 import org.apache.commons.cli.Option;
 
 /**
@@ -46,7 +44,8 @@ public class KubernetesCliOptions {
 		.longOpt("clusterId")
 		.required(false)
 		.hasArg(true)
-		.desc(KubernetesConfigOptions.CLUSTER_ID.description().toString())
+		.desc("The cluster id used for identifying the unique flink cluster. If it's not set, the client will generate " +
+			"a random UUID name.")
 		.build();
 
 	public static final Option IMAGE_OPTION = Option.builder("i")
@@ -54,7 +53,7 @@ public class KubernetesCliOptions {
 		.required(false)
 		.hasArg(true)
 		.argName("image-name")
-		.desc(KubernetesConfigOptions.CONTAINER_IMAGE.description().toString())
+		.desc("Image to use for Flink containers")
 		.build();
 
 	public static final Option JOB_MANAGER_MEMORY_OPTION = Option.builder("jm")
@@ -89,22 +88,6 @@ public class KubernetesCliOptions {
 		.longOpt("help")
 		.hasArg(false)
 		.desc("Help for Kubernetes session CLI.")
-		.build();
-
-	public static final Option JOB_CLASS_NAME_OPTION = Option.builder("jc")
-		.longOpt("job-classname")
-		.required(false)
-		.hasArg(true)
-		.argName("job class name")
-		.desc("Class name of the job to run.")
-		.build();
-
-	public static final Option JOB_ID_OPTION = Option.builder("jid")
-		.longOpt("job-id")
-		.required(false)
-		.hasArg(true)
-		.argName("job id")
-		.desc("Job ID of the job to run.")
 		.build();
 
 	/** This class is not meant to be instantiated. */
