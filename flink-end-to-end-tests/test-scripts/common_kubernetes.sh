@@ -45,8 +45,7 @@ function start_kubernetes {
         echo "Minikube not running. Could not start minikube. Aborting..."
         exit 1
     fi
+    eval $(minikube docker-env)
 }
 
 on_exit cleanup
-
-eval $(minikube docker-env)
