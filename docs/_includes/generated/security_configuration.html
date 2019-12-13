@@ -13,6 +13,11 @@
             <td>The comma separated list of standard SSL algorithms to be supported. Read more <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites">here</a></td>
         </tr>
         <tr>
+            <td><h5>security.ssl.internal.cert.fingerprint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The sha1 fingerprint of the internal certificate. This further protects the internal communication to present the exact certificate used by Flink.This is necessary where one cannot use private CA(self signed) or there is internal firm wide CA is required</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.internal.close-notify-flush-timeout</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>The timeout (in ms) for flushing the `close_notify` that was triggered by closing a channel. If the `close_notify` was not flushed in the given timeout the channel will be closed forcibly. (-1 = use system default)</td>
@@ -91,6 +96,11 @@
             <td><h5>security.ssl.rest.authentication-enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Turns on mutual SSL authentication for external communication via the REST endpoints.</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.rest.cert.fingerprint</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The sha1 fingerprint of the rest certificate. This further protects the rest REST endpoints to present certificate which is only used by proxy serverThis is necessary where once uses public CA or internal firm wide CA</td>
         </tr>
         <tr>
             <td><h5>security.ssl.rest.enabled</h5></td>
