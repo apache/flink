@@ -37,16 +37,19 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.sources.{DefinedFieldMapping, StreamTableSource}
+import org.apache.flink.table.utils.TypeMappingUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
+import java.util.function.{Function => JFunction}
 import java.{lang, util}
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * Batch physical RelNode to read data from an external source defined by a
@@ -92,11 +95,7 @@ class BatchExecTableSourceScan(
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
-    val rowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      rowType,
-      tableSourceTable.isStreamingMode)
+    val fieldIndexes = computeIndexMapping()
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
@@ -110,19 +109,25 @@ class BatchExecTableSourceScan(
     }
 
     // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeAttributeDescriptor(
       tableSource,
-      tableSourceTable.getRowType,
-      cluster,
-      planner.getRelBuilder
+      tableSourceTable.getRowType
+    ).map(desc =>
+      TableSourceUtil.getRowtimeExtractionExpression(
+        desc.getTimestampExtractor,
+        producedDataType,
+        planner.getRelBuilder,
+        nameMapping
+      )
     )
+
     if (needInternalConversion) {
       // the produced type may not carry the correct precision user defined in DDL, because
       // it may be converted from legacy type. Fix precision using logical schema from DDL.
       // code generation requires the correct precision of input fields.
       val fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
         tableSource,
-        rowType)
+        FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType))
       ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[Transformation[Any]],
@@ -139,10 +144,7 @@ class BatchExecTableSourceScan(
   }
 
   def needInternalConversion: Boolean = {
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType),
-      tableSourceTable.isStreamingMode)
+    val fieldIndexes = computeIndexMapping()
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
@@ -162,5 +164,23 @@ class BatchExecTableSourceScan(
     val func = new InputFormatSourceFunction[IN](format, t)
     ExecNode.setManagedMemoryWeight(env.addSource(func, tableSource.explainSource(), t)
         .getTransformation)
+  }
+
+  private def computeIndexMapping()
+    : Array[Int] = {
+    TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+      tableSource,
+      FlinkTypeFactory.toTableSchema(getRowType).getTableColumns,
+      false,
+      nameMapping
+    )
+  }
+
+  private lazy val nameMapping: JFunction[String, String] = tableSource match {
+    case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+      new JFunction[String, String] {
+        override def apply(t: String): String = mapping.getFieldMapping.get(t)
+      }
+    case _ => JFunction.identity()
   }
 }
