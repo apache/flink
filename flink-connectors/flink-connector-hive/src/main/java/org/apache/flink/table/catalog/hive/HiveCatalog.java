@@ -357,7 +357,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.createTable(hiveTable);
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new TableAlreadyExistException(getName(), tablePath);
+				throw new TableAlreadyExistException(getName(), tablePath, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
@@ -514,10 +514,21 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
-		if (isGeneric) {
-			properties = retrieveFlinkProperties(properties);
+		// When retrieving a table, a generic table needs explicitly have a key is_generic = true
+		// otherwise, this is a Hive table if 1) the key is missing 2) is_generic = false
+		// this is opposite to creating a table. See instantiateHiveTable()
+
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a hive table
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+		} else {
+			boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+			if (isGeneric) {
+				properties = retrieveFlinkProperties(properties);
+			}
 		}
+
 		String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
 		// Table schema
@@ -559,7 +570,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private  static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	@VisibleForTesting
+	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
 		// let Hive set default parameters for us, e.g. serialization.format
 		Table hiveTable = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(tablePath.getDatabaseName(),
 			tablePath.getObjectName());
@@ -571,11 +583,21 @@ public class HiveCatalog extends AbstractCatalog {
 			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
 
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
-
-		if (isGeneric) {
+		// When creating a table, A hive table needs explicitly have a key is_generic = false
+		// otherwise, this is a generic table if 1) the key is missing 2) is_generic = true
+		// this is opposite to reading a table and instantiating a CatalogTable. See instantiateCatalogTable()
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a generic catalog
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
 			properties = maskFlinkProperties(properties);
+		} else {
+			boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+			if (isGeneric) {
+				properties = maskFlinkProperties(properties);
+			}
 		}
+
 		// Table properties
 		hiveTable.setParameters(properties);
 
