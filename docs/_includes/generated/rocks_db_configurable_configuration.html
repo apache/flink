@@ -24,13 +24,13 @@
             <td><h5>state.backend.rocksdb.compaction.level.max-size-level-base</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
-            <td>The upper-bound of the total size of level base files in bytes. RocksDB has default configuration as '10MB'.</td>
+            <td>The upper-bound of the total size of level base files in bytes. RocksDB has default configuration as '256MB'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.compaction.level.target-file-size-base</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
-            <td>The target file size for compaction, which determines a level-1 file size. RocksDB has default configuration as '2MB'.</td>
+            <td>The target file size for compaction, which determines a level-1 file size. RocksDB has default configuration as '64MB'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.compaction.level.use-dynamic-size</h5></td>
@@ -48,7 +48,7 @@
             <td><h5>state.backend.rocksdb.files.open</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. RocksDB has default configuration as '5000'.</td>
+            <td>The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. RocksDB has default configuration as '-1'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.thread.num</h5></td>
