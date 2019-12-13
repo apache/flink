@@ -31,7 +31,7 @@ import org.junit.Test;
 /**
  * Base class for testing HiveCatalog.
  */
-public abstract class HiveCatalogTestBase extends CatalogTestBase {
+public abstract class HiveCatalogMetadataTestBase extends CatalogTestBase {
 
 	// ------ table and column stats ------
 

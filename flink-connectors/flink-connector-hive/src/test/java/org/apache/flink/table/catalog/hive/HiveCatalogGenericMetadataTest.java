@@ -26,7 +26,7 @@ import org.junit.Test;
 /**
  * Test for HiveCatalog on generic metadata.
  */
-public class HiveCatalogGenericMetadataTest extends HiveCatalogTestBase {
+public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
 
 	@BeforeClass
 	public static void init() {
