@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -59,14 +60,13 @@ public class IOManagerITCase extends TestLogger {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+		memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		ioManager = new IOManagerAsync();
 	}
 
 	@After
 	public void afterTest() throws Exception {
-		ioManager.shutdown();
-		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
+		ioManager.close();
 		
 		Assert.assertTrue("Not all memory was returned to the memory manager in the test.", memoryManager.verifyEmpty());
 		memoryManager.shutdown();

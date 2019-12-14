@@ -231,7 +231,7 @@ public final class IOUtils {
 						closeable.close();
 					}
 				} catch (Exception e) {
-					collectedExceptions = ExceptionUtils.firstOrSuppressed(collectedExceptions, e);
+					collectedExceptions = ExceptionUtils.firstOrSuppressed(e, collectedExceptions);
 				}
 			}
 

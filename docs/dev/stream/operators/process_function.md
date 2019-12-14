@@ -44,8 +44,7 @@ For fault-tolerant state, the `ProcessFunction` gives access to Flink's [keyed s
 The timers allow applications to react to changes in processing time and in [event time]({{ site.baseurl }}/dev/event_time.html).
 Every call to the function `processElement(...)` gets a `Context` object which gives access to the element's
 event time timestamp, and to the *TimerService*. The `TimerService` can be used to register callbacks for future
-event-/processing-time instants. When a timer's particular time is reached, the `onTimer(...)` method is
-called. During that call, all states are again scoped to the key with which the timer was created, allowing
+event-/processing-time instants. With event-time timers, the `onTimer(...)` method is called when the current watermark is advanced up to or beyond the timestamp of the timer, while with processing-time timers, `onTimer(...)` is called when wall clock time reaches the specified time. During that call, all states are again scoped to the key with which the timer was created, allowing
 timers to manipulate keyed state.
 
 <span class="label label-info">Note</span> If you want to access keyed state and timers you have
@@ -58,7 +57,7 @@ stream.keyBy(...).process(new MyProcessFunction())
 
 ## Low-level Joins
 
-To realize low-level operations on two inputs, applications can use `CoProcessFunction`. This
+To realize low-level operations on two inputs, applications can use `CoProcessFunction` or `KeyedCoProcessFunction`. This
 function is bound to two different inputs and gets individual calls to `processElement1(...)` and
 `processElement2(...)` for records from the two different inputs.
 
@@ -97,9 +96,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.ProcessFunction.Context;
-import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.Context;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction.OnTimerContext;
 import org.apache.flink.util.Collector;
 
 
@@ -184,10 +183,8 @@ public class CountWithTimeoutFunction
 {% highlight scala %}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.ProcessFunction.Context
-import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
 
 // the source data stream

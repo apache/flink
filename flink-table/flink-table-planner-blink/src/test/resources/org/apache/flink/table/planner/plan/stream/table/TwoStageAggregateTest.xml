@@ -1,0 +1,142 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testGroupAggregate">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{1}], EXPR$0=[COUNT($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS count$0])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithAverage">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$0=[$1])
++- LogicalAggregate(group=[{1}], EXPR$0=[AVG($3)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[CAST($0):DOUBLE])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[b], select=[b, AVG((sum$0, count$1)) AS EXPR$0])
++- Exchange(distribution=[hash[b]])
+   +- LocalGroupAggregate(groupBy=[b], select=[b, AVG(a0) AS (sum$0, count$1)])
+      +- Calc(select=[a, b, c, CAST(a) AS a0])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithExpressionInSelect">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{1}], EXPR$0=[MIN($2)], EXPR$1=[AVG($0)])
+   +- LogicalProject(a=[$0], d=[MOD($1, 3)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0, EXPR$1])
++- GlobalGroupAggregate(groupBy=[d], select=[d, MIN(min$0) AS EXPR$0, AVG((sum$1, count$2)) AS EXPR$1])
+   +- Exchange(distribution=[hash[d]])
+      +- LocalGroupAggregate(groupBy=[d], select=[d, MIN(c) AS min$0, AVG(a) AS (sum$1, count$2)])
+         +- Calc(select=[a, MOD(b, 3) AS d, c])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithConstant1">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(four=[$1], EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(a=[$0], four=[4], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[4 AS four, EXPR$0])
++- GlobalGroupAggregate(groupBy=[a, four], select=[a, four, SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a, four]])
+      +- LocalGroupAggregate(groupBy=[a, four], select=[a, four, SUM(b) AS sum$0])
+         +- Calc(select=[a, 4 AS four, b])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithConstant2">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(four=[$1], EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(b=[$1], four=[4], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[4 AS four, EXPR$0])
++- GlobalGroupAggregate(groupBy=[b, four], select=[b, four, SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[b, four]])
+      +- LocalGroupAggregate(groupBy=[b, four], select=[b, four, SUM(a) AS sum$0])
+         +- Calc(select=[b, 4 AS four, a])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[=($0, 2)])
++- LogicalProject(b=[$0], EXPR$0=[$1])
+   +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(2) AS b, EXPR$0])
++- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
+         +- Calc(select=[a, b, c], where=[=(b, 2)])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -24,15 +24,16 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isTimeIndicatorType}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.TableOperationConverter
+import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
+import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
 
 class LogicalCorrelateToTemporalTableJoinRule
@@ -46,13 +47,16 @@ class LogicalCorrelateToTemporalTableJoinRule
   private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
       case f : FieldReferenceExpression
-        if f.getResultType == Types.LONG ||
-          f.getResultType == Types.SQL_TIMESTAMP ||
-          isTimeIndicatorType(f.getResultType) =>
+          if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) =>
         f.getName
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
     }
+  }
+
+  private def isProctimeReference(temporalTableFunction: TemporalTableFunctionImpl): Boolean = {
+    val fieldRef = temporalTableFunction.getTimeAttribute.asInstanceOf[FieldReferenceExpression]
+    isProctimeAttribute(fieldRef.getOutputDataType.getLogicalType)
   }
 
   private def extractNameFromPrimaryKeyAttribute(expression: Expression): String = {
@@ -80,16 +84,12 @@ class LogicalCorrelateToTemporalTableJoinRule
         rightTemporalTableFunction: TemporalTableFunctionImpl, leftTimeAttribute)) =>
 
         // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
-        val underlyingHistoryTable: TableOperation = rightTemporalTableFunction
+        val underlyingHistoryTable: QueryOperation = rightTemporalTableFunction
           .getUnderlyingHistoryTable
-        val relBuilder = this.relBuilderFactory.create(
-          cluster,
-          leftNode.getTable.getRelOptSchema)
         val rexBuilder = cluster.getRexBuilder
 
-        val converter = call.getPlanner.getContext
-          .unwrap(classOf[TableOperationConverter.ToRelConverterSupplier]).get(relBuilder)
-        val rightNode: RelNode = underlyingHistoryTable.accept(converter)
+        val relBuilder = FlinkRelBuilder.of(cluster, leftNode.getTable)
+        val rightNode: RelNode = relBuilder.tableOperation(underlyingHistoryTable).build()
 
         val rightTimeIndicatorExpression = createRightExpression(
           rexBuilder,
@@ -104,8 +104,7 @@ class LogicalCorrelateToTemporalTableJoinRule
           extractNameFromPrimaryKeyAttribute(rightTemporalTableFunction.getPrimaryKey))
 
         relBuilder.push(
-          if (isProctimeIndicatorType(rightTemporalTableFunction.getTimeAttribute
-            .asInstanceOf[FieldReferenceExpression].getResultType)) {
+          if (isProctimeReference(rightTemporalTableFunction)) {
             LogicalTemporalTableJoin.createProctime(
               rexBuilder,
               cluster,

@@ -38,6 +38,9 @@ import java.util.Set;
  */
 public class RocksDBNativeMetricOptions implements Serializable {
 
+	public static final String METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY = "state.backend.rocksdb.metrics" +
+		".column-family-as-variable";
+
 	public static final ConfigOption<Boolean> MONITOR_NUM_IMMUTABLE_MEM_TABLES = ConfigOptions
 		.key(RocksDBProperty.NumImmutableMemTable.getConfigKey())
 		.defaultValue(false)
@@ -149,6 +152,12 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.key(RocksDBProperty.ActualDelayedWriteRate.getConfigKey())
 		.defaultValue(false)
 		.withDescription("Monitor the current actual delayed write rate. 0 means no delay.");
+
+	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
+		.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
+		.defaultValue(false)
+		.withDescription("Whether to expose the column family as a variable.");
+
 	/**
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an
 	 * external configuration.
@@ -239,10 +248,13 @@ public class RocksDBNativeMetricOptions implements Serializable {
 			options.enableActualDelayedWriteRate();
 		}
 
+		options.setColumnFamilyAsVariable(config.getBoolean(COLUMN_FAMILY_AS_VARIABLE));
+
 		return options;
 	}
 
 	private Set<String> properties;
+	private boolean columnFamilyAsVariable = COLUMN_FAMILY_AS_VARIABLE.defaultValue();
 
 	public RocksDBNativeMetricOptions() {
 		this.properties = new HashSet<>();
@@ -402,6 +414,13 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	}
 
 	/**
+	 * Returns the column family as variable.
+	 */
+	public void setColumnFamilyAsVariable(boolean columnFamilyAsVariable) {
+		this.columnFamilyAsVariable = columnFamilyAsVariable;
+	}
+
+	/**
 	 * @return the enabled RocksDB metrics
 	 */
 	public Collection<String> getProperties() {
@@ -415,5 +434,14 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 */
 	public boolean isEnabled() {
 		return !properties.isEmpty();
+	}
+
+	/**
+	 *  {{@link RocksDBNativeMetricMonitor}} Whether to expose the column family as a variable..
+	 *
+	 * @return true is column family to expose variable, false otherwise.
+	 */
+	public boolean isColumnFamilyAsVariable() {
+		return this.columnFamilyAsVariable;
 	}
 }

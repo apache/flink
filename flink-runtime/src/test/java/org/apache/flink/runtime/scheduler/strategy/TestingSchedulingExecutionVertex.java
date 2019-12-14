@@ -18,21 +18,49 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A simple scheduling execution vertex for testing purposes.
  */
-public class TestingSchedulingExecutionVertex implements SchedulingExecutionVertex {
+public class TestingSchedulingExecutionVertex
+	implements SchedulingExecutionVertex<TestingSchedulingExecutionVertex, TestingSchedulingResultPartition> {
 
 	private final ExecutionVertexID executionVertexId;
 
+	private final Collection<TestingSchedulingResultPartition> consumedPartitions;
+
+	private final Collection<TestingSchedulingResultPartition> producedPartitions;
+
+	private InputDependencyConstraint inputDependencyConstraint;
+
 	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
+		this(jobVertexId, subtaskIndex, InputDependencyConstraint.ANY);
+	}
+
+	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex,
+		InputDependencyConstraint constraint) {
+
+		this(jobVertexId, subtaskIndex, constraint, new ArrayList<>());
+	}
+
+	public TestingSchedulingExecutionVertex(
+		JobVertexID jobVertexId,
+		int subtaskIndex,
+		InputDependencyConstraint constraint,
+		Collection<TestingSchedulingResultPartition> consumedPartitions) {
+
 		this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
+		this.inputDependencyConstraint = constraint;
+		this.consumedPartitions = checkNotNull(consumedPartitions);
+		this.producedPartitions = new ArrayList<>();
 	}
 
 	@Override
@@ -46,12 +74,25 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 	}
 
 	@Override
-	public Collection<SchedulingResultPartition> getConsumedResultPartitions() {
-		return Collections.emptyList();
+	public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
+		return consumedPartitions;
 	}
 
 	@Override
-	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
-		return Collections.emptyList();
+	public Iterable<TestingSchedulingResultPartition> getProducedResults() {
+		return producedPartitions;
+	}
+
+	@Override
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return inputDependencyConstraint;
+	}
+
+	void addConsumedPartition(TestingSchedulingResultPartition partition) {
+		consumedPartitions.add(partition);
+	}
+
+	void addProducedPartition(TestingSchedulingResultPartition partition) {
+		producedPartitions.add(partition);
 	}
 }

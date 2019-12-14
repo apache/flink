@@ -20,15 +20,9 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
 import org.apache.flink.table.plan.nodes.CommonTableAggregate
-import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 
 /**
@@ -73,29 +67,6 @@ class DataStreamGroupTableAggregate(
       inputSchema,
       namedAggregates,
       groupings)
-  }
-
-  override def createKeyedProcessFunction[K](
-    tableConfig: TableConfig,
-    queryConfig: StreamQueryConfig): KeyedProcessFunction[K, CRow, CRow] = {
-
-    val tableAggOutputRowType = new RowTypeInfo(
-      schema.fieldTypeInfos.drop(groupings.length).toArray,
-      schema.fieldNames.drop(groupings.length).toArray)
-
-    AggregateUtil.createGroupTableAggregateFunction[K](
-      tableConfig,
-      false,
-      inputSchema.typeInfo,
-      None,
-      namedAggregates,
-      inputSchema.relDataType,
-      inputSchema.fieldTypeInfos,
-      tableAggOutputRowType,
-      groupings,
-      queryConfig,
-      DataStreamRetractionRules.isAccRetract(this),
-      DataStreamRetractionRules.isAccRetract(getInput))
   }
 }
 

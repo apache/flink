@@ -21,12 +21,9 @@ package org.apache.flink.table.plan.logical.rel
 import java.util
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.calcite.rel.{RelNode, SingleRel}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.plan.nodes.CommonTableAggregate
 
 /**
   * Logical Node for TableAggregate.
@@ -34,19 +31,14 @@ import org.apache.flink.table.plan.nodes.CommonTableAggregate
 class LogicalTableAggregate(
   cluster: RelOptCluster,
   traitSet: RelTraitSet,
-  child: RelNode,
-  val indicator: Boolean,
-  val groupSet: ImmutableBitSet,
-  val groupSets: util.List[ImmutableBitSet],
-  val aggCalls: util.List[AggregateCall])
-  extends SingleRel(cluster, traitSet, child)
-    with CommonTableAggregate {
+  input: RelNode,
+  indicator: Boolean,
+  groupSet: ImmutableBitSet,
+  groupSets: util.List[ImmutableBitSet],
+  aggCalls: util.List[AggregateCall])
+  extends TableAggregate(cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls) {
 
-  override def deriveRowType(): RelDataType = {
-    deriveTableAggRowType(cluster, child, groupSet, aggCalls)
-  }
-
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): TableAggregate = {
     new LogicalTableAggregate(
       cluster,
       traitSet,
@@ -71,17 +63,5 @@ object LogicalTableAggregate {
       aggregate.getGroupSet,
       aggregate.getGroupSets,
       aggregate.getAggCallList)
-  }
-
-  def getCorrespondingAggregate(tableAgg: LogicalTableAggregate): LogicalAggregate = {
-    new LogicalAggregate(
-      tableAgg.getCluster,
-      tableAgg.getTraitSet,
-      tableAgg.getInput,
-      tableAgg.indicator,
-      tableAgg.groupSet,
-      tableAgg.groupSets,
-      tableAgg.aggCalls
-    )
   }
 }

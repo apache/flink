@@ -50,16 +50,23 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     if (!(0 until scan.getRowType.getFieldCount).toArray.sameElements(accessedLogicalFields)) {
 
       // try to push projection of physical fields to TableSource
-      val newTableSource = source match {
+      val (newTableSource, isProjectSuccess) = source match {
         case nested: NestedFieldsProjectableTableSource[_] =>
           val nestedFields = RexProgramExtractor
             .extractRefNestedInputFields(calc.getProgram, accessedPhysicalFields)
-          nested.projectNestedFields(accessedPhysicalFields, nestedFields)
+          (nested.projectNestedFields(accessedPhysicalFields, nestedFields), true)
         case projecting: ProjectableTableSource[_] =>
-          projecting.projectFields(accessedPhysicalFields)
+          (projecting.projectFields(accessedPhysicalFields), true)
         case nonProjecting: TableSource[_] =>
           // projection cannot be pushed to TableSource
-          nonProjecting
+          (nonProjecting, false)
+      }
+
+      if (isProjectSuccess
+        && newTableSource.explainSource().equals(scan.tableSource.explainSource())) {
+        throw new TableException("Failed to push project into table source! "
+          + "table source with pushdown capability must override and change "
+          + "explainSource() API to explain the pushdown applied!")
       }
 
       // check that table schema of the new table source is identical to original

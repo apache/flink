@@ -29,6 +29,9 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.EnumMap;
 
+import static org.apache.flink.api.common.state.StateTtlConfig.CleanupStrategies.EMPTY_STRATEGY;
+import static org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrategy.DEFAULT_INCREMENTAL_CLEANUP_STRATEGY;
+import static org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy.DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY;
 import static org.apache.flink.api.common.state.StateTtlConfig.StateVisibility.NeverReturnExpired;
 import static org.apache.flink.api.common.state.StateTtlConfig.TtlTimeCharacteristic.ProcessingTime;
 import static org.apache.flink.api.common.state.StateTtlConfig.UpdateType.OnCreateAndWrite;
@@ -166,7 +169,9 @@ public class StateTtlConfig implements Serializable {
 		private StateVisibility stateVisibility = NeverReturnExpired;
 		private TtlTimeCharacteristic ttlTimeCharacteristic = ProcessingTime;
 		private Time ttl;
-		private CleanupStrategies cleanupStrategies = new CleanupStrategies();
+		private boolean isCleanupInBackground = true;
+		private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy> strategies =
+			new EnumMap<>(CleanupStrategies.Strategies.class);
 
 		public Builder(@Nonnull Time ttl) {
 			this.ttl = ttl;
@@ -249,7 +254,7 @@ public class StateTtlConfig implements Serializable {
 		/** Cleanup expired state in full snapshot on checkpoint. */
 		@Nonnull
 		public Builder cleanupFullSnapshot() {
-			cleanupStrategies.activate(CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT);
+			strategies.put(CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT, EMPTY_STRATEGY);
 			return this;
 		}
 
@@ -284,7 +289,7 @@ public class StateTtlConfig implements Serializable {
 		public Builder cleanupIncrementally(
 			@Nonnegative int cleanupSize,
 			boolean runCleanupForEveryRecord) {
-			cleanupStrategies.activate(
+			strategies.put(
 				CleanupStrategies.Strategies.INCREMENTAL_CLEANUP,
 				new IncrementalCleanupStrategy(cleanupSize, runCleanupForEveryRecord));
 			return this;
@@ -304,8 +309,10 @@ public class StateTtlConfig implements Serializable {
 		 * https://github.com/facebook/rocksdb/blob/master/include/rocksdb/compaction_filter.h#L69
 		 * It means that the TTL filter should be tested for List state taking into account this caveat.
 		 *
+		 * @deprecated Use more general configuration method {@link #cleanupInBackground()} instead
 		 */
 		@Nonnull
+		@Deprecated
 		public Builder cleanupInRocksdbCompactFilter() {
 			return cleanupInRocksdbCompactFilter(1000L);
 		}
@@ -322,8 +329,34 @@ public class StateTtlConfig implements Serializable {
 		 */
 		@Nonnull
 		public Builder cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries) {
-			cleanupStrategies.activate(CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
+			strategies.put(
+				CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
 				new RocksdbCompactFilterCleanupStrategy(queryTimeAfterNumEntries));
+			return this;
+		}
+
+		/**
+		 * Enable default cleanup of expired state in background (enabled by default).
+		 *
+		 * <p>Depending on actually used backend, the corresponding default cleanup will kick in if supported.
+		 * If some specific cleanup is also configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
+		 * {@link #cleanupInRocksdbCompactFilter()}, then the specific one will kick in instead of default.
+		 */
+		@Nonnull
+		public Builder cleanupInBackground() {
+			isCleanupInBackground = true;
+			return this;
+		}
+
+		/**
+		 * Disable default cleanup of expired state in background (enabled by default).
+		 *
+		 * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
+		 * {@link #cleanupInRocksdbCompactFilter()}, this setting does not disable it.
+		 */
+		@Nonnull
+		public Builder disableCleanupInBackground() {
+			isCleanupInBackground = false;
 			return this;
 		}
 
@@ -344,7 +377,7 @@ public class StateTtlConfig implements Serializable {
 				stateVisibility,
 				ttlTimeCharacteristic,
 				ttl,
-				cleanupStrategies);
+				new CleanupStrategies(strategies, isCleanupInBackground));
 		}
 	}
 
@@ -358,7 +391,11 @@ public class StateTtlConfig implements Serializable {
 	public static class CleanupStrategies implements Serializable {
 		private static final long serialVersionUID = -1617740467277313524L;
 
-		private static final CleanupStrategy EMPTY_STRATEGY = new EmptyCleanupStrategy();
+		static final CleanupStrategy EMPTY_STRATEGY = new EmptyCleanupStrategy();
+
+		private final boolean isCleanupInBackground;
+
+		private final EnumMap<Strategies, CleanupStrategy> strategies;
 
 		/** Fixed strategies ordinals in {@code strategies} config field. */
 		enum Strategies {
@@ -376,38 +413,41 @@ public class StateTtlConfig implements Serializable {
 			private static final long serialVersionUID = 1373998465131443873L;
 		}
 
-		final EnumMap<Strategies, CleanupStrategy> strategies = new EnumMap<>(Strategies.class);
-
-		public void activate(Strategies strategy) {
-			activate(strategy, EMPTY_STRATEGY);
-		}
-
-		public void activate(Strategies strategy, CleanupStrategy config) {
-			strategies.put(strategy, config);
+		private CleanupStrategies(EnumMap<Strategies, CleanupStrategy> strategies, boolean isCleanupInBackground) {
+			this.strategies = strategies;
+			this.isCleanupInBackground = isCleanupInBackground;
 		}
 
 		public boolean inFullSnapshot() {
 			return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
 		}
 
+		public boolean isCleanupInBackground() {
+			return isCleanupInBackground;
+		}
+
 		@Nullable
 		public IncrementalCleanupStrategy getIncrementalCleanupStrategy() {
-			return (IncrementalCleanupStrategy) strategies.get(Strategies.INCREMENTAL_CLEANUP);
+			IncrementalCleanupStrategy defaultStrategy = isCleanupInBackground ? DEFAULT_INCREMENTAL_CLEANUP_STRATEGY : null;
+			return (IncrementalCleanupStrategy) strategies.getOrDefault(Strategies.INCREMENTAL_CLEANUP, defaultStrategy);
 		}
 
 		public boolean inRocksdbCompactFilter() {
-			return strategies.containsKey(Strategies.ROCKSDB_COMPACTION_FILTER);
+			return getRocksdbCompactFilterCleanupStrategy() != null;
 		}
 
 		@Nullable
 		public RocksdbCompactFilterCleanupStrategy getRocksdbCompactFilterCleanupStrategy() {
-			return (RocksdbCompactFilterCleanupStrategy) strategies.get(Strategies.ROCKSDB_COMPACTION_FILTER);
+			RocksdbCompactFilterCleanupStrategy defaultStrategy = isCleanupInBackground ? DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY : null;
+			return (RocksdbCompactFilterCleanupStrategy) strategies.getOrDefault(Strategies.ROCKSDB_COMPACTION_FILTER, defaultStrategy);
 		}
 	}
 
 	/** Configuration of cleanup strategy while taking the full snapshot.  */
 	public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
 		private static final long serialVersionUID = 3109278696501988780L;
+
+		static final IncrementalCleanupStrategy DEFAULT_INCREMENTAL_CLEANUP_STRATEGY = new IncrementalCleanupStrategy(5, false);
 
 		/** Max number of keys pulled from queue for clean up upon state touch for any key. */
 		private final int cleanupSize;
@@ -436,6 +476,9 @@ public class StateTtlConfig implements Serializable {
 	/** Configuration of cleanup strategy using custom compaction filter in RocksDB.  */
 	public static class RocksdbCompactFilterCleanupStrategy implements CleanupStrategies.CleanupStrategy {
 		private static final long serialVersionUID = 3109278796506988980L;
+
+		static final RocksdbCompactFilterCleanupStrategy DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
+			new RocksdbCompactFilterCleanupStrategy(1000L);
 
 		/** Number of state entries to process by compaction filter before updating current timestamp. */
 		private final long queryTimeAfterNumEntries;

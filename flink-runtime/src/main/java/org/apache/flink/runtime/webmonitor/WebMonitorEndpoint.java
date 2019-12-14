@@ -65,6 +65,7 @@ import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingTaskManagers
 import org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler;
+import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexWatermarksHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingHandlers;
@@ -215,7 +216,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders,
 			DashboardConfigurationHeaders.getInstance(),
-			restConfiguration.getRefreshInterval());
+			restConfiguration.getRefreshInterval(),
+			restConfiguration.isWebSubmitEnabled());
 
 		JobIdsHandler jobIdsHandler = new JobIdsHandler(
 			leaderRetriever,
@@ -355,6 +357,14 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders,
 			metricFetcher);
+
+		final JobVertexWatermarksHandler jobVertexWatermarksHandler = new JobVertexWatermarksHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			metricFetcher,
+			executionGraphCache,
+			executor);
 
 		final JobMetricsHandler jobMetricsHandler = new JobMetricsHandler(
 			leaderRetriever,
@@ -559,6 +569,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(taskManagerDetailsHandler.getMessageHeaders(), taskManagerDetailsHandler));
 		handlers.add(Tuple2.of(subtasksTimesHandler.getMessageHeaders(), subtasksTimesHandler));
 		handlers.add(Tuple2.of(jobVertexMetricsHandler.getMessageHeaders(), jobVertexMetricsHandler));
+		handlers.add(Tuple2.of(jobVertexWatermarksHandler.getMessageHeaders(), jobVertexWatermarksHandler));
 		handlers.add(Tuple2.of(jobMetricsHandler.getMessageHeaders(), jobMetricsHandler));
 		handlers.add(Tuple2.of(subtaskMetricsHandler.getMessageHeaders(), subtaskMetricsHandler));
 		handlers.add(Tuple2.of(taskManagerMetricsHandler.getMessageHeaders(), taskManagerMetricsHandler));
@@ -709,7 +720,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	@Override
 	public void grantLeadership(final UUID leaderSessionID) {
 		log.info("{} was granted leadership with leaderSessionID={}", getRestBaseUrl(), leaderSessionID);
-		leaderElectionService.confirmLeaderSessionID(leaderSessionID);
+		leaderElectionService.confirmLeadership(leaderSessionID, getRestBaseUrl());
 	}
 
 	@Override
@@ -718,7 +729,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	}
 
 	@Override
-	public String getAddress() {
+	public String getDescription() {
 		return getRestBaseUrl();
 	}
 

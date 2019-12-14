@@ -31,10 +31,15 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
+import org.apache.flink.table.factories.TableFactory;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
@@ -42,6 +47,25 @@ import java.util.List;
  */
 @PublicEvolving
 public interface Catalog {
+
+	/**
+	 * Get an optional {@link TableFactory} instance that's responsible for generating table-related
+	 * instances stored in this catalog, instances such as source/sink.
+	 *
+	 * @return an optional TableFactory instance
+	 */
+	default Optional<TableFactory> getTableFactory() {
+		return Optional.empty();
+	}
+
+	/**
+	 * Get an optional {@link FunctionDefinitionFactory} instance that's responsible for instantiating function definitions.
+	 *
+	 * @return an optional FunctionDefinitionFactory instance
+	 */
+	default Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+		return Optional.empty();
+	}
 
 	/**
 	 * Open the catalog. Used for any required preparation in initialization phase.
@@ -60,23 +84,14 @@ public interface Catalog {
 	// ------ databases ------
 
 	/**
-	 * Get the name of the current database of this type of catalog. This is used when users refers an object in the catalog
-	 * without specifying a database. For example, the current db in a Hive Metastore is 'default' by default.
+	 * Get the name of the default database for this catalog. The default database will be the current database for
+	 * the catalog when user's session doesn't specify a current database. The value probably comes from configuration,
+	 * will not change for the life time of the catalog instance.
 	 *
 	 * @return the name of the current database
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	String getCurrentDatabase() throws CatalogException;
-
-	/**
-	 * Set the database with the given name as the current database. A current database is used when users refers an object
-	 * in the catalog without specifying a database.
-	 *
-	 * @param databaseName	the name of the database
-	 * @throws DatabaseNotExistException if the given database doesn't exist in the catalog
-	 * @throws CatalogException in case of any runtime exception
-	 */
-	void setCurrentDatabase(String databaseName) throws DatabaseNotExistException, CatalogException;
+	String getDefaultDatabase() throws CatalogException;
 
 	/**
 	 * Get the names of all databases in this catalog.
@@ -130,7 +145,27 @@ public interface Catalog {
 	 * @throws DatabaseNotExistException if the given database does not exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+	default void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+			DatabaseNotEmptyException, CatalogException{
+		dropDatabase(name, ignoreIfNotExists, false);
+	}
+
+	/**
+	 * Drop a database.
+	 *
+	 * @param name              Name of the database to be dropped.
+	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
+	 *                           if set to false, throw an exception,
+	 *                           if set to true, do nothing.
+	 * @param cascade          Flag to specify behavior when the database contains table or function:
+	 *                           if set to true, delete all tables and functions in the database and then delete the
+	 *                             database,
+	 *                           if set to false, throw an exception.
+	 * @throws DatabaseNotExistException if the given database does not exist
+	 * @throws DatabaseNotEmptyException if the given database is not empty and isRestrict is true
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade) throws DatabaseNotExistException,
 		DatabaseNotEmptyException, CatalogException;
 
 	/**
@@ -275,6 +310,29 @@ public interface Catalog {
 		throws TableNotExistException, TableNotPartitionedException, CatalogException;
 
 	/**
+	 * Get CatalogPartitionSpec of partitions by expression filters in the table.
+	 *
+	 * <p>NOTE: For FieldReferenceExpression, the field index is based on schema of this table
+	 * instead of partition columns only.
+	 *
+	 * <p>The passed in predicates have been translated in conjunctive form.
+	 *
+	 * <p>If catalog does not support this interface at present, throw an {@link UnsupportedOperationException}
+	 * directly. If the catalog does not have a valid filter, throw the {@link UnsupportedOperationException}
+	 * directly. Planner will fallback to get all partitions and filter by itself.
+	 *
+	 * @param tablePath	path of the table
+	 * @param filters filters to push down filter to catalog
+	 * @return a list of CatalogPartitionSpec that is under the given CatalogPartitionSpec in the table
+	 *
+	 * @throws TableNotExistException thrown if the table does not exist in the catalog
+	 * @throws TableNotPartitionedException thrown if the table is not partitioned
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
+		throws TableNotExistException, TableNotPartitionedException, CatalogException;
+
+	/**
 	 * Get a partition of the given table.
 	 * The given partition spec keys and values need to be matched exactly for a result.
 	 *
@@ -282,7 +340,7 @@ public interface Catalog {
 	 * @param partitionSpec partition spec of partition to get
 	 * @return the requested partition
 	 *
-	 * @throws PartitionNotExistException thrown if the partition is not partitioned
+	 * @throws PartitionNotExistException thrown if the partition doesn't exist
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
@@ -361,6 +419,7 @@ public interface Catalog {
 
 	/**
 	 * Get the function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath path of the function
 	 * @return the requested function
@@ -371,6 +430,7 @@ public interface Catalog {
 
 	/**
 	 * Check whether a function exists or not.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath path of the function
 	 * @return true if the function exists in the catalog
@@ -381,6 +441,7 @@ public interface Catalog {
 
 	/**
 	 * Create a function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath      path of the function
 	 * @param function          the function to be created
@@ -396,6 +457,7 @@ public interface Catalog {
 
 	/**
 	 * Modify an existing function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath       path of the function
 	 * @param newFunction        the function to be modified
@@ -410,6 +472,7 @@ public interface Catalog {
 
 	/**
 	 * Drop a function.
+	 * Function name should be handled in a case insensitive way.
 	 *
 	 * @param functionPath       path of the function to be dropped
 	 * @param ignoreIfNotExists  plag to specify behavior if the function does not exist:
@@ -420,8 +483,6 @@ public interface Catalog {
 	 */
 	void dropFunction(ObjectPath functionPath, boolean ignoreIfNotExists)
 		throws FunctionNotExistException, CatalogException;
-
-	// ------ statistics ------
 
 	// ------ statistics ------
 
@@ -501,7 +562,7 @@ public interface Catalog {
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
-		throws TableNotExistException, CatalogException;
+		throws TableNotExistException, CatalogException, TablePartitionedException;
 
 	/**
 	 * Update the statistics of a table partition.

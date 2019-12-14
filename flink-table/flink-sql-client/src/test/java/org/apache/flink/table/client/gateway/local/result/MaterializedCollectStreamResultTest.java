@@ -22,7 +22,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -43,11 +46,14 @@ public class MaterializedCollectStreamResultTest {
 	@Test
 	public void testSnapshot() throws UnknownHostException {
 		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
+		TableSchema tableSchema = TableSchema.builder().fields(
+				new String[]{"f0", "f1"}, new DataType[]{DataTypes.STRING(), DataTypes.BIGINT()}).build();
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
 			result = new TestMaterializedCollectStreamResult<>(
 				type,
+				tableSchema,
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
 				0,
@@ -91,11 +97,14 @@ public class MaterializedCollectStreamResultTest {
 	@Test
 	public void testLimitedSnapshot() throws UnknownHostException {
 		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
+		TableSchema tableSchema = TableSchema.builder().fields(
+				new String[]{"f0", "f1"}, new DataType[]{DataTypes.STRING(), DataTypes.BIGINT()}).build();
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
 			result = new TestMaterializedCollectStreamResult<>(
 				type,
+				tableSchema,
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
 				0,
@@ -146,6 +155,7 @@ public class MaterializedCollectStreamResultTest {
 
 		public TestMaterializedCollectStreamResult(
 				RowTypeInfo outputType,
+				TableSchema tableSchema,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
 				int gatewayPort,
@@ -154,15 +164,18 @@ public class MaterializedCollectStreamResultTest {
 
 			super(
 				outputType,
+				tableSchema,
 				config,
 				gatewayAddress,
 				gatewayPort,
 				maxRowCount,
-				overcommitThreshold);
+				overcommitThreshold,
+				MaterializedCollectStreamResultTest.class.getClassLoader());
 		}
 
 		public TestMaterializedCollectStreamResult(
 				RowTypeInfo outputType,
+				TableSchema tableSchema,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
 				int gatewayPort,
@@ -170,10 +183,12 @@ public class MaterializedCollectStreamResultTest {
 
 			super(
 				outputType,
+				tableSchema,
 				config,
 				gatewayAddress,
 				gatewayPort,
-				maxRowCount);
+				maxRowCount,
+				MaterializedCollectStreamResultTest.class.getClassLoader());
 		}
 
 		@Override

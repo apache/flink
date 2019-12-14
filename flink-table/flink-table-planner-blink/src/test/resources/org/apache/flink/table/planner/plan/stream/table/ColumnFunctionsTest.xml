@@ -1,0 +1,229 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAddColumns">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[org$apache$flink$table$planner$plan$stream$table$TestFunc$$a9ddde602e11f7aba3a1a53e83fca306($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, TestFunc$(a, b) AS d])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testColumnFunctionsInUDF">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(_c0=[CONCAT($2, $3)])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CONCAT(string1, string2) AS _c0])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testColumnRange">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], c=[$2], a=[$0], e=[$4], f=[$5], d=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b, c, a, e, f, d])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testColumnWithoutRange">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f=[$5])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, f])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropColumns">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[=(CONCAT($2, $3), _UTF-16LE'a')])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[int, long, string1, string2], where=[=(CONCAT(string1, string2), _UTF-16LE'a')])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupBy">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$0])
++- Exchange(distribution=[hash[a, b]])
+   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInverseSelection">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(e=[$4], f=[$5])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[e, f])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+:- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int1, long1, string1)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(int2, long2, string2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(int1, int2)], select=[int1, long1, string1, int2, long2, string2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[int1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int1, long1, string1)]]], fields=[int1, long1, string1])
++- Exchange(distribution=[hash[int2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(int2, long2, string2)]]], fields=[int2, long2, string2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinLateral">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+:- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]])
++- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], correlate=[table(TableFunc0(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]], fields=[int, long, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOver">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], mycount=[AS(org$apache$flink$table$planner$utils$CountAggFunction$73efb0ea0c8658abded1110c8b3ad719($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$ad50b92aae273d3d6ca7ddf9ffd4ab85($0, $1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$CountDistinct$deee7f776638e01c7669cc58e8cfc3c2($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
++- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, CountAggFunction(b) AS w0$o0, WeightedAvg(a, b) AS w0$o1, CountDistinct(a) AS w0$o2])
+   +- Exchange(distribution=[hash[c]])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRenameColumns">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(d=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a AS d, b])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStar">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(_c0=[org$apache$flink$table$planner$plan$stream$table$TestFunc$$a9ddde602e11f7aba3a1a53e83fca306($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[TestFunc$(double, long) AS _c0])
++- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]], fields=[double, long])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowGroupBy">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[AS($2, _UTF-16LE'c')])
++- LogicalWindowAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)], window=[SlidingGroupWindow('w, b, 3, 10)], properties=[])
+   +- LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')], c=[AS($2, _UTF-16LE'c')], d=[AS($3, _UTF-16LE'd')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, EXPR$0 AS c])
++- GroupWindowAggregate(groupBy=[a, b], window=[SlidingGroupWindow('w, b, 3, 10)], select=[a, b, COUNT(c) AS EXPR$0])
+   +- Exchange(distribution=[hash[a, b]])
+      +- Calc(select=[a, CAST(rowtime) AS b, c, d])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, rowtime, c, d])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

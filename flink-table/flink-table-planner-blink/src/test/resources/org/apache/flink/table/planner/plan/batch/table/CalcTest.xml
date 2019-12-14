@@ -1,0 +1,235 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testScalarFunctionAccess">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(_c0=[org$apache$flink$table$planner$plan$batch$table$CalcTest$giveMeCaseClass$$3313af9a26deb6ffc2d0ca161dd44775().my], _c1=[org$apache$flink$table$planner$plan$batch$table$CalcTest$giveMeCaseClass$$3313af9a26deb6ffc2d0ca161dd44775().clazz], _c2=[org$apache$flink$table$planner$plan$batch$table$CalcTest$giveMeCaseClass$$3313af9a26deb6ffc2d0ca161dd44775().my], _c3=[org$apache$flink$table$planner$plan$batch$table$CalcTest$giveMeCaseClass$$3313af9a26deb6ffc2d0ca161dd44775().clazz])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[giveMeCaseClass$().my AS _c0, giveMeCaseClass$().clazz AS _c1, giveMeCaseClass$().my AS _c2, giveMeCaseClass$().clazz AS _c3])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[=(MOD($0, 2), 1)])
++- LogicalFilter(condition=[<($1, 2)])
+   +- LogicalFilter(condition=[>($0, 0)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b], where=[AND(>(a, 0), <(b, 2), =(MOD(a, 2), 1))])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleFlatteningsTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a$_1=[$0._1], a$_2=[$0._2], c=[$2], b$_1=[$1._1], b$_2=[$1._2])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a._1 AS a$_1, a._2 AS a$_2, c, b._1 AS b$_1, b._2 AS b$_2])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedFlattening">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a$_1=[$0._1], a$_2=[$0._2], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a._1 AS a$_1, a._2 AS a$_2, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectAggregation">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
++- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[MAX($1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_SUM(a) AS sum$0, Partial_MAX(b) AS max$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectAggregationFromGroupedTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{2}], EXPR$0=[SUM($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectAllFieldsFromGroupedTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1])
++- LogicalAggregate(group=[{0, 2}])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c])
++- Exchange(distribution=[hash[a, c]])
+   +- LocalHashAggregate(groupBy=[a, c], select=[a, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFromAggregatedPojoTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[=($1, 2)])
++- LogicalProject(word=[$0], frequency=[$1])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, frequency)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[word, CAST(2:BIGINT) AS frequency], where=[=(EXPR$0, 2)])
++- HashAggregate(isMerge=[true], groupBy=[word], select=[word, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[word]])
+      +- LocalHashAggregate(groupBy=[word], select=[word, Partial_SUM(frequency) AS sum$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, frequency)]]], fields=[word, frequency])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFromGroupedTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalAggregate(group=[{0, 2}])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c])
+   +- Exchange(distribution=[hash[a, c]])
+      +- LocalHashAggregate(groupBy=[a, c], select=[a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFromGroupedTableWithFunctionKey">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{4}], EXPR$0=[SUM($0)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], k=[org$apache$flink$table$planner$plan$batch$table$CalcTest$MyHashCode$$1a421fe8806f99cfb05e6ba66282b047($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[k], select=[k, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[k]])
+      +- LocalHashAggregate(groupBy=[k], select=[k, Partial_SUM(a) AS sum$0])
+         +- Calc(select=[a, b, c, d, MyHashCode$(c) AS k])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFromGroupedTableWithNonTrivialKey">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{4}], EXPR$0=[SUM($0)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], k=[UPPER($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[k], select=[k, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[k]])
+      +- LocalHashAggregate(groupBy=[k], select=[k, Partial_SUM(a) AS sum$0])
+         +- Calc(select=[a, b, c, d, UPPER(c) AS k])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleSelect">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(_c0=[org$apache$flink$table$planner$plan$batch$table$CalcTest$MyHashCode$$1a421fe8806f99cfb05e6ba66282b047($2)], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[MyHashCode$(c) AS _c0, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

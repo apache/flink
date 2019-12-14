@@ -21,10 +21,11 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
@@ -62,7 +63,7 @@ public class ResettableExternalBufferTest {
 
 	@Before
 	public void before() {
-		this.memManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.ioManager = new IOManagerAsync();
 		this.random = new Random();
 		this.serializer = new BinaryRowSerializer(1);

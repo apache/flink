@@ -235,31 +235,32 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void releaseNode(final NodeId node) throws Exception {
-		Lockable<SharedBufferNode> sharedBufferNode = sharedBuffer.getEntry(node);
-		if (sharedBufferNode != null) {
-			if (sharedBufferNode.release()) {
-				removeNode(node, sharedBufferNode.getElement());
-			} else {
-				sharedBuffer.upsertEntry(node, sharedBufferNode);
+		// the stack used to detect all nodes that needs to be released.
+		Stack<NodeId> nodesToExamine = new Stack<>();
+		nodesToExamine.push(node);
+
+		while (!nodesToExamine.isEmpty()) {
+			NodeId curNode = nodesToExamine.pop();
+			Lockable<SharedBufferNode> curBufferNode = sharedBuffer.getEntry(curNode);
+
+			if (curBufferNode == null) {
+				break;
 			}
-		}
-	}
 
-	/**
-	 * Removes the {@code SharedBufferNode}, when the ref is decreased to zero, and also
-	 * decrease the ref of the edge on this node.
-	 *
-	 * @param node id of the entry
-	 * @param sharedBufferNode the node body to be removed
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	private void removeNode(NodeId node, SharedBufferNode sharedBufferNode) throws Exception {
-		sharedBuffer.removeEntry(node);
-		EventId eventId = node.getEventId();
-		releaseEvent(eventId);
+			if (curBufferNode.release()) {
+				// first release the current node
+				sharedBuffer.removeEntry(curNode);
+				releaseEvent(curNode.getEventId());
 
-		for (SharedBufferEdge sharedBufferEdge : sharedBufferNode.getEdges()) {
-			releaseNode(sharedBufferEdge.getTarget());
+				for (SharedBufferEdge sharedBufferEdge : curBufferNode.getElement().getEdges()) {
+					NodeId targetId = sharedBufferEdge.getTarget();
+					if (targetId != null) {
+						nodesToExamine.push(targetId);
+					}
+				}
+			} else {
+				sharedBuffer.upsertEntry(curNode, curBufferNode);
+			}
 		}
 	}
 

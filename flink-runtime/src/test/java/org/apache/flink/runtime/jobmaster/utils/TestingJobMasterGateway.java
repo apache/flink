@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -33,12 +34,10 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -97,9 +96,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
 	@Nonnull
 	private final Consumer<ResourceManagerId> disconnectResourceManagerConsumer;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier;
 
 	@Nonnull
 	private final BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction;
@@ -165,7 +161,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction,
 			@Nonnull Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction,
 			@Nonnull Consumer<ResourceManagerId> disconnectResourceManagerConsumer,
-			@Nonnull Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier,
 			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
 			@Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
 			@Nonnull BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
@@ -193,7 +188,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.scheduleOrUpdateConsumersFunction = scheduleOrUpdateConsumersFunction;
 		this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
 		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
-		this.classloadingPropsSupplier = classloadingPropsSupplier;
 		this.offerSlotsFunction = offerSlotsFunction;
 		this.failSlotConsumer = failSlotConsumer;
 		this.registerTaskManagerFunction = registerTaskManagerFunction;

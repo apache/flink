@@ -1,10 +1,9 @@
 ---
 title: Concepts
 nav-id: concepts
-nav-pos: 1
+nav-pos: 2
 nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts'
 nav-parent_id: root
-section-break: true
 layout: redirect
 redirect: /concepts/programming-model.html
 permalink: /concepts/index.html

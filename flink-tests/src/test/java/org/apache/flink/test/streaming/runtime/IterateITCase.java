@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -484,7 +485,11 @@ public class IterateITCase extends AbstractTestBase {
 
 				head.addSink(new TestSink()).setParallelism(1);
 
-				assertEquals(1, env.getStreamGraph().getIterationSourceSinkPairs().size());
+				assertEquals(
+						1,
+						env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
+								.getIterationSourceSinkPairs()
+								.size());
 
 				env.execute();
 
@@ -588,16 +593,8 @@ public class IterateITCase extends AbstractTestBase {
 			try {
 				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-				env.enableCheckpointing();
-
-				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
-						.map(noOpBoolMap).name("ParallelizeMap");
-
-				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
-
-				iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
-
 				try {
+					createIteration(env, timeoutScale);
 					env.execute();
 
 					// this statement should never be reached
@@ -609,7 +606,11 @@ public class IterateITCase extends AbstractTestBase {
 				// Test force checkpointing
 
 				try {
-					env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, false);
+					createIteration(env, timeoutScale);
+					env.enableCheckpointing(
+						CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+						CheckpointingMode.EXACTLY_ONCE,
+						false);
 					env.execute();
 
 					// this statement should never be reached
@@ -618,7 +619,11 @@ public class IterateITCase extends AbstractTestBase {
 					// expected behaviour
 				}
 
-				env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, true);
+				createIteration(env, timeoutScale);
+				env.enableCheckpointing(
+					CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+					CheckpointingMode.EXACTLY_ONCE,
+					true);
 				env.getStreamGraph().getJobGraph();
 
 				break; // success
@@ -632,6 +637,17 @@ public class IterateITCase extends AbstractTestBase {
 				}
 			}
 		}
+	}
+
+	private void createIteration(StreamExecutionEnvironment env, int timeoutScale) {
+		env.enableCheckpointing();
+
+		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
+				.map(noOpBoolMap).name("ParallelizeMap");
+
+		IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
+
+		iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
 	}
 
 	private static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {

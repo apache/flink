@@ -27,9 +27,8 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * This interface can be implemented by functions that want to store state in checkpoints.
- * It can be used in a similar way as the deprecated {@link Checkpointed} interface, but
- * supports <b>list-style state redistribution</b> for cases when the parallelism of the
+ * This interface can be implemented by functions that want to store state in checkpoints
+ * and supports <b>list-style state redistribution</b> for cases when the parallelism of the
  * transformation is changed.
  *
  * <p>Implementing this interface is a shortcut for obtaining the default {@code ListState}

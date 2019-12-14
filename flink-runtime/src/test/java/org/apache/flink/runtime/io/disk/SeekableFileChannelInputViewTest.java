@@ -25,12 +25,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Test;
 
@@ -39,13 +39,16 @@ public class SeekableFileChannelInputViewTest {
 
 	@Test
 	public void testSeek() {
-		final IOManager ioManager = new IOManagerAsync();
 		final int PAGE_SIZE = 16 * 1024;
 		final int NUM_RECORDS = 120000;
 		// integers across 7.x pages (7 pages = 114.688 bytes, 8 pages = 131.072 bytes)
 		
-		try {
-			MemoryManager memMan = new MemoryManager(4 * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		try (IOManager ioManager = new IOManagerAsync()) {
+			MemoryManager memMan = MemoryManagerBuilder
+				.newBuilder()
+				.setMemorySize(4 * PAGE_SIZE)
+				.setPageSize(PAGE_SIZE)
+				.build();
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
 			
@@ -149,9 +152,6 @@ public class SeekableFileChannelInputViewTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			ioManager.shutdown();
 		}
 	}
 }

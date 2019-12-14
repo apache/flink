@@ -18,166 +18,72 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.rest.RestClusterClient;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.local.result.Result;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.Executor;
+import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The helper class to deploy a table program on the cluster.
  */
-public class ProgramDeployer<C> implements Runnable {
+public class ProgramDeployer {
 	private static final Logger LOG = LoggerFactory.getLogger(ProgramDeployer.class);
 
-	private final ExecutionContext<C> context;
-	private final JobGraph jobGraph;
+	private final Configuration configuration;
+	private final Pipeline pipeline;
 	private final String jobName;
-	private final Result<C> result;
-	private final boolean awaitJobResult;
-	private final BlockingQueue<JobExecutionResult> executionResultBucket;
 
 	/**
 	 * Deploys a table program on the cluster.
 	 *
-	 * @param context        context with deployment information
+	 * @param configuration  the {@link Configuration} that is used for deployment
 	 * @param jobName        job name of the Flink job to be submitted
-	 * @param jobGraph       Flink job graph
-	 * @param result         result that receives information about the target cluster
-	 * @param awaitJobResult block for a job execution result from the cluster
+	 * @param pipeline       Flink {@link Pipeline} to execute
 	 */
 	public ProgramDeployer(
-			ExecutionContext<C> context,
+			Configuration configuration,
 			String jobName,
-			JobGraph jobGraph,
-			Result<C> result,
-			boolean awaitJobResult) {
-		this.context = context;
-		this.jobGraph = jobGraph;
+			Pipeline pipeline) {
+		this.configuration = configuration;
+		this.pipeline = pipeline;
 		this.jobName = jobName;
-		this.result = result;
-		this.awaitJobResult = awaitJobResult;
-		executionResultBucket = new LinkedBlockingDeque<>(1);
 	}
 
-	@Override
-	public void run() {
-		LOG.info("Submitting job {} for query {}`", jobGraph.getJobID(), jobName);
+	public CompletableFuture<JobClient> deploy() {
+		LOG.info("Submitting job {} for query {}`", pipeline, jobName);
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Submitting job {} with the following environment: \n{}",
-					jobGraph.getJobID(), context.getMergedEnvironment());
+			LOG.debug("Submitting job {} with configuration: \n{}", pipeline, configuration);
 		}
-		deployJob(context, jobGraph, result);
-	}
 
-	public JobExecutionResult fetchExecutionResult() {
-		return executionResultBucket.poll();
-	}
+		if (configuration.get(DeploymentOptions.TARGET) == null) {
+			throw new RuntimeException("No execution.target specified in your configuration file.");
+		}
 
-	/**
-	 * Deploys a job. Depending on the deployment creates a new job cluster. It saves the cluster id in
-	 * the result and blocks until job completion.
-	 */
-	private <T> void deployJob(ExecutionContext<T> context, JobGraph jobGraph, Result<T> result) {
-		// create or retrieve cluster and deploy job
-		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
-			try {
-				// new cluster
-				if (context.getClusterId() == null) {
-					deployJobOnNewCluster(clusterDescriptor, jobGraph, result, context.getClassLoader());
-				}
-				// reuse existing cluster
-				else {
-					deployJobOnExistingCluster(context.getClusterId(), clusterDescriptor, jobGraph, result);
-				}
-			} catch (Exception e) {
-				throw new SqlExecutionException("Could not retrieve or create a cluster.", e);
-			}
-		} catch (SqlExecutionException e) {
-			throw e;
+		ExecutorServiceLoader executorServiceLoader = DefaultExecutorServiceLoader.INSTANCE;
+		final ExecutorFactory executorFactory;
+		try {
+			executorFactory = executorServiceLoader.getExecutorFactory(configuration);
 		} catch (Exception e) {
-			throw new SqlExecutionException("Could not locate a cluster.", e);
+			throw new RuntimeException("Could not retrieve ExecutorFactory.", e);
 		}
-	}
 
-	private <T> void deployJobOnNewCluster(
-			ClusterDescriptor<T> clusterDescriptor,
-			JobGraph jobGraph,
-			Result<T> result,
-			ClassLoader classLoader) throws Exception {
-		ClusterClient<T> clusterClient = null;
+		final Executor executor = executorFactory.getExecutor(configuration);
+		CompletableFuture<JobClient> jobClient;
 		try {
-			// deploy job cluster with job attached
-			clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, false);
-			// save information about the new cluster
-			result.setClusterInformation(clusterClient.getClusterId(), clusterClient.getWebInterfaceURL());
-			// get result
-			if (awaitJobResult) {
-				// we need to hard cast for now
-				final JobExecutionResult jobResult = ((RestClusterClient<T>) clusterClient)
-						.requestJobResult(jobGraph.getJobID())
-						.get()
-						.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
-				executionResultBucket.add(jobResult);
-			}
-		} finally {
-			try {
-				if (clusterClient != null) {
-					clusterClient.shutdown();
-				}
-			} catch (Exception e) {
-				// ignore
-			}
+			jobClient = executor.execute(pipeline, configuration);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not execute program.", e);
 		}
-	}
-
-	private <T> void deployJobOnExistingCluster(
-			T clusterId,
-			ClusterDescriptor<T> clusterDescriptor,
-			JobGraph jobGraph,
-			Result<T> result) throws Exception {
-		ClusterClient<T> clusterClient = null;
-		try {
-			// retrieve existing cluster
-			clusterClient = clusterDescriptor.retrieve(clusterId);
-			String webInterfaceUrl;
-			// retrieving the web interface URL might fail on legacy pre-FLIP-6 code paths
-			// TODO remove this once we drop support for legacy deployment code
-			try {
-				webInterfaceUrl = clusterClient.getWebInterfaceURL();
-			} catch (Exception e) {
-				webInterfaceUrl = "N/A";
-			}
-			// save the cluster information
-			result.setClusterInformation(clusterClient.getClusterId(), webInterfaceUrl);
-			// submit job (and get result)
-			if (awaitJobResult) {
-				clusterClient.setDetached(false);
-				final JobExecutionResult jobResult = clusterClient
-					.submitJob(jobGraph, context.getClassLoader())
-					.getJobExecutionResult(); // throws exception if job fails
-				executionResultBucket.add(jobResult);
-			} else {
-				clusterClient.setDetached(true);
-				clusterClient.submitJob(jobGraph, context.getClassLoader());
-			}
-		} finally {
-			try {
-				if (clusterClient != null) {
-					clusterClient.shutdown();
-				}
-			} catch (Exception e) {
-				// ignore
-			}
-		}
+		return jobClient;
 	}
 }
 

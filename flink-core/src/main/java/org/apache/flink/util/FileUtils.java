@@ -29,15 +29,28 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -68,6 +81,13 @@ public final class FileUtils {
 
 	/** The size of the buffer used for reading. */
 	private static final int BUFFER_SIZE = 4096;
+
+	private static final String JAR_FILE_EXTENSION = "jar";
+
+	public static final String CLASS_FILE_EXTENSION = "class";
+
+	public static final String PACKAGE_SEPARATOR = ".";
+
 
 	// ------------------------------------------------------------------------
 
@@ -523,6 +543,134 @@ public final class FileUtils {
 			}
 		}
 		return new Path(targetDirectory, rootDir);
+	}
+
+	/**
+	 * List the {@code directory} recursively and return the files that satisfy the {@code fileFilter}.
+	 *
+	 * @param directory the directory to be listed
+	 * @param fileFilter a file filter
+	 * @return a collection of {@code File}s
+	 *
+	 * @throws IOException if an I/O error occurs while listing the files in the given directory
+	 */
+	public static Collection<java.nio.file.Path> listFilesInDirectory(final java.nio.file.Path directory, final Predicate<java.nio.file.Path> fileFilter) throws IOException {
+		checkNotNull(directory, "directory");
+		checkNotNull(fileFilter, "fileFilter");
+
+		if (!Files.exists(directory)) {
+			throw new IllegalArgumentException(String.format("The directory %s dose not exist.", directory));
+		}
+		if (!Files.isDirectory(directory)) {
+			throw new IllegalArgumentException(String.format("The %s is not a directory.", directory));
+		}
+
+		final FilterFileVisitor filterFileVisitor = new FilterFileVisitor(fileFilter);
+
+		Files.walkFileTree(
+			directory,
+			EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+			Integer.MAX_VALUE,
+			filterFileVisitor);
+
+		return filterFileVisitor.getFiles();
+	}
+
+	/**
+	 * Relativize the given path with respect to the given base path if it is absolute.
+	 *
+	 * @param basePath to relativize against
+	 * @param pathToRelativize path which is being relativized if it is an absolute path
+	 * @return the relativized path
+	 */
+	public static java.nio.file.Path relativizePath(java.nio.file.Path basePath, java.nio.file.Path pathToRelativize) {
+		if (pathToRelativize.isAbsolute()) {
+			return basePath.relativize(pathToRelativize);
+		} else {
+			return pathToRelativize;
+		}
+	}
+
+	/**
+	 * Returns the current working directory as specified by the {@code user.dir} system property.
+	 *
+	 * @return current working directory
+	 */
+	public static java.nio.file.Path getCurrentWorkingDirectory() {
+		return Paths.get(System.getProperty("user.dir"));
+	}
+
+	/**
+	 * Checks whether the given file has a class extension.
+	 *
+	 * @param file to check
+	 * @return true if the file has a class extension, otherwise false
+	 */
+	public static boolean isClassFile(java.nio.file.Path file) {
+		return CLASS_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
+	 * Checks whether the given file has a jar extension.
+	 *
+	 * @param file to check
+	 * @return true if the file has a jar extension, otherwise false
+	 */
+	public static boolean isJarFile(java.nio.file.Path file) {
+		return JAR_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
+	 * Remove the extension of the file name.
+	 * @param fileName to strip
+	 * @return the file name without extension
+	 */
+	public static String stripFileExtension(String fileName) {
+		final String extension = org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(fileName);
+		if (!extension.isEmpty()) {
+			return fileName.substring(0, fileName.lastIndexOf(extension) - 1);
+		}
+		return fileName;
+	}
+
+	/**
+	 * Converts the given {@link java.nio.file.Path} into a file {@link URL}. The resulting url is
+	 * relative iff the given path is relative.
+	 *
+	 * @param path to convert into a {@link URL}.
+	 * @return URL
+	 * @throws MalformedURLException if the path could not be converted into a file {@link URL}
+	 */
+	public static URL toURL(java.nio.file.Path path) throws MalformedURLException {
+		final String scheme = path.toUri().getScheme();
+		return new URL(scheme, null, -1, path.toString());
+	}
+
+	private static final class FilterFileVisitor extends SimpleFileVisitor<java.nio.file.Path> {
+
+		private final Predicate<java.nio.file.Path> fileFilter;
+
+		private final List<java.nio.file.Path> files;
+
+		FilterFileVisitor(Predicate<java.nio.file.Path> fileFilter) {
+			this.fileFilter = checkNotNull(fileFilter);
+			this.files = new ArrayList<>();
+		}
+
+		@Override
+		public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+			FileVisitResult fileVisitResult = super.visitFile(file, attrs);
+
+			if (fileFilter.test(file)) {
+				files.add(file);
+			}
+
+			return fileVisitResult;
+		}
+
+		Collection<java.nio.file.Path> getFiles() {
+			return Collections.unmodifiableCollection(files);
+		}
 	}
 
 	// ------------------------------------------------------------------------

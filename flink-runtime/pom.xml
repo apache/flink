@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -52,7 +52,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-queryable-state-client-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-queryable-state-client-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -69,8 +69,8 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${hadoop.version}-${project.version}</version>
+			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<optional>true</optional>
 		</dependency>
 
@@ -90,7 +90,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm-6</artifactId>
+			<artifactId>flink-shaded-asm-7</artifactId>
 		</dependency>
 
 		<dependency>
@@ -254,6 +254,13 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- Lz4 compression library -->
+		<dependency>
+			<groupId>org.lz4</groupId>
+			<artifactId>lz4-java</artifactId>
+			<version>1.5.0</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -278,6 +285,12 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
 			<version>${curator.version}</version>
@@ -294,12 +307,6 @@ under the License.
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>okhttp</artifactId>
 			<version>3.7.0</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -424,7 +431,6 @@ under the License.
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
 				<executions>
 					<!-- Add src/main/scala to eclipse build path -->
 					<execution>
@@ -540,6 +546,7 @@ under the License.
 									<include>io.netty:netty</include>
 									<include>org.uncommons.maths:uncommons-maths</include>
 									<include>org.apache.zookeeper:*</include>
+									<include>org.lz4:lz4-java</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
@@ -571,6 +578,11 @@ under the License.
 									<pattern>org.apache.jute</pattern>
 									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute</shadedPattern>
 								</relocation>
+								<relocation>
+									<!-- Relocate org.lz4:lz4-java -->
+									<pattern>net.jpountz</pattern>
+									<shadedPattern>org.apache.flink.runtime.shaded.net.jpountz</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
@@ -578,7 +590,7 @@ under the License.
 									<excludes>
 										<!-- Only some of these licenses actually apply to the JAR and have been manually
 										 	placed in this module's resources directory. -->
-										<exclude>META-INF/license</exclude>
+										<exclude>META-INF/license/**</exclude>
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 										 	copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>

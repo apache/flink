@@ -25,8 +25,10 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -36,7 +38,7 @@ public class MemorySizeTest {
 
 	@Test
 	public void testUnitConversion() {
-		final MemorySize zero = new MemorySize(0);
+		final MemorySize zero = MemorySize.ZERO;
 		assertEquals(0, zero.getBytes());
 		assertEquals(0, zero.getKibiBytes());
 		assertEquals(0, zero.getMebiBytes());
@@ -220,4 +222,15 @@ public class MemorySizeTest {
 		assertEquals(7, MemorySize.parse("7 mebibytes", MEGA_BYTES).getMebiBytes());
 	}
 
+	@Test
+	public void testDivideByLong() {
+		final MemorySize memory = new MemorySize(100L);
+		assertThat(memory.divide(23), is(new MemorySize(4L)));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideByNegativeLong() {
+		final MemorySize memory = new MemorySize(100L);
+		memory.divide(-23L);
+	}
 }

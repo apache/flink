@@ -1,4 +1,5 @@
-################################################################################
+#!/usr/bin/env python
+#################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -15,10 +16,19 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import glob
 import logging
 import os
 import sys
+
+
+def _is_flink_home(path):
+    pyflink_file = path + "/bin/pyflink-gateway-server.sh"
+    flink_dist_jar_file = path + "/lib/flink-dist*.jar"
+    if os.path.isfile(pyflink_file) and len(glob.glob(flink_dist_jar_file)) > 0:
+        return True
+    else:
+        return False
 
 
 def _find_flink_home():
@@ -30,12 +40,19 @@ def _find_flink_home():
         return os.environ['FLINK_HOME']
     else:
         try:
-            flink_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../")
+            current_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
+            flink_root_dir = os.path.abspath(current_dir + "/../../")
             build_target = flink_root_dir + "/build-target"
-            pyflink_file = build_target + "/bin/pyflink-gateway-server.sh"
-            if os.path.isfile(pyflink_file):
+            if _is_flink_home(build_target):
                 os.environ['FLINK_HOME'] = build_target
                 return build_target
+
+            from importlib.util import find_spec
+            module_home = os.path.dirname(find_spec("pyflink").origin)
+
+            if _is_flink_home(module_home):
+                os.environ['FLINK_HOME'] = module_home
+                return module_home
         except Exception:
             pass
         logging.error("Could not find valid FLINK_HOME(Flink distribution directory) "

@@ -35,15 +35,9 @@ source "$(dirname "$0")"/kafka_sql_common.sh \
 ################################################################################
 
 function sql_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_kafka_cluster
 }
-trap sql_cleanup INT
-trap sql_cleanup EXIT
+on_exit sql_cleanup
 
 # prepare Kafka
 echo "Preparing Kafka $KAFKA_VERSION..."
@@ -93,23 +87,21 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: event_timestamp
-        type: VARCHAR
+        data-type: STRING
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: message
-        type: VARCHAR
+        data-type: STRING
       - name: duplicate_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: kafka
       version: "$KAFKA_SQL_VERSION"
       topic: test-avro
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+        zookeeper.connect: localhost:2181
+        bootstrap.servers: localhost:9092
     format:
       type: avro
       avro-schema: >
@@ -129,15 +121,15 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: event_timestamp
-        type: VARCHAR
+        data-type: STRING
       - name: user
-        type: VARCHAR
+        data-type: STRING
       - name: message
-        type: VARCHAR
+        data-type: STRING
       - name: duplicate_count
-        type: BIGINT
+        data-type: BIGINT
       - name: constant
-        type: VARCHAR
+        data-type: STRING
     connector:
       type: filesystem
       path: $RESULT
@@ -145,15 +137,15 @@ cat >> $SQL_CONF << EOF
       type: csv
       fields:
         - name: event_timestamp
-          type: VARCHAR
+          data-type: STRING
         - name: user
-          type: VARCHAR
+          data-type: STRING
         - name: message
-          type: VARCHAR
+          data-type: STRING
         - name: duplicate_count
-          type: BIGINT
+          data-type: BIGINT
         - name: constant
-          type: VARCHAR
+          data-type: STRING
 
 functions:
   - name: RegReplace

@@ -66,6 +66,11 @@ public abstract class ObjectArrayRow implements BaseRow {
 	}
 
 	@Override
+	public void setTimestamp(int ordinal, SqlTimestamp value, int precision) {
+		this.fields[ordinal] = value;
+	}
+
+	@Override
 	public BinaryString getString(int ordinal) {
 		return (BinaryString) this.fields[ordinal];
 	}
@@ -76,18 +81,23 @@ public abstract class ObjectArrayRow implements BaseRow {
 	}
 
 	@Override
-	public BinaryArray getArray(int ordinal) {
-		return (BinaryArray) this.fields[ordinal];
+	public BaseArray getArray(int ordinal) {
+		return (BaseArray) this.fields[ordinal];
 	}
 
 	@Override
-	public BinaryMap getMap(int ordinal) {
-		return (BinaryMap) this.fields[ordinal];
+	public BaseMap getMap(int ordinal) {
+		return (BaseMap) this.fields[ordinal];
 	}
 
 	@Override
 	public Decimal getDecimal(int ordinal, int precision, int scale) {
 		return (Decimal) this.fields[ordinal];
+	}
+
+	@Override
+	public SqlTimestamp getTimestamp(int ordinal, int precision) {
+		return (SqlTimestamp) this.fields[ordinal];
 	}
 
 	@Override

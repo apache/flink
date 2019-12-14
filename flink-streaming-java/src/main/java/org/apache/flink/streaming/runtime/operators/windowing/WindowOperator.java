@@ -319,11 +319,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 									"event-time window cannot become earlier than the current watermark " +
 									"by merging. Current watermark: " + internalTimerService.currentWatermark() +
 									" window: " + mergeResult);
-						} else if (!windowAssigner.isEventTime() && mergeResult.maxTimestamp() <= internalTimerService.currentProcessingTime()) {
-							throw new UnsupportedOperationException("The end timestamp of a " +
+						} else if (!windowAssigner.isEventTime()) {
+							long currentProcessingTime = internalTimerService.currentProcessingTime();
+							if (mergeResult.maxTimestamp() <= currentProcessingTime) {
+								throw new UnsupportedOperationException("The end timestamp of a " +
 									"processing-time window cannot become earlier than the current processing time " +
-									"by merging. Current processing time: " + internalTimerService.currentProcessingTime() +
+									"by merging. Current processing time: " + currentProcessingTime +
 									" window: " + mergeResult);
+							}
 						}
 
 						triggerContext.key = key;

@@ -77,7 +77,7 @@ public class TestInputChannel extends InputChannel {
 		return read(buffer, moreAvailable);
 	}
 
-	TestInputChannel readEndOfPartitionEvent() throws InterruptedException {
+	TestInputChannel readEndOfPartitionEvent() {
 		addBufferAndAvailability(
 			() -> {
 				setReleased();
@@ -152,11 +152,6 @@ public class TestInputChannel extends InputChannel {
 
 	void setReleased() {
 		this.isReleased = true;
-	}
-
-	@Override
-	void notifySubpartitionConsumed() throws IOException {
-
 	}
 
 	@Override

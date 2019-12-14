@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.runtime.util.collections;
 
-import org.apache.flink.table.util.MurmurHashUtil;
+import org.apache.flink.table.runtime.util.MurmurHashUtil;
 
 /**
  * Long hash set.

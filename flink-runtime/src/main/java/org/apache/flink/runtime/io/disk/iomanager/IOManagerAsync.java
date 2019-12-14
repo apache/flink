@@ -21,10 +21,12 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,7 +102,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 		}
 
 		// install a shutdown hook that makes sure the temp directories get deleted
-		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::shutdown, getClass().getSimpleName(), LOG);
+		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::close, getClass().getSimpleName(), LOG);
 	}
 
 	/**
@@ -109,7 +111,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	 * operation.
 	 */
 	@Override
-	public void shutdown() {
+	public void close() throws Exception {
 		// mark shut down and exit if it already was shut down
 		if (!isShutdown.compareAndSet(false, true)) {
 			return;
@@ -118,30 +120,25 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 		// Remove shutdown hook to prevent resource leaks
 		ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
-		try {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Shutting down I/O manager.");
-			}
 
-			// close writing and reading threads with best effort and log problems
-			// first notify all to close, then wait until all are closed
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Shutting down I/O manager.");
+		}
 
-			for (WriterThread wt : writers) {
-				try {
-					wt.shutdown();
-				}
-				catch (Throwable t) {
-					LOG.error("Error while shutting down IO Manager writer thread.", t);
-				}
-			}
-			for (ReaderThread rt : readers) {
-				try {
-					rt.shutdown();
-				}
-				catch (Throwable t) {
-					LOG.error("Error while shutting down IO Manager reader thread.", t);
-				}
-			}
+		// close writing and reading threads with best effort and log problems
+		// first notify all to close, then wait until all are closed
+
+		List<AutoCloseable> closeables = new ArrayList<>(writers.length + readers.length + 2);
+
+		for (WriterThread wt : writers) {
+			closeables.add(getWriterThreadCloser(wt));
+		}
+
+		for (ReaderThread rt : readers) {
+			closeables.add(getReaderThreadCloser(rt));
+		}
+
+		closeables.add(() -> {
 			try {
 				for (WriterThread wt : writers) {
 					wt.join();
@@ -149,44 +146,46 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 				for (ReaderThread rt : readers) {
 					rt.join();
 				}
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
 			}
-			catch (InterruptedException iex) {
-				// ignore this on shutdown
-			}
-		}
-		finally {
-			// make sure we call the super implementation in any case and at the last point,
-			// because this will clean up the I/O directories
-			super.shutdown();
-		}
-	}
-	
-	/**
-	 * Utility method to check whether the IO manager has been properly shut down. The IO manager is considered
-	 * to be properly shut down when it is closed and its threads have ceased operation.
-	 * 
-	 * @return True, if the IO manager has properly shut down, false otherwise.
-	 */
-	@Override
-	public boolean isProperlyShutDown() {
-		boolean readersShutDown = true;
-		for (ReaderThread rt : readers) {
-			readersShutDown &= rt.getState() == Thread.State.TERMINATED;
-		}
-		
-		boolean writersShutDown = true;
-		for (WriterThread wt : writers) {
-			writersShutDown &= wt.getState() == Thread.State.TERMINATED;
-		}
-		
-		return isShutdown.get() && readersShutDown && writersShutDown && super.isProperlyShutDown();
+		});
+
+		// make sure we call the super implementation in any case and at the last point,
+		// because this will clean up the I/O directories
+		closeables.add(super::close);
+
+		IOUtils.closeAll(closeables);
 	}
 
+	private static AutoCloseable getWriterThreadCloser(WriterThread thread) {
+		return () -> {
+			try {
+				thread.shutdown();
+			} catch (Throwable t) {
+				throw new IOException("Error while shutting down IO Manager writer thread.", t);
+			}
+		};
+	}
+
+	private static AutoCloseable getReaderThreadCloser(ReaderThread thread) {
+		return () -> {
+			try {
+				thread.shutdown();
+			} catch (Throwable t) {
+				throw new IOException("Error while shutting down IO Manager reader thread.", t);
+			}
+		};
+	}
 
 	@Override
 	public void uncaughtException(Thread t, Throwable e) {
 		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Shutting down I/O Manager.", e);
-		shutdown();
+		try {
+			close();
+		} catch (Exception ex) {
+			LOG.warn("IOManagerAsync did not shut down properly.", ex);
+		}
 	}
 	
 	// ------------------------------------------------------------------------

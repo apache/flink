@@ -32,7 +32,6 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.OptimizerPlanEnvironment.ProgramAbortException;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -45,6 +44,7 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.test.util.PlanExposingEnvironment;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -147,7 +147,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 	public static Plan getConnectedComponentsCoGroupPlan() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			connectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});

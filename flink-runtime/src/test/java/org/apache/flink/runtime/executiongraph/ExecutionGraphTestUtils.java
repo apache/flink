@@ -18,49 +18,34 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
-import org.apache.flink.util.SerializedValue;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -74,8 +59,6 @@ import static org.junit.Assert.assertNotNull;
  * A collection of utility methods for testing the ExecutionGraph and its related classes.
  */
 public class ExecutionGraphTestUtils {
-
-	private static final Logger TEST_LOGGER = LoggerFactory.getLogger(ExecutionGraphTestUtils.class);
 
 	// ------------------------------------------------------------------------
 	//  reaching states
@@ -224,26 +207,6 @@ public class ExecutionGraphTestUtils {
 
 	public static Predicate<AccessExecution> isInExecutionState(ExecutionState executionState) {
 		return (AccessExecution execution) -> execution.getState() == executionState;
-	}
-
-	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
-			throws TimeoutException {
-		checkNotNull(region);
-		checkNotNull(status);
-		checkArgument(maxWaitMillis >= 0);
-
-		// this is a poor implementation - we may want to improve it eventually
-		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
-
-		while (region.getState() != status && System.nanoTime() < deadline) {
-			try {
-				Thread.sleep(2);
-			} catch (InterruptedException ignored) {}
-		}
-
-		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
-		}
 	}
 
 	/**
@@ -401,25 +364,24 @@ public class ExecutionGraphTestUtils {
 		checkNotNull(vertices);
 		checkNotNull(timeout);
 
-		return ExecutionGraphBuilder.buildGraph(
-			null,
-			new JobGraph(jid, "test job", vertices),
-			new Configuration(),
-			executor,
-			executor,
-			slotProvider,
-			ExecutionGraphTestUtils.class.getClassLoader(),
-			new StandaloneCheckpointRecoveryFactory(),
-			timeout,
-			restartStrategy,
-			new UnregisteredMetricsGroup(),
-			VoidBlobWriter.getInstance(),
-			timeout,
-			TEST_LOGGER);
+		return TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(new JobGraph(vertices))
+			.setFutureExecutor(executor)
+			.setIoExecutor(executor)
+			.setSlotProvider(slotProvider)
+			.setAllocationTimeout(timeout)
+			.setRpcTimeout(timeout)
+			.setRestartStrategy(restartStrategy)
+			.build();
 	}
 
 	public static JobVertex createNoOpVertex(int parallelism) {
-		JobVertex vertex = new JobVertex("vertex");
+		return createNoOpVertex("vertex", parallelism);
+	}
+
+	public static JobVertex createNoOpVertex(String name, int parallelism) {
+		JobVertex vertex = new JobVertex(name);
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
 		return vertex;
@@ -429,19 +391,6 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// ------------------------------------------------------------------------
 
-	public static Instance getInstance(final TaskManagerGateway gateway) throws Exception {
-		return getInstance(gateway, 1);
-	}
-
-	public static Instance getInstance(final TaskManagerGateway gateway, final int numberOfSlots) throws Exception {
-		ResourceID resourceID = ResourceID.generate();
-		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
-		InetAddress address = InetAddress.getByName("127.0.0.1");
-		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
-
-		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
-	}
-
 	public static JobVertex createJobVertex(String task1, int numTasks, Class<NoOpInvokable> invokable) {
 		JobVertex groupVertex = new JobVertex(task1);
 		groupVertex.setInvokableClass(invokable);
@@ -450,24 +399,30 @@ public class ExecutionGraphTestUtils {
 	}
 
 	public static ExecutionJobVertex getExecutionVertex(
-			JobVertexID id, ScheduledExecutorService executor) 
-		throws Exception {
+			JobVertexID id,
+			ScheduledExecutorService executor) throws Exception {
+		return getExecutionVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
+	}
+
+	public static ExecutionJobVertex getExecutionVertex(
+			JobVertexID id,
+			ScheduledExecutorService executor,
+			ScheduleMode scheduleMode) throws Exception {
 
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(AbstractInvokable.class);
 
-		ExecutionGraph graph = new ExecutionGraph(
-			executor,
-			executor,
-			new JobID(), 
-			"test job", 
-			new Configuration(),
-			new SerializedValue<>(new ExecutionConfig()),
-			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy(),
-			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
+		JobGraph jobGraph = new JobGraph(ajv);
+		jobGraph.setScheduleMode(scheduleMode);
 
-		graph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		ExecutionGraph graph = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jobGraph)
+			.setIoExecutor(executor)
+			.setFutureExecutor(executor)
+			.build();
+
+		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}

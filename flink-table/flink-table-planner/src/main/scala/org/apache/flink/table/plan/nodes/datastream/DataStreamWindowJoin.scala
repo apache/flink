@@ -29,14 +29,13 @@ import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
-import org.apache.flink.table.runtime.{CRowKeySelector, CRowWrappingCollector}
+import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.join.{OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -67,6 +66,8 @@ class DataStreamWindowJoin(
     with CommonJoin
     with DataStreamRel
     with Logging {
+
+  validatePythonFunctionInJoinCondition(joinCondition)
 
   override def deriveRowType(): RelDataType = schema.relDataType
 
@@ -108,10 +109,10 @@ class DataStreamWindowJoin(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val config = tableEnv.getConfig
+    val config = planner.getConfig
 
     val isLeftAppendOnly = UpdatingPlanChecker.isAppendOnly(left)
     val isRightAppendOnly = UpdatingPlanChecker.isAppendOnly(right)
@@ -120,8 +121,8 @@ class DataStreamWindowJoin(
         "Windowed stream join does not support updates.")
     }
 
-    val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-    val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+    val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     // get the equi-keys and other conditions
     val joinInfo = JoinInfo.of(leftNode, rightNode, joinCondition)
@@ -151,6 +152,7 @@ class DataStreamWindowJoin(
       case JoinRelType.FULL => JoinType.FULL_OUTER
       case JoinRelType.LEFT => JoinType.LEFT_OUTER
       case JoinRelType.RIGHT => JoinType.RIGHT_OUTER
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
 
     if (relativeWindowSize < 0) {
@@ -233,6 +235,7 @@ class DataStreamWindowJoin(
       case JoinType.FULL_OUTER =>
         leftDataStream.map(leftPadder).name("Full Outer Join").setParallelism(leftP)
           .union(rightDataStream.map(rightPadder).name("Full Outer Join").setParallelism(rightP))
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
   }
 

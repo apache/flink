@@ -26,7 +26,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.Types._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.Literal
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -133,7 +132,7 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val filterDs = ds.filter( Literal(false) )
+    val filterDs = ds.filter(false)
 
     val expected = "\n"
     val results = filterDs.toDataSet[Row].collect()
@@ -147,7 +146,7 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val filterDs = ds.filter( Literal(true) )
+    val filterDs = ds.filter(true)
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
       "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
       "Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +

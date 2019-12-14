@@ -31,7 +31,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
@@ -41,6 +40,7 @@ import org.apache.flink.optimizer.util.OperatorResolver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.test.util.PlanExposingEnvironment;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -143,7 +143,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 
 	public static Plan getKMeansPlan() {
 		// prepare the test environment
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		PlanExposingEnvironment env = new PlanExposingEnvironment();
 		env.setAsContext();
 		try {
 			kmeans(new String[]{IN_FILE, IN_FILE, OUT_FILE, "20"});

@@ -68,7 +68,7 @@ public class JobLeaderIdService {
 	public JobLeaderIdService(
 			HighAvailabilityServices highAvailabilityServices,
 			ScheduledExecutor scheduledExecutor,
-			Time jobTimeout) throws Exception {
+			Time jobTimeout) {
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices, "highAvailabilityServices");
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor, "scheduledExecutor");
 		this.jobTimeout = Preconditions.checkNotNull(jobTimeout, "jobTimeout");

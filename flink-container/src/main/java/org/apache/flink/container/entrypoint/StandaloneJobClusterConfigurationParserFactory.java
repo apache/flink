@@ -29,6 +29,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Properties;
 
@@ -42,8 +43,6 @@ import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST
  * list of command line arguments.
  */
 public class StandaloneJobClusterConfigurationParserFactory implements ParserResultFactory<StandaloneJobClusterConfiguration> {
-
-	static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
 
 	private static final Option JOB_CLASS_NAME_OPTION = Option.builder("j")
 		.longOpt("job-classname")
@@ -105,10 +104,11 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		}
 	}
 
+	@Nullable
 	private static JobID getJobId(CommandLine commandLine) throws FlinkParseException {
 		String jobId = commandLine.getOptionValue(JOB_ID_OPTION.getOpt());
 		if (jobId == null) {
-			return DEFAULT_JOB_ID;
+			return null;
 		}
 		try {
 			return JobID.fromHexString(jobId);

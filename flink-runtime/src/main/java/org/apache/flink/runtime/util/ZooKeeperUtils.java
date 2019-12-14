@@ -27,9 +27,10 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
@@ -62,6 +63,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
+
+	/**  The prefix of the submitted job graph file. */
+	public static final String HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX = "submittedJobGraph";
+
+	/** The prefix of the completed checkpoint file. */
+	public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
 
 	/**
 	 * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper
@@ -165,11 +172,10 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
-		final Configuration configuration) throws Exception {
+		final Configuration configuration) {
 		return createLeaderRetrievalService(client, configuration, "");
 	}
 
@@ -227,39 +233,40 @@ public class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperSubmittedJobGraphStore} instance.
+	 * Creates a {@link ZooKeeperJobGraphStore} instance.
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
-	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
+	 * @return {@link ZooKeeperJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
-	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
+	public static ZooKeeperJobGraphStore createJobGraphs(
 			CuratorFramework client,
 			Configuration configuration) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
-		RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
+		RetrievableStateStorageHelper<JobGraph> stateStorage = createFileSystemStateStorage(
+			configuration, HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX);
 
 		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+		String zooKeeperJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		// Ensure that the job graphs path exists
-		client.newNamespaceAwareEnsurePath(zooKeeperSubmittedJobsPath)
+		client.newNamespaceAwareEnsurePath(zooKeeperJobsPath)
 			.ensure(client.getZookeeperClient());
 
 		// All operations will have the path as root
-		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperSubmittedJobsPath);
+		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperJobsPath);
 
-		final String zooKeeperFullSubmittedJobsPath = client.getNamespace() + zooKeeperSubmittedJobsPath;
+		final String zooKeeperFullJobsPath = client.getNamespace() + zooKeeperJobsPath;
 
-		final ZooKeeperStateHandleStore<SubmittedJobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
+		final ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
 
 		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
 
-		return new ZooKeeperSubmittedJobGraphStore(
-			zooKeeperFullSubmittedJobsPath,
+		return new ZooKeeperJobGraphStore(
+			zooKeeperFullJobsPath,
 			zooKeeperStateHandleStore,
 			pathCache);
 	}
@@ -289,9 +296,9 @@ public class ZooKeeperUtils {
 
 		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
 			configuration,
-			"completedCheckpoint");
+			HA_STORAGE_COMPLETED_CHECKPOINT);
 
-		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		checkpointsPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
 		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			maxNumberOfCheckpointsToRetain,
@@ -336,7 +343,7 @@ public class ZooKeeperUtils {
 		String checkpointIdCounterPath = configuration.getString(
 				HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
-		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
 	}
@@ -354,14 +361,7 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			String prefix) throws IOException {
 
-		String rootPath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
-
-		if (rootPath == null || StringUtils.isBlank(rootPath)) {
-			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
-					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
-		} else {
-			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
-		}
+		return new FileSystemStateStorageHelper<>(HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(configuration), prefix);
 	}
 
 	public static String generateZookeeperPath(String root, String namespace) {

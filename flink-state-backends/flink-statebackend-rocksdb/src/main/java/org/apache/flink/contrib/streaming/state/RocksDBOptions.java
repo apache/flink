@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.MemorySize;
 
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
@@ -56,7 +57,7 @@ public class RocksDBOptions {
 	public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM = ConfigOptions
 		.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
 		.defaultValue(1)
-		.withDescription("The number of threads used to transfer (download and upload) files in RocksDBStateBackend.");
+		.withDescription("The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
 
 	/** This determines if compaction filter to cleanup state with TTL is enabled. */
 	public static final ConfigOption<Boolean> TTL_COMPACT_FILTER_ENABLED = ConfigOptions
@@ -86,4 +87,42 @@ public class RocksDBOptions {
 				"The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
 				DefaultConfigurableOptionsFactory.class.getName()));
 
+	public static final ConfigOption<Boolean> USE_MANAGED_MEMORY = ConfigOptions
+		.key("state.backend.rocksdb.memory.managed")
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("If set, the RocksDB state backend will automatically configure itself to use the " +
+			"managed memory budget of the task slot, and divide the memory over write buffers, indexes, " +
+			"block caches, etc. That way, the state backend will not exceed the available memory, but use as much " +
+			"memory as it can.");
+
+	public static final ConfigOption<MemorySize> FIX_PER_SLOT_MEMORY_SIZE = ConfigOptions
+		.key("state.backend.rocksdb.memory.fixed-per-slot")
+		.memoryType()
+		.noDefaultValue()
+		.withDescription(String.format(
+			"The fixed total amount of memory, shared among all RocksDB instances per slot. " +
+			"This option overrides the '%s' option when configured. If neither this option, nor the '%s' option" +
+			"are set, then each RocksDB column family state has its own memory caches (as controlled by the column " +
+			"family options).", USE_MANAGED_MEMORY.key(), USE_MANAGED_MEMORY.key()));
+
+	public static final ConfigOption<Double> WRITE_BUFFER_RATIO = ConfigOptions
+		.key("state.backend.rocksdb.memory.write-buffer-ratio")
+		.doubleType()
+		.defaultValue(0.5)
+		.withDescription(String.format(
+			"The maximum amount of memory that write buffers may take, as a fraction of the total cache memory. " +
+			"This option only has an effect when '%s' or '%s' are configured.",
+			USE_MANAGED_MEMORY.key(),
+			FIX_PER_SLOT_MEMORY_SIZE.key()));
+
+	public static final ConfigOption<Double> HIGH_PRIORITY_POOL_RATIO = ConfigOptions
+		.key("state.backend.rocksdb.memory.high-prio-pool-ratio")
+		.doubleType()
+		.defaultValue(0.1)
+		.withDescription(String.format(
+				"The fraction of cache memory that is reserved for high-priority data like index, filter, and " +
+				"compression dictionary blocks. This option only has an effect when '%s' or '%s' are configured.",
+				USE_MANAGED_MEMORY.key(),
+				FIX_PER_SLOT_MEMORY_SIZE.key()));
 }

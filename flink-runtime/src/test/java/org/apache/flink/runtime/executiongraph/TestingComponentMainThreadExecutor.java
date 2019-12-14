@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.SupplierWithException;
@@ -39,10 +41,10 @@ public class TestingComponentMainThreadExecutor {
 
 	/** The main thread executor to which execution is delegated. */
 	@Nonnull
-	private final TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor;
+	private final ComponentMainThreadExecutor mainThreadExecutor;
 
 	public TestingComponentMainThreadExecutor(
-		@Nonnull TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor) {
+			@Nonnull ComponentMainThreadExecutor mainThreadExecutor) {
 		this.mainThreadExecutor = mainThreadExecutor;
 	}
 
@@ -68,7 +70,7 @@ public class TestingComponentMainThreadExecutor {
 	}
 
 	@Nonnull
-	public TestingComponentMainThreadExecutorServiceAdapter getMainThreadExecutor() {
+	public ComponentMainThreadExecutor getMainThreadExecutor() {
 		return mainThreadExecutor;
 	}
 
@@ -94,7 +96,7 @@ public class TestingComponentMainThreadExecutor {
 			this.innerExecutorService = Executors.newSingleThreadScheduledExecutor();
 			this.componentMainThreadTestExecutor =
 				new TestingComponentMainThreadExecutor(
-					TestingComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(innerExecutorService));
+					ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(innerExecutorService));
 		}
 
 		@Override

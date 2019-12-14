@@ -28,13 +28,13 @@ import scala.collection.JavaConverters._
 class FunctionDescriptorTest extends DescriptorTestBase {
 
   override def descriptors(): JList[Descriptor] = {
-    val desc1 = FunctionDescriptor()
+    val desc1 = new FunctionDescriptor()
       .fromClass(
-        ClassInstance()
+        new ClassInstance()
           .of("my.class")
           .parameter("INT", "1")
           .parameter(
-            ClassInstance()
+            new ClassInstance()
               .of("my.class2")
               .parameterString("true")))
 

@@ -21,16 +21,29 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -38,10 +51,56 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
  */
+@RunWith(Parameterized.class)
 public class BoundedBlockingSubpartitionWriteReadTest {
+
+	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+
+	private static FileChannelManager fileChannelManager;
 
 	@ClassRule
 	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+
+	private static final int BUFFER_SIZE = 1024 * 1024;
+
+	private static final String COMPRESSION_CODEC = "LZ4";
+
+	private static final BufferDecompressor decompressor = new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
+
+	// ------------------------------------------------------------------------
+	//  parameters
+	// ------------------------------------------------------------------------
+
+	private final BoundedBlockingSubpartitionType type;
+
+	private final boolean compressionEnabled;
+
+	@Parameters(name = "type = {0}, compressionEnabled = {1}")
+	public static Collection<Object[]> parameters() {
+		return Arrays.stream(BoundedBlockingSubpartitionType.values())
+				.map((type) -> new Object[][] { { type, true }, { type, false } })
+				.flatMap(Arrays::stream)
+				.collect(Collectors.toList());
+	}
+
+	public BoundedBlockingSubpartitionWriteReadTest(BoundedBlockingSubpartitionType type, boolean compressionEnabled) {
+		this.type = type;
+		this.compressionEnabled = compressionEnabled;
+	}
+
+	// ------------------------------------------------------------------------
+	//  tests
+	// ------------------------------------------------------------------------
+
+	@BeforeClass
+	public static void setUp() {
+		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+	}
+
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
+	}
 
 	@Test
 	public void testWriteAndReadData() throws Exception {
@@ -52,7 +111,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 		// test & check
 		final ResultSubpartitionView reader = subpartition.createReadView(() -> {});
-		readLongs(reader, numLongs, subpartition.getBuffersInBacklog());
+		readLongs(reader, numLongs, subpartition.getBuffersInBacklog(), compressionEnabled, decompressor);
 
 		// cleanup
 		reader.releaseAllResources();
@@ -69,7 +128,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 		// test & check
 		for (int i = 0; i < 10; i++) {
 			final ResultSubpartitionView reader = subpartition.createReadView(() -> {});
-			readLongs(reader, numLongs, subpartition.getBuffersInBacklog());
+			readLongs(reader, numLongs, subpartition.getBuffersInBacklog(), compressionEnabled, decompressor);
 			reader.releaseAllResources();
 		}
 
@@ -86,7 +145,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 		// test
 		final LongReader[] readerThreads = createSubpartitionLongReaders(
-				subpartition, 10, numLongs, subpartition.getBuffersInBacklog());
+				subpartition, 10, numLongs, subpartition.getBuffersInBacklog(), compressionEnabled);
 		for (CheckedThread t : readerThreads) {
 			t.start();
 		}
@@ -104,20 +163,31 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	//  common test passes
 	// ------------------------------------------------------------------------
 
-	private static void readLongs(ResultSubpartitionView reader, long numLongs, int numBuffers) throws Exception {
+	private static void readLongs(
+			ResultSubpartitionView reader,
+			long numLongs,
+			int numBuffers,
+			boolean compressionEnabled,
+			BufferDecompressor decompressor) throws Exception {
 		BufferAndBacklog next;
 		long expectedNextLong = 0L;
 		int nextExpectedBacklog = numBuffers - 1;
 
-		while ((next = reader.getNextBuffer()) != null && next.buffer().isBuffer()) {
+		while ((next = reader.getNextBuffer(true)) != null && next.buffer().isBuffer()) {
 			assertTrue(next.isMoreAvailable());
 			assertEquals(nextExpectedBacklog, next.buffersInBacklog());
 
 			ByteBuffer buffer = next.buffer().getNioBufferReadable();
+			if (compressionEnabled && next.buffer().isCompressed()) {
+				Buffer uncompressedBuffer = decompressor.decompressToIntermediateBuffer(next.buffer());
+				buffer = uncompressedBuffer.getNioBufferReadable();
+				uncompressedBuffer.recycleBuffer();
+			}
 			while (buffer.hasRemaining()) {
 				assertEquals(expectedNextLong++, buffer.getLong());
 			}
 
+			next.buffer().recycleBuffer();
 			nextExpectedBacklog--;
 		}
 
@@ -130,7 +200,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	// ------------------------------------------------------------------------
 
 	private static void writeLongs(BoundedBlockingSubpartition partition, long nums) throws IOException {
-		final MemorySegment memory = MemorySegmentFactory.allocateUnpooledSegment(1024 * 1024);
+		final MemorySegment memory = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
 
 		long l = 0;
 		while (nums > 0) {
@@ -140,7 +210,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 				nums--;
 			}
 
-			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true));
+			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true, false));
 
 			// we need to flush after every buffer as long as the add() contract is that
 			// buffer are immediately added and can be filled further after that (for low latency
@@ -149,30 +219,36 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 		}
 	}
 
-	private static BoundedBlockingSubpartition createAndFillPartition(long numLongs) throws IOException {
+	private BoundedBlockingSubpartition createAndFillPartition(long numLongs) throws IOException {
 		BoundedBlockingSubpartition subpartition = createSubpartition();
 		writeLongs(subpartition, numLongs);
 		subpartition.finish();
 		return subpartition;
 	}
 
-	private static BoundedBlockingSubpartition createSubpartition() throws IOException {
-		return new BoundedBlockingSubpartition(
+	private BoundedBlockingSubpartition createSubpartition() throws IOException {
+		return type.create(
 				0,
-				PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING),
-				new File(TMP_FOLDER.newFolder(), "partitiondata").toPath());
+				PartitionTestUtils.createPartition(
+					ResultPartitionType.BLOCKING,
+					fileChannelManager,
+					compressionEnabled,
+					BUFFER_SIZE),
+				new File(TMP_FOLDER.newFolder(), "partitiondata"),
+				BUFFER_SIZE);
 	}
 
 	private static LongReader[] createSubpartitionLongReaders(
 			BoundedBlockingSubpartition subpartition,
 			int numReaders,
 			int numLongs,
-			int numBuffers) throws IOException {
+			int numBuffers,
+			boolean compressionEnabled) throws IOException {
 
 		final LongReader[] readerThreads = new LongReader[numReaders];
 		for (int i = 0; i < numReaders; i++) {
 			ResultSubpartitionView reader = subpartition.createReadView(() -> {});
-			readerThreads[i] = new LongReader(reader, numLongs, numBuffers);
+			readerThreads[i] = new LongReader(reader, numLongs, numBuffers, compressionEnabled);
 		}
 		return readerThreads;
 	}
@@ -185,15 +261,21 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 		private final int numBuffers;
 
-		LongReader(ResultSubpartitionView reader, long numLongs, int numBuffers) {
+		private final boolean compressionEnabled;
+
+		private final BufferDecompressor decompressor;
+
+		LongReader(ResultSubpartitionView reader, long numLongs, int numBuffers, boolean compressionEnabled) {
 			this.reader = reader;
 			this.numLongs = numLongs;
 			this.numBuffers = numBuffers;
+			this.compressionEnabled = compressionEnabled;
+			this.decompressor = new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
 		}
 
 		@Override
 		public void go() throws Exception {
-			readLongs(reader, numLongs, numBuffers);
+			readLongs(reader, numLongs, numBuffers, compressionEnabled, decompressor);
 		}
 	}
 }

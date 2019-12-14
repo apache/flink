@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
@@ -150,8 +150,8 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new ProcTimeBoundedStreamJoin(
       JoinType.INNER, -10, 20, rowType, rowType, "TestJoinFunction", funcCode)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -240,8 +240,8 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new ProcTimeBoundedStreamJoin(
       JoinType.INNER, -10, -5, rowType, rowType, "TestJoinFunction", funcCode)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -322,7 +322,7 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.INNER, -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
-    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+    val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
@@ -417,7 +417,7 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.INNER, -10, -7, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
-    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+    val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
@@ -495,7 +495,7 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.LEFT_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
-    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+    val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
@@ -605,7 +605,7 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.RIGHT_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
-    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+    val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
@@ -714,7 +714,7 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.FULL_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
-    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+    val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
@@ -834,8 +834,8 @@ class JoinHarnessTest extends HarnessTestBase {
       funcCode,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -925,8 +925,8 @@ class JoinHarnessTest extends HarnessTestBase {
       funcCode,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -1022,8 +1022,8 @@ class JoinHarnessTest extends HarnessTestBase {
       true,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -1134,8 +1134,8 @@ class JoinHarnessTest extends HarnessTestBase {
       true,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -1280,8 +1280,8 @@ class JoinHarnessTest extends HarnessTestBase {
       false,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -1392,8 +1392,8 @@ class JoinHarnessTest extends HarnessTestBase {
       false,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -1536,8 +1536,8 @@ class JoinHarnessTest extends HarnessTestBase {
       funcCode,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,
@@ -1700,8 +1700,8 @@ class JoinHarnessTest extends HarnessTestBase {
       funcCodeWithNonEqualPred2,
       queryConfig)
 
-    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val operator: LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new LegacyKeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
         operator,

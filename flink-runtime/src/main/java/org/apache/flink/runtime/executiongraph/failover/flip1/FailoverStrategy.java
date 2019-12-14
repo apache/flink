@@ -34,4 +34,25 @@ public interface FailoverStrategy {
 	 * @return set of IDs of vertices to restart
 	 */
 	Set<ExecutionVertexID> getTasksNeedingRestart(ExecutionVertexID executionVertexId, Throwable cause);
+
+	// ------------------------------------------------------------------------
+	//  factory
+	// ------------------------------------------------------------------------
+
+	/**
+	 * The factory to instantiate {@link FailoverStrategy}.
+	 */
+	interface Factory {
+
+		/**
+		 * Instantiates the {@link FailoverStrategy}.
+		 *
+		 * @param topology of the graph to failover
+		 * @param resultPartitionAvailabilityChecker to check whether a result partition is available
+		 * @return The instantiated failover strategy.
+		 */
+		FailoverStrategy create(
+			FailoverTopology<?, ?> topology,
+			ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker);
+	}
 }

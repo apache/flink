@@ -29,11 +29,13 @@ import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 
 import java.util.Collection;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -51,16 +53,34 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
-	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> predicate) {
-		submitConsumer = predicate;
+	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
+
+	private CheckpointConsumer checkpointConsumer = (
+		executionAttemptID,
+		jobId,
+		checkpointId,
+		timestamp,
+		checkpointOptions,
+		advanceToEndOfEventTime) -> { };
+
+	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
+		this.submitConsumer = submitConsumer;
 	}
 
-	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
-		cancelConsumer = predicate;
+	public void setCancelConsumer(Consumer<ExecutionAttemptID> cancelConsumer) {
+		this.cancelConsumer = cancelConsumer;
 	}
 
 	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
 		this.freeSlotFunction = freeSlotFunction;
+	}
+
+	public void setReleasePartitionsConsumer(BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
+		this.releasePartitionsConsumer = releasePartitionsConsumer;
+	}
+
+	public void setCheckpointConsumer(CheckpointConsumer checkpointConsumer) {
+		this.checkpointConsumer = checkpointConsumer;
 	}
 
 	@Override
@@ -69,12 +89,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+	public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
 			ExecutionAttemptID executionAttemptID,
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
-			int maxStackTraceDepth,
+			int requestId,
 			Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
@@ -97,7 +114,8 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public void releasePartitions(Collection<ResultPartitionID> partitionIds) {
+	public void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds) {
+		releasePartitionsConsumer.accept(jobId, partitionIds);
 	}
 
 	@Override
@@ -114,7 +132,16 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions,
-			boolean advanceToEndOfEventTime) {}
+			boolean advanceToEndOfEventTime) {
+
+		checkpointConsumer.accept(
+			executionAttemptID,
+			jobId,
+			checkpointId,
+			timestamp,
+			checkpointOptions,
+			advanceToEndOfEventTime);
+	}
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
@@ -125,5 +152,19 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		} else {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
+	}
+
+	/**
+	 * Consumer that accepts checkpoint trigger information.
+	 */
+	public interface CheckpointConsumer {
+
+		void accept(
+			ExecutionAttemptID executionAttemptID,
+			JobID jobId,
+			long checkpointId,
+			long timestamp,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime);
 	}
 }

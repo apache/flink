@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -135,7 +135,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	/**
 	 * Builder for the {@link TestingDispatcherGateway}.
 	 */
-	public static final class Builder extends TestingRestfulGateway.Builder {
+	public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
 		private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
 		private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -159,9 +159,14 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		}
 
 		@Override
-		public TestingRestfulGateway.Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
+		public Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
 			// signature clash
 			throw new UnsupportedOperationException("Use setRequestArchivedJobFunction() instead.");
+		}
+
+		@Override
+		protected Builder self() {
+			return this;
 		}
 
 		public Builder setBlobServerPort(int blobServerPort) {

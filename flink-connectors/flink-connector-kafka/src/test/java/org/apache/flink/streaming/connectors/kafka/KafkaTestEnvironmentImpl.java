@@ -21,7 +21,6 @@ import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
@@ -162,7 +161,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		try {
 			adminClient.deleteTopics(Collections.singleton(topic)).all().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 		} catch (TimeoutException e) {
-			LOG.info("Did not receive delete topic response within %d seconds. Checking if it succeeded",
+			LOG.info("Did not receive delete topic response within {} seconds. Checking if it succeeded",
 				DELETE_TIMEOUT_SECONDS);
 			if (adminClient.listTopics().names().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS).contains(topic)) {
 				throw new Exception("Topic still exists after timeout");
@@ -274,18 +273,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
-		FlinkKafkaProducer<T> prod = new FlinkKafkaProducer<T>(
-			topic,
-			serSchema,
-			props,
-			Optional.of(new FlinkFixedPartitioner<>()),
-			producerSemantic,
-			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
-
-		prod.setWriteTimestampToKafka(true);
-
-		return stream.addSink(prod);
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KafkaSerializationSchema<T> serSchema, Properties props) {
+		return stream.addSink(new FlinkKafkaProducer<T>(
+				topic,
+				serSchema,
+				props,
+				producerSemantic));
 	}
 
 	@Override

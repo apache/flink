@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -27,12 +28,14 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -46,6 +49,7 @@ import static org.junit.Assert.fail;
  * Test base for fault tolerant streaming programs.
  */
 @RunWith(Parameterized.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 	@Parameterized.Parameters(name = "FailoverStrategy: {0}")
@@ -119,16 +123,14 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+						env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
 			testProgram(env);
 
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			try {
-				cluster.getClusterClient().submitJob(jobGraph, getClass().getClassLoader()).getJobExecutionResult();
-			}
-			catch (ProgramInvocationException root) {
+				ClientUtils.submitJobAndWaitForResult(cluster.getClusterClient(), jobGraph, getClass().getClassLoader()).getJobExecutionResult();
+			} catch (ProgramInvocationException root) {
 				Throwable cause = root.getCause();
 
 				// search for nested SuccessExceptions

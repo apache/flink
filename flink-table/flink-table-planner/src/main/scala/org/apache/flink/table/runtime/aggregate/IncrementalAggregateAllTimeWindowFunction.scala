@@ -27,20 +27,23 @@ import org.apache.flink.util.Collector
 
 /**
   *
-  * Computes the final aggregate value from incrementally computed aggregates.
+  * Computes the final (table)aggregate value from incrementally computed aggregates.
   *
   * @param windowStartOffset the offset of the window start property
   * @param windowEndOffset   the offset of the window end property
   * @param windowRowtimeOffset the offset of the window rowtime property
   * @param finalRowArity  The arity of the final output row.
+  * @param isTableAggregate Whether it is table aggregate.
   */
 class IncrementalAggregateAllTimeWindowFunction(
     private val windowStartOffset: Option[Int],
     private val windowEndOffset: Option[Int],
     private val windowRowtimeOffset: Option[Int],
-    private val finalRowArity: Int)
+    private val finalRowArity: Int,
+    private val isTableAggregate: Boolean)
   extends IncrementalAggregateAllWindowFunction[TimeWindow](
-    finalRowArity) {
+    finalRowArity,
+    isTableAggregate) {
 
   private var collector: DataStreamTimeWindowPropertyCollector = _
 

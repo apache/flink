@@ -17,7 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.testutils.junit.FailsOnJava11;
+
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * {@link KafkaShortRetentionTestBase} for Kafka 0.8 .
@@ -26,6 +29,7 @@ import org.junit.Test;
 public class KafkaShortRetention08ITCase extends KafkaShortRetentionTestBase {
 
 	@Test(timeout = 60000)
+	@Category(FailsOnJava11.class)
 	public void testAutoOffsetReset() throws Exception {
 		runAutoOffsetResetTest();
 	}

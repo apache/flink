@@ -19,19 +19,25 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.PipelineOptions
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.{Ignore, Test}
+
+import scala.collection.JavaConverters._
 
 class ExpressionReductionRulesTest extends TableTestBase {
 
   @Test
   def testReduceCalcExpressionForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -51,21 +57,21 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -76,7 +82,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceProjectExpressionForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -96,21 +102,21 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       )
     )
 
@@ -120,7 +126,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceFilterExpressionForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "*" +
@@ -128,7 +134,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -155,17 +161,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -191,17 +197,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       )
     )
 
@@ -218,7 +224,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -229,7 +235,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceCalcExpressionForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -249,21 +255,21 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -274,7 +280,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceProjectExpressionForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -294,21 +300,21 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       )
     )
 
@@ -318,7 +324,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceFilterExpressionForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "*" +
@@ -326,7 +332,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -353,17 +359,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -389,17 +395,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       )
     )
 
@@ -416,7 +422,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -428,7 +434,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   def testNestedTablesReductionStream(): Unit = {
     val util = streamTestUtil()
 
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val newTable = util.tableEnv.sqlQuery("SELECT 1 + 1 + a AS a FROM MyTable")
 
@@ -437,7 +443,10 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM NewTable"
 
     // 1+1 should be normalized to 2
-    val expected = unaryNode("DataStreamCalc", streamTableNode(0), term("select", "+(2, a) AS a"))
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "+(2, a) AS a"))
 
     util.verifySql(sqlQuery, expected)
   }
@@ -446,7 +455,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   def testNestedTablesReductionBatch(): Unit = {
     val util = batchTestUtil()
 
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val newTable = util.tableEnv.sqlQuery("SELECT 1 + 1 + a AS a FROM MyTable")
 
@@ -455,7 +464,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM NewTable"
 
     // 1+1 should be normalized to 2
-    val expected = unaryNode("DataSetCalc", batchTableNode(0), term("select", "+(2, a) AS a"))
+    val expected = unaryNode("DataSetCalc", batchTableNode(table), term("select", "+(2, a) AS a"))
 
     util.verifySql(sqlQuery, expected)
   }
@@ -472,7 +481,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
       .where("d.isNull")
       .select('a, 'b, 'c)
 
-    val expected: String = streamTableNode(0)
+    val expected: String = streamTableNode(table)
 
     util.verifyTable(result, expected)
   }
@@ -489,13 +498,71 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a", "b", "c"),
       term("where", s"IS NULL(NonDeterministicNullFunc$$())")
     )
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testReduceDeterministicPythonUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val result = table
+      .select('a, 'b, 'c, DeterministicPythonFunc() as 'd, DeterministicNullFunc() as 'e)
+
+    val expected: String = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "c", "DeterministicPythonFunc$() AS f0")
+      ),
+      term("select", "a", "b", "c", "f0 AS d", "null:VARCHAR(65536) AS e")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testExpressionReductionWithUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    util.addFunction("MyUdf", Func1)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "CAST(2) AS constantValue")
+    )
+
+    util.verifySql("SELECT MyUdf(1) as constantValue FROM MyTable", expected)
+
+  }
+
+  @Test
+  def testExpressionReductionWithRichUDF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    util.addFunction("MyUdf", new RichFunc1)
+    util.tableEnv
+      .getConfig
+      .addJobParameter("int.value", "10")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "CAST(11) AS constantValue")
+    )
+
+    util.verifySql("SELECT MyUdf(1) as constantValue FROM MyTable", expected)
+  }
+
 }
 
 object NonDeterministicNullFunc extends ScalarFunction {
@@ -506,4 +573,13 @@ object NonDeterministicNullFunc extends ScalarFunction {
 object DeterministicNullFunc extends ScalarFunction {
   def eval(): String = null
   override def isDeterministic = true
+}
+
+object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
+
+  def eval(): Long = 1L
+
+  override def getSerializedPythonFunction: Array[Byte] = null
+
+  override def getPythonEnv: PythonEnv = null
 }

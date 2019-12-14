@@ -30,19 +30,20 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.Preconditions;
 
@@ -78,7 +79,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
 
-	private volatile Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
+	private volatile Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
 
 	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
 
@@ -86,7 +87,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Function<Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>> sendSlotReportFunction;
 
-	private volatile BiConsumer<ResourceID, SlotReport> taskExecutorHeartbeatConsumer;
+	private volatile BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer;
 
 	private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
 
@@ -136,7 +137,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
 	}
 
-	public void setRegisterTaskExecutorFunction(Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
+	public void setRegisterTaskExecutorFunction(Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
 	}
 
@@ -152,7 +153,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.sendSlotReportFunction = sendSlotReportFunction;
 	}
 
-	public void setTaskExecutorHeartbeatConsumer(BiConsumer<ResourceID, SlotReport> taskExecutorHeartbeatConsumer) {
+	public void setTaskExecutorHeartbeatConsumer(BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer) {
 		this.taskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
 	}
 
@@ -212,11 +213,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<RegistrationResponse> registerTaskExecutor(String taskExecutorAddress, ResourceID resourceId, int dataPort, HardwareDescription hardwareDescription, Time timeout) {
-		final Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
+	public CompletableFuture<RegistrationResponse> registerTaskExecutor(TaskExecutorRegistration taskExecutorRegistration, Time timeout) {
+		final Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
 
 		if (currentFunction != null) {
-			return currentFunction.apply(Tuple4.of(taskExecutorAddress, resourceId, dataPort, hardwareDescription));
+			return currentFunction.apply(taskExecutorRegistration);
 		} else {
 			return CompletableFuture.completedFuture(
 				new TaskExecutorRegistrationSuccess(
@@ -246,11 +247,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, SlotReport slotReport) {
-		final BiConsumer<ResourceID, SlotReport> currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, TaskExecutorHeartbeatPayload heartbeatPayload) {
+		final BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
 
 		if (currentTaskExecutorHeartbeatConsumer != null) {
-			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, slotReport);
+			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload);
 		}
 	}
 

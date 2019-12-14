@@ -46,129 +46,41 @@ object CommonTestData {
     )
 
     val tempFilePath = writeToTempFile(csvRecords.mkString("$"), "csv-test", "tmp")
-    new CsvTableSource(
-      tempFilePath,
-      Array("first", "id", "score", "last"),
-      Array(
-        Types.STRING,
-        Types.INT,
-        Types.DOUBLE,
-        Types.STRING
-      ),
-      fieldDelim = "#",
-      rowDelim = "$",
-      ignoreFirstLine = true,
-      ignoreComments = "%"
-    )
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("first",Types.STRING)
+      .field("id",Types.INT)
+      .field("score",Types.DOUBLE)
+      .field("last",Types.STRING)
+      .fieldDelimiter("#")
+      .lineDelimiter("$")
+      .ignoreFirstLine()
+      .commentPrefix("%")
+      .build()
   }
 
-  def getInMemoryTestCatalog(isStreaming: Boolean): ExternalCatalog = {
-    val csvRecord1 = Seq(
-      "1#1#Hi",
-      "2#2#Hello",
-      "3#2#Hello world"
+  def getCsvTableSourceWithEmptyColumn: CsvTableSource = {
+    val csvRecords = Seq(
+      "First#Id#Score#Last",
+      "Mike#1#12.3#Smith",
+      "Bob#2##Taylor",
+      "% Just a comment",
+      "Leonard###"
     )
-    val tempFilePath1 = writeToTempFile(csvRecord1.mkString("\n"), "csv-test1", "tmp")
 
-    val connDesc1 = FileSystem().path(tempFilePath1)
-    val formatDesc1 = OldCsv()
-      .field("a", Types.INT)
-      .field("b", Types.LONG)
-      .field("c", Types.STRING)
+    val tempFilePath = writeToTempFile(csvRecords.mkString("$"), "csv-null-test", "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("first",Types.STRING)
+      .field("id",Types.INT)
+      .field("score",Types.DOUBLE)
+      .field("last",Types.STRING)
       .fieldDelimiter("#")
-    val schemaDesc1 = new Schema()
-      .field("a", Types.INT)
-      .field("b", Types.LONG)
-      .field("c", Types.STRING)
-    val externalTableBuilder1 = new ExternalCatalogTableBuilder(connDesc1)
-      .withFormat(formatDesc1)
-      .withSchema(schemaDesc1)
-
-    if (isStreaming) {
-      externalTableBuilder1.supportsStreaming().inAppendMode()
-    } else {
-      externalTableBuilder1.supportsBatch()
-    }
-
-    val csvRecord2 = Seq(
-      "1#1#0#Hallo#1",
-      "2#2#1#Hallo Welt#2",
-      "2#3#2#Hallo Welt wie#1",
-      "3#4#3#Hallo Welt wie gehts?#2",
-      "3#5#4#ABC#2",
-      "3#6#5#BCD#3",
-      "4#7#6#CDE#2",
-      "4#8#7#DEF#1",
-      "4#9#8#EFG#1",
-      "4#10#9#FGH#2",
-      "5#11#10#GHI#1",
-      "5#12#11#HIJ#3",
-      "5#13#12#IJK#3",
-      "5#14#13#JKL#2",
-      "5#15#14#KLM#2"
-    )
-    val tempFilePath2 = writeToTempFile(csvRecord2.mkString("\n"), "csv-test2", "tmp")
-
-    val connDesc2 = FileSystem().path(tempFilePath2)
-    val formatDesc2 = OldCsv()
-      .field("d", Types.INT)
-      .field("e", Types.LONG)
-      .field("f", Types.INT)
-      .field("g", Types.STRING)
-      .field("h", Types.LONG)
-      .fieldDelimiter("#")
-    val schemaDesc2 = new Schema()
-      .field("d", Types.INT)
-      .field("e", Types.LONG)
-      .field("f", Types.INT)
-      .field("g", Types.STRING)
-      .field("h", Types.LONG)
-    val externalTableBuilder2 = new ExternalCatalogTableBuilder(connDesc2)
-      .withFormat(formatDesc2)
-      .withSchema(schemaDesc2)
-
-    if (isStreaming) {
-      externalTableBuilder2.supportsStreaming().inAppendMode()
-    } else {
-      externalTableBuilder2.supportsBatch()
-    }
-
-    val tempFilePath3 = writeToTempFile("", "csv-test3", "tmp")
-    val connDesc3 = FileSystem().path(tempFilePath3)
-    val formatDesc3 = OldCsv()
-      .field("x", Types.INT)
-      .field("y", Types.LONG)
-      .field("z", Types.STRING)
-      .fieldDelimiter("#")
-    val schemaDesc3 = new Schema()
-      .field("x", Types.INT)
-      .field("y", Types.LONG)
-      .field("z", Types.STRING)
-    val externalTableBuilder3 = new ExternalCatalogTableBuilder(connDesc3)
-      .withFormat(formatDesc3)
-      .withSchema(schemaDesc3)
-
-    if (isStreaming) {
-      externalTableBuilder3.supportsStreaming().inAppendMode()
-    } else {
-      externalTableBuilder3.supportsBatch()
-    }
-
-    val catalog = new InMemoryExternalCatalog("test")
-    val db1 = new InMemoryExternalCatalog("db1")
-    val db2 = new InMemoryExternalCatalog("db2")
-    val db3 = new InMemoryExternalCatalog("db3")
-    catalog.createSubCatalog("db1", db1, ignoreIfExists = false)
-    catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
-    catalog.createSubCatalog("db3", db3, ignoreIfExists = false)
-
-    // Register the table with both catalogs
-    catalog.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
-    catalog.createTable("tb3", externalTableBuilder3.asTableSink(), ignoreIfExists = false)
-    db1.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
-    db2.createTable("tb2", externalTableBuilder2.asTableSource(), ignoreIfExists = false)
-    db3.createTable("tb3", externalTableBuilder3.asTableSink(), ignoreIfExists = false)
-    catalog
+      .lineDelimiter("$")
+      .ignoreFirstLine()
+      .commentPrefix("%")
+      .emptyColumnAsNull()
+      .build()
   }
 
   private def writeToTempFile(

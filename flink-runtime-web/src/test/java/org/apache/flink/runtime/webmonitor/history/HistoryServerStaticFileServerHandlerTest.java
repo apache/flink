@@ -63,7 +63,7 @@ public class HistoryServerStaticFileServerHandlerTest {
 			// verify that a) a file can be loaded using the ClassLoader and b) that the HistoryServer
 			// index_hs.html is injected
 			String index = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
-			Assert.assertTrue(index.contains("Apache Flink Web Dashboard"));
+			Assert.assertThat(index, containsString("Apache Flink Web Dashboard"));
 
 			// verify that index.html is appended if the request path ends on '/'
 			String index2 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/");
@@ -73,12 +73,12 @@ public class HistoryServerStaticFileServerHandlerTest {
 			File dir = new File(webDir, "dir.json");
 			dir.mkdirs();
 			String dirNotFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/dir");
-			Assert.assertTrue(dirNotFound404.contains("not found"));
+			Assert.assertThat(dirNotFound404, containsString("not found"));
 
 			// verify that a 404 message is returned when requesting a file outside the webDir
 			tmp.newFile("secret");
 			String x = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/../secret");
-			Assert.assertTrue(x.contains("not found"));
+			Assert.assertThat(x, containsString("not found"));
 		} finally {
 			webUI.shutdown();
 		}

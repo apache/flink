@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -52,6 +52,14 @@ under the License.
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -61,19 +69,18 @@ under the License.
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
 				<executions>
-					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-						scala classes can be resolved later in the (Java) compile phase -->
+					<!-- Run Scala compiler in the process-resources phase, so that dependencies on
+						Scala classes can be resolved later in the (Java) compile phase -->
 					<execution>
 						<id>scala-compile-first</id>
 						<phase>process-resources</phase>
 						<goals>
-							<goal>add-source</goal>
 							<goal>compile</goal>
 						</goals>
 					</execution>
 
-					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-						 scala classes can be resolved later in the (Java) test-compile phase -->
+					<!-- Run Scala compiler in the process-test-resources phase, so that dependencies on
+						 Scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>

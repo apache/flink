@@ -131,6 +131,17 @@ stream
     .addSink(...)
 {% endhighlight %}
 </div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+
+env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+
+# alternatively:
+# env.set_stream_time_characteristic(TimeCharacteristic.IngestionTime)
+# env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+{% endhighlight %}
+</div>
 </div>
 
 

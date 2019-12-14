@@ -280,4 +280,42 @@ public class SharedBufferTest extends TestLogger {
 		assertEquals(4, sharedBuffer.getSharedBufferNodeSize());
 	}
 
+	/**
+	 * Test releasing a node which has a long path to the terminal node (the node without an out-going edge).
+	 * @throws Exception if creating the shared buffer accessor fails.
+	 */
+	@Test
+	public void testReleaseNodesWithLongPath() throws Exception {
+		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
+
+		final int numberEvents = 100000;
+		Event[] events = new Event[numberEvents];
+		EventId[] eventIds = new EventId[numberEvents];
+		NodeId[] nodeIds = new NodeId[numberEvents];
+
+		final long timestamp = 1L;
+
+		for (int i = 0; i < numberEvents; i++) {
+			events[i] = new Event(i + 1, "e" + (i + 1), i);
+			eventIds[i] = sharedBuffer.registerEvent(events[i], timestamp);
+		}
+
+		try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+
+			for (int i = 0; i < numberEvents; i++) {
+				NodeId prevId = i == 0 ? null : nodeIds[i - 1];
+				nodeIds[i] = sharedBufferAccessor.put("n" + i, eventIds[i], prevId, DeweyNumber.fromString("1.0"));
+			}
+
+			NodeId lastNode = nodeIds[numberEvents - 1];
+			sharedBufferAccessor.releaseNode(lastNode);
+
+			for (int i = 0; i < numberEvents; i++) {
+				sharedBufferAccessor.releaseEvent(eventIds[i]);
+			}
+		}
+
+		assertTrue(sharedBuffer.isEmpty());
+	}
+
 }

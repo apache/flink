@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.api.dag.Transformation;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -28,7 +28,7 @@ import java.util.List;
 
 /**
  * This transformation represents a union of several input
- * {@link StreamTransformation StreamTransformations}.
+ * {@link Transformation Transformations}.
  *
  * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
@@ -36,20 +36,20 @@ import java.util.List;
  * @param <T> The type of the elements that result from this {@code UnionTransformation}
  */
 @Internal
-public class UnionTransformation<T> extends StreamTransformation<T> {
-	private final List<StreamTransformation<T>> inputs;
+public class UnionTransformation<T> extends Transformation<T> {
+	private final List<Transformation<T>> inputs;
 
 	/**
-	 * Creates a new {@code UnionTransformation} from the given input {@code StreamTransformations}.
+	 * Creates a new {@code UnionTransformation} from the given input {@code Transformations}.
 	 *
-	 * <p>The input {@code StreamTransformations} must all have the same type.
+	 * <p>The input {@code Transformations} must all have the same type.
 	 *
-	 * @param inputs The list of input {@code StreamTransformations}
+	 * @param inputs The list of input {@code Transformations}
 	 */
-	public UnionTransformation(List<StreamTransformation<T>> inputs) {
+	public UnionTransformation(List<Transformation<T>> inputs) {
 		super("Union", inputs.get(0).getOutputType(), inputs.get(0).getParallelism());
 
-		for (StreamTransformation<T> input: inputs) {
+		for (Transformation<T> input: inputs) {
 			if (!input.getOutputType().equals(getOutputType())) {
 				throw new UnsupportedOperationException("Type mismatch in input " + input);
 			}
@@ -59,25 +59,19 @@ public class UnionTransformation<T> extends StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the list of input {@code StreamTransformations}.
+	 * Returns the list of input {@code Transformations}.
 	 */
-	public List<StreamTransformation<T>> getInputs() {
+	public List<Transformation<T>> getInputs() {
 		return inputs;
 	}
 
 	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
-		for (StreamTransformation<T> input: inputs) {
+		for (Transformation<T> input: inputs) {
 			result.addAll(input.getTransitivePredecessors());
 		}
 		return result;
 	}
-
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on Union Transformation.");
-	}
-
 }

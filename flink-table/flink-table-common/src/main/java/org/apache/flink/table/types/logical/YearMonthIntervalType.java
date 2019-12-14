@@ -74,11 +74,13 @@ public final class YearMonthIntervalType extends LogicalType {
 
 	/**
 	 * Supported resolutions of this type.
+	 *
+	 * <p>Note: The order of this enum reflects the granularity from coarse to fine.
 	 */
 	public enum YearMonthResolution {
 		YEAR,
-		MONTH,
-		YEAR_TO_MONTH
+		YEAR_TO_MONTH,
+		MONTH
 	}
 
 	private final YearMonthResolution resolution;

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 
-import java.util.Collection;
+import java.util.List;
 
 /**
  * Component which is used by {@link SchedulingStrategy} to commit scheduling decisions.
@@ -29,8 +29,10 @@ public interface SchedulerOperations {
 
 	/**
 	 * Allocate slots and deploy the vertex when slots are returned.
+	 * The given order will be respected, i.e. tasks with smaller indices will be deployed earlier.
+	 * Only vertices in CREATED state will be accepted. Errors will happen if scheduling Non-CREATED vertices.
 	 *
-	 * @param executionVertexDeploymentOptions The tasks to be deployed and deployment options
+	 * @param executionVertexDeploymentOptions The deployment options of tasks to be deployed
 	 */
-	void allocateSlotsAndDeploy(Collection<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions);
+	void allocateSlotsAndDeploy(List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions);
 }

@@ -164,9 +164,9 @@ public class BinaryHashBucketArea {
 		this.size = 0;
 
 		int minNumBuckets = (int) Math.ceil((estimatedRowCount / loadFactor / NUM_ENTRIES_PER_BUCKET));
-		int bucketNumSegs = Math.max(1, Math.min(maxSegs, (minNumBuckets >>> table.bucketsPerSegmentBits) +
-				((minNumBuckets & table.bucketsPerSegmentMask) == 0 ? 0 : 1)));
-		int numBuckets = MathUtils.roundDownToPowerOf2(bucketNumSegs << table.bucketsPerSegmentBits);
+		int bucketNumSegs = MathUtils.roundDownToPowerOf2(Math.max(1, Math.min(maxSegs, (minNumBuckets >>> table.bucketsPerSegmentBits) +
+				((minNumBuckets & table.bucketsPerSegmentMask) == 0 ? 0 : 1))));
+		int numBuckets = bucketNumSegs << table.bucketsPerSegmentBits;
 
 		int threshold = (int) (numBuckets * NUM_ENTRIES_PER_BUCKET * loadFactor);
 
@@ -185,7 +185,7 @@ public class BinaryHashBucketArea {
 
 	private void setNewBuckets(MemorySegment[] buckets, int numBuckets, int threshold) {
 		this.buckets = buckets;
-		checkArgument(MathUtils.isPowerOf2(numBuckets));
+		checkArgument(MathUtils.isPowerOf2(buckets.length));
 		this.numBuckets = numBuckets;
 		this.numBucketsMask = numBuckets - 1;
 		this.overflowSegments = new MemorySegment[2];
@@ -203,7 +203,7 @@ public class BinaryHashBucketArea {
 		int oldNumBuckets = numBuckets;
 		MemorySegment[] oldOverflowSegments = overflowSegments;
 		int newNumSegs = oldBuckets.length * 2;
-		int newNumBuckets = MathUtils.roundDownToPowerOf2(newNumSegs << table.bucketsPerSegmentBits);
+		int newNumBuckets = newNumSegs << table.bucketsPerSegmentBits;
 		int newThreshold = (int) (newNumBuckets * NUM_ENTRIES_PER_BUCKET * loadFactor);
 
 		// We can't resize if not spillingAllowed and there are not enough buffers.

@@ -40,37 +40,21 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # if memory allocation mode is lazy and no other JVM options are set,
     # set the 'Concurrent Mark Sweep GC'
-    if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z "${FLINK_ENV_JAVA_OPTS}" ] && [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
+    if [ -z "${FLINK_ENV_JAVA_OPTS}" ] && [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
         export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
-    fi
-
-    if [ ! -z "${FLINK_TM_HEAP_MB}" ] && [ "${FLINK_TM_HEAP}" == 0 ]; then
-	    echo "used deprecated key \`${KEY_TASKM_MEM_MB}\`, please replace with key \`${KEY_TASKM_MEM_SIZE}\`"
-    else
-	    flink_tm_heap_bytes=$(parseBytes ${FLINK_TM_HEAP})
-	    FLINK_TM_HEAP_MB=$(getMebiBytes ${flink_tm_heap_bytes})
-    fi
-
-    if [[ ! ${FLINK_TM_HEAP_MB} =~ ${IS_NUMBER} ]] || [[ "${FLINK_TM_HEAP_MB}" -lt "0" ]]; then
-        echo "[ERROR] Configured TaskManager JVM heap size is not a number. Please set '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
-        exit 1
-    fi
-
-    if [ "${FLINK_TM_HEAP_MB}" -gt "0" ]; then
-
-        TM_HEAP_SIZE=$(calculateTaskManagerHeapSizeMB)
-        # Long.MAX_VALUE in TB: This is an upper bound, much less direct memory will be used
-        TM_MAX_OFFHEAP_SIZE="8388607T"
-
-        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
-
     fi
 
     # Add TaskManager-specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
 
     # Startup parameters
-    ARGS+=("--configDir" "${FLINK_CONF_DIR}")
+
+    jvm_params=$(getTmResourceJvmParams)
+    export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
+
+    IFS=$" "
+    dynamic_configs=($(getTmResourceDynamicConfigs))
+    ARGS+=("--configDir" "${FLINK_CONF_DIR}" ${dynamic_configs[@]})
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then

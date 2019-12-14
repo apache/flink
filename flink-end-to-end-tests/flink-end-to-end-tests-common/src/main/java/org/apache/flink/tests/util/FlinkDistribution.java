@@ -18,9 +18,11 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -30,8 +32,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,11 +46,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -64,18 +66,16 @@ public final class FlinkDistribution implements ExternalResource {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private static final Path FLINK_CONF_YAML = Paths.get("flink-conf.yaml");
-	private static final Path FLINK_CONF_YAML_BACKUP = Paths.get("flink-conf.yaml.bak");
+	private final Path logBackupDir;
 
-	private final List<AutoClosablePath> filesToDelete = new ArrayList<>(4);
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private final Optional<Path> logBackupDir;
-
-	private final Path opt;
-	private final Path lib;
-	private final Path conf;
-	private final Path log;
-	private final Path bin;
+	private final Path originalFlinkDir;
+	private Path opt;
+	private Path lib;
+	private Path conf;
+	private Path log;
+	private Path bin;
 
 	private Configuration defaultConfig;
 
@@ -85,24 +85,26 @@ public final class FlinkDistribution implements ExternalResource {
 			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
 		}
 		final String backupDirProperty = System.getProperty("logBackupDir");
-		logBackupDir = backupDirProperty == null
-			? Optional.empty()
-			: Optional.of(Paths.get(backupDirProperty));
-		final Path flinkDir = Paths.get(distDirProperty);
+		logBackupDir = backupDirProperty == null ? null : Paths.get(backupDirProperty);
+		originalFlinkDir = Paths.get(distDirProperty);
+	}
+
+	@Override
+	public void before() throws IOException {
+		temporaryFolder.create();
+
+		final Path flinkDir = temporaryFolder.newFolder().toPath();
+
+		LOG.info("Copying distribution to {}.", flinkDir);
+		TestUtils.copyDirectory(originalFlinkDir, flinkDir);
+
 		bin = flinkDir.resolve("bin");
 		opt = flinkDir.resolve("opt");
 		lib = flinkDir.resolve("lib");
 		conf = flinkDir.resolve("conf");
 		log = flinkDir.resolve("log");
-	}
 
-	@Override
-	public void before() throws IOException {
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
-		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
-		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
-		Files.copy(originalConfig, backupConfig);
-		filesToDelete.add(new AutoClosablePath(backupConfig));
 	}
 
 	@Override
@@ -113,37 +115,33 @@ public final class FlinkDistribution implements ExternalResource {
 			LOG.error("Failure while shutting down Flink cluster.", e);
 		}
 
-		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
-		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
-
-		try {
-			Files.move(backupConfig, originalConfig, StandardCopyOption.REPLACE_EXISTING);
-		} catch (IOException e) {
-			LOG.error("Failed to restore flink-conf.yaml", e);
-		}
-
-		for (AutoCloseable fileToDelete : filesToDelete) {
-			try {
-				fileToDelete.close();
-			} catch (Exception e) {
-				LOG.error("Failure while cleaning up file.", e);
-			}
-		}
+		temporaryFolder.delete();
 	}
 
 	@Override
 	public void afterTestFailure() {
-		logBackupDir.ifPresent(backupLocation -> {
-			LOG.info("Backing up logs to {}.", backupLocation);
+		if (logBackupDir != null) {
+			final UUID id = UUID.randomUUID();
+			LOG.info("Backing up logs to {}/{}.", logBackupDir, id);
 			try {
-				Files.createDirectories(backupLocation);
-				FileUtils.copyDirectory(log.toFile(), backupLocation.toFile());
+				Files.createDirectories(logBackupDir);
+				TestUtils.copyDirectory(log, logBackupDir.resolve(id.toString()));
 			} catch (IOException e) {
 				LOG.warn("An error occurred while backing up logs.", e);
 			}
-		});
+		}
 
 		afterTestSuccess();
+	}
+
+	public void startJobManager() throws IOException {
+		LOG.info("Starting Flink JobManager.");
+		AutoClosableProcess.runBlocking(bin.resolve("jobmanager.sh").toAbsolutePath().toString(), "start");
+	}
+
+	public void startTaskManager() throws IOException {
+		LOG.info("Starting Flink TaskManager.");
+		AutoClosableProcess.runBlocking(bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
 	}
 
 	public void startFlinkCluster() throws IOException {
@@ -190,6 +188,54 @@ public final class FlinkDistribution implements ExternalResource {
 		AutoClosableProcess.runBlocking(bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
 	}
 
+	public JobID submitJob(final JobSubmission jobSubmission) throws IOException {
+		final List<String> commands = new ArrayList<>(4);
+		commands.add(bin.resolve("flink").toString());
+		commands.add("run");
+		if (jobSubmission.isDetached()) {
+			commands.add("-d");
+		}
+		if (jobSubmission.getParallelism() > 0) {
+			commands.add("-p");
+			commands.add(String.valueOf(jobSubmission.getParallelism()));
+		}
+		commands.add(jobSubmission.getJar().toAbsolutePath().toString());
+		commands.addAll(jobSubmission.getArguments());
+
+		LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
+
+		try (AutoClosableProcess flink = new AutoClosableProcess(new ProcessBuilder()
+			.command(commands)
+			.start())) {
+
+			final Pattern pattern = jobSubmission.isDetached()
+				? Pattern.compile("Job has been submitted with JobID (.*)")
+				: Pattern.compile("Job with JobID (.*) has finished.");
+
+			if (jobSubmission.isDetached()) {
+				try {
+					flink.getProcess().waitFor();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+			}
+
+			try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(flink.getProcess().getInputStream(), StandardCharsets.UTF_8))) {
+				final Optional<String> jobId = bufferedReader.lines()
+					.peek(LOG::info)
+					.map(pattern::matcher)
+					.filter(Matcher::matches)
+					.map(matcher -> matcher.group(1))
+					.findAny();
+				if (!jobId.isPresent()) {
+					throw new IOException("Could not determine Job ID.");
+				} else {
+					return JobID.fromHexString(jobId.get());
+				}
+			}
+		}
+	}
+
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
 		final Optional<Path> reporterJarOptional;
 		try (Stream<Path> logFiles = Files.walk(opt)) {
@@ -201,7 +247,6 @@ public final class FlinkDistribution implements ExternalResource {
 			final Path optReporterJar = reporterJarOptional.get();
 			final Path libReporterJar = lib.resolve(optReporterJar.getFileName());
 			Files.copy(optReporterJar, libReporterJar);
-			filesToDelete.add(new AutoClosablePath(libReporterJar));
 		} else {
 			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + ".");
 		}

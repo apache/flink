@@ -1,5 +1,5 @@
 ---
-title: "Streaming Connectors"
+title: "流式连接器"
 nav-id: connectors
 nav-title: Connectors
 nav-parent_id: streaming
@@ -28,16 +28,15 @@ under the License.
 * toc
 {:toc}
 
-## Predefined Sources and Sinks
+## 预定义的 Source 和 Sink
 
-A few basic data sources and sinks are built into Flink and are always available.
-The [predefined data sources]({{ site.baseurl }}/dev/datastream_api.html#data-sources) include reading from files, directories, and sockets, and
-ingesting data from collections and iterators.
-The [predefined data sinks]({{ site.baseurl }}/dev/datastream_api.html#data-sinks) support writing to files, to stdout and stderr, and to sockets.
+一些比较基本的 Source 和 Sink 已经内置在 Flink 里。
+[预定义 data sources]({{ site.baseurl }}/zh/dev/datastream_api.html#data-sources) 支持从文件、目录、socket，以及 collections 和 iterators 中读取数据。
+[预定义 data sinks]({{ site.baseurl }}/zh/dev/datastream_api.html#data-sinks) 支持把数据写入文件、标准输出（stdout）、标准错误输出（stderr）和 socket。
 
-## Bundled Connectors
+## 附带的连接器
 
-Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
+连接器可以和多种多样的第三方系统进行交互。目前支持以下系统:
 
  * [Apache Kafka](kafka.html) (source/sink)
  * [Apache Cassandra](cassandra.html) (sink)
@@ -47,16 +46,15 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [RabbitMQ](rabbitmq.html) (source/sink)
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
+ * [Google PubSub](pubsub.html) (source/sink)
 
-Keep in mind that to use one of these connectors in an application, additional third party
-components are usually required, e.g. servers for the data stores or message queues.
-Note also that while the streaming connectors listed in this section are part of the
-Flink project and are included in source releases, they are not included in the binary distributions. 
-Further instructions can be found in the corresponding subsections.
+请记住，在使用一种连接器时，通常需要额外的第三方组件，比如：数据存储服务器或者消息队列。
+要注意这些列举的连接器是 Flink 工程的一部分，包含在发布的源码中，但是不包含在二进制发行版中。
+更多说明可以参考对应的子部分。
 
-## Connectors in Apache Bahir
+## Apache Bahir 中的连接器
 
-Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:
+Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apache.org/) 发布, 包括:
 
  * [Apache ActiveMQ](https://bahir.apache.org/docs/flink/current/flink-streaming-activemq/) (source/sink)
  * [Apache Flume](https://bahir.apache.org/docs/flink/current/flink-streaming-flume/) (sink)
@@ -64,23 +62,17 @@ Additional streaming connectors for Flink are being released through [Apache Bah
  * [Akka](https://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
  * [Netty](https://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
 
-## Other Ways to Connect to Flink
+## 连接Fink的其他方法
 
-### Data Enrichment via Async I/O
+### 异步 I/O
 
-Using a connector isn't the only way to get data in and out of Flink.
-One common pattern is to query an external database or web service in a `Map` or `FlatMap`
-in order to enrich the primary datastream.
-Flink offers an API for [Asynchronous I/O]({{ site.baseurl }}/dev/stream/operators/asyncio.html)
-to make it easier to do this kind of enrichment efficiently and robustly.
+使用connector并不是唯一可以使数据进入或者流出Flink的方式。
+一种常见的模式是从外部数据库或者 Web 服务查询数据得到初始数据流，然后通过 `Map` 或者 `FlatMap` 对初始数据流进行丰富和增强。
+Flink 提供了[异步 I/O]({{ site.baseurl }}/zh/dev/stream/operators/asyncio.html) API 来让这个过程更加简单、高效和稳定。
 
-### Queryable State
+### 可查询状态
 
-When a Flink application pushes a lot of data to an external data store, this
-can become an I/O bottleneck.
-If the data involved has many fewer reads than writes, a better approach can be
-for an external application to pull from Flink the data it needs.
-The [Queryable State]({{ site.baseurl }}/dev/stream/state/queryable_state.html) interface
-enables this by allowing the state being managed by Flink to be queried on demand.
+当 Flink 应用程序需要向外部存储推送大量数据时会导致 I/O 瓶颈问题出现。在这种场景下，如果对数据的读操作远少于写操作，那么让外部应用从 Flink 拉取所需的数据会是一种更好的方式。
+[可查询状态]({{ site.baseurl }}/zh/dev/stream/state/queryable_state.html) 接口可以实现这个功能，该接口允许被 Flink 托管的状态可以被按需查询。
 
 {% top %}

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongComparator;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.table.api.DataTypes;
 
 import java.lang.reflect.Constructor;
 import java.util.Objects;
@@ -36,8 +37,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Type information for SQL INTERVAL types.
+ *
+ * @deprecated This class will be removed in future versions as it is used for the old type system. It
+ *             is recommended to use {@link DataTypes} instead. Please make sure to use either the old
+ *             or the new type system consistently to avoid unintended behavior. See the website documentation
+ *             for more information.
  */
 @Internal
+@Deprecated
 public final class TimeIntervalTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private static final long serialVersionUID = -1816179424364825258L;

@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.hashtable;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.util.BitSet;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.RowIterator;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;

@@ -40,6 +40,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
+/**
+ * Test for snapshot compatiblily between differen state tables.
+ */
 public class StateTableSnapshotCompatibilityTest {
 	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 
@@ -57,8 +60,7 @@ public class StateTableSnapshotCompatibilityTest {
 				IntSerializer.INSTANCE,
 				new ArrayListSerializer<>(IntSerializer.INSTANCE));
 
-		final CopyOnWriteStateTableTest.MockInternalKeyContext<Integer> keyContext =
-			new CopyOnWriteStateTableTest.MockInternalKeyContext<>();
+		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
 		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> cowStateTable =
 			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
@@ -70,7 +72,8 @@ public class StateTableSnapshotCompatibilityTest {
 				list.add(r.nextInt(100));
 			}
 
-			cowStateTable.put(r.nextInt(10), r.nextInt(2), list);
+			keyContext.setCurrentKey(r.nextInt(10));
+			cowStateTable.put(r.nextInt(2), list);
 		}
 
 		StateSnapshot snapshot = cowStateTable.stateSnapshot();
@@ -80,7 +83,6 @@ public class StateTableSnapshotCompatibilityTest {
 
 		restoreStateTableFromSnapshot(nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
 		snapshot.release();
-
 
 		Assert.assertEquals(cowStateTable.size(), nestedMapsStateTable.size());
 		for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {

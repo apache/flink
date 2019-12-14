@@ -102,4 +102,20 @@ public class BlobServerOptions {
 	public static final ConfigOption<Integer> OFFLOAD_MINSIZE = key("blob.offload.minsize")
 		.defaultValue(1_024 * 1_024) // 1MiB by default
 		.withDescription("The minimum size for messages to be offloaded to the BlobServer.");
+
+	/**
+	 * The socket timeout in milliseconds for the blob client.
+	 */
+	public static final ConfigOption<Integer> SO_TIMEOUT =
+		key("blob.client.socket.timeout")
+			.defaultValue(300_000)
+			.withDescription("The socket timeout in milliseconds for the blob client.");
+
+	/**
+	 * The connection timeout in milliseconds for the blob client.
+	 */
+	public static final ConfigOption<Integer> CONNECT_TIMEOUT =
+		key("blob.client.connect.timeout")
+			.defaultValue(0)
+			.withDescription("The connection timeout in milliseconds for the blob client.");
 }

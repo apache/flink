@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
@@ -240,16 +240,6 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			}
 		} catch (Exception e) {
 			LOG.warn("Failed to subsume the old checkpoint", e);
-		}
-	}
-
-	@Override
-	public CompletedCheckpoint getLatestCheckpoint() {
-		if (completedCheckpoints.isEmpty()) {
-			return null;
-		}
-		else {
-			return completedCheckpoints.peekLast();
 		}
 	}
 

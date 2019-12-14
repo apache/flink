@@ -31,6 +31,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -70,10 +71,8 @@ public class AutoClosableProcess implements AutoCloseable {
 	 */
 	public static final class AutoClosableProcessBuilder {
 		private final String[] commands;
-		private Consumer<String> stdoutProcessor = line -> {
-		};
-		private Consumer<String> stderrProcessor = line -> {
-		};
+		private Consumer<String> stdoutProcessor = LOG::debug;
+		private Consumer<String> stderrProcessor = LOG::debug;
 
 		AutoClosableProcessBuilder(final String... commands) {
 			this.commands = commands;
@@ -123,6 +122,7 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private static Process createProcess(final String[] commands, Consumer<String> stdoutProcessor, Consumer<String> stderrProcessor) throws IOException {
 		final ProcessBuilder processBuilder = new ProcessBuilder();
+		LOG.debug("Creating process: {}", Arrays.toString(commands));
 		processBuilder.command(commands);
 
 		final Process process = processBuilder.start();

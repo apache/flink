@@ -41,10 +41,6 @@ public class BufferBuilderTestUtils {
 		return createFilledBufferBuilder(size, 0);
 	}
 
-	public static BufferBuilder createFilledBufferBuilder(int dataSize) {
-		return createFilledBufferBuilder(BUFFER_SIZE, dataSize);
-	}
-
 	public static BufferBuilder createFilledBufferBuilder(int size, int dataSize) {
 		checkArgument(size >= dataSize);
 		BufferBuilder bufferBuilder = new BufferBuilder(
@@ -70,20 +66,37 @@ public class BufferBuilderTestUtils {
 		return buffer;
 	}
 
-	public static BufferConsumer createFilledBufferConsumer(int size, int dataSize) {
-		BufferBuilder bufferBuilder = createFilledBufferBuilder(size, dataSize);
-		bufferBuilder.finish();
-		return bufferBuilder.createBufferConsumer();
+	public static BufferConsumer createFilledFinishedBufferConsumer(int dataSize) {
+		return createFilledBufferConsumer(dataSize, dataSize, true, false);
 	}
 
-	public static BufferConsumer createFilledBufferConsumer(int dataSize) {
-		return createFilledBufferConsumer(BUFFER_SIZE, dataSize);
+	public static BufferConsumer createFilledFinishedBufferConsumer(int dataSize, boolean isShareable) {
+		return createFilledBufferConsumer(dataSize, dataSize, true, isShareable);
+	}
+
+	public static BufferConsumer createFilledUnfinishedBufferConsumer(int dataSize) {
+		return createFilledBufferConsumer(dataSize, dataSize, false, false);
+	}
+
+	public static BufferConsumer createFilledBufferConsumer(int size, int dataSize, boolean isFinished, boolean isShareable) {
+		checkArgument(size >= dataSize);
+
+		BufferBuilder bufferBuilder = createBufferBuilder(size);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer(isShareable);
+		fillBufferBuilder(bufferBuilder, dataSize);
+
+		if (isFinished) {
+			bufferBuilder.finish();
+		}
+
+		return bufferConsumer;
 	}
 
 	public static BufferConsumer createEventBufferConsumer(int size) {
 		return new BufferConsumer(
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE,
+			false,
 			false);
 	}
 
@@ -111,5 +124,9 @@ public class BufferBuilderTestUtils {
 	public static Buffer buildSomeBuffer(int size) {
 		final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(size);
 		return new NetworkBuffer(seg, MemorySegment::free, true, size);
+	}
+
+	public static BufferBuilder createEmptyBufferBuilder(int bufferSize) {
+		return new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
 	}
 }

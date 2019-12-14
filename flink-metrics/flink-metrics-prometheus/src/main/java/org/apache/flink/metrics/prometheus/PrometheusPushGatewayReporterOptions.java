@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.LinkElement;
+import org.apache.flink.configuration.description.TextElement;
 
 /**
  * Config options for the {@link PrometheusPushGatewayReporter}.
@@ -63,4 +64,15 @@ public class PrometheusPushGatewayReporterOptions {
 				" Before disabling this option please ensure that your" +
 				" label values meet the %s.", LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus requirements"))
 			.build());
+
+	public static final ConfigOption<String> GROUPING_KEY = ConfigOptions
+		.key("groupingKey")
+		.defaultValue("")
+			.withDescription(Description.builder()
+				.text("Specifies the grouping key which is the group and global labels of all metrics." +
+					" The label name and value are separated by '=', and labels are separated by ';', e.g., %s." +
+					" Please ensure that your grouping key meets the %s.",
+					TextElement.code("k1=v1;k2=v2"),
+					LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus requirements"))
+					.build());
 }

@@ -44,7 +44,7 @@ public final class GlobalConfiguration {
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
 	// the keys whose values should be hidden
-	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret"};
+	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret", "fs.azure.account.key"};
 
 	// the hidden content to be displayed
 	public static final String HIDDEN_CONTENT = "******";
@@ -63,11 +63,23 @@ public final class GlobalConfiguration {
 	 * @return Returns the Configuration
 	 */
 	public static Configuration loadConfiguration() {
+		return loadConfiguration(new Configuration());
+	}
+
+	/**
+	 * Loads the global configuration and adds the given dynamic properties
+	 * configuration.
+	 *
+	 * @param dynamicProperties The given dynamic properties
+	 * @return Returns the loaded global configuration with dynamic properties
+	 */
+	public static Configuration loadConfiguration(Configuration dynamicProperties) {
 		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		if (configDir == null) {
-			return new Configuration();
+			return new Configuration(dynamicProperties);
 		}
-		return loadConfiguration(configDir, null);
+
+		return loadConfiguration(configDir, dynamicProperties);
 	}
 
 	/**
@@ -119,22 +131,6 @@ public final class GlobalConfiguration {
 		}
 
 		return configuration;
-	}
-
-	/**
-	 * Loads the global configuration and adds the given dynamic properties
-	 * configuration.
-	 *
-	 * @param dynamicProperties The given dynamic properties
-	 * @return Returns the loaded global configuration with dynamic properties
-	 */
-	public static Configuration loadConfigurationWithDynamicProperties(Configuration dynamicProperties) {
-		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		if (configDir == null) {
-			return new Configuration(dynamicProperties);
-		}
-
-		return loadConfiguration(configDir, dynamicProperties);
 	}
 
 	/**

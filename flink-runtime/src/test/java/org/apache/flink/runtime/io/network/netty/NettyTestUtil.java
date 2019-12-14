@@ -26,6 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,6 +47,23 @@ public class NettyTestUtil {
 
 		try {
 			server.init(protocol, bufferPool);
+		}
+		catch (Exception e) {
+			server.shutdown();
+			throw e;
+		}
+
+		return server;
+	}
+
+	static NettyServer initServer(
+			NettyConfig config,
+			NettyBufferPool bufferPool,
+			Function<SSLHandlerFactory, NettyServer.ServerChannelInitializer> channelInitializer) throws Exception {
+		final NettyServer server = new NettyServer(config);
+
+		try {
+			server.init(bufferPool, channelInitializer);
 		}
 		catch (Exception e) {
 			server.shutdown();

@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
@@ -97,13 +98,13 @@ public final class CliUtils {
 			if (field == null) {
 				fields[i] = CliStrings.NULL_COLUMN;
 			} else {
-				fields[i] = field.toString();
+				fields[i] = EncodingUtils.objectToString(field);
 			}
 		}
 		return fields;
 	}
 
-	public static String[] typesToString(TypeInformation<?>[] types) {
+	public static String[] typesToString(DataType[] types) {
 		final String[] typesAsString = new String[types.length];
 		for (int i = 0; i < types.length; i++) {
 			typesAsString[i] = types[i].toString();

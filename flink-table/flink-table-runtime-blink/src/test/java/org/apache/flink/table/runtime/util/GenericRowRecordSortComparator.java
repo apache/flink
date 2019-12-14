@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.io.Serializable;
 import java.util.Comparator;
@@ -34,9 +34,9 @@ public class GenericRowRecordSortComparator implements Comparator<GenericRow>, S
 	private static final long serialVersionUID = -4988371592272863772L;
 
 	private final int sortKeyIdx;
-	private final InternalType sortKeyType;
+	private final LogicalType sortKeyType;
 
-	public GenericRowRecordSortComparator(int sortKeyIdx, InternalType sortKeyType) {
+	public GenericRowRecordSortComparator(int sortKeyIdx, LogicalType sortKeyType) {
 		this.sortKeyIdx = sortKeyIdx;
 		this.sortKeyType = sortKeyType;
 	}

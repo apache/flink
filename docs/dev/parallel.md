@@ -190,7 +190,7 @@ The maximum parallelism can be set in places where you can also set a parallelis
 `setMaxParallelism()` to set the maximum parallelism.
 
 The default setting for the maximum parallelism is roughly `operatorParallelism + (operatorParallelism / 2)` with
-a lower bound of `127` and an upper bound of `32768`.
+a lower bound of `128` and an upper bound of `32768`.
 
 <span class="label label-danger">Attention</span> Setting the maximum parallelism to a very large
 value can be detrimental to performance because some state backends have to keep internal data

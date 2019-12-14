@@ -47,6 +47,12 @@ available.
 {:toc}
 
 ## Examples
+### Job Submission Examples
+-----------------------------
+
+These examples about how to submit a job in CLI.
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 -   Run example program with no arguments:
 
@@ -84,9 +90,58 @@ available.
 
 -   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
-        ./bin/flink run -m yarn-cluster -yn 2 \
+        ./bin/flink run -m yarn-cluster \
                                ./examples/batch/WordCount.jar \
                                --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+-   Run Python Table program:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py
+
+-   Run Python Table program with pyFiles:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py \
+                                -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
+
+-   Run Python Table program with a JAR file:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <jarFile>
+
+-   Run Python Table program with pyFiles and pyModule:
+
+        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch
+
+-   Run Python Table program with parallelism 16:
+
+        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py
+
+-   Run Python Table program with flink log output disabled:
+
+        ./bin/flink run -q -py examples/python/table/batch/word_count.py
+
+-   Run Python Table program in detached mode:
+
+        ./bin/flink run -d -py examples/python/table/batch/word_count.py
+
+-   Run Python Table program on a specific JobManager:
+
+        ./bin/flink run -m myJMHost:8081 \
+                               -py examples/python/table/batch/word_count.py
+
+-   Run Python Table program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+
+        ./bin/flink run -m yarn-cluster \
+                               -py examples/python/table/batch/word_count.py
+</div>
+
+### Job Management Examples
+-----------------------------
+
+These examples about how to manage a job in CLI.
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
@@ -117,29 +172,13 @@ available.
 
         ./bin/flink cancel <jobID>
 
--   Cancel a job with a savepoint:
+-   Cancel a job with a savepoint (deprecated; use "stop" instead):
 
         ./bin/flink cancel -s [targetDirectory] <jobID>
 
--   Stop a job with a savepoint (streaming jobs only):
+-   Gracefully stop a job with a savepoint (streaming jobs only):
 
-        ./bin/flink stop -s [targetDirectory] -d <jobID>
-        
-
-**NOTE**: The difference between cancelling and stopping a (streaming) job is the following:
-
-On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
-soon as possible.
-If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
-until it stops.
-
-A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from 
-source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
-that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
-`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
-barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for 
-a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
- job to finish processing all in-flight data. 
+        ./bin/flink stop [-p targetDirectory] [-d] <jobID>
 
 ### Savepoints
 
@@ -168,7 +207,24 @@ This will trigger a savepoint for the job with ID `jobId` and YARN application I
 
 Everything else is the same as described in the above **Trigger a Savepoint** section.
 
-#### Cancel with a savepoint
+#### Stop
+
+Use the `stop` to gracefully stop a running streaming job with a savepoint.
+
+{% highlight bash %}
+./bin/flink stop [-p targetDirectory] [-d] <jobID>
+{% endhighlight %}
+
+A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from
+source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
+that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
+`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint
+barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for
+a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
+ job to finish processing all in-flight data.
+
+
+#### Cancel with a savepoint (deprecated)
 
 You can atomically trigger a savepoint and cancel a job.
 
@@ -179,6 +235,10 @@ You can atomically trigger a savepoint and cancel a job.
 If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+    <b>Note</b>: Cancelling a job with savepoint is deprecated. Use "stop" instead.
+</p>
 
 #### Restore a savepoint
 
@@ -251,6 +311,73 @@ Action "run" compiles and runs a program.
                                           program. Optional flag to override the
                                           default value specified in the
                                           configuration.
+     -py,--python <pythonFile>            Python script with the program entry
+                                          point. The dependent resources can be
+                                          configured with the `--pyFiles`
+                                          option.
+     -pyarch,--pyArchives <arg>           Add python archive files for job. The
+                                          archive files will be extracted to the
+                                          working directory of python UDF
+                                          worker. Currently only zip-format is
+                                          supported. For each archive file, a
+                                          target directory be specified. If the
+                                          target directory name is specified,
+                                          the archive file will be extracted to
+                                          a name can directory with the
+                                          specified name. Otherwise, the archive
+                                          file will be extracted to a directory
+                                          with the same name of the archive
+                                          file. The files uploaded via this
+                                          option are accessible via relative
+                                          path. '#' could be used as the
+                                          separator of the archive file path and
+                                          the target directory name. Comma (',')
+                                          could be used as the separator to
+                                          specify multiple archive files. This
+                                          option can be used to upload the
+                                          virtual environment, the data files
+                                          used in Python UDF (e.g.: --pyArchives
+                                          file:///tmp/py37.zip,file:///tmp/data.
+                                          zip#data --pyExecutable
+                                          py37.zip/py37/bin/python). The data
+                                          files could be accessed in Python UDF,
+                                          e.g.: f = open('data/data.txt', 'r').
+     -pyexec,--pyExecutable <arg>         Specify the path of the python
+                                          interpreter used to execute the python
+                                          UDF worker (e.g.: --pyExecutable
+                                          /usr/local/bin/python3). The python
+                                          UDF worker depends on Python 3.5+,
+                                          Apache Beam (version == 2.15.0), Pip
+                                          (version >= 7.1.0) and SetupTools
+                                          (version >= 37.0.0). Please ensure
+                                          that the specified environment meets
+                                          the above requirements.
+     -pyfs,--pyFiles <pythonFiles>        Attach custom python files for job.
+                                          These files will be added to the
+                                          PYTHONPATH of both the local client
+                                          and the remote python UDF worker. The
+                                          standard python resource file suffixes
+                                          such as .py/.egg/.zip or directory are
+                                          all supported. Comma (',') could be
+                                          used as the separator to specify
+                                          multiple files (e.g.: --pyFiles
+                                          file:///tmp/myresource.zip,hdfs:///$na
+                                          menode_address/myresource2.zip).
+     -pym,--pyModule <pythonModule>       Python module with the program entry
+                                          point. This option must be used in
+                                          conjunction with `--pyFiles`.
+     -pyreq,--pyRequirements <arg>        Specify a requirements.txt file which
+                                          defines the third-party dependencies.
+                                          These dependencies will be installed
+                                          and added to the PYTHONPATH of the
+                                          python UDF worker. A directory which
+                                          contains the installation packages of
+                                          these dependencies could be specified
+                                          optionally. Use '#' as the separator
+                                          if the optional parameter exists
+                                          (e.g.: --pyRequirements
+                                          file:///tmp/requirements.txt#file:///t
+                                          mp/cached_dir).                                                                          
      -q,--sysoutLogging                   If present, suppress logging output to
                                           standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
@@ -274,6 +401,8 @@ Action "run" compiles and runs a program.
                                           shutdown when the CLI is terminated
                                           abruptly, e.g., in response to a user
                                           interrupt, such as typing Ctrl + C.
+     -yat,--yarnapplicationType <arg>     Set a custom application type for the
+                                          application on YARN
      -yD <property=value>                 use value for given property
      -yd,--yarndetached                   If present, runs the job in detached
                                           mode (deprecated; use non-YARN
@@ -283,15 +412,12 @@ Action "run" compiles and runs a program.
      -yj,--yarnjar <arg>                  Path to Flink jar file
      -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container
                                           with optional unit (default: MB)
-     -yn,--yarncontainer <arg>            Number of YARN container to allocate
-                                          (=Number of Task Managers)
      -ynm,--yarnname <arg>                Set a custom name for the application
                                           on YARN
      -yq,--yarnquery                      Display available YARN resources
                                           (memory, cores)
      -yqu,--yarnqueue <arg>               Specify YARN queue.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
-     -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
                                           (t for transfer), multiple options are 
                                           supported.
@@ -359,11 +485,20 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
   "stop" action options:
      -d,--drain                           Send MAX_WATERMARK before taking the
                                           savepoint and stopping the pipelne.
-     -s,--withSavepoint <withSavepoint>   Path to the savepoint (for example
+     -p,--savepointPath <savepointPath>   Path to the savepoint (for example
                                           hdfs:///flink/savepoint-1537). If no
                                           directory is specified, the configured
                                           default will be used
                                           ("state.savepoints.dir").
+  Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
@@ -378,7 +513,10 @@ Action "cancel" cancels a running program.
 
   Syntax: cancel [OPTIONS] <Job ID>
   "cancel" action options:
-     -s,--withSavepoint <targetDirectory>   Trigger savepoint and cancel job.
+     -s,--withSavepoint <targetDirectory>   **DEPRECATION WARNING**: Cancelling
+                                            a job with savepoint is deprecated.
+                                            Use "stop" instead.
+                                            Trigger savepoint and cancel job.
                                             The target directory is optional. If
                                             no directory is specified, the
                                             configured default directory

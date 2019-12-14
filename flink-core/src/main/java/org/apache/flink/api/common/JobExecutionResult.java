@@ -56,6 +56,16 @@ public class JobExecutionResult extends JobSubmissionResult {
 		}
 	}
 
+	@Override
+	public boolean isJobExecutionResult() {
+		return true;
+	}
+
+	@Override
+	public JobExecutionResult getJobExecutionResult() {
+		return this;
+	}
+
 	/**
 	 * Gets the net execution time of the job, i.e., the execution time in the parallel system,
 	 * without the pre-flight steps like the optimizer.

@@ -27,7 +27,6 @@ import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -45,12 +44,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -71,7 +71,11 @@ import java.util.stream.Stream;
 
 /**
  * A {@link DataType} can be used to declare input and/or output types of operations. This class
- * enumerates all supported data types of the Table & SQL API.
+ * enumerates all pre-defined data types of the Table & SQL API.
+ *
+ * <p>NOTE: Planners might not support every data type with the desired precision or parameter. Please
+ * see the planner compatibility and limitations section in the website documentation before using a
+ * data type.
  */
 @PublicEvolving
 public final class DataTypes {
@@ -81,7 +85,7 @@ public final class DataTypes {
 
 	/**
 	 * Data type of a fixed-length character string {@code CHAR(n)} where {@code n} is the number
-	 * of code points. {@code n} must have a value between 1 and 255 (both inclusive).
+	 * of code points. {@code n} must have a value between 1 and {@link Integer#MAX_VALUE} (both inclusive).
 	 *
 	 * @see CharType
 	 */
@@ -240,10 +244,27 @@ public final class DataTypes {
 	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
 	 * semantics are closer to {@link java.time.LocalTime}. A time WITH time zone is not provided.
 	 *
+	 * @see #TIME()
 	 * @see TimeType
 	 */
 	public static DataType TIME(int precision) {
 		return new AtomicDataType(new TimeType(precision));
+	}
+
+	/**
+	 * Data type of a time WITHOUT time zone {@code TIME} with no fractional seconds by default.
+	 *
+	 * <p>An instance consists of {@code hour:minute:second} with up to second precision
+	 * and values ranging from {@code 00:00:00} to {@code 23:59:59}.
+	 *
+	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
+	 * semantics are closer to {@link java.time.LocalTime}. A time WITH time zone is not provided.
+	 *
+	 * @see #TIME(int)
+	 * @see TimeType
+	 */
+	public static DataType TIME() {
+		return new AtomicDataType(new TimeType());
 	}
 
 	/**
@@ -267,6 +288,26 @@ public final class DataTypes {
 	}
 
 	/**
+	 * Data type of a timestamp WITHOUT time zone {@code TIMESTAMP} with 6 digits of fractional seconds
+	 * by default.
+	 *
+	 * <p>An instance consists of {@code year-month-day hour:minute:second[.fractional]} with up to
+	 * microsecond precision and values ranging from {@code 0000-01-01 00:00:00.000000} to
+	 * {@code 9999-12-31 23:59:59.999999}.
+	 *
+	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
+	 * semantics are closer to {@link java.time.LocalDateTime}.
+	 *
+	 * @see #TIMESTAMP(int)
+	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
+	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
+	 * @see TimestampType
+	 */
+	public static DataType TIMESTAMP() {
+		return new AtomicDataType(new TimestampType());
+	}
+
+	/**
 	 * Data type of a timestamp WITH time zone {@code TIMESTAMP(p) WITH TIME ZONE} where {@code p} is
 	 * the number of digits of fractional seconds (=precision). {@code p} must have a value between 0
 	 * and 9 (both inclusive).
@@ -284,6 +325,26 @@ public final class DataTypes {
 	 */
 	public static DataType TIMESTAMP_WITH_TIME_ZONE(int precision) {
 		return new AtomicDataType(new ZonedTimestampType(precision));
+	}
+
+	/**
+	 * Data type of a timestamp WITH time zone {@code TIMESTAMP WITH TIME ZONE} with 6 digits of fractional
+	 * seconds by default.
+	 *
+	 * <p>An instance consists of {@code year-month-day hour:minute:second[.fractional] zone} with up
+	 * to microsecond precision and values ranging from {@code 0000-01-01 00:00:00.000000 +14:59} to
+	 * {@code 9999-12-31 23:59:59.999999 -14:59}.
+	 *
+	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
+	 * semantics are closer to {@link java.time.OffsetDateTime}.
+	 *
+	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
+	 * @see #TIMESTAMP(int)
+	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
+	 * @see ZonedTimestampType
+	 */
+	public static DataType TIMESTAMP_WITH_TIME_ZONE() {
+		return new AtomicDataType(new ZonedTimestampType());
 	}
 
 	/**
@@ -310,6 +371,32 @@ public final class DataTypes {
 	 */
 	public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE(int precision) {
 		return new AtomicDataType(new LocalZonedTimestampType(precision));
+	}
+
+	/**
+	 * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP WITH LOCAL TIME ZONE} with 6 digits
+	 * of fractional seconds by default.
+	 *
+	 * <p>An instance consists of {@code year-month-day hour:minute:second[.fractional] zone} with up
+	 * to microsecond precision and values ranging from {@code 0000-01-01 00:00:00.000000 +14:59} to
+	 * {@code 9999-12-31 23:59:59.999999 -14:59}. Leap seconds (23:59:60 and 23:59:61) are not supported
+	 * as the semantics are closer to {@link java.time.OffsetDateTime}.
+	 *
+	 * <p>Compared to {@link ZonedTimestampType}, the time zone offset information is not stored physically
+	 * in every datum. Instead, the type assumes {@link java.time.Instant} semantics in UTC time zone
+	 * at the edges of the table ecosystem. Every datum is interpreted in the local time zone configured
+	 * in the current session for computation and visualization.
+	 *
+	 * <p>This type fills the gap between time zone free and time zone mandatory timestamp types by
+	 * allowing the interpretation of UTC timestamps according to the configured session timezone.
+	 *
+	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
+	 * @see #TIMESTAMP(int)
+	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
+	 * @see LocalZonedTimestampType
+	 */
+	public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE() {
+		return new AtomicDataType(new LocalZonedTimestampType());
 	}
 
 	/**
@@ -353,7 +440,7 @@ public final class DataTypes {
 	 * hours to minutes, interval of hours to seconds, interval of minutes, interval of minutes to seconds,
 	 * or interval of seconds. The value representation is the same for all types of resolutions. For
 	 * example, an interval of seconds of 70 is always represented in an interval-of-days-to-seconds
-	 * format (with default precisions): {@code +00 00:01:10.000000}).
+	 * format (with default precisions): {@code +00 00:01:10.000000}.
 	 *
 	 * <p>An interval of year-month consists of {@code +years-months} with values ranging from {@code -9999-11}
 	 * to {@code +9999-11}. The type must be parameterized to one of the following resolutions: interval
@@ -459,35 +546,51 @@ public final class DataTypes {
 	 * Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
 	 * and is only deserialized at the edges.
 	 *
-	 * <p>The any type is an extension to the SQL standard.
+	 * <p>The raw type is an extension to the SQL standard.
 	 *
-	 * <p>This method assumes that a {@link TypeSerializer} instance is present. Use {@link #ANY(TypeInformation)}
+	 * <p>This method assumes that a {@link TypeSerializer} instance is present. Use {@link #RAW(TypeInformation)}
 	 * for generating a serializer from Flink's core type system automatically in subsequent layers.
 	 *
 	 * @param clazz originating value class
 	 * @param serializer type serializer
 	 *
-	 * @see AnyType
+	 * @see RawType
 	 */
+	public static <T> DataType RAW(Class<T> clazz, TypeSerializer<T> serializer) {
+		return new AtomicDataType(new RawType<>(clazz, serializer));
+	}
+
+	/**
+	 * @deprecated Use {@link #RAW(Class, TypeSerializer)} instead.
+	 */
+	@Deprecated
 	public static <T> DataType ANY(Class<T> clazz, TypeSerializer<T> serializer) {
-		return new AtomicDataType(new AnyType<>(clazz, serializer));
+		return RAW(clazz, serializer);
 	}
 
 	/**
 	 * Data type of an arbitrary serialized type backed by {@link TypeInformation}. This type is
 	 * a black box within the table ecosystem and is only deserialized at the edges.
 	 *
-	 * <p>The any type is an extension to the SQL standard.
+	 * <p>The raw type is an extension to the SQL standard.
 	 *
-	 * <p>Compared to an {@link #ANY(Class, TypeSerializer)}, this type does not contain a {@link TypeSerializer}
+	 * <p>Compared to an {@link #RAW(Class, TypeSerializer)}, this type does not contain a {@link TypeSerializer}
 	 * yet. The serializer will be generated from the enclosed {@link TypeInformation} but needs access
 	 * to the {@link ExecutionConfig} of the current execution environment. Thus, this type is just a
 	 * placeholder.
 	 *
-	 * @see TypeInformationAnyType
+	 * @see TypeInformationRawType
 	 */
+	public static <T> DataType RAW(TypeInformation<T> typeInformation) {
+		return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+	}
+
+	/**
+	 * @deprecated Use {@link #RAW(TypeInformation)} instead.
+	 */
+	@Deprecated
 	public static <T> DataType ANY(TypeInformation<T> typeInformation) {
-		return new AtomicDataType(new TypeInformationAnyType<>(typeInformation));
+		return RAW(typeInformation);
 	}
 
 	// --------------------------------------------------------------------------------------------

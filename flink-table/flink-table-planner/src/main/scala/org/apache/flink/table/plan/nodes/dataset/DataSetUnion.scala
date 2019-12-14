@@ -26,7 +26,8 @@ import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl, TableException}
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
+import org.apache.flink.table.api.{BatchQueryConfig, TableException}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._

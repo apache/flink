@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -47,6 +47,15 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged in flink-dist-->
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- for the behavior test suite -->
@@ -105,6 +114,11 @@ under the License.
 								<relocation>
 									<pattern>com.amazon</pattern>
 									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
+								</relocation>
+								<!-- shade Flink's Hadoop FS utility classes -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

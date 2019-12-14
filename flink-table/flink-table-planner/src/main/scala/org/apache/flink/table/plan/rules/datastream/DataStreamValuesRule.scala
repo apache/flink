@@ -43,7 +43,7 @@ class DataStreamValuesRule
       traitSet,
       new RowSchema(rel.getRowType),
       values.getTuples,
-      description)
+      "DataStreamValuesRule")
   }
 }
 

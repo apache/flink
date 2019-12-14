@@ -34,8 +34,8 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.io.BinaryRowChannelInputViewIterator;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
-import org.apache.flink.table.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -66,6 +66,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ResettableExternalBuffer implements ResettableRowBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResettableExternalBuffer.class);
+
+	/** The minimum number of segments that are required, 320 KibiBytes. */
+	public static final int MIN_NUM_MEMORY = 10 * MemoryManager.DEFAULT_PAGE_SIZE;
 
 	// We will only read one spilled file at the same time.
 	private static final int READ_BUFFER = 2;

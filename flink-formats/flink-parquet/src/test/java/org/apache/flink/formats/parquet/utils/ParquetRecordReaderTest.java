@@ -279,7 +279,7 @@ public class ParquetRecordReaderTest extends TestUtil {
 		Schema arrayItemSchema = nestedArraySchema.getElementType();
 		GenericRecord item = new GenericRecordBuilder(arrayItemSchema)
 			.set("type", "nested")
-			.set("value", "nested_value").build();
+			.set("value", 1L).build();
 
 		ImmutableList.Builder<GenericRecord> list = ImmutableList.builder();
 		list.add(item);
@@ -310,7 +310,7 @@ public class ParquetRecordReaderTest extends TestUtil {
 
 		Row nestedRow = (Row) result[0];
 		assertEquals("nested", nestedRow.getField(0));
-		assertEquals("nested_value", nestedRow.getField(1));
+		assertEquals(1L, nestedRow.getField(1));
 	}
 
 	private Schema unWrapSchema(Schema o) {

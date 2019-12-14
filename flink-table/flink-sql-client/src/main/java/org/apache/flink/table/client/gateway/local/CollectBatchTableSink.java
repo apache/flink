@@ -18,51 +18,52 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.BatchTableSink;
+import org.apache.flink.table.sinks.OutputFormatTableSink;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 /**
  * Table sink for collecting the results locally all at once using accumulators.
  */
-public class CollectBatchTableSink implements BatchTableSink<Row> {
+public class CollectBatchTableSink extends OutputFormatTableSink<Row> implements BatchTableSink<Row> {
 
 	private final String accumulatorName;
 	private final TypeSerializer<Row> serializer;
+	private final TableSchema tableSchema;
 
-	private String[] fieldNames;
-	private TypeInformation<?>[] fieldTypes;
-
-	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer) {
+	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer, TableSchema tableSchema) {
 		this.accumulatorName = accumulatorName;
 		this.serializer = serializer;
+		this.tableSchema = tableSchema;
+	}
+
+	/**
+	 * Returns the serializer for deserializing the collected result.
+	 */
+	public TypeSerializer<Row> getSerializer() {
+		return serializer;
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return Types.ROW_NAMED(fieldNames, fieldTypes);
+	public DataType getConsumedDataType() {
+		return getTableSchema().toRowDataType();
 	}
 
 	@Override
-	public String[] getFieldNames() {
-		return fieldNames;
-	}
-
-	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return fieldTypes;
+	public TableSchema getTableSchema() {
+		return tableSchema;
 	}
 
 	@Override
 	public CollectBatchTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		final CollectBatchTableSink copy = new CollectBatchTableSink(accumulatorName, serializer);
-		copy.fieldNames = fieldNames;
-		copy.fieldTypes = fieldTypes;
-		return copy;
+		return new CollectBatchTableSink(accumulatorName, serializer, tableSchema);
 	}
 
 	@Override
@@ -72,10 +73,8 @@ public class CollectBatchTableSink implements BatchTableSink<Row> {
 			.name("SQL Client Batch Collect Sink");
 	}
 
-	/**
-	 * Returns the serializer for deserializing the collected result.
-	 */
-	public TypeSerializer<Row> getSerializer() {
-		return serializer;
+	@Override
+	public OutputFormat<Row> getOutputFormat() {
+		return new Utils.CollectHelper<>(accumulatorName, serializer);
 	}
 }

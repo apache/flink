@@ -25,7 +25,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * predecessor, it means that they run in the same thread. They become one operator
  * consisting of multiple steps.
  *
- * <p>The default value used by the {@link StreamOperator} is {@link #HEAD}, which means that
+ * <p>The default value used by the StreamOperator is {@link #HEAD}, which means that
  * the operator is not chained to its predecessor. Most operators override this with
  * {@link #ALWAYS}, meaning they will be chained to predecessors whenever possible.
  */

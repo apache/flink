@@ -20,112 +20,148 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.Registration;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
- * Common class for table's created with {@link TableEnvironment#connect(ConnectorDescriptor connectorDescriptor)}.
+ * Describes a table connected from {@link TableEnvironment#connect(ConnectorDescriptor)}.
+ *
+ * <p>It can access {@link TableEnvironment} for fluently registering the table.
  */
 @PublicEvolving
-public abstract class ConnectTableDescriptor<D extends ConnectTableDescriptor<D>>
-	extends TableDescriptor
-	implements SchematicDescriptor<D>, RegistrableDescriptor {
+public abstract class ConnectTableDescriptor
+	extends TableDescriptor<ConnectTableDescriptor> {
 
-	private Optional<FormatDescriptor> formatDescriptor = Optional.empty();
-	private Optional<Schema> schemaDescriptor = Optional.empty();
+	private final Registration registration;
 
-	private final TableEnvironment tableEnv;
-	private final ConnectorDescriptor connectorDescriptor;
+	private @Nullable Schema schemaDescriptor;
 
-	public ConnectTableDescriptor(TableEnvironment tableEnv, ConnectorDescriptor connectorDescriptor) {
-		this.tableEnv = tableEnv;
-		this.connectorDescriptor = connectorDescriptor;
+	public ConnectTableDescriptor(Registration registration, ConnectorDescriptor connectorDescriptor) {
+		super(connectorDescriptor);
+		this.registration = registration;
+	}
+
+	/**
+	 * Specifies the resulting table schema.
+	 */
+	public ConnectTableDescriptor withSchema(Schema schema) {
+		schemaDescriptor = Preconditions.checkNotNull(schema, "Schema must not be null.");
+		return this;
 	}
 
 	/**
 	 * Searches for the specified table source, configures it accordingly, and registers it as
 	 * a table under the given name.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name table name to be registered in the table environment
+	 * @deprecated use {@link #createTemporaryTable(String)}
 	 */
-	@Override
+	@Deprecated
 	public void registerTableSource(String name) {
 		Preconditions.checkNotNull(name);
 		TableSource<?> tableSource = TableFactoryUtil.findAndCreateTableSource(this);
-		tableEnv.registerTableSource(name, tableSource);
+		registration.createTableSource(name, tableSource);
 	}
 
 	/**
 	 * Searches for the specified table sink, configures it accordingly, and registers it as
 	 * a table under the given name.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name table name to be registered in the table environment
+	 * @deprecated use {@link #createTemporaryTable(String)}
 	 */
-	@Override
+	@Deprecated
 	public void registerTableSink(String name) {
 		Preconditions.checkNotNull(name);
 		TableSink<?> tableSink = TableFactoryUtil.findAndCreateTableSink(this);
-		tableEnv.registerTableSink(name, tableSink);
+		registration.createTableSink(name, tableSink);
 	}
 
 	/**
 	 * Searches for the specified table source and sink, configures them accordingly, and registers
 	 * them as a table under the given name.
 	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
 	 * @param name table name to be registered in the table environment
+	 * @deprecated use {@link #createTemporaryTable(String)}
 	 */
-	@Override
+	@Deprecated
 	public void registerTableSourceAndSink(String name) {
 		registerTableSource(name);
 		registerTableSink(name);
 	}
 
 	/**
-	 * Specifies the format that defines how to read data from a connector.
+	 * Registers the table described by underlying properties in a given path.
+	 *
+	 * <p>There is no distinction between source and sink at the descriptor level anymore as this
+	 * method does not perform actual class lookup. It only stores the underlying properties. The
+	 * actual source/sink lookup is performed when the table is used.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * <p><b>NOTE:</b> The schema must be explicitly defined.
+	 *
+	 * @param path path where to register the temporary table
 	 */
-	@Override
-	public D withFormat(FormatDescriptor format) {
-		formatDescriptor = Optional.of(Preconditions.checkNotNull(format));
-		return (D) this;
-	}
-
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	@Override
-	public D withSchema(Schema schema) {
-		schemaDescriptor = Optional.of(Preconditions.checkNotNull(schema));
-		return (D) this;
-	}
-
-	/**
-	 * Converts this descriptor into a set of properties.
-	 */
-	@Override
-	public Map<String, String> toProperties() {
-		DescriptorProperties properties = new DescriptorProperties();
-
-		// this performs only basic validation
-		// more validation can only happen within a factory
-		if (connectorDescriptor.isFormatNeeded() && !formatDescriptor.isPresent()) {
-			throw new ValidationException(String.format("The connector %s requires a format description.", connectorDescriptor.toString()));
-		} else if (!connectorDescriptor.isFormatNeeded() && formatDescriptor.isPresent()) {
-			throw new ValidationException(
-				String.format("The connector %s does not require a format description " +
-				"but %s found.", connectorDescriptor.toString(), formatDescriptor.get().toString()));
+	public void createTemporaryTable(String path) {
+		if (schemaDescriptor == null) {
+			throw new TableException(
+				"Table schema must be explicitly defined. To derive schema from the underlying connector" +
+					" use registerTableSource/registerTableSink/registerTableSourceAndSink.");
 		}
 
-		properties.putProperties(connectorDescriptor.toProperties());
+		Map<String, String> schemaProperties = schemaDescriptor.toProperties();
+		TableSchema tableSchema = getTableSchema(schemaProperties);
 
-		formatDescriptor.ifPresent(s -> properties.putProperties(s.toProperties()));
-		schemaDescriptor.ifPresent(s -> properties.putProperties(s.toProperties()));
+		Map<String, String> properties = new HashMap<>(toProperties());
+		schemaProperties.keySet().forEach(properties::remove);
 
-		return properties.asMap();
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			tableSchema,
+			properties,
+			""
+		);
+
+		registration.createTemporaryTable(path, catalogTable);
+	}
+
+	private TableSchema getTableSchema(Map<String, String> schemaProperties) {
+		DescriptorProperties properties = new DescriptorProperties();
+		properties.putProperties(schemaProperties);
+		return properties.getTableSchema(Schema.SCHEMA);
+	}
+
+	@Override
+	protected Map<String, String> additionalProperties() {
+		if (schemaDescriptor != null) {
+			return schemaDescriptor.toProperties();
+		}
+		return Collections.emptyMap();
 	}
 }

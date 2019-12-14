@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -45,6 +46,13 @@ public interface AccessExecutionJobVertex {
 	 * @return max parallelism for this job vertex.
 	 */
 	int getMaxParallelism();
+
+	/**
+	 * Returns the resource profile for this job vertex.
+	 *
+	 * @return resource profile for this job vertex.
+	 */
+	ResourceProfile getResourceProfile();
 
 	/**
 	 * Returns the {@link JobVertexID} for this job vertex.

@@ -25,7 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
+import org.apache.flink.test.util.PlanExposingEnvironment;
 
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class LargePlanTest {
 
 	@Test(expected = OptimizerPlanEnvironment.ProgramAbortException.class, timeout = 30_000)
 	public void testPlanningOfLargePlan() throws Exception {
-		runProgram(new PreviewPlanEnvironment(), 10, 20);
+		runProgram(new PlanExposingEnvironment(), 10, 20);
 	}
 
 	private static void runProgram(ExecutionEnvironment env, int depth, int width) throws Exception {

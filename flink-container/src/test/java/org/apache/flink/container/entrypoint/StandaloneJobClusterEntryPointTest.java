@@ -18,15 +18,22 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint.ExecutionMode;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Optional;
+
+import static org.apache.flink.container.entrypoint.StandaloneJobClusterEntryPoint.ZERO_JOB_ID;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNot.not;
 
 /**
  * Tests for the {@link StandaloneJobClusterEntryPoint}.
@@ -59,11 +66,69 @@ public class StandaloneJobClusterEntryPointTest extends TestLogger {
 		assertThat(getExecutionMode(configuration), equalTo(ExecutionMode.NORMAL));
 	}
 
+	@Test
+	public void configuredJobIDTakesPrecedenceWithHA() {
+		Optional<JobID> jobID = Optional.of(JobID.generate());
+
+		Configuration globalConfiguration = new Configuration();
+		enableHighAvailability(globalConfiguration);
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(jobID.get()));
+	}
+
+	@Test
+	public void configuredJobIDTakesPrecedenceWithoutHA() {
+		Optional<JobID> jobID = Optional.of(JobID.generate());
+
+		Configuration globalConfiguration = new Configuration();
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(jobID.get()));
+	}
+
+	@Test
+	public void jobIDdefaultsToZeroWithHA() {
+		Optional<JobID> jobID = Optional.empty();
+
+		Configuration globalConfiguration = new Configuration();
+		enableHighAvailability(globalConfiguration);
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(ZERO_JOB_ID));
+	}
+
+	@Test
+	public void jobIDdefaultsToRandomJobIDWithoutHA() {
+		Optional<JobID> jobID = Optional.empty();
+
+		Configuration globalConfiguration = new Configuration();
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobID,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(not(ZERO_JOB_ID)));
+	}
+
 	private static void setExecutionMode(Configuration configuration, ExecutionMode executionMode) {
 		configuration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 	}
 
 	private static ExecutionMode getExecutionMode(Configuration configuration) {
 		return ExecutionMode.valueOf(configuration.getString(ClusterEntrypoint.EXECUTION_MODE));
+	}
+
+	private static void enableHighAvailability(final Configuration configuration) {
+		configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 	}
 }

@@ -81,6 +81,9 @@ public class StreamOperatorChainingTest {
 	 */
 	private void testMultiChaining(StreamExecutionEnvironment env) throws Exception {
 
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		env.setParallelism(2);
+
 		// the actual elements will not be used
 		DataStream<Integer> input = env.fromElements(1, 2, 3);
 
@@ -175,6 +178,9 @@ public class StreamOperatorChainingTest {
 	 */
 	private void testMultiChainingWithSplit(StreamExecutionEnvironment env) throws Exception {
 
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		env.setParallelism(2);
+
 		// the actual elements will not be used
 		DataStream<Integer> input = env.fromElements(1, 2, 3);
 
@@ -268,7 +274,7 @@ public class StreamOperatorChainingTest {
 			StreamConfig streamConfig,
 			Environment environment,
 			StreamTask<IN, OT> task) {
-		return new OperatorChain<>(task, StreamTask.createRecordWriters(streamConfig, environment));
+		return new OperatorChain<>(task, StreamTask.createRecordWriterDelegate(streamConfig, environment));
 	}
 
 	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(

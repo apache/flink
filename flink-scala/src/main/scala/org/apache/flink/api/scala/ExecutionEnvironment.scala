@@ -17,19 +17,22 @@
  */
 package org.apache.flink.api.scala
 
+import java.util.concurrent.CompletableFuture
+
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.execution.{JobClient, JobListener}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
@@ -135,57 +138,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   /**
-   * Gets the UUID by which this environment is identified. The UUID sets the execution context
-   * in the cluster or local environment.
-   */
-  @PublicEvolving
-  def getId: JobID = {
-    javaEnv.getId
-  }
-
-  /**
    * Gets the JobExecutionResult of the last executed job.
    */
   def getLastJobExecutionResult = javaEnv.getLastJobExecutionResult
-
-  /**
-   * Gets the UUID by which this environment is identified, as a string.
-   */
-  @PublicEvolving
-  def getIdString: String = {
-    javaEnv.getIdString
-  }
-
-  /**
-   * Starts a new session, discarding all intermediate results.
-   */
-  @PublicEvolving
-  def startNewSession() {
-    javaEnv.startNewSession()
-  }
-
-  /**
-   * Sets the session timeout to hold the intermediate results of a job. This only
-   * applies the updated timeout in future executions.
- *
-   * @param timeout The timeout in seconds.
-   */
-  @PublicEvolving
-  def setSessionTimeout(timeout: Long) {
-    javaEnv.setSessionTimeout(timeout)
-  }
-
-  /**
-   * Gets the session timeout for this environment. The session timeout defines for how long
-   * after an execution, the job and its intermediate results will be kept for future
-   * interactions.
-   *
-   * @return The session timeout, in seconds.
-   */
-  @PublicEvolving
-  def getSessionTimeout: Long = {
-    javaEnv.getSessionTimeout
-  }
 
   /**
    * Registers the given type with the serializer at the [[KryoSerializer]].
@@ -540,6 +495,62 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Register a [[JobListener]] in this environment. The [[JobListener]] will be
+   * notified on specific job status changed.
+   */
+  @PublicEvolving
+  def registerJobListener(jobListener: JobListener): Unit = {
+    javaEnv.registerJobListener(jobListener)
+  }
+
+  /**
+   * Clear all registered [[JobListener]]s.
+   */
+  @PublicEvolving def clearJobListeners(): Unit = {
+    javaEnv.clearJobListeners()
+  }
+
+  /**
+   * Triggers the program execution asynchronously.
+   * The environment will execute all parts of the program that have
+   * resulted in a "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with a generated default name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
+   * @return A [[JobClient]] that can be used to communicate with the submitted job,
+   *         completed on submission succeeded.
+   */
+  @PublicEvolving
+  def executeAsync(): JobClient = javaEnv.executeAsync()
+
+  /**
+   * Triggers the program execution asynchronously.
+   * The environment will execute all parts of the program that have
+   * resulted in a "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with the given name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
+   * @return A [[JobClient]] that can be used to communicate with the submitted job,
+   *         completed on submission succeeded.
+   */
+  @PublicEvolving
+  def executeAsync(jobName: String): JobClient = javaEnv.executeAsync(jobName)
+
+  /**
    * Creates the plan with which the system will execute the program, and returns it as  a String
    * using a JSON representation of the execution data flow graph.
    */
@@ -550,8 +561,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates the program's [[org.apache.flink.api.common.Plan]].
    * The plan is a description of all data sources, data sinks,
-   * and operations and how they interact, as an isolated unit that can be executed with a
-   * [[org.apache.flink.api.common.PlanExecutor]]. Obtaining a plan and starting it with an
+   * and operations and how they interact, as an isolated unit that can be executed with an
+   * [[org.apache.flink.core.execution.Executor]]. Obtaining a plan and starting it with an
    * executor is an alternative way to run a program and is only possible if the program only
    * consists of distributed operations.
    */

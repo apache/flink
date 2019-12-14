@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.io.Serializable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Runtime identifier of a produced {@link IntermediateResultPartition}.
@@ -39,13 +42,14 @@ public final class ResultPartitionID implements Serializable {
 
 	private final ExecutionAttemptID producerId;
 
+	@VisibleForTesting
 	public ResultPartitionID() {
 		this(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 	}
 
 	public ResultPartitionID(IntermediateResultPartitionID partitionId, ExecutionAttemptID producerId) {
-		this.partitionId = partitionId;
-		this.producerId = producerId;
+		this.partitionId = checkNotNull(partitionId);
+		this.producerId = checkNotNull(producerId);
 	}
 
 	public IntermediateResultPartitionID getPartitionId() {

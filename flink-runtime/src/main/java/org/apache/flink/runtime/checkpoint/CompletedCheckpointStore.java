@@ -18,19 +18,25 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.ListIterator;
 
 /**
  * A bounded LIFO-queue of {@link CompletedCheckpoint} instances.
  */
 public interface CompletedCheckpointStore {
 
+	Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
+
 	/**
 	 * Recover available {@link CompletedCheckpoint} instances.
 	 *
-	 * <p>After a call to this method, {@link #getLatestCheckpoint()} returns the latest
+	 * <p>After a call to this method, {@link #getLatestCheckpoint(boolean)} returns the latest
 	 * available checkpoint.
 	 */
 	void recover() throws Exception;
@@ -47,7 +53,28 @@ public interface CompletedCheckpointStore {
 	 * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
 	 * added.
 	 */
-	CompletedCheckpoint getLatestCheckpoint() throws Exception;
+	default CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) throws Exception {
+		List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
+		if (allCheckpoints.isEmpty()) {
+			return null;
+		}
+
+		CompletedCheckpoint lastCompleted = allCheckpoints.get(allCheckpoints.size() - 1);
+
+		if (isPreferCheckpointForRecovery && allCheckpoints.size() > 1 && lastCompleted.getProperties().isSavepoint()) {
+			ListIterator<CompletedCheckpoint> listIterator = allCheckpoints.listIterator(allCheckpoints.size() - 1);
+			while (listIterator.hasPrevious()) {
+				CompletedCheckpoint prev = listIterator.previous();
+				if (!prev.getProperties().isSavepoint()) {
+					LOG.info("Found a completed checkpoint ({}) before the latest savepoint, will use it to recover!", prev);
+					return prev;
+				}
+			}
+			LOG.info("Did not find earlier checkpoint, using latest savepoint to recover.");
+		}
+
+		return lastCompleted;
+	}
 
 	/**
 	 * Shuts down the store.

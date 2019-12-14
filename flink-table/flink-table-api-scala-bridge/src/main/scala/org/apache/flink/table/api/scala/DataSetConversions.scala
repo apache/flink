@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Table
@@ -29,16 +30,17 @@ import org.apache.flink.table.expressions.Expression
   * @param inputType The [[TypeInformation]] for the type of the [[DataSet]].
   * @tparam T The type of the [[DataSet]].
   */
+@PublicEvolving
 class DataSetConversions[T](dataSet: DataSet[T], inputType: TypeInformation[T]) {
 
   /**
     * Converts the [[DataSet]] into a [[Table]].
     *
-    * The field name of the new [[Table]] can be specified like this:
+    * The field names of the new [[Table]] can be specified like this:
     *
     * {{{
     *   val env = ExecutionEnvironment.getExecutionEnvironment
-    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *   val tEnv = BatchTableEnvironment.create(env)
     *
     *   val set: DataSet[(String, Int)] = ...
     *   val table = set.toTable(tEnv, 'name, 'amount)

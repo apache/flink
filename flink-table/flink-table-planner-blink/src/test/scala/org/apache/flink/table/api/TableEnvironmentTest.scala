@@ -18,15 +18,19 @@
 
 package org.apache.flink.table.api
 
-import org.apache.calcite.plan.RelOptUtil
+import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.junit.{Rule, Test}
+import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSources}
+import org.apache.flink.table.sinks.CsvTableSink
+
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
+import org.junit.{Rule, Test}
 
 class TableEnvironmentTest {
 
@@ -37,12 +41,12 @@ class TableEnvironmentTest {
   def thrown: ExpectedException = expectedException
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
-  val tableEnv: scala.StreamTableEnvironment = StreamTableEnvironment.create(env)
+  val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
   @Test
   def testScanNonExistTable(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Table 'MyTable' was not found")
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Table `MyTable` was not found")
     tableEnv.scan("MyTable")
   }
 
@@ -51,13 +55,15 @@ class TableEnvironmentTest {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
     val scanTable = tableEnv.scan("MyTable")
-    val actual = RelOptUtil.toString(scanTable.asInstanceOf[TableImpl].getRelNode)
-    val expected = "LogicalTableScan(table=[[MyTable]])\n"
+    val relNode = TableTestUtil.toRelNode(scanTable)
+    val actual = RelOptUtil.toString(relNode)
+    val expected = "LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"
     assertEquals(expected, actual)
 
     // register on a conflict name
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Table 'MyTable' already exists")
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Temporary table `default_catalog`.`default_database`.`MyTable` already exists")
     tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
   }
 
@@ -66,9 +72,31 @@ class TableEnvironmentTest {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
-    val actual = RelOptUtil.toString(queryTable.asInstanceOf[TableImpl].getRelNode)
-    val expected = "LogicalProject(a=[$0], c=[$2], d=[$3])\n" +
-      "  LogicalTableScan(table=[[MyTable]])\n"
+    val relNode = TableTestUtil.toRelNode(queryTable)
+    val actual = RelOptUtil.toString(relNode, SqlExplainLevel.NO_ATTRIBUTES)
+    val expected = "LogicalProject\n" +
+      "  LogicalTableScan\n"
     assertEquals(expected, actual)
   }
+
+  @Test
+  def testStreamTableEnvironmentExplain(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
+
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
+    tEnv.registerTableSink("MySink",
+      new CsvTableSink("/tmp").configure(Array("first"), Array(STRING)))
+
+    val table1 = tEnv.sqlQuery("select first from MyTable")
+    tEnv.insertInto(table1, "MySink")
+
+    tEnv.explain(false)
+  }
+
 }

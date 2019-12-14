@@ -47,6 +47,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [RabbitMQ](rabbitmq.html) (source/sink)
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
+ * [Google PubSub](pubsub.html) (source/sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.

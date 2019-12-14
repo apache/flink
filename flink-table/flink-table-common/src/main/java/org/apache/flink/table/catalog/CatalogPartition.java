@@ -34,6 +34,13 @@ public interface CatalogPartition {
 	Map<String, String> getProperties();
 
 	/**
+	 * Get comment of the partition.
+	 *
+	 * @return comment of the partition
+	 */
+	String getComment();
+
+	/**
 	 * Get a deep copy of the CatalogPartition instance.
 	 *
 	 * @return a copy of CatalogPartition instance

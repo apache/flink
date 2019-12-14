@@ -53,12 +53,16 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -85,7 +89,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
-	protected final StreamOperator<OUT> operator;
+	protected StreamOperator<OUT> operator;
+
+	protected final StreamOperatorFactory<OUT> factory;
 
 	protected final ConcurrentLinkedQueue<Object> outputList;
 
@@ -97,7 +103,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	protected final TestProcessingTimeService processingTimeService;
 
-	protected final MockStreamTask mockTask;
+	protected final MockStreamTask<OUT, ?> mockTask;
 
 	protected final TestTaskStateManager taskStateManager;
 
@@ -146,32 +152,76 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			int subtaskIndex,
 			OperatorID operatorID) throws Exception {
 		this(
-			operator,
-			new MockEnvironmentBuilder()
-				.setTaskName("MockTask")
-				.setMemorySize(3 * 1024 * 1024)
-				.setInputSplitProvider(new MockInputSplitProvider())
-				.setBufferSize(1024)
-				.setMaxParallelism(maxParallelism)
-				.setParallelism(parallelism)
-				.setSubtaskIndex(subtaskIndex)
-				.build(),
-			true,
-			operatorID);
+				operator,
+				SimpleOperatorFactory.of(operator),
+				new MockEnvironmentBuilder()
+						.setTaskName("MockTask")
+						.setMemorySize(3 * 1024 * 1024)
+						.setInputSplitProvider(new MockInputSplitProvider())
+						.setBufferSize(1024)
+						.setMaxParallelism(maxParallelism)
+						.setParallelism(parallelism)
+						.setSubtaskIndex(subtaskIndex)
+						.build(),
+				true,
+				operatorID);
+	}
+
+	public AbstractStreamOperatorTestHarness(
+			StreamOperatorFactory<OUT> factory,
+			MockEnvironment env) throws Exception {
+		this(null, factory, env, false, new OperatorID());
+	}
+
+	public AbstractStreamOperatorTestHarness(
+			StreamOperatorFactory<OUT> factory,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex) throws Exception {
+		this(
+				factory,
+				maxParallelism,
+				parallelism,
+				subtaskIndex,
+				new OperatorID());
+	}
+
+	public AbstractStreamOperatorTestHarness(
+			StreamOperatorFactory<OUT> factory,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			OperatorID operatorID) throws Exception {
+		this(
+				null,
+				factory,
+				new MockEnvironmentBuilder()
+						.setTaskName("MockTask")
+						.setMemorySize(3 * 1024 * 1024)
+						.setInputSplitProvider(new MockInputSplitProvider())
+						.setBufferSize(1024)
+						.setMaxParallelism(maxParallelism)
+						.setParallelism(parallelism)
+						.setSubtaskIndex(subtaskIndex)
+						.build(),
+				true,
+				operatorID);
 	}
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			MockEnvironment env) throws Exception {
-		this(operator, env, false, new OperatorID());
+		this(operator, SimpleOperatorFactory.of(operator), env, false, new OperatorID());
 	}
 
 	private AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
+			StreamOperatorFactory<OUT> factory,
 			MockEnvironment env,
 			boolean environmentIsInternal,
 			OperatorID operatorID) throws Exception {
 		this.operator = operator;
+		this.factory = factory;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		this.sideOutputLists = new HashMap<>();
 
@@ -204,7 +254,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			.setStreamTaskStateInitializer(streamTaskStateInitializer)
 			.setClosableRegistry(closableRegistry)
 			.setCheckpointStorage(checkpointStorage)
-			.setProcessingTimeService(processingTimeService)
+			.setTimerService(processingTimeService)
 			.setHandleAsyncException(handleAsyncException)
 			.build();
 	}
@@ -215,8 +265,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		ProcessingTimeService processingTimeService) {
 		return new StreamTaskStateInitializerImpl(
 			env,
-			stateBackend,
-			processingTimeService);
+			stateBackend);
 	}
 
 	public void setStateBackend(StateBackend stateBackend) {
@@ -239,6 +288,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
+	}
+
+	public StreamConfig getStreamConfig() {
+		return config;
 	}
 
 	/**
@@ -268,6 +321,18 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
+	 * Get the list of OUT values emitted by the operator.
+	 */
+	public List<OUT> extractOutputValues(){
+		List<StreamRecord<? extends OUT>> streamRecords = extractOutputStreamRecords();
+		List<OUT> outputValues = new ArrayList<>();
+		for (StreamRecord<? extends OUT> streamRecord : streamRecords) {
+			outputValues.add(streamRecord.getValue());
+		}
+		return outputValues;
+	}
+
+	/**
 	 * Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}.
 	 */
 	public void setup() {
@@ -282,10 +347,15 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			streamTaskStateInitializer =
 				createStreamTaskStateManager(environment, stateBackend, processingTimeService);
 			mockTask.setStreamTaskStateInitializer(streamTaskStateInitializer);
-			if (operator instanceof SetupableStreamOperator) {
+
+			if (operator == null) {
+				this.operator = StreamOperatorFactoryUtil.createOperator(factory, mockTask, config,
+						new MockOutput(outputSerializer));
+			} else if (operator instanceof SetupableStreamOperator) {
 				((SetupableStreamOperator) operator).setup(mockTask, config, new MockOutput(outputSerializer));
 			}
 			setupCalled = true;
+			this.mockTask.init();
 		}
 	}
 
@@ -485,6 +555,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
+	 * Calls {@link StreamOperator#prepareSnapshotPreBarrier(long)}.
+	 */
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		operator.prepareSnapshotPreBarrier(checkpointId);
+	}
+
+	/**
 	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions, org.apache.flink.runtime.state.CheckpointStreamFactory)}.
 	 */
 	public OperatorSubtaskState snapshot(long checkpointId, long timestamp) throws Exception {
@@ -523,7 +600,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		}
 		setupCalled = false;
 
-		internalEnvironment.ifPresent(MockEnvironment::close);
+		if (internalEnvironment.isPresent()) {
+			internalEnvironment.get().close();
+		}
+		mockTask.cleanup();
 	}
 
 	public void setProcessingTime(long time) throws Exception {
@@ -562,6 +642,16 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		} else {
 			throw new UnsupportedOperationException();
 		}
+	}
+
+	@VisibleForTesting
+	public TestProcessingTimeService getProcessingTimeService() {
+		return processingTimeService;
+	}
+
+	@VisibleForTesting
+	public StreamStatus getStreamStatus() {
+		return mockTask.getStreamStatusMaintainer().getStreamStatus();
 	}
 
 	private class MockOutput implements Output<StreamRecord<OUT>> {

@@ -846,7 +846,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 		DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
 			TestUtils.getStandardProperties(), fetcher, 1, 0);
 
-		CheckedThread consumerThread = new CheckedThread() {
+		CheckedThread consumerThread = new CheckedThread("FlinkKinesisConsumer") {
 			@Override
 			public void go() throws Exception {
 				consumer.run(new TestSourceContext<>());
@@ -857,6 +857,10 @@ public class KinesisDataFetcherTest extends TestLogger {
 
 		// ShardConsumer exception (from deserializer) will result in fetcher being shut down.
 		fetcher.waitUntilShutdown(20, TimeUnit.SECONDS);
+
+		// Ensure that KinesisDataFetcher has exited its while(running) loop and is inside its awaitTermination()
+		// method before we interrupt its thread, so that our interrupt doesn't get absorbed by any other mechanism.
+		fetcher.waitUntilAwaitTermination(20, TimeUnit.SECONDS);
 
 		// Interrupt the thread so that KinesisDataFetcher#awaitTermination() will throw InterruptedException.
 		consumerThread.interrupt();

@@ -24,6 +24,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Collects metrics for {@link RemoteInputChannel} and {@link LocalInputChannel}.
@@ -32,29 +33,28 @@ public class InputChannelMetrics {
 
 	private static final String IO_NUM_BYTES_IN_LOCAL = MetricNames.IO_NUM_BYTES_IN + "Local";
 	private static final String IO_NUM_BYTES_IN_REMOTE = MetricNames.IO_NUM_BYTES_IN + "Remote";
-	private static final String IO_NUM_BYTES_IN_LOCAL_RATE = IO_NUM_BYTES_IN_LOCAL + MetricNames.SUFFIX_RATE;
-	private static final String IO_NUM_BYTES_IN_REMOTE_RATE = IO_NUM_BYTES_IN_REMOTE + MetricNames.SUFFIX_RATE;
-
 	private static final String IO_NUM_BUFFERS_IN_LOCAL = MetricNames.IO_NUM_BUFFERS_IN + "Local";
 	private static final String IO_NUM_BUFFERS_IN_REMOTE = MetricNames.IO_NUM_BUFFERS_IN + "Remote";
-	private static final String IO_NUM_BUFFERS_IN_LOCAL_RATE = IO_NUM_BUFFERS_IN_LOCAL + MetricNames.SUFFIX_RATE;
-	private static final String IO_NUM_BUFFERS_IN_REMOTE_RATE = IO_NUM_BUFFERS_IN_REMOTE + MetricNames.SUFFIX_RATE;
 
 	private final Counter numBytesInLocal;
 	private final Counter numBytesInRemote;
 	private final Counter numBuffersInLocal;
 	private final Counter numBuffersInRemote;
 
-	public InputChannelMetrics(MetricGroup parent) {
-		this.numBytesInLocal = parent.counter(IO_NUM_BYTES_IN_LOCAL);
-		this.numBytesInRemote = parent.counter(IO_NUM_BYTES_IN_REMOTE);
-		parent.meter(IO_NUM_BYTES_IN_LOCAL_RATE, new MeterView(numBytesInLocal, 60));
-		parent.meter(IO_NUM_BYTES_IN_REMOTE_RATE, new MeterView(numBytesInRemote, 60));
+	public InputChannelMetrics(MetricGroup ... parents) {
+		this.numBytesInLocal = createCounter(IO_NUM_BYTES_IN_LOCAL, parents);
+		this.numBytesInRemote = createCounter(IO_NUM_BYTES_IN_REMOTE, parents);
+		this.numBuffersInLocal = createCounter(IO_NUM_BUFFERS_IN_LOCAL, parents);
+		this.numBuffersInRemote = createCounter(IO_NUM_BUFFERS_IN_REMOTE, parents);
+	}
 
-		this.numBuffersInLocal = parent.counter(IO_NUM_BUFFERS_IN_LOCAL);
-		this.numBuffersInRemote = parent.counter(IO_NUM_BUFFERS_IN_REMOTE);
-		parent.meter(IO_NUM_BUFFERS_IN_LOCAL_RATE, new MeterView(numBuffersInLocal, 60));
-		parent.meter(IO_NUM_BUFFERS_IN_REMOTE_RATE, new MeterView(numBuffersInRemote, 60));
+	private static Counter createCounter(String name, MetricGroup ... parents) {
+		Counter[] counters = new Counter[parents.length];
+		for (int i = 0; i < parents.length; i++) {
+			counters[i] = parents[i].counter(name);
+			parents[i].meter(name + MetricNames.SUFFIX_RATE, new MeterView(counters[i]));
+		}
+		return new MultiCounterWrapper(counters);
 	}
 
 	public Counter getNumBytesInLocalCounter() {
@@ -71,5 +71,48 @@ public class InputChannelMetrics {
 
 	public Counter getNumBuffersInRemoteCounter() {
 		return numBuffersInRemote;
+	}
+
+	private static class MultiCounterWrapper implements Counter {
+		private final Counter[] counters;
+
+		private MultiCounterWrapper(Counter ... counters) {
+			Preconditions.checkArgument(counters.length > 0);
+			this.counters = counters;
+		}
+
+		@Override
+		public void inc() {
+			for (Counter c : counters) {
+				c.inc();
+			}
+		}
+
+		@Override
+		public void inc(long n) {
+			for (Counter c : counters) {
+				c.inc(n);
+			}
+		}
+
+		@Override
+		public void dec() {
+			for (Counter c : counters) {
+				c.dec();
+			}
+		}
+
+		@Override
+		public void dec(long n) {
+			for (Counter c : counters) {
+				c.dec(n);
+			}
+		}
+
+		@Override
+		public long getCount() {
+			// assume that the counters are not accessed directly elsewhere
+			return counters[0].getCount();
+		}
 	}
 }

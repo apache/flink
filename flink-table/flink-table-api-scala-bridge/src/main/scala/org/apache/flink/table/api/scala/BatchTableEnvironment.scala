@@ -17,12 +17,16 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.{TableEnvironment, _}
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.sinks.TableSink
 
 /**
   * The [[TableEnvironment]] for a Scala batch [[ExecutionEnvironment]] that works
@@ -91,22 +95,47 @@ trait BatchTableEnvironment extends TableEnvironment {
   def fromDataSet[T](dataSet: DataSet[T], fields: Expression*): Table
 
   /**
-    * Registers the given [[DataSet]] as table in the
-    * [[TableEnvironment]]'s catalog.
-    * Registered tables can be referenced in SQL queries.
+    * Creates a view from the given [[DataSet]].
+    * Registered views can be referenced in SQL queries.
     *
     * The field names of the [[Table]] are automatically derived from the type of the [[DataSet]].
+    *
+    * The view is registered in the namespace of the current catalog and database. To register the
+    * view in a different catalog use [[createTemporaryView]].
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
     *
     * @param name The name under which the [[DataSet]] is registered in the catalog.
     * @param dataSet The [[DataSet]] to register.
     * @tparam T The type of the [[DataSet]] to register.
+    * @deprecated use [[createTemporaryView]]
     */
+  @deprecated
   def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit
 
   /**
-    * Registers the given [[DataSet]] as table with specified field names in the
-    * [[TableEnvironment]]'s catalog.
+    * Creates a view from the given [[DataSet]] in a given path.
     * Registered tables can be referenced in SQL queries.
+    *
+    * The field names of the [[Table]] are automatically derived
+    * from the type of the [[DataSet]].
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
+    *
+    * @param path The path under which the [[DataSet]] is created.
+    *             See also the [[TableEnvironment]] class description for the format of the path.
+    * @param dataSet The [[DataSet]] out of which to create the view.
+    * @tparam T The type of the [[DataSet]].
+    */
+  def createTemporaryView[T](path: String, dataSet: DataSet[T]): Unit
+
+  /**
+    * Creates a view from the given [[DataSet]] in a given path with specified field names.
+    * Registered views can be referenced in SQL queries.
     *
     * Example:
     *
@@ -115,12 +144,45 @@ trait BatchTableEnvironment extends TableEnvironment {
     *   tableEnv.registerDataSet("myTable", set, 'a, 'b)
     * }}}
     *
+    * The view is registered in the namespace of the current catalog and database. To register the
+    * view in a different catalog use [[createTemporaryView]].
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
+    *
     * @param name The name under which the [[DataSet]] is registered in the catalog.
     * @param dataSet The [[DataSet]] to register.
     * @param fields The field names of the registered table.
     * @tparam T The type of the [[DataSet]] to register.
+    * @deprecated use [[createTemporaryView]]
     */
+  @deprecated
   def registerDataSet[T](name: String, dataSet: DataSet[T], fields: Expression*): Unit
+
+  /**
+    * Creates a view from the given [[DataSet]] in a given path with specified field names.
+    * Registered views can be referenced in SQL queries.
+    *
+    * Example:
+    *
+    * {{{
+    *   val set: DataSet[(String, Long)] = ...
+    *   tableEnv.createTemporaryView("cat.db.myTable", set, 'a, 'b)
+    * }}}
+    *
+    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+    * it will be inaccessible in the current session. To make the permanent object available again
+    * you can drop the corresponding temporary object.
+    *
+    * @param path The path under which the [[DataSet]] is created.
+    *             See also the [[TableEnvironment]] class description for the format of the
+    *             path.
+    * @param dataSet The [[DataSet]] out of which to create the view.
+    * @param fields The field names of the created view.
+    * @tparam T The type of the [[DataSet]].
+    */
+  def createTemporaryView[T](path: String, dataSet: DataSet[T], fields: Expression*): Unit
 
   /**
     * Converts the given [[Table]] into a [[DataSet]] of a specified type.
@@ -152,6 +214,68 @@ trait BatchTableEnvironment extends TableEnvironment {
   def toDataSet[T: TypeInformation](
     table: Table,
     queryConfig: BatchQueryConfig): DataSet[T]
+
+  /**
+    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * NOTE: Currently only SQL INSERT statements are supported.
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment.
+    * A [[Table]] is automatically registered when its [[Table#toString()]] method is
+    * called, for example when it is embedded into a String.
+    * Hence, SQL queries can directly reference a [[Table]] as follows:
+    *
+    * {{{
+    *   // register the configured table sink into which the result is inserted.
+    *   tEnv.registerTableSink("sinkTable", configuredSink);
+    *   Table sourceTable = ...
+    *   String tableName = sourceTable.toString();
+    *   // sourceTable is not registered to the table environment
+    *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
+    * }}}
+    *
+    * @param stmt   The SQL statement to evaluate.
+    * @param config The [[BatchQueryConfig]] to use.
+    */
+  def sqlUpdate(stmt: String, config: BatchQueryConfig): Unit
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * See the documentation of TableEnvironment#useDatabase or
+    * TableEnvironment.useCatalog(String) for the rules on the path resolution.
+    *
+    * @param table             The Table to write to the sink.
+    * @param queryConfig       The [[BatchQueryConfig]] to use.
+    * @param sinkPath          The first part of the path of the registered [[TableSink]] to
+    *                          which the [[Table]] is written. This is to ensure at least the
+    *                          name of the [[TableSink]] is provided.
+    * @param sinkPathContinued The remaining part of the path of the registered [[TableSink]] to
+    *                          which the [[Table]] is written.
+    * @deprecated use `TableEnvironment#insertInto(String, Table)`
+    */
+  @deprecated
+  def insertInto(
+    table: Table,
+    queryConfig: BatchQueryConfig,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit
+
+  /**
+    * Triggers the program execution. The environment will execute all parts of
+    * the program.
+    *
+    * The program execution will be logged and displayed with the provided name
+    *
+    * It calls the ExecutionEnvironment#execute on the underlying
+    * [[ExecutionEnvironment]]. In contrast to the [[TableEnvironment]] this
+    * environment translates queries eagerly.
+    *
+    * @param jobName Desired name of the job
+    * @return The result of the job execution, containing elapsed time and accumulators.
+    * @throws Exception which occurs during job execution.
+    */
+  @throws[Exception]
+  override def execute(jobName: String): JobExecutionResult
 
   /**
     * Creates a table source and/or table sink from a descriptor.
@@ -225,9 +349,24 @@ object BatchTableEnvironment {
   def create(executionEnvironment: ExecutionEnvironment, tableConfig: TableConfig)
   : BatchTableEnvironment = {
     try {
-      val clazz = Class.forName("org.apache.flink.table.api.scala.BatchTableEnvImpl")
-      val const = clazz.getConstructor(classOf[ExecutionEnvironment], classOf[TableConfig])
-      const.newInstance(executionEnvironment, tableConfig).asInstanceOf[BatchTableEnvironment]
+      val clazz = Class
+        .forName("org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl")
+      val const = clazz
+        .getConstructor(
+          classOf[ExecutionEnvironment],
+          classOf[TableConfig],
+          classOf[CatalogManager],
+          classOf[ModuleManager])
+      val builtInCatalog = "default_catalog"
+      val catalogManager = new CatalogManager(
+        "default_catalog",
+        new GenericInMemoryCatalog(
+          builtInCatalog,
+          "default_database")
+      )
+      val moduleManager = new ModuleManager
+      const.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager)
+        .asInstanceOf[BatchTableEnvironment]
     } catch {
       case t: Throwable => throw new TableException("Create BatchTableEnvironment failed.", t)
     }

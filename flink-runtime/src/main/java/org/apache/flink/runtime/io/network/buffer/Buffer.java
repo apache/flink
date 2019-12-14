@@ -159,17 +159,6 @@ public interface Buffer {
 	void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException;
 
 	/**
-	 * Returns the size of the written data, i.e. the <tt>writer index</tt>, of this buffer in an
-	 * non-synchronized fashion.
-	 *
-	 * <p>This is where writable bytes start in the backing memory segment.
-	 *
-	 * @return writer index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
-	 * (inclusive))
-	 */
-	int getSizeUnsafe();
-
-	/**
 	 * Returns the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
 	 *
 	 * <p>This is where writable bytes start in the backing memory segment.
@@ -228,4 +217,14 @@ public interface Buffer {
 	 * @return self as ByteBuf implementation.
 	 */
 	ByteBuf asByteBuf();
+
+	/**
+	 * @return whether the buffer is compressed or not.
+	 */
+	boolean isCompressed();
+
+	/**
+	 * Tags the buffer as compressed or uncompressed.
+	 */
+	void setCompressed(boolean isCompressed);
 }

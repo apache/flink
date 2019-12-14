@@ -30,6 +30,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -38,6 +39,7 @@ import akka.actor.ActorSystem;
 import org.junit.AssumptionViolatedException;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.net.Inet6Address;
@@ -56,6 +58,7 @@ import static org.junit.Assert.fail;
  * Test proper handling of IPv6 address literals in URLs.
  */
 @SuppressWarnings("serial")
+@Category(AlsoRunWithLegacyScheduler.class)
 public class IPv6HostnamesITCase extends TestLogger {
 
 	@Rule
@@ -87,7 +90,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(4);
-			env.getConfig().disableSysoutLogging();
 
 			// get input data
 			DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));

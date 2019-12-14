@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Represents a database object in a catalog.
+ * Interface of a database in a catalog.
  */
 public interface CatalogDatabase {
 	/**

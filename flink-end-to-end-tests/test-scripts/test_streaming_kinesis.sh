@@ -28,25 +28,32 @@ export AWS_SECRET_KEY=flinkKinesisTestFakeAccessKey
 
 KINESALITE_PORT=4567
 
-#docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
-# override entrypoint to enable SSL
-docker run -d --rm --entrypoint "/tini" --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite -- /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
+function start_kinesalite {
+    #docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
+    # override entrypoint to enable SSL
+    docker run -d --rm --entrypoint "/tini" \
+        --name flink-test-kinesis \
+        -p ${KINESALITE_PORT}:${KINESALITE_PORT} \
+        instructure/kinesalite -- \
+        /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
+}
+
+START_KINESALITE_MAX_RETRIES=50
+if ! retry_times ${START_KINESALITE_MAX_RETRIES} 0 start_kinesalite; then
+    echo "Failed to run kinesalite docker image"
+    exit 1
+fi
 
 # reveal potential issues with the container in the CI environment
 docker logs flink-test-kinesis
 
 function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
   # job needs to stop before kinesalite
   stop_cluster
   echo "terminating kinesalite"
   docker kill flink-test-kinesis
 }
-trap test_cleanup INT
-trap test_cleanup EXIT
+on_exit test_cleanup
 
 # prefix com.amazonaws.sdk.disableCertChecking to account for shading
 DISABLE_CERT_CHECKING_JAVA_OPTS="-Dorg.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking"

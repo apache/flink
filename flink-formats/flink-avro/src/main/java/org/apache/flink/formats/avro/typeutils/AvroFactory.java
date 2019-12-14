@@ -37,6 +37,8 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
@@ -49,6 +51,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 final class AvroFactory<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AvroFactory.class);
 
 	private final DataOutputEncoder encoder = new DataOutputEncoder();
 	private final DataInputDecoder decoder = new DataInputDecoder();
@@ -94,7 +98,7 @@ final class AvroFactory<T> {
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private static <T> AvroFactory<T> fromSpecific(Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
 		SpecificData specificData = new SpecificData(cl);
-		Schema newSchema = specificData.getSchema(type);
+		Schema newSchema = extractAvroSpecificSchema(type, specificData);
 
 		return new AvroFactory<>(
 			specificData,
@@ -128,6 +132,36 @@ final class AvroFactory<T> {
 			new ReflectDatumReader<>(previousSchema.orElse(newSchema), newSchema, reflectData),
 			new ReflectDatumWriter<>(newSchema, reflectData)
 		);
+	}
+
+	/**
+	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this either via {@link
+	 * SpecificData} or by instantiating a record and extracting the schema from the instance.
+	 */
+	static <T> Schema extractAvroSpecificSchema(
+			Class<T> type,
+			SpecificData specificData) {
+		Optional<Schema> newSchemaOptional = tryExtractAvroSchemaViaInstance(type);
+		return newSchemaOptional.orElseGet(() -> specificData.getSchema(type));
+	}
+
+	/**
+	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this by creating an
+	 * instance of the class using the zero-argument constructor and calling {@link
+	 * SpecificRecord#getSchema()} on it.
+	 */
+	@SuppressWarnings("unchecked")
+	private static Optional<Schema> tryExtractAvroSchemaViaInstance(Class<?> type) {
+		try {
+			SpecificRecord instance = (SpecificRecord) type.newInstance();
+			return Optional.ofNullable(instance.getSchema());
+		} catch (InstantiationException | IllegalAccessException e) {
+			LOG.warn(
+					"Could not extract schema from Avro-generated SpecificRecord class {}: {}.",
+					type,
+					e);
+			return Optional.empty();
+		}
 	}
 
 	private AvroFactory(

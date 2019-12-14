@@ -64,10 +64,6 @@ public class TestBufferFactory {
 		return numberOfCreatedBuffers;
 	}
 
-	public synchronized int getBufferSize() {
-		return bufferSize;
-	}
-
 	// ------------------------------------------------------------------------
 	// Static test helpers
 	// ------------------------------------------------------------------------

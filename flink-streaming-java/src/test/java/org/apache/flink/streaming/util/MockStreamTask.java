@@ -24,10 +24,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TimerService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -35,7 +38,7 @@ import java.util.function.BiConsumer;
 /**
  * A settable testing {@link StreamTask}.
  */
-public class MockStreamTask extends StreamTask {
+public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
 	private final String name;
 	private final Object checkpointLock;
@@ -59,11 +62,11 @@ public class MockStreamTask extends StreamTask {
 		CloseableRegistry closableRegistry,
 		StreamStatusMaintainer streamStatusMaintainer,
 		CheckpointStorageWorkerView checkpointStorage,
-		ProcessingTimeService processingTimeService,
+		TimerService timerService,
 		BiConsumer<String, Throwable> handleAsyncException,
 		Map<String, Accumulator<?, ?>> accumulatorMap
 	) {
-		super(environment);
+		super(environment, timerService);
 		this.name = name;
 		this.checkpointLock = checkpointLock;
 		this.config = config;
@@ -72,22 +75,24 @@ public class MockStreamTask extends StreamTask {
 		this.closableRegistry = closableRegistry;
 		this.streamStatusMaintainer = streamStatusMaintainer;
 		this.checkpointStorage = checkpointStorage;
-		this.processingTimeService = processingTimeService;
+		this.processingTimeService = timerService;
 		this.handleAsyncException = handleAsyncException;
 		this.accumulatorMap = accumulatorMap;
 	}
 
 	@Override
-	public void init() { }
+	public void init() {
+	}
 
 	@Override
-	protected void run() { }
+	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+		controller.allActionsCompleted();
+	}
 
 	@Override
-	protected void cleanup() { }
-
-	@Override
-	protected void cancelTask() { }
+	protected void cleanup() {
+		mailboxProcessor.allActionsCompleted();
+	}
 
 	@Override
 	public String getName() {
@@ -139,11 +144,6 @@ public class MockStreamTask extends StreamTask {
 	}
 
 	@Override
-	public ProcessingTimeService getProcessingTimeService() {
-		return processingTimeService;
-	}
-
-	@Override
 	public void handleAsyncException(String message, Throwable exception) {
 		handleAsyncException.accept(message, exception);
 	}
@@ -151,5 +151,10 @@ public class MockStreamTask extends StreamTask {
 	@Override
 	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
 		return accumulatorMap;
+	}
+
+	@Override
+	public ProcessingTimeService getProcessingTimeService(int operatorIndex) {
+		return processingTimeService;
 	}
 }

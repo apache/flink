@@ -44,7 +44,7 @@ public class CsvValidator extends FormatDescriptorValidator {
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateString(FORMAT_FIELD_DELIMITER, true, 1, 1);
-		properties.validateEnumValues(FORMAT_LINE_DELIMITER, true, Arrays.asList("\r", "\n", "\r\n"));
+		properties.validateEnumValues(FORMAT_LINE_DELIMITER, true, Arrays.asList("\r", "\n", "\r\n", ""));
 		properties.validateString(FORMAT_QUOTE_CHARACTER, true, 1, 1);
 		properties.validateBoolean(FORMAT_ALLOW_COMMENTS, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
@@ -55,15 +55,13 @@ public class CsvValidator extends FormatDescriptorValidator {
 		final boolean hasSchema = properties.containsKey(FORMAT_SCHEMA);
 		final boolean isDerived = properties
 			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
-			.orElse(false);
-		if (isDerived && hasSchema) {
-			throw new ValidationException(
-				"Format cannot define a schema and derive from the table's schema at the same time.");
-		} else if (hasSchema) {
+			.orElse(true);
+		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
+		if (hasSchema) {
 			properties.validateType(FORMAT_SCHEMA, false, true);
 		} else if (!isDerived) {
 			throw new ValidationException(
-				"A definition of a schema or derivation from the table's schema is required.");
+				"A definition of a schema is required if derivation from the table's schema is disabled.");
 		}
 	}
 }

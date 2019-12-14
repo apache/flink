@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedRef, lookupCall}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, lookupCall, unresolvedRef}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -30,10 +31,10 @@ class KeywordParseTest {
   @Test
   def testKeyword(): Unit = {
     assertEquals(
-      call(BuiltInFunctionDefinitions.ORDER_ASC, unresolvedRef("f0")),
+      unresolvedCall(BuiltInFunctionDefinitions.ORDER_ASC, unresolvedRef("f0")),
       ExpressionParser.parseExpression("f0.asc"))
     assertEquals(
-      call(BuiltInFunctionDefinitions.ORDER_ASC, unresolvedRef("f0")),
+      unresolvedCall(BuiltInFunctionDefinitions.ORDER_ASC, unresolvedRef("f0")),
       ExpressionParser.parseExpression("f0.asc()"))
   }
 

@@ -87,15 +87,6 @@ public class HighAvailabilityOptions {
 			.withDeprecatedKeys("recovery.jobmanager.port")
 			.withDescription("Optional port (range) used by the job manager in high-availability mode.");
 
-	/**
-	 * The time before a JobManager after a fail over recovers the current jobs.
-	 */
-	public static final ConfigOption<String> HA_JOB_DELAY =
-			key("high-availability.job.delay")
-			.noDefaultValue()
-			.withDeprecatedKeys("recovery.job.delay")
-			.withDescription("The time before a JobManager after a fail over recovers the current jobs.");
-
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Options
 	// ------------------------------------------------------------------------
@@ -200,6 +191,22 @@ public class HighAvailabilityOptions {
 			.withDescription("Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be" +
 				" set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use" +
 				" SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).");
+
+	// ------------------------------------------------------------------------
+	//  Deprecated options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * The time before a JobManager after a fail over recovers the current jobs.
+	 *
+	 * @deprecated Don't use this option anymore. It has no effect on Flink.
+	 */
+	@Deprecated
+	public static final ConfigOption<String> HA_JOB_DELAY =
+		key("high-availability.job.delay")
+			.noDefaultValue()
+			.withDeprecatedKeys("recovery.job.delay")
+			.withDescription("The time before a JobManager after a fail over recovers the current jobs.");
 
 	// ------------------------------------------------------------------------
 

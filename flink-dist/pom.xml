@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -93,13 +93,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-python_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -130,12 +123,18 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2</artifactId>
+					<artifactId>flink-shaded-hadoop-2</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -212,6 +211,13 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-examples-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!--
 			The following dependencies are packaged in 'opt/' 
 			The scope of these dependencies needs to be 'provided' so that
@@ -273,13 +279,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -308,13 +307,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-ml-uber_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-uber_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -322,7 +314,28 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-uber-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-state-processor-api_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-azure-fs-hadoop</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -361,7 +374,39 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-python_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
+			<scope>provided</scope>
+		</dependency>
 		<!-- end optional Flink libraries -->
+
+		<dependency>
+			<!-- some components require jaxb-api on Java 11+, which is no longer bundled with the JDK -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
+			<!-- this entry exists to prevent a compile dependency from slipping through -->
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<!-- transitive dependency of jaxb-api; added for clarity -->
+			<groupId>javax.activation</groupId>
+			<artifactId>javax.activation-api</artifactId>
+			<version>1.2.0</version>
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
+			<!-- this entry exists to prevent a compile dependency from slipping through -->
+			<scope>provided</scope>
+		</dependency>
 
 		<!-- test dependencies -->
 
@@ -404,15 +449,10 @@ under the License.
                     The Hadoop 2 Uber jar should not go into the Flink dist jar, but
                     sit next to it. Hence, we set it to 'provided' here.
                 -->
-
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2-uber</artifactId>
-					<version>${hadoop.version}-${project.version}</version>
-					<!--
-                        Exclusion of flink-shaded-hadoop2 not necessary, dependencies
-                        are shaded away properly by flink-shaded-hadoop2-uber.
-                    -->
+					<artifactId>flink-shaded-hadoop-2-uber</artifactId>
+					<version>${hadoop.version}-${flink.shaded.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
@@ -525,6 +565,83 @@ under the License.
 				</configuration>
 			</plugin>
 
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifestEntries>
+									<!-- jaxb-api is packaged as an optional dependency that is only accessible on Java 11 -->
+									<Multi-Release>true</Multi-Release>
+								</manifestEntries>
+							</archive>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-javax-jars</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<artifactItems>
+						<artifactItem>
+							<groupId>javax.xml.bind</groupId>
+							<artifactId>jaxb-api</artifactId>
+							<version>${jaxb.api.version}</version>
+							<type>jar</type>
+							<overWrite>true</overWrite>
+						</artifactItem>
+						<artifactItem>
+							<groupId>javax.activation</groupId>
+							<artifactId>javax.activation-api</artifactId>
+							<version>${javax.activation.api.version}</version>
+							<type>jar</type>
+							<overWrite>true</overWrite>
+						</artifactItem>
+					</artifactItems>
+					<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-javax-libraries</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<echo message="unpacking javax jars"/>
+								<unzip dest="${project.build.directory}/classes/META-INF/versions/11">
+									<fileset dir="${project.build.directory}/temporary">
+										<include name="*"/>
+									</fileset>
+								</unzip>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!--Build uber jar-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -566,14 +683,9 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
 									<projectName>Apache Flink</projectName>
+									<encoding>UTF-8</encoding>
 								</transformer>
 							</transformers>
-							<relocations>
-								<relocation>
-									<pattern>py4j</pattern>
-									<shadedPattern>org.apache.flink.api.python.py4j</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 					<execution>

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.ArrayUtils;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -91,7 +92,7 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
 		.key("classloader.parent-first-patterns.default")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback")
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback;org.xml;javax.xml;org.apache.xerces;org.w3c")
 		.withDeprecatedKeys("classloader.parent-first-patterns")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
@@ -116,12 +117,7 @@ public class CoreOptions {
 		if (append.isEmpty()) {
 			return basePatterns;
 		} else {
-			String[] appendPatterns = append.split(";");
-
-			String[] joinedPatterns = new String[basePatterns.length + appendPatterns.length];
-			System.arraycopy(basePatterns, 0, joinedPatterns, 0, basePatterns.length);
-			System.arraycopy(appendPatterns, 0, joinedPatterns, basePatterns.length, appendPatterns.length);
-			return joinedPatterns;
+			return ArrayUtils.concat(basePatterns, append.split(";"));
 		}
 	}
 
@@ -240,7 +236,7 @@ public class CoreOptions {
 			.key("fs.default-scheme")
 			.noDefaultValue()
 			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
-				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+				" May contain an authority, e.g. host:port in case of an HDFS NameNode.");
 
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.

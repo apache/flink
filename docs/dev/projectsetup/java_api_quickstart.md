@@ -336,7 +336,7 @@ can run the application from the JAR file without additionally specifying the ma
 Write your application!
 
 If you are writing a streaming application and you are looking for inspiration what to write,
-take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/tutorials/datastream_api.html#writing-a-flink-program).
+take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/getting-started/walkthroughs/datastream_api.html).
 
 If you are writing a batch processing application and you are looking for inspiration what to write,
 take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html).
@@ -345,7 +345,7 @@ For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
 
-[Here]({{ site.baseurl }}/tutorials/local_setup.html) you can find out how to run an application outside the IDE on a local cluster.
+[Here]({{ site.baseurl }}/getting-started/tutorials/local_setup.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).

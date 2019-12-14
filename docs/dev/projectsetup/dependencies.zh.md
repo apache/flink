@@ -159,7 +159,7 @@ Scala 版本(2.10、2.11、2.12等)互相是不兼容的。因此，依赖 Scala
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.0.0</version>
+            <version>3.1.1</version>
             <executions>
                 <execution>
                     <phase>package</phase>

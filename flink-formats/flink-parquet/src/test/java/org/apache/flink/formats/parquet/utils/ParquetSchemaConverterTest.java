@@ -18,12 +18,7 @@
 
 package org.apache.flink.formats.parquet.utils;
 
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.types.Row;
 
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
@@ -32,7 +27,6 @@ import org.apache.parquet.schema.Type;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -40,27 +34,6 @@ import static org.junit.Assert.assertEquals;
  * Simple test case for conversion between Parquet schema and Flink date types.
  */
 public class ParquetSchemaConverterTest extends TestUtil {
-	private final TypeInformation<Row> simplyRowType = Types.ROW_NAMED(new String[] {"foo", "bar", "arr"},
-		BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO);
-
-	private final TypeInformation<Row[]> nestedArray = Types.OBJECT_ARRAY(Types.ROW_NAMED(new String[] {"type", "value"},
-		BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
-
-	@SuppressWarnings("unchecked")
-	private final TypeInformation<Map<String, Row>> nestedMap = Types.MAP(BasicTypeInfo.STRING_TYPE_INFO,
-		Types.ROW_NAMED(new String[] {"type", "value"},
-			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
-
-	@SuppressWarnings("unchecked")
-	private final TypeInformation<Row> nestedRowType = Types.ROW_NAMED(
-		new String[] {"foo", "spamMap", "bar", "arr", "strArray", "nestedMap", "nestedArray"},
-		BasicTypeInfo.LONG_TYPE_INFO,
-		Types.MAP(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-		Types.ROW_NAMED(new String[] {"spam"}, BasicTypeInfo.LONG_TYPE_INFO),
-		BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO,
-		BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
-		nestedMap,
-		nestedArray);
 
 	private final Type[] simpleStandardTypes = {
 		org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
@@ -102,8 +75,8 @@ public class ParquetSchemaConverterTest extends TestUtil {
 		org.apache.parquet.schema.Types.optionalGroup().addField(org.apache.parquet.schema.Types.repeatedGroup()
 			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
 				.as(OriginalType.UTF8).named("type"))
-			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
-				.as(OriginalType.UTF8).named("value"))
+			.addField(org.apache.parquet.schema.Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED)
+				.as(OriginalType.INT_64).named("value"))
 			.named("element")).as(OriginalType.LIST)
 			.named("nestedArray")
 	};
@@ -112,25 +85,25 @@ public class ParquetSchemaConverterTest extends TestUtil {
 	public void testSimpleSchemaConversion() {
 		MessageType simpleType = new MessageType("simple", simpleStandardTypes);
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType);
-		assertEquals(simplyRowType, rowTypeInfo);
+		assertEquals(SIMPLE_ROW_TYPE, rowTypeInfo);
 	}
 
 	@Test
 	public void testNestedSchemaConversion() {
 		MessageType nestedTypes = new MessageType("nested", this.nestedTypes);
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedTypes);
-		assertEquals(nestedRowType, rowTypeInfo);
+		assertEquals(NESTED_ROW_TYPE, rowTypeInfo);
 	}
 
 	@Test
 	public void testSimpleRowTypeConversion() {
-		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(simplyRowType, true);
+		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(SIMPLE_ROW_TYPE, true);
 		assertEquals(Arrays.asList(simpleStandardTypes), simpleSchema.getFields());
 	}
 
 	@Test
 	public void testNestedRowTypeConversion() {
-		MessageType nestedSchema = ParquetSchemaConverter.toParquetType(nestedRowType, true);
+		MessageType nestedSchema = ParquetSchemaConverter.toParquetType(NESTED_ROW_TYPE, true);
 		assertEquals(Arrays.asList(nestedTypes), nestedSchema.getFields());
 	}
 }

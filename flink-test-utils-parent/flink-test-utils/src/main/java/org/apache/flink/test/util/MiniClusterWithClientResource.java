@@ -66,7 +66,7 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
 
 		if (clusterClient != null) {
 			try {
-				clusterClient.shutdown();
+				clusterClient.close();
 			} catch (Exception e) {
 				exception = e;
 			}

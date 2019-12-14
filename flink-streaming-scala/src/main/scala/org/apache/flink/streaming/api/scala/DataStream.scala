@@ -631,7 +631,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(stream.map(mapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -644,7 +644,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(stream.flatMap(flatMapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**

@@ -64,21 +64,6 @@ env.execute()
 {% endhighlight %}
 </div>
 
-<div data-lang="python" markdown="1">
-{% highlight python %}
-from flink.plan.Environment import get_environment
-
-env = get_environment()
-env.set_parallelism(2)
-input = env.from_elements("A", "B", "C", "D", "E", "F", "G", "H")
-
-result = input.zip_with_index()
-
-result.write_text(result_path)
-env.execute()
-{% endhighlight %}
-</div>
-
 </div>
 
 may yield the tuples: (0,G), (1,H), (2,A), (3,B), (4,C), (5,D), (6,E), (7,F)

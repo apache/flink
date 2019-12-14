@@ -69,6 +69,17 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime) // default
 // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 {% endhighlight %}
 </div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+
+env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
+
+# alternatively:
+# env.set_stream_time_characteristic(TimeCharacteristic.IngestionTime)
+# env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+{% endhighlight %}
+</div>
 </div>
 
 Processing time
@@ -140,7 +151,7 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedProctime
 tEnv.registerTableSource("UserActions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
-	.scan("UserActions")
+	.from("UserActions")
 	.window(Tumble.over("10.minutes").on("UserActionTime").as("userActionWindow"));
 {% endhighlight %}
 </div>
@@ -171,7 +182,7 @@ class UserActionSource extends StreamTableSource[Row] with DefinedProctimeAttrib
 tEnv.registerTableSource("UserActions", new UserActionSource)
 
 val windowedTable = tEnv
-	.scan("UserActions")
+	.from("UserActions")
 	.window(Tumble over 10.minutes on 'UserActionTime as 'userActionWindow)
 {% endhighlight %}
 </div>
@@ -303,7 +314,7 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 tEnv.registerTableSource("UserActions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
-	.scan("UserActions")
+	.from("UserActions")
 	.window(Tumble.over("10.minutes").on("UserActionTime").as("userActionWindow"));
 {% endhighlight %}
 </div>
@@ -342,7 +353,7 @@ class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribu
 tEnv.registerTableSource("UserActions", new UserActionSource)
 
 val windowedTable = tEnv
-	.scan("UserActions")
+	.from("UserActions")
 	.window(Tumble over 10.minutes on 'UserActionTime as 'userActionWindow)
 {% endhighlight %}
 </div>

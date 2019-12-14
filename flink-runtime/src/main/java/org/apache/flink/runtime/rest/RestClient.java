@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -124,7 +125,7 @@ public class RestClient implements AutoCloseableAsync {
 				try {
 					// SSL should be the first handler in the pipeline
 					if (sslHandlerFactory != null) {
-						socketChannel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler());
+						socketChannel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler(socketChannel.alloc()));
 					}
 
 					socketChannel.pipeline()
@@ -148,7 +149,7 @@ public class RestClient implements AutoCloseableAsync {
 			.channel(NioSocketChannel.class)
 			.handler(initializer);
 
-		LOG.info("Rest client endpoint started.");
+		LOG.debug("Rest client endpoint started.");
 	}
 
 	@Override
@@ -161,7 +162,7 @@ public class RestClient implements AutoCloseableAsync {
 
 		try {
 			shutDownFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			LOG.info("Rest endpoint shutdown complete.");
+			LOG.debug("Rest endpoint shutdown complete.");
 		} catch (Exception e) {
 			LOG.warn("Rest endpoint shutdown failed.", e);
 		}
@@ -169,7 +170,7 @@ public class RestClient implements AutoCloseableAsync {
 
 	private CompletableFuture<Void> shutdownInternally(Time timeout) {
 		if (isRunning.compareAndSet(true, false)) {
-			LOG.info("Shutting down rest endpoint.");
+			LOG.debug("Shutting down rest endpoint.");
 
 			if (bootstrap != null) {
 				if (bootstrap.group() != null) {
@@ -229,7 +230,7 @@ public class RestClient implements AutoCloseableAsync {
 			Collection<FileUpload> fileUploads,
 			RestAPIVersion apiVersion) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
-		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
+		Preconditions.checkArgument(NetUtils.isValidHostPort(targetPort), "The target port " + targetPort + " is not in the range [0, 65535].");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);

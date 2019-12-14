@@ -52,13 +52,6 @@ bin=`cd "$bin"; pwd`
 
 FLINK_CLASSPATH=`constructFlinkClassPath`
 
-# Append flink-table jar into class path
-opt=`dirname "$0"`
-opt=`cd "$opt"/../opt; pwd`
-FLINK_TABLE_LIB_PATH=$opt/`ls $opt|grep flink-table_*`
-FLINK_CLASSPATH=$FLINK_CLASSPATH:$FLINK_TABLE_LIB_PATH
-
-
 # https://issues.scala-lang.org/browse/SI-6502, cant load external jars interactively
 # in scala shell since 2.10, has to be done at startup
 # checks arguments for additional classpath and adds it to the "standard classpath"
@@ -104,9 +97,9 @@ log_setting="-Dlog.file="$LOG" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/$LOG
 
 if ${EXTERNAL_LIB_FOUND}
 then
-    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
+    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" "$log_setting" org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
 else
-    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
+    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" "$log_setting" org.apache.flink.api.scala.FlinkShell $@
 fi
 
 #restore echo

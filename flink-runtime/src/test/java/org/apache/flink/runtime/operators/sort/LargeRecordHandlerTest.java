@@ -32,11 +32,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -46,13 +46,15 @@ public class LargeRecordHandlerTest {
 
 	@Test
 	public void testEmptyRecordHandler() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 50;
 		
-		try {
-			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		try (final IOManager ioMan = new IOManagerAsync()) {
+			final MemoryManager memMan = MemoryManagerBuilder
+				.newBuilder()
+				.setMemorySize(NUM_PAGES * PAGE_SIZE)
+				.setPageSize(PAGE_SIZE)
+				.build();
 			final AbstractInvokable owner = new DummyInvokable();
 			final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
 			
@@ -88,21 +90,20 @@ public class LargeRecordHandlerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 	
 	@Test
 	public void testRecordHandlerSingleKey() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 24;
 		final int NUM_RECORDS = 25000;
 		
-		try {
-			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		try (final IOManager ioMan = new IOManagerAsync()) {
+			final MemoryManager memMan = MemoryManagerBuilder
+				.newBuilder()
+				.setMemorySize(NUM_PAGES * PAGE_SIZE)
+				.setPageSize(PAGE_SIZE)
+				.build();
 			final AbstractInvokable owner = new DummyInvokable();
 			
 			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
@@ -174,21 +175,20 @@ public class LargeRecordHandlerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 	
 	@Test
 	public void testRecordHandlerCompositeKey() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 24;
 		final int NUM_RECORDS = 25000;
 		
-		try {
-			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		try (final IOManager ioMan = new IOManagerAsync()) {
+			final MemoryManager memMan = MemoryManagerBuilder
+				.newBuilder()
+				.setMemorySize(NUM_PAGES * PAGE_SIZE)
+				.setPageSize(PAGE_SIZE)
+				.build();
 			final AbstractInvokable owner = new DummyInvokable();
 			
 			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
@@ -261,9 +261,6 @@ public class LargeRecordHandlerTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			ioMan.shutdown();
 		}
 	}
 }

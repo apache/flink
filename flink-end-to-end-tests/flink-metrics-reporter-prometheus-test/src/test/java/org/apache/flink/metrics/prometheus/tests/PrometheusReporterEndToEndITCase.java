@@ -24,6 +24,7 @@ import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.FlinkDistribution;
+import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -37,6 +38,7 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +56,7 @@ import static org.apache.flink.tests.util.AutoClosableProcess.runNonBlocking;
 /**
  * End-to-end test for the PrometheusReporter.
  */
+@Category(TravisGroup1.class)
 public class PrometheusReporterEndToEndITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporterEndToEndITCase.class);

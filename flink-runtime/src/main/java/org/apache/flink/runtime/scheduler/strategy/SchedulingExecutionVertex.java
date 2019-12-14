@@ -18,22 +18,17 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-
-import java.util.Collection;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.topology.Vertex;
 
 /**
  * Scheduling representation of {@link ExecutionVertex}.
  */
-public interface SchedulingExecutionVertex {
-
-	/**
-	 * Gets id of the execution vertex.
-	 *
-	 * @return id of the execution vertex
-	 */
-	ExecutionVertexID getId();
+public interface SchedulingExecutionVertex<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
+	extends Vertex<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
 
 	/**
 	 * Gets the state of the execution vertex.
@@ -43,16 +38,9 @@ public interface SchedulingExecutionVertex {
 	ExecutionState getState();
 
 	/**
-	 * Get all consumed result partitions.
+	 * Get {@link InputDependencyConstraint}.
 	 *
-	 * @return collection of input partitions
+	 * @return input dependency constraint
 	 */
-	Collection<SchedulingResultPartition> getConsumedResultPartitions();
-
-	/**
-	 * Get all produced result partitions.
-	 *
-	 * @return collection of output edges
-	 */
-	Collection<SchedulingResultPartition> getProducedResultPartitions();
+	InputDependencyConstraint getInputDependencyConstraint();
 }

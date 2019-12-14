@@ -66,7 +66,7 @@ public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
 		ossfsFactory.configure(conf);
 		org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
 		// shaded
-		assertEquals("org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
+		assertEquals("org.apache.flink.fs.osshadoop.shaded.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
 			configuration.get("fs.oss.credentials.provider"));
 		// should not shaded
 		assertEquals(OSSTestCredentials.getOSSEndpoint(), configuration.get("fs.oss.endpoint"));

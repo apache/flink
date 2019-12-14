@@ -18,21 +18,30 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
+import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -59,10 +68,10 @@ public class BinaryArrayTest {
 		{
 			BinaryRow row2 = new BinaryRow(1);
 			BinaryRowWriter writer2 = new BinaryRowWriter(row2);
-			writer2.writeArray(0, array);
+			writer2.writeArray(0, array, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
 			writer2.complete();
 
-			BinaryArray array2 = row2.getArray(0);
+			BinaryArray array2 = (BinaryArray) row2.getArray(0);
 			assertEquals(array2, array);
 			assertEquals(array2.getInt(0), 6);
 			assertTrue(array2.isNullAt(1));
@@ -75,10 +84,10 @@ public class BinaryArrayTest {
 
 			BinaryRow row2 = new BinaryRow(1);
 			BinaryRowWriter writer2 = new BinaryRowWriter(row2);
-			writer2.writeArray(0, array3);
+			writer2.writeArray(0, array3, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
 			writer2.complete();
 
-			BinaryArray array2 = row2.getArray(0);
+			BinaryArray array2 = (BinaryArray) row2.getArray(0);
 			assertEquals(array2, array);
 			assertEquals(array2.getInt(0), 6);
 			assertTrue(array2.isNullAt(1));
@@ -278,30 +287,6 @@ public class BinaryArrayTest {
 		}
 
 		{
-			// test char
-			BinaryArray array = new BinaryArray();
-			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 2);
-			writer.setNullShort(0);
-			writer.writeChar(1, (char) 25);
-			writer.complete();
-
-			assertTrue(array.isNullAt(0));
-			assertEquals(25, array.getChar(1));
-			array.setChar(0, (char) 5);
-			assertEquals(5, array.getChar(0));
-			array.setNullChar(0);
-			assertTrue(array.isNullAt(0));
-
-			BinaryArray newArray = splitArray(array);
-			assertTrue(newArray.isNullAt(0));
-			assertEquals(25, newArray.getChar(1));
-			newArray.setChar(0, (char) 5);
-			assertEquals(5, newArray.getChar(0));
-			newArray.setNullChar(0);
-			assertTrue(newArray.isNullAt(0));
-		}
-
-		{
 			// test string
 			BinaryArray array = new BinaryArray();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
@@ -328,7 +313,7 @@ public class BinaryArrayTest {
 			BinaryArray array = new BinaryArray();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 			writer.setNullAt(0);
-			writer.writeArray(1, subArray);
+			writer.writeArray(1, subArray, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
 			writer.complete();
 
 			assertTrue(array.isNullAt(0));
@@ -344,7 +329,8 @@ public class BinaryArrayTest {
 			BinaryArray array = new BinaryArray();
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 			writer.setNullAt(0);
-			writer.writeMap(1, BinaryMap.valueOf(subArray, subArray));
+			writer.writeMap(1, BinaryMap.valueOf(subArray, subArray),
+					new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 			writer.complete();
 
 			assertTrue(array.isNullAt(0));
@@ -376,10 +362,11 @@ public class BinaryArrayTest {
 
 		BinaryRow row = new BinaryRow(1);
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
-		rowWriter.writeMap(0, binaryMap);
+		rowWriter.writeMap(0, binaryMap,
+				new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 		rowWriter.complete();
 
-		BinaryMap map = row.getMap(0);
+		BinaryMap map = (BinaryMap) row.getMap(0);
 		BinaryArray key = map.keyArray();
 		BinaryArray value = map.valueArray();
 
@@ -478,13 +465,14 @@ public class BinaryArrayTest {
 	public void testGeneric() {
 		BinaryArray array = new BinaryArray();
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-		BinaryGeneric<String> generic = new BinaryGeneric<>("hahah", StringSerializer.INSTANCE);
-		writer.writeGeneric(0, generic);
+		BinaryGeneric<String> generic = new BinaryGeneric<>("hahah");
+		BinaryGenericSerializer<String> serializer = new BinaryGenericSerializer<>(StringSerializer.INSTANCE);
+		writer.writeGeneric(0, generic, serializer);
 		writer.setNullAt(1);
 		writer.complete();
 
 		BinaryGeneric newGeneric = array.getGeneric(0);
-		assertEquals(generic, newGeneric);
+		assertThat(newGeneric, equivalent(generic, serializer));
 		assertTrue(array.isNullAt(1));
 	}
 
@@ -492,9 +480,8 @@ public class BinaryArrayTest {
 	public void testNested() {
 		BinaryArray array = new BinaryArray();
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
-		BaseRowSerializer nestedSer = new BaseRowSerializer(
-				new ExecutionConfig(), InternalTypes.STRING, InternalTypes.INT);
-		writer.writeRow(0, GenericRow.of(fromString("1"), 1), nestedSer);
+		writer.writeRow(0, GenericRow.of(fromString("1"), 1),
+				new BaseRowSerializer(null, RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
 		writer.setNullAt(1);
 		writer.complete();
 
@@ -516,5 +503,42 @@ public class BinaryArrayTest {
 
 		Assert.assertArrayEquals(bytes1, array.getBinary(0));
 		Assert.assertArrayEquals(bytes2, array.getBinary(1));
+	}
+
+	@Test
+	public void testSqlTimestamp() {
+		BinaryArray array = new BinaryArray();
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+
+		// 1. compact
+		{
+			final int precision = 3;
+			writer.reset();
+			writer.writeTimestamp(0, SqlTimestamp.fromEpochMillis(123L), precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("1970-01-01T00:00:00.123", array.getTimestamp(0, 3).toString());
+			assertTrue(array.isNullAt(1));
+			array.setTimestamp(0, SqlTimestamp.fromEpochMillis(-123L), precision);
+			assertEquals("1969-12-31T23:59:59.877", array.getTimestamp(0, 3).toString());
+		}
+
+		// 2. not compact
+		{
+			final int precision = 9;
+			SqlTimestamp sqlTimestamp1 = SqlTimestamp.fromLocalDateTime(LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789));
+			SqlTimestamp sqlTimestamp2 = SqlTimestamp.fromTimestamp(Timestamp.valueOf("1969-01-01 00:00:00.123456789"));
+
+			writer.reset();
+			writer.writeTimestamp(0, sqlTimestamp1, precision);
+			writer.writeTimestamp(1, null, precision);
+			writer.complete();
+
+			assertEquals("1970-01-01T00:00:00.123456789", array.getTimestamp(0, precision).toString());
+			assertTrue(array.isNullAt(1));
+			array.setTimestamp(0, sqlTimestamp2, precision);
+			assertEquals("1969-01-01T00:00:00.123456789", array.getTimestamp(0, precision).toString());
+		}
 	}
 }

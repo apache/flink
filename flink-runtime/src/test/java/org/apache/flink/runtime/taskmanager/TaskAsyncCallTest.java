@@ -40,10 +40,8 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -53,8 +51,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
@@ -62,18 +62,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -81,6 +76,9 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Testing asynchronous call of {@link Task}.
+ */
 public class TaskAsyncCallTest extends TestLogger {
 
 	/** Number of expected checkpoints. */
@@ -90,23 +88,12 @@ public class TaskAsyncCallTest extends TestLogger {
 	private static OneShotLatch awaitLatch;
 
 	/**
-	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)}
+	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpointAsync(CheckpointMetaData, CheckpointOptions, boolean)}
 	 * was called {@link #numCalls} times.
 	 */
 	private static OneShotLatch triggerLatch;
 
-	/**
-	 * Triggered when {@link CheckpointsInOrderInvokable#notifyCheckpointComplete(long)}
-	 * was called {@link #numCalls} times.
-	 */
-	private static OneShotLatch notifyCheckpointCompleteLatch;
-
-	/** Triggered on {@link ContextClassLoaderInterceptingInvokable#cancel()}. */
-	private static OneShotLatch stopLatch;
-
-	private static final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
-
-	private NetworkEnvironment networkEnvironment;
+	private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
 	@Before
 	public void createQueuesAndActors() {
@@ -114,31 +101,23 @@ public class TaskAsyncCallTest extends TestLogger {
 
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
-		notifyCheckpointCompleteLatch = new OneShotLatch();
-		stopLatch = new OneShotLatch();
 
-		networkEnvironment = new NetworkEnvironmentBuilder().build();
-
-		classLoaders.clear();
+		shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 	}
 
 	@After
-	public void teardown() {
-		if (networkEnvironment != null) {
-			networkEnvironment.shutdown();
+	public void teardown() throws Exception {
+		if (shuffleEnvironment != null) {
+			shuffleEnvironment.close();
 		}
 	}
 
 	// ------------------------------------------------------------------------
-	//  Tests 
+	//  Tests
 	// ------------------------------------------------------------------------
 
 	@Test
-	@Ignore
 	public void testCheckpointCallsInOrder() throws Exception {
-
-		// test ignored because with the changes introduced by [FLINK-11667],
-		// there is not guarantee about the order in which checkpoints are executed.
 
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -160,11 +139,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	@Test
-	@Ignore
 	public void testMixedAsyncCallsInOrder() throws Exception {
-
-		// test ignored because with the changes introduced by [FLINK-11667],
-		// there is not guarantee about the order in which checkpoints are executed.
 
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -183,35 +158,6 @@ public class TaskAsyncCallTest extends TestLogger {
 
 			ExecutionState currentState = task.getExecutionState();
 			assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
-		}
-	}
-
-	/**
-	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)},
-	 * and {@link AbstractInvokable#notifyCheckpointComplete(long)} are invoked by a thread whose context
-	 * class loader is set to the user code class loader.
-	 */
-	@Test
-	public void testSetsUserCodeClassLoader() throws Exception {
-		numCalls = 1;
-
-		Task task = createTask(ContextClassLoaderInterceptingInvokable.class);
-		try (TaskCleaner ignored = new TaskCleaner(task)) {
-			task.startTaskThread();
-
-			awaitLatch.await();
-
-			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
-			triggerLatch.await();
-
-			task.notifyCheckpointComplete(1);
-			task.cancelExecution();
-
-			notifyCheckpointCompleteLatch.await();
-			stopLatch.await();
-
-			assertThat(classLoaders, hasSize(greaterThanOrEqualTo(2)));
-			assertThat(classLoaders, everyItem(instanceOf(TestUserCodeClassLoader.class)));
 		}
 	}
 
@@ -255,7 +201,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			0,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			networkEnvironment,
+			shuffleEnvironment,
 			new KvStateService(new KvStateRegistry(), null, null),
 			mock(BroadcastVariableManager.class),
 			new TaskEventDispatcher(),
@@ -274,6 +220,9 @@ public class TaskAsyncCallTest extends TestLogger {
 			executor);
 	}
 
+	/**
+	 * Invokable for testing checkpoints.
+	 */
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable {
 
 		private volatile long lastCheckpointId = 0;
@@ -298,15 +247,13 @@ public class TaskAsyncCallTest extends TestLogger {
 			if (error != null) {
 				// exit method prematurely due to error but make sure that the tests can finish
 				triggerLatch.trigger();
-				notifyCheckpointCompleteLatch.trigger();
-				stopLatch.trigger();
 
 				throw error;
 			}
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+		public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			lastCheckpointId++;
 			if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {
 				if (lastCheckpointId == numCalls) {
@@ -319,7 +266,7 @@ public class TaskAsyncCallTest extends TestLogger {
 					notifyAll();
 				}
 			}
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
@@ -333,58 +280,20 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			if (checkpointId != lastCheckpointId && this.error == null) {
 				this.error = new Exception("calls out of order");
 				synchronized (this) {
 					notifyAll();
 				}
-			} else if (lastCheckpointId == numCalls) {
-				notifyCheckpointCompleteLatch.trigger();
 			}
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
-	/**
-	 * This is an {@link AbstractInvokable} that stores the context class loader of the invoking
-	 * thread in a static field so that tests can assert on the class loader instances.
-	 *
-	 * @see #testSetsUserCodeClassLoader()
-	 */
-	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable {
-
-		public ContextClassLoaderInterceptingInvokable(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
-			classLoaders.add(Thread.currentThread().getContextClassLoader());
-
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
-			classLoaders.add(Thread.currentThread().getContextClassLoader());
-
-			super.notifyCheckpointComplete(checkpointId);
-		}
-
-		@Override
-		public void cancel() {
-			stopLatch.trigger();
-		}
-
-	}
-
-	/**
-	 * A {@link ClassLoader} that delegates everything to {@link ClassLoader#getSystemClassLoader()}.
-	 *
-	 * @see #testSetsUserCodeClassLoader()
-	 */
+	/** A {@link ClassLoader} that delegates everything to {@link ClassLoader#getSystemClassLoader()}. */
 	private static class TestUserCodeClassLoader extends ClassLoader {
-		public TestUserCodeClassLoader() {
+		TestUserCodeClassLoader() {
 			super(ClassLoader.getSystemClassLoader());
 		}
 	}

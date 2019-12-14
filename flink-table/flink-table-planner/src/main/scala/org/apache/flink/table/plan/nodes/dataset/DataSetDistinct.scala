@@ -24,7 +24,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl}
+import org.apache.flink.table.api.BatchQueryConfig
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.runtime.aggregate.DistinctReduce
 import org.apache.flink.types.Row
 

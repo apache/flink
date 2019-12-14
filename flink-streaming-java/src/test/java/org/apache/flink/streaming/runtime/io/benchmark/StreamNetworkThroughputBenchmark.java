@@ -19,6 +19,9 @@
 package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.types.LongValue;
 
 import java.util.concurrent.CompletableFuture;
@@ -105,18 +108,26 @@ public class StreamNetworkThroughputBenchmark {
 		environment.setUp(
 			recordWriters,
 			channels,
-			broadcastMode,
 			localMode,
 			senderBufferPoolSize,
 			receiverBufferPoolSize,
 			config);
-		receiver = environment.createReceiver();
 		writerThreads = new LongRecordWriterThread[recordWriters];
 		for (int writer = 0; writer < recordWriters; writer++) {
+			ResultPartitionWriter resultPartitionWriter = environment.createResultPartitionWriter(writer);
+			RecordWriterBuilder recordWriterBuilder = new RecordWriterBuilder().setTimeout(flushTimeout);
+			setChannelSelector(recordWriterBuilder, broadcastMode);
 			writerThreads[writer] = new LongRecordWriterThread(
-				environment.createRecordWriter(writer, flushTimeout),
+				recordWriterBuilder.build(resultPartitionWriter),
 				broadcastMode);
 			writerThreads[writer].start();
+		}
+		receiver = environment.createReceiver();
+	}
+
+	protected void setChannelSelector(RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
+		if (broadcastMode) {
+			recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
 		}
 	}
 

@@ -50,7 +50,7 @@ class TemporalTableJoinTest extends TableTestBase {
       "o_amount * rate as rate " +
       "FROM Orders AS o, " +
       "LATERAL TABLE (Rates(o_rowtime)) AS r " +
-      "WHERE currency = o_currency";
+      "WHERE currency = o_currency"
 
     util.printSql(sqlQuery)
   }
@@ -81,7 +81,7 @@ class TemporalTableJoinTest extends TableTestBase {
         "LATERAL TABLE (Rates(o_rowtime)) AS r " +
         "WHERE currency = o_currency OR secondary_key = o_secondary_key), " +
         "Table3 " +
-      "WHERE t3_secondary_key = secondary_key";
+      "WHERE t3_secondary_key = secondary_key"
 
     util.printSql(sqlQuery)
   }
@@ -95,7 +95,7 @@ class TemporalTableJoinTest extends TableTestBase {
       "o_amount * rate as rate " +
       "FROM Orders AS o, " +
       "LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123')) AS r " +
-      "WHERE currency = o_currency";
+      "WHERE currency = o_currency"
 
     util.printSql(sqlQuery)
   }
@@ -105,7 +105,7 @@ class TemporalTableJoinTest extends TableTestBase {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(startsWith("Cannot generate a valid execution plan"))
 
-    val sqlQuery = "SELECT * FROM LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123'))";
+    val sqlQuery = "SELECT * FROM LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123'))"
 
     util.printSql(sqlQuery)
   }

@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -186,6 +186,15 @@ under the License.
 			<version>2.7.3-1</version>
 		</dependency>
 
+		<dependency>
+			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged in flink-dist -->
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- for the behavior test suite -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -289,6 +298,12 @@ under the License.
 								<relocation>
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
+								</relocation>
+
+								<!-- shade Flink's Hadoop FS utility classes -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.common</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

@@ -183,7 +183,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			subpartitionView = checkAndWaitForSubpartitionView();
 		}
 
-		BufferAndBacklog next = subpartitionView.getNextBuffer();
+		BufferAndBacklog next = subpartitionView.getNextBuffer(true);
 
 		if (next == null) {
 			if (subpartitionView.isReleased()) {
@@ -193,7 +193,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			}
 		}
 
-		numBytesIn.inc(next.buffer().getSizeUnsafe());
+		numBytesIn.inc(next.buffer().getSize());
 		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog()));
 	}
@@ -237,13 +237,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		return isReleased;
 	}
 
-	@Override
-	void notifySubpartitionConsumed() throws IOException {
-		if (subpartitionView != null) {
-			subpartitionView.notifySubpartitionConsumed();
-		}
-	}
-
 	/**
 	 * Releases the partition reader.
 	 */
@@ -258,6 +251,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 				subpartitionView = null;
 			}
 		}
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		ResultSubpartitionView view = subpartitionView;
+
+		if (view != null) {
+			return view.unsynchronizedGetNumberOfQueuedBuffers();
+		}
+
+		return 0;
 	}
 
 	@Override

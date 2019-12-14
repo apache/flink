@@ -21,7 +21,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -84,7 +83,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	private static Configuration getConfiguration() {
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
-		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 		return flinkConfig;
 	}
 
@@ -143,7 +141,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
 
 		// ----------- add producer dataflow ----------
 
@@ -236,7 +233,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
 
 		// ----------- add consumer ----------
 

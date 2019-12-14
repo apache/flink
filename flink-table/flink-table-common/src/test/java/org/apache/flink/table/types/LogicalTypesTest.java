@@ -23,8 +23,12 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.types.logical.AnyType;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -42,14 +46,17 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
-import org.apache.flink.table.types.logical.UserDefinedType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -57,13 +64,14 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -85,7 +93,7 @@ public class LogicalTypesTest {
 			new Class[]{String.class, byte[].class},
 			new Class[]{String.class, byte[].class},
 			new LogicalType[]{},
-			new CharType(12)
+			new CharType(Integer.MAX_VALUE)
 		);
 	}
 
@@ -95,6 +103,19 @@ public class LogicalTypesTest {
 			new VarCharType(33),
 			"VARCHAR(33)",
 			"VARCHAR(33)",
+			new Class[]{String.class, byte[].class},
+			new Class[]{String.class, byte[].class},
+			new LogicalType[]{},
+			new VarCharType(12)
+		);
+	}
+
+	@Test
+	public void testVarCharTypeWithMaximumLength() {
+		testAll(
+			new VarCharType(Integer.MAX_VALUE),
+			"VARCHAR(2147483647)",
+			"STRING",
 			new Class[]{String.class, byte[].class},
 			new Class[]{String.class, byte[].class},
 			new LogicalType[]{},
@@ -138,6 +159,19 @@ public class LogicalTypesTest {
 			new Class[]{byte[].class},
 			new LogicalType[]{},
 			new VarBinaryType()
+		);
+	}
+
+	@Test
+	public void testVarBinaryTypeWithMaximumLength() {
+		testAll(
+			new VarBinaryType(Integer.MAX_VALUE),
+			"VARBINARY(2147483647)",
+			"BYTES",
+			new Class[]{byte[].class},
+			new Class[]{byte[].class},
+			new LogicalType[]{},
+			new VarBinaryType(12)
 		);
 	}
 
@@ -272,6 +306,19 @@ public class LogicalTypesTest {
 	}
 
 	@Test
+	public void testTimestampTypeWithTimeAttribute() {
+		testAll(
+			new TimestampType(true, TimestampKind.ROWTIME, 9),
+			"TIMESTAMP(9)",
+			"TIMESTAMP(9) *ROWTIME*",
+			new Class[]{java.sql.Timestamp.class, java.time.LocalDateTime.class},
+			new Class[]{java.time.LocalDateTime.class},
+			new LogicalType[]{},
+			new TimestampType(3)
+		);
+	}
+
+	@Test
 	public void testZonedTimestampType() {
 		testAll(
 			new ZonedTimestampType(9),
@@ -285,11 +332,37 @@ public class LogicalTypesTest {
 	}
 
 	@Test
+	public void testZonedTimestampTypeWithTimeAttribute() {
+		testAll(
+			new ZonedTimestampType(true, TimestampKind.PROCTIME, 9),
+			"TIMESTAMP(9) WITH TIME ZONE",
+			"TIMESTAMP(9) WITH TIME ZONE *PROCTIME*",
+			new Class[]{java.time.ZonedDateTime.class, java.time.OffsetDateTime.class},
+			new Class[]{java.time.OffsetDateTime.class},
+			new LogicalType[]{},
+			new ZonedTimestampType(3)
+		);
+	}
+
+	@Test
 	public void testLocalZonedTimestampType() {
 		testAll(
 			new LocalZonedTimestampType(9),
 			"TIMESTAMP(9) WITH LOCAL TIME ZONE",
 			"TIMESTAMP(9) WITH LOCAL TIME ZONE",
+			new Class[]{java.time.Instant.class, long.class, int.class},
+			new Class[]{java.time.Instant.class},
+			new LogicalType[]{},
+			new LocalZonedTimestampType(3)
+		);
+	}
+
+	@Test
+	public void testLocalZonedTimestampTypeWithTimeAttribute() {
+		testAll(
+			new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 9),
+			"TIMESTAMP(9) WITH LOCAL TIME ZONE",
+			"TIMESTAMP(9) WITH LOCAL TIME ZONE *ROWTIME*",
 			new Class[]{java.time.Instant.class, long.class, int.class},
 			new Class[]{java.time.Instant.class},
 			new LogicalType[]{},
@@ -356,7 +429,7 @@ public class LogicalTypesTest {
 			new MultisetType(new TimestampType()),
 			"MULTISET<TIMESTAMP(6)>",
 			"MULTISET<TIMESTAMP(6)>",
-			new Class[]{Map.class},
+			new Class[]{Map.class, HashMap.class, TreeMap.class},
 			new Class[]{Map.class},
 			new LogicalType[]{new TimestampType()},
 			new MultisetType(new SmallIntType())
@@ -366,7 +439,7 @@ public class LogicalTypesTest {
 			new MultisetType(new MultisetType(new TimestampType())),
 			"MULTISET<MULTISET<TIMESTAMP(6)>>",
 			"MULTISET<MULTISET<TIMESTAMP(6)>>",
-			new Class[]{Map.class},
+			new Class[]{Map.class, HashMap.class, TreeMap.class},
 			new Class[]{Map.class},
 			new LogicalType[]{new MultisetType(new TimestampType())},
 			new MultisetType(new MultisetType(new SmallIntType()))
@@ -379,7 +452,7 @@ public class LogicalTypesTest {
 			new MapType(new VarCharType(20), new TimestampType()),
 			"MAP<VARCHAR(20), TIMESTAMP(6)>",
 			"MAP<VARCHAR(20), TIMESTAMP(6)>",
-			new Class[]{Map.class},
+			new Class[]{Map.class, HashMap.class, TreeMap.class},
 			new Class[]{Map.class},
 			new LogicalType[]{new VarCharType(20), new TimestampType()},
 			new MapType(new VarCharType(99), new TimestampType())
@@ -440,13 +513,13 @@ public class LogicalTypesTest {
 	@Test
 	public void testStructuredType() {
 		testAll(
-			createUserType(true),
+			createUserType(true, true),
 			"`cat`.`db`.`User`",
 			"`cat`.`db`.`User`",
 			new Class[]{Row.class, User.class},
 			new Class[]{Row.class, Human.class, User.class},
 			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE},
-			createUserType(false)
+			createUserType(true, false)
 		);
 
 		testConversions(
@@ -455,7 +528,7 @@ public class LogicalTypesTest {
 			new Class[]{Row.class, Human.class});
 
 		// not every Human is User
-		assertFalse(createUserType(true).supportsInputConversion(Human.class));
+		assertFalse(createUserType(true, true).supportsInputConversion(Human.class));
 
 		// User is not implementing SpecialHuman
 		assertFalse(createHumanType(true).supportsInputConversion(User.class));
@@ -483,40 +556,119 @@ public class LogicalTypesTest {
 	}
 
 	@Test
-	public void testTypeInformationAnyType() {
-		final TypeInformationAnyType<?> anyType = new TypeInformationAnyType<>(Types.TUPLE(Types.STRING, Types.INT));
+	public void testTypeInformationRawType() {
+		final TypeInformationRawType<?> rawType = new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.INT));
 
-		testEquality(anyType, new TypeInformationAnyType<>(Types.TUPLE(Types.STRING, Types.LONG)));
+		testEquality(rawType, new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.LONG)));
 
-		testStringSummary(anyType, "ANY(org.apache.flink.api.java.tuple.Tuple2, ?)");
+		testStringSummary(rawType, "RAW('org.apache.flink.api.java.tuple.Tuple2', ?)");
 
-		testNullability(anyType);
+		testNullability(rawType);
 
-		testJavaSerializability(anyType);
+		testJavaSerializability(rawType);
 
-		testConversions(anyType, new Class[]{Tuple2.class}, new Class[]{Tuple.class});
+		testConversions(rawType, new Class[]{Tuple2.class}, new Class[]{Tuple.class});
+
+		testInvalidStringSerializability(rawType);
 	}
 
 	@Test
-	public void testAnyType() {
+	public void testRawType() {
 		testAll(
-			new AnyType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
-				"ANY(org.apache.flink.table.types.LogicalTypesTest$Human, " +
-					"ADNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWxUeXBlc1Rlc3QkSHVtYW4AAATyxpo9cAA" +
-					"AAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cGVzVGVzdCRIdW1hbgEAAAA1AD" +
-					"NvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWxUeXBlc1Rlc3QkSHVtYW4BAAAAOQAzb3JnL" +
-					"mFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY2FsVHlwZXNUZXN0JEh1bWFuAAAAAAApb3JnLmFwYWNo" +
-					"ZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkBAAAAKwApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWM" +
-					"uR2VuZXJpY0RhdGEkQXJyYXkBAAAAtgBVb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXBldXRpbHMucn" +
-					"VudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb1JlZ2lzdGVyZWRDbGFzcwAAAAEAWW9yZy5hcGFja" +
-					"GUuZmxpbmsuYXBpLmphdmEudHlwZXV0aWxzLnJ1bnRpbWUua3J5by5TZXJpYWxpemVycyREdW1teUF2cm9L" +
-					"cnlvU2VyaWFsaXplckNsYXNzAAAE8saaPXAAAAAAAAAE8saaPXAAAAAA)",
-			"ANY(org.apache.flink.table.types.LogicalTypesTest$Human, ...)",
+			new RawType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
+				"RAW('org.apache.flink.table.types.LogicalTypesTest$Human', " +
+					"'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
+					"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +
+					"VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY" +
+					"2FsVHlwZXNUZXN0JEh1bWFuAQAAADUAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNh" +
+					"bFR5cGVzVGVzdCRIdW1hbgEAAAA5ADNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWx" +
+					"UeXBlc1Rlc3QkSHVtYW4AAAAAAClvcmcuYXBhY2hlLmF2cm8uZ2VuZXJpYy5HZW5lcmljRGF0YSRBcn" +
+					"JheQEAAAArAClvcmcuYXBhY2hlLmF2cm8uZ2VuZXJpYy5HZW5lcmljRGF0YSRBcnJheQEAAAC2AFVvc" +
+					"mcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMk" +
+					"RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB" +
+					"ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3" +
+					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=')",
+			"RAW('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
 			new Class[]{Human.class, User.class}, // every User is Human
 			new Class[]{Human.class},
 			new LogicalType[]{},
-			new AnyType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig()))
+			new RawType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig()))
 		);
+	}
+
+	@Test
+	public void testSymbolType() {
+		final SymbolType<?> symbolType = new SymbolType<>(TimeIntervalUnit.class);
+
+		testEquality(symbolType, new SymbolType<>(TimePointUnit.class));
+
+		testStringSummary(symbolType, "SYMBOL('" + TimeIntervalUnit.class.getName() + "')");
+
+		testNullability(symbolType);
+
+		testJavaSerializability(symbolType);
+
+		testConversions(symbolType, new Class[]{TimeIntervalUnit.class}, new Class[]{TimeIntervalUnit.class});
+
+		testInvalidStringSerializability(symbolType);
+	}
+
+	@Test
+	public void testUnresolvedUserDefinedType() {
+		final UnresolvedUserDefinedType unresolvedType =
+			new UnresolvedUserDefinedType(UnresolvedIdentifier.of("catalog", "database", "Type"));
+
+		testEquality(
+			unresolvedType,
+			new UnresolvedUserDefinedType(UnresolvedIdentifier.of("different", "database", "Type")));
+
+		testStringSummary(unresolvedType, "`catalog`.`database`.`Type`");
+	}
+
+	@Test
+	public void testEmptyStringLiterals() {
+		final CharType charType = CharType.ofEmptyLiteral();
+		final VarCharType varcharType = VarCharType.ofEmptyLiteral();
+		final BinaryType binaryType = BinaryType.ofEmptyLiteral();
+		final VarBinaryType varBinaryType = VarBinaryType.ofEmptyLiteral();
+
+		// make the types nullable for testing
+		testEquality(charType.copy(true), new CharType(1));
+		testEquality(varcharType.copy(true), new VarCharType(1));
+		testEquality(binaryType.copy(true), new BinaryType(1));
+		testEquality(varBinaryType.copy(true), new VarBinaryType(1));
+
+		testStringSummary(charType, "CHAR(0) NOT NULL");
+		testStringSummary(varcharType, "VARCHAR(0) NOT NULL");
+		testStringSummary(binaryType, "BINARY(0) NOT NULL");
+		testStringSummary(varBinaryType, "VARBINARY(0) NOT NULL");
+
+		testInvalidStringSerializability(charType);
+		testInvalidStringSerializability(varcharType);
+		testInvalidStringSerializability(binaryType);
+		testInvalidStringSerializability(varBinaryType);
+	}
+
+	@Test
+	public void testUnregisteredStructuredType() {
+		final StructuredType structuredType = createUserType(false, true);
+
+		testEquality(structuredType, createUserType(false, false));
+
+		testNullability(structuredType);
+
+		testJavaSerializability(structuredType);
+
+		testInvalidStringSerializability(structuredType);
+
+		testStringSummary(structuredType, User.class.getName());
+
+		testConversions(
+			structuredType,
+			new Class[]{Row.class, User.class},
+			new Class[]{Row.class, Human.class, User.class});
+
+		testChildren(structuredType, new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE});
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -578,11 +730,20 @@ public class LogicalTypesTest {
 	}
 
 	private static void testStringSerializability(LogicalType serializableType, String serializableString) {
-		Assert.assertEquals(serializableString, serializableType.asSerializableString());
+		assertEquals(serializableString, serializableType.asSerializableString());
+	}
+
+	private static void testInvalidStringSerializability(LogicalType nonSerializableType) {
+		try {
+			final String serializedString = nonSerializableType.asSerializableString();
+			fail("No serializablility expected: " + serializedString);
+		} catch (TableException e) {
+			// ok
+		}
 	}
 
 	private static void testStringSummary(LogicalType type, String summaryString) {
-		Assert.assertEquals(summaryString, type.asSummaryString());
+		assertEquals(summaryString, type.asSummaryString());
 	}
 
 	private static void testConversions(LogicalType type, Class[] inputs, Class[] outputs) {
@@ -608,10 +769,10 @@ public class LogicalTypesTest {
 	}
 
 	private DistinctType createDistinctType(String typeName) {
-		return new DistinctType.Builder(
-				new UserDefinedType.TypeIdentifier("cat", "db", typeName),
+		return DistinctType.newBuilder(
+				ObjectIdentifier.of("cat", "db", typeName),
 				new DecimalType(10, 2))
-			.setDescription("Money type desc.")
+			.description("Money type desc.")
 			.build();
 	}
 
@@ -620,27 +781,37 @@ public class LogicalTypesTest {
 	private static final LogicalType UDT_SETTING_TYPE = new IntType();
 
 	private StructuredType createHumanType(boolean useDifferentImplementation) {
-		return new StructuredType.Builder(
-				new UserDefinedType.TypeIdentifier("cat", "db", "Human"),
+		return StructuredType.newBuilder(
+				ObjectIdentifier.of("cat", "db", "Human"),
+				useDifferentImplementation ? SpecialHuman.class : Human.class
+			)
+			.attributes(
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
-			.setDescription("Human type desc.")
+			.description("Human type desc.")
 			.setFinal(false)
 			.setInstantiable(false)
-			.setImplementationClass(useDifferentImplementation ? SpecialHuman.class : Human.class)
 			.build();
 	}
 
-	private StructuredType createUserType(boolean isFinal) {
-		return new StructuredType.Builder(
-				new UserDefinedType.TypeIdentifier("cat", "db", "User"),
+	private StructuredType createUserType(boolean isRegistered, boolean isFinal) {
+		final StructuredType.Builder builder;
+		if (isRegistered) {
+			builder = StructuredType.newBuilder(
+				ObjectIdentifier.of("cat", "db", "User"),
+				User.class);
+		} else {
+			builder = StructuredType.newBuilder(
+				User.class);
+		}
+		return builder
+			.attributes(
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
-			.setDescription("User type desc.")
+			.description("User type desc.")
 			.setFinal(isFinal)
 			.setInstantiable(true)
-			.setImplementationClass(User.class)
-			.setSuperType(createHumanType(false))
+			.superType(createHumanType(false))
 			.build();
 	}
 

@@ -29,7 +29,7 @@ In non HA mode, you should first start the job cluster service:
 
 In order to deploy the job cluster entrypoint run:
 
-`FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB=<JOB_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < job-cluster-job.yaml.template | kubectl create -f -`
+`FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < job-cluster-job.yaml.template | kubectl create -f -`
 
 Now you should see the `flink-job-cluster` job being started by calling `kubectl get job`.
 

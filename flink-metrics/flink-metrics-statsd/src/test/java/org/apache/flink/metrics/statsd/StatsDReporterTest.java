@@ -327,8 +327,8 @@ public class StatsDReporterTest extends TestLogger {
 			long endTimeout = System.currentTimeMillis() + timeout;
 			long remainingTimeout = timeout;
 
-			while (numberLines > lines.size() && remainingTimeout > 0) {
-				synchronized (lines) {
+			synchronized (lines) {
+				while (numberLines > lines.size() && remainingTimeout > 0) {
 					try {
 						lines.wait(remainingTimeout);
 					} catch (InterruptedException e) {

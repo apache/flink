@@ -24,7 +24,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -50,11 +49,19 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
@@ -74,6 +81,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -96,13 +104,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see RemoteEnvironment
  */
 @Public
-public abstract class ExecutionEnvironment {
+public class ExecutionEnvironment {
 
 	/** The logger used by the environment and its subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
 	/** The environment of the context (local by default, cluster if invoked through command line). */
-	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
+	private static ExecutionEnvironmentFactory contextEnvironmentFactory = null;
+
+	/** The ThreadLocal used to store {@link ExecutionEnvironmentFactory}. */
+	private static final ThreadLocal<ExecutionEnvironmentFactory> threadLocalContextEnvironmentFactory = new ThreadLocal<>();
 
 	/** The default parallelism used by local environments. */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
@@ -118,21 +129,63 @@ public abstract class ExecutionEnvironment {
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
 
-	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
-	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph. */
-	protected JobID jobID;
-
-	/** The session timeout in seconds. */
-	protected long sessionTimeout;
-
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
+
+	private final ExecutorServiceLoader executorServiceLoader;
+
+	private final Configuration configuration;
+
+	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
+
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
+	 * configure the {@link org.apache.flink.core.execution.Executor}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+	}
+
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
+		this.executorServiceLoader = checkNotNull(executorServiceLoader);
+		this.configuration = checkNotNull(configuration);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+	}
 
 	/**
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		jobID = JobID.generate();
+		this(new Configuration());
+	}
+
+	@Internal
+	public ClassLoader getUserCodeClassLoader() {
+		return userClassloader;
+	}
+
+	@Internal
+	public ExecutorServiceLoader getExecutorServiceLoader() {
+		return executorServiceLoader;
+	}
+
+	@Internal
+	public Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -242,68 +295,6 @@ public abstract class ExecutionEnvironment {
 	public JobExecutionResult getLastJobExecutionResult(){
 		return this.lastJobExecutionResult;
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Session Management
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The JobID of this environment.
-	 * @see #getIdString()
-	 */
-	@PublicEvolving
-	public JobID getId() {
-		return this.jobID;
-	}
-
-	/**
-	 * Gets the JobID by which this environment is identified, as a string.
-	 *
-	 * @return The JobID as a string.
-	 * @see #getId()
-	 */
-	@PublicEvolving
-	public String getIdString() {
-		return this.jobID.toString();
-	}
-
-	/**
-	 * Sets the session timeout to hold the intermediate results of a job. This only
-	 * applies the updated timeout in future executions.
-	 *
-	 * @param timeout The timeout, in seconds.
-	 */
-	@PublicEvolving
-	public void setSessionTimeout(long timeout) {
-		throw new IllegalStateException("Support for sessions is currently disabled. " +
-				"It will be enabled in future Flink versions.");
-		// Session management is disabled, revert this commit to enable
-		//if (timeout < 0) {
-		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
-		//}
-		//this.sessionTimeout = timeout;
-	}
-
-	/**
-	 * Gets the session timeout for this environment. The session timeout defines for how long
-	 * after an execution, the job and its intermediate results will be kept for future
-	 * interactions.
-	 *
-	 * @return The session timeout, in seconds.
-	 */
-	@PublicEvolving
-	public long getSessionTimeout() {
-		return sessionTimeout;
-	}
-
-	/**
-	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
-	 */
-	@PublicEvolving
-	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
@@ -829,18 +820,125 @@ public abstract class ExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		final JobClient jobClient = executeAsync(jobName);
+
+		try {
+			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+			} else {
+				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+			}
+
+			jobListeners.forEach(
+					jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
+
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
+		}
+
+		return lastJobExecutionResult;
+	}
+
+	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated default name.
+	 *
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception Thrown, if the program submission fails.
+	 */
+	@PublicEvolving
+	public final JobClient executeAsync() throws Exception {
+		return executeAsync(getDefaultName());
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with the given job name.
+	 *
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception Thrown, if the program submission fails.
+	 */
+	@PublicEvolving
+	public JobClient executeAsync(String jobName) throws Exception {
+		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
+
+		consolidateParallelismDefinitionsInConfiguration();
+
+		final Plan plan = createProgramPlan(jobName);
+		final ExecutorFactory executorFactory =
+			executorServiceLoader.getExecutorFactory(configuration);
+
+		checkNotNull(
+			executorFactory,
+			"Cannot find compatible factory for specified execution.target (=%s)",
+			configuration.get(DeploymentOptions.TARGET));
+
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
+			.getExecutor(configuration)
+			.execute(plan, configuration);
+
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.rethrow(t);
+
+			// make javac happy, this code path will not be reached
+			return null;
+		}
+	}
+
+	private void consolidateParallelismDefinitionsInConfiguration() {
+		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
+		}
+	}
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
 	 * a String using a JSON representation of the execution data flow graph.
-	 * Note that this needs to be called, before the plan is executed.
 	 *
 	 * @return The execution plan of the program, as a JSON String.
-	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
-	 *                   be contacted to retrieve information relevant to the execution planning.
+	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
-	public abstract String getExecutionPlan() throws Exception;
+	public String getExecutionPlan() throws Exception {
+		Plan p = createProgramPlan(getDefaultName(), false);
+		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
+	}
 
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
@@ -894,8 +992,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -904,13 +1002,13 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan() {
-		return createProgramPlan(null);
+		return createProgramPlan(getDefaultName());
 	}
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -925,8 +1023,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 *
@@ -936,6 +1034,8 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+		checkNotNull(jobName);
+
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -946,10 +1046,6 @@ public abstract class ExecutionEnvironment {
 						"A program needs at least one sink that consumes data. " +
 						"Examples are writing the data set or printing it.");
 			}
-		}
-
-		if (jobName == null) {
-			jobName = getDefaultName();
 		}
 
 		OperatorTranslation translator = new OperatorTranslation();
@@ -1061,8 +1157,9 @@ public abstract class ExecutionEnvironment {
 	 * @return The execution environment of the context in which the program is executed.
 	 */
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironmentFactory == null ?
-				createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment();
+		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
+			.map(ExecutionEnvironmentFactory::createExecutionEnvironment)
+			.orElseGet(ExecutionEnvironment::createLocalEnvironment);
 	}
 
 	/**
@@ -1128,8 +1225,6 @@ public abstract class ExecutionEnvironment {
 	@PublicEvolving
 	public static ExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
 		checkNotNull(conf, "conf");
-
-		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		if (!conf.contains(RestOptions.PORT)) {
 			// explicitly set this option so that it's not set to 0 later
@@ -1253,6 +1348,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
+		threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
 	}
 
 	/**
@@ -1262,6 +1358,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+		threadLocalContextEnvironmentFactory.remove();
 	}
 
 	/**
@@ -1273,6 +1370,6 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
-		return contextEnvironmentFactory == null;
+		return contextEnvironmentFactory == null && threadLocalContextEnvironmentFactory.get() == null;
 	}
 }

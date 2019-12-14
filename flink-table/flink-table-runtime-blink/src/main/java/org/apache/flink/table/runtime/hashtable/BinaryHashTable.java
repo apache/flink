@@ -29,16 +29,16 @@ import org.apache.flink.runtime.operators.util.BitSet;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.util.BinaryRowUtil;
-import org.apache.flink.table.generated.JoinCondition;
-import org.apache.flink.table.generated.Projection;
+import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.io.BinaryRowChannelInputViewIterator;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
-import org.apache.flink.table.runtime.join.HashJoinType;
-import org.apache.flink.table.runtime.join.NullAwareJoinHelper;
+import org.apache.flink.table.runtime.operators.join.HashJoinType;
+import org.apache.flink.table.runtime.operators.join.NullAwareJoinHelper;
+import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.RowIterator;
-import org.apache.flink.table.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MathUtils;
 
 import java.io.IOException;
@@ -172,31 +172,6 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			long reservedMemorySize,
 			IOManager ioManager,
 			int avgRecordLen,
-			int buildRowCount,
-			boolean useBloomFilters,
-			HashJoinType type,
-			JoinCondition condFunc,
-			boolean reverseJoin,
-			boolean[] filterNulls,
-			boolean tryDistinctBuildRow) {
-		this(conf, owner, buildSideSerializer, probeSideSerializer, buildSideProjection, probeSideProjection, memManager,
-				reservedMemorySize, reservedMemorySize, 0, ioManager, avgRecordLen, buildRowCount, useBloomFilters, type, condFunc,
-				reverseJoin, filterNulls, tryDistinctBuildRow);
-	}
-
-	public BinaryHashTable(
-			Configuration conf,
-			Object owner,
-			AbstractRowSerializer buildSideSerializer,
-			AbstractRowSerializer probeSideSerializer,
-			Projection<BaseRow, BinaryRow> buildSideProjection,
-			Projection<BaseRow, BinaryRow> probeSideProjection,
-			MemoryManager memManager,
-			long reservedMemorySize,
-			long preferredMemorySize,
-			long perRequestMemorySize,
-			IOManager ioManager,
-			int avgRecordLen,
 			long buildRowCount,
 			boolean useBloomFilters,
 			HashJoinType type,
@@ -204,7 +179,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			boolean reverseJoin,
 			boolean[] filterNulls,
 			boolean tryDistinctBuildRow) {
-		super(conf, owner, memManager, reservedMemorySize, preferredMemorySize, perRequestMemorySize,
+		super(conf, owner, memManager, reservedMemorySize,
 				ioManager, avgRecordLen, buildRowCount, !type.buildLeftSemiOrAnti() && tryDistinctBuildRow);
 		// assign the members
 		this.originBuildSideSerializer = buildSideSerializer;
@@ -243,7 +218,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 	public void putBuildRow(BaseRow row) throws IOException {
 		final int hashCode = hash(this.buildSideProjection.apply(row).hashCode(), 0);
 		// TODO: combine key projection and build side conversion to code gen.
-		insertIntoTable(originBuildSideSerializer.baseRowToBinary(row), hashCode);
+		insertIntoTable(originBuildSideSerializer.toBinaryRow(row), hashCode);
 	}
 
 	/**
@@ -290,7 +265,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			return true;
 		} else {
 			if (p.testHashBloomFilter(hash)) {
-				BinaryRow row = originProbeSideSerializer.baseRowToBinary(record);
+				BinaryRow row = originProbeSideSerializer.toBinaryRow(record);
 				p.insertIntoProbeBuffer(row);
 			}
 			return false;
@@ -484,10 +459,10 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
 		final int totalBuffersAvailable = this.availableMemory.size() + this.buildSpillRetBufferNumbers;
-		if (totalBuffersAvailable != this.reservedNumBuffers + this.allocatedFloatingNum) {
+		if (totalBuffersAvailable != this.totalNumBuffers) {
 			throw new RuntimeException(String.format("Hash Join bug in memory management: Memory buffers leaked." +
-					" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s), allocatedFloatingNum(%s)",
-					availableMemory.size(), buildSpillRetBufferNumbers, reservedNumBuffers, allocatedFloatingNum));
+					" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s)",
+					availableMemory.size(), buildSpillRetBufferNumbers, totalNumBuffers));
 		}
 
 		long numBuckets = p.getBuildSideRecordCount() / BinaryHashBucketArea.NUM_ENTRIES_PER_BUCKET + 1;

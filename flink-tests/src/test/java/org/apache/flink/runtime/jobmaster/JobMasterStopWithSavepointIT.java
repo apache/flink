@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -30,12 +32,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assume;
@@ -52,6 +55,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -186,7 +190,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		final long syncSavepoint = syncSavepointId.get();
 		assertTrue(syncSavepoint > 0 && syncSavepoint < numberOfCheckpointsToExpect);
 
-		clusterClient.cancel(jobGraph.getJobID());
+		clusterClient.cancel(jobGraph.getJobID()).get();
 		assertThat(getJobStatus(), either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
 	}
 
@@ -221,7 +225,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 				miniClusterResource.getClusterClient() instanceof MiniClusterClient);
 
 		clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
-		clusterClient.setDetached(true);
 
 		jobGraph = new JobGraph();
 
@@ -244,10 +247,12 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 						10,
 						1,
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-						true),
+						true,
+						false,
+						0),
 				null));
 
-		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+		ClientUtils.submitJob(clusterClient, jobGraph);
 		invokeLatch.await(60, TimeUnit.SECONDS);
 		waitForJob();
 	}
@@ -283,13 +288,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws InterruptedException {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (taskIndex == 0) {
 				numberOfRestarts.countDown();
 			}
 			invokeLatch.countDown();
 			finishLatch.await();
+			controller.allActionsCompleted();
 		}
 
 		@Override
@@ -299,7 +305,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
+		public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			final long checkpointId = checkpointMetaData.getCheckpointId();
 			final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
@@ -312,17 +318,17 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 			if (taskIndex == 0) {
 				checkpointsToWaitFor.countDown();
 			}
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+			return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (checkpointId == synchronousSavepointId && taskIndex == 0) {
 				throw new RuntimeException("Expected Exception");
 			}
 
-			super.notifyCheckpointComplete(checkpointId);
+			return super.notifyCheckpointCompleteAsync(checkpointId);
 		}
 	}
 
@@ -339,46 +345,16 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws InterruptedException {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			invokeLatch.countDown();
 			finishLatch.await();
+			controller.allActionsCompleted();
 		}
 
 		@Override
 		public void finishTask() throws Exception {
 			finishingLatch.await();
 			finishLatch.trigger();
-		}
-	}
-
-	/**
-	 * A {@link StreamTask} that does nothing.
-	 * This exists only to avoid having to implement all abstract methods in the subclasses above.
-	 */
-	public static class NoOpStreamTask extends StreamTask {
-
-		NoOpStreamTask(final Environment env) {
-			super(env);
-		}
-
-		@Override
-		protected void init() {
-
-		}
-
-		@Override
-		protected void run() throws Exception {
-
-		}
-
-		@Override
-		protected void cleanup() {
-
-		}
-
-		@Override
-		protected void cancelTask() throws Exception {
-
 		}
 	}
 }

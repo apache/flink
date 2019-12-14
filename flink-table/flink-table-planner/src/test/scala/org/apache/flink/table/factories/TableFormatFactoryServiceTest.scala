@@ -94,13 +94,6 @@ class TableFormatFactoryServiceTest {
   }
 
   @Test(expected = classOf[NoMatchingTableFactoryException])
-  def testMissingClass(): Unit = {
-    val props = properties()
-    // this class is not a valid factory
-    TableFactoryService.find(classOf[TableFormatFactoryServiceTest], props)
-  }
-
-  @Test(expected = classOf[NoMatchingTableFactoryException])
   def testInvalidContext(): Unit = {
     val props = properties()
     // no context specifies this

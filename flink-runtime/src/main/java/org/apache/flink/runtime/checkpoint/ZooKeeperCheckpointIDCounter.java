@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.VersionedValue;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
-import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,11 +112,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	@Override
 	public long getAndIncrement() throws Exception {
 		while (true) {
-			ConnectionState connState = connStateListener.getLastState();
-
-			if (connState != null) {
-				throw new IllegalStateException("Connection state: " + connState);
-			}
+			checkConnectionState();
 
 			VersionedValue<Integer> current = sharedCount.getVersionedValue();
 			int newCount = current.getValue() + 1;
@@ -133,6 +130,13 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	@Override
+	public long get() {
+		checkConnectionState();
+
+		return sharedCount.getVersionedValue().getValue();
+	}
+
+	@Override
 	public void setCount(long newId) throws Exception {
 		ConnectionState connState = connStateListener.getLastState();
 
@@ -147,6 +151,14 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		}
 
 		sharedCount.setCount((int) newId);
+	}
+
+	private void checkConnectionState() {
+		ConnectionState connState = connStateListener.getLastState();
+
+		if (connState != null) {
+			throw new IllegalStateException("Connection state: " + connState);
+		}
 	}
 
 	/**

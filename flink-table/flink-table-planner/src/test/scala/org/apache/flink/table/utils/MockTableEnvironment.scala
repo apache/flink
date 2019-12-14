@@ -18,21 +18,21 @@
 
 package org.apache.flink.table.utils
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
-import org.apache.flink.table.catalog.ExternalCatalog
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.catalog.Catalog
+import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
+import java.util.Optional
+
+import org.apache.flink.table.module.Module
 
 class MockTableEnvironment extends TableEnvironment {
 
   override def fromTableSource(source: TableSource[_]): Table = ???
-
-  override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = ???
-
-  override def getRegisteredExternalCatalog(name: String): ExternalCatalog = ???
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = ???
 
@@ -49,13 +49,25 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def scan(tablePath: String*): Table = ???
 
-  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+  override def connect(connectorDescriptor: ConnectorDescriptor): ConnectTableDescriptor = ???
+
+  override def listCatalogs(): Array[String] = ???
+
+  override def listModules(): Array[String] = ???
+
+  override def listDatabases(): Array[String] = ???
 
   override def listTables(): Array[String] = ???
 
   override def listUserDefinedFunctions(): Array[String] = ???
 
+  override def listFunctions(): Array[String] = ???
+
   override def explain(table: Table): String = ???
+
+  override def explain(table: Table, extended: Boolean): String = ???
+
+  override def explain(extended: Boolean): String = ???
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = ???
 
@@ -63,7 +75,47 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def sqlUpdate(stmt: String): Unit = ???
 
-  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
-
   override def getConfig: TableConfig = ???
+
+  override def registerCatalog(
+    name: String,
+    catalog: Catalog): Unit = ???
+
+  override def getCatalog(catalogName: String): Optional[Catalog] = ???
+
+  override def getCurrentCatalog: String = ???
+
+  override def getCurrentDatabase: String = ???
+
+  override def useCatalog(catalogName: String): Unit = ???
+
+  override def useDatabase(databaseName: String): Unit = ???
+
+  override def insertInto(sinkPath: String, table: Table): Unit = ???
+
+  override def insertInto(
+    table: Table,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit = ???
+
+  override def execute(jobName: String): JobExecutionResult = ???
+
+  override def loadModule(moduleName: String, module: Module): Unit = ???
+
+  override def unloadModule(moduleName: String): Unit = ???
+
+  override def createTemporaryView(
+    path: String,
+    view: Table): Unit = ???
+
+  override def listTemporaryTables(): Array[String] = ???
+
+  override def listTemporaryViews(): Array[String] = ???
+
+  override def from(path: String): Table = ???
+
+  override def dropTemporaryTable(path: String): Boolean = ???
+
+  override def dropTemporaryView(path: String): Boolean = ???
+
 }

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
@@ -91,12 +92,14 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	@VisibleForTesting
 	public MaterializedCollectStreamResult(
 			RowTypeInfo outputType,
+			TableSchema tableSchema,
 			ExecutionConfig config,
 			InetAddress gatewayAddress,
 			int gatewayPort,
 			int maxRowCount,
-			int overcommitThreshold) {
-		super(outputType, config, gatewayAddress, gatewayPort);
+			int overcommitThreshold,
+			ClassLoader classLoader) {
+		super(outputType, tableSchema, config, gatewayAddress, gatewayPort, classLoader);
 
 		if (maxRowCount <= 0) {
 			this.maxRowCount = Integer.MAX_VALUE;
@@ -118,18 +121,22 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 	public MaterializedCollectStreamResult(
 			RowTypeInfo outputType,
+			TableSchema tableSchema,
 			ExecutionConfig config,
 			InetAddress gatewayAddress,
 			int gatewayPort,
-			int maxRowCount) {
+			int maxRowCount,
+			ClassLoader classLoader) {
 
 		this(
 			outputType,
+			tableSchema,
 			config,
 			gatewayAddress,
 			gatewayPort,
 			maxRowCount,
-			computeMaterializedTableOvercommit(maxRowCount));
+			computeMaterializedTableOvercommit(maxRowCount),
+			classLoader);
 	}
 
 	@Override
@@ -146,7 +153,7 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 		synchronized (resultLock) {
 			// retrieval thread is dead and there are no results anymore
 			// or program failed
-			if ((!isRetrieving() && isLastSnapshot) || executionException != null) {
+			if ((!isRetrieving() && isLastSnapshot) || executionException.get() != null) {
 				return handleMissingResult();
 			}
 			// this snapshot is the last result that can be delivered

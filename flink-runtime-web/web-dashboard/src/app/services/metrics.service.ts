@@ -33,9 +33,23 @@ export class MetricsService {
    * @param vertexId
    */
   getAllAvailableMetrics(jobId: string, vertexId: string) {
-    return this.httpClient.get<Array<{ id: string; value: string }>>(
-      `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`
-    );
+    return this.httpClient
+      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`)
+      .pipe(
+        map(item =>
+          item.sort((pre, next) => {
+            const preId = pre.id.toLowerCase();
+            const nextId = next.id.toLowerCase();
+            if (preId < nextId) {
+              return -1;
+            } else if (preId > nextId) {
+              return 1;
+            } else {
+              return 0;
+            }
+          })
+        )
+      );
   }
 
   /**
@@ -65,36 +79,37 @@ export class MetricsService {
   }
 
   /**
-   * Get watermarks data
+   * Gets the watermarks for a given vertex id.
    * @param jobId
    * @param vertexId
-   * @param parallelism
    */
-  getWatermarks(jobId: string, vertexId: string, parallelism: number) {
-    const listOfMetricName = new Array(parallelism).fill(0).map((_, index) => `${index}.currentInputWatermark`);
-    return this.getMetrics(jobId, vertexId, listOfMetricName).pipe(
-      map(metrics => {
-        let minValue = NaN;
-        let lowWatermark = NaN;
-        const watermarks: { [id: string]: number } = {};
-        const ref = metrics.values;
-        for (const key in ref) {
-          const value = ref[key];
-          const subTaskIndex = key.replace('.currentInputWatermark', '');
-          watermarks[subTaskIndex] = value;
-          if (isNaN(minValue) || value < minValue) {
-            minValue = value;
+  getWatermarks(jobId: string, vertexId: string) {
+    return this.httpClient
+      .get<Array<{ id: string; value: string }>>(
+        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/watermarks`
+      )
+      .pipe(
+        map(arr => {
+          let minValue = NaN;
+          let lowWatermark = NaN;
+          const watermarks: { [id: string]: number } = {};
+          arr.forEach(item => {
+            const value = parseInt(item.value, 10);
+            const subTaskIndex = item.id.replace('.currentInputWatermark', '');
+            watermarks[subTaskIndex] = value;
+            if (isNaN(minValue) || value < minValue) {
+              minValue = value;
+            }
+          });
+          if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
+            lowWatermark = minValue;
+          } else {
+            lowWatermark = NaN;
           }
-        }
-        if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
-          lowWatermark = minValue;
-        } else {
-          lowWatermark = NaN;
-        }
-        return {
-          lowWatermark,
-          watermarks
-        };
+          return {
+            lowWatermark,
+            watermarks
+          };
       })
     );
   }

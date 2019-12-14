@@ -51,7 +51,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val expected =
       unaryNode(
         "DataSetSort",
-        batchTableNode(0),
+        batchTableNode(t),
         term("orderBy", "a ASC", "b ASC", "c ASC")
       )
 

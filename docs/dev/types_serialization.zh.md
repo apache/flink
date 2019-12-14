@@ -255,7 +255,7 @@ Flink 目前试图找出实现 lambda 的方法，并使用 Java 的泛型签名
 
 #### POJO 类型的序列化
 
-PojoTypeInformation 为 POJO 中的所有字段创建序列化器。Flink 标准类型如 int、long、String 等由 Flink 序列化器处理。
+PojoTypeInfo 为 POJO 中的所有字段创建序列化器。Flink 标准类型如 int、long、String 等由 Flink 序列化器处理。
 对于所有其他类型，我们回退到 Kryo。
 
 对于 Kryo 不能处理的类型，你可以要求 PojoTypeInfo 使用 Avro 对 POJO 进行序列化。

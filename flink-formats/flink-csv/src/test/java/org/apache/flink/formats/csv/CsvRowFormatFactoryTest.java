@@ -101,7 +101,7 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 	public void testSchemaDerivation() {
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(new Schema().schema(TableSchema.fromTypeInfo(SCHEMA)).toProperties());
-		properties.putAll(new Csv().deriveSchema().toProperties());
+		properties.putAll(new Csv().toProperties());
 
 		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA).build();
 		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA).build();

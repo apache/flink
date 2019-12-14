@@ -1,0 +1,27 @@
+tables:
+  - name: q16
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q16.csv"
+    format:
+      type: csv
+      fields:
+        - name: p_brand
+          type: VARCHAR
+        - name: p_type
+          type: VARCHAR
+        - name: p_size
+          type: INT
+        - name: supplier_cnt
+          type: BIGINT
+      field-delimiter: "|"
+    schema:
+      - name: p_brand
+        type: VARCHAR
+      - name: p_type
+        type: VARCHAR
+      - name: p_size
+        type: INT
+      - name: supplier_cnt
+        type: BIGINT

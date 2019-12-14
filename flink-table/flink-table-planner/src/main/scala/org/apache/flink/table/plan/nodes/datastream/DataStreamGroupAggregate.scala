@@ -20,13 +20,8 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
-import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 
 /**
@@ -71,24 +66,6 @@ class DataStreamGroupAggregate(
       schema,
       inputSchema,
       groupings)
-  }
-
-  override def createKeyedProcessFunction[K](
-    tableConfig: TableConfig,
-    queryConfig: StreamQueryConfig): KeyedProcessFunction[K, CRow, CRow] = {
-
-    AggregateUtil.createGroupAggregateFunction[K](
-      tableConfig,
-      false,
-      inputSchema.typeInfo,
-      None,
-      namedAggregates,
-      inputSchema.relDataType,
-      inputSchema.fieldTypeInfos,
-      groupings,
-      queryConfig,
-      DataStreamRetractionRules.isAccRetract(this),
-      DataStreamRetractionRules.isAccRetract(getInput))
   }
 }
 

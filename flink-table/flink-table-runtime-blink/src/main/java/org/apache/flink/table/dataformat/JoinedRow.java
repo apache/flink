@@ -127,20 +127,20 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public char getChar(int i) {
-		if (i < row1.getArity()) {
-			return row1.getChar(i);
-		} else {
-			return row2.getChar(i - row1.getArity());
-		}
-	}
-
-	@Override
 	public Decimal getDecimal(int i, int precision, int scale) {
 		if (i < row1.getArity()) {
 			return row1.getDecimal(i, precision, scale);
 		} else {
 			return row2.getDecimal(i - row1.getArity(), precision, scale);
+		}
+	}
+
+	@Override
+	public SqlTimestamp getTimestamp(int i, int precision) {
+		if (i < row1.getArity()) {
+			return row1.getTimestamp(i, precision);
+		} else {
+			return row2.getTimestamp(i - row1.getArity(), precision);
 		}
 	}
 
@@ -181,7 +181,7 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public BinaryArray getArray(int i) {
+	public BaseArray getArray(int i) {
 		if (i < row1.getArity()) {
 			return row1.getArray(i);
 		} else {
@@ -190,7 +190,7 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public BinaryMap getMap(int i) {
+	public BaseMap getMap(int i) {
 		if (i < row1.getArity()) {
 			return row1.getMap(i);
 		} else {
@@ -271,20 +271,20 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public void setChar(int i, char value) {
-		if (i < row1.getArity()) {
-			row1.setChar(i, value);
-		} else {
-			row2.setChar(i - row1.getArity(), value);
-		}
-	}
-
-	@Override
 	public void setDecimal(int i, Decimal value, int precision) {
 		if (i < row1.getArity()) {
 			row1.setDecimal(i, value, precision);
 		} else {
 			row2.setDecimal(i - row1.getArity(), value, precision);
+		}
+	}
+
+	@Override
+	public void setTimestamp(int i, SqlTimestamp value, int precision) {
+		if (i < row1.getArity()) {
+			row1.setTimestamp(i, value, precision);
+		} else {
+			row2.setTimestamp(i - row1.getArity(), value, precision);
 		}
 	}
 
@@ -298,5 +298,13 @@ public final class JoinedRow implements BaseRow {
 	public int hashCode() {
 		throw new UnsupportedOperationException(
 				"JoinedRow do not support hashCode, please hash fields one by one!");
+	}
+
+	@Override
+	public String toString() {
+		return "JoinedRow{" +
+			"row1=" + row1 +
+			", row2=" + row2 +
+			'}';
 	}
 }

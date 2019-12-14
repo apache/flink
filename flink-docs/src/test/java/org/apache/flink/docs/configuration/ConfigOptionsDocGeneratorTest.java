@@ -24,6 +24,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.docs.configuration.data.TestCommonOptions;
@@ -36,11 +37,14 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -64,6 +68,108 @@ public class ConfigOptionsDocGeneratorTest {
 			.withDescription("This is long example description for the second option.");
 	}
 
+	private enum TestEnum {
+		VALUE_1,
+		VALUE_2,
+		VALUE_3;
+	}
+
+	static class TypeTestConfigGroup {
+		public static ConfigOption<TestEnum> enumOption = ConfigOptions
+			.key("option.enum")
+			.enumType(TestEnum.class)
+			.defaultValue(TestEnum.VALUE_1)
+			.withDescription("Description");
+
+		public static ConfigOption<List<TestEnum>> enumListOption = ConfigOptions
+			.key("option.enum.list")
+			.enumType(TestEnum.class)
+			.asList()
+			.defaultValues(TestEnum.VALUE_1, TestEnum.VALUE_2)
+			.withDescription("Description");
+
+		public static ConfigOption<MemorySize> memoryOption = ConfigOptions
+			.key("option.memory")
+			.memoryType()
+			.defaultValue(new MemorySize(1024))
+			.withDescription("Description");
+
+		public static ConfigOption<Map<String, String>> mapOption = ConfigOptions
+			.key("option.map")
+			.mapType()
+			.defaultValue(Collections.singletonMap("key1", "value1"))
+			.withDescription("Description");
+
+		public static ConfigOption<List<Map<String, String>>> mapListOption = ConfigOptions
+			.key("option.map.list")
+			.mapType()
+			.asList()
+			.defaultValues(Collections.singletonMap("key1", "value1"), Collections.singletonMap("key2", "value2"))
+			.withDescription("Description");
+
+		public static ConfigOption<Duration> durationOption = ConfigOptions
+			.key("option.duration")
+			.durationType()
+			.defaultValue(Duration.ofMinutes(1))
+			.withDescription("Description");
+	}
+
+	@Test
+	public void testCreatingTypes() {
+		final String expectedTable =
+			"<table class=\"table table-bordered\">\n" +
+				"    <thead>\n" +
+				"        <tr>\n" +
+				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
+				"        </tr>\n" +
+				"    </thead>\n" +
+				"    <tbody>\n" +
+				"        <tr>\n" +
+				"            <td><h5>option.duration</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">60000ms</td>\n" +
+				"            <td>Duration</td>\n" +
+				"            <td>Description</td>\n" +
+				"        </tr>\n" +
+				"        <tr>\n" +
+				"            <td><h5>option.enum</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">VALUE_1</td>\n" +
+				"            <td><p>Enum</p>Possible values: [VALUE_1, VALUE_2, VALUE_3]</td>\n" +
+				"            <td>Description</td>\n" +
+				"        </tr>\n" +
+				"        <tr>\n" +
+				"            <td><h5>option.enum.list</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">VALUE_1;<wbr>VALUE_2</td>\n" +
+				"            <td><p>List&lt;Enum&gt;</p>Possible values: [VALUE_1, VALUE_2, VALUE_3]</td>\n" +
+				"            <td>Description</td>\n" +
+				"        </tr>\n" +
+				"        <tr>\n" +
+				"            <td><h5>option.map</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">key1:value1</td>\n" +
+				"            <td>Map</td>\n" +
+				"            <td>Description</td>\n" +
+				"        </tr>\n" +
+				"        <tr>\n" +
+				"            <td><h5>option.map.list</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">key1:value1;<wbr>key2:value2</td>\n" +
+				"            <td>List&lt;Map&gt;</td>\n" +
+				"            <td>Description</td>\n" +
+				"        </tr>\n" +
+				"        <tr>\n" +
+				"            <td><h5>option.memory</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">1024 bytes</td>\n" +
+				"            <td>MemorySize</td>\n" +
+				"            <td>Description</td>\n" +
+				"        </tr>\n" +
+				"    </tbody>\n" +
+				"</table>\n";
+		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TypeTestConfigGroup.class).get(0).f1;
+
+		assertEquals(expectedTable, htmlTable);
+	}
+
 	@Test
 	public void testCreatingDescription() {
 		final String expectedTable =
@@ -72,18 +178,21 @@ public class ConfigOptionsDocGeneratorTest {
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>first.option.a</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">2</td>\n" +
+			"            <td>Integer</td>\n" +
 			"            <td>This is example description for the first option.</td>\n" +
 			"        </tr>\n" +
 			"        <tr>\n" +
 			"            <td><h5>second.option.a</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">(none)</td>\n" +
+			"            <td>String</td>\n" +
 			"            <td>This is long example description for the second option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -123,6 +232,12 @@ public class ConfigOptionsDocGeneratorTest {
 		public static ConfigOption<String> option5 = ConfigOptions
 			.key("a.c.b.option")
 			.noDefaultValue();
+
+		// should end up in group2, full key-prefix match for group 2
+		// checks that the longest matching group is assigned
+		public static ConfigOption<Integer> option6 = ConfigOptions
+			.key("a.b.c.d.option")
+			.defaultValue(2);
 	}
 
 	@Test
@@ -139,6 +254,8 @@ public class ConfigOptionsDocGeneratorTest {
 		assertThat(tablesConverted.get("group1"), containsString("a.b.option"));
 		assertThat(tablesConverted.get("group1"), containsString("a.b.c.option"));
 		assertThat(tablesConverted.get("group1"), containsString("a.b.c.e.option"));
+		assertThat(tablesConverted.get("group2"), containsString("a.b.c.d.option"));
+		assertThat(tablesConverted.get("group1"), not(containsString("a.b.c.d.option")));
 		assertThat(tablesConverted.get("default"), containsString("a.option"));
 		assertThat(tablesConverted.get("default"), containsString("a.c.b.option"));
 	}
@@ -185,13 +302,15 @@ public class ConfigOptionsDocGeneratorTest {
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>first.option.a</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">2</td>\n" +
+			"            <td>Integer</td>\n" +
 			"            <td>This is example description for the first option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -202,13 +321,15 @@ public class ConfigOptionsDocGeneratorTest {
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>second.option.a</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">(none)</td>\n" +
+			"            <td>String</td>\n" +
 			"            <td>This is long example description for the second option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -219,18 +340,21 @@ public class ConfigOptionsDocGeneratorTest {
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>fourth.option.a</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">(none)</td>\n" +
+			"            <td>String</td>\n" +
 			"            <td>This is long example description for the fourth option.</td>\n" +
 			"        </tr>\n" +
 			"        <tr>\n" +
 			"            <td><h5>third.option.a</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">2</td>\n" +
+			"            <td>Integer</td>\n" +
 			"            <td>This is example description for the third option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -259,18 +383,21 @@ public class ConfigOptionsDocGeneratorTest {
 				"        <tr>\n" +
 				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-				"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 				"        </tr>\n" +
 				"    </thead>\n" +
 				"    <tbody>\n" +
 				"        <tr>\n" +
 				"            <td><h5>first.option.a</h5></td>\n" +
 				"            <td style=\"word-wrap: break-word;\">default_1</td>\n" +
+				"            <td>Integer</td>\n" +
 				"            <td>This is example description for the first option.</td>\n" +
 				"        </tr>\n" +
 				"        <tr>\n" +
 				"            <td><h5>second.option.a</h5></td>\n" +
 				"            <td style=\"word-wrap: break-word;\">default_2</td>\n" +
+				"            <td>String</td>\n" +
 				"            <td>This is long example description for the second option.</td>\n" +
 				"        </tr>\n" +
 				"    </tbody>\n" +
@@ -298,18 +425,21 @@ public class ConfigOptionsDocGeneratorTest {
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>" + TestCommonOptions.COMMON_POSITIONED_OPTION.key() + "</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_POSITIONED_OPTION.defaultValue() + "</td>\n" +
+			"            <td>Integer</td>\n" +
 			"            <td>" + formatter.format(TestCommonOptions.COMMON_POSITIONED_OPTION.description()) + "</td>\n" +
 			"        </tr>\n" +
 			"        <tr>\n" +
 			"            <td><h5>" + TestCommonOptions.COMMON_OPTION.key() + "</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_OPTION.defaultValue() + "</td>\n" +
+			"            <td>Integer</td>\n" +
 			"            <td>" + formatter.format(TestCommonOptions.COMMON_OPTION.description()) + "</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -345,13 +475,15 @@ public class ConfigOptionsDocGeneratorTest {
 				"        <tr>\n" +
 				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
 				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
-				"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
 				"        </tr>\n" +
 				"    </thead>\n" +
 				"    <tbody>\n" +
 				"        <tr>\n" +
 				"            <td><h5>first.option.a</h5></td>\n" +
 				"            <td style=\"word-wrap: break-word;\">2</td>\n" +
+				"            <td>Integer</td>\n" +
 				"            <td>This is example description for the first option.</td>\n" +
 				"        </tr>\n" +
 				"    </tbody>\n" +

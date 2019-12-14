@@ -19,6 +19,8 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -51,14 +53,14 @@ public final class DistinctType extends UserDefinedType {
 	 */
 	public static final class Builder {
 
-		private final TypeIdentifier typeIdentifier;
+		private final ObjectIdentifier objectIdentifier;
 
 		private final LogicalType sourceType;
 
 		private @Nullable String description;
 
-		public Builder(TypeIdentifier typeIdentifier, LogicalType sourceType) {
-			this.typeIdentifier = Preconditions.checkNotNull(typeIdentifier, "Type identifier must not be null.");
+		public Builder(ObjectIdentifier objectIdentifier, LogicalType sourceType) {
+			this.objectIdentifier = Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
 			this.sourceType = Preconditions.checkNotNull(sourceType, "Source type must not be null.");
 
 			Preconditions.checkArgument(
@@ -66,39 +68,51 @@ public final class DistinctType extends UserDefinedType {
 				"Source type must not be a user-defined type.");
 		}
 
-		public Builder setDescription(String description) {
+		public Builder description(String description) {
 			this.description = Preconditions.checkNotNull(description, "Description must not be null");
 			return this;
 		}
 
 		public DistinctType build() {
-			return new DistinctType(typeIdentifier, sourceType, description);
+			return new DistinctType(objectIdentifier, sourceType, description);
 		}
 	}
 
 	private final LogicalType sourceType;
 
 	private DistinctType(
-			TypeIdentifier typeIdentifier,
+			ObjectIdentifier objectIdentifier,
 			LogicalType sourceType,
 			@Nullable String description) {
 		super(
 			sourceType.isNullable(),
 			LogicalTypeRoot.DISTINCT_TYPE,
-			typeIdentifier,
+			objectIdentifier,
 			true,
 			description);
 		this.sourceType = Preconditions.checkNotNull(sourceType, "Source type must not be null.");
+	}
+
+	/**
+	 * Creates a builder for a {@link DistinctType}.
+	 */
+	public static DistinctType.Builder newBuilder(ObjectIdentifier objectIdentifier, LogicalType sourceType) {
+		return new DistinctType.Builder(objectIdentifier, sourceType);
 	}
 
 	public LogicalType getSourceType() {
 		return sourceType;
 	}
 
+	public ObjectIdentifier getObjectIdentifier() {
+		return getOptionalObjectIdentifier()
+			.orElseThrow(() -> new TableException("Object identifier expected."));
+	}
+
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new DistinctType(
-			getTypeIdentifier(),
+			getObjectIdentifier(),
 			sourceType.copy(isNullable),
 			getDescription().orElse(null));
 	}

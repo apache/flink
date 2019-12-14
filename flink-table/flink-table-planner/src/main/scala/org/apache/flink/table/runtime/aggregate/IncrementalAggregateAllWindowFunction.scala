@@ -23,22 +23,30 @@ import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.table.runtime.TableAggregateCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.util.Collector
 
 /**
-  * Computes the final aggregate value from incrementally computed aggregates.
+  * Computes the final (table)aggregate value from incrementally computed aggregates.
   *
   * @param finalRowArity The arity of the final output row.
+  * @param isTableAggregate Whether it is table aggregate.
   */
 class IncrementalAggregateAllWindowFunction[W <: Window](
-    private val finalRowArity: Int)
+    private val finalRowArity: Int,
+    private val isTableAggregate: Boolean)
   extends RichAllWindowFunction[Row, CRow, W] {
 
   private var output: CRow = _
+  private var concatCollector: TableAggregateCollector = _
 
   override def open(parameters: Configuration): Unit = {
     output = new CRow(new Row(finalRowArity), true)
+    if (isTableAggregate) {
+      concatCollector = new TableAggregateCollector(0)
+      concatCollector.setResultRow(output.row)
+    }
   }
 
   /**
@@ -54,12 +62,19 @@ class IncrementalAggregateAllWindowFunction[W <: Window](
 
     if (iterator.hasNext) {
       val record = iterator.next()
-      var i = 0
-      while (i < record.getArity) {
-        output.row.setField(i, record.getField(i))
-        i += 1
+      if (isTableAggregate) {
+        concatCollector.out = out
+        val accumulator = record.getField(0).asInstanceOf[Row]
+        val func = record.getField(1).asInstanceOf[GeneratedTableAggregations]
+        func.emit(accumulator, concatCollector)
+      } else {
+        var i = 0
+        while (i < record.getArity) {
+          output.row.setField(i, record.getField(i))
+          i += 1
+        }
+        out.collect(output)
       }
-      out.collect(output)
     }
   }
 }

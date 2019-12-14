@@ -21,6 +21,9 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -45,7 +48,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
+	private static final int TOTAL_FLINK_MEMORY_MB = 1024;
 
 	/**
 	 * This tests that the creation of {@link TaskManagerServices} correctly creates the local state root directory
@@ -204,8 +207,14 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
 			Configuration config) throws IOException {
+		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEMORY_MB + "m");
+		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(config);
 		return TaskManagerServicesConfiguration.fromConfiguration(
-			config, MEM_SIZE_PARAM, InetAddress.getLocalHost(), true);
+			config,
+			ResourceID.generate(),
+			InetAddress.getLocalHost(),
+			true,
+			spec);
 	}
 
 	private TaskManagerServices createTaskManagerServices(
@@ -213,9 +222,6 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		return TaskManagerServices.fromConfiguration(
 			config,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			ResourceID.generate(),
-			Executors.directExecutor(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM);
+			Executors.directExecutor());
 	}
 }

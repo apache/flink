@@ -26,11 +26,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-tests_${scala.binary.version}</artifactId>
+	<artifactId>flink-tests</artifactId>
 	<name>flink-tests</name>
 
 	<packaging>jar</packaging>
@@ -54,8 +54,8 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${hadoop.version}-${project.version}</version>
+			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -329,7 +329,6 @@ under the License.
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
 				<executions>
 					<!-- Add src/main/scala to eclipse build path -->
 					<execution>
@@ -592,6 +591,25 @@ under the License.
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>src/test/assembly/test-checkpointing-custom_kv_state-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-classloading_policy-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.ClassLoadingPolicyProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>classloading_policy</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-classloading_policy-assembly.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>

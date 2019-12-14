@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -50,11 +49,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * This class encapsulates the operation of assigning restored state when restoring from a checkpoint.
  */
+@Internal
 public class StateAssignmentOperation {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StateAssignmentOperation.class);
 
-	private final Map<JobVertexID, ExecutionJobVertex> tasks;
+	private final Set<ExecutionJobVertex> tasks;
 	private final Map<OperatorID, OperatorState> operatorStates;
 
 	private final long restoreCheckpointId;
@@ -62,7 +62,7 @@ public class StateAssignmentOperation {
 
 	public StateAssignmentOperation(
 		long restoreCheckpointId,
-		Map<JobVertexID, ExecutionJobVertex> tasks,
+		Set<ExecutionJobVertex> tasks,
 		Map<OperatorID, OperatorState> operatorStates,
 		boolean allowNonRestoredState) {
 
@@ -77,8 +77,7 @@ public class StateAssignmentOperation {
 
 		checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
 
-		for (Map.Entry<JobVertexID, ExecutionJobVertex> task : this.tasks.entrySet()) {
-			final ExecutionJobVertex executionJobVertex = task.getValue();
+		for (ExecutionJobVertex executionJobVertex : this.tasks) {
 
 			// find the states of all operators belonging to this task
 			List<OperatorID> operatorIDs = executionJobVertex.getOperatorIDs();
@@ -105,7 +104,7 @@ public class StateAssignmentOperation {
 				continue;
 			}
 
-			assignAttemptState(task.getValue(), operatorStates);
+			assignAttemptState(executionJobVertex, operatorStates);
 		}
 
 	}
@@ -318,8 +317,7 @@ public class StateAssignmentOperation {
 		}
 	}
 
-	@VisibleForTesting
-	static void reDistributePartitionableStates(
+	public static void reDistributePartitionableStates(
 			List<OperatorState> oldOperatorStates,
 			int newParallelism,
 			List<OperatorID> newOperatorIDs,
@@ -550,10 +548,10 @@ public class StateAssignmentOperation {
 	private static void checkStateMappingCompleteness(
 			boolean allowNonRestoredState,
 			Map<OperatorID, OperatorState> operatorStates,
-			Map<JobVertexID, ExecutionJobVertex> tasks) {
+			Set<ExecutionJobVertex> tasks) {
 
 		Set<OperatorID> allOperatorIDs = new HashSet<>();
-		for (ExecutionJobVertex executionJobVertex : tasks.values()) {
+		for (ExecutionJobVertex executionJobVertex : tasks) {
 			allOperatorIDs.addAll(executionJobVertex.getOperatorIDs());
 		}
 		for (Map.Entry<OperatorID, OperatorState> operatorGroupStateEntry : operatorStates.entrySet()) {

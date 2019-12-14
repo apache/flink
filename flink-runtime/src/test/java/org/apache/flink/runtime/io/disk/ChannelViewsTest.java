@@ -22,7 +22,7 @@ package org.apache.flink.runtime.io.disk;
 import java.io.EOFException;
 import java.util.List;
 
-import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.junit.Assert;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
@@ -77,16 +77,17 @@ public class ChannelViewsTest
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
+		this.memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MEMORY_SIZE)
+			.setPageSize(MEMORY_PAGE_SIZE)
+			.build();
 		this.ioManager = new IOManagerAsync();
 	}
 
 	@After
-	public void afterTest() {
-		this.ioManager.shutdown();
-		if (!this.ioManager.isProperlyShutDown()) {
-			Assert.fail("I/O Manager was not properly shut down.");
-		}
+	public void afterTest() throws Exception {
+		this.ioManager.close();
 		
 		if (memoryManager != null) {
 			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 

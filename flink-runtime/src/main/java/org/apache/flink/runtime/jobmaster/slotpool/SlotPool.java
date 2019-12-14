@@ -24,11 +24,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -128,13 +127,13 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns a list of {@link SlotInfo} objects about all slots that are currently available in the slot
+	 * Returns a list of {@link SlotInfoWithUtilization} objects about all slots that are currently available in the slot
 	 * pool.
 	 *
-	 * @return a list of {@link SlotInfo} objects about all slots that are currently available in the slot pool.
+	 * @return a list of {@link SlotInfoWithUtilization} objects about all slots that are currently available in the slot pool.
 	 */
 	@Nonnull
-	Collection<SlotInfo> getAvailableSlotsInformation();
+	Collection<SlotInfoWithUtilization> getAvailableSlotsInformation();
 
 	/**
 	 * Allocates the available slot with the given allocation id under the given request id. This method returns
@@ -162,5 +161,27 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
-		@RpcTimeout Time timeout);
+		Time timeout);
+
+	/**
+	 * Requests the allocation of a new batch slot from the resource manager. Unlike the normal slot, a batch
+	 * slot will only time out if the slot pool does not contain a suitable slot. Moreover, it won't react to
+	 * failure signals from the resource manager.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param resourceProfile resource profile that specifies the resource requirements for the requested batch slot
+	 * @return a future which is completed with newly allocated batch slot
+	 */
+	@Nonnull
+	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile);
+
+	/**
+	 * Create report about the allocated slots belonging to the specified task manager.
+	 *
+	 * @param taskManagerId identifies the task manager
+	 * @return the allocated slots on the task manager
+	 */
+	AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId);
 }

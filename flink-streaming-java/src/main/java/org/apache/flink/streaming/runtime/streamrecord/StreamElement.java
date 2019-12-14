@@ -53,8 +53,8 @@ public abstract class StreamElement {
 	}
 
 	/**
-	 * Checks whether this element is a record.
-	 * @return True, if this element is a record, false otherwise.
+	 * Checks whether this element is a latency marker.
+	 * @return True, if this element is a latency marker, false otherwise.
 	 */
 	public final boolean isLatencyMarker() {
 		return getClass() == LatencyMarker.class;

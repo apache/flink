@@ -18,23 +18,18 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
@@ -50,6 +45,7 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_V
 /**
  * Connector descriptor for the Apache Kafka message queue.
  */
+@PublicEvolving
 public class Kafka extends ConnectorDescriptor {
 
 	private String version;
@@ -263,24 +259,27 @@ public class Kafka extends ConnectorDescriptor {
 		}
 
 		if (specificOffsets != null) {
-			final List<List<String>> values = new ArrayList<>();
+			final StringBuilder stringBuilder = new StringBuilder();
+			int i = 0;
 			for (Map.Entry<Integer, Long> specificOffset : specificOffsets.entrySet()) {
-				values.add(Arrays.asList(specificOffset.getKey().toString(), specificOffset.getValue().toString()));
+				if (i != 0) {
+					stringBuilder.append(';');
+				}
+				stringBuilder.append(CONNECTOR_SPECIFIC_OFFSETS_PARTITION)
+					.append(':')
+					.append(specificOffset.getKey())
+					.append(',')
+					.append(CONNECTOR_SPECIFIC_OFFSETS_OFFSET)
+					.append(':')
+					.append(specificOffset.getValue());
+				i++;
 			}
-			properties.putIndexedFixedProperties(
-				CONNECTOR_SPECIFIC_OFFSETS,
-				Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET),
-				values);
+			properties.putString(CONNECTOR_SPECIFIC_OFFSETS, stringBuilder.toString());
 		}
 
 		if (kafkaProperties != null) {
-			properties.putIndexedFixedProperties(
-				CONNECTOR_PROPERTIES,
-				Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE),
-				this.kafkaProperties.entrySet().stream()
-					.map(e -> Arrays.asList(e.getKey(), e.getValue()))
-					.collect(Collectors.toList())
-				);
+			this.kafkaProperties.forEach((key, value) ->
+				properties.putString(CONNECTOR_PROPERTIES + '.' + key, value));
 		}
 
 		if (sinkPartitionerType != null) {

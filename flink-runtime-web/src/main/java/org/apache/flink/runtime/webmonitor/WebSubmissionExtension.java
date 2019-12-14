@@ -78,6 +78,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			JarListHeaders.getInstance(),
 			localAddressFuture,
 			jarDir.toFile(),
+			configuration,
 			executor);
 
 		final JarRunHandler jarRunHandler = new JarRunHandler(

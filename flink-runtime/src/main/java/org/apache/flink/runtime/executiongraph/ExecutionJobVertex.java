@@ -27,6 +27,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -34,7 +35,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -44,9 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.OptionalFailure;
@@ -56,6 +55,7 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,7 +65,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -125,6 +124,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private final boolean maxParallelismConfigured;
 
 	private int maxParallelism;
+
+	private final ResourceProfile resourceProfile;
 
 	/**
 	 * Either store a serialized task information, which is for all sub tasks the same,
@@ -192,6 +193,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		this.parallelism = numTaskVertices;
+		this.resourceProfile = ResourceProfile.fromResourceSpec(jobVertex.getMinResources(), MemorySize.ZERO);
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
@@ -333,6 +335,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return maxParallelism;
 	}
 
+	@Override
+	public ResourceProfile getResourceProfile() {
+		return resourceProfile;
+	}
+
 	public boolean isMaxParallelismConfigured() {
 		return maxParallelismConfigured;
 	}
@@ -359,6 +366,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return splitAssigner;
 	}
 
+	@Nullable
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
 	}
@@ -469,80 +477,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	//---------------------------------------------------------------------------------------------
 
 	/**
-	 * Schedules all execution vertices of this ExecutionJobVertex.
-	 *
-	 * @param slotProvider to allocate the slots from
-	 * @param queued if the allocations can be queued
-	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
-	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @return Future which is completed once all {@link Execution} could be deployed
-	 */
-	public CompletableFuture<Void> scheduleAll(
-			SlotProvider slotProvider,
-			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
-
-		final ExecutionVertex[] vertices = this.taskVertices;
-
-		final ArrayList<CompletableFuture<Void>> scheduleFutures = new ArrayList<>(vertices.length);
-
-		// kick off the tasks
-		for (ExecutionVertex ev : vertices) {
-			scheduleFutures.add(ev.scheduleForExecution(
-				slotProvider,
-				queued,
-				locationPreferenceConstraint,
-				allPreviousExecutionGraphAllocationIds));
-		}
-
-		return FutureUtils.waitForAll(scheduleFutures);
-	}
-
-	/**
-	 * Acquires a slot for all the execution vertices of this ExecutionJobVertex. The method returns
-	 * pairs of the slots and execution attempts, to ease correlation between vertices and execution
-	 * attempts.
-	 *
-	 * <p>If this method throws an exception, it makes sure to release all so far requested slots.
-	 *
-	 * @param resourceProvider The resource provider from whom the slots are requested.
-	 * @param queued if the allocation can be queued
-	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @param allPreviousExecutionGraphAllocationIds the allocation ids of all previous executions in the execution job graph.
-	 * @param allocationTimeout timeout for allocating the individual slots
-	 */
-	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
-			SlotProvider resourceProvider,
-			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
-			Time allocationTimeout) {
-		final ExecutionVertex[] vertices = this.taskVertices;
-
-		@SuppressWarnings("unchecked")
-		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
-
-		// try to acquire a slot future for each execution.
-		// we store the execution with the future just to be on the safe side
-		for (int i = 0; i < vertices.length; i++) {
-			// allocate the next slot (future)
-			final Execution exec = vertices[i].getCurrentExecutionAttempt();
-			final CompletableFuture<Execution> allocationFuture = exec.allocateAndAssignSlotForExecution(
-				resourceProvider,
-				queued,
-				locationPreferenceConstraint,
-				allPreviousExecutionGraphAllocationIds,
-				allocationTimeout);
-			slots[i] = allocationFuture;
-		}
-
-		// all good, we acquired all slots
-		return Arrays.asList(slots);
-	}
-
-	/**
 	 * Cancels all currently running vertex executions.
 	 */
 	public void cancel() {
@@ -582,10 +516,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		synchronized (stateMonitor) {
 			// check and reset the sharing groups with scheduler hints
-			if (slotSharingGroup != null) {
-				slotSharingGroup.clearTaskAssignment();
-			}
-
 			for (int i = 0; i < parallelism; i++) {
 				taskVertices[i].resetForNewExecution(timestamp, expectedGlobalModVersion);
 			}

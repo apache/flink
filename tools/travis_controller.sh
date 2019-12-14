@@ -80,8 +80,8 @@ function deleteOldCaches() {
 	done
 }
 
-# delete leftover caches from previous builds
-find "$CACHE_DIR" -mindepth 1 -maxdepth 1 | grep -v "$TRAVIS_BUILD_NUMBER" | deleteOldCaches
+# delete leftover caches from previous builds; except the most recent
+find "$CACHE_DIR" -mindepth 1 -maxdepth 1 | grep -v "$TRAVIS_BUILD_NUMBER" | sort -Vr | tail -n +2 | deleteOldCaches
 
 STAGE=$1
 echo "Current stage: \"$STAGE\""
@@ -90,7 +90,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
+	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 	$MVN
 	EXIT_CODE=$?
 
@@ -114,36 +114,16 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_s3_fs presto
         EXIT_CODE=$(($EXIT_CODE+$?))
-        check_shaded_artifacts_connector_elasticsearch ""
-        EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 2
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 5
+        EXIT_CODE=$(($EXIT_CODE+$?))
+        check_shaded_artifacts_connector_elasticsearch 6
         EXIT_CODE=$(($EXIT_CODE+$?))
     else
         echo "=============================================================================="
         echo "Previous build failure detected, skipping shaded dependency check."
         echo "=============================================================================="
-    fi
-
-    if [[ ${PROFILE} == *"jdk9"* ]]; then
-        printf "\n\n==============================================================================\n"
-        printf "Skipping end-to-end tests since they fail on Java 9.\n"
-        printf "==============================================================================\n"
-    else
-        if [ $EXIT_CODE == 0 ]; then
-            printf "\n\n==============================================================================\n"
-            printf "Running end-to-end tests\n"
-            printf "==============================================================================\n"
-
-            FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-
-            EXIT_CODE=$?
-        else
-            printf "\n==============================================================================\n"
-            printf "Previous build failure detected, skipping end-to-end tests.\n"
-            printf "==============================================================================\n"
-        fi
     fi
 
     if [ $EXIT_CODE == 0 ]; then
@@ -158,7 +138,19 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             # by removing files not required for subsequent stages
     
             # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
+            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-csv/target/flink-csv*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-json/target/flink-json*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-avro/target/flink-avro*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-runtime/target/flink-runtime*tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-streaming-java/target/flink-streaming-java*tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-dist*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table_*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table-blink*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf
     
             # .git directory
             # not deleting this can cause build stability issues
@@ -201,7 +193,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	travis_time_finish
 	end_fold "adjust_timestamps"
 
-	TEST="$STAGE" "./tools/travis_mvn_watchdog.sh" 300
+	TEST="$STAGE" "./tools/travis_watchdog.sh" 300
 	EXIT_CODE=$?
 elif [ $STAGE == "$STAGE_CLEANUP" ]; then
 	echo "Cleaning up $CACHE_BUILD_DIR"

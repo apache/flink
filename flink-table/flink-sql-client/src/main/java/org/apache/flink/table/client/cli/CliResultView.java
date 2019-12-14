@@ -145,7 +145,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 		final CliRowView view = new CliRowView(
 			client,
 			resultDescriptor.getResultSchema().getFieldNames(),
-			CliUtils.typesToString(resultDescriptor.getResultSchema().getFieldTypes()),
+			CliUtils.typesToString(resultDescriptor.getResultSchema().getFieldDataTypes()),
 			getRow(results.get(selectedRow)));
 		view.open(); // enter view
 	}
@@ -286,7 +286,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 				try {
 					// the cancellation happens in the refresh thread in order to keep the main thread
 					// responsive at all times; esp. if the cluster is not available
-					client.getExecutor().cancelQuery(client.getContext(), resultDescriptor.getResultId());
+					client.getExecutor().cancelQuery(client.getSessionId(), resultDescriptor.getResultId());
 				} catch (SqlExecutionException e) {
 					// ignore further exceptions
 				}

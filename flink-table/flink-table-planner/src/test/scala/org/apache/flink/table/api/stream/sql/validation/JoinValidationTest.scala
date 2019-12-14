@@ -21,7 +21,9 @@ package org.apache.flink.table.api.stream.sql.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.hamcrest.Matchers
 import org.junit.Test
 
 class JoinValidationTest extends TableTestBase {
@@ -195,6 +197,26 @@ class JoinValidationTest extends TableTestBase {
         |FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a
         |""".stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /**
+    * Currently only the inner join condition can support the Python UDF taking the inputs from
+    * the left table and the right table at the same time.
+    */
+  @Test
+  def testOuterJoinWithPythonFunctionInCondition(): Unit = {
+    expectedException.expectCause(Matchers.isA(classOf[TableException]))
+    streamUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    streamUtil.addTable[(Int, Int, Long)]("leftTable", 'a, 'b, 'c)
+    streamUtil.addTable[(Int, Int, Long)]("rightTable", 'd, 'e, 'f)
+    val sql =
+      """
+        |SELECT *
+        |FROM leftTable LEFT OUTER JOIN rightTable ON
+        | a = d AND pyFunc(a, d) = a + d
+      """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
   }

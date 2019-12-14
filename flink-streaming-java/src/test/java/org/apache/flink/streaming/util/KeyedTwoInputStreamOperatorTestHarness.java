@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -43,8 +44,8 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 			int subtaskIndex) throws Exception {
 		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
-		ClosureCleaner.clean(keySelector1, false);
-		ClosureCleaner.clean(keySelector2, false);
+		ClosureCleaner.clean(keySelector1, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
+		ClosureCleaner.clean(keySelector2, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
 		config.setStatePartitioner(0, keySelector1);
 		config.setStatePartitioner(1, keySelector2);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));

@@ -20,10 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -35,7 +33,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -228,29 +225,6 @@ public class StateBackendLoader {
 				backend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
 				if (logger != null) {
 					logger.info("No state backend has been configured, using default (Memory / JobManager) {}", backend);
-				}
-			}
-		}
-
-		// to keep supporting the old behavior where default (JobManager) Backend + HA mode = checkpoints in HA store
-		// we add the HA persistence dir as the checkpoint directory if none other is set
-
-		if (backend instanceof MemoryStateBackend) {
-			final MemoryStateBackend memBackend = (MemoryStateBackend) backend;
-
-			if (memBackend.getCheckpointPath() == null && HighAvailabilityMode.isHighAvailabilityModeActivated(config)) {
-				final String haStoragePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
-
-				if (haStoragePath != null) {
-					try {
-						Path checkpointDirPath = new Path(haStoragePath, UUID.randomUUID().toString());
-						if (checkpointDirPath.toUri().getScheme() == null) {
-							checkpointDirPath = checkpointDirPath.makeQualified(checkpointDirPath.getFileSystem());
-						}
-						Configuration tempConfig = new Configuration(config);
-						tempConfig.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirPath.toString());
-						return memBackend.configure(tempConfig, classLoader);
-					} catch (Exception ignored) {}
 				}
 			}
 		}

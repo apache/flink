@@ -1,0 +1,206 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testSortProcessingTime">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- TemporalSort(orderBy=[proctime ASC, c ASC])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortProcessingTimeDesc">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc, c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[proctime DESC, c ASC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortRowTimeSecondDesc">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime desc]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last])
+   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[c ASC, rowtime DESC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortProcessingTimeSecond">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[c ASC, proctime ASC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortProcessingTimeSecondDesc">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime desc]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last])
+   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[c ASC, proctime DESC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortRowTime">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- TemporalSort(orderBy=[rowtime ASC, c ASC])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortRowTimeSecond">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[c ASC, rowtime ASC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortWithoutTime">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[c ASC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortRowTimeDesc">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[rowtime DESC, c ASC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

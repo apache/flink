@@ -6,5 +6,4 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- org.lz4:lz4-java:1.5.0
 - org.apache.calcite.avatica:avatica-core:1.13.0

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,12 +34,19 @@ under the License.
 	<artifactId>flink-end-to-end-tests</artifactId>
 	<name>flink-end-to-end-tests</name>
 
+	<properties>
+		<includeE2E>org.apache.flink.tests.util.categories.Dummy</includeE2E>
+		<excludeE2E></excludeE2E>
+	</properties>
+
 	<modules>
 		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test-program</module>
 		<module>flink-parent-child-classloading-test-lib-package</module>
 		<module>flink-dataset-allround-test</module>
+		<module>flink-dataset-fine-grained-recovery-test</module>
 		<module>flink-datastream-allround-test</module>
+		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
 		<module>flink-bucketing-sink-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
@@ -56,37 +63,22 @@ under the License.
 		<module>flink-sql-client-test</module>
 		<module>flink-streaming-file-sink-test</module>
 		<module>flink-state-evolution-test</module>
-		<module>flink-e2e-test-utils</module>
 		<module>flink-end-to-end-tests-common</module>
 		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-connector-gcp-pubsub-emulator-tests</module>
 		<module>flink-streaming-kafka-test-base</module>
 		<module>flink-streaming-kafka-test</module>
 		<module>flink-streaming-kafka011-test</module>
 		<module>flink-streaming-kafka010-test</module>
+		<module>flink-plugins-test</module>
+		<module>flink-tpch-test</module>
+		<module>flink-streaming-kinesis-test</module>
+		<module>flink-elasticsearch7-test</module>
+		<module>flink-end-to-end-tests-common-kafka</module>
+		<module>flink-tpcds-test</module>
 	</modules>
-
-	<!-- See main pom.xml for explanation of profiles -->
-	<profiles>
-		<!--
-			We include the kinesis module only optionally because it contains a dependency
-			licenced under the "Amazon Software License".
-			In accordance with the discussion in https://issues.apache.org/jira/browse/LEGAL-198
-			this is an optional module for Flink.
-		-->
-		<profile>
-			<id>include-kinesis</id>
-			<activation>
-				<property>
-					<name>include-kinesis</name>
-				</property>
-			</activation>
-			<modules>
-				<module>flink-streaming-kinesis-test</module>
-			</modules>
-		</profile>
-	</profiles>
 
 	<build>
 		<plugins>
@@ -101,8 +93,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<executions>
-					<!-- Do not execute any tests by default.
-						E2E tests should specify an additional execution within a profile. -->
 					<execution>
 						<id>default-test</id>
 						<phase>none</phase>
@@ -110,6 +100,27 @@ under the License.
 					<execution>
 						<id>integration-tests</id>
 						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>end-to-end-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/*ITCase.*</include>
+							</includes>
+							<!-- Disable all tests by default.
+                                Uses a separate property to make it configurable from the command-line. -->
+							<groups>${includeE2E}</groups>
+							<excludedGroups>${excludeE2E}</excludedGroups>
+							<!-- E2E tests must not access flink-dist concurrently. -->
+							<forkCount>1</forkCount>
+							<systemPropertyVariables>
+								<moduleDir>${project.basedir}</moduleDir>
+							</systemPropertyVariables>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

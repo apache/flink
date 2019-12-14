@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.types.Row;
 
@@ -27,15 +28,18 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 
 /**
  * Tests for the {@link JsonRowDeserializationSchema}.
@@ -51,6 +55,17 @@ public class JsonRowDeserializationSchemaTest {
 		String name = "asdlkjasjkdla998y1122";
 		byte[] bytes = new byte[1024];
 		ThreadLocalRandom.current().nextBytes(bytes);
+		Timestamp timestamp = Timestamp.valueOf("1990-10-14 12:12:43");
+		Date date = Date.valueOf("1990-10-14");
+		Time time = Time.valueOf("12:12:43");
+
+		Map<String, Long> map = new HashMap<>();
+		map.put("flink", 123L);
+
+		Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
+		Map<String, Integer> innerMap = new HashMap<>();
+		innerMap.put("key", 234);
+		nestedMap.put("inner_map", innerMap);
 
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -59,21 +74,42 @@ public class JsonRowDeserializationSchemaTest {
 		root.put("id", id);
 		root.put("name", name);
 		root.put("bytes", bytes);
+		root.put("date1", "1990-10-14");
+		root.put("date2", "1990-10-14");
+		root.put("time1", "12:12:43Z");
+		root.put("time2", "12:12:43Z");
+		root.put("timestamp1", "1990-10-14T12:12:43Z");
+		root.put("timestamp2", "1990-10-14T12:12:43Z");
+		root.putObject("map").put("flink", 123);
+		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
-		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
 			Types.ROW_NAMED(
-				new String[] { "id", "name", "bytes" },
-				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE))
-		);
+				new String[]{"id", "name", "bytes", "date1", "date2",
+					"time1", "time2", "timestamp1", "timestamp2", "map", "map2map"},
+				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE),
+				Types.SQL_DATE, Types.LOCAL_DATE, Types.SQL_TIME, Types.LOCAL_TIME,
+				Types.SQL_TIMESTAMP, Types.LOCAL_DATE_TIME,
+				Types.MAP(Types.STRING, Types.LONG),
+				Types.MAP(Types.STRING, Types.MAP(Types.STRING, Types.INT)))
+		).build();
 
-		Row deserialized = deserializationSchema.deserialize(serializedJson);
+		Row row = new Row(11);
+		row.setField(0, id);
+		row.setField(1, name);
+		row.setField(2, bytes);
+		row.setField(3, date);
+		row.setField(4, date.toLocalDate());
+		row.setField(5, time);
+		row.setField(6, time.toLocalTime());
+		row.setField(7, timestamp);
+		row.setField(8, timestamp.toLocalDateTime());
+		row.setField(9, map);
+		row.setField(10, nestedMap);
 
-		assertEquals(3, deserialized.getArity());
-		assertEquals(id, deserialized.getField(0));
-		assertEquals(name, deserialized.getField(1));
-		assertArrayEquals(bytes, (byte[]) deserialized.getField(2));
+		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
 	}
 
 	@Test
@@ -103,7 +139,7 @@ public class JsonRowDeserializationSchemaTest {
 
 		final byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
-		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
 			"{" +
 			"    type: 'object'," +
 			"    properties: {" +
@@ -124,9 +160,7 @@ public class JsonRowDeserializationSchemaTest {
 			"             }" +
 			"         }" +
 			"    }" +
-			"}");
-
-		final Row deserialized = deserializationSchema.deserialize(serializedJson);
+			"}").build();
 
 		final Row expected = new Row(10);
 		expected.setField(0, id);
@@ -143,7 +177,7 @@ public class JsonRowDeserializationSchemaTest {
 		nestedRow.setField(1, BigDecimal.valueOf(12));
 		expected.setField(9, nestedRow);
 
-		assertEquals(expected, deserialized);
+		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(expected));
 	}
 
 	/**
@@ -158,25 +192,25 @@ public class JsonRowDeserializationSchemaTest {
 		root.put("id", 123123123);
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
-		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
-			Types.ROW_NAMED(
-				new String[] { "name" },
-				Types.STRING)
-		);
+		TypeInformation<Row> rowTypeInformation = Types.ROW_NAMED(
+			new String[]{"name"},
+			Types.STRING);
 
-		Row row = deserializationSchema.deserialize(serializedJson);
+		JsonRowDeserializationSchema deserializationSchema =
+			new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+				.build();
 
-		assertEquals(1, row.getArity());
-		Assert.assertNull("Missing field not null", row.getField(0));
+		Row row = new Row(1);
+		assertThat(serializedJson,
+			whenDeserializedWith(deserializationSchema).equalsTo(row));
 
-		deserializationSchema.setFailOnMissingField(true);
+		deserializationSchema = new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+			.failOnMissingField()
+			.build();
 
-		try {
-			deserializationSchema.deserialize(serializedJson);
-			Assert.fail("Did not throw expected Exception");
-		} catch (IOException e) {
-			Assert.assertTrue(e.getCause() instanceof IllegalStateException);
-		}
+		assertThat(serializedJson,
+			whenDeserializedWith(deserializationSchema)
+				.failsWithException(hasCause(instanceOf(IllegalStateException.class))));
 	}
 
 	/**
@@ -185,10 +219,10 @@ public class JsonRowDeserializationSchemaTest {
 	@Test
 	public void testNumberOfFieldNamesAndTypesMismatch() {
 		try {
-			new JsonRowDeserializationSchema(
+			new JsonRowDeserializationSchema.Builder(
 				Types.ROW_NAMED(
 					new String[]{"one", "two", "three"},
-					Types.LONG));
+					Types.LONG)).build();
 			Assert.fail("Did not throw expected Exception");
 		} catch (IllegalArgumentException ignored) {
 			// Expected

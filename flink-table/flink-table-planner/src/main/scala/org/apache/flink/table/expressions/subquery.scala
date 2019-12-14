@@ -25,7 +25,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -40,7 +40,7 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
     // check if this is a sub-query expression or an element list
     elements.head match {
 
-      case TableReference(_, tableOperation: TableOperation) =>
+      case TableReference(_, tableOperation: QueryOperation) =>
         RexSubQuery.in(
           relBuilder.asInstanceOf[FlinkRelBuilder].tableOperation(tableOperation).build(),
           ImmutableList.of(expression.toRexNode))
@@ -54,7 +54,7 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
     // check if this is a sub-query expression or an element list
     elements.head match {
 
-      case TableReference(name, tableOperation: TableOperation) =>
+      case TableReference(name, tableOperation: QueryOperation) =>
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 
 import org.junit.Test;
@@ -127,5 +128,10 @@ public class DataTypeTest {
 	@Test(expected = ValidationException.class)
 	public void testInvalidOrderInterval() {
 		INTERVAL(MONTH(), YEAR(2));
+	}
+
+	@Test
+	public void testConversionEquality() {
+		assertEquals(DataTypes.VARCHAR(2).bridgedTo(String.class), DataTypes.VARCHAR(2));
 	}
 }

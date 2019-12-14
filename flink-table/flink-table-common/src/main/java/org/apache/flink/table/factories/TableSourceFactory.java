@@ -19,6 +19,8 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.sources.TableSource;
 
 import java.util.Map;
@@ -39,4 +41,16 @@ public interface TableSourceFactory<T> extends TableFactory {
 	 * @return the configured table source.
 	 */
 	TableSource<T> createTableSource(Map<String, String> properties);
+
+	/**
+	 * Creates and configures a {@link TableSource} based on the given {@link CatalogTable} instance.
+	 *
+	 * @param tablePath path of the given {@link CatalogTable}
+	 * @param table {@link CatalogTable} instance.
+	 * @return the configured table source.
+	 */
+	default TableSource<T> createTableSource(ObjectPath tablePath, CatalogTable table) {
+		return createTableSource(table.toProperties());
+	}
+
 }

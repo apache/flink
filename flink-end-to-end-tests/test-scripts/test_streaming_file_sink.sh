@@ -19,16 +19,21 @@
 
 OUT_TYPE="${1:-local}" # other type: s3
 
+S3_PREFIX=temp/test_streaming_file_sink-$(uuidgen)
+OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
+S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_s3.sh
 
-s3_setup hadoop
-set_conf_ssl "mutual"
-set_conf "metrics.fetcher.update-interval" "2000"
+# randomly set up openSSL with dynamically/statically linked libraries
+OPENSSL_LINKAGE=$(if (( RANDOM % 2 )) ; then echo "dynamic"; else echo "static"; fi)
+echo "Executing test with ${OPENSSL_LINKAGE} openSSL linkage (random selection between 'dynamic' and 'static')"
 
-OUT=temp/test_streaming_file_sink-$(uuidgen)
-OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
-S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$OUT"
+s3_setup hadoop
+set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
+set_config_key "metrics.fetcher.update-interval" "2000"
+# this test relies on global failovers
+set_config_key "jobmanager.execution.failover-strategy" "full"
 
 mkdir -p $OUTPUT_PATH
 
@@ -38,6 +43,8 @@ if [ "${OUT_TYPE}" == "local" ]; then
 elif [ "${OUT_TYPE}" == "s3" ]; then
   echo "Use s3 output"
   JOB_OUTPUT_PATH=${S3_OUTPUT_PATH}
+  set_config_key "state.checkpoints.dir" "s3://$IT_CASE_S3_BUCKET/$S3_PREFIX-chk"
+  mkdir -p "$OUTPUT_PATH-chk"
 else
   echo "Unknown output type: ${OUT_TYPE}"
   exit 1
@@ -45,10 +52,12 @@ fi
 
 # make sure we delete the file at the end
 function out_cleanup {
-  s3_delete_by_full_path_prefix $OUT
+  s3_delete_by_full_path_prefix "$S3_PREFIX"
+  s3_delete_by_full_path_prefix "${S3_PREFIX}-chk"
+  rollback_openssl_lib
 }
 if [ "${OUT_TYPE}" == "s3" ]; then
-  trap out_cleanup EXIT
+  on_exit out_cleanup
 fi
 
 TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/StreamingFileSinkProgram.jar"
@@ -65,8 +74,7 @@ TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/Stream
 ###################################
 function get_complete_result {
   if [ "${OUT_TYPE}" == "s3" ]; then
-    rm -rf $OUTPUT_PATH; mkdir -p $OUTPUT_PATH
-    s3_get_by_full_path_and_filename_prefix ${TEST_DATA_DIR} "${OUT}" "part-"
+    s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "$S3_PREFIX" "part-" true
   fi
   find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
 }
@@ -75,7 +83,7 @@ function get_complete_result {
 # Get total number of lines in part files.
 #
 # Globals:
-#   OUT
+#   S3_PREFIX
 # Arguments:
 #   None
 # Returns:
@@ -85,7 +93,7 @@ function get_total_number_of_valid_lines {
   if [ "${OUT_TYPE}" == "local" ]; then
     get_complete_result | wc -l | tr -d '[:space:]'
   elif [ "${OUT_TYPE}" == "s3" ]; then
-    s3_get_number_of_lines_by_prefix "${OUT}" "part-"
+    s3_get_number_of_lines_by_prefix "${S3_PREFIX}" "part-"
   fi
 }
 

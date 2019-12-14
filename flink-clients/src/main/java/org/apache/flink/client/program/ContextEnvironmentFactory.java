@@ -19,12 +19,16 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.ExecutorServiceLoader;
 
-import java.net.URL;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The factory that instantiates the environment to be used when running jobs that are
@@ -33,50 +37,43 @@ import java.util.List;
  */
 public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
-	private final ClusterClient<?> client;
+	private final ExecutorServiceLoader executorServiceLoader;
 
-	private final List<URL> jarFilesToAttach;
-
-	private final List<URL> classpathsToAttach;
+	private final Configuration configuration;
 
 	private final ClassLoader userCodeClassLoader;
 
-	private final int defaultParallelism;
+	private final AtomicReference<JobExecutionResult> jobExecutionResult;
 
-	private final boolean isDetached;
+	private boolean alreadyCalled;
 
-	private ExecutionEnvironment lastEnvCreated;
+	public ContextEnvironmentFactory(
+			final ExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final AtomicReference<JobExecutionResult> jobExecutionResult) {
+		this.executorServiceLoader = checkNotNull(executorServiceLoader);
+		this.configuration = checkNotNull(configuration);
+		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
+		this.jobExecutionResult = checkNotNull(jobExecutionResult);
 
-	private SavepointRestoreSettings savepointSettings;
-
-	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
-			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean isDetached, SavepointRestoreSettings savepointSettings) {
-		this.client = client;
-		this.jarFilesToAttach = jarFilesToAttach;
-		this.classpathsToAttach = classpathsToAttach;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.defaultParallelism = defaultParallelism;
-		this.isDetached = isDetached;
-		this.savepointSettings = savepointSettings;
+		this.alreadyCalled = false;
 	}
 
 	@Override
 	public ExecutionEnvironment createExecutionEnvironment() {
-		if (isDetached && lastEnvCreated != null) {
-			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
-		}
-
-		lastEnvCreated = isDetached
-			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings)
-			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
-		if (defaultParallelism > 0) {
-			lastEnvCreated.setParallelism(defaultParallelism);
-		}
-		return lastEnvCreated;
+		verifyCreateIsCalledOnceWhenInDetachedMode();
+		return new ContextEnvironment(
+				executorServiceLoader,
+				configuration,
+				userCodeClassLoader,
+				jobExecutionResult);
 	}
 
-	public ExecutionEnvironment getLastEnvCreated() {
-		return lastEnvCreated;
+	private void verifyCreateIsCalledOnceWhenInDetachedMode() {
+		if (!configuration.getBoolean(DeploymentOptions.ATTACHED) && alreadyCalled) {
+			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
+		}
+		alreadyCalled = true;
 	}
 }

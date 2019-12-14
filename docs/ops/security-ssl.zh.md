@@ -170,7 +170,7 @@ For the externally facing REST endpoint, the common name or subject alternative 
 Execute the following keytool commands to create a key pair in a keystore:
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.internal -keystore internal.keystore -dname "CN=flink.internal" -storepass internal_store_password -keypass internal_key_password -keyalg RSA -keysize 4096
+keytool -genkeypair -alias flink.internal -keystore internal.keystore -dname "CN=flink.internal" -storepass internal_store_password -keyalg RSA -keysize 4096 -storetype PKCS12
 {% endhighlight %}
 
 The single key/certificate in the keystore is used the same way by the server and client endpoints (mutual authentication).
@@ -182,7 +182,7 @@ security.ssl.internal.keystore: /path/to/flink/conf/internal.keystore
 security.ssl.internal.truststore: /path/to/flink/conf/internal.keystore
 security.ssl.internal.keystore-password: internal_store_password
 security.ssl.internal.truststore-password: internal_store_password
-security.ssl.internal.key-password: internal_key_password
+security.ssl.internal.key-password: internal_store_password
 {% endhighlight %}
 
 **REST Endpoint**
@@ -198,7 +198,7 @@ This example shows how to create a simple keystore / truststore pair. The trusts
 be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the Flink master.
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096 -storetype PKCS12
+keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
 
 keytool -exportcert -keystore rest.keystore -alias flink.rest -storepass rest_keystore_password -file flink.cer
 
@@ -211,7 +211,7 @@ security.ssl.rest.keystore: /path/to/flink/conf/rest.keystore
 security.ssl.rest.truststore: /path/to/flink/conf/rest.truststore
 security.ssl.rest.keystore-password: rest_keystore_password
 security.ssl.rest.truststore-password: rest_truststore_password
-security.ssl.rest.key-password: rest_key_password
+security.ssl.rest.key-password: rest_keystore_password
 {% endhighlight %}
 
 **REST Endpoint (with a self signed CA)**
@@ -219,7 +219,7 @@ security.ssl.rest.key-password: rest_key_password
 Execute the following keytool commands to create a truststore with a self signed CA.
 
 {% highlight bash %}
-keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keypass ca_key_password -keyalg RSA -keysize 4096 -ext "bc=ca:true" -storetype PKCS12
+keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keyalg RSA -keysize 4096 -ext "bc=ca:true" -storetype PKCS12
 
 keytool -exportcert -keystore ca.keystore -alias ca -storepass ca_keystore_password -file ca.cer
 
@@ -230,15 +230,15 @@ Now create a keystore for the REST endpoint with a certificate signed by the abo
 Let *flink.company.org / ip:10.0.2.15* be the hostname of the Flink master (JobManager).
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096 -storetype PKCS12
+keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
 
-keytool -certreq -alias flink.rest -keystore rest.signed.keystore -storepass rest_keystore_password -keypass rest_key_password -file rest.csr
+keytool -certreq -alias flink.rest -keystore rest.signed.keystore -storepass rest_keystore_password -file rest.csr
 
-keytool -gencert -alias ca -keystore ca.keystore -storepass ca_keystore_password -keypass ca_key_password -ext "SAN=dns:flink.company.org,ip:10.0.2.15" -infile rest.csr -outfile rest.cer
+keytool -gencert -alias ca -keystore ca.keystore -storepass ca_keystore_password -ext "SAN=dns:flink.company.org,ip:10.0.2.15" -infile rest.csr -outfile rest.cer
 
 keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_password -file ca.cer -alias ca -noprompt
 
-keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_password -keypass rest_key_password -file rest.cer -alias flink.rest -noprompt
+keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_password -file rest.cer -alias flink.rest -noprompt
 {% endhighlight %}
 
 Now add the following configuration to your `flink-conf.yaml`:
@@ -248,7 +248,7 @@ security.ssl.rest.enabled: true
 security.ssl.rest.keystore: /path/to/flink/conf/rest.signed.keystore
 security.ssl.rest.truststore: /path/to/flink/conf/ca.truststore
 security.ssl.rest.keystore-password: rest_keystore_password
-security.ssl.rest.key-password: rest_key_password
+security.ssl.rest.key-password: rest_keystore_password
 security.ssl.rest.truststore-password: ca_truststore_password
 {% endhighlight %}
 

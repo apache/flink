@@ -20,8 +20,8 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -33,25 +33,21 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
-import org.apache.flink.table.type.GenericType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
-import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
-import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
-import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import static org.apache.flink.table.dataformat.DataFormatConverters.getConverterForTypeInfo;
+import static org.apache.flink.table.dataformat.DataFormatConverters.getConverterForDataType;
 
 /**
  * Test for {@link DataFormatConverters}.
@@ -78,9 +74,9 @@ public class DataFormatConvertersTest {
 		PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
 		PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO,
 
-		SqlTimeTypeInfo.DATE,
-		SqlTimeTypeInfo.TIME,
-		SqlTimeTypeInfo.TIMESTAMP,
+		LocalTimeTypeInfo.LOCAL_DATE,
+		LocalTimeTypeInfo.LOCAL_TIME,
+		LocalTimeTypeInfo.LOCAL_DATE_TIME,
 
 		BinaryStringTypeInfo.INSTANCE
 	};
@@ -105,15 +101,19 @@ public class DataFormatConvertersTest {
 			new byte[] {5, 1},
 			new char[] {5, 1},
 
-			SqlDateTimeUtils.internalToDate(5),
-			new Time(11),
-			new Timestamp(11),
+			SqlDateTimeUtils.unixDateToLocalDate(5),
+			SqlDateTimeUtils.unixTimeToLocalTime(11),
+			SqlDateTimeUtils.unixTimestampToLocalDateTime(11),
 
 			BinaryString.fromString("hahah")
 	};
 
+	private static DataFormatConverter getConverter(TypeInformation typeInfo) {
+		return getConverterForDataType(TypeConversions.fromLegacyInfoToDataType(typeInfo));
+	}
+
 	private static void test(TypeInformation typeInfo, Object value) {
-		DataFormatConverter converter = getConverterForTypeInfo(typeInfo);
+		DataFormatConverter converter = getConverter(typeInfo);
 		Assert.assertTrue(Arrays.deepEquals(
 				new Object[] {converter.toExternal(converter.toInternal(value))}, new Object[] {value}));
 	}
@@ -125,16 +125,16 @@ public class DataFormatConvertersTest {
 		}
 		test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
 		test(new RowTypeInfo(simpleTypes), Row.of(simpleValues));
-		test(new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.INT),
+		test(new BaseRowTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
 				GenericRow.of(BinaryString.fromString("hehe"), 111));
-		test(new BaseRowTypeInfo(InternalTypes.STRING, InternalTypes.INT), GenericRow.of(null, null));
+		test(new BaseRowTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRow.of(null, null));
 
 		test(new DecimalTypeInfo(10, 5), null);
 		test(new DecimalTypeInfo(10, 5), Decimal.castFrom(5.555, 10, 5));
 
 		test(Types.BIG_DEC, null);
 		{
-			DataFormatConverter converter = getConverterForTypeInfo(Types.BIG_DEC);
+			DataFormatConverter converter = getConverter(Types.BIG_DEC);
 			Assert.assertTrue(Arrays.deepEquals(
 					new Object[]{converter.toInternal(converter.toExternal(Decimal.castFrom(5, 19, 18)))},
 					new Object[]{Decimal.castFrom(5, 19, 18)}));
@@ -142,9 +142,6 @@ public class DataFormatConvertersTest {
 
 		test(new ListTypeInfo<>(Types.STRING), null);
 		test(new ListTypeInfo<>(Types.STRING), Arrays.asList("ahah", "xx"));
-
-		test(new BinaryGenericTypeInfo<>(new GenericType<>(Types.STRING)), null);
-		test(new BinaryGenericTypeInfo<>(new GenericType<>(Types.STRING)), "hahaha");
 
 		test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {1D, 5D});
 		test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {null, null});
@@ -163,12 +160,6 @@ public class DataFormatConvertersTest {
 		test(tupleTypeInfo, tuple2);
 
 		test(TypeExtractor.createTypeInfo(MyPojo.class), new MyPojo(1, 3));
-
-		test(new BinaryArrayTypeInfo(InternalTypes.INT), BinaryArray.fromPrimitiveArray(new int[]{1, 5}));
-		test(new BinaryMapTypeInfo(InternalTypes.INT, InternalTypes.INT),
-				BinaryMap.valueOf(
-						BinaryArray.fromPrimitiveArray(new int[]{1, 5}),
-						BinaryArray.fromPrimitiveArray(new int[]{6, 7})));
 	}
 
 	/**
