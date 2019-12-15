@@ -238,10 +238,13 @@ but users can pick their own hadoop version, as long as it's compatible with Had
 
 ## Connecting To Hive
 
-Connect to an existing Hive installation using the Hive [Catalog]({{ site.baseurl }}/dev/table/catalogs.html) through the table environment or YAML configuration.
+Connect to an existing Hive installation using the [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 
+and [HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html) through the table environment or YAML configuration.
 
 If the `hive-conf/hive-site.xml` file is stored in remote storage system, users should download 
 the hive configuration file to their local environment first. 
+
+Take Hive version 2.3.4 for example:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -250,10 +253,13 @@ the hive configuration file to their local environment first.
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
 String hiveConfDir     = "/opt/hive-conf"; // a local path
-String version         = "2.3.4"; // or 1.2.1
+String version         = "2.3.4";
 
 HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
 tableEnv.registerCatalog("myhive", hive);
+
+// set the HiveCatalog as the current catalog of the session
+tableEnv.useCatalog("myhive");
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
@@ -262,20 +268,29 @@ tableEnv.registerCatalog("myhive", hive);
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
 val hiveConfDir     = "/opt/hive-conf" // a local path
-val version         = "2.3.4" // or 1.2.1
+val version         = "2.3.4"
 
 val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
 tableEnv.registerCatalog("myhive", hive)
+
+// set the HiveCatalog as the current catalog of the session
+tableEnv.useCatalog("myhive")
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
+
+execution:
+    planner: blink
+    ...
+    current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
+    current-database: mydatabase
+    
 catalogs:
    - name: myhive
      type: hive
-     property-version: 1
      hive-conf-dir: /opt/hive-conf
-     hive-version: 2.3.4 # or 1.2.1
+     hive-version: 2.3.4
 {% endhighlight %}
 </div>
 </div>
