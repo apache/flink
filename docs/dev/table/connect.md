@@ -1588,7 +1588,7 @@ The following table shows the mapping of JSON schema types to Flink SQL types:
 | `array`                           | `ARRAY[_]`              |
 | `number`                          | `DECIMAL`               |
 | `integer`                         | `DECIMAL`               |
-| `string`                          | `VARCHAR`               |
+| `string`                          | `STRING`                |
 | `string` with `format: date-time` | `TIMESTAMP`             |
 | `string` with `format: date`      | `DATE`                  |
 | `string` with `format: time`      | `TIME`                  |
