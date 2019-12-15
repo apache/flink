@@ -47,7 +47,7 @@ public class ExecutorCLI implements CustomCommandLine {
 	private static final String ID = "Executor-CLI";
 
 	private final Option executorOption = new Option("e", "executor", true,
-			"The name of the executor to be used for executing the given job, e.g. \"local-executor\"." +
+			"The name of the executor to be used for executing the given job, e.g. \"local\"." +
 					" This is equivalent to the \"" + DeploymentOptions.TARGET.key() + "\" config option.");
 
 	/**
