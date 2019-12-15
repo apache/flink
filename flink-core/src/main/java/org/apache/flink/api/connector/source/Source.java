@@ -59,10 +59,13 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
 	/**
 	 * Creates a new SplitEnumerator for this source, starting a new input.
 	 *
+	 * @param boundedness The boundedness of this source.
 	 * @param enumContext The {@link SplitEnumeratorContext context} for the split enumerator.
 	 * @return A new SplitEnumerator.
 	 */
-	SplitEnumerator<SplitT, EnumChkT> createEnumerator(SplitEnumeratorContext<SplitT> enumContext);
+	SplitEnumerator<SplitT, EnumChkT> createEnumerator(
+			Boundedness boundedness,
+			SplitEnumeratorContext<SplitT> enumContext);
 
 	/**
 	 * Restores an enumerator from a checkpoint.
