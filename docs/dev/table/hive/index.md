@@ -1,5 +1,5 @@
 ---
-title: "Hive"
+title: "Hive Integration"
 nav-id: hive_tableapi
 nav-parent_id: tableapi
 nav-pos: 110
