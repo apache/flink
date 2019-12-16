@@ -111,27 +111,27 @@ __________ __________
 
 ## Writing To Hive
 
-Similarly, data can be written into hive using an `INSERT` clause. 
+Similarly, data can be written into hive using an `INSERT` clause. Consider there is a mytable table with two columns: name, age.
 
 {% highlight bash %}
 # ------ Insert with append mode ------ 
-Flink SQL> INSERT INTO mytable VALUES ('Tom', 4.72);
+Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 
 # ------ Insert with overwrite mode ------ 
-Flink SQL> INSERT OVERWRITE mytable VALUES ('Tom', 4.72);
+Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
-We support partition table too, Let's say that there is now a myparttable table with four columns: name, value, my_type and my_date. Column my_type and column my_date are the partition columns.
+We support partition table too, Consider there is a myparttable table with four columns: name, age, my_type and my_date. Column my_type and column my_date are the partition columns.
 
 {% highlight bash %}
 # ------ Insert with static partition ------ 
-Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') VALUES ('Tom', 4.72);
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') SELECT 'Tom', 25;
 
 # ------ Insert with dynamic partition ------ 
-Flink SQL> INSERT OVERWRITE myparttable VALUES ('Tom', 4.72, 'type_1', '2019-08-08');
+Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08';
 
 # ------ Insert with static(my_type) and dynamic(my_date) partition ------ 
-Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') VALUES ('Tom', 4.72, '2019-08-08');
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 {% endhighlight %}
 
 ## Formats
@@ -140,8 +140,10 @@ We have tested on the following of table storage formats: text, csv, SequenceFil
 
 # ------ ORC Vectorized Optimization ------ 
 Optimization is used automatically when the following conditions are met:
+
 - Columns without complex data type, like hive types: List, Map, Struct.
 - Hive version greater than or equal to version 2.
+
 If there is a problem, you can use this config option to close ORC Vectorized Optimization:
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
