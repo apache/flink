@@ -90,12 +90,14 @@ public class ExecutionContextTest {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 
 		Set<String> allModules = new HashSet<>(Arrays.asList(tableEnv.listModules()));
-		assertEquals(2, allModules.size());
+		assertEquals(4, allModules.size());
 		assertEquals(
 			new HashSet<>(
 				Arrays.asList(
 					"core",
-					"mymodule")
+					"mymodule",
+					"myhive",
+					"myhive2")
 			),
 			allModules
 		);

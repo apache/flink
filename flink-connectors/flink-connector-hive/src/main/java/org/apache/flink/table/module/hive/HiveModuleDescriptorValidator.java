@@ -32,6 +32,6 @@ public class HiveModuleDescriptorValidator extends ModuleDescriptorValidator {
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateValue(MODULE_TYPE, MODULE_TYPE_HIVE, false);
-		properties.validateString(MODULE_HIVE_VERSION, false, 1);
+		properties.validateString(MODULE_HIVE_VERSION, true, 1);
 	}
 }
