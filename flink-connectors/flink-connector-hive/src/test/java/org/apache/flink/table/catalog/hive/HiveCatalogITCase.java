@@ -119,6 +119,23 @@ public class HiveCatalogITCase {
 				Row.of("3", 3))),
 			new HashSet<>(result)
 		);
+
+		tableEnv.sqlUpdate("ALTER TABLE test2 RENAME TO newtable");
+
+		t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.newtable");
+
+		result = TableUtils.collectToList(t);
+
+		// assert query result
+		assertEquals(
+			new HashSet<>(Arrays.asList(
+				Row.of("1", 1),
+				Row.of("2", 2),
+				Row.of("3", 3))),
+			new HashSet<>(result)
+		);
+
+		tableEnv.sqlUpdate("DROP TABLE newtable");
 	}
 
 	@Test
@@ -127,6 +144,7 @@ public class HiveCatalogITCase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
 
 		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
 
 		TableSchema schema = TableSchema.builder()
 			.field("name", DataTypes.STRING())
@@ -200,5 +218,8 @@ public class HiveCatalogITCase {
 
 		// No more line
 		assertNull(reader.readLine());
+
+		tableEnv.sqlUpdate(String.format("DROP TABLE %s", sourceTableName));
+		tableEnv.sqlUpdate(String.format("DROP TABLE %s", sinkTableName));
 	}
 }
