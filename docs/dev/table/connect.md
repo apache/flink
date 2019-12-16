@@ -127,7 +127,15 @@ schema: ...
 
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
-tableEnvironment.sqlUpdate("CREATE TABLE MyTable (...) WITH (...)")
+tableEnvironment.sqlUpdate("CREATE TABLE MyTable (...) 
+WITH (
+'connector.key0'='...'
+...
+'connector.keyn'='...'
+'update-mode'='append'
+'format.key0'='...'
+...
+'format.keyn='...')")
 {% endhighlight %}
 </div>
 </div>
@@ -280,6 +288,7 @@ tables:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
+  -- declare the schema of the table
   `user` BIGINT,
   message STRING,
   ts STRING
@@ -291,6 +300,8 @@ CREATE TABLE MyUserTable (
   'connector.startup-mode' = 'earliest-offset',
   'connector.properties.zookeeper.connect' = 'localhost:2181',
   'connector.properties.bootstrap.servers' = 'localhost:9092',
+  -- specify the update-mode for streaming tables
+  'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
   'format.avro-schema' = '{
