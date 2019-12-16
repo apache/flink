@@ -177,19 +177,7 @@ class FlinkPlannerImpl(
     )
     val validator = createSqlValidator(readerWithPathAdjusted)
     val validated = validateInternal(parsed, validator)
-    val equivRel = rel(validated, validator)
-    if (!RelOptUtil.areRowTypesEqual(
-      rowType,
-      equivRel.validatedRowType,
-      true
-    )) {
-      throw new TableException(
-        s"""Could not expand view. Types mismatch.
-           | Expected row type: $rowType
-           | Expanded view type: ${equivRel.validatedRowType}
-           |""".stripMargin)
-    }
-    equivRel
+    rel(validated, validator)
   }
 
   private def createRexBuilder: RexBuilder = {
