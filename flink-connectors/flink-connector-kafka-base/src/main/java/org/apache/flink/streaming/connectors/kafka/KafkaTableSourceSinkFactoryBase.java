@@ -81,7 +81,6 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
  * Factory for creating configured instances of {@link KafkaTableSourceBase}.
@@ -93,7 +92,6 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND); // append mode
 		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA); // kafka
 		context.put(CONNECTOR_VERSION, kafkaVersion()); // version
 		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
@@ -103,6 +101,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public List<String> supportedProperties() {
 		List<String> properties = new ArrayList<>();
+		// update mode
+		properties.add(UPDATE_MODE);
 
 		// kafka
 		properties.add(CONNECTOR_TOPIC);
