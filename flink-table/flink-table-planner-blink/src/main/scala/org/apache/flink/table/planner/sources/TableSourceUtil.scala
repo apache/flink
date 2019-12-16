@@ -149,19 +149,30 @@ object TableSourceUtil {
 
     // get the corresponding logical type according to the layout of source data type
     val sourceLogicalType = fromDataTypeToLogicalType(tableSource.getProducedDataType)
-    def mapping(physicalName: String): String = tableSource match {
+    def mapping(physicalName: String): Option[String] = tableSource match {
       case ts: DefinedFieldMapping if ts.getFieldMapping != null =>
         // revert key and value, mapping from physical field to logical field
         val map = ts.getFieldMapping.toMap.map(_.swap)
-        map(physicalName)
+        map.get(physicalName)
       case _ =>
-        physicalName
+        Some(physicalName)
     }
+
     val correspondingLogicalType = sourceLogicalType match {
       case outType: RowType =>
-        val fieldsDataType = schemaWithoutProctime.getFields.map(f => (f.getName, f.getType)).toMap
-        val fields = outType.getFieldNames.map(n =>
-          new RowField(n, fieldsDataType(mapping(n)))).asJava
+        val logicalNamesToTypes = schemaWithoutProctime
+          .getFields
+          .map(f => (f.getName, f.getType))
+          .toMap
+        val fields = outType.getFields.map(f => {
+          val t = mapping(f.getName) match {
+            case Some(n) if logicalNamesToTypes.contains(n) =>
+              logicalNamesToTypes(n) // find corresponding logical type
+            case _ =>
+              f.getType // use physical type if logical type can't find
+          }
+          new RowField(f.getName, t)
+        }).asJava
         new RowType(schemaWithoutProctime.isNullable, fields)
 
       case _ =>
