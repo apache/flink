@@ -20,11 +20,13 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.planner.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
+import org.apache.flink.table.planner.{JArrayList, JBoolean, JByte, JDouble, JFloat, JList, JLong, JShort}
 
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.{Project, RelFactories}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
 import org.apache.calcite.sql.SqlExplainLevel
@@ -493,6 +495,50 @@ object FlinkRelOptUtil {
             }
         }
     }
+  }
+
+  /**
+   * Creates a projection which casts a rel's output to a desired row type.
+   *
+   * <p>This method is inspired by [[RelOptUtil.createCastRel]], different with that,
+   * we do not generate another Project if the rel is already a [[Project]].
+   *
+   * @param rel Producer of rows to be converted
+   * @param castRowType Row type after cast
+   * @return Conversion rel with castRowType
+   */
+  def createCastRel(
+      rel: RelNode,
+      castRowType: RelDataType): RelNode = {
+    val projectFactory = RelFactories.DEFAULT_PROJECT_FACTORY;
+    val oriRowType = rel.getRowType;
+    if (RelOptUtil.areRowTypesEqual(oriRowType, castRowType, true)) {
+      // nothing to do
+      return rel
+    }
+    val rexBuilder = rel.getCluster.getRexBuilder
+
+    val fieldList = oriRowType.getFieldList
+    val n = fieldList.size();
+    assert(n == castRowType.getFieldCount, s"field count: lhs [$castRowType] rhs [$oriRowType]")
+    var rhsExps: JList[RexNode] = null
+    var input: RelNode = null
+    rel match {
+      case prj: Project =>
+        rhsExps = prj.getProjects
+        // Avoid to generate redundant project node.
+        input = rel.getInput(0);
+      case _ =>
+        rhsExps = new JArrayList[RexNode]
+        for (field <- fieldList) {
+          rhsExps.add(rexBuilder.makeInputRef(field.getType, field.getIndex));
+        }
+        input = rel
+    }
+    val castExps = RexUtil.generateCastExpressions(rexBuilder, castRowType, rhsExps)
+    // Use names and types from castRowType.
+    projectFactory.createProject(input, castExps,
+      castRowType.getFieldNames);
   }
 
 }

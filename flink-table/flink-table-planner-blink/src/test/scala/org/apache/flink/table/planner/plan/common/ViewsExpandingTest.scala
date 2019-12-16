@@ -91,6 +91,39 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
     tableUtil.verifyPlan(query)
   }
 
+  @Test
+  def testViewExpandingWithMismatchRowType(): Unit = {
+    val tableUtil = tableTestUtil(this)
+    val tableEnv = tableUtil.tableEnv
+    tableUtil.addDataStream[(Int, String, Int)]("t1", 'a, 'b, 'c)
+    def createAggSqlView(originTable: String): CatalogView = {
+      new CatalogViewImpl(
+        s"select a, b, count(c) from $originTable group by a, b",
+        s"select a, b, count(c) from $originTable group by a, b",
+        TableSchema.builder()
+          .field("a", DataTypes.INT().notNull()) // Change the nullability intentionally.
+          .field("b", DataTypes.STRING())
+          .field("c", DataTypes.INT())
+          .build(),
+        new util.HashMap[String, String](),
+        ""
+      )
+    }
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    catalog.createTable(
+      new ObjectPath(tableEnv.getCurrentDatabase, "view1"),
+      createAggSqlView("t1"),
+      false)
+    tableEnv.createTemporaryView("view2", tableEnv.from("view1"))
+    catalog.createTable(
+      new ObjectPath(tableEnv.getCurrentDatabase, "view3"),
+      createAggSqlView("view2"),
+      false)
+    tableEnv.createTemporaryView("view4", tableEnv.from("view3"))
+
+    tableUtil.verifyPlan("select * from view4")
+  }
+
   private def createSqlView(originTable: String): CatalogView = {
       new CatalogViewImpl(
         s"select * as c from $originTable",
