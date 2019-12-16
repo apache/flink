@@ -25,9 +25,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
- * Utility functions for calcite's {@link TimestampString}.
+ * Utility functions for calcite's {@link TimestampString}, {@link TimeString}.
  */
-public class TimestampStringUtils {
+public class DateTimeStringUtils {
 
 	public static TimestampString fromLocalDateTime(LocalDateTime ldt) {
 		return new TimestampString(

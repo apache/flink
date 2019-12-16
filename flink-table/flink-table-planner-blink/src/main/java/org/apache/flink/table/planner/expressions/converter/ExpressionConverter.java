@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.expressions.converter.CallExpressionConver
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -49,11 +50,11 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.DateString;
-import org.apache.calcite.util.TimeString;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -63,7 +64,8 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
-import static org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime;
+import static org.apache.flink.table.util.DateTimeStringUtils.fromLocalDateTime;
+import static org.apache.flink.table.util.DateTimeStringUtils.fromLocalTime;
 
 /**
  * Visit expression to generator {@link RexNode}.
@@ -133,8 +135,10 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				return relBuilder.getRexBuilder().makeDateLiteral(DateString.fromCalendarFields(
 						valueAsCalendar(extractValue(valueLiteral, java.sql.Date.class))));
 			case TIME_WITHOUT_TIME_ZONE:
-				return relBuilder.getRexBuilder().makeTimeLiteral(TimeString.fromCalendarFields(
-						valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
+				TimeType timeType = (TimeType) type;
+				LocalTime time = extractValue(valueLiteral, LocalTime.class);
+				return relBuilder.getRexBuilder().makeTimeLiteral(
+					fromLocalTime(time), timeType.getPrecision());
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				TimestampType timestampType = (TimestampType) type;
 				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);

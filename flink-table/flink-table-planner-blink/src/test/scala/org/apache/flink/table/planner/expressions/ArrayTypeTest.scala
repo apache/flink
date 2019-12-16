@@ -23,7 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import java.time.{LocalDateTime => JLocalDateTime}
+import java.time.{LocalDateTime => JLocalDateTime, LocalTime => JLocalTime}
 
 import org.junit.Test
 
@@ -90,14 +90,34 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "ARRAY[TIME '14:15:16', TIME '17:18:19']",
       "[14:15:16, 17:18:19]")
 
+    testTableApi(
+      Array(gLocalTime("14:15:16.123456789"), gLocalTime("17:18:19.123456789")),
+      "[14:15:16.123456789, 17:18:19.123456789]")
+
+    testTableApi(
+      Array(gLocalTime("14:15:16.1234567"), gLocalTime("17:18:19.1234567")),
+      "[14:15:16.1234567, 17:18:19.1234567]")
+
+    testTableApi(
+      Array(gLocalTime("14:15:16.123456"), gLocalTime("17:18:19.123456")),
+      "[14:15:16.123456, 17:18:19.123456]")
+
+    testTableApi(
+      Array(gLocalTime("14:15:16.1234"), gLocalTime("17:18:19.1234")),
+      "[14:15:16.1234, 17:18:19.1234]")
+
+    testTableApi(
+      Array(
+        JLocalTime.of(14, 15, 16, 123456789),
+        JLocalTime.of(17, 18, 19, 123456789)),
+      "[14:15:16.123456789, 17:18:19.123456789]")
+
     testAllApis(
       Array(localDateTime("1985-04-11 14:15:16"), localDateTime("2018-07-26 17:18:19")),
       "array('1985-04-11 14:15:16'.toTimestamp, '2018-07-26 17:18:19'.toTimestamp)",
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16', TIMESTAMP '2018-07-26 17:18:19']",
       "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
 
-    // localDateTime use DateTimeUtils.timestampStringToUnixDate to parse a time string,
-    // which only support millisecond's precision.
     testTableApi(
       Array(
         JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456789),

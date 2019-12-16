@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.util.TimestampStringUtils.{fromLocalDateTime, fromLocalTime}
+import org.apache.flink.table.util.DateTimeStringUtils.{fromLocalDateTime, fromLocalTime}
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName

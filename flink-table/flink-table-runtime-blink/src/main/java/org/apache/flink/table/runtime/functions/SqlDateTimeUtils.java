@@ -112,6 +112,19 @@ public class SqlDateTimeUtils {
 		"yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
 	};
 
+	private static final String[] DEFAULT_TIME_FORMATS = new String[]{
+		"HH:mm:ss",
+		"HH:mm:ss.S",
+		"HH:mm:ss.SS",
+		"HH:mm:ss.SSS",
+		"HH:mm:ss.SSSS",
+		"HH:mm:ss.SSSSS",
+		"HH:mm:ss.SSSSSS",
+		"HH:mm:ss.SSSSSSS",
+		"HH:mm:ss.SSSSSSSS",
+		"HH:mm:ss.SSSSSSSSS"
+	};
+
 	/**
 	 * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
 	 * (string_format) => formatter
@@ -1413,6 +1426,28 @@ public class SqlDateTimeUtils {
 
 	public static String timestampToString(SqlTimestamp ts, TimeZone tz) {
 		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz));
+	}
+
+	public static LocalTime timeStringToLocalTime(String timeString) {
+		int length = timeString.length();
+		String format;
+
+		if (length >= 10 && length <= 18) {
+			format = DEFAULT_TIME_FORMATS[length - 9];
+		} else {
+			// otherwise fall back to second's precision
+			format = DEFAULT_TIME_FORMATS[0];
+		}
+		return timeStringToLocalTime(timeString, format);
+	}
+
+	public static LocalTime timeStringToLocalTime(String timeString, String format) {
+		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
+		try {
+			return LocalTime.parse(timeString, formatter);
+		} catch (DateTimeParseException e) {
+			return null;
+		}
 	}
 
 	public static String timeToString(long nanosecond) {

@@ -30,15 +30,13 @@ import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+import org.apache.flink.table.util.DateTimeStringUtils.{toLocalDateTime, toLocalTime}
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
-import org.apache.calcite.util.{TimestampString, Util}
-
+import org.apache.calcite.util.{TimeString, TimestampString, Util}
 import java.util
 import java.util.{TimeZone, List => JList}
 
@@ -351,8 +349,8 @@ class RexNodeToExpressionConverter(
         LocalDateConverter.INSTANCE.toExternal(v)
 
       case TIME_WITHOUT_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[Integer])
-        new LocalTimeConverter(3).toExternal(v * 1000000L)
+        val v = literal.getValueAs(classOf[TimeString])
+        toLocalTime(v)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])

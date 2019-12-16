@@ -35,7 +35,7 @@ import org.apache.calcite.util.{TimeString, TimestampString}
 import org.apache.commons.lang3.StringEscapeUtils
 import java.math.{BigDecimal => JBigDecimal}
 
-import org.apache.flink.table.util.TimestampStringUtils.{toLocalDateTime, toLocalTime}
+import org.apache.flink.table.util.DateTimeStringUtils.{toLocalDateTime, toLocalTime}
 
 import scala.collection.mutable
 

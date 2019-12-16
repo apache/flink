@@ -121,6 +121,22 @@ class TemporalTypesTest extends ExpressionTestBase {
       "CAST('1999-9-10 05:20:10.123456' AS TIMESTAMP)",
       "1999-09-10 05:20:10.123456"
     )
+
+    testSqlApi(
+      "TIME '14:15:16.123456789'",
+      "14:15:16.123456789")
+
+    testSqlApi(
+      "TIME '14:15:16.1234567'",
+      "14:15:16.1234567")
+
+    testSqlApi(
+      "TIME '14:15:16.123456'",
+      "14:15:16.123456")
+
+    testSqlApi(
+      "TIME '14:15:16.1234'",
+      "14:15:16.1234")
   }
 
   @Test
@@ -1147,7 +1163,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"CAST(f24 AS TIMESTAMP(6) WITH LOCAL TIME ZONE)",
       "1970-01-01 00:00:00.123456"
     )
-
 
     // DATETIME +/- INTERVAL should support nanosecond
     testSqlApi(
