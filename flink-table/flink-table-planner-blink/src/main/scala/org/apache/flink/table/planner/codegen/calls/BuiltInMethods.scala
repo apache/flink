@@ -210,10 +210,10 @@ object BuiltInMethods {
 
   // SQL DATE TIME FUNCTIONS
 
-  val UNIX_TIME_TO_STRING = Types.lookupMethod(
+  val TIME_TO_STRING = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
-    "unixTimeToString",
-    classOf[Int])
+    "timeToString",
+    classOf[Long])
 
   val TIMESTAMP_TO_STRING = Types.lookupMethod(
     classOf[SqlDateTimeUtils],

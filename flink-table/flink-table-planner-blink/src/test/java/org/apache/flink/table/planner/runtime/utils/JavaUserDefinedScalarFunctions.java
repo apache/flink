@@ -83,7 +83,7 @@ public class JavaUserDefinedScalarFunctions {
 	 * Concatenate inputs as strings.
 	 */
 	public static class JavaFunc1 extends ScalarFunction {
-		public String eval(Integer a, int b,  SqlTimestamp c) {
+		public String eval(Integer a, Long b,  SqlTimestamp c) {
 			Long ts = (c == null) ? null : c.getMillisecond();
 			return a + " and " + b + " and " + ts;
 		}

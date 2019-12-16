@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.util;
 
+import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * Utility functions for calcite's {@link TimestampString}.
@@ -47,6 +49,22 @@ public class TimestampStringUtils {
 		final int s = Integer.valueOf(v.substring(17, 19));
 		final int nano = getNanosInSecond(v);
 		return LocalDateTime.of(year, month, day, h, m, s, nano);
+	}
+
+	public static TimeString fromLocalTime(LocalTime lt) {
+		return new TimeString(
+			lt.getHour(),
+			lt.getMinute(),
+			lt.getSecond()).withNanos(lt.getNano());
+	}
+
+	public static LocalTime toLocalTime(TimeString timeString) {
+		final String v = timeString.toString();
+		final int h = Integer.valueOf(v.substring(0, 2));
+		final int m = Integer.valueOf(v.substring(3, 5));
+		final int s = Integer.valueOf(v.substring(6, 8));
+		final int nano = getNanosInSecond("0000-00-00 " + v);
+		return LocalTime.of(h, m, s, nano);
 	}
 
 	private static int getNanosInSecond(String v) {

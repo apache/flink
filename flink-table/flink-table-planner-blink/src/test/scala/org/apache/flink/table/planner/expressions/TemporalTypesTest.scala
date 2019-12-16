@@ -228,13 +228,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       'f2.cast(DataTypes.TIME),
       "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
-      "10:20:45")
-
-    testAllApis(
-      'f2.cast(DataTypes.TIME),
-      "f2.cast(SQL_TIME)",
-      "CAST(f2 AS TIME)",
-      "10:20:45")
+      "10:20:45.123")
 
     testTableApi(
       'f7.cast(DataTypes.DATE),
@@ -755,7 +749,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2018-03-14")
     testSqlApi(
       "TIME '19:01:02.123'",
-      "19:01:02")
+      "19:01:02.123")
 
     // DATE & TIME
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")

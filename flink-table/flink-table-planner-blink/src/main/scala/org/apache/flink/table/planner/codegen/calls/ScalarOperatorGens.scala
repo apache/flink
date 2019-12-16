@@ -185,9 +185,17 @@ object ScalarOperatorGens {
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
-        generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
-          (l, r) => s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
-            s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
+        generateOperatorIfNotNull(ctx, resultType, left, right) {
+          (l, r) => {
+            val milli = s"$l / 1000000"
+            s"""
+               |(
+               |  java.lang.Math.toIntExact((($milli + ${MILLIS_PER_DAY}L)
+               |  $op
+               |  (java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)
+               |) * 1000000L
+             """.stripMargin
+          }
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
@@ -801,9 +809,7 @@ object ScalarOperatorGens {
     // Time -> Long
     // Interval Months -> Long
     case (DATE, INTEGER) |
-         (TIME_WITHOUT_TIME_ZONE, INTEGER) |
          (INTEGER, DATE) |
-         (INTEGER, TIME_WITHOUT_TIME_ZONE) |
          (INTEGER, INTERVAL_YEAR_MONTH) |
          (BIGINT, INTERVAL_DAY_TIME) |
          (INTERVAL_YEAR_MONTH, INTEGER) |
@@ -821,6 +827,14 @@ object ScalarOperatorGens {
     case (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis($operandTerm)"
+      }
+    case (TIME_WITHOUT_TIME_ZONE, INTEGER) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm => s"$operandTerm / 1000000"
+      }
+    case (INTEGER, TIME_WITHOUT_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm => s"$operandTerm * 1000000L"
       }
 
     case (from, to) =>
@@ -1025,7 +1039,7 @@ object ScalarOperatorGens {
         operand, 
         resultNullable = true) {
         operandTerm =>
-          s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
+          s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString()) * 1000000L"
       }
 
     // String -> Timestamp
@@ -1122,7 +1136,7 @@ object ScalarOperatorGens {
     // Time -> Timestamp
     case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis($operandTerm)"
+        operandTerm => s"$SQL_TIMESTAMP.fromEpochMillis($operandTerm / 1000000L)"
       }
 
     // Timestamp -> Time
@@ -1131,7 +1145,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           s"($targetTypeTerm) ($operandTerm.getMillisecond() % " +
-            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY) * 1000000L"
       }
 
     // Date -> Timestamp with local time zone
@@ -1155,7 +1169,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$SQL_TIMESTAMP.fromEpochMillis($method($operandTerm, $zone))"
+        s"$SQL_TIMESTAMP.fromEpochMillis($method((int) ($operandTerm / 1000000), $zone))"
       }
 
     // Timestamp with local time zone -> Time
@@ -1163,7 +1177,7 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
         val zone = ctx.addReusableTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
-        s"$method($operandTerm.getMillisecond(), $zone)"
+        s"$method($operandTerm.getMillisecond(), $zone) * 1000000L"
       }
 
     // Timestamp -> Decimal
@@ -1236,17 +1250,17 @@ object ScalarOperatorGens {
 
     // internal temporal casting
     // Date -> Integer
-    // Time -> Integer
+    // Time -> Long
     // Integer -> Date
-    // Integer -> Time
+    // Long -> Time
     // Integer -> Interval Months
     // Long -> Interval Millis
     // Interval Months -> Integer
     // Interval Millis -> Long
     case (DATE, INTEGER) |
-         (TIME_WITHOUT_TIME_ZONE, INTEGER) |
+         (TIME_WITHOUT_TIME_ZONE, BIGINT) |
          (INTEGER, DATE) |
-         (INTEGER, TIME_WITHOUT_TIME_ZONE) |
+         (BIGINT, TIME_WITHOUT_TIME_ZONE) |
          (INTEGER, INTERVAL_YEAR_MONTH) |
          (BIGINT, INTERVAL_DAY_TIME) |
          (INTERVAL_YEAR_MONTH, INTEGER) |
@@ -1256,9 +1270,18 @@ object ScalarOperatorGens {
     // internal reinterpretation of temporal types
     // Date, Time, Interval Months -> Long
     case  (DATE, BIGINT)
-          | (TIME_WITHOUT_TIME_ZONE, BIGINT)
           | (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
+
+    case (TIME_WITHOUT_TIME_ZONE, INTEGER) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm => s"(int) ($operandTerm / 1000000)"
+      }
+
+    case (INTEGER, TIME_WITHOUT_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm => s"$operandTerm * 1000000L"
+      }
 
     case (from, to) =>
       throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
@@ -2285,7 +2308,7 @@ object ScalarOperatorGens {
       case DATE =>
         s"${qualifyMethod(BuiltInMethods.STRING_TO_DATE)}($operandTerm.toString())"
       case TIME_WITHOUT_TIME_ZONE =>
-        s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
+        s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString()) * 1000000L"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
            |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
@@ -2301,7 +2324,7 @@ object ScalarOperatorGens {
       case DATE =>
         s"${qualifyMethod(BuiltInMethod.UNIX_DATE_TO_STRING.method)}($operandTerm)"
       case TIME_WITHOUT_TIME_ZONE =>
-        s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
+        s"${qualifyMethod(BuiltInMethods.TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
         // The interpreted string conforms to the definition of timestamp literal
         // SQL 2011 Part 2 Section 6.13 General Rules 11) d)

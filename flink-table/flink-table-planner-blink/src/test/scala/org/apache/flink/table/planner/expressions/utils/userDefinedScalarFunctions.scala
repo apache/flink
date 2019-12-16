@@ -118,7 +118,7 @@ object Func8 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func9 extends ScalarFunction {
-  def eval(a: Int, b: Int, c: SqlTimestamp): String = {
+  def eval(a: Int, b: Long, c: SqlTimestamp): String = {
     val ts = if (c == null) null else c.getMillisecond
     s"$a and $b and $ts"
   }

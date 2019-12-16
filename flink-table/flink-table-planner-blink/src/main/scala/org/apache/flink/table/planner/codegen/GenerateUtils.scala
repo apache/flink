@@ -31,11 +31,11 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterStrin
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.util.TimestampString
+import org.apache.calcite.util.{TimeString, TimestampString}
 import org.apache.commons.lang3.StringEscapeUtils
 import java.math.{BigDecimal => JBigDecimal}
 
-import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+import org.apache.flink.table.util.TimestampStringUtils.{toLocalDateTime, toLocalTime}
 
 import scala.collection.mutable
 
@@ -363,7 +363,14 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIME_WITHOUT_TIME_ZONE =>
-        generateNonNullLiteral(literalType, literalValue.toString, literalValue)
+        val fieldTerm = newName("time")
+        val lt = toLocalTime(literalValue.asInstanceOf[TimeString])
+        val fieldTime =
+          s"""
+             |long $fieldTerm = ${lt.toNanoOfDay}L;
+           """.stripMargin
+        ctx.addReusableMember(fieldTime)
+        generateNonNullLiteral(literalType, fieldTerm, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val fieldTerm = newName("timestamp")

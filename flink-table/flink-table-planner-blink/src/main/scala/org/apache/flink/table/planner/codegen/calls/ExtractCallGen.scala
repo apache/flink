@@ -73,6 +73,7 @@ class ExtractCallGen(method: Method)
         val factor = getFactor(unit)
         val longTerm = tpe.getTypeRoot match {
           case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE => s"${terms(1)}.getMillisecond()"
+          case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => s"${terms(1)} / 1000000"
           case _ => s"${terms(1)}"
         }
         unit match {

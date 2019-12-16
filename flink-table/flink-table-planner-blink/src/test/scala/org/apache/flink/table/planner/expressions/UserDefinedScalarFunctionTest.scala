@@ -34,17 +34,6 @@ import java.time.ZoneId
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
   @Test
-  def test(): Unit = {
-    val JavaFunc1 = new JavaFunc1()
-
-    testAllApis(
-      JavaFunc1(nullOf(DataTypes.TIME), 15, nullOf(DataTypes.TIMESTAMP(3))),
-      "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
-      "JavaFunc1(NULL, 15, NULL)",
-      "null and 15 and null")
-  }
-
-  @Test
   def testParameters(): Unit = {
     testAllApis(
       Func0('f0),
@@ -242,7 +231,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func9('f4, 'f5, 'f6),
       "Func9(f4, f5, f6)",
       "Func9(f4, f5, f6)",
-      "7591 and 43810000 and 655906210000")
+      "7591 and 43810000000000 and 655906210000")
 
     testAllApis(
       Func10('f6),
@@ -434,13 +423,13 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       JavaFunc1('f4, 'f5, 'f6),
       "JavaFunc1(f4, f5, f6)",
       "JavaFunc1(f4, f5, f6)",
-      "7591 and 43810000 and 655906210000")
+      "7591 and 43810000000000 and 655906210000")
 
     testAllApis(
-      JavaFunc1(nullOf(DataTypes.TIME), 15, nullOf(DataTypes.TIMESTAMP(3))),
-      "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
-      "JavaFunc1(NULL, 15, NULL)",
-      "null and 15 and null")
+      JavaFunc1(15, nullOf(DataTypes.TIME), nullOf(DataTypes.TIMESTAMP(3))),
+      "JavaFunc1(15, Null(SQL_TIME), Null(SQL_TIMESTAMP))",
+      "JavaFunc1(15, NULL, NULL)",
+      "15 and null and null")
 
     testAllApis(
       JavaFunc4('f10, array("a", "b", "c")),

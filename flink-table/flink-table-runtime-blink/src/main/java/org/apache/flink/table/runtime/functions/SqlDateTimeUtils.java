@@ -1415,6 +1415,27 @@ public class SqlDateTimeUtils {
 		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz));
 	}
 
+	public static String timeToString(long nanosecond) {
+		LocalTime lt = LocalTime.ofNanoOfDay(nanosecond);
+
+		String fraction = pad(9, (long) lt.getNano());
+		while (fraction.endsWith("0")) {
+			fraction = fraction.substring(0, fraction.length() - 1);
+		}
+
+		StringBuilder hms = hms(
+			new StringBuilder(),
+			lt.getHour(),
+			lt.getMinute(),
+			lt.getSecond());
+
+		if (fraction.length() > 0) {
+			hms.append(".").append(fraction);
+		}
+
+		return hms.toString();
+	}
+
 	private static String pad(int length, long v) {
 		StringBuilder s = new StringBuilder(Long.toString(v));
 		while (s.length() < length) {

@@ -128,11 +128,15 @@ class RangeBoundComparatorCodeGenerator(
   private def getComparatorCode(inputValue: String, currentValue: String): String = {
     val (realBoundValue, realKeyType) = keyType.getTypeRoot match {
       case LogicalTypeRoot.DATE =>
-        //The constant about time is expressed based millisecond unit in calcite, but
+        //The constant bound time is expressed based millisecond unit in calcite, but
         //the field about date is expressed based day unit. So here should keep the same unit for
         // comparator.
         (bound.asInstanceOf[Long] / DateTimeUtils.MILLIS_PER_DAY, new IntType())
-      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => (bound, new IntType())
+      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE =>
+        //The constant bound time is expressed based millisecond unit in calcite, but
+        //the field about Time is expressed based nanosecond. So here should keep the same unit for
+        //comparator.
+        (bound.asInstanceOf[Long] * 1000000, new BigIntType())
       case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE => (bound, new BigIntType())
       case _ => (bound, keyType)
     }

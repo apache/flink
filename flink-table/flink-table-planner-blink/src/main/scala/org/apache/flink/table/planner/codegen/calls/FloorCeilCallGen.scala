@@ -102,6 +102,13 @@ class FloorCeilCallGen(
                      |  $longTerm,
                      |  (long) ${unit.startUnit.multiplier.intValue()}))
                    """.stripMargin
+                case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE =>
+                  val longTerm = s"${terms.head} / 1000000"
+                  s"""
+                     |${qualifyMethod(arithmeticMethod)}(
+                     |  $longTerm,
+                     |  ($internalType) ${unit.startUnit.multiplier.intValue()}) * 1000000L
+                   """.stripMargin
                 case _ =>
                   s"""
                      |${qualifyMethod(arithmeticMethod)}(

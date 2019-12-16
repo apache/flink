@@ -40,7 +40,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.util.TimestampString
+import org.apache.calcite.util.{TimeString, TimestampString}
 
 import scala.collection.JavaConversions._
 
@@ -413,6 +413,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE |
            LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         literal.getValueAs(classOf[TimestampString])
+      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE =>
+        literal.getValueAs(classOf[TimeString])
       case _ =>
         literal.getValue3
     }

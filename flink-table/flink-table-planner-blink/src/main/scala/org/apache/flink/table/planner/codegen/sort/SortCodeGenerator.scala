@@ -416,7 +416,7 @@ class SortCodeGenerator(
     case VARBINARY | BINARY => "Binary"
     case DECIMAL => "Decimal"
     case DATE => "Int"
-    case TIME_WITHOUT_TIME_ZONE => "Int"
+    case TIME_WITHOUT_TIME_ZONE => "Long"
     case TIMESTAMP_WITHOUT_TIME_ZONE => "Timestamp"
     case INTERVAL_YEAR_MONTH => "Int"
     case INTERVAL_DAY_TIME => "Long"
