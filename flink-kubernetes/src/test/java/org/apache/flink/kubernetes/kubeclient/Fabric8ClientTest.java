@@ -47,6 +47,8 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -244,5 +246,37 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 		// Stop the pod
 		flinkKubeClient.stopPod(podName);
 		assertEquals(0, kubeClient.pods().list().getItems().size());
+	}
+
+	@Test
+	public void testServiceLoadBalancerWithNoIP() throws Exception {
+		final String hostName = "test-host-name";
+		final Endpoint endpoint = getRestEndpoint(hostName, "");
+		assertEquals(hostName, endpoint.getAddress());
+		assertEquals(8081, endpoint.getPort());
+	}
+
+	@Test
+	public void testServiceLoadBalancerEmptyHostAndIP() throws Exception {
+		final Endpoint endpoint1 = getRestEndpoint("", "");
+		assertNull(endpoint1);
+
+		final Endpoint endpoint2 = getRestEndpoint(null, null);
+		assertNull(endpoint2);
+	}
+
+	private Endpoint getRestEndpoint(String hostName, String ip) throws Exception {
+		final String clusterId = "flink-on-k8s-cluster-test";
+		mockRestServiceActionWatcher(clusterId);
+		mockGetRestService(clusterId, hostName, ip);
+
+		flinkKubeClient.createRestService(clusterId).get();
+
+		final Service services = kubeClient.services()
+			.withName(clusterId + Constants.FLINK_REST_SERVICE_SUFFIX)
+			.get();
+		assertNotNull(services);
+
+		return flinkKubeClient.getRestEndpoint(clusterId);
 	}
 }
