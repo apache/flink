@@ -170,6 +170,10 @@ The configuration keys in this section are independent of the used resource mana
 
 {% include generated/mesos_task_manager_configuration.html %}
 
+### Kubernetes
+
+{% include generated/kubernetes_config_configuration.html %}
+
 ### High Availability (HA)
 
 {% include generated/high_availability_configuration.html %}
