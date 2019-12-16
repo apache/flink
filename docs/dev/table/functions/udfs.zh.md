@@ -176,6 +176,8 @@ table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigin
 
 There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
 
+<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the python `ScalarFunction`.
+
 {% highlight python %}
 # option 1: extending the base class `ScalarFunction`
 class Add(ScalarFunction):
