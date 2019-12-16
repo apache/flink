@@ -19,7 +19,6 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.AmbiguousTableFactoryException;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
@@ -36,6 +35,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -259,7 +259,7 @@ public class TableFactoryService {
 			List<T> classFactories) {
 
 		List<T> matchingFactories = new ArrayList<>();
-		Tuple3<T, Integer, Map<String, Tuple2<String, String>>> bestMatched = null;
+		ContextBestMatched<T> bestMatched = null;
 		for (T factory : classFactories) {
 			Map<String, String> requestedContext = normalizeContext(factory);
 
@@ -271,57 +271,53 @@ public class TableFactoryService {
 			plainContext.remove(CATALOG_PROPERTY_VERSION);
 
 			// check if required context is met
-			int matchedSize = 0;
-			Map<String, Tuple2<String, String>> unMatchedProperties = new HashMap<>();
+			Map<String, Tuple2<String, String>> mismatchedProperties = new HashMap<>();
+			Map<String, String> missingProperties = new HashMap<>();
 			for (Map.Entry<String, String> e : plainContext.entrySet()) {
-				if (properties.containsKey(e.getKey()) &&
-						properties.get(e.getKey()).equals(e.getValue())) {
-					matchedSize++;
+				if (properties.containsKey(e.getKey())) {
+					String fromProperties = properties.get(e.getKey());
+					if (!Objects.equals(fromProperties, e.getValue())) {
+						mismatchedProperties.put(e.getKey(), new Tuple2<>(e.getValue(), fromProperties));
+					}
 				} else {
-					unMatchedProperties.put(
-							e.getKey(),
-							new Tuple2<>(e.getValue(), properties.get(e.getKey())));
+					missingProperties.put(e.getKey(), e.getValue());
 				}
 			}
+			int matchedSize = plainContext.size() - mismatchedProperties.size() - missingProperties.size();
 			if (matchedSize == plainContext.size()) {
 				matchingFactories.add(factory);
 			} else {
-				if (bestMatched == null || matchedSize > bestMatched.f1) {
-					bestMatched = new Tuple3<>(factory, matchedSize, unMatchedProperties);
+				if (bestMatched == null || matchedSize > bestMatched.matchedSize) {
+					bestMatched = new ContextBestMatched<>(
+							factory, matchedSize, mismatchedProperties, missingProperties);
 				}
 			}
 		}
 
 		if (matchingFactories.isEmpty()) {
 			String bestMatchedMessage = null;
-			if (bestMatched != null && bestMatched.f1 > 0) {
+			if (bestMatched != null && bestMatched.matchedSize > 0) {
 				StringBuilder builder = new StringBuilder();
-				builder.append(bestMatched.f0.getClass().getName()).append("\n");
+				builder.append(bestMatched.factory.getClass().getName());
 
-				Map<String, String> missing = new HashMap<>();
-				Map<String, Tuple2<String, String>> mismatched = new HashMap<>();
-				bestMatched.f2.forEach((key, value) -> {
-					if (value.f1 == null) {
-						missing.put(key, value.f0);
-					} else {
-						mismatched.put(key, value);
-					}
-				});
-
-				if (missing.size() > 0) {
-					builder.append("Missing properties: ");
-					missing.forEach((k, v) -> builder.append("\n").append(k).append("=").append(v));
+				if (bestMatched.missingProperties.size() > 0) {
+					builder.append("\nMissing properties:");
+					bestMatched.missingProperties.forEach((k, v) ->
+							builder.append("\n").append(k).append("=").append(v));
 				}
 
-				if (mismatched.size() > 0) {
-					builder.append("Mismatched properties: ");
-					bestMatched.f2.entrySet().stream().filter(e -> e.getValue().f1 != null).forEach(e ->
-							builder.append("\n")
-									.append(e.getKey())
-									.append("=")
-									.append(e.getValue().f0)
-									.append(" <=> ")
-									.append(e.getValue().f1));
+				if (bestMatched.mismatchedProperties.size() > 0) {
+					builder.append("\nMismatched properties:");
+					bestMatched.mismatchedProperties
+						.entrySet()
+						.stream()
+						.filter(e -> e.getValue().f1 != null)
+						.forEach(e -> builder.append(
+							String.format(
+								"\n'%s' expects '%s', but is '%s'",
+								e.getKey(),
+								e.getValue().f0,
+								e.getValue().f1)));
 				}
 
 				bestMatchedMessage = builder.toString();
@@ -336,6 +332,34 @@ public class TableFactoryService {
 		}
 
 		return matchingFactories;
+	}
+
+	private static class ContextBestMatched<T extends TableFactory> {
+
+		private final T factory;
+
+		private final int matchedSize;
+
+		/**
+		 * Key -> (value in factory, value in properties).
+		 */
+		private final Map<String, Tuple2<String, String>> mismatchedProperties;
+
+		/**
+		 * Key -> value in factory.
+		 */
+		private final Map<String, String> missingProperties;
+
+		private ContextBestMatched(
+				T factory,
+				int matchedSize,
+				Map<String, Tuple2<String, String>> mismatchedProperties,
+				Map<String, String> missingProperties) {
+			this.factory = factory;
+			this.matchedSize = matchedSize;
+			this.mismatchedProperties = mismatchedProperties;
+			this.missingProperties = missingProperties;
+		}
 	}
 
 	/**
@@ -403,13 +427,11 @@ public class TableFactoryService {
 		if (supportedFactories.isEmpty()) {
 			String bestMatchedMessage = null;
 			if (bestMatched != null) {
-				StringBuilder builder = new StringBuilder();
-				builder
-						.append(bestMatched.f0.getClass().getName())
-						.append("\n")
-						.append("Unsupported property keys: ");
-				bestMatched.f1.forEach(k -> builder.append("\n").append(k));
-				bestMatchedMessage = builder.toString();
+				bestMatchedMessage = String.format(
+						"%s\nUnsupported property keys:\n%s",
+						bestMatched.f0.getClass().getName(),
+						String.join("\n", bestMatched.f1)
+				);
 			}
 
 			//noinspection unchecked

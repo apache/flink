@@ -77,8 +77,8 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 	@Override
 	public String getMessage() {
 		String matchCandidatesString = matchCandidatesMessage == null ?
-				"" :
-				"The match candidates: \n" + matchCandidatesMessage + "\n\n";
+			"" :
+			"The match candidates:\n" + matchCandidatesMessage + "\n\n";
 		return String.format(
 			"Could not find a suitable table factory for '%s' in\nthe classpath.\n\n" +
 				"Reason: %s\n\n" + matchCandidatesString +
@@ -87,7 +87,7 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 			factoryClass.getName(),
 			message,
 			DescriptorProperties.toString(properties),
-				factories.stream().map(p -> p.getClass().getName()).collect(Collectors.joining("\n"))
+			factories.stream().map(p -> p.getClass().getName()).collect(Collectors.joining("\n"))
 		);
 	}
 }
