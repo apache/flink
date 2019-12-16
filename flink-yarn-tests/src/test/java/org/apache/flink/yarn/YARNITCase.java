@@ -32,7 +32,6 @@ import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,13 +88,7 @@ public class YARNITCase extends YarnTestBase {
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
 		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
 
-		final YarnClient yarnClient = getYarnClient();
-
-		try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			yarnClient,
-			true)) {
+		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
 
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
