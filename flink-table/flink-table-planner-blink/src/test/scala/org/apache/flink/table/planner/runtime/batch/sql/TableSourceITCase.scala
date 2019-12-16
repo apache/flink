@@ -31,8 +31,8 @@ import org.junit.{Before, Test}
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
-import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.sql.{Time, Timestamp}
+import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
 
 import scala.collection.mutable
 
@@ -230,7 +230,7 @@ class TableSourceITCase extends BatchTestBase {
   @Test
   def testMultiTypeSource(): Unit = {
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d", "e", "f", "g"),
+      Array("a", "b", "c", "d", "e", "f", "g", "h", "i"),
       Array(
         DataTypes.INT(),
         DataTypes.DECIMAL(5, 2),
@@ -238,7 +238,9 @@ class TableSourceITCase extends BatchTestBase {
         DataTypes.CHAR(5),
         DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
         DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9),
+        DataTypes.TIME(9).bridgedTo(classOf[LocalTime]),
+        DataTypes.TIME(0).bridgedTo(classOf[Time])
       )
     ).build()
 
@@ -271,11 +273,27 @@ class TableSourceITCase extends BatchTestBase {
       }
     }
 
+    val localTimes = List(
+      LocalTime.of(14, 15, 16, 123456789),
+      LocalTime.of(15, 15, 16, 123456000),
+      LocalTime.of(16, 15, 16, 123000000),
+      LocalTime.of(17, 15, 16),
+      null)
+
+    // java.sql.Time only support second's precision
+    val times = List(
+      Time.valueOf("14:15:16"),
+      Time.valueOf("15:15:16"),
+      Time.valueOf("16:15:16"),
+      Time.valueOf("17:15:16"),
+      null)
+
     val data = new mutable.MutableList[Row]
 
     for (i <- ints.indices) {
       data += row(
-        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), timestamps(i), instants(i))
+        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), timestamps(i),
+        instants(i), localTimes(i), times(i))
     }
 
     val tableSource = new TestDataTypeTableSource(
@@ -283,25 +301,33 @@ class TableSourceITCase extends BatchTestBase {
       data.seq)
     tEnv.registerTableSource("MyInputFormatTable", tableSource)
     checkResult(
-      "SELECT a, b, c, d, e, f, g FROM MyInputFormatTable",
+      "SELECT a, b, c, d, e, f, g, h, i FROM MyInputFormatTable",
       Seq(
         row(1, "5.10", "1", "1",
           "1969-01-01T00:00:00.123456789",
           "1969-01-01T00:00:00.123456789",
-          "1969-01-01T00:00:00.123456789Z"),
+          "1969-01-01T00:00:00.123456789Z",
+          "14:15:16.123456789",
+          "14:15:16"),
         row(2, "6.10", "12", "12",
           "1970-01-01T00:00:00.123456",
           "1970-01-01T00:00:00.123456",
-          "1970-01-01T00:00:00.123456Z"),
+          "1970-01-01T00:00:00.123456Z",
+          "15:15:16.123456",
+          "15:15:16"),
         row(3, "7.10", "123", "123",
           "1971-01-01T00:00:00.123",
           "1971-01-01T00:00:00.123",
-          "1971-01-01T00:00:00.123Z"),
+          "1971-01-01T00:00:00.123Z",
+          "16:15:16.123",
+          "16:15:16"),
         row(4, "8.12", "1234", "1234",
           "1972-01-01T00:00",
           "1972-01-01T00:00",
-          "1972-01-01T00:00:00Z"),
-        row(null, null, null, null, null, null, null))
+          "1972-01-01T00:00:00Z",
+          "17:15:16",
+          "17:15:16"),
+        row(null, null, null, null, null, null, null, null, null))
     )
   }
 

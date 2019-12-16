@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyLocalTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
@@ -182,7 +183,7 @@ public class DataFormatConverters {
 					return new SqlTimestampConverter(precisionOfLZTS);
 				}
 			case TIME_WITHOUT_TIME_ZONE:
-				int precisionOfTime = getDateTimePrecision(logicalType);
+				int precisionOfTime = getTimePrecision(logicalType);
 				if (clazz == LocalTime.class) {
 					return new LocalTimeConverter(precisionOfTime);
 				} else if (clazz == Time.class) {
@@ -275,6 +276,9 @@ public class DataFormatConverters {
 				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
 					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
 					return new InstantConverter(instantTypeInfo.getPrecision());
+				} else if (typeInfo instanceof LegacyLocalTimeTypeInfo) {
+					LegacyLocalTimeTypeInfo localTimeTypeInfo = (LegacyLocalTimeTypeInfo) typeInfo;
+					return new LocalTimeConverter(localTimeTypeInfo.getPrecision());
 				}
 
 				if (clazz == BinaryGeneric.class) {
@@ -324,6 +328,19 @@ public class DataFormatConverters {
 			} else {
 				// TimestampType.DEFAULT_PRECISION == LocalZonedTimestampType.DEFAULT_PRECISION == 6
 				return TimestampType.DEFAULT_PRECISION;
+			}
+		}
+	}
+
+	private static int getTimePrecision(LogicalType logicalType) {
+		if (logicalType instanceof TimeType) {
+			return ((TimeType) logicalType).getPrecision();
+		} else {
+			TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
+			if (typeInfo instanceof LegacyLocalTimeTypeInfo) {
+				return ((LegacyLocalTimeTypeInfo) typeInfo).getPrecision();
+			} else {
+				return TimeType.DEFAULT_PRECISION;
 			}
 		}
 	}

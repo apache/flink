@@ -29,6 +29,7 @@ import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
+import org.apache.flink.table.runtime.typeutils.LegacyLocalTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
 import org.apache.flink.table.types.DataType;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
@@ -116,6 +118,9 @@ public class LogicalTypeDataTypeConverter {
 				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
 					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
 					return new LocalZonedTimestampType(instantTypeInfo.getPrecision());
+				} else if (typeInfo instanceof LegacyLocalTimeTypeInfo) {
+					LegacyLocalTimeTypeInfo localTimeType = (LegacyLocalTimeTypeInfo) typeInfo;
+					return new TimeType(localTimeType.getPrecision());
 				} else {
 					return new TypeInformationRawType<>(typeInfo);
 				}
