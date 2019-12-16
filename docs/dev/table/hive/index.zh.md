@@ -280,6 +280,15 @@ catalogs:
 </div>
 </div>
 
+
+## DDL
+
+DDL to create Hive tables, views, partitions, functions within Flink will be supported soon.
+
+## DML
+
+Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
+
 ## Supported Types
 
 Currently `HiveCatalog` supports most Flink data types with the following mapping:

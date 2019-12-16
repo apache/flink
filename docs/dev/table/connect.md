@@ -1268,6 +1268,17 @@ CREATE TABLE MyUserTable (
 
 {% top %}
 
+
+### Hive Connector
+
+<span class="label label-primary">Source: Batch</span>
+<span class="label label-primary">Sink: Batch</span>
+
+Please refer to [Hive integration]({{ site.baseurl }}/dev/table/hive/).
+
+{% top %}
+
+
 Table Formats
 -------------
 
