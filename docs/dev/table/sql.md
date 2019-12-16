@@ -1324,7 +1324,7 @@ MATCH_RECOGNIZE (
 
 ## DDL
 
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table. A `Table` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
+DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table operation. A `CatalogTable` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
 
 **Note:** Flink's DDL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL DDL on batch and streaming tables are listed in the following sections.
 
@@ -1444,7 +1444,7 @@ ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
 
 Rename the given table name to another new table name.
 
-* Set Table Properties
+* Set or Alter Table Properties
 
 {% highlight sql %}
 ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
