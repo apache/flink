@@ -25,6 +25,8 @@ package org.apache.flink.runtime.io.compression;
  */
 public class InsufficientBufferException extends RuntimeException {
 
+	private static final long serialVersionUID = 7693926181700983625L;
+
 	public InsufficientBufferException() {
 		super();
 	}

@@ -145,6 +145,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	 */
 	private static final class OrderByID<T extends Comparable<T>, ET>
 	implements MapFunction<Edge<T, ET>, Tuple3<T, T, ByteValue>> {
+		private static final long serialVersionUID = 7553067298681086988L;
 		private ByteValue forward = new ByteValue(EdgeOrder.FORWARD.getBitmask());
 
 		private ByteValue reverse = new ByteValue(EdgeOrder.REVERSE.getBitmask());
@@ -176,6 +177,8 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFields("0; 1")
 	private static final class ReduceBitmask<T>
 	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple3<T, T, ByteValue>> {
+		private static final long serialVersionUID = -877036512873894248L;
+
 		@Override
 		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple3<T, T, ByteValue>> out)
 				throws Exception {
@@ -205,6 +208,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	 */
 	private static final class OrderByDegree<T extends Comparable<T>, ET>
 	implements MapFunction<Edge<T, Tuple3<ET, Degrees, Degrees>>, Tuple3<T, T, ByteValue>> {
+		private static final long serialVersionUID = 7090893366941322046L;
 		private ByteValue forward = new ByteValue((byte) (EdgeOrder.FORWARD.getBitmask() << 2));
 
 		private ByteValue reverse = new ByteValue((byte) (EdgeOrder.REVERSE.getBitmask() << 2));
@@ -244,6 +248,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static final class GenerateTriplets<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple4<T, T, T, ByteValue>> {
+		private static final long serialVersionUID = 736804889310604964L;
 		private Tuple4<T, T, T, ByteValue> output = new Tuple4<>(null, null, null, new ByteValue());
 
 		private List<Tuple2<T, ByteValue>> visited = new ArrayList<>();
@@ -300,6 +305,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0->vertexId0; 1->vertexId1")
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple4<T, T, T, ByteValue>, Tuple3<T, T, ByteValue>, Result<T>> {
+		private static final long serialVersionUID = 5966968893003251893L;
 		private Result<T> output = new Result<>();
 
 		@Override
@@ -321,6 +327,8 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	 */
 	private static class PermuteResult<T>
 	implements FlatMapFunction<Result<T>, Result<T>> {
+		private static final long serialVersionUID = 8657862429558479674L;
+
 		@Override
 		public void flatMap(Result<T> value, Collector<Result<T>> out)
 				throws Exception {
@@ -413,6 +421,8 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	 */
 	private static final class SortTriangleVertices<T extends Comparable<T>>
 	implements MapFunction<Result<T>, Result<T>> {
+		private static final long serialVersionUID = 4069426993840154912L;
+
 		@Override
 		public Result<T> map(Result<T> value)
 				throws Exception {
@@ -455,6 +465,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends TertiaryResultBase<T>
 	implements PrintableResult {
+		private static final long serialVersionUID = 800127515485938115L;
 		private ByteValue bitmask = new ByteValue();
 
 		/**

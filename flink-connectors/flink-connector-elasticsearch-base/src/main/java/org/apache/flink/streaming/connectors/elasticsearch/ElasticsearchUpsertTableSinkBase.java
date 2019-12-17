@@ -419,6 +419,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	 */
 	public static class ElasticsearchUpsertSinkFunction implements ElasticsearchSinkFunction<Tuple2<Boolean, Row>> {
 
+		private static final long serialVersionUID = -4182715273950026220L;
 		private final String index;
 		private final String docType;
 		private final String keyDelimiter;

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobStatus;
  */
 public class JobStatusMessage implements java.io.Serializable {
 
+	private static final long serialVersionUID = -491766997559536031L;
 	private final JobID jobId;
 
 	private final String jobName;

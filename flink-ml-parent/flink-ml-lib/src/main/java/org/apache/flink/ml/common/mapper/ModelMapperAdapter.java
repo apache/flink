@@ -35,6 +35,7 @@ import java.util.List;
  */
 public class ModelMapperAdapter extends RichMapFunction<Row, Row> {
 
+	private static final long serialVersionUID = 8822149427056915371L;
 	private final ModelMapper mapper;
 	private final ModelSource modelSource;
 

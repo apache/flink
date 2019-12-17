@@ -27,6 +27,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 @Internal
 abstract class UnknownSerializer extends TypeSerializer<Object> {
 
+	private static final long serialVersionUID = 807333597331986513L;
+
 	private UnknownSerializer() {
 		// no instantiation
 	}

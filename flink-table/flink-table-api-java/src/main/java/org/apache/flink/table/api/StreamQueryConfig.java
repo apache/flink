@@ -31,6 +31,7 @@ import org.apache.flink.api.common.time.Time;
 @PublicEvolving
 public class StreamQueryConfig implements QueryConfig {
 
+	private static final long serialVersionUID = 2169490578689986124L;
 	/**
 	 * The minimum time until state which was not updated will be retained.
 	 * State might be cleared and removed if it was not updated for the defined period of time.

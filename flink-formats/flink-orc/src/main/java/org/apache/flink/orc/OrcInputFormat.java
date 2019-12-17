@@ -39,6 +39,7 @@ import java.util.ArrayList;
  */
 public abstract class OrcInputFormat<T> extends FileInputFormat<T> {
 
+	private static final long serialVersionUID = 5137465603745790751L;
 	// the number of fields rows to read in a batch
 	protected int batchSize;
 	// the configuration to read with

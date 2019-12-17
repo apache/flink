@@ -37,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class ReadableConfigToConfigurationAdapter extends Configuration {
+	private static final long serialVersionUID = 8761618358427966928L;
 	private final ReadableConfig backingConfig;
 
 	public ReadableConfigToConfigurationAdapter(ReadableConfig backingConfig) {

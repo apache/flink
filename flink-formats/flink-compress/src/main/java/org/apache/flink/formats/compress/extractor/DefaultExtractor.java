@@ -25,6 +25,8 @@ package org.apache.flink.formats.compress.extractor;
  */
 public class DefaultExtractor<T> implements Extractor<T> {
 
+	private static final long serialVersionUID = -834054923153076851L;
+
 	@Override
 	public byte[] extract(T element) {
 		return (element.toString() + System.lineSeparator()).getBytes();

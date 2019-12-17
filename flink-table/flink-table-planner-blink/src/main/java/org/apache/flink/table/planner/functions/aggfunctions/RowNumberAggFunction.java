@@ -32,6 +32,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * built-in row_number aggregate function.
  */
 public class RowNumberAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -9089799228892124786L;
 	private UnresolvedReferenceExpression sequence = unresolvedRef("seq");
 
 	@Override

@@ -28,6 +28,8 @@ import org.apache.flink.types.Row;
 @PublicEvolving
 public abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
 
+	private static final long serialVersionUID = -9128287939314995468L;
+
 	/**
 	 * Returns the watermark for the current row or null if no watermark should be generated.
 	 *

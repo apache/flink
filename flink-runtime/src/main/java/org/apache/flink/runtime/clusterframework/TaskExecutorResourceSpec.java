@@ -75,6 +75,7 @@ import java.io.Serializable;
  */
 public class TaskExecutorResourceSpec implements Serializable {
 
+	private static final long serialVersionUID = -4956707237145052214L;
 	private final CPUResource cpuCores;
 
 	private final MemorySize frameworkHeapSize;

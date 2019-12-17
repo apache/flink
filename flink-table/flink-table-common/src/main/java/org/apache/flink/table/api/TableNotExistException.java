@@ -26,6 +26,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class TableNotExistException extends RuntimeException {
 
+	private static final long serialVersionUID = -5661750557659424532L;
+
 	public TableNotExistException(String catalogName, String tableName) {
 		this(catalogName, tableName, null);
 	}

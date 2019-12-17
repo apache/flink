@@ -45,6 +45,7 @@ public final class BigIntType extends LogicalType {
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Long.class;
+	private static final long serialVersionUID = -8691941180712940089L;
 
 	public BigIntType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.BIGINT);

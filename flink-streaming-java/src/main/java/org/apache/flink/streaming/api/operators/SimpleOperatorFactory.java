@@ -37,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 
+	private static final long serialVersionUID = -460056579757489654L;
 	private final StreamOperator<OUT> operator;
 
 	/**

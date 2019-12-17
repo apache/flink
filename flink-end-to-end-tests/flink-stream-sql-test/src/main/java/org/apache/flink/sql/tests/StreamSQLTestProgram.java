@@ -257,6 +257,7 @@ public class StreamSQLTestProgram {
 	 */
 	public static class Generator implements SourceFunction<Row>, ResultTypeQueryable<Row>, ListCheckpointed<Long> {
 
+		private static final long serialVersionUID = 7288512672964709462L;
 		private final int numKeys;
 		private final int offsetSeconds;
 
@@ -314,6 +315,7 @@ public class StreamSQLTestProgram {
 	 */
 	public static class KillMapper implements MapFunction<Row, Row>, ListCheckpointed<Integer>, ResultTypeQueryable {
 
+		private static final long serialVersionUID = 7387229384966380992L;
 		// counts all processed records of all previous execution attempts
 		private int saveRecordCnt = 0;
 		// counts all processed records of this execution attempt

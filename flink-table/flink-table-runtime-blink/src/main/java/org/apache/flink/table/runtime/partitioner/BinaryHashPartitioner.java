@@ -34,6 +34,7 @@ import java.util.Arrays;
  */
 public class BinaryHashPartitioner extends StreamPartitioner<BaseRow> {
 
+	private static final long serialVersionUID = 2842626309321931914L;
 	private GeneratedHashFunction genHashFunc;
 
 	private transient HashFunction hashFunc;

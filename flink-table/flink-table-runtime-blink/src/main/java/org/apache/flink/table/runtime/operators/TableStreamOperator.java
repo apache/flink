@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
  */
 public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 
+	private static final long serialVersionUID = -956312987598051891L;
 	private volatile boolean closed = false;
 
 	public TableStreamOperator() {

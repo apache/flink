@@ -52,6 +52,7 @@ import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unreso
  */
 public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 
+	private static final long serialVersionUID = 8551911475496888962L;
 	private transient Set<String> aggBufferNamesCache;
 
 	/**

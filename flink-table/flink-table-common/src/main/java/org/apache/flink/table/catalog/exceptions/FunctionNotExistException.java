@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 public class FunctionNotExistException extends Exception {
 
 	private static final String MSG = "Function %s does not exist in Catalog %s.";
+	private static final long serialVersionUID = 2661974921900843520L;
 
 	public FunctionNotExistException(String catalogName, ObjectPath functionPath) {
 		this(catalogName, functionPath, null);

@@ -43,6 +43,7 @@ public final class FloatType extends LogicalType {
 		float.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Float.class;
+	private static final long serialVersionUID = -3502430316635552504L;
 
 	public FloatType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.FLOAT);

@@ -29,6 +29,7 @@ import org.apache.flink.table.dataformat.BinaryString;
 public class BinaryStringTypeInfo extends TypeInformation<BinaryString> {
 
 	public static final BinaryStringTypeInfo INSTANCE = new BinaryStringTypeInfo();
+	private static final long serialVersionUID = 1635704249625389299L;
 
 	private BinaryStringTypeInfo() {}
 

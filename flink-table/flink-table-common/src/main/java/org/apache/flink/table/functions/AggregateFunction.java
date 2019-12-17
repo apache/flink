@@ -113,6 +113,8 @@ import java.util.Set;
 @PublicEvolving
 public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
+	private static final long serialVersionUID = -1157133868603641483L;
+
 	/**
 	 * Called every time when an aggregation result should be materialized.
 	 * The returned value could be either an early and incomplete result

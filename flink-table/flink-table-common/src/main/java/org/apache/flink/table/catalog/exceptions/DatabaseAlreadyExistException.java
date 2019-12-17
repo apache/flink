@@ -23,6 +23,7 @@ package org.apache.flink.table.catalog.exceptions;
  */
 public class DatabaseAlreadyExistException extends Exception {
 	private static final String MSG = "Database %s already exists in Catalog %s.";
+	private static final long serialVersionUID = 7408976582250309886L;
 
 	public DatabaseAlreadyExistException(String catalog, String database, Throwable cause) {
 		super(String.format(MSG, database, catalog), cause);

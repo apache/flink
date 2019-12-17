@@ -49,6 +49,7 @@ import java.util.Arrays;
  */
 public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 
+	private static final long serialVersionUID = -3249924919701265651L;
 	private BinaryRowSerializer binarySerializer;
 	private final LogicalType[] types;
 	private final TypeSerializer[] fieldSerializers;

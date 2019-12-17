@@ -26,6 +26,8 @@ import scala.Product;
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Product}
  */
 public class CassandraScalaProductSink<IN extends Product> extends AbstractCassandraTupleSink<IN> {
+	private static final long serialVersionUID = -5376500445760059736L;
+
 	public CassandraScalaProductSink(
 			String insertQuery,
 			ClusterBuilder builder) {

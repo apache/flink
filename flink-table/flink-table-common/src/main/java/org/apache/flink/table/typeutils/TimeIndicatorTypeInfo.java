@@ -42,6 +42,7 @@ import java.sql.Timestamp;
 @Deprecated
 public class TimeIndicatorTypeInfo extends SqlTimeTypeInfo<Timestamp> {
 
+	private static final long serialVersionUID = -646031288958270039L;
 	private final boolean isEventTime;
 
 	public static final int ROWTIME_STREAM_MARKER = -1;

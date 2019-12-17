@@ -53,6 +53,7 @@ implements ValueArray<StringValue> {
 	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
 	protected static final int HIGH_BIT = 0x1 << 7;
+	private static final long serialVersionUID = 3696815037160483396L;
 
 	private boolean isBounded;
 

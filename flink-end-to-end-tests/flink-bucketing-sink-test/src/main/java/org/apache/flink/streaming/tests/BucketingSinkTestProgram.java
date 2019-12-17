@@ -91,6 +91,8 @@ public class BucketingSinkTestProgram {
 	 */
 	public static class KeyBucketer implements Bucketer<Tuple4<Integer, Long, Integer, String>> {
 
+		private static final long serialVersionUID = 1726443270555998545L;
+
 		@Override
 		public Path getBucketPath(Clock clock, Path basePath, Tuple4<Integer, Long, Integer, String> element) {
 			return basePath.suffix(String.valueOf(element.f0));
@@ -102,6 +104,7 @@ public class BucketingSinkTestProgram {
 	 */
 	public static class SubtractingMapper extends RichMapFunction<Tuple3<Integer, Long, String>, Tuple4<Integer, Long, Integer, String>> {
 
+		private static final long serialVersionUID = 3877440429386829765L;
 		private final long initialValue;
 
 		private ValueState<Integer> counter;
@@ -142,6 +145,7 @@ public class BucketingSinkTestProgram {
 	 */
 	public static class Generator implements SourceFunction<Tuple3<Integer, Long, String>>, ListCheckpointed<Long> {
 
+		private static final long serialVersionUID = -1652624616463669257L;
 		private final int numKeys;
 		private final int idlenessMs;
 		private final int durationMs;

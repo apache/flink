@@ -47,6 +47,8 @@ import java.util.Map;
 public class LongValueWithProperHashCode
 extends LongValue {
 
+	private static final long serialVersionUID = -5293251049218517143L;
+
 	@Override
 	public int hashCode() {
 		return (int) (this.getValue() ^ this.getValue() >>> 32);

@@ -62,6 +62,7 @@ public final class TimestampType extends LogicalType {
 		"org.apache.flink.table.dataformat.SqlTimestamp");
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDateTime.class;
+	private static final long serialVersionUID = -4694655935319369854L;
 
 	private final TimestampKind kind;
 

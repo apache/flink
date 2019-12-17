@@ -33,6 +33,7 @@ import java.util.Iterator;
 public class NullValueArray
 implements ValueArray<NullValue> {
 
+	private static final long serialVersionUID = 8015871858046107138L;
 	// the number of elements currently stored
 	private int position;
 

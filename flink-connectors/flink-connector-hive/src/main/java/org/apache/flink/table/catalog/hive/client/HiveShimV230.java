@@ -47,6 +47,8 @@ import java.util.List;
  */
 public class HiveShimV230 extends HiveShimV220 {
 
+	private static final long serialVersionUID = 1232379464447020838L;
+
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {

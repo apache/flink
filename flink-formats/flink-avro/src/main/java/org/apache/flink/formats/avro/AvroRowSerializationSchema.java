@@ -69,6 +69,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 	 * Used for time conversions from SQL types.
 	 */
 	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+	private static final long serialVersionUID = 3858272711273359551L;
 
 	/**
 	 * Avro record class for serialization. Might be null if record class is not available.

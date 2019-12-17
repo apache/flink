@@ -32,6 +32,8 @@ import java.math.BigInteger;
  */
 class IntegerSerializer implements PubSubDeserializationSchema<Integer>, SerializationSchema<Integer> {
 
+	private static final long serialVersionUID = -4824584938574745660L;
+
 	@Override
 	public Integer deserialize(PubsubMessage message) throws IOException {
 		return new BigInteger(message.getData().toByteArray()).intValue();

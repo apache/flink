@@ -31,6 +31,7 @@ public class LongValueToUnsignedIntValue
 implements TranslateFunction<LongValue, IntValue> {
 
 	public static final long MAX_VERTEX_COUNT = 1L << 32;
+	private static final long serialVersionUID = 2064800381410119651L;
 
 	@Override
 	public IntValue translate(LongValue value, IntValue reuse)

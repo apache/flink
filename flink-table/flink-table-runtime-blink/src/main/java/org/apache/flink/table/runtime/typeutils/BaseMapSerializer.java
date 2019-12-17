@@ -52,6 +52,7 @@ import java.util.Map;
 public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BaseMapSerializer.class);
+	private static final long serialVersionUID = 632078387425892216L;
 
 	private final LogicalType keyType;
 	private final LogicalType valueType;

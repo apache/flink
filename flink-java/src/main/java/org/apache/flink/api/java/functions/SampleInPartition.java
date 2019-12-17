@@ -37,6 +37,7 @@ import java.util.Iterator;
 @Internal
 public class SampleInPartition<T> extends RichMapPartitionFunction<T, IntermediateSampleData<T>> {
 
+	private static final long serialVersionUID = -2321866603041229097L;
 	private boolean withReplacement;
 	private int numSample;
 	private long seed;

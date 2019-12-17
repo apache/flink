@@ -147,6 +147,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	@FunctionAnnotation.ForwardedFields("0; 2.1->1")
 	private static class EdgeStats<T extends Comparable<T>, ET>
 	implements MapFunction<Edge<T, Tuple3<ET, LongValue, LongValue>>, Tuple3<T, LongValue, LongValue>> {
+		private static final long serialVersionUID = -1272636397427613689L;
 		private LongValue zero = new LongValue(0);
 
 		private LongValue one = new LongValue(1);
@@ -182,6 +183,8 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class SumEdgeStats<T>
 	implements ReduceFunction<Tuple3<T, LongValue, LongValue>> {
+		private static final long serialVersionUID = 7466313659549547701L;
+
 		@Override
 		public Tuple3<T, LongValue, LongValue> reduce(Tuple3<T, LongValue, LongValue> value1, Tuple3<T, LongValue, LongValue> value2)
 				throws Exception {
@@ -197,6 +200,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class EdgeMetricsHelper<T extends Comparable<T>>
 	extends AnalyticHelper<Tuple3<T, LongValue, LongValue>> {
+		private static final long serialVersionUID = 6355499338370084506L;
 		private long triangleTripletCount;
 		private long rectangleTripletCount;
 		private long maximumTriangleTriplets;

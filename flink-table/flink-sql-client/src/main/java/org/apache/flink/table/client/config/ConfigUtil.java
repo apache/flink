@@ -73,6 +73,8 @@ public class ConfigUtil {
 	 * Modified object mapper that converts to lower-case keys.
 	 */
 	public static class LowerCaseYamlMapper extends ObjectMapper {
+		private static final long serialVersionUID = -2393260723472252816L;
+
 		public LowerCaseYamlMapper() {
 			super(new YAMLFactory() {
 				@Override

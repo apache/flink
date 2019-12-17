@@ -37,6 +37,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 	 */
 	public static class MinFloatAggregator implements Aggregator<Float, Float> {
 
+		private static final long serialVersionUID = -744825865286066628L;
 		private float min = Float.POSITIVE_INFINITY;
 
 		@Override
@@ -60,6 +61,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 	 */
 	public static class MaxFloatAggregator implements Aggregator<Float, Float> {
 
+		private static final long serialVersionUID = -7700926790300525141L;
 		private float max = Float.NEGATIVE_INFINITY;
 
 		@Override
@@ -83,6 +85,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 	 */
 	public static class SumFloatAggregator implements Aggregator<Float, Float> {
 
+		private static final long serialVersionUID = 8641403513293653379L;
 		private CompensatedSum sum = ZERO;
 
 		@Override

@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
  */
 public class AmbiguousTableFactoryException extends RuntimeException {
 
+	private static final long serialVersionUID = -2518345169211387683L;
 	// factories that match the properties
 	private final List<? extends TableFactory> matchingFactories;
 	// required factory class

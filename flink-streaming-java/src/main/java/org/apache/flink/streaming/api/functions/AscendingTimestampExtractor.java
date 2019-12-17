@@ -37,4 +37,5 @@ import org.apache.flink.annotation.PublicEvolving;
 public abstract class AscendingTimestampExtractor<T>
 	extends org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor<T> {
 
+	private static final long serialVersionUID = 9217202728304487605L;
 }

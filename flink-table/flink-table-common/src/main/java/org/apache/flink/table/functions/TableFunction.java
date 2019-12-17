@@ -84,6 +84,7 @@ import org.apache.flink.util.Collector;
 @PublicEvolving
 public abstract class TableFunction<T> extends UserDefinedFunction {
 
+	private static final long serialVersionUID = -615767533923752402L;
 	/**
 	 * The code generated collector used to emit rows.
 	 */

@@ -51,6 +51,7 @@ import java.util.Map;
  */
 abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow, BaseRow> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimeBoundedStreamJoin.class);
+	private static final long serialVersionUID = 7938797945142392067L;
 	private final FlinkJoinType joinType;
 	protected final long leftRelativeSize;
 	protected final long rightRelativeSize;

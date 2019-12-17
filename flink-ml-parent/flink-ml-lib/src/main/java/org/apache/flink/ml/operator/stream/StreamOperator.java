@@ -31,6 +31,8 @@ import org.apache.flink.table.api.Table;
  */
 public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOperator<T> {
 
+	private static final long serialVersionUID = -313118467966623436L;
+
 	public StreamOperator() {
 		super();
 	}

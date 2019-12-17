@@ -43,6 +43,7 @@ import org.apache.flink.types.Value;
 @Internal
 public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends Aggregator<PT, R>> implements Aggregator<VT, R> {
 
+	private static final long serialVersionUID = -6835466975792994719L;
 	private A aggregator = initPrimitiveAggregator();
 
 	@Override
@@ -88,6 +89,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 */
 	public static class ShortValueSummaryAggregator extends ValueSummaryAggregator<ShortValue, Short, NumericColumnSummary<Short>, ShortSummaryAggregator> {
 
+		private static final long serialVersionUID = -659178223678094509L;
+
 		@Override
 		protected ShortSummaryAggregator initPrimitiveAggregator() {
 			return new ShortSummaryAggregator();
@@ -103,6 +106,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 * A {@link ValueSummaryAggregator} for {@link Integer}.
 	 */
 	public static class IntegerValueSummaryAggregator extends ValueSummaryAggregator<IntValue, Integer, NumericColumnSummary<Integer>, IntegerSummaryAggregator> {
+
+		private static final long serialVersionUID = -2318523858191880470L;
 
 		@Override
 		protected IntegerSummaryAggregator initPrimitiveAggregator() {
@@ -120,6 +125,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 */
 	public static class LongValueSummaryAggregator extends ValueSummaryAggregator<LongValue, Long, NumericColumnSummary<Long>, LongSummaryAggregator> {
 
+		private static final long serialVersionUID = -4647929669380683713L;
+
 		@Override
 		protected LongSummaryAggregator initPrimitiveAggregator() {
 			return new LongSummaryAggregator();
@@ -135,6 +142,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 * A {@link ValueSummaryAggregator} for {@link Float}.
 	 */
 	public static class FloatValueSummaryAggregator extends ValueSummaryAggregator<FloatValue, Float, NumericColumnSummary<Float>, FloatSummaryAggregator> {
+
+		private static final long serialVersionUID = -6074779720727109283L;
 
 		@Override
 		protected FloatSummaryAggregator initPrimitiveAggregator() {
@@ -152,6 +161,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 */
 	public static class DoubleValueSummaryAggregator extends ValueSummaryAggregator<DoubleValue, Double, NumericColumnSummary<Double>, DoubleSummaryAggregator> {
 
+		private static final long serialVersionUID = -7523800503923293478L;
+
 		@Override
 		protected DoubleSummaryAggregator initPrimitiveAggregator() {
 			return new DoubleSummaryAggregator();
@@ -168,6 +179,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 */
 	public static class BooleanValueSummaryAggregator extends ValueSummaryAggregator<BooleanValue, Boolean, BooleanColumnSummary, BooleanSummaryAggregator> {
 
+		private static final long serialVersionUID = 5139428946277898714L;
+
 		@Override
 		protected BooleanSummaryAggregator initPrimitiveAggregator() {
 			return new BooleanSummaryAggregator();
@@ -183,6 +196,8 @@ public abstract class ValueSummaryAggregator<VT extends Value, PT, R, A extends 
 	 * A {@link ValueSummaryAggregator} for {@link String}.
 	 */
 	public static class StringValueSummaryAggregator extends ValueSummaryAggregator<StringValue, String, StringColumnSummary, StringSummaryAggregator> {
+
+		private static final long serialVersionUID = 7528290924109553230L;
 
 		@Override
 		protected StringSummaryAggregator initPrimitiveAggregator() {

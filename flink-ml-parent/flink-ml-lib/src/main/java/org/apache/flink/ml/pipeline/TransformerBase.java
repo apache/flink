@@ -39,6 +39,8 @@ import org.apache.flink.util.Preconditions;
 public abstract class TransformerBase<T extends TransformerBase<T>>
 	extends PipelineStageBase<T> implements Transformer<T> {
 
+	private static final long serialVersionUID = 6671658378828630006L;
+
 	public TransformerBase() {
 		super();
 	}

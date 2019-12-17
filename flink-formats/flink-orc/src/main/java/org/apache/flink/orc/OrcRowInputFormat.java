@@ -41,6 +41,7 @@ public class OrcRowInputFormat extends OrcInputFormat<Row> implements ResultType
 
 	// the number of rows read in a batch
 	private static final int DEFAULT_BATCH_SIZE = 1000;
+	private static final long serialVersionUID = 5688676312441693509L;
 
 	// the type information of the Rows returned by this InputFormat.
 	private transient RowTypeInfo rowType;

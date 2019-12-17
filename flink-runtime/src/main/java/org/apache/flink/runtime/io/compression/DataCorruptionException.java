@@ -24,6 +24,8 @@ package org.apache.flink.runtime.io.compression;
  */
 public class DataCorruptionException extends RuntimeException {
 
+	private static final long serialVersionUID = 4791111049330108622L;
+
 	public DataCorruptionException() {
 		super();
 	}

@@ -28,6 +28,8 @@ import org.apache.flink.util.Preconditions;
  */
 public final class TableSourceBatchOp extends BatchOperator<TableSourceBatchOp> {
 
+	private static final long serialVersionUID = -8151609873173679434L;
+
 	public TableSourceBatchOp(Table table) {
 		super(null);
 		Preconditions.checkArgument(table != null, "The source table cannot be null.");

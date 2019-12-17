@@ -175,6 +175,8 @@ public class CheckpointConfigInfo implements ResponseBody {
 	 */
 	public static class ProcessingModeSerializer extends StdSerializer<ProcessingMode> {
 
+		private static final long serialVersionUID = -2408204888128041652L;
+
 		public ProcessingModeSerializer() {
 			super(ProcessingMode.class);
 		}
@@ -190,6 +192,8 @@ public class CheckpointConfigInfo implements ResponseBody {
 	 * Processing mode deserializer.
 	 */
 	public static class ProcessingModeDeserializer extends StdDeserializer<ProcessingMode> {
+
+		private static final long serialVersionUID = 2794582173200276810L;
 
 		public ProcessingModeDeserializer() {
 			super(ProcessingMode.class);

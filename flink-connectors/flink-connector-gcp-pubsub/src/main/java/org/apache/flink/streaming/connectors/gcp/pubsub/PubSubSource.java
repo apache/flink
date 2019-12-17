@@ -57,6 +57,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  */
 public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, CheckpointListener, ListCheckpointed<AcknowledgeIdsForCheckpoint<String>> {
+	private static final long serialVersionUID = -4632132495654043191L;
 	protected final PubSubDeserializationSchema<OUT> deserializationSchema;
 	protected final PubSubSubscriberFactory pubSubSubscriberFactory;
 	protected final Credentials credentials;
@@ -337,6 +338,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	}
 
 	static class AcknowledgeOnCheckpointFactory implements Serializable {
+		private static final long serialVersionUID = 5749050168729741665L;
+
 		AcknowledgeOnCheckpoint<String> create(Acknowledger<String> acknowledger) {
 			return new AcknowledgeOnCheckpoint<>(acknowledger);
 		}

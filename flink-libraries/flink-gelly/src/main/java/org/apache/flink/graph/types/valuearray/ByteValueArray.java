@@ -43,6 +43,7 @@ implements ValueArray<ByteValue> {
 
 	// see note in ArrayList, HashTable, ...
 	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+	private static final long serialVersionUID = -7584358560674167821L;
 
 	private boolean isBounded;
 

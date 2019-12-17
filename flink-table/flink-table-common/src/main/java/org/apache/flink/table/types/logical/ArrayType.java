@@ -42,6 +42,7 @@ public final class ArrayType extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		"org.apache.flink.table.dataformat.BinaryArray");
+	private static final long serialVersionUID = 2952999056992019834L;
 
 	private final LogicalType elementType;
 

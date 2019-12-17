@@ -56,6 +56,7 @@ public final class TypeInformationRawType<T> extends LogicalType {
 		"org.apache.flink.table.dataformat.BinaryGeneric");
 
 	private static final TypeInformation<?> DEFAULT_TYPE_INFO = Types.GENERIC(Object.class);
+	private static final long serialVersionUID = 5876285535579538576L;
 
 	private final TypeInformation<T> typeInfo;
 

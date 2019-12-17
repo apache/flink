@@ -182,6 +182,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	@ForwardedFields("0")
 	private static class DegreeFilter<K>
 	implements FlatMapFunction<Vertex<K, LongValue>, Tuple1<K>> {
+		private static final long serialVersionUID = 6968889645498964451L;
 		private long maximumDegree;
 
 		private Tuple1<K> output = new Tuple1<>();
@@ -209,6 +210,8 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	@ForwardedFieldsFirst("0; 1")
 	private static class ProjectVertex<T, VT>
 	implements FlatJoinFunction<Vertex<T, VT>, Tuple1<T>, Vertex<T, VT>> {
+		private static final long serialVersionUID = 6746776597807865656L;
+
 		@Override
 		public void join(Vertex<T, VT> vertex, Tuple1<T> id, Collector<Vertex<T, VT>> out)
 				throws Exception {
@@ -227,6 +230,8 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	@ForwardedFieldsFirst("0; 1; 2")
 	private static class ProjectEdge<T, ET>
 	implements FlatJoinFunction<Edge<T, ET>, Tuple1<T>, Edge<T, ET>> {
+		private static final long serialVersionUID = 135727270102993436L;
+
 		@Override
 		public void join(Edge<T, ET> edge, Tuple1<T> id, Collector<Edge<T, ET>> out)
 				throws Exception {

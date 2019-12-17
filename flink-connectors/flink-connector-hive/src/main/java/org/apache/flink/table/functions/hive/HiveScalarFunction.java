@@ -36,6 +36,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 @Internal
 public abstract class HiveScalarFunction<UDFType> extends ScalarFunction implements HiveFunction {
 
+	private static final long serialVersionUID = -1854813360292429791L;
 	protected final HiveFunctionWrapper<UDFType> hiveFunctionWrapper;
 
 	protected Object[] constantArguments;

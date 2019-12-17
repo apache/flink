@@ -34,6 +34,7 @@ import java.io.Serializable;
  */
 public class OffsetOverFrame implements OverWindowFrame {
 
+	private static final long serialVersionUID = -5227394416929264870L;
 	private GeneratedAggsHandleFunction aggsHandleFunction;
 	private final Long offset;
 	private final CalcOffsetFunc calcOffsetFunc;

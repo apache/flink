@@ -31,6 +31,7 @@ import java.util.TreeMap;
  */
 public class SparseVector extends Vector {
 
+	private static final long serialVersionUID = 8893897738465646990L;
 	/**
 	 * Size of the vector. n = -1 indicates that the vector size is undetermined.
 	 *
@@ -564,6 +565,7 @@ public class SparseVector extends Vector {
 	}
 
 	private class SparseVectorVectorIterator implements VectorIterator {
+		private static final long serialVersionUID = -7254954640120436147L;
 		private int cursor = 0;
 
 		@Override

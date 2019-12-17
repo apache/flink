@@ -53,6 +53,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeL
  */
 public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 
+	private static final long serialVersionUID = 7652731621932551900L;
 	private int operandCount;
 
 	//If the length of function's args is 3, then the function has the default value.
@@ -112,6 +113,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class IntLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = -2060602850211643698L;
+
 		public IntLeadLagAggFunction(int operandCount) {
 			super(operandCount);
 		}
@@ -126,6 +129,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 * ByteLeadLagAggFunction.
 	 */
 	public static class ByteLeadLagAggFunction extends LeadLagAggFunction {
+
+		private static final long serialVersionUID = -8605047597484096002L;
 
 		public ByteLeadLagAggFunction(int operandCount) {
 			super(operandCount);
@@ -142,6 +147,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class ShortLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = -3208149822832947692L;
+
 		public ShortLeadLagAggFunction(int operandCount) {
 			super(operandCount);
 		}
@@ -156,6 +163,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 * LongLeadLagAggFunction.
 	 */
 	public static class LongLeadLagAggFunction extends LeadLagAggFunction {
+
+		private static final long serialVersionUID = -6206481734333687709L;
 
 		public LongLeadLagAggFunction(int operandCount) {
 			super(operandCount);
@@ -172,6 +181,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class FloatLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = 6508088598090291064L;
+
 		public FloatLeadLagAggFunction(int operandCount) {
 			super(operandCount);
 		}
@@ -186,6 +197,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 * DoubleLeadLagAggFunction.
 	 */
 	public static class DoubleLeadLagAggFunction extends LeadLagAggFunction {
+
+		private static final long serialVersionUID = -6162427441172058160L;
 
 		public DoubleLeadLagAggFunction(int operandCount) {
 			super(operandCount);
@@ -202,6 +215,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class BooleanLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = -6308510847074099342L;
+
 		public BooleanLeadLagAggFunction(int operandCount) {
 			super(operandCount);
 		}
@@ -217,6 +232,7 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class DecimalLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = -7935934589432215304L;
 		private final DecimalType decimalType;
 
 		public DecimalLeadLagAggFunction(int operandCount, DecimalType decimalType) {
@@ -235,6 +251,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class StringLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = -6191577270211530355L;
+
 		public StringLeadLagAggFunction(int operandCount) {
 			super(operandCount);
 		}
@@ -249,6 +267,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 * DateLeadLagAggFunction.
 	 */
 	public static class DateLeadLagAggFunction extends LeadLagAggFunction {
+
+		private static final long serialVersionUID = -4817040636555040281L;
 
 		public DateLeadLagAggFunction(int operandCount) {
 			super(operandCount);
@@ -265,6 +285,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class TimeLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = -1458918342641690396L;
+
 		public TimeLeadLagAggFunction(int operandCount) {
 			super(operandCount);
 		}
@@ -280,6 +302,7 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class TimestampLeadLagAggFunction extends LeadLagAggFunction {
 
+		private static final long serialVersionUID = 4333065387205898842L;
 		private final TimestampType type;
 
 		public TimestampLeadLagAggFunction(int operandCount, TimestampType type) {

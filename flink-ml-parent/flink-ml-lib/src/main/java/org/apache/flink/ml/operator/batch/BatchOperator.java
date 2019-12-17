@@ -31,6 +31,8 @@ import org.apache.flink.table.api.Table;
  */
 public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOperator<T> {
 
+	private static final long serialVersionUID = 5218153343076605303L;
+
 	public BatchOperator() {
 		super();
 	}

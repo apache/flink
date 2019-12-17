@@ -1259,6 +1259,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	private static class MapBasedJobParameters extends GlobalJobParameters {
+		private static final long serialVersionUID = 3938712852270213484L;
 		private final Map<String, String> properties;
 
 		private MapBasedJobParameters(Map<String, String> properties) {

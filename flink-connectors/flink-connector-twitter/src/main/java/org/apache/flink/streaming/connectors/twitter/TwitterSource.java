@@ -195,6 +195,8 @@ public class TwitterSource extends RichSourceFunction<String> {
 	 * Default endpoint initializer returning the {@see StatusesSampleEndpoint}.
 	 */
 	private static class SampleStatusesEndpoint implements EndpointInitializer, Serializable {
+		private static final long serialVersionUID = -7861794360728331505L;
+
 		@Override
 		public StreamingEndpoint createEndpoint() {
 			// this default endpoint initializer returns the sample endpoint: Returning a sample from the firehose (all tweets)

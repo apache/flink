@@ -48,6 +48,7 @@ public final class RawType<T> extends LogicalType {
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
 		"org.apache.flink.table.dataformat.BinaryGeneric");
+	private static final long serialVersionUID = 6908267822495093702L;
 
 	private final Class<T> clazz;
 

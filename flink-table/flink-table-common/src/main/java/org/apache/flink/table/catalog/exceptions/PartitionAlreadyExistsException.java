@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectPath;
  */
 public class PartitionAlreadyExistsException extends Exception {
 	private static final String MSG = "Partition %s of table %s in catalog %s already exists.";
+	private static final long serialVersionUID = -3901694239758596330L;
 
 	public PartitionAlreadyExistsException(
 		String catalogName,

@@ -32,6 +32,7 @@ import org.apache.nifi.remote.client.SiteToSiteClientConfig;
  */
 public class NiFiSink<T> extends RichSinkFunction<T> {
 
+	private static final long serialVersionUID = 8597922288733968579L;
 	private SiteToSiteClient client;
 	private SiteToSiteClientConfig clientConfig;
 	private NiFiDataPacketBuilder<T> builder;

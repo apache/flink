@@ -38,6 +38,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * built-in sum aggregate function with retraction.
  */
 public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -5572214974014080049L;
 	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
@@ -111,6 +112,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 */
 	public static class IntSumWithRetractAggFunction extends SumWithRetractAggFunction {
 
+		private static final long serialVersionUID = -8785590716600466349L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -126,6 +129,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Byte Sum with retract aggregate function.
 	 */
 	public static class ByteSumWithRetractAggFunction extends SumWithRetractAggFunction {
+		private static final long serialVersionUID = -1341816698738313033L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -141,6 +146,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Short Sum with retract aggregate function.
 	 */
 	public static class ShortSumWithRetractAggFunction extends SumWithRetractAggFunction {
+		private static final long serialVersionUID = 7205140045688545871L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.SMALLINT();
@@ -156,6 +163,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Long Sum with retract aggregate function.
 	 */
 	public static class LongSumWithRetractAggFunction extends SumWithRetractAggFunction {
+		private static final long serialVersionUID = -3547413364214335132L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -171,6 +180,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Float Sum with retract aggregate function.
 	 */
 	public static class FloatSumWithRetractAggFunction extends SumWithRetractAggFunction {
+		private static final long serialVersionUID = 1523548017063617544L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.FLOAT();
@@ -186,6 +197,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Double Sum with retract aggregate function.
 	 */
 	public static class DoubleSumWithRetractAggFunction extends SumWithRetractAggFunction {
+		private static final long serialVersionUID = 399952772420854478L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -201,6 +214,7 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Decimal Sum with retract aggregate function.
 	 */
 	public static class DecimalSumWithRetractAggFunction extends SumWithRetractAggFunction {
+		private static final long serialVersionUID = 2108751914303356747L;
 		private DecimalType decimalType;
 
 		public DecimalSumWithRetractAggFunction(DecimalType decimalType) {

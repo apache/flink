@@ -38,6 +38,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * built-in sum0 aggregate function.
  */
 public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -5582025948586476752L;
 	private UnresolvedReferenceExpression sum0 = unresolvedRef("sum");
 
 	@Override
@@ -86,6 +87,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class IntSum0AggFunction extends Sum0AggFunction {
 
+		private static final long serialVersionUID = 7937751239693336948L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -103,6 +106,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Byte Sum0 aggregate function.
 	 */
 	public static class ByteSum0AggFunction extends Sum0AggFunction {
+		private static final long serialVersionUID = 776401386606727702L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -120,6 +125,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Short Sum0 aggregate function.
 	 */
 	public static class ShortSum0AggFunction extends Sum0AggFunction {
+		private static final long serialVersionUID = -8750936580392780942L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.SMALLINT();
@@ -137,6 +144,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Long Sum0 aggregate function.
 	 */
 	public static class LongSum0AggFunction extends Sum0AggFunction {
+		private static final long serialVersionUID = 7635782017193705389L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -154,6 +163,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Float Sum0 aggregate function.
 	 */
 	public static class FloatSum0AggFunction extends Sum0AggFunction {
+		private static final long serialVersionUID = 5107172578594068497L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.FLOAT();
@@ -171,6 +182,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Double Sum0 aggregate function.
 	 */
 	public static class DoubleSum0AggFunction extends Sum0AggFunction {
+		private static final long serialVersionUID = 3586731691994327856L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -188,6 +201,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Decimal Sum0 aggregate function.
 	 */
 	public static class DecimalSum0AggFunction extends Sum0AggFunction {
+		private static final long serialVersionUID = -1669010425688421148L;
 		private DecimalType decimalType;
 
 		public DecimalSum0AggFunction(DecimalType decimalType) {

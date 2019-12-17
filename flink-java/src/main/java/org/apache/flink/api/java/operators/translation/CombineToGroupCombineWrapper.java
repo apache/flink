@@ -33,6 +33,7 @@ import org.apache.flink.util.Preconditions;
 public class CombineToGroupCombineWrapper<IN, OUT, F extends CombineFunction<IN, IN> & GroupReduceFunction<IN, OUT>>
 	implements GroupCombineFunction<IN, IN>, GroupReduceFunction<IN, OUT> {
 
+	private static final long serialVersionUID = 2175356562174699271L;
 	private final F wrappedFunction;
 
 	public CombineToGroupCombineWrapper(F wrappedFunction) {

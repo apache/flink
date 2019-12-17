@@ -29,6 +29,7 @@ import org.apache.flink.annotation.Internal;
 @Deprecated
 @Internal
 public class FlinkKafkaDelegatePartitioner<T> extends FlinkKafkaPartitioner<T> {
+	private static final long serialVersionUID = 9135749030818355530L;
 	private final KafkaPartitioner<T> kafkaPartitioner;
 	private int[] partitions;
 

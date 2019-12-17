@@ -170,6 +170,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private static class GenerateEdges<T extends RandomGenerator>
 	implements FlatMapFunction<BlockInfo<T>, Edge<LongValue, NullValue>> {
 
+		private static final long serialVersionUID = -2977209149805514340L;
 		// Configuration
 		private final long vertexCount;
 

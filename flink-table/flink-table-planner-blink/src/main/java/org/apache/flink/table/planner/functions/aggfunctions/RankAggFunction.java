@@ -40,6 +40,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  */
 public class RankAggFunction extends RankLikeAggFunctionBase {
 
+	private static final long serialVersionUID = 5794518471315082213L;
 	private UnresolvedReferenceExpression currNumber = unresolvedRef("currNumber");
 
 	public RankAggFunction(LogicalType[] orderKeyTypes) {

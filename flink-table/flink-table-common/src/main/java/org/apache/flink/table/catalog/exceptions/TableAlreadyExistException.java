@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 public class TableAlreadyExistException extends Exception {
 
 	private static final String MSG = "Table (or view) %s already exists in Catalog %s.";
+	private static final long serialVersionUID = 8007516829092595106L;
 
 	public TableAlreadyExistException(String catalogName, ObjectPath tablePath) {
 		this(catalogName, tablePath, null);

@@ -31,4 +31,5 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
  */
 @Internal
 public abstract class SourceReaderOperator<OUT> extends AbstractStreamOperator<OUT> implements PushingAsyncDataInput<OUT> {
+	private static final long serialVersionUID = -6928116235815640905L;
 }

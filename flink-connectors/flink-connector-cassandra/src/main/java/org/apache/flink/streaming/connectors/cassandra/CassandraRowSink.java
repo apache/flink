@@ -24,6 +24,7 @@ import org.apache.flink.types.Row;
  */
 public class CassandraRowSink extends AbstractCassandraTupleSink<Row> {
 
+	private static final long serialVersionUID = 8865719024504099001L;
 	private final int rowArity;
 
 	public CassandraRowSink(

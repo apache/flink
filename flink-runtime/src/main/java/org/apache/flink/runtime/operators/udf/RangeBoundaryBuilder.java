@@ -35,6 +35,7 @@ import java.util.List;
  */
 public class RangeBoundaryBuilder<T> extends RichMapPartitionFunction<T, Object[][]> {
 
+	private static final long serialVersionUID = -4654326156903985265L;
 	private int parallelism;
 	private final TypeComparatorFactory<T> comparatorFactory;
 

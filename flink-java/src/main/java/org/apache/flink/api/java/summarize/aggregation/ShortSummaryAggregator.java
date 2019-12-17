@@ -49,6 +49,7 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 	 */
 	public static class MinShortAggregator implements Aggregator<Short, Short> {
 
+		private static final long serialVersionUID = 8716322369129950232L;
 		private short min = Short.MAX_VALUE;
 
 		@Override
@@ -72,6 +73,7 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 	 */
 	public static class MaxShortAggregator implements Aggregator<Short, Short> {
 
+		private static final long serialVersionUID = 8365161266527260476L;
 		private short max = Short.MIN_VALUE;
 
 		@Override
@@ -95,6 +97,7 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 	 */
 	public static class SumShortAggregator implements Aggregator<Short, Short> {
 
+		private static final long serialVersionUID = 8677541176139250849L;
 		private short sum = 0;
 
 		@Override

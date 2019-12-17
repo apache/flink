@@ -66,6 +66,7 @@ public class DistributedCacheViaBlobTestProgram {
 
 	static class TestMapFunction extends RichMapFunction<Integer, String> {
 
+		private static final long serialVersionUID = -3229923870731983320L;
 		private final String initialPath;
 		private final long fileSize;
 

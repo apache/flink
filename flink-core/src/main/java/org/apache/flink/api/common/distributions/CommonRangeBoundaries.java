@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 
 @Internal
 public class CommonRangeBoundaries<T> implements RangeBoundaries<T> {
+	private static final long serialVersionUID = 8579872341097673539L;
 	private final TypeComparator<T> typeComparator;
 	private final Object[][] boundaries;
 	private final TypeComparator[] flatComparators;

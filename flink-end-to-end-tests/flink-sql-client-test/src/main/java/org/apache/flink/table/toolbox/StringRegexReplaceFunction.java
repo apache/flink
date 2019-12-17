@@ -25,6 +25,8 @@ import org.apache.flink.table.functions.ScalarFunction;
  */
 public class StringRegexReplaceFunction extends ScalarFunction {
 
+	private static final long serialVersionUID = -5622993192965747511L;
+
 	public String eval(String input, String regex, String replacement) {
 		return input.replaceAll(regex, replacement);
 	}

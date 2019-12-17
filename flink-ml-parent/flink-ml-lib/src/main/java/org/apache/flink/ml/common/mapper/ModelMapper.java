@@ -31,6 +31,7 @@ import java.util.List;
  */
 public abstract class ModelMapper extends Mapper {
 
+	private static final long serialVersionUID = 1400845893364130233L;
 	/**
 	 * Field names of the model rows.
 	 */

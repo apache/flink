@@ -34,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class BlockingIncrementingMapFunction extends RichMapFunction<Long, Long> {
 
+	private static final long serialVersionUID = 571455632438819994L;
 	private final String latchFilePath;
 
 	private transient FileBasedOneShotLatch latch;

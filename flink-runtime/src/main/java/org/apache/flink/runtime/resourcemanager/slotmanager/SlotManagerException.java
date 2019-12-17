@@ -24,6 +24,8 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
  * Base class for exceptions thrown by the {@link SlotManager}.
  */
 public class SlotManagerException extends ResourceManagerException {
+	private static final long serialVersionUID = -476281430195945166L;
+
 	public SlotManagerException(String message) {
 		super(message);
 	}

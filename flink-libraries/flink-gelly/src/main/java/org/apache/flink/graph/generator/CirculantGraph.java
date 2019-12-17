@@ -127,6 +127,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	@FunctionAnnotation.ForwardedFields("*->f0")
 	private static class LinkVertexToOffsets
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
+		private static final long serialVersionUID = -2898318514607022032L;
 		private final long vertexCount;
 
 		private final List<OffsetRange> offsetRanges;
@@ -162,6 +163,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	 * Stores the start offset and length configuration for an offset range.
 	 */
 	public static class OffsetRange implements Serializable, Comparable<OffsetRange> {
+		private static final long serialVersionUID = 2699469332846065690L;
 		private long offset;
 
 		private long length;

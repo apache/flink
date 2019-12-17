@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture;
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<IN, ResultSet> {
+	private static final long serialVersionUID = -3126040262398754184L;
 	private final String insertQuery;
 	private transient PreparedStatement ps;
 	private final boolean ignoreNullFields;

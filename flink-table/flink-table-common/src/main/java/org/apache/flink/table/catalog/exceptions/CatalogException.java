@@ -22,6 +22,8 @@ package org.apache.flink.table.catalog.exceptions;
  * A catalog-related, runtime exception.
  */
 public class CatalogException extends RuntimeException {
+	private static final long serialVersionUID = -7850460857654362102L;
+
 	/**
 	 * @param   message   the detail message.
 	 */

@@ -240,6 +240,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0; 1")
 	private static class ExtractEdgeIDs<T, ET>
 	implements MapFunction<Edge<T, ET>, Tuple2<T, T>> {
+		private static final long serialVersionUID = -3314178233145721330L;
 		private Tuple2<T, T> output = new Tuple2<>();
 
 		@Override
@@ -263,6 +264,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("1->0")
 	private static class InitializeScores<T>
 	implements MapFunction<Tuple2<T, T>, Tuple3<T, DoubleValue, DoubleValue>> {
+		private static final long serialVersionUID = 1613415426394967712L;
 		private Tuple3<T, DoubleValue, DoubleValue> output = new Tuple3<>(null, new DoubleValue(0.0), new DoubleValue(1.0));
 
 		@Override
@@ -280,6 +282,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static class SumScores<T>
 	implements ReduceFunction<Tuple3<T, DoubleValue, DoubleValue>> {
+		private static final long serialVersionUID = -4251318017132528649L;
+
 		@Override
 		public Tuple3<T, DoubleValue, DoubleValue> reduce(Tuple3<T, DoubleValue, DoubleValue> left, Tuple3<T, DoubleValue, DoubleValue> right)
 				throws Exception {
@@ -298,6 +302,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0")
 	private static class Hubbiness<T>
 	implements CoGroupFunction<Tuple3<T, DoubleValue, DoubleValue>, Tuple2<T, T>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = -7173287094371447511L;
 		private Tuple2<T, DoubleValue> output = new Tuple2<>();
 
 		@Override
@@ -321,6 +326,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("1->0")
 	private static class Authority<T>
 	implements CoGroupFunction<Tuple2<T, DoubleValue>, Tuple2<T, T>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = -3489328807388210962L;
 		private Tuple2<T, DoubleValue> output = new Tuple2<>();
 
 		@Override
@@ -342,6 +348,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class Square<T>
 	implements MapFunction<Tuple2<T, DoubleValue>, DoubleValue> {
+		private static final long serialVersionUID = 2281904211260595951L;
 		private DoubleValue output = new DoubleValue();
 
 		@Override
@@ -359,6 +366,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class Sum
 	implements ReduceFunction<DoubleValue> {
+		private static final long serialVersionUID = -4896948553079527176L;
+
 		@Override
 		public DoubleValue reduce(DoubleValue first, DoubleValue second)
 				throws Exception {
@@ -376,6 +385,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0")
 	private static class JoinAndNormalizeHubAndAuthority<T>
 	extends RichJoinFunction<Tuple2<T, DoubleValue>, Tuple2<T, DoubleValue>, Tuple3<T, DoubleValue, DoubleValue>> {
+		private static final long serialVersionUID = -1942612594195747140L;
 		private Tuple3<T, DoubleValue, DoubleValue> output = new Tuple3<>(null, new DoubleValue(), new DoubleValue());
 
 		private double hubbinessRootSumSquared;
@@ -416,6 +426,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("*")
 	private static class ChangeInScores<T>
 	extends RichJoinFunction<Tuple3<T, DoubleValue, DoubleValue>, Tuple3<T, DoubleValue, DoubleValue>, Tuple3<T, DoubleValue, DoubleValue>> {
+		private static final long serialVersionUID = 359118048496465521L;
 		private boolean isInitialSuperstep;
 
 		private double changeInScores;
@@ -462,6 +473,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class ScoreConvergence
 	implements ConvergenceCriterion<DoubleValue> {
+		private static final long serialVersionUID = -3069099992613451470L;
 		private double convergenceThreshold;
 
 		public ScoreConvergence(double convergenceThreshold) {
@@ -483,6 +495,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0->vertexId0; 1->hubScore; 2->authorityScore")
 	private static class TranslateResult<T>
 	implements MapFunction<Tuple3<T, DoubleValue, DoubleValue>, Result<T>> {
+		private static final long serialVersionUID = 817310924332782825L;
 		private Result<T> output = new Result<>();
 
 		@Override
@@ -502,6 +515,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends UnaryResultBase<T>
 	implements PrintableResult {
+		private static final long serialVersionUID = -4549871438807958726L;
 		private DoubleValue hubScore;
 
 		private DoubleValue authorityScore;

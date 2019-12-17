@@ -128,6 +128,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 
 	private class JoinConditionWithNullFilters extends AbstractRichFunction implements JoinCondition {
 
+		private static final long serialVersionUID = 8912032248656195739L;
 		final JoinCondition backingJoinCondition;
 
 		private JoinConditionWithNullFilters(JoinCondition backingJoinCondition) {

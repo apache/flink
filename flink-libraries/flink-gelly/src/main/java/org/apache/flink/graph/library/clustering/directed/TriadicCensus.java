@@ -190,6 +190,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class TriangleListingHelper<T>
 	extends AnalyticHelper<TriangleListing.Result<T>> {
+		private static final long serialVersionUID = 5118383180984366560L;
 		private long[] triangleCount = new long[64];
 
 		@Override
@@ -257,6 +258,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class VertexDegreesHelper<T>
 	extends AnalyticHelper<Vertex<T, Degrees>> {
+		private static final long serialVersionUID = -6009446876174180932L;
 		private long vertexCount;
 		private long unidirectionalEdgeCount;
 		private long bidirectionalEdgeCount;

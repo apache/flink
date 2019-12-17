@@ -27,6 +27,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 @PublicEvolving
 public abstract class UserDefinedAggregateFunction<T, ACC> extends UserDefinedFunction {
 
+	private static final long serialVersionUID = 104365049684027463L;
+
 	/**
 	 * Creates and initializes the accumulator for this {@link UserDefinedAggregateFunction}. The
 	 * accumulator is used to keep the aggregated values which are needed to compute an aggregation

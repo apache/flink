@@ -25,6 +25,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class FlinkHiveException extends RuntimeException {
 
+	private static final long serialVersionUID = -7447148076053645991L;
+
 	public FlinkHiveException(Throwable cause) {
 		super(cause);
 	}

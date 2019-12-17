@@ -25,6 +25,8 @@ import org.apache.flink.api.java.tuple.Tuple;
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
  */
 public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTupleSink<IN> {
+	private static final long serialVersionUID = 1714637141759426844L;
+
 	public CassandraTupleSink(
 			String insertQuery,
 			ClusterBuilder builder) {

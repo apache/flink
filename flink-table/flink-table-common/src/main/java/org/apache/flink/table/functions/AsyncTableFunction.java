@@ -88,6 +88,8 @@ import java.util.concurrent.CompletableFuture;
 @Experimental
 public abstract class AsyncTableFunction<T> extends UserDefinedFunction {
 
+	private static final long serialVersionUID = -3015463440803517150L;
+
 	/**
 	 * Returns the result type of the evaluation method with a given signature.
 	 *

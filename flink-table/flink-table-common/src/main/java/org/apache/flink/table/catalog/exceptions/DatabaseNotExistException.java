@@ -23,6 +23,7 @@ package org.apache.flink.table.catalog.exceptions;
  */
 public class DatabaseNotExistException extends Exception {
 	private static final String MSG = "Database %s does not exist in Catalog %s.";
+	private static final long serialVersionUID = -4343014092379608802L;
 
 	public DatabaseNotExistException(String catalogName, String databaseName, Throwable cause) {
 		super(String.format(MSG, databaseName, catalogName), cause);

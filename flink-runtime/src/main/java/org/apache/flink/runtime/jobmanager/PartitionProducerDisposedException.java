@@ -26,6 +26,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
  */
 public class PartitionProducerDisposedException extends Exception {
 
+	private static final long serialVersionUID = 7646242700839305761L;
+
 	public PartitionProducerDisposedException(ResultPartitionID resultPartitionID) {
 		super(String.format("Execution %s producing partition %s has already been disposed.",
 			resultPartitionID.getProducerId(),

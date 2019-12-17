@@ -44,6 +44,7 @@ public final class TinyIntType extends LogicalType {
 		byte.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Byte.class;
+	private static final long serialVersionUID = 6486005562604273960L;
 
 	public TinyIntType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.TINYINT);

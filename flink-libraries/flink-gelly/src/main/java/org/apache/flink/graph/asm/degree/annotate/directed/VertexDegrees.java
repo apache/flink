@@ -129,6 +129,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	 */
 	private static class EmitAndFlipEdge<T, TV>
 	implements FlatMapFunction<Edge<T, TV>, Tuple3<T, T, ByteValue>> {
+		private static final long serialVersionUID = -7951917126998347276L;
 		private Tuple3<T, T, ByteValue> forward = new Tuple3<>(null, null, new ByteValue(EdgeOrder.FORWARD.getBitmask()));
 
 		private Tuple3<T, T, ByteValue> reverse = new Tuple3<>(null, null, new ByteValue(EdgeOrder.REVERSE.getBitmask()));
@@ -154,6 +155,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	@ForwardedFields("0")
 	private static final class ReduceBitmask<T>
 	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple2<T, ByteValue>> {
+		private static final long serialVersionUID = 9154073810536462705L;
 		private Tuple2<T, ByteValue> output = new Tuple2<>(null, new ByteValue());
 
 		@Override
@@ -179,6 +181,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	@ForwardedFields("0")
 	private static class DegreeCount<T>
 	implements GroupReduceFunction<Tuple2<T, ByteValue>, Vertex<T, Degrees>> {
+		private static final long serialVersionUID = -6717509823456041675L;
 		private Vertex<T, Degrees> output = new Vertex<>(null, new Degrees());
 
 		@Override
@@ -224,6 +227,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	@ForwardedFieldsSecond("0")
 	private static class JoinVertexWithVertexDegrees<T, TV>
 	implements JoinFunction<Vertex<T, TV>, Vertex<T, Degrees>, Vertex<T, Degrees>> {
+		private static final long serialVersionUID = 5766710654350522341L;
 		private Vertex<T, Degrees> output = new Vertex<>(null, new Degrees());
 
 		@Override
@@ -244,6 +248,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	public static class Degrees
 	extends Tuple3<LongValue, LongValue, LongValue> {
 		private static final int HASH_SEED = 0x3a12fc31;
+		private static final long serialVersionUID = 311326927327964814L;
 
 		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 

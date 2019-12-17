@@ -80,6 +80,7 @@ public class PeriodicStreamingJob {
 	 * Data-generating source function.
 	 */
 	public static class PeriodicSourceGenerator implements SourceFunction<Tuple>, ResultTypeQueryable<Tuple>, ListCheckpointed<Long> {
+		private static final long serialVersionUID = 3989214487554964061L;
 		private final int sleepMs;
 		private final int durationMs;
 		private final int offsetSeconds;

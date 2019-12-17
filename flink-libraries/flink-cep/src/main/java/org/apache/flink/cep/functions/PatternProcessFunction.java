@@ -43,6 +43,8 @@ import java.util.Map;
 @PublicEvolving
 public abstract class PatternProcessFunction<IN, OUT> extends AbstractRichFunction {
 
+	private static final long serialVersionUID = 6791628565084605197L;
+
 	/**
 	 * Generates resulting elements given a map of detected pattern events. The events
 	 * are identified by their specified names.

@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.ByteComparator;
 
 @Internal
 public class BytePrimitiveArrayComparator extends PrimitiveArrayComparator<byte[], ByteComparator> {
+	private static final long serialVersionUID = 7459464394481654961L;
+
 	public BytePrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new ByteComparator(ascending));
 	}

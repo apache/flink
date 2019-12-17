@@ -30,6 +30,7 @@ import java.util.List;
 @Deprecated
 public class RequiredParametersException extends Exception {
 
+	private static final long serialVersionUID = 3452003018479335016L;
 	private List<String> missingArguments;
 
 	public RequiredParametersException() {

@@ -217,6 +217,7 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 	@VisibleForTesting
 	static class DefaultRestClientFactory implements RestClientFactory {
 
+		private static final long serialVersionUID = -978121354999200275L;
 		private String pathPrefix;
 
 		public DefaultRestClientFactory(@Nullable String pathPrefix) {
@@ -252,6 +253,8 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 	 * Version-specific creation of {@link org.elasticsearch.action.ActionRequest}s used by the sink.
 	 */
 	private static class Elasticsearch7RequestFactory implements RequestFactory {
+
+		private static final long serialVersionUID = 8752524850219874857L;
 
 		@Override
 		public UpdateRequest createUpdateRequest(

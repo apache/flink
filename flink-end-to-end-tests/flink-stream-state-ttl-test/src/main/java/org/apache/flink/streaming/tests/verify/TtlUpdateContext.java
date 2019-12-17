@@ -25,6 +25,7 @@ import java.io.Serializable;
 /** Contains context relevant for state update with TTL. */
 public class TtlUpdateContext<UV, GV> implements Serializable {
 
+	private static final long serialVersionUID = -8224039775664223044L;
 	private final GV valueBeforeUpdate;
 	private final UV update;
 	private final GV valueAfterUpdate;

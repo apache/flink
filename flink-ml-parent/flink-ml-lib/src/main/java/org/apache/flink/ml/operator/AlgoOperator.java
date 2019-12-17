@@ -45,6 +45,7 @@ import java.io.Serializable;
 public abstract class AlgoOperator<T extends AlgoOperator<T>>
 	implements WithParams<T>, HasMLEnvironmentId<T>, Serializable {
 
+	private static final long serialVersionUID = 2227168542601277188L;
 	/**
 	 * Params for algorithms.
 	 */

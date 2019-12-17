@@ -30,6 +30,8 @@ import java.util.Arrays;
  */
 public class DecimalTypeInfo extends TypeInformation<Decimal> {
 
+	private static final long serialVersionUID = -361072108259983827L;
+
 	public static DecimalTypeInfo of(int precision, int scale) {
 		return new DecimalTypeInfo(precision, scale);
 	}

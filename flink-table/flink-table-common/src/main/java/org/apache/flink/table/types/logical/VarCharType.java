@@ -61,6 +61,7 @@ public final class VarCharType extends LogicalType {
 		"org.apache.flink.table.dataformat.BinaryString");
 
 	private static final Class<?> DEFAULT_CONVERSION = String.class;
+	private static final long serialVersionUID = 6823118508245329501L;
 
 	private final int length;
 

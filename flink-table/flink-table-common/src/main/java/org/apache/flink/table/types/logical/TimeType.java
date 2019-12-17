@@ -67,6 +67,7 @@ public final class TimeType extends LogicalType {
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalTime.class;
+	private static final long serialVersionUID = -5080782403277114847L;
 
 	private final int precision;
 

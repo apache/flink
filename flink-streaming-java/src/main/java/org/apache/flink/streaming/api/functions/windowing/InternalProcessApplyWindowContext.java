@@ -35,6 +35,7 @@ import org.apache.flink.util.OutputTag;
 public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 	extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
 
+	private static final long serialVersionUID = -5162974810748550627L;
 	W window;
 	ProcessWindowFunction.Context context;
 

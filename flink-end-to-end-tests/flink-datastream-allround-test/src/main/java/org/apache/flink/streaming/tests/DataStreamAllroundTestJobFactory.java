@@ -539,6 +539,7 @@ public class DataStreamAllroundTestJobFactory {
 	private static class EventIdentityFunctionWithCustomEventTypeInformation
 		implements MapFunction<Event, Event>, ResultTypeQueryable<Event> {
 
+		private static final long serialVersionUID = -4192873101804231891L;
 		private final SingleThreadAccessCheckingTypeInfo<Event> typeInformation = new SingleThreadAccessCheckingTypeInfo<>(Event.class);
 
 		@Override
@@ -555,6 +556,7 @@ public class DataStreamAllroundTestJobFactory {
 	private static class EventKeySelectorWithCustomKeyTypeInformation
 		implements KeySelector<Event, Integer>, ResultTypeQueryable<Integer> {
 
+		private static final long serialVersionUID = -4170275032537957202L;
 		private final SingleThreadAccessCheckingTypeInfo<Integer> typeInformation = new SingleThreadAccessCheckingTypeInfo<>(Integer.class);
 
 		@Override

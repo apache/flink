@@ -57,6 +57,7 @@ public final class DecimalType extends LogicalType {
 		"org.apache.flink.table.dataformat.Decimal");
 
 	private static final Class<?> DEFAULT_CONVERSION = BigDecimal.class;
+	private static final long serialVersionUID = 963037349486697940L;
 
 	private final int precision;
 

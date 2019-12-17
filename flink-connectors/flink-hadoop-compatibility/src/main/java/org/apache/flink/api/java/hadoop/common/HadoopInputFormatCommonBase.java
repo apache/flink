@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
  */
 @Internal
 public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit> extends RichInputFormat<T, SPITTYPE> {
+	private static final long serialVersionUID = 6086933155466805136L;
 	protected transient Credentials credentials;
 
 	protected HadoopInputFormatCommonBase(Credentials creds) {

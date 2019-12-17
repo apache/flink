@@ -65,6 +65,7 @@ public final class ZonedTimestampType extends LogicalType {
 		java.time.OffsetDateTime.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.OffsetDateTime.class;
+	private static final long serialVersionUID = -2389360616326023929L;
 
 	private final TimestampKind kind;
 

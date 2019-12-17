@@ -30,6 +30,8 @@ class TtlReduceFunction<T>
 	extends AbstractTtlDecorator<ReduceFunction<T>>
 	implements ReduceFunction<TtlValue<T>> {
 
+	private static final long serialVersionUID = -965149349481145015L;
+
 	TtlReduceFunction(
 		ReduceFunction<T> originalReduceFunction,
 		StateTtlConfig config,

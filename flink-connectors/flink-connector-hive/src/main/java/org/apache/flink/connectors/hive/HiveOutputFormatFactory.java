@@ -177,6 +177,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
 	private class HiveOutputFormat implements org.apache.flink.api.common.io.OutputFormat<Row> {
 
+		private static final long serialVersionUID = -7937381103700063977L;
 		private final RecordWriter recordWriter;
 
 		private HiveOutputFormat(RecordWriter recordWriter) {

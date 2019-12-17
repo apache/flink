@@ -152,6 +152,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class SplitTriangles<T>
 	implements FlatMapFunction<TriangleListing.Result<T>, Tuple2<T, LongValue>> {
+		private static final long serialVersionUID = -8768004825686498327L;
 		private Tuple2<T, LongValue> output = new Tuple2<>(null, new LongValue(1));
 
 		@Override
@@ -176,6 +177,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
+		private static final long serialVersionUID = 6104172585734913014L;
+
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
 				throws Exception {
@@ -193,6 +196,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0->vertexId0")
 	private static class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, LongValue>, Tuple2<T, LongValue>, Result<T>> {
+		private static final long serialVersionUID = 732345978977566379L;
 		private LongValue zero = new LongValue(0);
 
 		private Result<T> output = new Result<>();
@@ -216,6 +220,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends UnaryResultBase<T>
 	implements PrintableResult {
+		private static final long serialVersionUID = -4233914808677541651L;
 		private LongValue degree;
 
 		private LongValue triangleCount;

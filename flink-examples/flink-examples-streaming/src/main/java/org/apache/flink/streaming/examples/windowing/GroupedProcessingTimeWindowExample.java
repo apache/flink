@@ -67,6 +67,8 @@ public class GroupedProcessingTimeWindowExample {
 
 	private static class FirstFieldKeyExtractor<Type extends Tuple, Key> implements KeySelector<Type, Key> {
 
+		private static final long serialVersionUID = -2206637769311139829L;
+
 		@Override
 		@SuppressWarnings("unchecked")
 		public Key getKey(Type value) {
@@ -75,6 +77,8 @@ public class GroupedProcessingTimeWindowExample {
 	}
 
 	private static class SummingWindowFunction implements WindowFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Long, Window> {
+
+		private static final long serialVersionUID = 4005861691636220453L;
 
 		@Override
 		public void apply(Long key, Window window, Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
@@ -89,6 +93,8 @@ public class GroupedProcessingTimeWindowExample {
 
 	private static class SummingReducer implements ReduceFunction<Tuple2<Long, Long>> {
 
+		private static final long serialVersionUID = 4606917273551892212L;
+
 		@Override
 		public Tuple2<Long, Long> reduce(Tuple2<Long, Long> value1, Tuple2<Long, Long> value2) {
 			return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
@@ -100,6 +106,7 @@ public class GroupedProcessingTimeWindowExample {
 	 */
 	private static class DataSource extends RichParallelSourceFunction<Tuple2<Long, Long>> {
 
+		private static final long serialVersionUID = -6531794481189317093L;
 		private volatile boolean running = true;
 
 		@Override

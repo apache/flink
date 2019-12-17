@@ -91,6 +91,7 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 		extends GatherFunction<VV, NullValue, VV>
 		implements ResultTypeQueryable<VV> {
 
+		private static final long serialVersionUID = 6443298412123486414L;
 		private final TypeInformation<VV> typeInformation;
 
 		private GatherNeighborIds(TypeInformation<VV> typeInformation) {
@@ -111,6 +112,7 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 		extends SumFunction<VV, NullValue, VV>
 		implements ResultTypeQueryable<VV> {
 
+		private static final long serialVersionUID = 2902313105389364577L;
 		private final TypeInformation<VV> typeInformation;
 
 		private SelectMinId(TypeInformation<VV> typeInformation) {
@@ -131,6 +133,7 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 		extends ApplyFunction<K, VV, VV>
 		implements ResultTypeQueryable<VV> {
 
+		private static final long serialVersionUID = -4157180591460128823L;
 		private final TypeInformation<VV> typeInformation;
 
 		private UpdateComponentId(TypeInformation<VV> typeInformation) {

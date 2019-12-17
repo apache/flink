@@ -35,6 +35,7 @@ import java.util.Objects;
 @PublicEvolving
 public final class KeyValueDataType extends DataType {
 
+	private static final long serialVersionUID = -8117788168770993123L;
 	private final DataType keyDataType;
 
 	private final DataType valueDataType;

@@ -41,6 +41,8 @@ import java.util.regex.Pattern;
 @Internal
 public class FieldAccessorFactory implements Serializable {
 
+	private static final long serialVersionUID = -4850338006897056408L;
+
 	/**
 	 * Creates a {@link FieldAccessor} for the given field position, which can be used to get and set
 	 * the specified field on instances of this type.

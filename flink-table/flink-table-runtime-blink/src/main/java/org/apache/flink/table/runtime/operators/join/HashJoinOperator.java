@@ -60,6 +60,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		BoundedMultiInput, InputSelectable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HashJoinOperator.class);
+	private static final long serialVersionUID = -5155548304883122847L;
 
 	private final HashJoinParameter parameter;
 	private final boolean reverseJoinFunction;
@@ -259,6 +260,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	static class HashJoinParameter implements Serializable {
+		private static final long serialVersionUID = 3197273536526500680L;
 		HashJoinType type;
 		GeneratedJoinCondition condFuncCode;
 		boolean reverseJoinFunction;
@@ -298,6 +300,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 */
 	private static class InnerHashJoinOperator extends HashJoinOperator {
 
+		private static final long serialVersionUID = -7303592457433096787L;
+
 		InnerHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);
 		}
@@ -319,6 +323,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 * build side row and nulls.
 	 */
 	private static class BuildOuterHashJoinOperator extends HashJoinOperator {
+
+		private static final long serialVersionUID = 7757824713273865230L;
 
 		BuildOuterHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);
@@ -344,6 +350,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 */
 	private static class ProbeOuterHashJoinOperator extends HashJoinOperator {
 
+		private static final long serialVersionUID = 6174945949776020291L;
+
 		ProbeOuterHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);
 		}
@@ -367,6 +375,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 * nulls and probe side row.
 	 */
 	private static class FullOuterHashJoinOperator extends HashJoinOperator {
+
+		private static final long serialVersionUID = -1885722266784967780L;
 
 		FullOuterHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);
@@ -392,6 +402,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 */
 	private static class SemiHashJoinOperator extends HashJoinOperator {
 
+		private static final long serialVersionUID = -3708173821094268955L;
+
 		SemiHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);
 		}
@@ -410,6 +422,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 * Output probe side row when probe side row not matched build side row.
 	 */
 	private static class AntiHashJoinOperator extends HashJoinOperator {
+
+		private static final long serialVersionUID = 2101030404109248431L;
 
 		AntiHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);
@@ -430,6 +444,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	 * BuildLeftAntiJoin: Output build side row when build side row not matched probe side row.
 	 */
 	private static class BuildLeftSemiOrAntiHashJoinOperator extends HashJoinOperator {
+
+		private static final long serialVersionUID = 6747638273027931682L;
 
 		BuildLeftSemiOrAntiHashJoinOperator(HashJoinParameter parameter) {
 			super(parameter);

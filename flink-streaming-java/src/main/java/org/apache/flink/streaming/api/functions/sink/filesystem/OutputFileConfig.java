@@ -29,6 +29,7 @@ import java.io.Serializable;
  */
 public class OutputFileConfig implements Serializable {
 
+	private static final long serialVersionUID = -273458732118900351L;
 	private final String partPrefix;
 
 	private final String partSuffix;

@@ -37,6 +37,8 @@ import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.
  */
 public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 
+	private static final long serialVersionUID = -8816714068957450474L;
+
 	@Override
 	public boolean isDeterministic() {
 		return false;
@@ -96,6 +98,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 */
 	public static class ByteLastValueAggFunction extends LastValueAggFunction<Byte> {
 
+		private static final long serialVersionUID = 417017082825863448L;
+
 		@Override
 		public TypeInformation<Byte> getResultType() {
 			return Types.BYTE;
@@ -106,6 +110,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 * Built-in Short LastValue aggregate function.
 	 */
 	public static class ShortLastValueAggFunction extends LastValueAggFunction<Short> {
+
+		private static final long serialVersionUID = -5635478625204885184L;
 
 		@Override
 		public TypeInformation<Short> getResultType() {
@@ -118,6 +124,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 */
 	public static class IntLastValueAggFunction extends LastValueAggFunction<Integer> {
 
+		private static final long serialVersionUID = 272516742473320521L;
+
 		@Override
 		public TypeInformation<Integer> getResultType() {
 			return Types.INT;
@@ -128,6 +136,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 * Built-in Long LastValue aggregate function.
 	 */
 	public static class LongLastValueAggFunction extends LastValueAggFunction<Long> {
+
+		private static final long serialVersionUID = -7834962560399123016L;
 
 		@Override
 		public TypeInformation<Long> getResultType() {
@@ -140,6 +150,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 */
 	public static class FloatLastValueAggFunction extends LastValueAggFunction<Float> {
 
+		private static final long serialVersionUID = 5832992434888862894L;
+
 		@Override
 		public TypeInformation<Float> getResultType() {
 			return Types.FLOAT;
@@ -150,6 +162,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 * Built-in Double LastValue aggregate function.
 	 */
 	public static class DoubleLastValueAggFunction extends LastValueAggFunction<Double> {
+
+		private static final long serialVersionUID = -283443619151134487L;
 
 		@Override
 		public TypeInformation<Double> getResultType() {
@@ -162,6 +176,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 */
 	public static class BooleanLastValueAggFunction extends LastValueAggFunction<Boolean> {
 
+		private static final long serialVersionUID = -761436642496170737L;
+
 		@Override
 		public TypeInformation<Boolean> getResultType() {
 			return Types.BOOLEAN;
@@ -173,6 +189,7 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 */
 	public static class DecimalLastValueAggFunction extends LastValueAggFunction<Decimal> {
 
+		private static final long serialVersionUID = 1861138059380981485L;
 		private DecimalTypeInfo decimalTypeInfo;
 
 		public DecimalLastValueAggFunction(DecimalTypeInfo decimalTypeInfo) {
@@ -198,6 +215,8 @@ public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 	 * Built-in String LastValue aggregate function.
 	 */
 	public static class StringLastValueAggFunction extends LastValueAggFunction<BinaryString> {
+
+		private static final long serialVersionUID = 6711143997955182788L;
 
 		@Override
 		public TypeInformation<BinaryString> getResultType() {

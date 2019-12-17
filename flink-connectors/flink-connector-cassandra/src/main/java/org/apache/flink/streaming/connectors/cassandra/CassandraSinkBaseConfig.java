@@ -42,6 +42,7 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 	 * The default option to ignore null fields on insertion. By default, {@code false}.
 	 */
 	public static final boolean DEFAULT_IGNORE_NULL_FIELDS = false;
+	private static final long serialVersionUID = -3484907604563195878L;
 
 
 	// ------------------------- Configuration Fields -------------------------

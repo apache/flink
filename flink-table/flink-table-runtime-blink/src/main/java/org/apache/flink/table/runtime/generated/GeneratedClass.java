@@ -28,6 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class GeneratedClass<T> implements Serializable {
 
+	private static final long serialVersionUID = 6170410716745042722L;
 	private final String className;
 	private final String code;
 	private final Object[] references;

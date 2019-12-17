@@ -28,6 +28,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class SqlParserException extends RuntimeException {
 
+	private static final long serialVersionUID = -3388417866294028283L;
+
 	public SqlParserException(String message, Throwable cause) {
 		super(message, cause);
 	}

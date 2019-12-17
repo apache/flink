@@ -109,6 +109,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private static class LinkVertexToNeighbors
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
+		private static final long serialVersionUID = -6371265630081827915L;
 		private long vertexCount;
 
 		private List<Tuple2<Long, Boolean>> dimensions;

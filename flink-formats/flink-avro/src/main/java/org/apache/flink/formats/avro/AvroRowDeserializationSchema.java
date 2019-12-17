@@ -82,6 +82,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	 * Used for time conversions into SQL types.
 	 */
 	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+	private static final long serialVersionUID = -7558680930501336219L;
 
 	/**
 	 * Avro record class for deserialization. Might be null if record class is not available.

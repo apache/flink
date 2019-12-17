@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.types.Row;
 
 class JDBCSinkFunction extends RichSinkFunction<Row> implements CheckpointedFunction {
+	private static final long serialVersionUID = 9043423985460001948L;
 	final JDBCOutputFormat outputFormat;
 
 	JDBCSinkFunction(JDBCOutputFormat outputFormat) {

@@ -44,6 +44,7 @@ import java.util.List;
 public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractTableInputFormat.class);
+	private static final long serialVersionUID = -4532804238984610207L;
 
 	// helper variable to decide whether the input is exhausted or not
 	protected boolean endReached = false;

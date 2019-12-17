@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDF.class);
+	private static final long serialVersionUID = 60055592617907218L;
 
 	private transient GenericUDF.DeferredObject[] deferredObjects;
 	private HiveShim hiveShim;

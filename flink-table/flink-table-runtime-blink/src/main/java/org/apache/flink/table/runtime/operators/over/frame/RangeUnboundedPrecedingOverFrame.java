@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
  */
 public class RangeUnboundedPrecedingOverFrame extends UnboundedPrecedingOverFrame {
 
+	private static final long serialVersionUID = -2757800141545417599L;
 	private GeneratedRecordComparator boundComparator;
 	private RecordComparator rbound;
 

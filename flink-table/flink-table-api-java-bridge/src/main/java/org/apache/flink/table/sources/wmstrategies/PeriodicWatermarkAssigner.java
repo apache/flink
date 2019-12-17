@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 @PublicEvolving
 public abstract class PeriodicWatermarkAssigner extends WatermarkStrategy {
 
+	private static final long serialVersionUID = -8779511531638163656L;
+
 	/**
 	 * Updates the assigner with the next timestamp.
 	 *

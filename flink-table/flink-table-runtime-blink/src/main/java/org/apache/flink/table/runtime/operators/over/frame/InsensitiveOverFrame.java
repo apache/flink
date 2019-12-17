@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
  */
 public class InsensitiveOverFrame implements OverWindowFrame {
 
+	private static final long serialVersionUID = -5475432869417084615L;
 	private GeneratedAggsHandleFunction aggsHandleFunction;
 	private AggsHandleFunction processor;
 

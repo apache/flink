@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.DoubleComparator;
 
 @Internal
 public class DoublePrimitiveArrayComparator extends PrimitiveArrayComparator<double[], DoubleComparator> {
+	private static final long serialVersionUID = 6816286676410360253L;
+
 	public DoublePrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new DoubleComparator(ascending));
 	}

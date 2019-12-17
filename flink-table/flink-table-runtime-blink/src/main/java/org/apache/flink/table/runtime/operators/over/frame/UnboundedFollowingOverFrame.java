@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.RowType;
  */
 public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
 
+	private static final long serialVersionUID = -578937867598357659L;
 	private GeneratedAggsHandleFunction aggsHandleFunction;
 	private final RowType valueType;
 

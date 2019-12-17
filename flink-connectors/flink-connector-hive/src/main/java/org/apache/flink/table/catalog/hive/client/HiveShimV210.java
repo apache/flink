@@ -41,6 +41,8 @@ import java.util.Optional;
  */
 public class HiveShimV210 extends HiveShimV201 {
 
+	private static final long serialVersionUID = -3539453915201580102L;
+
 	@Override
 	public void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
 			throws InvalidOperationException, MetaException, TException {

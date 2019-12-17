@@ -22,6 +22,8 @@ package org.apache.flink.table.api;
  * Exception for unwanted method calling on unresolved expression.
  */
 public class UnresolvedException extends RuntimeException {
+	private static final long serialVersionUID = -8342347751783231761L;
+
 	public UnresolvedException(String msg) {
 		super(msg);
 	}

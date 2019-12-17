@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 public class TableNotPartitionedException extends Exception {
 
 	private static final String MSG = "Table %s in catalog %s is not partitioned.";
+	private static final long serialVersionUID = -4542452004732053369L;
 
 	public TableNotPartitionedException(String catalogName, ObjectPath tablePath) {
 		this(catalogName, tablePath, null);

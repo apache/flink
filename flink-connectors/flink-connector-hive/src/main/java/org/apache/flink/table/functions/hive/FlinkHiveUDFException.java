@@ -24,6 +24,8 @@ import org.apache.flink.util.FlinkRuntimeException;
  * Hive UDF related exceptions in Flink.
  */
 public class FlinkHiveUDFException extends FlinkRuntimeException {
+	private static final long serialVersionUID = 4839531415536776224L;
+
 	/**
 	 * @param message the detail message.
 	 */

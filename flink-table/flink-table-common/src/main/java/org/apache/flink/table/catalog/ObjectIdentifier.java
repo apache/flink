@@ -37,6 +37,7 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
  */
 public final class ObjectIdentifier implements Serializable {
 
+	private static final long serialVersionUID = -8260954128190215259L;
 	private final String catalogName;
 
 	private final String databaseName;

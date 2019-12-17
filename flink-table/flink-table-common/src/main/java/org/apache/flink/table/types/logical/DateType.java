@@ -49,6 +49,7 @@ public final class DateType extends LogicalType {
 		int.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDate.class;
+	private static final long serialVersionUID = 2265378078859563505L;
 
 	public DateType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.DATE);

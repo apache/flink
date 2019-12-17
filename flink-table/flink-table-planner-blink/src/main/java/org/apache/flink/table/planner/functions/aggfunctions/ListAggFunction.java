@@ -35,6 +35,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullO
  * built-in listagg aggregate function.
  */
 public class ListAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -6893433965728144598L;
 	private int operandCount;
 	private UnresolvedReferenceExpression acc = unresolvedRef("concatAcc");
 	private UnresolvedReferenceExpression accDelimiter = unresolvedRef("accDelimiter");

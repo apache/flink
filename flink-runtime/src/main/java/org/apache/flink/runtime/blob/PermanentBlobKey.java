@@ -25,6 +25,8 @@ import org.apache.flink.annotation.VisibleForTesting;
  */
 public final class PermanentBlobKey extends BlobKey {
 
+	private static final long serialVersionUID = 5614035773213995269L;
+
 	/**
 	 * Constructs a new BLOB key.
 	 */

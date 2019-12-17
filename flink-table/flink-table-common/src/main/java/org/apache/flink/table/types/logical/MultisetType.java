@@ -49,6 +49,7 @@ public final class MultisetType extends LogicalType {
 		"org.apache.flink.table.dataformat.BinaryMap");
 
 	private static final Class<?> DEFAULT_CONVERSION = Map.class;
+	private static final long serialVersionUID = 2944753067645775624L;
 
 	private final LogicalType elementType;
 

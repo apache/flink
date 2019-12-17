@@ -80,6 +80,7 @@ extends DataSetAnalyticBase<T, List<T>> {
 	 */
 	private static class CollectHelper<U>
 	extends AnalyticHelper<U> {
+		private static final long serialVersionUID = -1501501893127529020L;
 		private SerializedListAccumulator<U> accumulator;
 
 		private final TypeSerializer<U> serializer;

@@ -41,6 +41,7 @@ public class PatternTimeoutSelectAdapter<IN, OUT, T>
 		extends PatternSelectAdapter<IN, OUT>
 		implements TimedOutPartialMatchHandler<IN> {
 
+	private static final long serialVersionUID = -9183431970241398047L;
 	private final PatternTimeoutFunction<IN, T> timeoutFunction;
 	private final OutputTag<T> timedOutPartialMatchesTag;
 

@@ -41,6 +41,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * negative number is discarded to ensure the monotonicity.
  */
 public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = 1175878165210529805L;
 	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
@@ -115,6 +116,8 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 */
 	public static class IntIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
 
+		private static final long serialVersionUID = 484901200583089856L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -130,6 +133,8 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 * Built-in Byte IncrSum with retract aggregate function.
 	 */
 	public static class ByteIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
+		private static final long serialVersionUID = -2883870892267811758L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -145,6 +150,8 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 * Built-in Short IncrSum with retract aggregate function.
 	 */
 	public static class ShortIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
+		private static final long serialVersionUID = -5770175705341113092L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.SMALLINT();
@@ -160,6 +167,8 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 * Built-in Long IncrSum with retract aggregate function.
 	 */
 	public static class LongIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
+		private static final long serialVersionUID = -4904006351435022959L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -175,6 +184,8 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 * Built-in Float IncrSum with retract aggregate function.
 	 */
 	public static class FloatIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
+		private static final long serialVersionUID = -1393243863101871718L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.FLOAT();
@@ -190,6 +201,8 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 * Built-in Double IncrSum with retract aggregate function.
 	 */
 	public static class DoubleIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
+		private static final long serialVersionUID = 3819182686692649492L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -205,6 +218,7 @@ public abstract class IncrSumWithRetractAggFunction extends DeclarativeAggregate
 	 * Built-in Decimal IncrSum with retract aggregate function.
 	 */
 	public static class DecimalIncrSumWithRetractAggFunction extends IncrSumWithRetractAggFunction {
+		private static final long serialVersionUID = -881051610000454228L;
 		private DecimalType decimalType;
 
 		public DecimalIncrSumWithRetractAggFunction(DecimalType decimalType) {

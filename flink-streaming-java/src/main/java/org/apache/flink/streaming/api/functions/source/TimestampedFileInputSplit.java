@@ -34,6 +34,7 @@ import java.io.Serializable;
  * */
 public class TimestampedFileInputSplit extends FileInputSplit implements Comparable<TimestampedFileInputSplit>{
 
+	private static final long serialVersionUID = -8153252402661556005L;
 	/** The modification time of the file this split belongs to. */
 	private final long modificationTime;
 

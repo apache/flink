@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.types.Row;
 
 class JDBCUpsertSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>> implements CheckpointedFunction {
+	private static final long serialVersionUID = -2385786502399475270L;
 	private final JDBCUpsertOutputFormat outputFormat;
 
 	JDBCUpsertSinkFunction(JDBCUpsertOutputFormat outputFormat) {

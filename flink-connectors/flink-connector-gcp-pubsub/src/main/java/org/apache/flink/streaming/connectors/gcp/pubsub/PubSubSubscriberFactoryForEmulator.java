@@ -35,6 +35,7 @@ import java.time.Duration;
  * The PubSub emulators do not support SSL or Credentials and as such this SubscriberStub does not require or provide this.
  */
 public class PubSubSubscriberFactoryForEmulator implements PubSubSubscriberFactory {
+	private static final long serialVersionUID = -824683780443890033L;
 	private final String hostAndPort;
 	private final String projectSubscriptionName;
 	private final int retries;

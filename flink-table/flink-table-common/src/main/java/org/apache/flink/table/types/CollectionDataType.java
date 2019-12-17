@@ -37,6 +37,7 @@ import java.util.Objects;
 @PublicEvolving
 public final class CollectionDataType extends DataType {
 
+	private static final long serialVersionUID = 5086757737530344147L;
 	private final DataType elementDataType;
 
 	public CollectionDataType(

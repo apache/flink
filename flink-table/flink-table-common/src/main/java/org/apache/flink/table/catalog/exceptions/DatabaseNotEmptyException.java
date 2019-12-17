@@ -24,6 +24,7 @@ package org.apache.flink.table.catalog.exceptions;
  */
 public class DatabaseNotEmptyException extends Exception {
 	private static final String MSG = "Database %s in catalog %s is not empty.";
+	private static final long serialVersionUID = 3825372436300237646L;
 
 	public DatabaseNotEmptyException(String catalog, String database, Throwable cause) {
 		super(String.format(MSG, database, catalog), cause);

@@ -34,6 +34,7 @@ import java.util.List;
  */
 public class AssignRangeIndex<IN> extends RichMapPartitionFunction<IN, Tuple2<Integer, IN>> {
 
+	private static final long serialVersionUID = 7056831712340214848L;
 	private TypeComparatorFactory<IN> typeComparator;
 
 	public AssignRangeIndex(TypeComparatorFactory<IN> typeComparator) {

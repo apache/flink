@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.BooleanComparator;
 
 @Internal
 public class BooleanPrimitiveArrayComparator extends PrimitiveArrayComparator<boolean[], BooleanComparator> {
+	private static final long serialVersionUID = -7572287510840826192L;
+
 	public BooleanPrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new BooleanComparator(ascending));
 	}

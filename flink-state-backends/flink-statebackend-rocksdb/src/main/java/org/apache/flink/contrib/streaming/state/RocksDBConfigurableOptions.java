@@ -134,4 +134,5 @@ public class RocksDBConfigurableOptions implements Serializable {
 			.withDescription("The amount of the cache for data blocks in RocksDB. " +
 				"RocksDB has default block-cache size as '8MB'.");
 
+	private static final long serialVersionUID = 5956179275155221805L;
 }

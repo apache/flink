@@ -60,6 +60,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 
 	// we set default topN size to 100
 	private static final long DEFAULT_TOPN_SIZE = 100;
+	private static final long serialVersionUID = -4519223263082176325L;
 
 	// The util to compare two sortKey equals to each other.
 	private GeneratedRecordComparator generatedSortKeyComparator;

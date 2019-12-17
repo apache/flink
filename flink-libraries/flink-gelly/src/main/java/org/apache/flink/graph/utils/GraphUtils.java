@@ -61,6 +61,8 @@ public class GraphUtils {
 	@ForwardedFields("*")
 	public static final class IdentityMapper<T>
 	implements MapFunction<T, T> {
+		private static final long serialVersionUID = 6051244519833480951L;
+
 		public T map(T value) {
 			return value;
 		}
@@ -75,6 +77,8 @@ public class GraphUtils {
 	 */
 	public static final class NonForwardingIdentityMapper<T>
 	implements MapFunction<T, T> {
+		private static final long serialVersionUID = -4653411506006004538L;
+
 		public T map(T value) {
 			return value;
 		}
@@ -88,6 +92,7 @@ public class GraphUtils {
 	 */
 	public static class MapTo<I, O>
 	implements MapFunction<I, O>, ResultTypeQueryable<O>, TranslateFunction<I, O> {
+		private static final long serialVersionUID = 1679351648125767732L;
 		private final O value;
 
 		/**
@@ -121,6 +126,8 @@ public class GraphUtils {
 	 */
 	public static class AddLongValue
 	implements ReduceFunction<LongValue> {
+		private static final long serialVersionUID = 2547280389440318158L;
+
 		@Override
 		public LongValue reduce(LongValue value1, LongValue value2)
 				throws Exception {

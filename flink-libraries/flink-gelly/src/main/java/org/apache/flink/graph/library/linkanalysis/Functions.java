@@ -35,6 +35,8 @@ class Functions {
 	@ForwardedFields("0")
 	protected static final class SumScore<T>
 		implements ReduceFunction<Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = 2602334430961427102L;
+
 		@Override
 		public Tuple2<T, DoubleValue> reduce(Tuple2<T, DoubleValue> left, Tuple2<T, DoubleValue> right)
 			throws Exception {

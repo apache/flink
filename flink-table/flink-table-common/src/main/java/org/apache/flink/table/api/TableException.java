@@ -29,6 +29,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class TableException extends RuntimeException {
 
+	private static final long serialVersionUID = 1087959503413835823L;
+
 	public TableException(String message, Throwable cause) {
 		super(message, cause);
 	}

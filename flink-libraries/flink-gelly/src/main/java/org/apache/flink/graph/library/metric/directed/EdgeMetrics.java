@@ -142,6 +142,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static final class EdgeStats<T extends Comparable<T>, ET>
 	implements FlatMapFunction<Edge<T, Tuple3<ET, Degrees, Degrees>>, Tuple4<T, T, Degrees, LongValue>> {
+		private static final long serialVersionUID = 8312929085982632660L;
 		private LongValue zero = new LongValue(0);
 
 		private LongValue one = new LongValue(1);
@@ -180,6 +181,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	@ForwardedFields("0")
 	private static final class ReduceEdgeStats<T>
 	implements GroupReduceFunction<Tuple4<T, T, Degrees, LongValue>, Tuple3<T, Degrees, LongValue>> {
+		private static final long serialVersionUID = -7577399527885566241L;
 		Tuple3<T, Degrees, LongValue> output = new Tuple3<>();
 
 		@Override
@@ -202,6 +204,8 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class SumEdgeStats<T>
 	implements ReduceFunction<Tuple3<T, Degrees, LongValue>> {
+		private static final long serialVersionUID = -3416878774209934912L;
+
 		@Override
 		public Tuple3<T, Degrees, LongValue> reduce(Tuple3<T, Degrees, LongValue> value1, Tuple3<T, Degrees, LongValue> value2)
 				throws Exception {
@@ -217,6 +221,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class EdgeMetricsHelper<T extends Comparable<T>>
 	extends AnalyticHelper<Tuple3<T, Degrees, LongValue>> {
+		private static final long serialVersionUID = -6670622320487267005L;
 		private long triangleTripletCount;
 		private long rectangleTripletCount;
 		private long maximumTriangleTriplets;

@@ -47,6 +47,7 @@ import java.util.Objects;
 public final class LegacyTypeInformationType<T> extends LogicalType {
 
 	private static final String FORMAT = "LEGACY('%s', '%s')";
+	private static final long serialVersionUID = 8451285230399670871L;
 
 	private final TypeInformation<T> typeInfo;
 

@@ -43,6 +43,7 @@ implements ValueArray<FloatValue> {
 
 	// see note in ArrayList, HashTable, ...
 	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+	private static final long serialVersionUID = -207009928944331374L;
 
 	private boolean isBounded;
 

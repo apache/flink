@@ -233,10 +233,13 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * A filter predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public abstract static class Predicate implements Serializable {
+		private static final long serialVersionUID = -3231441573055918159L;
+
 		protected abstract SearchArgument.Builder add(SearchArgument.Builder builder);
 	}
 
 	abstract static class ColumnPredicate extends Predicate {
+		private static final long serialVersionUID = 6932613768669024672L;
 		final String columnName;
 		final PredicateLeaf.Type literalType;
 
@@ -310,6 +313,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	}
 
 	abstract static class BinaryPredicate extends ColumnPredicate {
+		private static final long serialVersionUID = 9095067571087689173L;
 		final Serializable literal;
 
 		BinaryPredicate(String columnName, PredicateLeaf.Type literalType, Serializable literal) {
@@ -322,6 +326,8 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * An EQUALS predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class Equals extends BinaryPredicate {
+		private static final long serialVersionUID = -8875584791628145509L;
+
 		/**
 		 * Creates an EQUALS predicate.
 		 *
@@ -348,6 +354,8 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * An EQUALS predicate that can be evaluated with Null safety by the OrcInputFormat.
 	 */
 	public static class NullSafeEquals extends BinaryPredicate {
+		private static final long serialVersionUID = 3878774705745475219L;
+
 		/**
 		 * Creates a null-safe EQUALS predicate.
 		 *
@@ -374,6 +382,8 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * A LESS_THAN predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class LessThan extends BinaryPredicate {
+		private static final long serialVersionUID = 8667552437106551780L;
+
 		/**
 		 * Creates a LESS_THAN predicate.
 		 *
@@ -400,6 +410,8 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * A LESS_THAN_EQUALS predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class LessThanEquals extends BinaryPredicate {
+		private static final long serialVersionUID = -541809532957991775L;
+
 		/**
 		 * Creates a LESS_THAN_EQUALS predicate.
 		 *
@@ -426,6 +438,8 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * An IS_NULL predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class IsNull extends ColumnPredicate {
+		private static final long serialVersionUID = -2535524137578746141L;
+
 		/**
 		 * Creates an IS_NULL predicate.
 		 *
@@ -451,6 +465,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * An BETWEEN predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class Between extends ColumnPredicate {
+		private static final long serialVersionUID = 7548303851324187703L;
 		private Serializable lowerBound;
 		private Serializable upperBound;
 
@@ -483,6 +498,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * An IN predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class In extends ColumnPredicate {
+		private static final long serialVersionUID = 9172591492788854614L;
 		private Serializable[] literals;
 
 		/**
@@ -516,6 +532,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * A NOT predicate to negate a predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class Not extends Predicate {
+		private static final long serialVersionUID = 7121557331405880983L;
 		private final Predicate pred;
 
 		/**
@@ -545,6 +562,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * An OR predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public static class Or extends Predicate {
+		private static final long serialVersionUID = 8420110100450808908L;
 		private final Predicate[] preds;
 
 		/**

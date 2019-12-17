@@ -33,6 +33,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 class TtlFoldFunction<T, ACC>
 	extends AbstractTtlDecorator<FoldFunction<T, ACC>>
 	implements FoldFunction<T, TtlValue<ACC>> {
+	private static final long serialVersionUID = -6078683479606899136L;
 	private final ACC defaultAccumulator;
 
 	TtlFoldFunction(

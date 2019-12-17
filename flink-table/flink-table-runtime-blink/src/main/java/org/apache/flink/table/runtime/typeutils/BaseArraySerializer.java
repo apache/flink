@@ -50,6 +50,7 @@ import static org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.get
  */
 public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 
+	private static final long serialVersionUID = -8108681746715068803L;
 	private final LogicalType eleType;
 	private final TypeSerializer eleSer;
 

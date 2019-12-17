@@ -139,6 +139,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFields("0; 1")
 	private static final class FilterByID<T extends Comparable<T>, ET>
 	implements FlatMapFunction<Edge<T, ET>, Tuple2<T, T>> {
+		private static final long serialVersionUID = 5693093318242979774L;
 		private Tuple2<T, T> edge = new Tuple2<>();
 
 		@Override
@@ -166,6 +167,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFields("0; 1")
 	private static final class FilterByDegree<T extends Comparable<T>, ET>
 	implements FlatMapFunction<Edge<T, Tuple3<ET, LongValue, LongValue>>, Tuple2<T, T>> {
+		private static final long serialVersionUID = -7190879712639913363L;
 		private Tuple2<T, T> edge = new Tuple2<>();
 
 		@Override
@@ -195,6 +197,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static final class GenerateTriplets<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple2<T, T>, Tuple3<T, T, T>> {
+		private static final long serialVersionUID = 6717237711363148310L;
 		private Tuple3<T, T, T> output = new Tuple3<>();
 
 		private List<T> visited = new ArrayList<>();
@@ -241,6 +244,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0->vertexId0; 1->vertexId1")
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Result<T>> {
+		private static final long serialVersionUID = 9095397414284913655L;
 		private Result<T> output = new Result<>();
 
 		@Override
@@ -261,6 +265,8 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	 */
 	private static class PermuteResult<T>
 	implements FlatMapFunction<Result<T>, Result<T>> {
+		private static final long serialVersionUID = 5007849644436406417L;
+
 		@Override
 		public void flatMap(Result<T> value, Collector<Result<T>> out)
 				throws Exception {
@@ -314,6 +320,8 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	 */
 	private static final class SortTriangleVertices<T extends Comparable<T>>
 	implements MapFunction<Result<T>, Result<T>> {
+		private static final long serialVersionUID = 3922254216965337177L;
+
 		@Override
 		public Result<T> map(Result<T> value)
 				throws Exception {
@@ -342,6 +350,8 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends TertiaryResultBase<T>
 	implements PrintableResult {
+		private static final long serialVersionUID = -8365704866804113619L;
+
 		@Override
 		public String toString() {
 			return "(" + getVertexId0()

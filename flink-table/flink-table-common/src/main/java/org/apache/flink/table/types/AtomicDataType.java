@@ -33,6 +33,8 @@ import javax.annotation.Nullable;
 @PublicEvolving
 public final class AtomicDataType extends DataType {
 
+	private static final long serialVersionUID = 5339095160318608613L;
+
 	public AtomicDataType(LogicalType logicalType, @Nullable Class<?> conversionClass) {
 		super(logicalType, conversionClass);
 	}

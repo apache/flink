@@ -87,6 +87,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private static class LinkVertexToCenter
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
+		private static final long serialVersionUID = -6016480863001657480L;
 		private LongValue center = new LongValue(0);
 
 		private Edge<LongValue, NullValue> centerToLeaf = new Edge<>(center, null, NullValue.getInstance());

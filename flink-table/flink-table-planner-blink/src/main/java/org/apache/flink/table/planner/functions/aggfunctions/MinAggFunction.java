@@ -36,6 +36,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullO
  * built-in min aggregate function.
  */
 public abstract class MinAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = 3674724683138964189L;
 	private UnresolvedReferenceExpression min = unresolvedRef("min");
 
 	@Override
@@ -97,6 +98,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class IntMinAggFunction extends MinAggFunction {
 
+		private static final long serialVersionUID = -4607955890514445445L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -107,6 +110,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Byte Min aggregate function.
 	 */
 	public static class ByteMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -1831919297390344422L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -117,6 +122,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Short Min aggregate function.
 	 */
 	public static class ShortMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = 8558533668591177560L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.SMALLINT();
@@ -127,6 +134,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Long Min aggregate function.
 	 */
 	public static class LongMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = 5304169477692989308L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -137,6 +146,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Float Min aggregate function.
 	 */
 	public static class FloatMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -6777201532701947645L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.FLOAT();
@@ -147,6 +158,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Double Min aggregate function.
 	 */
 	public static class DoubleMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -7684340355510934352L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -157,6 +170,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Decimal Min aggregate function.
 	 */
 	public static class DecimalMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -547727868230316469L;
 		private DecimalType decimalType;
 
 		public DecimalMinAggFunction(DecimalType decimalType) {
@@ -173,6 +187,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Boolean Min aggregate function.
 	 */
 	public static class BooleanMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -1092575652544749688L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BOOLEAN();
@@ -183,6 +199,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in String Min aggregate function.
 	 */
 	public static class StringMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = 7786788048951000087L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.STRING();
@@ -193,6 +211,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Date Min aggregate function.
 	 */
 	public static class DateMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -868326618604086696L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DATE();
@@ -203,6 +223,8 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Time Min aggregate function.
 	 */
 	public static class TimeMinAggFunction extends MinAggFunction {
+		private static final long serialVersionUID = -7436220934453882025L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TIME(TimeType.DEFAULT_PRECISION);
@@ -214,6 +236,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class TimestampMinAggFunction extends MinAggFunction {
 
+		private static final long serialVersionUID = -2384047607645725885L;
 		private final TimestampType type;
 
 		public TimestampMinAggFunction(TimestampType type) {
