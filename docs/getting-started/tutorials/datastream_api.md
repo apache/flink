@@ -93,16 +93,13 @@ use it in our program. Edit the `dependencies` section of the `pom.xml` so that 
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-java</artifactId>
         <version>${flink.version}</version>
+        <scope>provided</scope>
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-streaming-java_2.11</artifactId>
         <version>${flink.version}</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-clients_2.11</artifactId>
-        <version>${flink.version}</version>
+        <scope>provided</scope>
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
