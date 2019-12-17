@@ -21,6 +21,8 @@ package org.apache.flink.table.api;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,6 +35,7 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 	// message that indicates the current matching step
 	private final String message;
 	// message that indicates the best matched factory
+	@Nullable
 	private final String matchCandidatesMessage;
 	// required factory class
 	private final Class<?> factoryClass;
@@ -43,7 +46,7 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 
 	public NoMatchingTableFactoryException(
 		String message,
-		String matchCandidatesMessage,
+		@Nullable String matchCandidatesMessage,
 		Class<?> factoryClass,
 		List<TableFactory> factories,
 		Map<String, String> properties,
@@ -66,11 +69,11 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 	}
 
 	public NoMatchingTableFactoryException(
-			String message,
-			String matchCandidatesMessage,
-			Class<?> factoryClass,
-			List<TableFactory> factories,
-			Map<String, String> properties) {
+		String message,
+		@Nullable String matchCandidatesMessage,
+		Class<?> factoryClass,
+		List<TableFactory> factories,
+		Map<String, String> properties) {
 		this(message, matchCandidatesMessage, factoryClass, factories, properties, null);
 	}
 
@@ -78,14 +81,15 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 	public String getMessage() {
 		String matchCandidatesString = matchCandidatesMessage == null ?
 			"" :
-			"The match candidates:\n" + matchCandidatesMessage + "\n\n";
+			"The matched candidates:\n" + matchCandidatesMessage + "\n\n";
 		return String.format(
 			"Could not find a suitable table factory for '%s' in\nthe classpath.\n\n" +
-				"Reason: %s\n\n" + matchCandidatesString +
+				"Reason: %s\n\n%s" +
 				"The following properties are requested:\n%s\n\n" +
 				"The following factories have been considered:\n%s",
 			factoryClass.getName(),
 			message,
+			matchCandidatesString,
 			DescriptorProperties.toString(properties),
 			factories.stream().map(p -> p.getClass().getName()).collect(Collectors.joining("\n"))
 		);
