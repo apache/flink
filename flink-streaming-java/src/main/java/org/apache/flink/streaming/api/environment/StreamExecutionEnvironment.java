@@ -59,6 +59,7 @@ import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -184,7 +185,7 @@ public class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(final Configuration configuration) {
@@ -193,7 +194,7 @@ public class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 *
 	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
 	 * user code {@link ClassLoader}.

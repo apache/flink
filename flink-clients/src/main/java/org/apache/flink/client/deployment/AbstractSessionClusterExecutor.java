@@ -23,8 +23,8 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nonnull;
@@ -35,13 +35,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An abstract {@link Executor} used to execute {@link Pipeline pipelines} on an existing (session) cluster.
+ * An abstract {@link PipelineExecutor} used to execute {@link Pipeline pipelines} on an existing (session) cluster.
  *
  * @param <ClusterID> the type of the id of the cluster.
  * @param <ClientFactory> the type of the {@link ClusterClientFactory} used to create/retrieve a client to the target cluster.
  */
 @Internal
-public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>> implements Executor {
+public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>> implements PipelineExecutor {
 
 	private final ClientFactory clusterClientFactory;
 

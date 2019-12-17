@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * A factory for selecting and instantiating the adequate {@link Executor}
+ * A factory for selecting and instantiating the adequate {@link PipelineExecutor}
  * based on a provided {@link Configuration}.
  */
 @Internal
@@ -35,8 +35,8 @@ public interface ExecutorFactory {
 	boolean isCompatibleWith(final Configuration configuration);
 
 	/**
-	 * Instantiates an {@link Executor} compatible with the provided configuration.
+	 * Instantiates an {@link PipelineExecutor} compatible with the provided configuration.
 	 * @return the executor instance.
 	 */
-	Executor getExecutor(Configuration configuration);
+	PipelineExecutor getExecutor(Configuration configuration);
 }

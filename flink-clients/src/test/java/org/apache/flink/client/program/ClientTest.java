@@ -41,9 +41,9 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -362,7 +362,7 @@ public class ClientTest extends TestLogger {
 				}
 
 				@Override
-				public Executor getExecutor(@Nonnull Configuration configuration) {
+				public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
 					return (pipeline, config) -> {
 						final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 						final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(plan, config, parallelism);
