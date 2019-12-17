@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
+import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
@@ -273,6 +274,9 @@ public final class DataTypeExtractor {
 			return resultDataType;
 		}
 
+		// early and helpful exception for common mistakes
+		checkForCommonErrors(type);
+
 		// PREDEFINED
 		resultDataType = extractPredefinedType(template, type);
 		if (resultDataType != null) {
@@ -324,6 +328,34 @@ public final class DataTypeExtractor {
 			return createRawType(lookup, template.rawSerializer, clazz);
 		}
 		return null;
+	}
+
+	private void checkForCommonErrors(Type type) {
+		final Class<?> clazz = toClass(type);
+		if (clazz == null) {
+			return;
+		}
+
+		if (clazz == Row.class) {
+			throw extractionError(
+				"Cannot extract a data type from a pure '%s' class. " +
+					"Please use annotations to define field names and field types.",
+				Row.class.getName());
+		} else if (clazz == Object.class) {
+			throw extractionError(
+				"Cannot extract a data type from a pure '%s' class. " +
+					"Usually, this indicates that class information is missing or got lost. " +
+					"Please specify a more concrete class or treat it as a RAW type.",
+				Object.class.getName());
+		} else if (clazz.getName().startsWith("scala.Tuple")) {
+			throw extractionError(
+				"Scala tuples are not supported. Use case classes or '%s' instead.",
+				Row.class.getName());
+		} else if (clazz.getName().startsWith("scala.collection")) {
+			throw extractionError(
+				"Scala collections are not supported. " +
+					"See the documentation for supported classes or treat them as RAW types.");
+		}
 	}
 
 	private @Nullable DataType extractPredefinedType(DataTypeTemplate template, Type type) {
