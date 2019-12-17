@@ -27,17 +27,17 @@ import org.apache.flink.types.Row
 import org.junit.Test
 
 import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
 
 import scala.collection.mutable
 
-class TimestampITCase extends BatchTestBase {
+class DateTimeITCase extends BatchTestBase {
 
   override def before(): Unit = {
     super.before()
 
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d", "e", "f", "g", "h"),
+      Array("a", "b", "c", "d", "e", "f", "g", "h", "i", "j"),
       Array(
         DataTypes.INT(),
         DataTypes.BIGINT(),
@@ -46,7 +46,10 @@ class TimestampITCase extends BatchTestBase {
         DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime]),
         DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp]),
         DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]))
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]),
+        DataTypes.TIME(9).bridgedTo(classOf[LocalTime]),
+        DataTypes.TIME(9).bridgedTo(classOf[LocalTime])
+      )
     ).build()
 
     val ints = List(1, 2, 3, 4, null)
@@ -105,12 +108,27 @@ class TimestampITCase extends BatchTestBase {
       }
     }
 
+    val time1 = List(
+      LocalTime.of(0, 0, 0, 123456789),
+      LocalTime.of(0, 0, 0, 123456000),
+      LocalTime.of(0, 0, 0, 123456000),
+      LocalTime.of(0, 0, 0, 123000000),
+      null
+    )
 
+    val time2 = List(
+      LocalTime.of(0, 0, 0, 123456789),
+      LocalTime.of(0, 0, 0, 123456000),
+      LocalTime.of(0, 0, 0, 123000000),
+      LocalTime.of(0, 0, 0, 0),
+      null
+    )
     val data = new mutable.MutableList[Row]
 
     for (i <- ints.indices) {
       data += row(ints(i), longs(i), datetimes(i), timestamps(i), datetimesWithMilli(i),
-        timestampsWithMilli(i), instantsOfDateTime(i), instantsOfTimestamp(i))
+        timestampsWithMilli(i), instantsOfDateTime(i), instantsOfTimestamp(i), time1(i),
+        time2(i))
     }
 
     val tableSource = new TestDataTypeTableSource(
@@ -128,7 +146,8 @@ class TimestampITCase extends BatchTestBase {
         row(1, 1, "1969-01-01T00:00:00.123456789"),
         row(3, 2, "1970-01-01T00:00:00.123456"),
         row(4, 4, "1970-01-01T00:00:00.123"),
-        row(null, null, null)))
+        row(null, null, null)
+      ))
 
     // group by TIMESTAMP(3)
     checkResult(
@@ -137,7 +156,8 @@ class TimestampITCase extends BatchTestBase {
         row(1, 1, "1969-01-01T00:00:00.123"),
         row(3, 2, "1970-01-01T00:00:00.120"),
         row(4, 4, "1970-01-01T00:00:00.100"),
-        row(null, null, null)))
+        row(null, null, null)
+      ))
 
     // group by TIMESTAMP(9) WITH LOCAL TIME ZONE
     checkResult(
@@ -146,13 +166,23 @@ class TimestampITCase extends BatchTestBase {
         row(1, 1, "1969-01-01T00:00:00.123456789Z"),
         row(3, 2, "1970-01-01T00:00:00.123456Z"),
         row(4, 4, "1970-01-01T00:00:00.123Z"),
-        row(null, null, null))
-    )
+        row(null, null, null)
+      ))
 
+    // group by TIME(9)
+    checkResult(
+      "SELECT MAX(a), MIN(a), i FROM T GROUP BY i",
+      Seq(
+        row(1, 1, "00:00:00.123456789"),
+        row(3, 2, "00:00:00.123456"),
+        row(4, 4, "00:00:00.123"),
+        row(null, null, null)
+      ))
   }
 
   @Test
   def testMaxMinOn(): Unit = {
+    // Max/Min on TIMESTAMP(9)
     checkResult(
       "SELECT MAX(d), MIN(d), b FROM T GROUP BY b",
       Seq(
@@ -161,10 +191,21 @@ class TimestampITCase extends BatchTestBase {
         row("1972-01-01T00:00", "1972-01-01T00:00", 4),
         row(null, null, null)
       ))
+
+    // Max/Min on TIME(9)
+    checkResult(
+      "SELECT MAX(j), MIN(j), b FROM T GROUP BY b",
+      Seq(
+        row("00:00:00.123456789", "00:00:00.123456789", 1),
+        row("00:00:00.123456", "00:00:00.123", 2),
+        row("00:00", "00:00", 4),
+        row(null, null, null)
+      ))
   }
 
   @Test
   def testLeadLagOn(): Unit = {
+    // Lead/Lag on TIMESTAMP(9)
     checkResult(
       "SELECT b, d, lag(d) OVER (PARTITION BY b ORDER BY d), " +
         "LEAD(d) OVER (PARTITION BY b ORDER BY d) FROM T",
@@ -173,6 +214,18 @@ class TimestampITCase extends BatchTestBase {
         row(2, "1970-01-01T00:00:00.123", null, "1970-01-01T00:00:00.123456"),
         row(2, "1970-01-01T00:00:00.123456", "1970-01-01T00:00:00.123", null),
         row(4, "1972-01-01T00:00", null, null),
+        row(null, null, null, null)
+      ))
+
+    // Lead/Lag on TIME(9)
+    checkResult(
+      "SELECT b, j, LAG(j) OVER (PARTITION BY b ORDER BY j), " +
+      "LEAD(j) OVER (PARTITION BY b ORDER BY j) FROM T",
+      Seq(
+        row(1, "00:00:00.123456789", null, null),
+        row(2, "00:00:00.123", null, "00:00:00.123456"),
+        row(2, "00:00:00.123456", "00:00:00.123", null),
+        row(4, "00:00", null, null),
         row(null, null, null, null)
       ))
   }
@@ -222,6 +275,21 @@ class TimestampITCase extends BatchTestBase {
           2, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123456Z"),
         row(4, 4, "1970-01-01T00:00:00.123Z", "1972-01-01T00:00:00Z",
           3, 2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123Z")
+      ))
+
+    // Join on TIME(9)
+    checkResult(
+      "SELECT T1.a, T1.b, T1.i, T1.j, T2.a, T2.b, T2.i, T2.j " +
+      "FROM T AS T1 JOIN T AS T2 ON T1.i = T2.j",
+      Seq(
+        row(1, 1, "00:00:00.123456789", "00:00:00.123456789",
+          1, 1, "00:00:00.123456789", "00:00:00.123456789"),
+        row(2, 2, "00:00:00.123456", "00:00:00.123456",
+          2, 2, "00:00:00.123456", "00:00:00.123456"),
+        row(3, 2, "00:00:00.123456", "00:00:00.123",
+          2, 2, "00:00:00.123456", "00:00:00.123456"),
+        row(4, 4, "00:00:00.123", "00:00",
+          3, 2, "00:00:00.123456", "00:00:00.123")
       ))
   }
 

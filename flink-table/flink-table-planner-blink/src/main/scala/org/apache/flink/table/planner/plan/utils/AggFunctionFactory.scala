@@ -302,7 +302,9 @@ class AggFunctionFactory(
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new DecimalMinWithRetractAggFunction(DecimalTypeInfo.of(d.getPrecision, d.getScale))
-        case TIME_WITHOUT_TIME_ZONE =>
+        case TIME_WITHOUT_TIME_ZONE
+            if argTypes(0).asInstanceOf[TimeType].getPrecision == TimeType.DEFAULT_PRECISION =>
+          // TODO: support TimeMinWithRetractAggFunction for high precision time
           new TimeMinWithRetractAggFunction
         case DATE =>
           new DateMinWithRetractAggFunction
@@ -334,7 +336,8 @@ class AggFunctionFactory(
         case DATE =>
           new MinAggFunction.DateMinAggFunction
         case TIME_WITHOUT_TIME_ZONE =>
-          new MinAggFunction.TimeMinAggFunction
+          val d = argTypes(0).asInstanceOf[TimeType]
+          new MinAggFunction.TimeMinAggFunction(d)
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val d = argTypes(0).asInstanceOf[TimestampType]
           new MinAggFunction.TimestampMinAggFunction(d)
@@ -370,7 +373,8 @@ class AggFunctionFactory(
       case DATE =>
         new LeadLagAggFunction.DateLeadLagAggFunction(argTypes.length)
       case TIME_WITHOUT_TIME_ZONE =>
-        new LeadLagAggFunction.TimeLeadLagAggFunction(argTypes.length)
+        val d = argTypes(0).asInstanceOf[TimeType]
+        new LeadLagAggFunction.TimeLeadLagAggFunction(argTypes.length, d)
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val d = argTypes(0).asInstanceOf[TimestampType]
         new LeadLagAggFunction.TimestampLeadLagAggFunction(argTypes.length, d)
@@ -406,7 +410,9 @@ class AggFunctionFactory(
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new DecimalMaxWithRetractAggFunction(DecimalTypeInfo.of(d.getPrecision, d.getScale))
-        case TIME_WITHOUT_TIME_ZONE =>
+        case TIME_WITHOUT_TIME_ZONE
+            if argTypes(0).asInstanceOf[TimeType].getPrecision == TimeType.DEFAULT_PRECISION =>
+          // TODO: support TimeMaxWithRetractAggFunction for high precision time
           new TimeMaxWithRetractAggFunction
         case DATE =>
           new DateMaxWithRetractAggFunction
@@ -438,7 +444,8 @@ class AggFunctionFactory(
         case DATE =>
           new MaxAggFunction.DateMaxAggFunction
         case TIME_WITHOUT_TIME_ZONE =>
-          new MaxAggFunction.TimeMaxAggFunction
+          val d = argTypes(0).asInstanceOf[TimeType]
+          new MaxAggFunction.TimeMaxAggFunction(d)
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val d = argTypes(0).asInstanceOf[TimestampType]
           new MaxAggFunction.TimestampMaxAggFunction(d)
@@ -481,7 +488,8 @@ class AggFunctionFactory(
       case DATE =>
         new DateSingleValueAggFunction
       case TIME_WITHOUT_TIME_ZONE =>
-        new TimeSingleValueAggFunction
+        val d = argTypes(0).asInstanceOf[TimeType]
+        new TimeSingleValueAggFunction(d)
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val d = argTypes(0).asInstanceOf[TimestampType]
         new TimestampSingleValueAggFunction(d)

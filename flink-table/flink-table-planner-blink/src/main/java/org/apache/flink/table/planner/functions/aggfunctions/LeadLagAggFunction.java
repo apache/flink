@@ -265,13 +265,16 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class TimeLeadLagAggFunction extends LeadLagAggFunction {
 
-		public TimeLeadLagAggFunction(int operandCount) {
+		private final TimeType type;
+
+		public TimeLeadLagAggFunction(int operandCount, TimeType type) {
 			super(operandCount);
+			this.type = type;
 		}
 
 		@Override
 		public DataType getResultType() {
-			return DataTypes.TIME(TimeType.DEFAULT_PRECISION);
+			return DataTypes.TIME(type.getPrecision());
 		}
 	}
 

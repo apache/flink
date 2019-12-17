@@ -47,7 +47,6 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -183,13 +182,12 @@ public class DataFormatConverters {
 					return new SqlTimestampConverter(precisionOfLZTS);
 				}
 			case TIME_WITHOUT_TIME_ZONE:
-				int precisionOfTime = getTimePrecision(logicalType);
 				if (clazz == LocalTime.class) {
-					return new LocalTimeConverter(precisionOfTime);
+					return new LocalTimeConverter();
 				} else if (clazz == Time.class) {
-					return new TimeConverter(precisionOfTime);
+					return new TimeConverter();
 				} else if (clazz == Integer.class || clazz == int.class) {
-					return new IntTimeConverter(precisionOfTime);
+					return new IntTimeConverter();
 				} else {
 					return new LongConverter();
 				}
@@ -277,8 +275,7 @@ public class DataFormatConverters {
 					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
 					return new InstantConverter(instantTypeInfo.getPrecision());
 				} else if (typeInfo instanceof LegacyLocalTimeTypeInfo) {
-					LegacyLocalTimeTypeInfo localTimeTypeInfo = (LegacyLocalTimeTypeInfo) typeInfo;
-					return new LocalTimeConverter(localTimeTypeInfo.getPrecision());
+					return new LocalTimeConverter();
 				}
 
 				if (clazz == BinaryGeneric.class) {
@@ -328,19 +325,6 @@ public class DataFormatConverters {
 			} else {
 				// TimestampType.DEFAULT_PRECISION == LocalZonedTimestampType.DEFAULT_PRECISION == 6
 				return TimestampType.DEFAULT_PRECISION;
-			}
-		}
-	}
-
-	private static int getTimePrecision(LogicalType logicalType) {
-		if (logicalType instanceof TimeType) {
-			return ((TimeType) logicalType).getPrecision();
-		} else {
-			TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
-			if (typeInfo instanceof LegacyLocalTimeTypeInfo) {
-				return ((LegacyLocalTimeTypeInfo) typeInfo).getPrecision();
-			} else {
-				return TimeType.DEFAULT_PRECISION;
 			}
 		}
 	}
@@ -740,11 +724,7 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = 1L;
 
-		private final int precision;
-
-		public LocalTimeConverter(int precision) {
-			this.precision = precision;
-		}
+		public LocalTimeConverter() {}
 
 		@Override
 		Long toInternalImpl(LocalTime value) {
@@ -854,11 +834,7 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -8061475784916442483L;
 
-		private final int precision;
-
-		public TimeConverter(int precision) {
-			this.precision = precision;
-		}
+		public TimeConverter() {}
 
 		@Override
 		Long toInternalImpl(Time value) {
@@ -1539,11 +1515,7 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = 1L;
 
-		private final int precision;
-
-		public IntTimeConverter(int precision) {
-			this.precision = precision;
-		}
+		public IntTimeConverter() {}
 
 		@Override
 		Long toInternalImpl(Integer value) {
