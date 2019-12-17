@@ -36,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class PatternFlatSelectAdapter<IN, OUT> extends PatternProcessFunction<IN, OUT> {
 
+	private static final long serialVersionUID = 6498969885184279473L;
 	private final PatternFlatSelectFunction<IN, OUT> flatSelectFunction;
 
 	public PatternFlatSelectAdapter(final PatternFlatSelectFunction<IN, OUT> flatSelectFunction) {

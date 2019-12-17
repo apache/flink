@@ -41,6 +41,7 @@ implements ValueArray<IntValue> {
 
 	// see note in ArrayList, HashTable, ...
 	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+	private static final long serialVersionUID = 2432223824178022789L;
 
 	private boolean isBounded;
 

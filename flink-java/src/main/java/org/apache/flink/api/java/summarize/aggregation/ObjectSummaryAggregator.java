@@ -27,6 +27,7 @@ import org.apache.flink.api.java.summarize.ObjectColumnSummary;
 @Internal
 public class ObjectSummaryAggregator implements Aggregator<Object, ObjectColumnSummary> {
 
+	private static final long serialVersionUID = -6144918380587393289L;
 	private long nonNullCount;
 	private long nullCount;
 

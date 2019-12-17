@@ -27,6 +27,7 @@ import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZER
  */
 @Internal
 public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
+	private static final long serialVersionUID = -5026059034545910489L;
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
@@ -35,6 +36,7 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 	 */
 	public static class MinDoubleAggregator implements Aggregator<Double, Double> {
 
+		private static final long serialVersionUID = 2689752307059003971L;
 		private double min = Double.POSITIVE_INFINITY;
 
 		@Override
@@ -58,6 +60,7 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 	 */
 	public static class MaxDoubleAggregator implements Aggregator<Double, Double> {
 
+		private static final long serialVersionUID = -6032037153285198413L;
 		private double max = Double.NEGATIVE_INFINITY;
 
 		@Override
@@ -81,6 +84,7 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 	 */
 	public static class SumDoubleAggregator implements Aggregator<Double, Double> {
 
+		private static final long serialVersionUID = -732089052771926119L;
 		private CompensatedSum sum = ZERO;
 
 		@Override

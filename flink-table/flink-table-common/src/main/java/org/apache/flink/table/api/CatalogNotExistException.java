@@ -26,6 +26,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class CatalogNotExistException extends RuntimeException {
 
+	private static final long serialVersionUID = -2620826318518383902L;
+
 	public CatalogNotExistException(String catalogName) {
 		this(catalogName, null);
 	}

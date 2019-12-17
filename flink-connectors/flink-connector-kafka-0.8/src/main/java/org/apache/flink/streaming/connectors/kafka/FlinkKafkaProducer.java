@@ -33,6 +33,8 @@ import java.util.Properties;
 @Deprecated
 public class FlinkKafkaProducer<IN> extends FlinkKafkaProducer08<IN>  {
 
+	private static final long serialVersionUID = 8068884287839281794L;
+
 	/**
 	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, String, SerializationSchema)}
 	 */

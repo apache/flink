@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
  */
 public class HiveShimV120 extends HiveShimV111 {
 
+	private static final long serialVersionUID = -4699784980591999398L;
+
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {

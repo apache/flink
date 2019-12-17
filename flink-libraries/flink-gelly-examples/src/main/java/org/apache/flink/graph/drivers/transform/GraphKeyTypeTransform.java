@@ -324,6 +324,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedByteValue
 	implements TranslateFunction<LongValue, ByteValue> {
 		public static final long MAX_VERTEX_COUNT = 1L << 8;
+		private static final long serialVersionUID = -2406530252844670003L;
 
 		@Override
 		public ByteValue translate(LongValue value, ByteValue reuse)
@@ -351,6 +352,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedByte
 	implements TranslateFunction<LongValue, Byte> {
 		public static final long MAX_VERTEX_COUNT = 1L << 8;
+		private static final long serialVersionUID = -7878347713954678404L;
 
 		@Override
 		public Byte translate(LongValue value, Byte reuse)
@@ -373,6 +375,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedShortValue
 	implements TranslateFunction<LongValue, ShortValue> {
 		public static final long MAX_VERTEX_COUNT = 1L << 16;
+		private static final long serialVersionUID = -8354395811271477627L;
 
 		@Override
 		public ShortValue translate(LongValue value, ShortValue reuse)
@@ -400,6 +403,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedShort
 	implements TranslateFunction<LongValue, Short> {
 		public static final long MAX_VERTEX_COUNT = 1L << 16;
+		private static final long serialVersionUID = 2479409848619378590L;
 
 		@Override
 		public Short translate(LongValue value, Short reuse)
@@ -422,6 +426,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToCharValue
 	implements TranslateFunction<LongValue, CharValue> {
 		public static final long MAX_VERTEX_COUNT = 1L << 16;
+		private static final long serialVersionUID = 8940463328783703207L;
 
 		@Override
 		public CharValue translate(LongValue value, CharValue reuse)
@@ -449,6 +454,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToChar
 	implements TranslateFunction<LongValue, Character> {
 		public static final long MAX_VERTEX_COUNT = 1L << 16;
+		private static final long serialVersionUID = -1075906019053065366L;
 
 		@Override
 		public Character translate(LongValue value, Character reuse)
@@ -471,6 +477,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedInt
 	implements TranslateFunction<LongValue, Integer> {
 		public static final long MAX_VERTEX_COUNT = 1L << 32;
+		private static final long serialVersionUID = -2184336647010533873L;
 
 		@Override
 		public Integer translate(LongValue value, Integer reuse)
@@ -490,6 +497,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class LongValueToLong
 	implements TranslateFunction<LongValue, Long> {
+		private static final long serialVersionUID = 6153168284490048848L;
+
 		@Override
 		public Long translate(LongValue value, Long reuse)
 				throws Exception {
@@ -503,6 +512,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedFloatValue
 	implements TranslateFunction<LongValue, FloatValue> {
 		public static final long MAX_VERTEX_COUNT = 1L << 32;
+		private static final long serialVersionUID = 3636711874525503690L;
 
 		@Override
 		public FloatValue translate(LongValue value, FloatValue reuse)
@@ -528,6 +538,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class LongValueToUnsignedFloat
 	implements TranslateFunction<LongValue, Float> {
 		public static final long MAX_VERTEX_COUNT = 1L << 32;
+		private static final long serialVersionUID = 8661526586991879585L;
 
 		@Override
 		public Float translate(LongValue value, Float reuse)
@@ -547,6 +558,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class LongValueToDoubleValue
 	implements TranslateFunction<LongValue, DoubleValue> {
+		private static final long serialVersionUID = -944847969693995201L;
+
 		@Override
 		public DoubleValue translate(LongValue value, DoubleValue reuse)
 				throws Exception {
@@ -564,6 +577,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class LongValueToDouble
 	implements TranslateFunction<LongValue, Double> {
+		private static final long serialVersionUID = -4603440010317593155L;
+
 		@Override
 		public Double translate(LongValue value, Double reuse)
 				throws Exception {
@@ -576,6 +591,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class LongValueToString
 	implements TranslateFunction<LongValue, String> {
+		private static final long serialVersionUID = -1845569399252784607L;
+
 		@Override
 		public String translate(LongValue value, String reuse)
 				throws Exception {
@@ -591,6 +608,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	private static class TranslateResultIDs<T, U>
 	implements FlatMapFunction<TranslatableResult<T>, TranslatableResult<U>> {
+		private static final long serialVersionUID = -3998494184461662803L;
 		private final TranslateFunction<T, U> translator;
 
 		private transient TranslatableResult<U> reuse = null;
@@ -612,6 +630,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class UnsignedByteValueToLongValueWithProperHashCode
 	implements TranslateFunction<ByteValue, LongValueWithProperHashCode> {
 		public static final long MIN_VERTEX_COUNT = Byte.MAX_VALUE + 2;
+		private static final long serialVersionUID = -8438321274335417744L;
 
 		@Override
 		public LongValueWithProperHashCode translate(ByteValue value, LongValueWithProperHashCode reuse)
@@ -631,6 +650,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class UnsignedByteToLongValueWithProperHashCode
 	implements TranslateFunction<Byte, LongValueWithProperHashCode> {
 		public static final long MIN_VERTEX_COUNT = Byte.MAX_VALUE + 2;
+		private static final long serialVersionUID = -3380907257342803728L;
 
 		@Override
 		public LongValueWithProperHashCode translate(Byte value, LongValueWithProperHashCode reuse)
@@ -650,6 +670,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class UnsignedShortValueToLongValueWithProperHashCode
 	implements TranslateFunction<ShortValue, LongValueWithProperHashCode> {
 		public static final long MIN_VERTEX_COUNT = Short.MAX_VALUE + 2;
+		private static final long serialVersionUID = 6377100877582384198L;
 
 		@Override
 		public LongValueWithProperHashCode translate(ShortValue value, LongValueWithProperHashCode reuse)
@@ -669,6 +690,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class UnsignedShortToLongValueWithProperHashCode
 	implements TranslateFunction<Short, LongValueWithProperHashCode> {
 		public static final long MIN_VERTEX_COUNT = Short.MAX_VALUE + 2;
+		private static final long serialVersionUID = -2615886486469875687L;
 
 		@Override
 		public LongValueWithProperHashCode translate(Short value, LongValueWithProperHashCode reuse)
@@ -688,6 +710,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class UnsignedIntValueToLongValueWithProperHashCode
 	implements TranslateFunction<IntValue, LongValueWithProperHashCode> {
 		public static final long MIN_VERTEX_COUNT = Integer.MAX_VALUE + 2L;
+		private static final long serialVersionUID = -7276323904203111791L;
 
 		@Override
 		public LongValueWithProperHashCode translate(IntValue value, LongValueWithProperHashCode reuse)
@@ -707,6 +730,7 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	static class UnsignedIntToLongValueWithProperHashCode
 	implements TranslateFunction<Integer, LongValueWithProperHashCode> {
 		public static final long MIN_VERTEX_COUNT = Integer.MAX_VALUE + 2L;
+		private static final long serialVersionUID = -8215921966502569201L;
 
 		@Override
 		public LongValueWithProperHashCode translate(Integer value, LongValueWithProperHashCode reuse)
@@ -725,6 +749,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class LongValueToLongValueWithProperHashCode
 	implements TranslateFunction<LongValue, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = -3929825801911741830L;
+
 		@Override
 		public LongValueWithProperHashCode translate(LongValue value, LongValueWithProperHashCode reuse)
 				throws Exception {
@@ -742,6 +768,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class UnsignedFloatValueToLongValueWithProperHashCode
 	implements TranslateFunction<FloatValue, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = -4895528039833462027L;
+
 		@Override
 		public LongValueWithProperHashCode translate(FloatValue value, LongValueWithProperHashCode reuse)
 				throws Exception {
@@ -759,6 +787,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class UnsignedFloatToLongValueWithProperHashCode
 	implements TranslateFunction<Float, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = -4458490839837022058L;
+
 		@Override
 		public LongValueWithProperHashCode translate(Float value, LongValueWithProperHashCode reuse)
 				throws Exception {
@@ -776,6 +806,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class DoubleValueToLongValueWithProperHashCode
 	implements TranslateFunction<DoubleValue, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = -8156667844418789795L;
+
 		@Override
 		public LongValueWithProperHashCode translate(DoubleValue value, LongValueWithProperHashCode reuse)
 				throws Exception {
@@ -793,6 +825,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class DoubleToLongValueWithProperHashCode
 	implements TranslateFunction<Double, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = -4256439510573934264L;
+
 		@Override
 		public LongValueWithProperHashCode translate(Double value, LongValueWithProperHashCode reuse)
 				throws Exception {
@@ -810,6 +844,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class StringValueToLongValueWithProperHashCode
 	implements TranslateFunction<StringValue, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = -8879586945452656821L;
+
 		@Override
 		public LongValueWithProperHashCode translate(StringValue value, LongValueWithProperHashCode reuse)
 				throws Exception {
@@ -827,6 +863,8 @@ implements Transform<Graph<LongValue, VV, EV>, Graph<?, VV, EV>, DataSet<Transla
 	 */
 	static class StringToLongValueWithProperHashCode
 	implements TranslateFunction<String, LongValueWithProperHashCode> {
+		private static final long serialVersionUID = 1254052166399269935L;
+
 		@Override
 		public LongValueWithProperHashCode translate(String value, LongValueWithProperHashCode reuse)
 				throws Exception {

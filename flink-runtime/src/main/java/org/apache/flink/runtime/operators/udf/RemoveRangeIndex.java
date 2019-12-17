@@ -22,6 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 public class RemoveRangeIndex<T> implements MapFunction<Tuple2<Integer,T>,T> {
 
+	private static final long serialVersionUID = 6553845496792045137L;
+
 	@Override
 	public T map(Tuple2<Integer, T> value) throws Exception {
 		return value.f1;

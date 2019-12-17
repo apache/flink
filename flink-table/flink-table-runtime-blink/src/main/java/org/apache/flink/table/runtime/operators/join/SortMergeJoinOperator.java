@@ -64,6 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, BoundedMultiInput {
 
+	private static final long serialVersionUID = 6323137265794479828L;
 	private final double externalBufferMemRatio;
 	private final FlinkJoinType type;
 	private final boolean leftIsSmaller;

@@ -35,6 +35,7 @@ import java.io.Serializable;
 public abstract class WatermarkTracker implements Closeable, Serializable {
 
 	public static final long DEFAULT_UPDATE_TIMEOUT_MILLIS = 60_000;
+	private static final long serialVersionUID = 2491201615708948753L;
 
 	/**
 	 * Subtasks that have not provided a watermark update within the configured interval will be

@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.generated.GeneratedClass;
  */
 public class CodeGenOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 
+	private static final long serialVersionUID = 7979653931789036565L;
 	private final GeneratedClass<? extends StreamOperator<OUT>> generatedClass;
 	private ChainingStrategy strategy = ChainingStrategy.ALWAYS;
 

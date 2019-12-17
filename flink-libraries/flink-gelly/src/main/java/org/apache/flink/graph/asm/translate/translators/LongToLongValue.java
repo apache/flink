@@ -27,6 +27,8 @@ import org.apache.flink.types.LongValue;
 public class LongToLongValue
 implements TranslateFunction<Long, LongValue> {
 
+	private static final long serialVersionUID = -9007957175870441287L;
+
 	@Override
 	public LongValue translate(Long value, LongValue reuse)
 			throws Exception {

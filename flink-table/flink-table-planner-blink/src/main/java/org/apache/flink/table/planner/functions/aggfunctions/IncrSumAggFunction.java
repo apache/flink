@@ -40,6 +40,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * negative number is discarded to ensure the monotonicity.
  */
 public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = 7933415886172485187L;
 	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 
 	@Override
@@ -97,6 +98,8 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class IntIncrSumAggFunction extends IncrSumAggFunction {
 
+		private static final long serialVersionUID = -6243767185822938173L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -107,6 +110,8 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Byte IncrSum aggregate function.
 	 */
 	public static class ByteIncrSumAggFunction extends IncrSumAggFunction {
+		private static final long serialVersionUID = -8443171322810537172L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -117,6 +122,8 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Short IncrSum aggregate function.
 	 */
 	public static class ShortIncrSumAggFunction extends IncrSumAggFunction {
+		private static final long serialVersionUID = 4018634816212971537L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.SMALLINT();
@@ -127,6 +134,8 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Long IncrSum aggregate function.
 	 */
 	public static class LongIncrSumAggFunction extends IncrSumAggFunction {
+		private static final long serialVersionUID = -5551726470340429761L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -137,6 +146,8 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Float IncrSum aggregate function.
 	 */
 	public static class FloatIncrSumAggFunction extends IncrSumAggFunction {
+		private static final long serialVersionUID = -6374058267082628956L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.FLOAT();
@@ -147,6 +158,8 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Double IncrSum aggregate function.
 	 */
 	public static class DoubleIncrSumAggFunction extends IncrSumAggFunction {
+		private static final long serialVersionUID = 8486181972245586036L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -157,6 +170,7 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Decimal IncrSum aggregate function.
 	 */
 	public static class DecimalIncrSumAggFunction extends IncrSumAggFunction {
+		private static final long serialVersionUID = -7572527429193602022L;
 		private DecimalType decimalType;
 
 		public DecimalIncrSumAggFunction(DecimalType decimalType) {

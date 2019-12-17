@@ -44,6 +44,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeL
  */
 public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
+	private static final long serialVersionUID = 975241249450305470L;
 	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
@@ -115,6 +116,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class ByteAvgAggFunction extends AvgAggFunction {
 
+		private static final long serialVersionUID = -2029676029819666419L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -130,6 +133,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Short Avg aggregate function.
 	 */
 	public static class ShortAvgAggFunction extends AvgAggFunction {
+
+		private static final long serialVersionUID = 8401643067662135801L;
 
 		@Override
 		public DataType getResultType() {
@@ -147,6 +152,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class IntAvgAggFunction extends AvgAggFunction {
 
+		private static final long serialVersionUID = -4337455325008935781L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -163,6 +170,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class LongAvgAggFunction extends AvgAggFunction {
 
+		private static final long serialVersionUID = -6633757591412900073L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -178,6 +187,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Float Avg aggregate function.
 	 */
 	public static class FloatAvgAggFunction extends AvgAggFunction {
+
+		private static final long serialVersionUID = 1072944519036239545L;
 
 		@Override
 		public DataType getResultType() {
@@ -200,6 +211,8 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class DoubleAvgAggFunction extends AvgAggFunction {
 
+		private static final long serialVersionUID = 7762401869968076341L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -221,6 +234,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class DecimalAvgAggFunction extends AvgAggFunction {
 
+		private static final long serialVersionUID = -1267321500415712959L;
 		private final DecimalType type;
 
 		public DecimalAvgAggFunction(DecimalType type) {

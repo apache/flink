@@ -157,6 +157,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
 		.defaultValue(false)
 		.withDescription("Whether to expose the column family as a variable.");
+	private static final long serialVersionUID = -1834342759249804744L;
 
 	/**
 	 * Creates a {@link RocksDBNativeMetricOptions} based on an

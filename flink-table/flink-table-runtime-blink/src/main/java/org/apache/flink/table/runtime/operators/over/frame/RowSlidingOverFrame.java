@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.RowType;
  */
 public class RowSlidingOverFrame extends SlidingOverFrame {
 
+	private static final long serialVersionUID = 753442589672349323L;
 	private final long leftBound;
 	private final long rightBound;
 

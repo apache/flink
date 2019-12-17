@@ -35,6 +35,7 @@ import java.time.LocalDate;
 @Internal
 public final class LocalDateComparator extends TypeComparator<LocalDate> implements Serializable {
 
+	private static final long serialVersionUID = 302235524643029061L;
 	private transient LocalDate reference;
 
 	protected final boolean ascendingComparison;

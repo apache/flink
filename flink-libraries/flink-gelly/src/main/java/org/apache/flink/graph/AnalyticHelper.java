@@ -46,6 +46,7 @@ public abstract class AnalyticHelper<T>
 extends RichOutputFormat<T> {
 
 	private static final String SEPARATOR = "-";
+	private static final long serialVersionUID = -8852626333920623373L;
 
 	private String id = new AbstractID().toString();
 

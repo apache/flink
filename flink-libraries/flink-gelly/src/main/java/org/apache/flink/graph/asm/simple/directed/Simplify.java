@@ -61,6 +61,8 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	 */
 	private static class RemoveSelfLoops<T extends Comparable<T>, ET>
 	implements FilterFunction<Edge<T, ET>> {
+		private static final long serialVersionUID = -8051938406294429641L;
+
 		@Override
 		public boolean filter(Edge<T, ET> value) throws Exception {
 			return (value.f0.compareTo(value.f1) != 0);

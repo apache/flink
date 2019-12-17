@@ -38,6 +38,7 @@ import java.io.IOException;
  */
 public class Generator implements InputFormat<Tuple2<String, Integer>, GenericInputSplit> {
 
+	private static final long serialVersionUID = 3193020098818540963L;
 	// total number of records
 	private final long numRecords;
 	// total number of keys

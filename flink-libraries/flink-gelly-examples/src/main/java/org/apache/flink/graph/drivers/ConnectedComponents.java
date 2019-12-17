@@ -59,6 +59,8 @@ extends DriverBase<K, VV, EV> {
 	 */
 	private static final class MapVertices<T, VT>
 	implements MapFunction<Vertex<T, VT>, T> {
+		private static final long serialVersionUID = 6097930738947556124L;
+
 		@Override
 		public T map(Vertex<T, VT> value) throws Exception {
 			return value.f0;

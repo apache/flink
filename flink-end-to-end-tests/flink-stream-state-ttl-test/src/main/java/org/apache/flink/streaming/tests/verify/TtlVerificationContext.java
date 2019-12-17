@@ -26,6 +26,7 @@ import java.util.List;
 
 /** Data to verify state update with TTL. */
 public class TtlVerificationContext<UV, GV> implements Serializable {
+	private static final long serialVersionUID = -3592820724410479982L;
 	private final int key;
 	@Nonnull
 	private final String  verifierId;

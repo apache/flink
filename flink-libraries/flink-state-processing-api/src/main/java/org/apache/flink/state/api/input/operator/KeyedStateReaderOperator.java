@@ -53,6 +53,7 @@ public class KeyedStateReaderOperator<KEY, OUT>
 	extends StateReaderOperator<KeyedStateReaderFunction<KEY, OUT>, KEY, VoidNamespace, OUT> {
 
 	private static final String USER_TIMERS_NAME = "user-timers";
+	private static final long serialVersionUID = 2459434768653500863L;
 
 	private transient Context<KEY> context;
 

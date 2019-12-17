@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
  */
 public class CountCoBundleTrigger<IN1, IN2> implements CoBundleTrigger<IN1, IN2> {
 
+	private static final long serialVersionUID = -8531642947833842485L;
 	private final long maxCount;
 	private transient BundleTriggerCallback callback;
 	private transient long count = 0;

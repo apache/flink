@@ -30,6 +30,7 @@ import java.util.Arrays;
  */
 public abstract class AbstractHeapVector extends AbstractColumnVector {
 
+	private static final long serialVersionUID = -2871521467008715655L;
 	/*
 	 * If hasNulls is true, then this array contains true if the value
 	 * is null, otherwise false. The array is always allocated, so a batch can be re-used

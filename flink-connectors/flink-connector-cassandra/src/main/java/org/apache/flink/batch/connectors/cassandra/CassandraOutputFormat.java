@@ -30,6 +30,8 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 @Deprecated
 public class CassandraOutputFormat<OUT extends Tuple> extends CassandraTupleOutputFormat<OUT> {
 
+	private static final long serialVersionUID = -6756968811688679493L;
+
 	public CassandraOutputFormat(String insertQuery, ClusterBuilder builder) {
 		super(insertQuery, builder);
 	}

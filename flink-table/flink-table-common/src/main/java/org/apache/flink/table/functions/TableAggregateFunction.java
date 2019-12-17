@@ -111,6 +111,8 @@ import org.apache.flink.util.Collector;
 @PublicEvolving
 public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
+	private static final long serialVersionUID = 2895885101279637970L;
+
 	/**
 	 * Collects a record and forwards it. The collector can output retract messages with the retract
 	 * method. Note: only use it in {@code emitUpdateWithRetract}.

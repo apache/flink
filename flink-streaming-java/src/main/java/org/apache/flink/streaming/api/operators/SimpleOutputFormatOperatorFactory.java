@@ -32,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class SimpleOutputFormatOperatorFactory<IN>
 	extends SimpleOperatorFactory<Object> implements OutputFormatOperatorFactory<IN> {
 
+	private static final long serialVersionUID = -7917121545657695037L;
 	private final StreamSink<IN> operator;
 
 	public SimpleOutputFormatOperatorFactory(StreamSink<IN> operator) {

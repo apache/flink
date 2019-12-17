@@ -52,6 +52,7 @@ import java.util.Objects;
 @PublicEvolving
 public abstract class DataType implements Serializable {
 
+	private static final long serialVersionUID = -3893864896762154062L;
 	protected final LogicalType logicalType;
 
 	protected final Class<?> conversionClass;

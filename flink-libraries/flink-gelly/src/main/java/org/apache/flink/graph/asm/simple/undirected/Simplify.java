@@ -92,6 +92,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	 */
 	private static class SymmetrizeAndRemoveSelfLoops<T extends Comparable<T>, ET>
 	implements FlatMapFunction<Edge<T, ET>, Edge<T, ET>> {
+		private static final long serialVersionUID = -3504965248232506117L;
 		private boolean clipAndFlip;
 
 		public SymmetrizeAndRemoveSelfLoops(boolean clipAndFlip) {

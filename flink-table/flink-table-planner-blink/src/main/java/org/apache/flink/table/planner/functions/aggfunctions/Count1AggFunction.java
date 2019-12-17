@@ -34,6 +34,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * It differs in that null values are also counted.
  */
 public class Count1AggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -1480880543293745965L;
 	private UnresolvedReferenceExpression count1 = unresolvedRef("count1");
 
 	@Override

@@ -28,6 +28,8 @@ import org.apache.flink.util.Preconditions;
  */
 public final class TableSourceStreamOp extends StreamOperator<TableSourceStreamOp> {
 
+	private static final long serialVersionUID = 5410669383994877795L;
+
 	public TableSourceStreamOp(Table table) {
 		super(null);
 		Preconditions.checkArgument(table != null, "The source table cannot be null.");

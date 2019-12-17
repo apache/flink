@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
  */
 public class RowUnboundedPrecedingOverFrame extends UnboundedPrecedingOverFrame {
 
+	private static final long serialVersionUID = -7691544183298171887L;
 	private long rightBound;
 
 	/**

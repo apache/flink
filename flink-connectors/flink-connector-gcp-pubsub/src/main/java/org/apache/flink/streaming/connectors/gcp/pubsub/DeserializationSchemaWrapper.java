@@ -28,6 +28,7 @@ import com.google.pubsub.v1.PubsubMessage;
  * This class wraps a {@link DeserializationSchema} so it can be used in a {@link PubSubSource} as a {@link PubSubDeserializationSchema}.
  */
 class DeserializationSchemaWrapper<T> implements PubSubDeserializationSchema<T> {
+	private static final long serialVersionUID = 7674034872914451009L;
 	private final DeserializationSchema<T> deserializationSchema;
 
 	DeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {

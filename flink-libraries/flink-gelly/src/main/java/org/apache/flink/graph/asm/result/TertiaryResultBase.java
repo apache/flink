@@ -31,6 +31,7 @@ public abstract class TertiaryResultBase<K>
 extends ResultBase
 implements TertiaryResult<K>, TranslatableResult<K> {
 
+	private static final long serialVersionUID = -5684696568687845626L;
 	private K vertexId0;
 
 	private K vertexId1;
@@ -103,6 +104,8 @@ implements TertiaryResult<K>, TranslatableResult<K> {
 	 */
 	private static class BasicTertiaryResult<U>
 	extends TertiaryResultBase<U> {
+		private static final long serialVersionUID = 4918158689665808144L;
+
 		@Override
 		public String toString() {
 			return "(" + getVertexId0() + "," + getVertexId1() + "," + getVertexId2() + ")";

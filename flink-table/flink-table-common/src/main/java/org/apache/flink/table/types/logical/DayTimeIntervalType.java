@@ -98,6 +98,7 @@ public final class DayTimeIntervalType extends LogicalType {
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.Duration.class;
+	private static final long serialVersionUID = 4251427358683023981L;
 
 	/**
 	 * Supported resolutions of this type.

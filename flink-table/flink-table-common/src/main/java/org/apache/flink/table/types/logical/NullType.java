@@ -42,6 +42,7 @@ public final class NullType extends LogicalType {
 	private static final Class<?> INPUT_CONVERSION = Object.class;
 
 	private static final Class<?> DEFAULT_CONVERSION = Object.class;
+	private static final long serialVersionUID = -6231350505988125500L;
 
 	public NullType() {
 		super(true, LogicalTypeRoot.NULL);

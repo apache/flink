@@ -37,6 +37,7 @@ import java.util.Properties;
  */
 public class FlinkDynamoDBStreamsConsumer<T> extends FlinkKinesisConsumer<T> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkDynamoDBStreamsConsumer.class);
+	private static final long serialVersionUID = -6516053598608212763L;
 
 	/**
 	 * Constructor of FlinkDynamoDBStreamsConsumer.

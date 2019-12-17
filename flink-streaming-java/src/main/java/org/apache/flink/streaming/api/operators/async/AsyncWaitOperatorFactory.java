@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  * @param <OUT> The output type of the operator
  */
 public class AsyncWaitOperatorFactory<IN, OUT> implements OneInputStreamOperatorFactory<IN, OUT>, YieldingOperatorFactory<OUT> {
+	private static final long serialVersionUID = -9133957585343815450L;
 	private final AsyncFunction<IN, OUT> asyncFunction;
 	private final long timeout;
 	private final int capacity;

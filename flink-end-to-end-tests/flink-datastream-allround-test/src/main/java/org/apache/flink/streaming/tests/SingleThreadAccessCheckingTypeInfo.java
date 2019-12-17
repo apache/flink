@@ -27,6 +27,7 @@ import java.util.Objects;
 
 /** Custom {@link TypeInformation} to test custom {@link TypeSerializer}. */
 public class SingleThreadAccessCheckingTypeInfo<T> extends TypeInformation<T> {
+	private static final long serialVersionUID = 5462489225834247537L;
 	private final TypeInformation<T> originalTypeInformation;
 
 	SingleThreadAccessCheckingTypeInfo(Class<T> clazz) {

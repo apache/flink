@@ -30,6 +30,7 @@ public abstract class BinaryResultBase<K>
 extends ResultBase
 implements BinaryResult<K>, TranslatableResult<K> {
 
+	private static final long serialVersionUID = 8256611274287888920L;
 	private K vertexId0;
 
 	private K vertexId1;
@@ -87,6 +88,8 @@ implements BinaryResult<K>, TranslatableResult<K> {
 	 */
 	private static class BasicBinaryResult<U>
 	extends BinaryResultBase<U> {
+		private static final long serialVersionUID = -3550684062087784858L;
+
 		@Override
 		public String toString() {
 			return "(" + getVertexId0() + "," + getVertexId1() + ")";

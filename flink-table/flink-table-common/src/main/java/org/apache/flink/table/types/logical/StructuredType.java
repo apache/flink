@@ -69,12 +69,14 @@ public final class StructuredType extends UserDefinedType {
 		"org.apache.flink.table.dataformat.BaseRow");
 
 	private static final Class<?> FALLBACK_CONVERSION = Row.class;
+	private static final long serialVersionUID = 5758058182619700474L;
 
 	/**
 	 * Defines an attribute of a {@link StructuredType}.
 	 */
 	public static final class StructuredAttribute implements Serializable {
 
+		private static final long serialVersionUID = -700319903741890193L;
 		private final String name;
 
 		private final LogicalType type;

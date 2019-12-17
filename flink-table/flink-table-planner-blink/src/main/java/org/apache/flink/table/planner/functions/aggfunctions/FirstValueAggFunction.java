@@ -37,6 +37,8 @@ import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.
  */
 public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, GenericRow> {
 
+	private static final long serialVersionUID = -6799132930154055151L;
+
 	@Override
 	public boolean isDeterministic() {
 		return false;
@@ -97,6 +99,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 */
 	public static class ByteFirstValueAggFunction extends FirstValueAggFunction<Byte> {
 
+		private static final long serialVersionUID = -2794338826995578638L;
+
 		@Override
 		public TypeInformation<Byte> getResultType() {
 			return Types.BYTE;
@@ -107,6 +111,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 * Built-in Short FirstValue aggregate function.
 	 */
 	public static class ShortFirstValueAggFunction extends FirstValueAggFunction<Short> {
+
+		private static final long serialVersionUID = 5288267731172714920L;
 
 		@Override
 		public TypeInformation<Short> getResultType() {
@@ -119,6 +125,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 */
 	public static class IntFirstValueAggFunction extends FirstValueAggFunction<Integer> {
 
+		private static final long serialVersionUID = 2403090049746717477L;
+
 		@Override
 		public TypeInformation<Integer> getResultType() {
 			return Types.INT;
@@ -129,6 +137,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 * Built-in Long FirstValue aggregate function.
 	 */
 	public static class LongFirstValueAggFunction extends FirstValueAggFunction<Long> {
+
+		private static final long serialVersionUID = 756865791139290049L;
 
 		@Override
 		public TypeInformation<Long> getResultType() {
@@ -141,6 +151,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 */
 	public static class FloatFirstValueAggFunction extends FirstValueAggFunction<Float> {
 
+		private static final long serialVersionUID = 6031661749600565347L;
+
 		@Override
 		public TypeInformation<Float> getResultType() {
 			return Types.FLOAT;
@@ -151,6 +163,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 * Built-in Double FirstValue aggregate function.
 	 */
 	public static class DoubleFirstValueAggFunction extends FirstValueAggFunction<Double> {
+
+		private static final long serialVersionUID = 7206824255948766907L;
 
 		@Override
 		public TypeInformation<Double> getResultType() {
@@ -163,6 +177,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 */
 	public static class BooleanFirstValueAggFunction extends FirstValueAggFunction<Boolean> {
 
+		private static final long serialVersionUID = -8475978900078592986L;
+
 		@Override
 		public TypeInformation<Boolean> getResultType() {
 			return Types.BOOLEAN;
@@ -174,6 +190,7 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 */
 	public static class DecimalFirstValueAggFunction extends FirstValueAggFunction<Decimal> {
 
+		private static final long serialVersionUID = 6541379262608276379L;
 		private DecimalTypeInfo decimalTypeInfo;
 
 		public DecimalFirstValueAggFunction(DecimalTypeInfo decimalTypeInfo) {
@@ -199,6 +216,8 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 	 * Built-in String FirstValue aggregate function.
 	 */
 	public static class StringFirstValueAggFunction extends FirstValueAggFunction<BinaryString> {
+
+		private static final long serialVersionUID = -4818378461230980994L;
 
 		@Override
 		public TypeInformation<BinaryString> getResultType() {

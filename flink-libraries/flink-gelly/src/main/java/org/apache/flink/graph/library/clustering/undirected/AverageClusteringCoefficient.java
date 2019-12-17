@@ -90,6 +90,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class AverageClusteringCoefficientHelper<T>
 	extends AnalyticHelper<LocalClusteringCoefficient.Result<T>> {
+		private static final long serialVersionUID = -2350339834229236375L;
 		private long vertexCount;
 		private double sumOfLocalClusteringCoefficient;
 

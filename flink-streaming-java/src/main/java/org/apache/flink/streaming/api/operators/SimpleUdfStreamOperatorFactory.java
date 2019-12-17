@@ -28,6 +28,7 @@ import org.apache.flink.api.common.functions.Function;
 @Internal
 public class SimpleUdfStreamOperatorFactory<OUT> extends SimpleOperatorFactory<OUT> implements UdfStreamOperatorFactory<OUT> {
 
+	private static final long serialVersionUID = 888902327938671138L;
 	private final AbstractUdfStreamOperator<OUT, ?> operator;
 
 	public SimpleUdfStreamOperatorFactory(AbstractUdfStreamOperator<OUT, ?> operator) {

@@ -43,6 +43,7 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 public class NonBufferOverWindowOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow> {
 
+	private static final long serialVersionUID = 7967448806235990975L;
 	private GeneratedAggsHandleFunction[] aggsHandlers;
 	private GeneratedRecordComparator genComparator;
 	private final boolean[] resetAccumulators;

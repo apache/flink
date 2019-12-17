@@ -43,6 +43,7 @@ import java.io.Serializable;
 public abstract class CheckpointCommitter implements Serializable {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(CheckpointCommitter.class);
+	private static final long serialVersionUID = 8698594963661802743L;
 
 	protected String jobId;
 	protected String operatorId;

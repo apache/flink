@@ -256,6 +256,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0->1; 1->2")
 	private static class GenerateGroupSpans<T, ET>
 	implements GroupReduceFunction<Edge<T, Tuple2<ET, LongValue>>, Tuple4<IntValue, T, T, IntValue>> {
+		private static final long serialVersionUID = -6207366877191732626L;
 		private final int groupSize;
 
 		private IntValue groupSpansValue = new IntValue();
@@ -305,6 +306,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("1; 2; 3")
 	private static class GenerateGroups<T>
 	implements FlatMapFunction<Tuple4<IntValue, T, T, IntValue>, Tuple4<IntValue, T, T, IntValue>> {
+		private static final long serialVersionUID = -3260589094366189049L;
+
 		@Override
 		public void flatMap(Tuple4<IntValue, T, T, IntValue> value, Collector<Tuple4<IntValue, T, T, IntValue>> out)
 				throws Exception {
@@ -329,6 +332,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class GenerateGroupPairs<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple4<IntValue, T, T, IntValue>, Tuple3<T, T, IntValue>> {
+		private static final long serialVersionUID = 2757065088941786717L;
 		private final int groupSize;
 
 		private boolean initialized = false;
@@ -401,6 +405,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0->vertexId0; 1->vertexId1")
 	private static class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
+		private static final long serialVersionUID = -4626625308418114826L;
 		private boolean unboundedScores;
 
 		private long minimumScoreNumerator;
@@ -456,6 +461,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends BinaryResultBase<T>
 	implements PrintableResult, Comparable<Result<T>> {
+		private static final long serialVersionUID = 1595191551357184935L;
 		private IntValue sharedNeighborCount = new IntValue();
 
 		private IntValue distinctNeighborCount = new IntValue();

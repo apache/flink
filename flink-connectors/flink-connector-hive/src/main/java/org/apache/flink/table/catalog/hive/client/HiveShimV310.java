@@ -52,6 +52,7 @@ import java.util.Set;
  */
 public class HiveShimV310 extends HiveShimV235 {
 
+	private static final long serialVersionUID = 3272951189049817952L;
 	// timestamp classes
 	private static Class hiveTimestampClz;
 	private static Constructor hiveTimestampConstructor;

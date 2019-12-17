@@ -38,6 +38,7 @@ import java.util.Objects;
 @PublicEvolving
 public final class FieldsDataType extends DataType {
 
+	private static final long serialVersionUID = -7865917327793396623L;
 	private final Map<String, DataType> fieldDataTypes;
 
 	public FieldsDataType(

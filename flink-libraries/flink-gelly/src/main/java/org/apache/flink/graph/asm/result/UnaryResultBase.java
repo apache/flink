@@ -31,6 +31,7 @@ public abstract class UnaryResultBase<K>
 extends ResultBase
 implements UnaryResult<K>, TranslatableResult<K> {
 
+	private static final long serialVersionUID = 2774057038221540371L;
 	private K vertexId0;
 
 	@Override
@@ -73,6 +74,8 @@ implements UnaryResult<K>, TranslatableResult<K> {
 	 */
 	private static class BasicUnaryResult<U>
 	extends UnaryResultBase<U> {
+		private static final long serialVersionUID = 2733814315949181048L;
+
 		@Override
 		public String toString() {
 			return "(" + getVertexId0() + ")";

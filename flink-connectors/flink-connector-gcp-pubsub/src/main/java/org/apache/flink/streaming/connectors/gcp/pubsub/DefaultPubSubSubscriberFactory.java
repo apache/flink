@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.time.Duration;
 
 class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
+	private static final long serialVersionUID = -564357440396263173L;
 	private final int retries;
 	private final Duration timeout;
 	private final int maxMessagesPerPull;

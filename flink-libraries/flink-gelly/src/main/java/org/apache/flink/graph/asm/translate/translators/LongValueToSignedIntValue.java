@@ -32,6 +32,7 @@ public class LongValueToSignedIntValue
 implements TranslateFunction<LongValue, IntValue> {
 
 	public static final long MAX_VERTEX_COUNT = 1L << 32;
+	private static final long serialVersionUID = 8006647007934087911L;
 
 	@Override
 	public IntValue translate(LongValue value, IntValue reuse)

@@ -35,6 +35,7 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 	 */
 	public static class MinLongAggregator implements Aggregator<Long, Long> {
 
+		private static final long serialVersionUID = 514281453171585970L;
 		private long min = Long.MAX_VALUE;
 
 		@Override
@@ -58,6 +59,7 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 	 */
 	public static class MaxLongAggregator implements Aggregator<Long, Long> {
 
+		private static final long serialVersionUID = 3792028253356538772L;
 		private long max = Long.MIN_VALUE;
 
 		@Override
@@ -81,6 +83,7 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 	 */
 	private static class SumLongAggregator implements Aggregator<Long, Long> {
 
+		private static final long serialVersionUID = 1272344715747612290L;
 		private long sum = 0;
 
 		@Override

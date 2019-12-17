@@ -732,6 +732,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * {@code WindowContext}.
 	 */
 	public class WindowContext implements InternalWindowFunction.InternalWindowContext {
+		private static final long serialVersionUID = 7218287265613412560L;
 		protected W window;
 
 		protected AbstractPerWindowStateStore windowState;

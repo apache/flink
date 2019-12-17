@@ -40,6 +40,8 @@ import java.util.Map;
  */
 public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 
+	private static final long serialVersionUID = 2555206696325929391L;
+
 	public ParquetMapInputFormat(Path path, MessageType messageType) {
 		super(path, messageType);
 	}

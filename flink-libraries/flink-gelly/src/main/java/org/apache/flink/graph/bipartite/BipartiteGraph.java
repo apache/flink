@@ -138,6 +138,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	@ForwardedFieldsSecond("0->1; 2->2.1")
 	private static class ProjectionTopSimple<KT, KB, EV>
 	implements FlatJoinFunction<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>, Edge<KT, Tuple2<EV, EV>>> {
+		private static final long serialVersionUID = 2926638863991564505L;
 		private Tuple2<EV, EV> edgeValues = new Tuple2<>();
 
 		private Edge<KT, Tuple2<EV, EV>> edge = new Edge<>(null, null, edgeValues);
@@ -182,6 +183,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	@ForwardedFieldsSecond("1; 2->2.1")
 	private static class ProjectionBottomSimple<KT, KB, EV>
 	implements FlatJoinFunction<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>, Edge<KB, Tuple2<EV, EV>>> {
+		private static final long serialVersionUID = -6026403076719437085L;
 		private Tuple2<EV, EV> edgeValues = new Tuple2<>();
 
 		private Edge<KB, Tuple2<EV, EV>> edge = new Edge<>(null, null, edgeValues);
@@ -244,6 +246,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	@ForwardedFieldsSecond("0->1; 2->2.5; 3->2.3")
 	private static class ProjectionTopFull<KT, KB, EV, VVT, VVB>
 	implements FlatJoinFunction<Tuple5<KT, KB, EV, VVT, VVB>, Tuple5<KT, KB, EV, VVT, VVB>, Edge<KT, Projection<KB, VVB, VVT, EV>>> {
+		private static final long serialVersionUID = 6891238828502272209L;
 		private Projection<KB, VVB, VVT, EV> projection = new Projection<>();
 
 		private Edge<KT, Projection<KB, VVB, VVT, EV>> edge = new Edge<>(null, null, projection);
@@ -294,6 +297,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	@ForwardedFieldsSecond("1; 2->2.5; 4->2.3")
 	private static class ProjectionBottomFull<KT, KB, EV, VVT, VVB>
 	implements FlatJoinFunction<Tuple5<KT, KB, EV, VVT, VVB>, Tuple5<KT, KB, EV, VVT, VVB>, Edge<KB, Projection<KT, VVT, VVB, EV>>> {
+		private static final long serialVersionUID = 4367125192780447464L;
 		private Projection<KT, VVT, VVB, EV> projection = new Projection<>();
 
 		private Edge<KB, Projection<KT, VVT, VVB, EV>> edge = new Edge<>(null, null, projection);

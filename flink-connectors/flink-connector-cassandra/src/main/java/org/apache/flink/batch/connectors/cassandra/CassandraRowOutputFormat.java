@@ -25,6 +25,8 @@ import org.apache.flink.types.Row;
  */
 public class CassandraRowOutputFormat extends CassandraOutputFormatBase<Row> {
 
+	private static final long serialVersionUID = -5480741611859511134L;
+
 	public CassandraRowOutputFormat(String insertQuery, ClusterBuilder builder) {
 		super(insertQuery, builder);
 	}

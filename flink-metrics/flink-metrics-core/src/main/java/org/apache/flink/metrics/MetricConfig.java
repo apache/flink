@@ -25,6 +25,8 @@ import java.util.Properties;
  */
 public class MetricConfig extends Properties {
 
+	private static final long serialVersionUID = -8926691810470308071L;
+
 	public String getString(String key, String defaultValue) {
 		return getProperty(key, defaultValue);
 	}

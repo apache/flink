@@ -38,6 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class MapTypeInfo<K, V> extends TypeInformation<Map<K, V>> {
 
+	private static final long serialVersionUID = 35220134511141190L;
 	/* The type information for the keys in the map*/
 	private final TypeInformation<K> keyTypeInfo;
 

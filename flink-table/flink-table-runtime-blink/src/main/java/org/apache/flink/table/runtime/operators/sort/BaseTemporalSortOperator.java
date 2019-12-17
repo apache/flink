@@ -35,6 +35,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 abstract class BaseTemporalSortOperator extends AbstractStreamOperator<BaseRow> implements
 		OneInputStreamOperator<BaseRow, BaseRow>, Triggerable<BaseRow, VoidNamespace> {
 
+	private static final long serialVersionUID = -5476479212328271128L;
 	protected transient TimerService timerService;
 	protected transient TimestampedCollector<BaseRow> collector;
 

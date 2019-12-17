@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
  */
 public class NoMatchingTableFactoryException extends RuntimeException {
 
+	private static final long serialVersionUID = -8195248379425594801L;
 	// message that indicates the current matching step
 	private final String message;
 	// required factory class

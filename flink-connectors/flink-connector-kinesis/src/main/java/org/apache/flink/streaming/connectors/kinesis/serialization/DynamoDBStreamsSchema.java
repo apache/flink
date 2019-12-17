@@ -29,6 +29,7 @@ import java.io.IOException;
  */
 public class DynamoDBStreamsSchema implements KinesisDeserializationSchema<Record> {
 	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final long serialVersionUID = 5220324099354550279L;
 
 	@Override
 	public Record deserialize(byte[] message, String partitionKey, String seqNum,

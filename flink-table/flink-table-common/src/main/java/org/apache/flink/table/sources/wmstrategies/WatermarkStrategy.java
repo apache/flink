@@ -36,6 +36,8 @@ import java.util.Map;
 @PublicEvolving
 public abstract class WatermarkStrategy implements Serializable, Descriptor {
 
+	private static final long serialVersionUID = -2415197672377521858L;
+
 	/**
 	 * This method is a default implementation that uses java serialization and it is discouraged.
 	 * All implementation should provide a more specific set of properties.

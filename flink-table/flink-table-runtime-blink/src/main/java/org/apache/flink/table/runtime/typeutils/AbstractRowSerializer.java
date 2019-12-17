@@ -31,6 +31,8 @@ import java.io.IOException;
  */
 public abstract class AbstractRowSerializer<T extends BaseRow> extends TypeSerializer<T> {
 
+	private static final long serialVersionUID = 8903372538380252564L;
+
 	/**
 	 * Get the number of fields.
 	 */

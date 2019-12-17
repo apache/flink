@@ -68,6 +68,8 @@ extends Serializable {
 	 */
 	class MirrorResult<T, RT extends BinaryResult<T>>
 	implements FlatMapFunction<RT, RT> {
+		private static final long serialVersionUID = -8958650324639012243L;
+
 		@Override
 		public void flatMap(RT value, Collector<RT> out)
 				throws Exception {

@@ -29,6 +29,7 @@ import org.apache.flink.core.memory.MemorySegment;
 
 @Internal
 public abstract class PrimitiveArrayComparator<T, C extends BasicTypeComparator> extends TypeComparator<T> {
+	private static final long serialVersionUID = 746422412399158186L;
 	// For use by getComparators
 	@SuppressWarnings("rawtypes")
 	private final TypeComparator[] comparators = new TypeComparator[]{this};

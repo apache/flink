@@ -40,6 +40,7 @@ import java.io.IOException;
 @PublicEvolving
 public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
 
+	private static final long serialVersionUID = 1206620912859697343L;
 	private Extractor<IN> extractor;
 	private CompressionCodec hadoopCodec;
 

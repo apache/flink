@@ -29,4 +29,5 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class BatchQueryConfig implements QueryConfig {
 
+	private static final long serialVersionUID = 2782003186318976027L;
 }

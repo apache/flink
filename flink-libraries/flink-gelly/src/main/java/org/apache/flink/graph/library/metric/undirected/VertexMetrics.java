@@ -138,6 +138,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 */
 	private static class VertexMetricsHelper<T>
 	extends AnalyticHelper<Vertex<T, LongValue>> {
+		private static final long serialVersionUID = 5876883973741163200L;
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;

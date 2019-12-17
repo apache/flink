@@ -42,6 +42,7 @@ public final class BooleanType extends LogicalType {
 		boolean.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Boolean.class;
+	private static final long serialVersionUID = 3721976957965458190L;
 
 	public BooleanType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.BOOLEAN);

@@ -41,6 +41,8 @@ import org.apache.flink.util.Preconditions;
 public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends ModelBase<M>>
 	extends PipelineStageBase<E> implements Estimator<E, M> {
 
+	private static final long serialVersionUID = -8905537832519687064L;
+
 	public EstimatorBase() {
 		super();
 	}

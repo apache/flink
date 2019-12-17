@@ -46,6 +46,7 @@ import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readInto
 @Internal
 public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.BaseRowSerializer {
 
+	private static final long serialVersionUID = -6375609870506047984L;
 	private final LogicalType[] fieldTypes;
 
 	private final TypeSerializer[] fieldSerializers;

@@ -59,6 +59,7 @@ public final class RowType extends LogicalType {
 		"org.apache.flink.table.dataformat.BaseRow");
 
 	private static final Class<?> DEFAULT_CONVERSION = Row.class;
+	private static final long serialVersionUID = 5006143906767207516L;
 
 	/**
 	 * Describes a field of a {@link RowType}.
@@ -68,6 +69,7 @@ public final class RowType extends LogicalType {
 		private static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
 
 		private static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
+		private static final long serialVersionUID = 4383137002537150162L;
 
 		private final String name;
 

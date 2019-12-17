@@ -71,6 +71,7 @@ public final class YearMonthIntervalType extends LogicalType {
 		int.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.Period.class;
+	private static final long serialVersionUID = -6974936750574360964L;
 
 	/**
 	 * Supported resolutions of this type.

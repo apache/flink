@@ -104,6 +104,7 @@ public class Translate {
 	private static class TranslateVertexId<OLD, NEW, VV>
 	extends WrappingFunction<TranslateFunction<OLD, NEW>>
 	implements MapFunction<Vertex<OLD, VV>, Vertex<NEW, VV>> {
+		private static final long serialVersionUID = -3478028873586652153L;
 		private Vertex<NEW, VV> vertex = new Vertex<>();
 
 		public TranslateVertexId(TranslateFunction<OLD, NEW> translator) {
@@ -187,6 +188,7 @@ public class Translate {
 	private static class TranslateEdgeId<OLD, NEW, EV>
 	extends WrappingFunction<TranslateFunction<OLD, NEW>>
 	implements MapFunction<Edge<OLD, EV>, Edge<NEW, EV>> {
+		private static final long serialVersionUID = -2731588017019693197L;
 		private Edge<NEW, EV> edge = new Edge<>();
 
 		public TranslateEdgeId(TranslateFunction<OLD, NEW> translator) {
@@ -271,6 +273,7 @@ public class Translate {
 	private static class TranslateVertexValue<K, OLD, NEW>
 	extends WrappingFunction<TranslateFunction<OLD, NEW>>
 	implements MapFunction<Vertex<K, OLD>, Vertex<K, NEW>> {
+		private static final long serialVersionUID = 3709412350253698930L;
 		private Vertex<K, NEW> vertex = new Vertex<>();
 
 		public TranslateVertexValue(TranslateFunction<OLD, NEW> translator) {
@@ -354,6 +357,7 @@ public class Translate {
 	private static class TranslateEdgeValue<K, OLD, NEW>
 	extends WrappingFunction<TranslateFunction<OLD, NEW>>
 	implements MapFunction<Edge<K, OLD>, Edge<K, NEW>> {
+		private static final long serialVersionUID = -4478695462001900326L;
 		private Edge<K, NEW> edge = new Edge<>();
 
 		public TranslateEdgeValue(TranslateFunction<OLD, NEW> translator) {

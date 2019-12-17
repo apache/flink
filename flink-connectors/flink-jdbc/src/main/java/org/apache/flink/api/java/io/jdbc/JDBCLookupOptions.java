@@ -28,6 +28,7 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormat.DEFAULT_M
  */
 public class JDBCLookupOptions implements Serializable {
 
+	private static final long serialVersionUID = -7966656564320840039L;
 	private final long cacheMaxSize;
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;

@@ -40,6 +40,7 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
 
+	private static final long serialVersionUID = -5438540602758074254L;
 	private final OverWindowFrame[] overWindowFrames;
 	private GeneratedRecordComparator genComparator;
 	private final boolean isRowAllInFixedPart;

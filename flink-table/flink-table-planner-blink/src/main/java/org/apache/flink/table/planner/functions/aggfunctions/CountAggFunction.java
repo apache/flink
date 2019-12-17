@@ -34,6 +34,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  * built-in count aggregate function.
  */
 public class CountAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -1661755693573261699L;
 	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
 	@Override

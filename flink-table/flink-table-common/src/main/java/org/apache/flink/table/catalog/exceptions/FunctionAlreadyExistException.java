@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 public class FunctionAlreadyExistException extends Exception {
 
 	private static final String MSG = "Function %s already exists in Catalog %s.";
+	private static final long serialVersionUID = -7780613958492280473L;
 
 	public FunctionAlreadyExistException(String catalogName, ObjectPath functionPath) {
 		this(catalogName, functionPath, null);

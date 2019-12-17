@@ -26,6 +26,7 @@ import java.util.List;
  * @param <AcknowledgeId> Type of the Ids used for acknowledging.
  */
 public class AcknowledgeIdsForCheckpoint<AcknowledgeId> implements Serializable {
+	private static final long serialVersionUID = 4974453492787143690L;
 	private long checkpointId;
 	private List<AcknowledgeId> acknowledgeIds;
 

@@ -355,6 +355,8 @@ public class JsonUtils {
 	private AddingList jsonList = new AddingList();
 
 	private static class AddingList extends ArrayList<Object> {
+		private static final long serialVersionUID = -6063035439063515980L;
+
 		@Override
 		public java.util.Iterator<Object> iterator() {
 			return Iterators.forArray(toArray());

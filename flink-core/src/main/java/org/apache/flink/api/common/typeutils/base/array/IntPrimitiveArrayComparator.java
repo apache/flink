@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.IntComparator;
 
 @Internal
 public class IntPrimitiveArrayComparator extends PrimitiveArrayComparator<int[], IntComparator> {
+	private static final long serialVersionUID = -7560238082167098946L;
+
 	public IntPrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new IntComparator(ascending));
 	}

@@ -42,6 +42,8 @@ import java.util.Properties;
  */
 public class HiveShimV110 extends HiveShimV101 {
 
+	private static final long serialVersionUID = -3742878403082996025L;
+
 	@Override
 	public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, String outputFormatClzName,
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath) {

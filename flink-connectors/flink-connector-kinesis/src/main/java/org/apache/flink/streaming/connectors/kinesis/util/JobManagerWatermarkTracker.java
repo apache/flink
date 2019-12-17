@@ -39,6 +39,7 @@ import java.util.Map;
 @PublicEvolving
 public class JobManagerWatermarkTracker extends WatermarkTracker {
 
+	private static final long serialVersionUID = 3382374318338509442L;
 	private GlobalAggregateManager aggregateManager;
 	private final String aggregateName;
 	private final WatermarkAggregateFunction aggregateFunction = new WatermarkAggregateFunction();
@@ -88,12 +89,14 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
 
 	/** Watermark aggregation input. */
 	protected static class WatermarkUpdate implements Serializable {
+		private static final long serialVersionUID = -7451163146871423192L;
 		protected long watermark = Long.MIN_VALUE;
 		protected String id;
 	}
 
 	/** Watermark aggregation result. */
 	protected static class WatermarkResult implements Serializable {
+		private static final long serialVersionUID = 7535287240699859461L;
 		protected long watermark = Long.MIN_VALUE;
 		protected long updateTimeoutCount = 0;
 	}
@@ -104,6 +107,7 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
 	private static class WatermarkAggregateFunction implements
 		AggregateFunction<byte[], Map<String, WatermarkState>, byte[]> {
 
+		private static final long serialVersionUID = -4085464788073189526L;
 		private long updateTimeoutMillis = DEFAULT_UPDATE_TIMEOUT_MILLIS;
 		private long logAccumulatorIntervalMillis = -1;
 

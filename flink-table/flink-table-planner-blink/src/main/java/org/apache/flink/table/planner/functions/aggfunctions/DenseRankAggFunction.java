@@ -39,6 +39,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
  */
 public class DenseRankAggFunction extends RankLikeAggFunctionBase {
 
+	private static final long serialVersionUID = -3811790869434872469L;
+
 	public DenseRankAggFunction(LogicalType[] orderKeyTypes) {
 		super(orderKeyTypes);
 	}

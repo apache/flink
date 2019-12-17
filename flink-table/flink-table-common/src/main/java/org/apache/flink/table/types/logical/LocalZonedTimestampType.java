@@ -75,6 +75,7 @@ public final class LocalZonedTimestampType extends LogicalType {
 		long.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.Instant.class;
+	private static final long serialVersionUID = -5686763727428209249L;
 
 	private final TimestampKind kind;
 

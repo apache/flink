@@ -63,6 +63,8 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> exte
 	 * The context holding window metadata.
 	 */
 	public abstract class Context implements java.io.Serializable {
+		private static final long serialVersionUID = 1320353589804005921L;
+
 		/**
 		 * Returns the window that is being evaluated.
 		 */

@@ -47,6 +47,7 @@ public final class MapType extends LogicalType {
 		"org.apache.flink.table.dataformat.BinaryMap");
 
 	private static final Class<?> DEFAULT_CONVERSION = Map.class;
+	private static final long serialVersionUID = 1341382399327679152L;
 
 	private final LogicalType keyType;
 

@@ -26,6 +26,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlValidateException extends Exception {
 
+	private static final long serialVersionUID = -8703502029162884172L;
 	private SqlParserPos errorPosition;
 
 	private String message;

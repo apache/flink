@@ -59,6 +59,7 @@ import java.util.HashSet;
  * <p>end user should not directly interact with this helper class. instead it will be indirectly used via concrete algorithms.
  */
 public class OutputColsHelper implements Serializable {
+	private static final long serialVersionUID = -4507130097443287638L;
 	private String[] inputColNames;
 	private TypeInformation<?>[] inputColTypes;
 	private String[] outputColNames;

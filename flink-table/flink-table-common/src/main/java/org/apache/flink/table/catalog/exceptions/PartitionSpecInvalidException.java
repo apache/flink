@@ -30,6 +30,7 @@ import java.util.List;
  */
 public class PartitionSpecInvalidException extends Exception {
 	private static final String MSG = "PartitionSpec %s does not match partition keys %s of table %s in catalog %s.";
+	private static final long serialVersionUID = 1934059378486532949L;
 
 	public PartitionSpecInvalidException(
 		String catalogName,

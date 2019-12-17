@@ -37,6 +37,7 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 
 	/** IRC channel to join. */
 	public static final String DEFAULT_CHANNEL = "#en.wikipedia";
+	private static final long serialVersionUID = 7270262261396401702L;
 
 	private final String host;
 	private final int port;

@@ -27,6 +27,7 @@ import org.apache.flink.types.LongValue;
 public class LongValueAddOffset
 implements TranslateFunction<LongValue, LongValue> {
 
+	private static final long serialVersionUID = 4552213355052494932L;
 	private final long offset;
 
 	/**

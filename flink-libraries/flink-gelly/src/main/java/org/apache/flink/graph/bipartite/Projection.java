@@ -36,6 +36,8 @@ import org.apache.flink.graph.Vertex;
   */
 public class Projection<KC, VVC, VV, EV> extends Tuple6<KC, VVC, VV, VV, EV, EV> {
 
+	private static final long serialVersionUID = -8216722383905429738L;
+
 	public Projection() {}
 
 	public Projection(

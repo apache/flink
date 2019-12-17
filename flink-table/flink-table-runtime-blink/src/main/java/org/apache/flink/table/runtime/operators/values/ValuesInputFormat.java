@@ -39,6 +39,7 @@ public class ValuesInputFormat
 		implements NonParallelInput, ResultTypeQueryable<BaseRow> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
+	private static final long serialVersionUID = -2287072890373282349L;
 	private GeneratedInput<GenericInputFormat<BaseRow>> generatedInput;
 	private final BaseRowTypeInfo returnType;
 	private GenericInputFormat<BaseRow> format;

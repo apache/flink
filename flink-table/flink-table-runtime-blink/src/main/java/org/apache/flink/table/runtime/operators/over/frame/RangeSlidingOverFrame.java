@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.RowType;
  */
 public class RangeSlidingOverFrame extends SlidingOverFrame {
 
+	private static final long serialVersionUID = -270458761628140847L;
 	private GeneratedRecordComparator lboundComparator;
 	private GeneratedRecordComparator rboundComparator;
 

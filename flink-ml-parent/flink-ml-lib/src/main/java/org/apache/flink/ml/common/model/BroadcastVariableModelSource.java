@@ -29,6 +29,7 @@ import java.util.List;
  */
 public class BroadcastVariableModelSource implements ModelSource {
 
+	private static final long serialVersionUID = -1774172327687045103L;
 	/**
 	 * The name of the broadcast variable that hosts the model.
 	 */

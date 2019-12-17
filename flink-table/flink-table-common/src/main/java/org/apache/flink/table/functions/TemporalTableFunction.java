@@ -30,4 +30,5 @@ import org.apache.flink.types.Row;
 @PublicEvolving
 public abstract class TemporalTableFunction extends TableFunction<Row> {
 
+	private static final long serialVersionUID = 4650828237900532560L;
 }

@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> implements CheckpointedFunction {
+	private static final long serialVersionUID = 2312121101683226460L;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	protected transient Cluster cluster;

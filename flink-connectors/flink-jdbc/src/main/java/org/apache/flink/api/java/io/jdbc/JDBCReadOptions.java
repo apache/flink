@@ -27,6 +27,7 @@ import java.util.Optional;
  */
 public class JDBCReadOptions implements Serializable {
 
+	private static final long serialVersionUID = 2217799704487084304L;
 	private final String partitionColumnName;
 	private final Long partitionLowerBound;
 	private final Long partitionUpperBound;

@@ -93,6 +93,8 @@ import java.util.Set;
  */
 public class HiveShimV100 implements HiveShim {
 
+	private static final long serialVersionUID = -5445445493918223124L;
+
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {

@@ -27,6 +27,7 @@ import org.apache.flink.types.Row;
  */
 public class MapperAdapter implements MapFunction<Row, Row> {
 
+	private static final long serialVersionUID = -783958884371699316L;
 	private final Mapper mapper;
 
 	/**

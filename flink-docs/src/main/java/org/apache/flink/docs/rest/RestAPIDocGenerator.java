@@ -266,6 +266,7 @@ public class RestAPIDocGenerator {
 	 * <p>This is to avoid exception when generating JSON with Field schema contains generic types.
 	 */
 	private static class HTMLCharacterEscapes extends CharacterEscapes {
+		private static final long serialVersionUID = 140276792385761588L;
 		private final int[] asciiEscapes;
 		private final Map<Integer, SerializableString> escapeSequences;
 

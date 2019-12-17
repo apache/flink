@@ -31,6 +31,7 @@ import org.apache.flink.table.api.Table;
 public abstract class ModelBase<M extends ModelBase<M>> extends TransformerBase<M>
 	implements Model<M> {
 
+	private static final long serialVersionUID = 32780894859354888L;
 	protected Table modelData;
 
 	public ModelBase() {

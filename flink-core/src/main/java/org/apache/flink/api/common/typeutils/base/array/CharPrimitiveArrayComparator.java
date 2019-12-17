@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.CharComparator;
 
 @Internal
 public class CharPrimitiveArrayComparator extends PrimitiveArrayComparator<char[], CharComparator> {
+	private static final long serialVersionUID = 3385624087234024631L;
+
 	public CharPrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new CharComparator(ascending));
 	}

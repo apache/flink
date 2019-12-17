@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.FloatComparator;
 
 @Internal
 public class FloatPrimitiveArrayComparator extends PrimitiveArrayComparator<float[], FloatComparator> {
+	private static final long serialVersionUID = 6686150039407546620L;
+
 	public FloatPrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new FloatComparator(ascending));
 	}

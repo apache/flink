@@ -34,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class AbstractProcessStreamOperator<OUT> extends TableStreamOperator<OUT> {
 
+	private static final long serialVersionUID = 7531021943763779788L;
 	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
 	protected long currentWatermark = Long.MIN_VALUE;
 

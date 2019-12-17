@@ -51,6 +51,7 @@ public class DistributedCache {
 	 */
 	public static class DistributedCacheEntry implements Serializable {
 
+		private static final long serialVersionUID = 6828132952673506807L;
 		public String filePath;
 		public Boolean isExecutable;
 		public boolean isZipped;

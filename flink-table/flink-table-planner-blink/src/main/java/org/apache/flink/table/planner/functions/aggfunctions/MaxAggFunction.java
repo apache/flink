@@ -36,6 +36,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullO
  * built-in max aggregate function.
  */
 public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
+	private static final long serialVersionUID = -1021368827972131085L;
 	private UnresolvedReferenceExpression max = unresolvedRef("max");
 
 	@Override
@@ -97,6 +98,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class IntMaxAggFunction extends MaxAggFunction {
 
+		private static final long serialVersionUID = -346973537330797486L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.INT();
@@ -107,6 +110,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Byte Max aggregate function.
 	 */
 	public static class ByteMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = 2464999191564164262L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TINYINT();
@@ -117,6 +122,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Short Max aggregate function.
 	 */
 	public static class ShortMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = -6993549220463516194L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.SMALLINT();
@@ -127,6 +134,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Long Max aggregate function.
 	 */
 	public static class LongMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = -6426489081313637174L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BIGINT();
@@ -137,6 +146,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Float Max aggregate function.
 	 */
 	public static class FloatMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = -7079825099097062325L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.FLOAT();
@@ -147,6 +158,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Double Max aggregate function.
 	 */
 	public static class DoubleMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = 7622478335611977243L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DOUBLE();
@@ -157,6 +170,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Decimal Max aggregate function.
 	 */
 	public static class DecimalMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = -6972660255107602175L;
 		private DecimalType decimalType;
 
 		public DecimalMaxAggFunction(DecimalType decimalType) {
@@ -173,6 +187,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Boolean Max aggregate function.
 	 */
 	public static class BooleanMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = 8583528286822289781L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.BOOLEAN();
@@ -183,6 +199,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in String Max aggregate function.
 	 */
 	public static class StringMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = -6652260773775186990L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.STRING();
@@ -193,6 +211,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Date Max aggregate function.
 	 */
 	public static class DateMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = 1333679646611975978L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.DATE();
@@ -203,6 +223,8 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Time Max aggregate function.
 	 */
 	public static class TimeMaxAggFunction extends MaxAggFunction {
+		private static final long serialVersionUID = -1830329255594027234L;
+
 		@Override
 		public DataType getResultType() {
 			return DataTypes.TIME(TimeType.DEFAULT_PRECISION);
@@ -214,6 +236,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class TimestampMaxAggFunction extends MaxAggFunction {
 
+		private static final long serialVersionUID = 4039616257563422874L;
 		private final TimestampType type;
 
 		public TimestampMaxAggFunction(TimestampType type) {

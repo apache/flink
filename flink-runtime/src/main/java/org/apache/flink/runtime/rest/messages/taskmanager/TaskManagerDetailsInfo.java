@@ -37,6 +37,7 @@ import java.util.Objects;
 public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
 	public static final String FIELD_NAME_METRICS = "metrics";
+	private static final long serialVersionUID = 8655914676001858667L;
 
 	@JsonProperty(FIELD_NAME_METRICS)
 	private final TaskManagerMetricsInfo taskManagerMetrics;

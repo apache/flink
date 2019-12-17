@@ -59,6 +59,8 @@ import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.
  */
 public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunction<T, GenericRow> {
 
+	private static final long serialVersionUID = -6696029753947016261L;
+
 	@Override
 	public GenericRow createAccumulator() {
 		// The accumulator schema:
@@ -238,6 +240,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 */
 	public static class ByteFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Byte> {
 
+		private static final long serialVersionUID = 1556205281753454415L;
+
 		@Override
 		public TypeInformation<Byte> getResultType() {
 			return Types.BYTE;
@@ -253,6 +257,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 * Built-in Short FirstValue with retract aggregate function.
 	 */
 	public static class ShortFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Short> {
+
+		private static final long serialVersionUID = -6685283667932315945L;
 
 		@Override
 		public TypeInformation<Short> getResultType() {
@@ -270,6 +276,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 */
 	public static class IntFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Integer> {
 
+		private static final long serialVersionUID = -173636399543240151L;
+
 		@Override
 		public TypeInformation<Integer> getResultType() {
 			return Types.INT;
@@ -285,6 +293,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 * Built-in Long FirstValue with retract aggregate function.
 	 */
 	public static class LongFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Long> {
+
+		private static final long serialVersionUID = -9162857357594058828L;
 
 		@Override
 		public TypeInformation<Long> getResultType() {
@@ -302,6 +312,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 */
 	public static class FloatFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Float> {
 
+		private static final long serialVersionUID = -9173814877468111164L;
+
 		@Override
 		public TypeInformation<Float> getResultType() {
 			return Types.FLOAT;
@@ -317,6 +329,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 * Built-in Double FirstValue with retract aggregate function.
 	 */
 	public static class DoubleFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Double> {
+
+		private static final long serialVersionUID = -4288337157868018872L;
 
 		@Override
 		public TypeInformation<Double> getResultType() {
@@ -334,6 +348,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 */
 	public static class BooleanFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Boolean> {
 
+		private static final long serialVersionUID = -6497826823980108664L;
+
 		@Override
 		public TypeInformation<Boolean> getResultType() {
 			return Types.BOOLEAN;
@@ -350,6 +366,7 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 */
 	public static class DecimalFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Decimal> {
 
+		private static final long serialVersionUID = 4933395854364358023L;
 		private DecimalTypeInfo decimalTypeInfo;
 
 		public DecimalFirstValueWithRetractAggFunction(DecimalTypeInfo decimalTypeInfo) {
@@ -379,6 +396,8 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 	 * Built-in String FirstValue with retract aggregate function.
 	 */
 	public static class StringFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<BinaryString> {
+
+		private static final long serialVersionUID = 1802979612004608406L;
 
 		@Override
 		public TypeInformation<BinaryString> getResultType() {

@@ -48,6 +48,7 @@ import java.util.Arrays;
 public class HiveGenericUDAF
 	extends AggregateFunction<Object, GenericUDAFEvaluator.AggregationBuffer> implements HiveFunction {
 
+	private static final long serialVersionUID = 2671847488564849250L;
 	private final HiveFunctionWrapper hiveFunctionWrapper;
 	// Flag that indicates whether a bridge between GenericUDAF and UDAF is required.
 	// Old UDAF can be used with the GenericUDAF infrastructure through bridging.

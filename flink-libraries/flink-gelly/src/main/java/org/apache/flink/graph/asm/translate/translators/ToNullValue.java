@@ -29,6 +29,8 @@ import org.apache.flink.types.NullValue;
 public class ToNullValue<T>
 implements TranslateFunction<T, NullValue> {
 
+	private static final long serialVersionUID = -6866691428976893849L;
+
 	@Override
 	public NullValue translate(T value, NullValue reuse)
 			throws Exception {

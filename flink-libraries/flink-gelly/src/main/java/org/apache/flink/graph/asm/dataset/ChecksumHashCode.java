@@ -68,6 +68,7 @@ extends DataSetAnalyticBase<T, Checksum> {
 	 */
 	private static class ChecksumHashCodeHelper<U>
 	extends AnalyticHelper<U> {
+		private static final long serialVersionUID = -1140780295171824941L;
 		private long count;
 		private long checksum;
 
@@ -89,6 +90,7 @@ extends DataSetAnalyticBase<T, Checksum> {
 	 */
 	public static class Checksum
 	implements SimpleAccumulator<Checksum> {
+		private static final long serialVersionUID = -6115043402625117658L;
 		private long count;
 
 		private long checksum;

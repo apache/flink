@@ -44,6 +44,7 @@ public final class SmallIntType extends LogicalType {
 		short.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Short.class;
+	private static final long serialVersionUID = 8602265720662291477L;
 
 	public SmallIntType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.SMALLINT);

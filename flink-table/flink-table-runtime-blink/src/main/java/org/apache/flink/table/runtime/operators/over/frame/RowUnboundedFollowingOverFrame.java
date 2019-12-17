@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.RowType;
  */
 public class RowUnboundedFollowingOverFrame extends UnboundedFollowingOverFrame {
 
+	private static final long serialVersionUID = -5477935598548574457L;
 	private long leftBound;
 
 	public RowUnboundedFollowingOverFrame(

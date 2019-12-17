@@ -52,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDTF.class);
+	private static final long serialVersionUID = 3042837274633311463L;
 
 	private final HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper;
 

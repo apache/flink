@@ -27,6 +27,7 @@ import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 @Internal
 public class BooleanSummaryAggregator implements Aggregator<Boolean, BooleanColumnSummary> {
 
+	private static final long serialVersionUID = -449438378954330557L;
 	private long trueCount = 0L;
 	private long falseCount = 0L;
 	private long nullCount = 0L;

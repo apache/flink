@@ -31,6 +31,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 @Internal
 public class QueryableValueStateOperator<IN> extends AbstractQueryableStateOperator<ValueState<IN>, IN> {
 
+	private static final long serialVersionUID = 8883905222035666073L;
+
 	public QueryableValueStateOperator(
 			String registrationName,
 			StateDescriptor<ValueState<IN>, IN> stateDescriptor) {

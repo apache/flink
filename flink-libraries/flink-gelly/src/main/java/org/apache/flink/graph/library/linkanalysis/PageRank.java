@@ -274,6 +274,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0; 1")
 	private static class ExtractSourceDegree<T, ET>
 	implements MapFunction<Edge<T, Tuple2<ET, Degrees>>, Edge<T, LongValue>> {
+		private static final long serialVersionUID = -5539661178309976072L;
 		Edge<T, LongValue> output = new Edge<>();
 
 		@Override
@@ -294,6 +295,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static class InitializeSourceVertices<T>
 	implements FlatMapFunction<Vertex<T, Degrees>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = 8599820243598138811L;
 		private Tuple2<T, DoubleValue> output = new Tuple2<>(null, new DoubleValue(0.0));
 
 		@Override
@@ -315,6 +317,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static class InitializeVertexScores<T>
 	extends RichMapFunction<Vertex<T, Degrees>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = -6332678824007694332L;
 		private Tuple2<T, DoubleValue> output = new Tuple2<>();
 
 		@Override
@@ -344,6 +347,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("1->0")
 	private static class SendScore<T>
 	implements CoGroupFunction<Tuple2<T, DoubleValue>, Edge<T, LongValue>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = -6303015400736045141L;
 		private Tuple2<T, DoubleValue> output = new Tuple2<>(null, new DoubleValue());
 
 		@Override
@@ -376,6 +380,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static class SumVertexScores<T>
 	implements ReduceFunction<Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = 5917687645885082228L;
+
 		@Override
 		public Tuple2<T, DoubleValue> reduce(Tuple2<T, DoubleValue> first, Tuple2<T, DoubleValue> second)
 				throws Exception {
@@ -400,6 +406,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0")
 	private static class AdjustScores<T>
 	extends RichMapFunction<Tuple2<T, DoubleValue>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = -7229129825047011704L;
 		private double dampingFactor;
 
 		private long vertexCount;
@@ -443,6 +450,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("*")
 	private static class ChangeInScores<T>
 	extends RichJoinFunction<Tuple2<T, DoubleValue>, Tuple2<T, DoubleValue>, Tuple2<T, DoubleValue>> {
+		private static final long serialVersionUID = -634160533352099721L;
 		private double changeInScores;
 
 		@Override
@@ -476,6 +484,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class ScoreConvergence
 	implements ConvergenceCriterion<DoubleValue> {
+		private static final long serialVersionUID = -1535281973316550895L;
 		private double convergenceThreshold;
 
 		public ScoreConvergence(double convergenceThreshold) {
@@ -497,6 +506,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0->vertexId0; 1->pageRankScore")
 	private static class TranslateResult<T>
 		implements MapFunction<Tuple2<T, DoubleValue>, Result<T>> {
+		private static final long serialVersionUID = 9204397191416961418L;
 		private Result<T> output = new Result<>();
 
 		@Override
@@ -515,6 +525,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends UnaryResultBase<T>
 	implements PrintableResult {
+		private static final long serialVersionUID = -1288878995825630137L;
 		private DoubleValue pageRankScore;
 
 		/**

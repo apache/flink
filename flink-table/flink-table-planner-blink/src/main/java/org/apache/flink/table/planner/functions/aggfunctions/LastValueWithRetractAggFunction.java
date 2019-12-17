@@ -59,6 +59,8 @@ import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.
  */
 public abstract class LastValueWithRetractAggFunction<T> extends AggregateFunction<T, GenericRow> {
 
+	private static final long serialVersionUID = 4012281729080519375L;
+
 	@Override
 	public GenericRow createAccumulator() {
 		// The accumulator schema:
@@ -239,6 +241,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 */
 	public static class ByteLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Byte> {
 
+		private static final long serialVersionUID = -4603255802461561424L;
+
 		@Override
 		public TypeInformation<Byte> getResultType() {
 			return Types.BYTE;
@@ -254,6 +258,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 * Built-in Short LastValue with retract aggregate function.
 	 */
 	public static class ShortLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Short> {
+
+		private static final long serialVersionUID = -7790471219816647987L;
 
 		@Override
 		public TypeInformation<Short> getResultType() {
@@ -271,6 +277,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 */
 	public static class IntLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Integer> {
 
+		private static final long serialVersionUID = 6880138055751845576L;
+
 		@Override
 		public TypeInformation<Integer> getResultType() {
 			return Types.INT;
@@ -286,6 +294,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 * Built-in Long LastValue with retract aggregate function.
 	 */
 	public static class LongLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Long> {
+
+		private static final long serialVersionUID = 7419699581780050203L;
 
 		@Override
 		public TypeInformation<Long> getResultType() {
@@ -303,6 +313,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 */
 	public static class FloatLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Float> {
 
+		private static final long serialVersionUID = 7705249705162059238L;
+
 		@Override
 		public TypeInformation<Float> getResultType() {
 			return Types.FLOAT;
@@ -318,6 +330,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 * Built-in Double LastValue with retract aggregate function.
 	 */
 	public static class DoubleLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Double> {
+
+		private static final long serialVersionUID = 3877544319371970999L;
 
 		@Override
 		public TypeInformation<Double> getResultType() {
@@ -335,6 +349,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 */
 	public static class BooleanLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Boolean> {
 
+		private static final long serialVersionUID = -3016956274966959798L;
+
 		@Override
 		public TypeInformation<Boolean> getResultType() {
 			return Types.BOOLEAN;
@@ -351,6 +367,7 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 */
 	public static class DecimalLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Decimal> {
 
+		private static final long serialVersionUID = -6642717594587626768L;
 		private DecimalTypeInfo decimalTypeInfo;
 
 		public DecimalLastValueWithRetractAggFunction(DecimalTypeInfo decimalTypeInfo) {
@@ -380,6 +397,8 @@ public abstract class LastValueWithRetractAggFunction<T> extends AggregateFuncti
 	 * Built-in String LastValue with retract aggregate function.
 	 */
 	public static class StringLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<BinaryString> {
+
+		private static final long serialVersionUID = -7108861774313746045L;
 
 		@Override
 		public TypeInformation<BinaryString> getResultType() {

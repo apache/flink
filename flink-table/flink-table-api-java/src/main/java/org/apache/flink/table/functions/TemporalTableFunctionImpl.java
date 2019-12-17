@@ -36,6 +36,7 @@ import java.sql.Timestamp;
 @Internal
 public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 
+	private static final long serialVersionUID = 4692326266525653366L;
 	private final transient QueryOperation underlyingHistoryTable;
 	private final transient Expression timeAttribute;
 	private final transient Expression primaryKey;

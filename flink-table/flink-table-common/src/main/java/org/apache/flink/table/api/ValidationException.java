@@ -28,6 +28,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class ValidationException extends RuntimeException {
 
+	private static final long serialVersionUID = -6120834944361151343L;
+
 	public ValidationException(String message, Throwable cause) {
 		super(message, cause);
 	}

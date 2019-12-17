@@ -26,6 +26,7 @@ import java.util.Random;
  * A dense vector represented by a values array.
  */
 public class DenseVector extends Vector {
+	private static final long serialVersionUID = -6732689218681603099L;
 	/**
 	 * The array holding the vector data.
 	 * <p>
@@ -364,6 +365,7 @@ public class DenseVector extends Vector {
 	}
 
 	private class DenseVectorIterator implements VectorIterator {
+		private static final long serialVersionUID = -6117217512105877198L;
 		private int cursor = 0;
 
 		@Override

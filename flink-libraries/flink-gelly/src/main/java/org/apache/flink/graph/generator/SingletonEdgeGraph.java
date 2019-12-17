@@ -88,6 +88,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private static class LinkVertexToSingletonNeighbor
 	implements MapFunction<LongValue, Edge<LongValue, NullValue>> {
 
+		private static final long serialVersionUID = 3750609891476450116L;
 		private LongValue source = new LongValue();
 
 		private LongValue target = new LongValue();

@@ -41,6 +41,7 @@ import java.util.Objects;
 public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
 	private static final String FORMAT = "SYMBOL('%s')";
+	private static final long serialVersionUID = 1577628001209501797L;
 
 	private final Class<T> symbolClass;
 

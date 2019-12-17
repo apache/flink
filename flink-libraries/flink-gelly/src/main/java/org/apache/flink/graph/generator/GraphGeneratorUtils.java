@@ -79,6 +79,7 @@ public class GraphGeneratorUtils {
 	@ForwardedFields("*->f0")
 	private static class CreateVertex
 	implements MapFunction<LongValue, Vertex<LongValue, NullValue>> {
+		private static final long serialVersionUID = 3024241513222574845L;
 		private Vertex<LongValue, NullValue> vertex = new Vertex<>(null, NullValue.getInstance());
 
 		@Override
@@ -121,6 +122,7 @@ public class GraphGeneratorUtils {
 	 */
 	private static final class EmitSrcAndTarget<K, EV>
 	implements FlatMapFunction<Edge<K, EV>, Vertex<K, NullValue>> {
+		private static final long serialVersionUID = -3764533227026928966L;
 		private Vertex<K, NullValue> output = new Vertex<>(null, new NullValue());
 
 		@Override

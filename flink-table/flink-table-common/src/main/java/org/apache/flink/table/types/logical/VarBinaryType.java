@@ -58,6 +58,7 @@ public final class VarBinaryType extends LogicalType {
 		"org.apache.flink.table.dataformat.BinaryArray");
 
 	private static final Class<?> DEFAULT_CONVERSION = byte[].class;
+	private static final long serialVersionUID = 9180599544658481469L;
 
 	private final int length;
 

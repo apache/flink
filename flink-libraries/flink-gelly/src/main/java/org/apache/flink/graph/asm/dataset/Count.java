@@ -62,6 +62,7 @@ extends DataSetAnalyticBase<T, Long> {
 	 */
 	private static class CountHelper<U>
 	extends AnalyticHelper<U> {
+		private static final long serialVersionUID = -6835557935272587984L;
 		private long count;
 
 		@Override

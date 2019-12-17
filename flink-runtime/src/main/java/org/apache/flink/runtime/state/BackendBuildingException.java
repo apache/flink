@@ -24,6 +24,8 @@ import java.io.IOException;
  * Exceptions which indicate that a state backend building has failed.
  */
 public class BackendBuildingException extends IOException {
+	private static final long serialVersionUID = -5298400221014395207L;
+
 	public BackendBuildingException(String message, Throwable cause) {
 		super(message, cause);
 	}

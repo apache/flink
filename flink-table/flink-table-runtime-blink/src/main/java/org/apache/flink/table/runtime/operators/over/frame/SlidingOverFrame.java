@@ -37,6 +37,7 @@ import java.util.ArrayDeque;
  */
 public abstract class SlidingOverFrame implements OverWindowFrame {
 
+	private static final long serialVersionUID = -5618243937987210918L;
 	private final RowType inputType;
 	private final RowType valueType;
 	private GeneratedAggsHandleFunction aggsHandleFunction;

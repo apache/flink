@@ -52,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveSimpleUDF.class);
+	private static final long serialVersionUID = 7985797460021311671L;
 
 	private transient Method method;
 	private transient GenericUDFUtils.ConversionHelper conversionHelper;

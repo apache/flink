@@ -34,6 +34,7 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
  */
 public class RankOperator extends TableStreamOperator<BaseRow> implements OneInputStreamOperator<BaseRow, BaseRow> {
 
+	private static final long serialVersionUID = 1671873695649249290L;
 	private GeneratedRecordComparator partitionByGenComp;
 	private GeneratedRecordComparator orderByGenComp;
 	private final long rankStart;

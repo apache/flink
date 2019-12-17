@@ -44,6 +44,7 @@ public final class IntType extends LogicalType {
 		int.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Integer.class;
+	private static final long serialVersionUID = 599551545689420248L;
 
 	public IntType(boolean isNullable) {
 		super(isNullable, LogicalTypeRoot.INTEGER);

@@ -39,6 +39,7 @@ import java.util.PriorityQueue;
 public class SortLimitOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
 
+	private static final long serialVersionUID = -8230294163003490698L;
 	private final boolean isGlobal;
 	private final long limitStart;
 	private final long limitEnd;

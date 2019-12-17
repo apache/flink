@@ -35,6 +35,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 class TtlAggregateFunction<IN, ACC, OUT>
 	extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
 	implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
+	private static final long serialVersionUID = -4464388007791528260L;
 	ThrowingRunnable<Exception> stateClear;
 	ThrowingConsumer<TtlValue<ACC>, Exception> updater;
 

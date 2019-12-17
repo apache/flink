@@ -31,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Right now, it contains info about the partition of the split.
  */
 public class HiveTableInputSplit extends HadoopInputSplit {
+	private static final long serialVersionUID = 4923431667026917848L;
 	private final HiveTablePartition hiveTablePartition;
 
 	public HiveTableInputSplit(

@@ -230,6 +230,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0; 1")
 	private static class VertexInverseLogDegree<T>
 	implements MapFunction<Vertex<T, LongValue>, Tuple3<T, LongValue, FloatValue>> {
+		private static final long serialVersionUID = 1968803377646357035L;
 		private Tuple3<T, LongValue, FloatValue> output = new Tuple3<>(null, null, new FloatValue());
 
 		@Override
@@ -255,6 +256,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0->1; 1->2; 2->3")
 	private static class GenerateGroupSpans<T>
 	implements GroupReduceFunction<Tuple3<T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
+		private static final long serialVersionUID = 2665339629102429422L;
 		private IntValue groupSpansValue = new IntValue();
 
 		private Tuple4<IntValue, T, T, FloatValue> output = new Tuple4<>(groupSpansValue, null, null, null);
@@ -290,6 +292,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("1; 2; 3")
 	private static class GenerateGroups<T>
 	implements FlatMapFunction<Tuple4<IntValue, T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
+		private static final long serialVersionUID = 1727826379905411299L;
+
 		@Override
 		public void flatMap(Tuple4<IntValue, T, T, FloatValue> value, Collector<Tuple4<IntValue, T, T, FloatValue>> out)
 				throws Exception {
@@ -310,6 +314,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("3->2")
 	private static class GenerateGroupPairs<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple4<IntValue, T, T, FloatValue>, Tuple3<T, T, FloatValue>> {
+		private static final long serialVersionUID = -4148685460027325575L;
 		private Tuple3<T, T, FloatValue> output = new Tuple3<>();
 
 		private boolean initialized = false;
@@ -354,6 +359,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static class ComputeScoreFromVertex<T>
 	implements MapFunction<Tuple3<T, LongValue, FloatValue>, Tuple2<FloatValue, LongValue>> {
+		private static final long serialVersionUID = -1050135273067677649L;
 		private FloatValue sumOfScores = new FloatValue();
 
 		private LongValue numberOfNeighborPairs = new LongValue();
@@ -381,6 +387,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFields("0->vertexId0; 1->vertexId1")
 	private static class ComputeScores<T>
 	extends RichGroupReduceFunction<Tuple3<T, T, FloatValue>, Result<T>> {
+		private static final long serialVersionUID = 378506140977883296L;
 		private float minimumScore;
 
 		private float minimumRatio;
@@ -435,6 +442,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public static class Result<T>
 	extends BinaryResultBase<T>
 	implements PrintableResult, Comparable<Result<T>> {
+		private static final long serialVersionUID = 5828356492469340448L;
 		private FloatValue adamicAdarScore = new FloatValue();
 
 		/**

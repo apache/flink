@@ -48,6 +48,8 @@ import org.apache.flink.table.api.ValidationException;
 @PublicEvolving
 public abstract class ScalarFunction extends UserDefinedFunction {
 
+	private static final long serialVersionUID = 7938994048415210252L;
+
 	/**
 	 * Returns the result type of the evaluation method with a given signature.
 	 *

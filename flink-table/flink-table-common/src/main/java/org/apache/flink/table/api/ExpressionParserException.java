@@ -23,6 +23,8 @@ package org.apache.flink.table.api;
  */
 public class ExpressionParserException extends RuntimeException {
 
+	private static final long serialVersionUID = -9030138977673176425L;
+
 	public ExpressionParserException(String msg) {
 		super(msg);
 	}

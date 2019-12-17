@@ -38,6 +38,8 @@ import java.io.Serializable;
 @PublicEvolving
 public abstract class UserDefinedFunction implements FunctionDefinition, Serializable {
 
+	private static final long serialVersionUID = -2915979617198831296L;
+
 	/**
 	 * Returns a unique, serialized representation for this function.
 	 */

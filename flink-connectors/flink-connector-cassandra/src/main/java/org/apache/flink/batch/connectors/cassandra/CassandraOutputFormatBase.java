@@ -42,6 +42,7 @@ import java.io.IOException;
  */
 public abstract class CassandraOutputFormatBase<OUT> extends RichOutputFormat<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraOutputFormatBase.class);
+	private static final long serialVersionUID = 244469903341197377L;
 
 	private final String insertQuery;
 	private final ClusterBuilder builder;

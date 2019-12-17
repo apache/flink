@@ -32,6 +32,8 @@ import java.lang.reflect.Method;
  */
 public class HiveShimV200 extends HiveShimV122 {
 
+	private static final long serialVersionUID = -5509026393005378947L;
+
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {

@@ -32,6 +32,7 @@ import org.apache.flink.util.Collector;
 public class LimitOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow> {
 
+	private static final long serialVersionUID = 1798262493242476740L;
 	private final boolean isGlobal;
 	private final long limitStart;
 	private final long limitEnd;

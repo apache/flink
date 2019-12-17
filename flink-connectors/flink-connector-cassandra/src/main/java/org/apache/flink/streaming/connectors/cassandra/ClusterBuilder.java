@@ -28,6 +28,8 @@ import java.io.Serializable;
  */
 public abstract class ClusterBuilder implements Serializable {
 
+	private static final long serialVersionUID = 1785274396901081238L;
+
 	public Cluster getCluster() {
 		return buildCluster(Cluster.builder());
 	}

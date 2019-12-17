@@ -23,4 +23,5 @@ package org.apache.flink.table.catalog.hive.client;
  */
 public class HiveShimV201 extends HiveShimV200 {
 
+	private static final long serialVersionUID = -7636146372161212606L;
 }

@@ -36,6 +36,8 @@ import java.util.Map;
 @PublicEvolving
 public abstract class TimestampExtractor implements FieldComputer<Long>, Serializable, Descriptor {
 
+	private static final long serialVersionUID = 6905582462430309400L;
+
 	@Override
 	public TypeInformation<Long> getReturnType() {
 		return Types.LONG;

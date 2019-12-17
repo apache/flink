@@ -50,6 +50,7 @@ public class DegreeAnnotationFunctions {
 	@ForwardedFields("0")
 	public static class MapEdgeToSourceId<K, EV>
 	implements MapFunction<Edge<K, EV>, Vertex<K, LongValue>> {
+		private static final long serialVersionUID = 7575557653118575869L;
 		private Vertex<K, LongValue> output = new Vertex<>(null, new LongValue(1));
 
 		@Override
@@ -68,6 +69,7 @@ public class DegreeAnnotationFunctions {
 	@ForwardedFields("1->0")
 	public static class MapEdgeToTargetId<K, EV>
 	implements MapFunction<Edge<K, EV>, Vertex<K, LongValue>> {
+		private static final long serialVersionUID = -5860084247717680304L;
 		private Vertex<K, LongValue> output = new Vertex<>(null, new LongValue(1));
 
 		@Override
@@ -85,6 +87,8 @@ public class DegreeAnnotationFunctions {
 	@ForwardedFields("0")
 	public static class DegreeCount<K>
 	implements ReduceFunction<Vertex<K, LongValue>> {
+		private static final long serialVersionUID = 1126586008446188177L;
+
 		@Override
 		public Vertex<K, LongValue> reduce(Vertex<K, LongValue> left, Vertex<K, LongValue> right)
 				throws Exception {
@@ -105,6 +109,7 @@ public class DegreeAnnotationFunctions {
 	@ForwardedFieldsSecond("0")
 	public static class JoinVertexWithVertexDegree<K, VV>
 	implements JoinFunction<Vertex<K, VV>, Vertex<K, LongValue>, Vertex<K, LongValue>> {
+		private static final long serialVersionUID = -3568332157014978719L;
 		private LongValue zero = new LongValue(0);
 
 		private Vertex<K, LongValue> output = new Vertex<>();
@@ -134,6 +139,7 @@ public class DegreeAnnotationFunctions {
 	@ForwardedFieldsSecond("0; 1->2.1")
 	public static class JoinEdgeWithVertexDegree<K, EV, D>
 	implements JoinFunction<Edge<K, EV>, Vertex<K, D>, Edge<K, Tuple2<EV, D>>> {
+		private static final long serialVersionUID = 2762343497325262373L;
 		private Tuple2<EV, D> valueAndDegree = new Tuple2<>();
 
 		private Edge<K, Tuple2<EV, D>> output = new Edge<>(null, null, valueAndDegree);
@@ -160,6 +166,7 @@ public class DegreeAnnotationFunctions {
 	@ForwardedFieldsSecond("0; 1->2.2")
 	public static class JoinEdgeDegreeWithVertexDegree<K, EV, D>
 	implements JoinFunction<Edge<K, Tuple2<EV, D>>, Vertex<K, D>, Edge<K, Tuple3<EV, D, D>>> {
+		private static final long serialVersionUID = -7603235910757263769L;
 		private Tuple3<EV, D, D> valueAndDegrees = new Tuple3<>();
 
 		private Edge<K, Tuple3<EV, D, D>> output = new Edge<>(null, null, valueAndDegrees);

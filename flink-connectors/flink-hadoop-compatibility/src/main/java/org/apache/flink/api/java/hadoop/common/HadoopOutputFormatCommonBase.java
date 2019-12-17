@@ -34,6 +34,7 @@ import java.io.ObjectOutputStream;
  */
 @Internal
 public abstract class HadoopOutputFormatCommonBase<T> extends RichOutputFormat<T> {
+	private static final long serialVersionUID = -3302636760439510032L;
 	protected transient Credentials credentials;
 
 	protected HadoopOutputFormatCommonBase(Credentials creds) {

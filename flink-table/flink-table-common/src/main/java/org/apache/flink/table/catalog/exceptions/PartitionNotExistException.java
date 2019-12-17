@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ObjectPath;
  */
 public class PartitionNotExistException extends Exception {
 	private static final String MSG = "Partition %s of table %s in catalog %s does not exist.";
+	private static final long serialVersionUID = -1681384754576190912L;
 
 	public PartitionNotExistException(
 		String catalogName,

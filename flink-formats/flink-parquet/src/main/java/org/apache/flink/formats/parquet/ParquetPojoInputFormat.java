@@ -44,6 +44,7 @@ import java.util.Map;
 public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ParquetPojoInputFormat.class);
+	private static final long serialVersionUID = -2872463593758653165L;
 	private final Class<E> pojoTypeClass;
 	private final TypeSerializer<E> typeSerializer;
 	private transient Field[] pojoFields;

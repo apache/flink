@@ -40,6 +40,7 @@ import java.util.Iterator;
 @Internal
 public class SampleInCoordinator<T> implements GroupReduceFunction<IntermediateSampleData<T>, T> {
 
+	private static final long serialVersionUID = 2224101917531517071L;
 	private boolean withReplacement;
 	private int numSample;
 	private long seed;

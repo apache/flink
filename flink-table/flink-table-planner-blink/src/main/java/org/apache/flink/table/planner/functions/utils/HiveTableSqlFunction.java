@@ -209,6 +209,7 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	/** Thrown when a non-literal occurs in an argument to a user-defined
 	 * table macro. */
 	private static class NonLiteralException extends Exception {
+		private static final long serialVersionUID = 293003566592576469L;
 	}
 
 	public static HiveOperandTypeChecker operandTypeChecker(

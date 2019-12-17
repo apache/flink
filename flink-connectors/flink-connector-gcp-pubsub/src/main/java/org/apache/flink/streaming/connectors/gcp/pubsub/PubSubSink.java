@@ -60,6 +60,7 @@ import static org.apache.flink.runtime.concurrent.Executors.directExecutor;
  */
 public class PubSubSink<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
+	private static final long serialVersionUID = -1203712866732821492L;
 
 	private final AtomicReference<Exception> exceptionAtomicReference;
 	private final ApiFutureCallback<String> failureHandler;
@@ -310,6 +311,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	}
 
 	private class FailureHandler implements ApiFutureCallback<String>, Serializable {
+		private static final long serialVersionUID = 4412085103254942997L;
+
 		@Override
 		public void onFailure(Throwable t) {
 			ackAndMaybeNotifyNoPendingFutures();

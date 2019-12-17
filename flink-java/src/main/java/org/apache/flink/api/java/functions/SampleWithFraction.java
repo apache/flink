@@ -36,6 +36,7 @@ import java.util.Iterator;
 @Internal
 public class SampleWithFraction<T> extends RichMapPartitionFunction<T, T> {
 
+	private static final long serialVersionUID = -608309297128360022L;
 	private boolean withReplacement;
 	private double fraction;
 	private long seed;

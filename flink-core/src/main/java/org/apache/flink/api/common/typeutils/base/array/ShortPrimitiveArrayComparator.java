@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.base.ShortComparator;
 
 @Internal
 public class ShortPrimitiveArrayComparator extends PrimitiveArrayComparator<short[], ShortComparator> {
+	private static final long serialVersionUID = 3438427829335256220L;
+
 	public ShortPrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new ShortComparator(ascending));
 	}

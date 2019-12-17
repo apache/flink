@@ -45,6 +45,7 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 		implements OneInputStreamOperator<BaseRow, BinaryRow>, BoundedOneInput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SortOperator.class);
+	private static final long serialVersionUID = 2391615629357588770L;
 
 	private GeneratedNormalizedKeyComputer gComputer;
 	private GeneratedRecordComparator gComparator;

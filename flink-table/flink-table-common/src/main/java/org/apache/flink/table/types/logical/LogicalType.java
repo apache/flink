@@ -55,6 +55,7 @@ import java.util.Set;
 @PublicEvolving
 public abstract class LogicalType implements Serializable {
 
+	private static final long serialVersionUID = -7381419642101800907L;
 	private final boolean isNullable;
 
 	private final LogicalTypeRoot typeRoot;
