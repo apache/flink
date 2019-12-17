@@ -307,13 +307,10 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 					addToList(labelValues, quantile.toString()),
 					statistics.getQuantile(quantile)));
 			}
-			samples.add(new MetricFamilySamples.Sample(metricName, labelNamesWithQuantile,
+			samples.add(new MetricFamilySamples.Sample(metricName, addToList(labelNamesWithQuantile.subList(0, labelNamesWithQuantile.size() - 1),"statistic"),
 													   addToList(labelValues, "max"),
 													   statistics.getMax()));
-			samples.add(new MetricFamilySamples.Sample(metricName, labelNamesWithQuantile,
-													   addToList(labelValues, "min"),
-													   statistics.getMin()));
-			samples.add(new MetricFamilySamples.Sample(metricName, labelNamesWithQuantile,
+			samples.add(new MetricFamilySamples.Sample(metricName, addToList(labelNamesWithQuantile.subList(0, labelNamesWithQuantile.size() - 1),"statistic"),
 													   addToList(labelValues, "mean"),
 													   statistics.getMean()));
 		}
