@@ -112,7 +112,6 @@ public final class PipelinedRegionComputeUtil {
 				set = new HashSet<>(1);
 				vertexToRegion.put(region, set);
 			}
-			vertexToRegion.put(vertex, set);
 			set.add(vertex);
 		}
 		return uniqueRegions(vertexToRegion);
