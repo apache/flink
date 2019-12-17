@@ -90,7 +90,7 @@ root
  |-- name: value
  |-- type: DOUBLE
 
-
+# ------ Select from hive table or hive view ------ 
 Flink SQL> SELECT * FROM mytable;
 
    name      value
@@ -111,15 +111,45 @@ __________ __________
 
 ## Writing To Hive
 
-Similarly, data can be written into hive using an `INSERT INTO` clause. 
+Similarly, data can be written into hive using an `INSERT` clause.
+
+Consider there is an example table named "mytable" with two columns: name and age, in string and int type.
 
 {% highlight bash %}
-Flink SQL> INSERT INTO mytable (name, value) VALUES ('Tom', 4.72);
+# ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
+Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
+
+# ------ INSERT OVERWRITE will overwrite any existing data in the table or partition ------ 
+Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
+{% endhighlight %}
+
+We support partitioned table too, Consider there is a partitioned table named myparttable with four columns: name, age, my_type and my_date, in types ...... my_type and my_date are the partition keys.
+
+{% highlight bash %}
+# ------ Insert with static partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') SELECT 'Tom', 25;
+
+# ------ Insert with dynamic partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08';
+
+# ------ Insert with static(my_type) and dynamic(my_date) partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 {% endhighlight %}
 
 ## Formats
 
 We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
+
+# ------ ORC Vectorized Optimization ------ 
+Optimization is used automatically when the following conditions are met:
+
+- Columns without complex data type, like hive types: List, Map, Struct, Union.
+- Hive version greater than or equal to version 2.0.0.
+
+If there is a problem, you can use this config option to close ORC Vectorized Optimization:
+{% highlight bash %}
+table.exec.hive.fallback-mapred-reader=true
+{% endhighlight %}
 
 ## Roadmap
 

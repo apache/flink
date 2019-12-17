@@ -116,10 +116,10 @@ Similarly, data can be written into hive using an `INSERT` clause.
 Consider there is an example table named "mytable" with two columns: name and age, in string and int type.
 
 {% highlight bash %}
-# ------ Insert with append mode ------ 
+# ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
 Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 
-# ------ Insert with overwrite mode ------ 
+# ------ INSERT OVERWRITE will overwrite any existing data in the table or partition ------ 
 Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
@@ -143,8 +143,8 @@ We have tested on the following of table storage formats: text, csv, SequenceFil
 # ------ ORC Vectorized Optimization ------ 
 Optimization is used automatically when the following conditions are met:
 
-- Columns without complex data type, like hive types: List, Map, Struct.
-- Hive version greater than or equal to version 2.
+- Columns without complex data type, like hive types: List, Map, Struct, Union.
+- Hive version greater than or equal to version 2.0.0.
 
 If there is a problem, you can use this config option to close ORC Vectorized Optimization:
 {% highlight bash %}
