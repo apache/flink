@@ -21,8 +21,8 @@ package org.apache.flink.yarn.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutor;
 
 import javax.annotation.Nonnull;
 
@@ -38,7 +38,7 @@ public class YarnJobClusterExecutorFactory implements ExecutorFactory {
 	}
 
 	@Override
-	public Executor getExecutor(@Nonnull final Configuration configuration) {
+	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
 		return new YarnJobClusterExecutor();
 	}
 }

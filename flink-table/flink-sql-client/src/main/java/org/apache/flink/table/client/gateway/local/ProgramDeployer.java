@@ -22,10 +22,10 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +76,7 @@ public class ProgramDeployer {
 			throw new RuntimeException("Could not retrieve ExecutorFactory.", e);
 		}
 
-		final Executor executor = executorFactory.getExecutor(configuration);
+		final PipelineExecutor executor = executorFactory.getExecutor(configuration);
 		CompletableFuture<JobClient> jobClient;
 		try {
 			jobClient = executor.execute(pipeline, configuration);

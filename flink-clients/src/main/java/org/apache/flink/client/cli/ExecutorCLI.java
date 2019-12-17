@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.execution.PipelineExecutor;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -36,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A generic implementation of the {@link CustomCommandLine} that only expects
  * the execution.target parameter to be explicitly specified and simply forwards the
- * rest of the options specified with -D to the corresponding {@link org.apache.flink.core.execution.Executor}
+ * rest of the options specified with -D to the corresponding {@link PipelineExecutor}
  * for further parsing.
  */
 @Internal

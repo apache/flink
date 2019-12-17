@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
  * The entity responsible for executing a {@link Pipeline}, i.e. a user job.
  */
 @Internal
-public interface Executor {
+public interface PipelineExecutor {
 
 	/**
 	 * Executes a {@link Pipeline} based on the provided configuration and returns a {@link JobClient} which allows to
