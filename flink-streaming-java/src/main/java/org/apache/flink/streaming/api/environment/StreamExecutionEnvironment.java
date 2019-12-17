@@ -55,11 +55,11 @@ import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -164,7 +164,7 @@ public class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
-	private final ExecutorServiceLoader executorServiceLoader;
+	private final PipelineExecutorServiceLoader executorServiceLoader;
 
 	private final Configuration configuration;
 
@@ -196,12 +196,12 @@ public class StreamExecutionEnvironment {
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
 	 * Configuration} to configure the {@link PipelineExecutor}.
 	 *
-	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * <p>In addition, this constructor allows specifying the {@link PipelineExecutorServiceLoader} and
 	 * user code {@link ClassLoader}.
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
@@ -1731,7 +1731,7 @@ public class StreamExecutionEnvironment {
 
 		consolidateParallelismDefinitionsInConfiguration();
 
-		final ExecutorFactory executorFactory =
+		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
 
 		checkNotNull(

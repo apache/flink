@@ -28,7 +28,7 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -147,7 +147,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@PublicEvolving
 	public RemoteStreamEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final String host,
 			final int port,
 			final Configuration clientConfiguration,
