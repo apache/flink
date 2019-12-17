@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.util.NetUtils;
@@ -639,5 +640,32 @@ public class BootstrapTools {
 			})
 			.toArray(String[]::new);
 		return String.join(" ", newAddedConfigs);
+	}
+
+	/**
+	 * Calculate heap size after cut-off. The heap size after cut-off will be used to set -Xms and -Xmx for jobmanager
+	 * start command.
+	 */
+	public static int calculateHeapSize(int memory, Configuration conf) {
+
+		final float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
+		final int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
+
+		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
+				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
+		}
+		if (minCutoff > memory) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()
+				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
+		}
+
+		int heapLimit = (int) ((float) memory * memoryCutoffRatio);
+		if (heapLimit < minCutoff) {
+			heapLimit = minCutoff;
+		}
+		return memory - heapLimit;
 	}
 }
