@@ -640,17 +640,23 @@ public class SlotSharingManager {
 				}
 			}
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Not all requests are fulfilled due to over-allocated, number of requests is {}, " +
-						"number of evicted requests is {}, underlying allocated is {}, fulfilled is {}, " +
-						"evicted requests is {},",
-					children.size(),
-					childrenToEvict.size(),
-					slotContext.getResourceProfile(),
-					requiredResources,
-					childrenToEvict);
-			}
+			if (!childrenToEvict.isEmpty()) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Not all requests are fulfilled due to over-allocated, number of requests is {}, " +
+							"number of evicted requests is {}, underlying allocated is {}, fulfilled is {}, " +
+							"evicted requests is {},",
+						children.size(),
+						childrenToEvict.size(),
+						slotContext.getResourceProfile(),
+						requiredResources,
+						childrenToEvict);
+				}
 
+				releaseOversubscribedChildren(childrenToEvict);
+			}
+		}
+
+		private void releaseOversubscribedChildren(Collection<? extends TaskSlot> childrenToEvict) {
 			if (childrenToEvict.size() == children.size()) {
 				// Since RM always return a slot whose resource is larger than the requested one,
 				// The current situation only happens when we request to RM using the resource
@@ -660,9 +666,11 @@ public class SlotSharingManager {
 				release(new SharedSlotOversubscribedException(
 					"The allocated slot does not have enough resource for any task.", false));
 			} else {
+				final SharedSlotOversubscribedException oversubscriptionFailure = new SharedSlotOversubscribedException(
+					"The allocated slot does not have enough resource for all the tasks.", true);
+
 				for (TaskSlot taskSlot : childrenToEvict) {
-					taskSlot.release(new SharedSlotOversubscribedException(
-						"The allocated slot does not have enough resource for all the tasks.", true));
+					taskSlot.release(oversubscriptionFailure);
 				}
 			}
 		}
