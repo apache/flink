@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
 import java.io.IOException
@@ -162,7 +163,7 @@ object TestCollectionTableFactory {
         rowType)
     }
 
-    override def getReturnType: TypeInformation[Row] = rowType
+    override def getProducedDataType: DataType = schema.toRowDataType
 
     override def getTableSchema: TableSchema = {
       schema
