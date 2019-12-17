@@ -89,8 +89,7 @@ run_test "Resuming Externalized Checkpoint after terminal failure (rocks, increm
 ################################################################################
 
 run_test "Running Kerberized YARN on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
-# Disabled because of https://issues.apache.org/jira/browse/FLINK-14968
-# run_test "Running Kerberized YARN on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh dummy-fs"
+run_test "Running Kerberized YARN on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh dummy-fs"
 
 ################################################################################
 # High Availability
