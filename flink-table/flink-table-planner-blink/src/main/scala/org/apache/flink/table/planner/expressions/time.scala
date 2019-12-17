@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.isTimeInterval
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-
 import org.apache.calcite.rex._
+import org.apache.flink.table.runtime.typeutils.LegacyLocalTimeTypeInfo
 
 case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpression)
   extends PlannerExpression {

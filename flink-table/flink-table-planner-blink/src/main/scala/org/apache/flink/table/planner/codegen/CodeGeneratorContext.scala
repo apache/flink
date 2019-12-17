@@ -451,16 +451,17 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val timestamp = addReusableTimestamp()
 
     // declaration
-    reusableMemberStatements.add(s"private int $fieldTerm;")
+    reusableMemberStatements.add(s"private long $fieldTerm;")
 
     // assignment
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
     val field =
       s"""
-         |$fieldTerm = (int) ($timestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
+         |$fieldTerm = $timestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY};
          |if (time < 0) {
          |  time += ${DateTimeUtils.MILLIS_PER_DAY};
          |}
+         |time = time * 1000000L + $timestamp.getNanoOfMillisecond();
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -497,14 +498,18 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val localtimestamp = addReusableLocalDateTime()
 
     // declaration
-    reusableMemberStatements.add(s"private int $fieldTerm;")
+    reusableMemberStatements.add(s"private long $fieldTerm;")
 
     // assignment
     // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
     val field =
     s"""
-       |$fieldTerm = (int) ($localtimestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
-       |""".stripMargin
+       |$fieldTerm = $localtimestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY};
+       |if (localtime < 0) {
+       |  localtime += ${DateTimeUtils.MILLIS_PER_DAY};
+       |}
+       |localtime = localtime * 1000000L + $localtimestamp.getNanoOfMillisecond();
+     """.stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
   }

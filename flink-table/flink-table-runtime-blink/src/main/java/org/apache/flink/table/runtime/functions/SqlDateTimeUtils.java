@@ -1185,6 +1185,22 @@ public class SqlDateTimeUtils {
 		return SqlTimestamp.fromLocalDateTime(LocalDateTime.ofInstant(ts.toInstant(), tz.toZoneId()));
 	}
 
+	public static long timestampWithLocalZoneToTime(SqlTimestamp ts, TimeZone tz) {
+		return SqlTimestamp
+			.fromLocalDateTime(LocalDateTime.ofInstant(ts.toInstant(), tz.toZoneId()))
+			.toLocalDateTime()
+			.toLocalTime()
+			.toNanoOfDay();
+	}
+
+	public static SqlTimestamp timeToTimestampWithLocalZone(long time, TimeZone tz) {
+		return SqlTimestamp.fromInstant(
+			LocalDateTime.of(
+				LocalDate.of(1970, 1, 1), LocalTime.ofNanoOfDay(time))
+			.atZone(tz.toZoneId())
+			.toInstant());
+	}
+
 	public static int timestampWithLocalZoneToDate(long ts, TimeZone tz) {
 		return localDateToUnixDate(LocalDateTime.ofInstant(
 				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalDate());
@@ -1534,6 +1550,21 @@ public class SqlDateTimeUtils {
 				return SqlTimestamp.fromEpochMillis(
 					ts.getMillisecond(), (int) zeroLastDigits(ts.getNanoOfMillisecond(), 9 - precision));
 			}
+		}
+	}
+
+	public static long truncateTime(long time, int precision) {
+		final LocalTime localTime = LocalTime.ofNanoOfDay(time);
+		String fraction = Integer.toString(localTime.getNano());
+		if (fraction.length() <= precision) {
+			return time;
+		} else {
+			// need to truncate
+			int nano = (int) zeroLastDigits(localTime.getNano(), 9 - precision);
+			return LocalTime.of(
+				localTime.getHour(),
+				localTime.getMinute(),
+				localTime.getSecond(), nano).toNanoOfDay();
 		}
 	}
 

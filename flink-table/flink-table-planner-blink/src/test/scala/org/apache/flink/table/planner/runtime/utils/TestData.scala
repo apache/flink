@@ -307,7 +307,7 @@ object TestData {
       localDateTime("2017-11-20 09:00:00")),
     row(4,  3.15, "DEF",  localDate("2017-02-06"), localTime("06:00:00"),
       localDateTime("2015-11-19 10:00:00")),
-    row(4,  3.14, "EFG",  localDate("2017-05-20"), localTime("09:45:78"),
+    row(4,  3.14, "EFG",  localDate("2017-05-20"), localTime("09:46:18"),
       localDateTime("2015-11-19 10:00:01")),
     row(4,  3.16, "FGH",  localDate("2017-05-19"), localTime("11:11:11"),
       localDateTime("2015-11-20 08:59:59")),

@@ -45,7 +45,7 @@ import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
 import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.{Integer => JInt}
 import java.sql.{Date, Time, Timestamp}
 import java.time.{Instant, LocalDateTime}
 

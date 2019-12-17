@@ -137,7 +137,7 @@ public class TypeInfoDataTypeConverter {
 				TimeType timeType = (TimeType) logicalType;
 				int precisionOfTime = timeType.getPrecision();
 				return clazz == LocalTime.class ?
-					(3 == precisionOfTime) ? Types.LOCAL_TIME : new LegacyLocalTimeTypeInfo(precisionOfTime) :
+					(0 == precisionOfTime) ? Types.LOCAL_TIME : new LegacyLocalTimeTypeInfo(precisionOfTime) :
 					TypeConversions.fromDataTypeToLegacyInfo(dataType);
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) logicalType;

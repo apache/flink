@@ -462,7 +462,7 @@ class SortCodeGenerator(
       case INTERVAL_YEAR_MONTH => 4
       case INTERVAL_DAY_TIME => 8
       case DATE => 4
-      case TIME_WITHOUT_TIME_ZONE => 4
+      case TIME_WITHOUT_TIME_ZONE => 8
       case DECIMAL if Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
       case VARCHAR | CHAR | VARBINARY | BINARY => Int.MaxValue
     }

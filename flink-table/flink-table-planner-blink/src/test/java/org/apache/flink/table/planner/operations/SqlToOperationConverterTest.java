@@ -398,9 +398,9 @@ public class SqlToOperationConverterTest {
 			createTestItem("TIME", DataTypes.TIME()),
 			createTestItem("TIME WITHOUT TIME ZONE", DataTypes.TIME()),
 			// Expect to be TIME(3).
-			createTestItem("TIME(3)", DataTypes.TIME()),
+			createTestItem("TIME(3)", DataTypes.TIME(3)),
 			// Expect to be TIME(3).
-			createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME()),
+			createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME(3)),
 			createTestItem("TIMESTAMP", DataTypes.TIMESTAMP(6)),
 			createTestItem("TIMESTAMP WITHOUT TIME ZONE", DataTypes.TIMESTAMP(6)),
 			createTestItem("TIMESTAMP(3)", DataTypes.TIMESTAMP(3)),
