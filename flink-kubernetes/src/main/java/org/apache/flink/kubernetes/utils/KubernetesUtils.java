@@ -126,7 +126,8 @@ public class KubernetesUtils {
 			boolean hasLog4j,
 			String mainClass,
 			@Nullable String mainArgs) {
-		final String jvmMemOpts = String.format("-Xms%sm -Xmx%sm", jobManagerMemoryMb, jobManagerMemoryMb);
+		final int heapSize = BootstrapTools.calculateHeapSize(jobManagerMemoryMb, flinkConfig);
+		final String jvmMemOpts = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
 		return getCommonStartCommand(
 			flinkConfig,
 			ClusterComponent.JOB_MANAGER,
