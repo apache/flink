@@ -66,7 +66,6 @@ import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.Snapshot;
@@ -131,8 +130,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Factory function to create column family options from state name. */
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
-	/** The DB options from the options factory. */
-	private final DBOptions dbOptions;
+	/** The container of RocksDB option factory and predefined options. */
+	private final RocksDBResourceContainer optionsContainer;
 
 	/** Path where this configured instance stores its data directory. */
 	private final File instanceBasePath;
@@ -199,7 +198,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public RocksDBKeyedStateBackend(
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
-		DBOptions dbOptions,
+		RocksDBResourceContainer optionsContainer,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
@@ -236,7 +235,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		// ensure that we use the right merge operator, because other code relies on this
 		this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
 
-		this.dbOptions = Preconditions.checkNotNull(dbOptions);
+		this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
 
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 
@@ -350,7 +349,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			columnFamilyOptions.forEach(IOUtils::closeQuietly);
 
-			IOUtils.closeQuietly(dbOptions);
+			IOUtils.closeQuietly(optionsContainer);
 			IOUtils.closeQuietly(writeOptions);
 
 			ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();

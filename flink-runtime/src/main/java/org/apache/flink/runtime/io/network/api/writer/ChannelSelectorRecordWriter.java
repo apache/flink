@@ -101,7 +101,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 		checkState(bufferBuilders[targetChannel] == null || bufferBuilders[targetChannel].isFinished());
 
 		BufferBuilder bufferBuilder = targetPartition.getBufferBuilder();
-		targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
+		targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(false), targetChannel);
 		bufferBuilders[targetChannel] = bufferBuilder;
 		return bufferBuilder;
 	}

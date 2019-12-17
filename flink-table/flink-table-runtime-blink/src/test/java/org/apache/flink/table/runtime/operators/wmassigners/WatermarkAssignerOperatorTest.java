@@ -215,6 +215,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 		expected.add(new Watermark(10L));
 
 		testHarness.close();
+		expected.add(Watermark.MAX_WATERMARK);
 
 		// num_watermark + num_records
 		assertEquals(expected.size() + 11, testHarness.getOutput().size());

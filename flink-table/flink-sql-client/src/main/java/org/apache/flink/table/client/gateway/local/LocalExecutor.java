@@ -410,7 +410,6 @@ public class LocalExecutor implements Executor {
 			} catch (CatalogException e) {
 				throw new SqlExecutionException("Failed to switch to catalog " + catalogName, e);
 			}
-			return null;
 		});
 	}
 
@@ -426,7 +425,6 @@ public class LocalExecutor implements Executor {
 			} catch (CatalogException e) {
 				throw new SqlExecutionException("Failed to switch to database " + databaseName, e);
 			}
-			return null;
 		});
 	}
 
@@ -619,17 +617,16 @@ public class LocalExecutor implements Executor {
 				removeTimeAttributes(table.getSchema()),
 				context.getExecutionConfig(),
 				context.getClassLoader());
-
 		final String jobName = sessionId + ": " + query;
+		final String tableName = String.format("_tmp_table_%s", Math.abs(query.hashCode()));
 		final Pipeline pipeline;
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				context.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
+				context.getTableEnvironment().registerTableSink(tableName, result.getTableSink());
 				table.insertInto(
 						context.getQueryConfig(),
-						jobName);
-				return null;
+						tableName);
 			});
 			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
 		} catch (Throwable t) {
@@ -638,6 +635,11 @@ public class LocalExecutor implements Executor {
 			result.close();
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL query.", t);
+		} finally {
+			// Remove the temporal table object.
+			context.wrapClassLoader(() -> {
+				context.getTableEnvironment().dropTemporaryTable(tableName);
+			});
 		}
 
 		// store the result with a unique id
@@ -689,7 +691,6 @@ public class LocalExecutor implements Executor {
 				} else {
 					tableEnv.sqlUpdate(updateStatement);
 				}
-				return null;
 			});
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor

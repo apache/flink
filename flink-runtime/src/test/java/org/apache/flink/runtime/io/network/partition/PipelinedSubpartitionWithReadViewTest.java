@@ -318,11 +318,13 @@ public class PipelinedSubpartitionWithReadViewTest {
 
 	@Test
 	public void testBufferCompression() {
-		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE, false));
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE, false));
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE, true));
 
 		assertFalse(checkNotNull(readView.getNextBuffer(true)).buffer().isCompressed());
 		assertThat(checkNotNull(readView.getNextBuffer(false)).buffer().isCompressed(), is(compressionEnabled));
+		assertFalse(checkNotNull(readView.getNextBuffer(false)).buffer().isCompressed());
 	}
 
 	private void testBacklogConsistentWithNumberOfConsumableBuffers(boolean isFlushRequested, boolean isFinished) throws Exception {

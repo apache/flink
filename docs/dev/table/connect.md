@@ -181,9 +181,6 @@ tableEnvironment
       .field("message", DataTypes.STRING())
   )
 
-  // specify the update-mode for streaming tables
-  .inAppendMode()
-
   // create a table with given name
   .createTemporaryTable("MyUserTable");
 {% endhighlight %}
@@ -226,9 +223,7 @@ table_environment \
         .field("user", DataTypes.BIGINT())
         .field("message", DataTypes.STRING())
     ) \
-    .in_append_mode() \
-    .create_temporary_table("MyUserTable")  
-    # specify the update-mode for streaming tables and
+    .create_temporary_table("MyUserTable")
     # register as source, sink, or both and under a name
 {% endhighlight %}
 </div>
@@ -238,7 +233,6 @@ table_environment \
 tables:
   - name: MyUserTable      # name the new table
     type: source           # declare if the table should be "source", "sink", or "both"
-    update-mode: append    # specify the update-mode for streaming tables
 
     # declare the external system to connect to
     connector:
@@ -297,7 +291,6 @@ CREATE TABLE MyUserTable (
   'connector.startup-mode' = 'earliest-offset',
   'connector.properties.zookeeper.connect' = 'localhost:2181',
   'connector.properties.bootstrap.servers' = 'localhost:9092',
-  'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
   'format.avro-schema' = '{
@@ -791,9 +784,6 @@ CREATE TABLE MyUserTable (
 
   'connector.topic' = 'topic_name', -- required: topic name from which the table is read
 
-  'update-mode' = 'append',         -- required: update mode when used as table sink, 
-                                    -- only support append mode now.
-
   'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specify the ZooKeeper connection string
   'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specify the Kafka server connection string
   'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specify consumer group
@@ -1268,6 +1258,17 @@ CREATE TABLE MyUserTable (
 
 {% top %}
 
+
+### Hive Connector
+
+<span class="label label-primary">Source: Batch</span>
+<span class="label label-primary">Sink: Batch</span>
+
+Please refer to [Hive integration]({{ site.baseurl }}/dev/table/hive/).
+
+{% top %}
+
+
 Table Formats
 -------------
 
@@ -1588,7 +1589,7 @@ The following table shows the mapping of JSON schema types to Flink SQL types:
 | `array`                           | `ARRAY[_]`              |
 | `number`                          | `DECIMAL`               |
 | `integer`                         | `DECIMAL`               |
-| `string`                          | `VARCHAR`               |
+| `string`                          | `STRING`                |
 | `string` with `format: date-time` | `TIMESTAMP`             |
 | `string` with `format: date`      | `DATE`                  |
 | `string` with `format: time`      | `TIME`                  |

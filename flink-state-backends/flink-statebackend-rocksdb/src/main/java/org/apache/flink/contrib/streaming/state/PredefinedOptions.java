@@ -25,6 +25,9 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
  * The various pre-defined choices are configurations that have been empirically
@@ -55,7 +58,7 @@ public enum PredefinedOptions {
 	DEFAULT {
 
 		@Override
-		public DBOptions createDBOptions() {
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setUseFsync(false)
 					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
@@ -63,7 +66,7 @@ public enum PredefinedOptions {
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			return new ColumnFamilyOptions();
 		}
 
@@ -94,8 +97,7 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
-
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
@@ -105,7 +107,7 @@ public enum PredefinedOptions {
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			return new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
@@ -143,8 +145,7 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED_HIGH_MEM {
 
 		@Override
-		public DBOptions createDBOptions() {
-
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
@@ -154,12 +155,15 @@ public enum PredefinedOptions {
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 
 			final long blockCacheSize = 256 * 1024 * 1024;
 			final long blockSize = 128 * 1024;
 			final long targetFileSize = 256 * 1024 * 1024;
 			final long writeBufferSize = 64 * 1024 * 1024;
+
+			BloomFilter bloomFilter = new BloomFilter();
+			handlesToClose.add(bloomFilter);
 
 			return new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
@@ -173,7 +177,7 @@ public enum PredefinedOptions {
 							new BlockBasedTableConfig()
 									.setBlockCacheSize(blockCacheSize)
 									.setBlockSize(blockSize)
-									.setFilter(new BloomFilter())
+									.setFilter(bloomFilter)
 					);
 		}
 	},
@@ -200,7 +204,7 @@ public enum PredefinedOptions {
 	FLASH_SSD_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
@@ -210,7 +214,7 @@ public enum PredefinedOptions {
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			return new ColumnFamilyOptions();
 		}
 	};
@@ -220,15 +224,33 @@ public enum PredefinedOptions {
 	/**
 	 * Creates the {@link DBOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract DBOptions createDBOptions();
+	public abstract DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public DBOptions createDBOptions() {
+		return createDBOptions(new ArrayList<>());
+	}
 
 	/**
 	 * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract ColumnFamilyOptions createColumnOptions();
+	public abstract ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public ColumnFamilyOptions createColumnOptions() {
+		return createColumnOptions(new ArrayList<>());
+	}
 
 }

@@ -424,7 +424,7 @@ public class TableEnvHiveConnectorTest {
 	}
 
 	private TableEnvironment getTableEnvWithHiveCatalog() {
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tableEnv.useCatalog(hiveCatalog.getName());
 		return tableEnv;

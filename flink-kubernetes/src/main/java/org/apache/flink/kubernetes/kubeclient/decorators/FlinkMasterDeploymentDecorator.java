@@ -109,7 +109,6 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 			int blobServerPort) {
 		final String flinkConfDirInPod = flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
 		final String logDirInPod = flinkConfig.getString(KubernetesConfigOptions.FLINK_LOG_DIR);
-		final String mainClassArgs = flinkConfig.getString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS_ARGS);
 		final String startCommand = KubernetesUtils.getJobManagerStartCommand(
 			flinkConfig,
 			clusterSpecification.getMasterMemoryMB(),
@@ -118,7 +117,7 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 			hasLogback,
 			hasLog4j,
 			mainClass,
-			mainClassArgs);
+			null);
 
 		final ResourceRequirements requirements = KubernetesUtils.getResourceRequirements(
 			clusterSpecification.getMasterMemoryMB(),

@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -26,12 +27,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.kubernetes.cli.FlinkKubernetesCustomCli;
+import org.apache.flink.kubernetes.cli.KubernetesSessionCli;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -43,29 +42,31 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link FlinkKubernetesCustomCli}.
+ * Tests for the {@link KubernetesSessionCli}.
  */
-public class FlinkKubernetesCustomCliTest {
+public class KubernetesSessionCliTest {
+
+	@Test
+	public void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
+		final KubernetesSessionCli cli = new KubernetesSessionCli(new Configuration());
+
+		final String[] args = {};
+		final Configuration configuration = cli.getEffectiveConfiguration(args);
+
+		assertEquals(KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+	}
 
 	@Test
 	public void testDynamicProperties() throws Exception {
 
-		final FlinkKubernetesCustomCli cli = new FlinkKubernetesCustomCli(
-			new Configuration(),
-			"",
-			"");
-		Options options = new Options();
-		cli.addGeneralOptions(options);
-		cli.addRunOptions(options);
+		final KubernetesSessionCli cli = new KubernetesSessionCli(new Configuration());
+		final String[] args = new String[] {
+			"-e", KubernetesSessionClusterExecutor.NAME,
+			"-Dakka.ask.timeout=5 min",
+			"-Denv.java.opts=-DappName=foobar"
+		};
 
-		final CommandLineParser parser = new DefaultParser();
-		final CommandLine cmd = parser.parse(options, new String[]{
-			"run",
-			"-D", "akka.ask.timeout=5 min",
-			"-D", "env.java.opts=-DappName=foobar"
-		});
-
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(cmd);
+		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 
 		Assert.assertNotNull(clientFactory);
@@ -79,14 +80,13 @@ public class FlinkKubernetesCustomCliTest {
 
 	@Test
 	public void testCorrectSettingOfMaxSlots() throws Exception {
-		String[] params =
-			new String[] {"-ks", "3"};
+		final String[] params = new String[] {
+				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=3"};
 
-		final FlinkKubernetesCustomCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1234);
+		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1234);
 
-		final CommandLine commandLine = cli.parseCommandLineOptions(params, true);
-
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = cli.getEffectiveConfiguration(params);
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -97,12 +97,14 @@ public class FlinkKubernetesCustomCliTest {
 
 	@Test
 	public void testResumeFromKubernetesID() throws Exception {
-		final FlinkKubernetesCustomCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
+		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
 
 		final String clusterId = "my-test-CLUSTER_ID";
-		final CommandLine commandLine = cli.parseCommandLineOptions(new String[] {"-kid", clusterId}, true);
+		final String[] args = new String[] {
+				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-D" + KubernetesConfigOptions.CLUSTER_ID.key() + "=" + clusterId};
 
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		final ClusterClientFactory clientFactory = getClusterClientFactory(executorConfig);
 
 		assertEquals(clusterId, clientFactory.getClusterId(executorConfig));
@@ -123,16 +125,16 @@ public class FlinkKubernetesCustomCliTest {
 		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, taskManagerMemory + "m");
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-		final String[] args = {"-kjm", String.valueOf(jobManagerMemory) + "m", "-ktm", String.valueOf(taskManagerMemory) +
-			"m", "-ks", String.valueOf(slotsPerTaskManager)};
-		final FlinkKubernetesCustomCli cli = new FlinkKubernetesCustomCli(
-			configuration,
-			"k",
-			"kubernetes");
+		final String[] args = {
+				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-D" + JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key() + "=" + jobManagerMemory + "m",
+				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=" + taskManagerMemory + "m",
+				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=" + slotsPerTaskManager
+		};
 
-		CommandLine commandLine = cli.parseCommandLineOptions(args, false);
+		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
 
-		Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -155,15 +157,10 @@ public class FlinkKubernetesCustomCliTest {
 		final int slotsPerTaskManager = 42;
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-		final String[] args = {};
-		final FlinkKubernetesCustomCli cli = new FlinkKubernetesCustomCli(
-			configuration,
-			"",
-			"kubernetes");
+		final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
+		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
 
-		CommandLine commandLine = cli.parseCommandLineOptions(args, false);
-
-		Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -173,33 +170,19 @@ public class FlinkKubernetesCustomCliTest {
 	}
 
 	/**
-	 * Tests the specifying heap memory without unit for job manager and task manager.
-	 */
-	@Test
-	public void testHeapMemoryPropertyWithoutUnit() throws Exception {
-		final String[] args = new String[] { "-kjm", "1024", "-ktm", "2048" };
-		final FlinkKubernetesCustomCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
-
-		final CommandLine commandLine = cli.parseCommandLineOptions(args, false);
-
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
-
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
-	}
-
-	/**
 	 * Tests the specifying heap memory with unit (MB) for job manager and task manager.
 	 */
 	@Test
 	public void testHeapMemoryPropertyWithUnitMB() throws Exception {
-		final String[] args = new String[] { "-kjm", "1024m", "-ktm", "2048m" };
-		final FlinkKubernetesCustomCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
-		final CommandLine commandLine = cli.parseCommandLineOptions(args, false);
+		final String[] args = new String[] {
+				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-D" + JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key() + "=1024m",
+				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=2048m"
+		};
 
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
+
+		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -212,16 +195,20 @@ public class FlinkKubernetesCustomCliTest {
 	 */
 	@Test
 	public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
-		final String[] args = new String[] { "-kjm", "1g", "-ktm", "2g" };
-		final FlinkKubernetesCustomCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
-		final CommandLine commandLine = cli.parseCommandLineOptions(args, false);
+		final String[] args = new String[] {
+				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-D" + JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key() + "=1g",
+				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=3g"
+		};
 
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
+
+		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
 		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(3072));
 	}
 
 	/**
@@ -230,17 +217,13 @@ public class FlinkKubernetesCustomCliTest {
 	@Test
 	public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
 		Configuration configuration = new Configuration();
+		configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
 		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
 		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
 
-		final FlinkKubernetesCustomCli cli = new FlinkKubernetesCustomCli(
-			configuration,
-			"k",
-			"kubernetes");
+		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
 
-		final CommandLine commandLine = cli.parseCommandLineOptions(new String[0], false);
-
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = cli.getEffectiveConfiguration(new String[]{});
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -253,11 +236,13 @@ public class FlinkKubernetesCustomCliTest {
 	 */
 	@Test
 	public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
-		final FlinkKubernetesCustomCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
+		final String[] args = new String[] {
+				"-e", KubernetesSessionClusterExecutor.NAME
+		};
 
-		final CommandLine commandLine = cli.parseCommandLineOptions(new String[0], false);
+		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);
 
-		final Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -270,9 +255,9 @@ public class FlinkKubernetesCustomCliTest {
 		return clusterClientServiceLoader.getClusterClientFactory(executorConfig);
 	}
 
-	private FlinkKubernetesCustomCli createFlinkKubernetesCustomCliWithTmTotalMemory(int totalMemomory) {
+	private KubernetesSessionCli createFlinkKubernetesCustomCliWithTmTotalMemory(int totalMemory) {
 		Configuration configuration = new Configuration();
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalMemomory + "m");
-		return new FlinkKubernetesCustomCli(configuration, "k", "kubernetes");
+		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalMemory + "m");
+		return new KubernetesSessionCli(configuration);
 	}
 }

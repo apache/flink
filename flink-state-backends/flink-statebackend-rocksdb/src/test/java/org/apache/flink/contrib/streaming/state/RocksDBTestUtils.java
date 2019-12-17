@@ -32,7 +32,6 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 
 import java.io.File;
@@ -47,15 +46,14 @@ public final class RocksDBTestUtils {
 			File instanceBasePath,
 			TypeSerializer<K> keySerializer) {
 
-		final DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
-		dbOptions.setCreateIfMissing(true);
+		final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
 		return new RocksDBKeyedStateBackendBuilder<>(
 			"no-op",
 			ClassLoader.getSystemClassLoader(),
 			instanceBasePath,
-			dbOptions,
-			stateName -> PredefinedOptions.DEFAULT.createColumnOptions(),
+			optionsContainer,
+			stateName -> optionsContainer.getColumnOptions(),
 			new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
 			keySerializer,
 			2,
@@ -77,14 +75,13 @@ public final class RocksDBTestUtils {
 			ColumnFamilyHandle defaultCFHandle,
 			ColumnFamilyOptions columnFamilyOptions) {
 
-		final DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
-		dbOptions.setCreateIfMissing(true);
+		final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
 		return new RocksDBKeyedStateBackendBuilder<>(
 				"no-op",
 				ClassLoader.getSystemClassLoader(),
 				instanceBasePath,
-				dbOptions,
+				optionsContainer,
 				stateName -> columnFamilyOptions,
 				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
 				keySerializer,

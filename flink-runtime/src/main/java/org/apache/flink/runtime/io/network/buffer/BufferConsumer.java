@@ -44,6 +44,9 @@ public class BufferConsumer implements Closeable {
 
 	private int currentReaderPosition;
 
+	/** Whether the underlying {@link Buffer} can be shared by multi {@link BufferConsumer} instances. */
+	private final boolean isShareable;
+
 	/**
 	 * Constructs {@link BufferConsumer} instance with the initial reader position.
 	 */
@@ -51,35 +54,48 @@ public class BufferConsumer implements Closeable {
 			MemorySegment memorySegment,
 			BufferRecycler recycler,
 			PositionMarker currentWriterPosition,
-			int currentReaderPosition) {
+			int currentReaderPosition,
+			boolean isShareable) {
 		this(
 			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true),
 			currentWriterPosition,
-			currentReaderPosition);
+			currentReaderPosition,
+			isShareable);
 	}
 
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content.
 	 */
-	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
-		this(memorySegment, recycler, memorySegment.size(), isBuffer);
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, boolean isShareable) {
+		this(memorySegment, recycler, memorySegment.size(), isBuffer, isShareable);
 	}
 
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content of a certain size.
 	 */
-	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, boolean isBuffer) {
+	public BufferConsumer(
+			MemorySegment memorySegment,
+			BufferRecycler recycler,
+			int size,
+			boolean isBuffer,
+			boolean isShareable) {
 		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
 				() -> -size,
-				0);
+				0,
+				isShareable);
 		checkState(memorySegment.size() > 0);
 		checkState(isFinished(), "BufferConsumer with static size must be finished after construction!");
 	}
 
-	private BufferConsumer(Buffer buffer, BufferBuilder.PositionMarker currentWriterPosition, int currentReaderPosition) {
+	private BufferConsumer(
+			Buffer buffer,
+			BufferBuilder.PositionMarker currentWriterPosition,
+			int currentReaderPosition,
+			boolean isShareable) {
 		this.buffer = checkNotNull(buffer);
 		this.writerPosition = new CachedPositionMarker(checkNotNull(currentWriterPosition));
 		this.currentReaderPosition = currentReaderPosition;
+		this.isShareable = isShareable;
 	}
 
 	/**
@@ -110,12 +126,14 @@ public class BufferConsumer implements Closeable {
 	 * Returns a retained copy with separate indexes. This allows to read from the same {@link MemorySegment} twice.
 	 *
 	 * <p>WARNING: the newly returned {@link BufferConsumer} will have its reader index copied from the original buffer.
-	 * In other words, data already consumed before copying will not be visible to the returned copies.
+	 * In other words, data already consumed before copying will not be visible to the returned copies. In addition, only
+	 * shareable {@link BufferConsumer} can be copied.
 	 *
 	 * @return a retained copy of self with separate indexes
 	 */
 	public BufferConsumer copy() {
-		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition);
+		checkState(isShareable, "The underlying buffer is not shareable.");
+		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition, true);
 	}
 
 	public boolean isBuffer() {
@@ -139,6 +157,10 @@ public class BufferConsumer implements Closeable {
 
 	int getCurrentReaderPosition() {
 		return currentReaderPosition;
+	}
+
+	public boolean isShareable() {
+		return isShareable;
 	}
 
 	/**

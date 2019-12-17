@@ -47,7 +47,7 @@ import static org.junit.Assert.assertFalse;
 /**
  * Test for HiveCatalog on Hive metadata.
  */
-public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
+public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
 	@BeforeClass
 	public static void init() {

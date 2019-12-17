@@ -213,6 +213,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		legacyPropertiesMap.remove("connector.properties.bootstrap.servers");
 		legacyPropertiesMap.remove("connector.properties.group.id");
 
+		// keep compatible with a specified update-mode
+		legacyPropertiesMap.put("update-mode", "append");
+
+		// legacy properties for specific-offsets and properties
 		legacyPropertiesMap.put("connector.specific-offsets.0.partition", "0");
 		legacyPropertiesMap.put("connector.specific-offsets.0.offset", "100");
 		legacyPropertiesMap.put("connector.specific-offsets.1.partition", "1");
@@ -252,7 +256,6 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 						.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
 							new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
 							.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
-				.inAppendMode()
 				.toProperties();
 	}
 
@@ -316,6 +319,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		legacyPropertiesMap.remove("connector.properties.bootstrap.servers");
 		legacyPropertiesMap.remove("connector.properties.group.id");
 
+		// keep compatible with a specified update-mode
+		legacyPropertiesMap.put("update-mode", "append");
+
+		// legacy properties for specific-offsets and properties
 		legacyPropertiesMap.put("connector.specific-offsets.0.partition", "0");
 		legacyPropertiesMap.put("connector.specific-offsets.0.offset", "100");
 		legacyPropertiesMap.put("connector.specific-offsets.1.partition", "1");

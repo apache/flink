@@ -57,28 +57,34 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode.
 	 *
-	 * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is more effective for IO
-	 * bounded scenario when data compression ratio is high.
+	 * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is more effective for
+	 * IO bounded scenario when data compression ratio is high. Currently, shuffle data compression is an experimental
+	 * feature and the config option can be changed in the future.
 	 */
 	public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
 		key("taskmanager.network.blocking-shuffle.compression.enabled")
 			.defaultValue(false)
 			.withDescription("Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle" +
 				" mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is" +
-				" more effective for IO bounded scenario when data compression ratio is high.");
+				" more effective for IO bounded scenario when data compression ratio is high. Currently, shuffle data " +
+				"compression is an experimental feature and the config option can be changed in the future.");
 
 	/**
 	 * Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle mode.
 	 *
-	 * <p>Note: Data is compressed per sliced buffer and compression can incur extra CPU overhead, so it is not recommended
-	 * to enable compression if network is not the bottleneck or compression ratio is low.
+	 * <p>Note: Data is compressed per sliced buffer and compression is disabled for operators using broadcast partitioner.
+	 * Because of the extra CPU overhead, it is not recommended to enable compression if network is not the bottleneck or
+	 * compression ratio is low. Currently, shuffle data compression is an experimental feature and the config option can
+	 * be changed in the future.
 	 */
 	public static final ConfigOption<Boolean> PIPELINED_SHUFFLE_COMPRESSION_ENABLED =
 		key("taskmanager.network.pipelined-shuffle.compression.enabled")
 			.defaultValue(false)
 			.withDescription("Boolean flag indicating whether the shuffle data will be compressed for pipelined shuffle" +
-				" mode. Note that data is compressed per sliced buffer and compression can incur extra CPU overhead, so" +
-				" it is not recommended to enable compression if network is not the bottleneck or compression ratio is low.");
+				" mode. Note that data is compressed per sliced buffer and compression is disabled for operators using " +
+				"broadcast partitioner. Because of the extra CPU overhead, it is not recommended to enable compression " +
+				"if network is not the bottleneck or compression ratio is low. Currently, shuffle data compression is " +
+				"an experimental feature and the config option can be changed in the future.");
 
 	/**
 	 * The codec to be used when compressing shuffle data.
@@ -184,12 +190,13 @@ public class NettyShuffleEnvironmentOptions {
 					"tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks" +
 					"the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
 
-	@Documentation.ExcludeFromDocumentation("This option is only used for testing at the moment.")
-	public static final ConfigOption<String> NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE =
-		key("taskmanager.network.bounded-blocking-subpartition-type")
-			.defaultValue("auto")
-			.withDescription("The bounded blocking subpartition type, either \"mmap\" or \"file\". The default \"auto\" means selecting the" +
-					"property type automatically based on system memory architecture.");
+	public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
+		key("taskmanager.network.blocking-shuffle.type")
+			.defaultValue("file")
+			.withDescription("The blocking shuffle type, either \"mmap\" or \"file\". The \"auto\" means selecting the property type automatically" +
+					" based on system memory architecture (64 bit for mmap and 32 bit for file). Note that the memory usage of mmap is not accounted" +
+					" by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once" +
+					" memory exceeding some threshold. Also note that this option is experimental and might be changed future.");
 
 	// ------------------------------------------------------------------------
 	//  Netty Options

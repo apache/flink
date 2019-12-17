@@ -257,7 +257,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
 					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
 					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
@@ -281,7 +281,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					.addRow(new Object[]{Date.valueOf("2019-01-19")})
 					.addRow(new Object[]{Date.valueOf("2019-03-02")})
 					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 

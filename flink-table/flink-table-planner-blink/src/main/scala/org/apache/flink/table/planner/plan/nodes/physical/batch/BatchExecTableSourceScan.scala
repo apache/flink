@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -90,9 +92,10 @@ class BatchExecTableSourceScan(
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
+    val rowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      tableSourceTable.getRowType,
+      rowType,
       tableSourceTable.isStreamingMode)
 
     val inputDataType = inputTransform.getOutputType
@@ -114,11 +117,17 @@ class BatchExecTableSourceScan(
       planner.getRelBuilder
     )
     if (needInternalConversion) {
+      // the produced type may not carry the correct precision user defined in DDL, because
+      // it may be converted from legacy type. Fix precision using logical schema from DDL.
+      // code generation requires the correct precision of input fields.
+      val fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
+        tableSource,
+        rowType)
       ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
-        producedDataType,
+        fixedProducedDataType,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -132,7 +141,7 @@ class BatchExecTableSourceScan(
   def needInternalConversion: Boolean = {
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
-      tableSourceTable.getRowType,
+      FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType),
       tableSourceTable.isStreamingMode)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)

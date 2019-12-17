@@ -852,33 +852,16 @@ public class CliFrontend {
 	 */
 	private <ClusterID> void runClusterAction(CustomCommandLine activeCommandLine, CommandLine commandLine, ClusterAction<ClusterID> clusterAction) throws FlinkException {
 		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
-
 		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
-		final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
+
 		final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
-
 		if (clusterId == null) {
-			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
-				"you would like to connect.");
-		} else {
-			try {
-				final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient();
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which you would like to connect.");
+		}
 
-				try {
-					clusterAction.runAction(clusterClient);
-				} finally {
-					try {
-						clusterClient.close();
-					} catch (Exception e) {
-						LOG.info("Could not properly shut down the cluster client.", e);
-					}
-				}
-			} finally {
-				try {
-					clusterDescriptor.close();
-				} catch (Exception e) {
-					LOG.info("Could not properly close the cluster descriptor.", e);
-				}
+		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig)) {
+			try (final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient()) {
+				clusterAction.runAction(clusterClient);
 			}
 		}
 	}
@@ -1074,18 +1057,7 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
-		//	Command line interface of the kubernetes session, with a special initialization here
-		//  to prefix all options with k/kubernetes.
-		final String kubeSessionCLI = "org.apache.flink.kubernetes.cli.FlinkKubernetesCustomCli";
-		try {
-			customCommandLines.add(
-				loadCustomCommandLine(kubeSessionCLI,
-					configuration,
-					"k",
-					"kubernetes"));
-		} catch (NoClassDefFoundError | Exception e) {
-			LOG.warn("Could not load CLI class {}.", kubeSessionCLI, e);
-		}
+		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.

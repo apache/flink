@@ -37,6 +37,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -48,7 +49,7 @@ public class RocksDBResource extends ExternalResource {
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBResource.class);
 
 	/** Factory for {@link DBOptions} and {@link ColumnFamilyOptions}. */
-	private final OptionsFactory optionsFactory;
+	private final RocksDBOptionsFactory optionsFactory;
 
 	/** Temporary folder that provides the working directory for the RocksDB instance. */
 	private TemporaryFolder temporaryFolder;
@@ -74,10 +75,13 @@ public class RocksDBResource extends ExternalResource {
 	/** Wrapper for batched writes to the RocksDB instance. */
 	private RocksDBWriteBatchWrapper batchWrapper;
 
+	/** Resources to close. */
+	private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
+
 	public RocksDBResource() {
-		this(new OptionsFactory() {
+		this(new RocksDBOptionsFactory() {
 			@Override
-			public DBOptions createDBOptions(DBOptions currentOptions) {
+			public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				//close it before reuse the reference.
 				try {
 					currentOptions.close();
@@ -85,11 +89,11 @@ public class RocksDBResource extends ExternalResource {
 					LOG.error("Close previous DBOptions's instance failed.", e);
 				}
 
-				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createDBOptions();
+				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createDBOptions(handlesToClose);
 			}
 
 			@Override
-			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
 				//close it before reuse the reference.
 				try {
 					currentOptions.close();
@@ -97,12 +101,12 @@ public class RocksDBResource extends ExternalResource {
 					LOG.error("Close previous ColumnOptions's instance failed.", e);
 				}
 
-				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions();
+				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions(handlesToClose);
 			}
 		});
 	}
 
-	public RocksDBResource(@Nonnull OptionsFactory optionsFactory) {
+	public RocksDBResource(@Nonnull RocksDBOptionsFactory optionsFactory) {
 		this.optionsFactory = optionsFactory;
 	}
 
@@ -145,9 +149,10 @@ public class RocksDBResource extends ExternalResource {
 		this.temporaryFolder = new TemporaryFolder();
 		this.temporaryFolder.create();
 		final File rocksFolder = temporaryFolder.newFolder();
-		this.dbOptions = optionsFactory.createDBOptions(PredefinedOptions.DEFAULT.createDBOptions()).
-			setCreateIfMissing(true);
-		this.columnFamilyOptions = optionsFactory.createColumnOptions(PredefinedOptions.DEFAULT.createColumnOptions());
+		this.dbOptions = optionsFactory.createDBOptions(
+			PredefinedOptions.DEFAULT.createDBOptions(handlesToClose), handlesToClose).setCreateIfMissing(true);
+		this.columnFamilyOptions = optionsFactory.createColumnOptions(
+			PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose), handlesToClose);
 		this.writeOptions = new WriteOptions();
 		this.writeOptions.disableWAL();
 		this.readOptions = new ReadOptions();
@@ -172,6 +177,7 @@ public class RocksDBResource extends ExternalResource {
 		IOUtils.closeQuietly(this.writeOptions);
 		IOUtils.closeQuietly(this.columnFamilyOptions);
 		IOUtils.closeQuietly(this.dbOptions);
+		handlesToClose.forEach(IOUtils::closeQuietly);
 		temporaryFolder.delete();
 	}
 }

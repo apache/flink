@@ -22,7 +22,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
+import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -163,7 +166,8 @@ public class ExecutionContext<ClusterID> {
 		flinkConfig.addAll(createExecutionConfig(
 				commandLine,
 				commandLineOptions,
-				availableCommandLines));
+				availableCommandLines,
+				dependencies));
 
 		final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
 		clusterClientFactory = serviceLoader.getClusterClientFactory(flinkConfig);
@@ -228,6 +232,15 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
+	/**
+	 * Executes the given Runnable using the execution context's classloader as thread classloader.
+	 */
+	void wrapClassLoader(Runnable runnable) {
+		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+			runnable.run();
+		}
+	}
+
 	public QueryConfig getQueryConfig() {
 		if (streamExecEnv != null) {
 			final StreamQueryConfig config = new StreamQueryConfig();
@@ -287,8 +300,8 @@ public class ExecutionContext<ClusterID> {
 	private static Configuration createExecutionConfig(
 			CommandLine commandLine,
 			Options commandLineOptions,
-			List<CustomCommandLine> availableCommandLines) throws FlinkException {
-
+			List<CustomCommandLine> availableCommandLines,
+			List<URL> dependencies) throws FlinkException {
 		LOG.debug("Available commandline options: {}", commandLineOptions);
 		List<String> options = Stream
 				.of(commandLine.getOptions())
@@ -309,6 +322,14 @@ public class ExecutionContext<ClusterID> {
 
 		Configuration executionConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(
 				commandLine);
+
+		try {
+			final ProgramOptions programOptions = new ProgramOptions(commandLine);
+			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromProgramOptions(programOptions, dependencies);
+			executionConfigAccessor.applyToConfiguration(executionConfig);
+		} catch (CliArgsException e) {
+			throw new SqlExecutionException("Invalid deployment run options.", e);
+		}
 
 		LOG.info("Executor config: {}", executionConfig);
 		return executionConfig;
@@ -511,12 +532,12 @@ public class ExecutionContext<ClusterID> {
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.1 Create catalogs and register them.
 		//--------------------------------------------------------------------------------------------------------------
-		Map<String, Catalog> catalogs = new LinkedHashMap<>();
-		environment.getCatalogs().forEach((name, entry) ->
-				catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
-		);
-		// register catalogs
-		catalogs.forEach(tableEnv::registerCatalog);
+		wrapClassLoader(() -> {
+			environment.getCatalogs().forEach((name, entry) -> {
+				Catalog catalog = createCatalog(name, entry.asMap(), classLoader);
+				tableEnv.registerCatalog(name, catalog);
+			});
+		});
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.2 create table sources & sinks, and register them.
