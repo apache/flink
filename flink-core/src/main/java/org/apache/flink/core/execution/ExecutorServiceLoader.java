@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * An interface to be implemented by the entity responsible for finding the correct {@link Executor} to
+ * An interface to be implemented by the entity responsible for finding the correct {@link PipelineExecutor} to
  * execute a given {@link org.apache.flink.api.dag.Pipeline}.
  */
 @Internal

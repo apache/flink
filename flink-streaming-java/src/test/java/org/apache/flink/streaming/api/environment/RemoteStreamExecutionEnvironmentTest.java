@@ -25,9 +25,9 @@ import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -139,7 +139,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 				}
 
 				@Override
-				public Executor getExecutor(@Nonnull Configuration configuration) {
+				public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
 					return (pipeline, config) -> {
 						assertTrue(pipeline instanceof StreamGraph);
 
