@@ -123,7 +123,7 @@ Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
-We support partition table too, Consider there is a myparttable table with four columns: name, age, my_type and my_date. Column my_type and column my_date are the partition columns.
+We support partitioned table too, Consider there is a partitioned table named myparttable with four columns: name, age, my_type and my_date, in types ...... my_type and my_date are the partition keys.
 
 {% highlight bash %}
 # ------ Insert with static partition ------ 
