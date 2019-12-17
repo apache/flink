@@ -244,7 +244,7 @@ pip download -d cached_dir -r requirements.txt --no-binary :all:
 # python code
 table_env.set_python_requirements("requirements.txt", "cached_dir")
 {% endhighlight %}
-        <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip.</p>
+        <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip, so also make sure the version of Pip (version >= 7.1.0) and the version of SetupTools (version >= 37.0.0).</p>
       </td>
     </tr>
     <tr>
@@ -266,7 +266,7 @@ def my_udf():
     with open("myenv/py_env/data/data.txt") as f:
         ...
 {% endhighlight %}
-        <p>Please make sure the uploaded python environment matches the platform that the cluster is running on and that the python version must be 3.5 or higher. Currently only zip-format is supported. i.e. zip, jar, whl, egg, etc.</p>
+        <p>Please make sure the uploaded python environment matches the platform that the cluster is running on. Currently only zip-format is supported. i.e. zip, jar, whl, egg, etc.</p>
       </td>
     </tr>
     <tr>
@@ -277,7 +277,7 @@ def my_udf():
 table_env.add_python_archive("py_env.zip")
 table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 {% endhighlight %}
-        <p>The python udf worker depends on Apache Beam (version == 2.15.0), Pip (version >= 7.1.0), SetupTools (version >= 37.0.0) and Python (version >=3.5), please ensure that the specified environment meets the above requirements.</p>
+        <p>Please make sure that the specified environment matches the platform that the cluster is running on.</p>
       </td>
     </tr>
   </tbody>
