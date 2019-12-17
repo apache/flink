@@ -30,11 +30,13 @@ import org.junit.runners.Parameterized
 import org.junit.{Before, Ignore, Test}
 import java.util
 
+import org.apache.flink.test.util.AbstractTestBase
+
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreaming: Boolean) {
+class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
 
   private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   private var batchEnv: BatchTableEnvironment = _
