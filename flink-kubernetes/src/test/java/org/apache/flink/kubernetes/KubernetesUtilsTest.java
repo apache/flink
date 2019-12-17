@@ -65,7 +65,7 @@ public class KubernetesUtilsTest extends TestLogger {
 
 	// Memory variables
 	private static final int jobManagerMem = 768;
-	private static final String jmJvmMem = String.format("-Xms%dm -Xmx%dm", jobManagerMem, jobManagerMem);
+	private static final String jmJvmMem = "-Xms168m -Xmx168m";
 
 	private static final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
 		new CPUResource(1.0),

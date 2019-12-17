@@ -370,7 +370,7 @@ public final class ConfigConstants {
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
-	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate
 	 * for other JVM memory usage.
 	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
 	 */
