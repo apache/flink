@@ -33,11 +33,11 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The default implementation of the {@link ExecutorServiceLoader}. This implementation uses
- * Java service discovery to find the available {@link ExecutorFactory executor factories}.
+ * The default implementation of the {@link PipelineExecutorServiceLoader}. This implementation uses
+ * Java service discovery to find the available {@link PipelineExecutorFactory executor factories}.
  */
 @Internal
-public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
+public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
 	// TODO: This code is almost identical to the ClusterClientServiceLoader and its default implementation.
 	// The reason of this duplication is the package structure which does not allow for the ExecutorServiceLoader
@@ -45,19 +45,19 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutorServiceLoader.class);
 
-	private static final ServiceLoader<ExecutorFactory> defaultLoader = ServiceLoader.load(ExecutorFactory.class);
+	private static final ServiceLoader<PipelineExecutorFactory> defaultLoader = ServiceLoader.load(PipelineExecutorFactory.class);
 
 	public static final DefaultExecutorServiceLoader INSTANCE = new DefaultExecutorServiceLoader();
 
 	@Override
-	public ExecutorFactory getExecutorFactory(final Configuration configuration) {
+	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
-		final List<ExecutorFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<ExecutorFactory> factories = defaultLoader.iterator();
+		final List<PipelineExecutorFactory> compatibleFactories = new ArrayList<>();
+		final Iterator<PipelineExecutorFactory> factories = defaultLoader.iterator();
 		while (factories.hasNext()) {
 			try {
-				final ExecutorFactory factory = factories.next();
+				final PipelineExecutorFactory factory = factories.next();
 				if (factory != null && factory.isCompatibleWith(configuration)) {
 					compatibleFactories.add(factory);
 				}

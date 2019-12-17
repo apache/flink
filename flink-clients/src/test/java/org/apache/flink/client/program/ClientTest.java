@@ -41,9 +41,9 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -342,7 +342,7 @@ public class ClientTest extends TestLogger {
 		}
 	}
 
-	private static final class TestExecutorServiceLoader implements ExecutorServiceLoader {
+	private static final class TestExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
 		private final ClusterClient<?> clusterClient;
 
@@ -354,8 +354,8 @@ public class ClientTest extends TestLogger {
 		}
 
 		@Override
-		public ExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
-			return new ExecutorFactory() {
+		public PipelineExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
+			return new PipelineExecutorFactory() {
 				@Override
 				public boolean isCompatibleWith(@Nonnull Configuration configuration) {
 					return TEST_EXECUTOR_NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
