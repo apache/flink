@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.sources.InputFormatTableSource;
@@ -281,7 +282,7 @@ public class HiveTableSinkTest {
 	}
 
 	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
-		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
+		CatalogTable catalogTable = createHiveCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);
 		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
@@ -297,13 +298,26 @@ public class HiveTableSinkTest {
 		return createDestTable(dbName, tblName, builder.build(), numPartCols);
 	}
 
-	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
+	private CatalogTable createHiveCatalogTable(TableSchema tableSchema, int numPartCols) {
 		if (numPartCols == 0) {
-			return new CatalogTableImpl(tableSchema, new HashMap<>(), "");
+			return new CatalogTableImpl(
+				tableSchema,
+				new HashMap<String, String>() {{
+					// creating a hive table needs explicit is_generic=false flag
+					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+				}},
+				"");
 		}
 		String[] partCols = new String[numPartCols];
 		System.arraycopy(tableSchema.getFieldNames(), tableSchema.getFieldNames().length - numPartCols, partCols, 0, numPartCols);
-		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
+		return new CatalogTableImpl(
+			tableSchema,
+			Arrays.asList(partCols),
+			new HashMap<String, String>() {{
+				// creating a hive table needs explicit is_generic=false flag
+				put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+			}},
+			"");
 	}
 
 	private void verifyWrittenData(List<Row> expected, List<String> results) throws Exception {

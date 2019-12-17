@@ -28,6 +28,7 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
@@ -70,8 +71,12 @@ public class HiveCatalogITCase {
 	private static HiveCatalog hiveCatalog;
 	private static HiveConf hiveConf;
 
-	private String sourceTableName = "csv_source";
-	private String sinkTableName = "csv_sink";
+	private static String sourceTableName = "csv_source";
+	private static String sinkTableName = "csv_sink";
+	private static ObjectPath source = new ObjectPath("default", sourceTableName);
+	private static ObjectPath sink = new ObjectPath("default", sinkTableName);
+
+	private String testFilePath = this.getClass().getResource("/csv/test.csv").getPath();
 
 	@BeforeClass
 	public static void createCatalog() {
@@ -81,14 +86,49 @@ public class HiveCatalogITCase {
 	}
 
 	@AfterClass
-	public static void closeCatalog() {
+	public static void closeCatalog() throws TableNotExistException {
+		hiveCatalog.dropTable(source, true);
+		hiveCatalog.dropTable(sink, true);
+
 		if (hiveCatalog != null) {
 			hiveCatalog.close();
 		}
 	}
 
 	@Test
-	public void testGenericTable() throws Exception {
+	public void testCsvTableViaDDL() throws Exception {
+		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+
+		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
+
+		tableEnv.sqlUpdate("create table myhive.`default`.test2 (name String, age Int) with (\n" +
+			"   'connector.type' = 'filesystem',\n" +
+			"   'connector.path' = 'file://" + testFilePath + "',\n" +
+			"   'format.type' = 'csv',\n" +
+			"   'format.fields.0.name' = 'name',\n" +
+			"   'format.fields.0.type' = 'STRING',\n" +
+			"   'format.fields.1.name' = 'age',\n" +
+			"   'format.fields.1.type' = 'INT'\n" +
+			")");
+
+		Table t = tableEnv.sqlQuery("select * from test2");
+
+		List<Row> result = tableEnv.toDataSet(t, Row.class).collect();
+
+		// assert query result
+		assertEquals(
+			Arrays.asList(
+				Row.of("1", 1),
+				Row.of("2", 2),
+				Row.of("3", 3)),
+			result
+		);
+	}
+
+	@Test
+	public void testCsvTableViaAPI() throws Exception {
 		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
 
@@ -105,7 +145,7 @@ public class HiveCatalogITCase {
 
 		CatalogTable source =
 			new CatalogTableBuilder(
-				new FileSystem().path(this.getClass().getResource("/csv/test.csv").getPath()),
+				new FileSystem().path(testFilePath),
 				schema)
 			.withFormat(format)
 			.inAppendMode()
