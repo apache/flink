@@ -127,7 +127,7 @@ class CatalogSourceTable[T](
       val rowtimeIndex = fieldNames.indexOf(rowtime)
       val watermarkRexNode = toRelContext
         .createSqlExprToRexConverter(rowType)
-        .convertToRexNode(watermarkSpec.get.getWatermarkExpressionString)
+        .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
       relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
 

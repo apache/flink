@@ -283,7 +283,7 @@ public class TableSchema {
 			for (WatermarkSpec watermark : watermarkSpecs) {
 				sb.append(" |-- ").append("WATERMARK FOR ")
 					.append(watermark.getRowtimeAttribute()).append(" AS ")
-					.append(watermark.getWatermarkExpressionString());
+					.append(watermark.getWatermarkExpr());
 			}
 		}
 
@@ -398,7 +398,7 @@ public class TableSchema {
 			if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
 				throw new ValidationException(String.format(
 					"Watermark strategy '%s' must be of type TIMESTAMP but is of type '%s'.",
-					watermark.getWatermarkExpressionString(),
+					watermark.getWatermarkExpr(),
 					watermarkOutputType.asSerializableString()));
 			}
 		}
