@@ -111,7 +111,9 @@ __________ __________
 
 ## Writing To Hive
 
-Similarly, data can be written into hive using an `INSERT` clause. Consider there is a mytable table with two columns: name, age.
+Similarly, data can be written into hive using an `INSERT` clause.
+
+Consider there is an example table named "mytable" with two columns: name and age, in string and int type.
 
 {% highlight bash %}
 # ------ Insert with append mode ------ 
