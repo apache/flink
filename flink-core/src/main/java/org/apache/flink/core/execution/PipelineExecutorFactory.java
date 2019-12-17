@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
  * based on a provided {@link Configuration}.
  */
 @Internal
-public interface ExecutorFactory {
+public interface PipelineExecutorFactory {
 
 	/**
 	 * Returns {@code true} if this factory is compatible with the options in the
@@ -38,5 +38,5 @@ public interface ExecutorFactory {
 	 * Instantiates an {@link PipelineExecutor} compatible with the provided configuration.
 	 * @return the executor instance.
 	 */
-	PipelineExecutor getExecutor(Configuration configuration);
+	PipelineExecutor getExecutor(final Configuration configuration);
 }
