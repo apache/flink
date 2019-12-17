@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -86,32 +85,6 @@ public final class Utils {
 
 	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
 	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
-
-	/**
-	 * See documentation.
-	 */
-	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
-
-		float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
-
-		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
-				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
-		}
-		if (minCutoff > memory) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()
-				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
-		}
-
-		int heapLimit = (int) ((float) memory * memoryCutoffRatio);
-		if (heapLimit < minCutoff) {
-			heapLimit = minCutoff;
-		}
-		return memory - heapLimit;
-	}
 
 	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
 		addToEnvironment(
