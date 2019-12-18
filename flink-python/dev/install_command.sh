@@ -17,14 +17,15 @@
 # limitations under the License.
 ################################################################################
 retry_times=3
-python -m pip install "$@"
-while [[ $? -ne 0 ]] && [[ ${retry_times} -gt 0 ]]; do
+install_command="python -m pip install $@"
+${install_command}
+status=$?
+while [[ ${status} -ne 0 ]] && [[ ${retry_times} -gt 0 ]]; do
     retry_times=$((retry_times-1))
     # sleep 3 seconds and then reinstall.
     sleep 3
-    python -m pip install "$@"
+    ${install_command}
+    status=$?
 done
 
-if [[ ${retry_times} -eq 0 ]]; then
-    exit 1
-fi
+exit ${status}
