@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
@@ -27,6 +27,10 @@ import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,8 +49,10 @@ public final class CompileUtils {
 	 * number of Meta zone GC (class unloading), resulting in performance bottlenecks. So we add
 	 * a cache to avoid this problem.
 	 */
-	protected static final Cache<Tuple2<ClassLoader, String>, Class<?>> COMPILED_CACHE = CacheBuilder
+	protected static final Cache<ClassLoader, Map<String, Class>> COMPILED_CACHE = CacheBuilder
 		.newBuilder()
+		.weakKeys()
+		.softValues()
 		.maximumSize(100)   // estimated cache size
 		.build();
 
@@ -59,14 +65,13 @@ public final class CompileUtils {
 	 * @return  the compiled class
 	 */
 	public static <T> Class<T> compile(ClassLoader cl, String name, String code) {
-		Tuple2<ClassLoader, String> cacheKey = Tuple2.of(cl, name);
-		Class<?> clazz = COMPILED_CACHE.getIfPresent(cacheKey);
-		if (clazz == null) {
-			clazz = doCompile(cl, name, code);
-			COMPILED_CACHE.put(cacheKey, clazz);
+		Map<String, Class> compiledClasses;
+		try {
+			compiledClasses = COMPILED_CACHE.get(cl, ConcurrentHashMap::new);
+		} catch (ExecutionException e) {
+			throw new FlinkRuntimeException("Error populating COMPILED_CACHE", e);
 		}
-		//noinspection unchecked
-		return (Class<T>) clazz;
+		return (Class<T>) compiledClasses.computeIfAbsent(name, n -> doCompile(cl, n, code));
 	}
 
 	private static <T> Class<T> doCompile(ClassLoader cl, String name, String code) {
