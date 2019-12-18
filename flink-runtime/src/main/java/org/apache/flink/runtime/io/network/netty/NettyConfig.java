@@ -90,10 +90,6 @@ public class NettyConfig {
 		return memorySegmentSize;
 	}
 
-	public int getNumberOfSlots() {
-		return numberOfSlots;
-	}
-
 	// ------------------------------------------------------------------------
 	// Getters
 	// ------------------------------------------------------------------------
