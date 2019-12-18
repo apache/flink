@@ -23,6 +23,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.UncheckedExecutionException;
 
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
@@ -66,7 +67,10 @@ public final class CompileUtils {
 			Cache<String, Class> compiledClasses = COMPILED_CACHE.get(cl,
 					() -> CacheBuilder.newBuilder().maximumSize(50).softValues().build());
 			return compiledClasses.get(name, () -> doCompile(cl, name, code));
-		} catch (ExecutionException e) {
+		} catch (ExecutionException | UncheckedExecutionException e) {
+			if (e.getCause() instanceof InvalidProgramException) {
+				throw (InvalidProgramException) e.getCause();
+			}
 			throw new FlinkRuntimeException("Error populating COMPILED_CACHE", e);
 		}
 	}
