@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.utils;
+package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -24,7 +24,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.junit.Test;
 
@@ -40,13 +42,25 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link DataTypeUtils}.
+ * Tests for {@link LogicalTypeChecks}.
  */
-public class DataTypeUtilsTest {
+public class LogicalTypeChecksTest {
+
 	@Test
 	public void testIsCompositeTypeRowType() {
 		DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
-		boolean isCompositeType = DataTypeUtils.isCompositeType(dataType);
+		boolean isCompositeType = LogicalTypeChecks.isCompositeType(dataType.getLogicalType());
+
+		assertThat(isCompositeType, is(true));
+	}
+
+	@Test
+	public void testIsCompositeTypeDistinctType() {
+		DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
+		DistinctType distinctType = DistinctType.newBuilder(
+			ObjectIdentifier.of("catalog", "database", "type"),
+			dataType.getLogicalType()).build();
+		boolean isCompositeType = LogicalTypeChecks.isCompositeType(distinctType);
 
 		assertThat(isCompositeType, is(true));
 	}
@@ -54,7 +68,7 @@ public class DataTypeUtilsTest {
 	@Test
 	public void testIsCompositeTypeLegacyCompositeType() {
 		DataType dataType = TypeConversions.fromLegacyInfoToDataType(new RowTypeInfo(Types.STRING, Types.INT));
-		boolean isCompositeType = DataTypeUtils.isCompositeType(dataType);
+		boolean isCompositeType = LogicalTypeChecks.isCompositeType(dataType.getLogicalType());
 
 		assertThat(isCompositeType, is(true));
 	}
@@ -72,7 +86,7 @@ public class DataTypeUtilsTest {
 		dataTypes.put("f0", DataTypes.INT());
 		dataTypes.put("f1", DataTypes.STRING());
 		FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
-		boolean isCompositeType = DataTypeUtils.isCompositeType(dataType);
+		boolean isCompositeType = LogicalTypeChecks.isCompositeType(dataType.getLogicalType());
 
 		assertThat(isCompositeType, is(true));
 	}
@@ -80,7 +94,7 @@ public class DataTypeUtilsTest {
 	@Test
 	public void testIsCompositeTypeLegacySimpleType() {
 		DataType dataType = TypeConversions.fromLegacyInfoToDataType(Types.STRING);
-		boolean isCompositeType = DataTypeUtils.isCompositeType(dataType);
+		boolean isCompositeType = LogicalTypeChecks.isCompositeType(dataType.getLogicalType());
 
 		assertThat(isCompositeType, is(false));
 	}
@@ -88,7 +102,7 @@ public class DataTypeUtilsTest {
 	@Test
 	public void testIsCompositeTypeSimpleType() {
 		DataType dataType = DataTypes.TIMESTAMP();
-		boolean isCompositeType = DataTypeUtils.isCompositeType(dataType);
+		boolean isCompositeType = LogicalTypeChecks.isCompositeType(dataType.getLogicalType());
 
 		assertThat(isCompositeType, is(false));
 	}
