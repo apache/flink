@@ -25,6 +25,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.StructuredType;
 
 import org.junit.Test;
@@ -44,9 +46,9 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link TypeConversions}.
+ * Tests for {@link DataTypeUtils}.
  */
-public class TypeConversionsTest {
+public class DataTypeUtilsTest {
 	@Test
 	public void testExpandRowType() {
 		DataType dataType = ROW(
@@ -54,7 +56,7 @@ public class TypeConversionsTest {
 			FIELD("f1", STRING()),
 			FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
 			FIELD("f3", TIMESTAMP(3)));
-		TableSchema schema = TypeConversions.expandCompositeTypeToSchema(dataType);
+		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
 		assertThat(
 			schema,
@@ -73,7 +75,7 @@ public class TypeConversionsTest {
 			Types.STRING,
 			Types.INT,
 			Types.SQL_TIMESTAMP));
-		TableSchema schema = TypeConversions.expandCompositeTypeToSchema(dataType);
+		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
 		assertThat(
 			schema,
@@ -103,7 +105,35 @@ public class TypeConversionsTest {
 		dataTypes.put("f3", DataTypes.TIMESTAMP(3));
 		FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
 
-		TableSchema schema = TypeConversions.expandCompositeTypeToSchema(dataType);
+		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+
+		assertThat(
+			schema,
+			equalTo(
+				TableSchema.builder()
+					.field("f0", INT())
+					.field("f1", STRING())
+					.field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
+					.field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
+					.build()));
+	}
+
+	@Test
+	public void testExpandDistinctType() {
+		FieldsDataType dataType = (FieldsDataType) ROW(
+			FIELD("f0", INT()),
+			FIELD("f1", STRING()),
+			FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
+			FIELD("f3", TIMESTAMP(3)));
+
+		LogicalType originalLogicalType = dataType.getLogicalType();
+		DistinctType distinctLogicalType = DistinctType.newBuilder(
+			ObjectIdentifier.of("catalog", "database", "type"),
+			originalLogicalType)
+			.build();
+		DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getFieldDataTypes());
+
+		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
 
 		assertThat(
 			schema,
@@ -118,6 +148,6 @@ public class TypeConversionsTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testExpandThrowExceptionOnAtomicType() {
-		TypeConversions.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+		DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
 	}
 }
