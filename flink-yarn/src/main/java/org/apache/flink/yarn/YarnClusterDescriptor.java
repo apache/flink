@@ -1101,7 +1101,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			LOG.debug("Application State: {}", appState);
 			switch(appState) {
 				case FAILED:
-				case FINISHED:
 				case KILLED:
 					throw new YarnDeploymentException("The YARN application unexpectedly switched to state "
 							+ appState + " during deployment. \n" +
@@ -1111,6 +1110,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					//break ..
 				case RUNNING:
 					LOG.info("YARN application has been deployed successfully.");
+					break loop;
+				case FINISHED:
+					LOG.info("YARN application has been finished successfully.");
 					break loop;
 				default:
 					if (appState != lastAppState) {
