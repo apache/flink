@@ -46,7 +46,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>See {@link TaskExecutorResourceSpec} for details about memory components of TaskExecutor and their relationships.
  */
 public class TaskExecutorResourceUtils {
-
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorResourceUtils.class);
 
 	private TaskExecutorResourceUtils() {}
@@ -550,9 +549,13 @@ public class TaskExecutorResourceUtils {
 			}
 			if (isShuffleMemoryFractionExplicitlyConfigured(config) &&
 				!derivedShuffleMemorySize.equals(totalFlinkMemorySize.multiply(shuffleRangeFraction.fraction))) {
-				throw new IllegalConfigurationException("Derived Shuffle Memory size("
-					+ derivedShuffleMemorySize.toString() + ") does not match configured Shuffle Memory fraction ("
-					+ shuffleRangeFraction.fraction + ").");
+				LOG.info(
+					"The derived Shuffle Memory size ({}) does not match " +
+						"the configured Shuffle Memory fraction ({}) from the configured Total Flink Memory size ({}). " +
+						"The derived Shuffle Memory size will be used.",
+					derivedShuffleMemorySize,
+					shuffleRangeFraction.fraction,
+					totalFlinkMemorySize);
 			}
 		}
 	}
