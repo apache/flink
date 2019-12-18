@@ -199,6 +199,73 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testConsistencyCheckOfDerivedShuffleMemoryWithinMinMaxRangeNotMatchingFractionPasses() {
+		final Configuration configuration = setupConfigWithFlinkAndTaskHeapToDeriveGivenShuffleMem(400);
+		// set fraction to be extremely low to not match the derived shuffle memory
+		configuration.setFloat(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION, 0.001f);
+		// internal validation should pass
+		TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testConsistencyCheckOfDerivedShuffleMemoryLessThanMinFails() {
+		final Configuration configuration = setupConfigWithFlinkAndTaskHeapToDeriveGivenShuffleMem(500);
+		configuration.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("900m"));
+		configuration.set(TaskManagerOptions.SHUFFLE_MEMORY_MAX, MemorySize.parse("1000m"));
+		// internal validation should fail
+		TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testConsistencyCheckOfDerivedShuffleMemoryGreaterThanMaxFails() {
+		final Configuration configuration = setupConfigWithFlinkAndTaskHeapToDeriveGivenShuffleMem(500);
+		configuration.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("100m"));
+		configuration.set(TaskManagerOptions.SHUFFLE_MEMORY_MAX, MemorySize.parse("150m"));
+		// internal validation should fail
+		TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testConsistencyCheckOfDerivedShuffleMemoryDoesNotMatchLegacyConfigFails() {
+		final int numberOfNetworkBuffers = 10;
+		final int pageSizeMb = 16;
+		// derive shuffle memory which is bigger than the number of legacy network buffers
+		final int shuffleMemorySizeMbToDerive = pageSizeMb * (numberOfNetworkBuffers + 1);
+		final Configuration configuration = setupConfigWithFlinkAndTaskHeapToDeriveGivenShuffleMem(shuffleMemorySizeMbToDerive);
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(pageSizeMb + "m"));
+		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, numberOfNetworkBuffers);
+		// internal validation should fail
+		TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+	}
+
+	private static Configuration setupConfigWithFlinkAndTaskHeapToDeriveGivenShuffleMem(
+			final int shuffleMemorySizeToDeriveMb) {
+		final Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(TOTAL_FLINK_MEM_SIZE.getMebiBytes() + "m"));
+		conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse(TASK_HEAP_SIZE.getMebiBytes() + "m"));
+		conf.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse(MANAGED_MEM_SIZE.getMebiBytes() + "m"));
+
+		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
+		final int derivedShuffleMemorySizeMb = taskExecutorResourceSpec.getShuffleMemSize().getMebiBytes();
+		if (derivedShuffleMemorySizeMb < shuffleMemorySizeToDeriveMb) {
+			// adjust total Flink memory size to accommodate for more shuffle memory
+			final int adjustedTotalFlinkMemoryMb = taskExecutorResourceSpec.getTotalFlinkMemorySize().getMebiBytes() -
+				derivedShuffleMemorySizeMb + shuffleMemorySizeToDeriveMb;
+			conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(adjustedTotalFlinkMemoryMb + "m"));
+		} else if (derivedShuffleMemorySizeMb > shuffleMemorySizeToDeriveMb) {
+			// reduce derived shuffle memory by increasing task heap size
+			final int adjustedTaskHeapMemoryMb = taskExecutorResourceSpec.getTaskHeapSize().getMebiBytes() +
+				derivedShuffleMemorySizeMb - shuffleMemorySizeToDeriveMb;
+			conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse(adjustedTaskHeapMemoryMb + "m"));
+		}
+
+		final TaskExecutorResourceSpec adjusteedTaskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
+		assertThat(adjusteedTaskExecutorResourceSpec.getShuffleMemSize().getMebiBytes(), is(shuffleMemorySizeToDeriveMb));
+
+		return conf;
+	}
+
+	@Test
 	public void testConfigShuffleMemoryRangeFailure() {
 		final MemorySize shuffleMin = MemorySize.parse("200m");
 		final MemorySize shuffleMax = MemorySize.parse("50m");
