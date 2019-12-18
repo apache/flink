@@ -81,7 +81,7 @@ public class NoMatchingTableFactoryException extends RuntimeException {
 	public String getMessage() {
 		String matchCandidatesString = matchCandidatesMessage == null ?
 			"" :
-			"The matched candidates:\n" + matchCandidatesMessage + "\n\n";
+			"The match candidates:\n" + matchCandidatesMessage + "\n\n";
 		return String.format(
 			"Could not find a suitable table factory for '%s' in\nthe classpath.\n\n" +
 				"Reason: %s\n\n%s" +
