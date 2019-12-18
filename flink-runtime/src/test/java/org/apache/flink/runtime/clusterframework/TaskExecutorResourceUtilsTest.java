@@ -718,7 +718,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		try {
 			TaskExecutorResourceUtils.resourceSpecFromConfig(config);
 			fail("Configuration did not fail as expected.");
-		} catch (Throwable t) {
+		} catch (IllegalConfigurationException e) {
 			// expected
 		}
 	}
