@@ -51,6 +51,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -76,7 +77,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -119,14 +119,16 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		this.jobMasterId = jobMasterId;
 
-		if (slotSize > 0) {
-			this.taskSlotTable = TaskSlotUtils.createTaskSlotTable(slotSize);
-		} else {
-			//noinspection unchecked
-			this.taskSlotTable = (TaskSlotTable<Task>) mock(TaskSlotTable.class);
-			when(taskSlotTable.tryMarkSlotActive(eq(jobId), any())).thenReturn(true);
-			when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
-		}
+		this.taskSlotTable = slotSize > 0 ?
+			TaskSlotUtils.createTaskSlotTable(slotSize) :
+			TestingTaskSlotTable
+				.<Task>newBuilder()
+				.tryMarkSlotActiveReturns(true)
+				.addTaskReturns(true)
+				.closeAsyncReturns(CompletableFuture.completedFuture(null))
+				.allocateSlotReturns(true)
+				.memoryManagerGetterReturns(null)
+				.build();
 
 		JobMasterGateway jobMasterGateway;
 		if (testingJobMasterGateway == null) {
