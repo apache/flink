@@ -60,7 +60,7 @@ public class RelOptUtils {
 		final List<RelDataTypeField> fieldList = oriRowType.getFieldList();
 		int n = fieldList.size();
 		assert n == castRowType.getFieldCount()
-				: "field count: lhs [" + castRowType + "] rhs [" + oriRowType +"]";
+				: "field count: lhs [" + castRowType + "] rhs [" + oriRowType + "]";
 		List<RexNode> rhsExps = null;
 		RelNode input = null;
 		if (rel instanceof Project) {
