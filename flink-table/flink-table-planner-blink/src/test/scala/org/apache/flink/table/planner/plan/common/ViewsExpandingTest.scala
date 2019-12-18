@@ -114,14 +114,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       new ObjectPath(tableEnv.getCurrentDatabase, "view1"),
       createAggSqlView("t1"),
       false)
-    tableEnv.createTemporaryView("view2", tableEnv.from("view1"))
-    catalog.createTable(
-      new ObjectPath(tableEnv.getCurrentDatabase, "view3"),
-      createAggSqlView("view2"),
-      false)
-    tableEnv.createTemporaryView("view4", tableEnv.from("view3"))
-
-    tableUtil.verifyPlan("select * from view4")
+    tableUtil.verifyPlan("select * from view1")
   }
 
   private def createSqlView(originTable: String): CatalogView = {
