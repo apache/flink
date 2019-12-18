@@ -1444,7 +1444,7 @@ CREATE TABLE MyUserTable (
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
                                           -- "\r" or "\r\n" are allowed)
   'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
-  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#"
+  'format.allow-comments' = 'true',       -- optional: ignores comment lines that start with "#"
                                           -- (disabled by default);
                                           -- if enabled, make sure to also ignore parse errors to allow empty rows
   'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
