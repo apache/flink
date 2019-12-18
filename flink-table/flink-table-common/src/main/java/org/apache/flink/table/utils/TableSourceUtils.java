@@ -28,9 +28,13 @@ import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 
@@ -179,19 +183,59 @@ public final class TableSourceUtils {
 					LogicalType physicalFieldType = physicalSchema.getFieldDataType(idx).get().getLogicalType();
 					LogicalType logicalFieldType = column.getType().getLogicalType();
 
-					if (!physicalFieldType.equals(logicalFieldType)) {
-						throw new ValidationException(String.format(
-							"Type %s of table field '%s' does not match with type %s of the field of the " +
-								"TableSource return type.",
-							physicalFieldType,
-							column.getName(),
-							logicalFieldType));
-					}
+					checkIfCompatible(
+						physicalFieldType,
+						logicalFieldType,
+						(cause) -> new ValidationException(
+							String.format(
+								"Type %s of table field '%s' does not match with " +
+									"the physical type %s of the '%s' field of the TableSource return type.",
+								logicalFieldType,
+								column.getName(),
+								physicalFieldType,
+								remappedName),
+							cause));
 
 					return idx;
 				}
 			)
 		);
+	}
+
+	private static void checkIfCompatible(
+			LogicalType physicalFieldType,
+			LogicalType logicalFieldType,
+			Function<Throwable, ValidationException> exceptionSupplier) {
+		if (LogicalTypeChecks.areTypesCompatible(physicalFieldType, logicalFieldType)) {
+			return;
+		}
+
+		physicalFieldType.accept(new LogicalTypeDefaultVisitor<Void>() {
+			@Override
+			public Void visit(LogicalType other) {
+				if (other instanceof LegacyTypeInformationType && other.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
+					if (!(logicalFieldType instanceof DecimalType)) {
+						throw exceptionSupplier.apply(null);
+					}
+
+					DecimalType logicalDecimalType = (DecimalType) logicalFieldType;
+					if (logicalDecimalType.getPrecision() != DecimalType.MAX_PRECISION ||
+							logicalDecimalType.getScale() != 18) {
+						throw exceptionSupplier.apply(new ValidationException(
+							"Legacy decimal type can only be mapped to DECIMAL(38, 18)."));
+					}
+
+					return null;
+				}
+
+				return defaultMethod(other);
+			}
+
+			@Override
+			protected Void defaultMethod(LogicalType logicalType) {
+				throw exceptionSupplier.apply(null);
+			}
+		});
 	}
 
 	private static Map<TableColumn, Integer> computeInSimpleType(

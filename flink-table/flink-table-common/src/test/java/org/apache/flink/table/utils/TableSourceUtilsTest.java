@@ -19,7 +19,6 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -41,11 +40,17 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
  * Tests for {@link TableSourceUtils}.
@@ -72,8 +77,8 @@ public class TableSourceUtilsTest {
 	@Test
 	public void testFieldMappingNonMatchingTypes() {
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Type STRING of table field 'f0' does not match with type " +
-			"TIMESTAMP(3) of the field of the TableSource return type.");
+		thrown.expectMessage("Type TIMESTAMP(3) of table field 'f0' does not match with the physical type STRING of " +
+			"the 'f0' field of the TableSource return type.");
 		TableSourceUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f1", DataTypes.BIGINT())
@@ -85,13 +90,96 @@ public class TableSourceUtilsTest {
 	}
 
 	@Test
+	public void testFieldMappingNonMatchingPrecision() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Type TIMESTAMP(9) of table field 'f0' does not match with the physical type " +
+			"TIMESTAMP(3) of the 'f0' field of the TableSource return type.");
+		TableSourceUtils.computePhysicalIndices(
+			TableSchema.builder()
+				.field("f0", DataTypes.TIMESTAMP(9))
+				.build().getTableColumns(),
+			ROW(FIELD("f0", DataTypes.TIMESTAMP(3))),
+			Function.identity()
+		);
+	}
+
+	@Test
+	public void testFieldMappingLegacyDecimalType() {
+		int[] indices = TableSourceUtils.computePhysicalIndices(
+			TableSchema.builder()
+				.field("f0", DECIMAL(38, 18))
+				.build().getTableColumns(),
+			ROW(FIELD("f0", TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC))),
+			Function.identity()
+		);
+
+		assertThat(indices, equalTo(new int[] {0}));
+	}
+
+	@Test
+	public void testFieldMappingLegacyDecimalTypeNotMatchingPrecision() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Type DECIMAL(38, 10) of table field 'f0' does not match with the physical type" +
+			" LEGACY('DECIMAL', 'DECIMAL') of the 'f0' field of the TableSource return type.");
+		thrown.expectCause(allOf(
+			instanceOf(ValidationException.class),
+			hasMessage(equalTo("Legacy decimal type can only be mapped to DECIMAL(38, 18)."))));
+
+		int[] indices = TableSourceUtils.computePhysicalIndices(
+			TableSchema.builder()
+				.field("f0", DECIMAL(38, 10))
+				.build().getTableColumns(),
+			ROW(FIELD("f0", TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC))),
+			Function.identity()
+		);
+
+		assertThat(indices, equalTo(new int[] {0}));
+	}
+
+	@Test
+	public void testFieldMappingRowTypeNotMatchingNamesInNestedType() {
+		int[] indices = TableSourceUtils.computePhysicalIndices(
+			TableSchema.builder()
+				.field("f0", DECIMAL(38, 18))
+				.field("f1", ROW(FIELD("logical_f1_0", BIGINT()), FIELD("logical_f1_1", STRING())))
+				.build().getTableColumns(),
+			ROW(
+				FIELD("f0", DECIMAL(38, 18)),
+				FIELD("f1", ROW(FIELD("physical_f1_0", BIGINT()), FIELD("physical_f1_1", STRING())))
+			),
+			Function.identity()
+		);
+
+		assertThat(indices, equalTo(new int[] {0, 1}));
+	}
+
+	@Test
+	public void testFieldMappingRowTypeNotMatchingTypesInNestedType() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Type ROW<`f1_0` BIGINT, `f1_1` STRING> of table field 'f1' does not match with the " +
+			"physical type ROW<`f1_0` STRING, `f1_1` STRING> of the 'f1' field of the TableSource return type.");
+
+		TableSourceUtils.computePhysicalIndices(
+			TableSchema.builder()
+				.field("f0", DECIMAL(38, 18))
+				.field("f1", ROW(FIELD("f1_0", BIGINT()), FIELD("f1_1", STRING())))
+				.build().getTableColumns(),
+			ROW(
+				FIELD("f0", DECIMAL(38, 18)),
+				FIELD("f1", ROW(FIELD("f1_0", STRING()), FIELD("f1_1", STRING())))
+			),
+			Function.identity()
+		);
+	}
+
+	@Test
 	public void testFieldMappingLegacyCompositeType() {
 		int[] indices = TableSourceUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f1", DataTypes.BIGINT())
 				.field("f0", DataTypes.STRING())
 				.build().getTableColumns(),
-			TypeConversions.fromLegacyInfoToDataType(new TupleTypeInfo<>(Types.STRING, Types.LONG)),
+			TypeConversions.fromLegacyInfoToDataType(Types.TUPLE(Types.STRING, Types.LONG)),
 			Function.identity()
 		);
 
@@ -105,7 +193,7 @@ public class TableSourceUtilsTest {
 				.field("a", DataTypes.BIGINT())
 				.field("b", DataTypes.STRING())
 				.build().getTableColumns(),
-			TypeConversions.fromLegacyInfoToDataType(new TupleTypeInfo<>(Types.STRING, Types.LONG)),
+			TypeConversions.fromLegacyInfoToDataType(Types.TUPLE(Types.STRING, Types.LONG)),
 			str -> {
 				switch (str) {
 					case "a":
