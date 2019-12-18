@@ -330,35 +330,64 @@ public class TaskExecutorResourceUtils {
 		if (isManagedMemorySizeExplicitlyConfigured(config)) {
 			return getManagedMemorySize(config);
 		} else {
-			return deriveWithFraction(base, getManagedMemoryRangeFraction(config));
+			return deriveWithFraction("managed memory", base, getManagedMemoryRangeFraction(config));
 		}
 	}
 
 	private static MemorySize deriveShuffleMemoryWithFraction(final Configuration config, final MemorySize base) {
-		return deriveWithFraction(base, getShuffleMemoryRangeFraction(config));
+		return deriveWithFraction("shuffle memory", base, getShuffleMemoryRangeFraction(config));
 	}
 
 	private static MemorySize deriveShuffleMemoryWithInverseFraction(final Configuration config, final MemorySize base) {
-		return deriveWithInverseFraction(base, getShuffleMemoryRangeFraction(config));
+		return deriveWithInverseFraction("shuffle memory", base, getShuffleMemoryRangeFraction(config));
 	}
 
 	private static MemorySize deriveJvmOverheadWithFraction(final Configuration config, final MemorySize base) {
-		return deriveWithFraction(base, getJvmOverheadRangeFraction(config));
+		return deriveWithFraction("jvm overhead memory", base, getJvmOverheadRangeFraction(config));
 	}
 
 	private static MemorySize deriveJvmOverheadWithInverseFraction(final Configuration config, final MemorySize base) {
-		return deriveWithInverseFraction(base, getJvmOverheadRangeFraction(config));
+		return deriveWithInverseFraction("jvm overhead memory", base, getJvmOverheadRangeFraction(config));
 	}
 
-	private static MemorySize deriveWithFraction(final MemorySize base, final RangeFraction rangeFraction) {
+	private static MemorySize deriveWithFraction(
+			final String memoryDescription,
+			final MemorySize base,
+			final RangeFraction rangeFraction) {
 		final long relative = (long) (rangeFraction.fraction * base.getBytes());
-		return new MemorySize(Math.max(rangeFraction.minSize.getBytes(), Math.min(rangeFraction.maxSize.getBytes(), relative)));
+		return new MemorySize(capToMinMax(memoryDescription, relative, rangeFraction));
 	}
 
-	private static MemorySize deriveWithInverseFraction(final MemorySize base, final RangeFraction rangeFraction) {
+	private static MemorySize deriveWithInverseFraction(
+			final String memoryDescription,
+			final MemorySize base,
+			final RangeFraction rangeFraction) {
 		checkArgument(rangeFraction.fraction < 1);
 		final long relative = (long) (rangeFraction.fraction / (1 - rangeFraction.fraction) * base.getBytes());
-		return new MemorySize(Math.max(rangeFraction.minSize.getBytes(), Math.min(rangeFraction.maxSize.getBytes(), relative)));
+		return new MemorySize(capToMinMax(memoryDescription, relative, rangeFraction));
+	}
+
+	private static long capToMinMax(
+			final String memoryDescription,
+			final long relative,
+			final RangeFraction rangeFraction) {
+		long size = relative;
+		if (size > rangeFraction.maxSize.getBytes()) {
+			LOG.info(
+				"The derived from fraction {} ({}b) is greater than its max value {}, max value will be used instead",
+				memoryDescription,
+				relative,
+				rangeFraction.maxSize);
+			size = rangeFraction.maxSize.getBytes();
+		} else if (size < rangeFraction.minSize.getBytes()) {
+			LOG.info(
+				"The derived from fraction {} ({}b) is less than its min value {}, max value will be used instead",
+				memoryDescription,
+				relative,
+				rangeFraction.minSize);
+			size = rangeFraction.minSize.getBytes();
+		}
+		return size;
 	}
 
 	private static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
