@@ -72,7 +72,7 @@ public class TableSinkFactoryServiceTest {
 	@Test
 	public void testUnsupportedProperty() {
 		thrown.expect(NoMatchingTableFactoryException.class);
-		thrown.expectMessage("The match candidates:\n" +
+		thrown.expectMessage("The matching candidates:\n" +
 				"org.apache.flink.table.factories.TestTableSinkFactory\n" +
 				"Unsupported property keys:\n" +
 				"format.path_new");
@@ -84,7 +84,7 @@ public class TableSinkFactoryServiceTest {
 	@Test
 	public void testMissingProperty() {
 		thrown.expect(NoMatchingTableFactoryException.class);
-		thrown.expectMessage("The match candidates:\n" +
+		thrown.expectMessage("The matching candidates:\n" +
 				"org.apache.flink.table.factories.TestTableSinkFactory\n" +
 				"Missing properties:\n" +
 				"format.type=test");
@@ -96,7 +96,7 @@ public class TableSinkFactoryServiceTest {
 	@Test
 	public void testMismatchedProperty() {
 		thrown.expect(NoMatchingTableFactoryException.class);
-		thrown.expectMessage("The match candidates:\n" +
+		thrown.expectMessage("The matching candidates:\n" +
 				"org.apache.flink.table.factories.TestTableSinkFactory\n" +
 				"Mismatched properties:\n" +
 				"'format.type' expects 'test', but is 'test_new'");
@@ -108,7 +108,7 @@ public class TableSinkFactoryServiceTest {
 	@Test
 	public void testMissingAndMismatchedProperty() {
 		thrown.expect(NoMatchingTableFactoryException.class);
-		thrown.expectMessage("The match candidates:\n" +
+		thrown.expectMessage("The matching candidates:\n" +
 				"org.apache.flink.table.factories.TestTableSinkFactory\n" +
 				"Missing properties:\n" +
 				"required.test=required-0\n" +
