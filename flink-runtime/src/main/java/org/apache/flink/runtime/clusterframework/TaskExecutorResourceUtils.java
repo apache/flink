@@ -294,11 +294,8 @@ public class TaskExecutorResourceUtils {
 		} else {
 			// task heap memory is not configured
 			// derive managed memory and shuffle memory, leave the remaining to task heap memory
-			if (isManagedMemorySizeExplicitlyConfigured(config)) {
-				managedMemorySize = getManagedMemorySize(config);
-			} else {
-				managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
-			}
+			managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
+
 			if (isUsingLegacyShuffleConfigs(config)) {
 				shuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
 			} else {
