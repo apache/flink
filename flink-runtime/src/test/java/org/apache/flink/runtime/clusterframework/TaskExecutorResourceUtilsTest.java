@@ -532,7 +532,8 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		conf.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, managedFraction);
 
 		// if managed memory size is explicitly configured, then managed memory fraction will be ignored
-		validateFailInConfigurationsWithoutExplicitManagedMem(conf);
+		validateFailInConfigWithExplicitTotalFlinkMem(conf);
+		validateFailInConfigWithExplicitTotalProcessMem(conf);
 	}
 
 	@Test
