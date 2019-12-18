@@ -22,8 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -33,6 +36,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Container for multiple {@link TaskSlotPayload tasks} belonging to the same slot. A {@link TaskSlot} can be in one
@@ -55,7 +60,7 @@ import java.util.Map;
  *
  * @param <T> type of the {@link TaskSlotPayload} stored in this slot
  */
-public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseable {
+public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskSlot.class);
 
 	/** Index of the task slot. */
@@ -78,6 +83,9 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseable {
 	/** Allocation id of this slot. */
 	private final AllocationID allocationId;
 
+	/** The closing future is completed when the slot is freed and closed. */
+	private final CompletableFuture<Void> closingFuture;
+
 	public TaskSlot(
 		final int index,
 		final ResourceProfile resourceProfile,
@@ -95,6 +103,8 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseable {
 		this.allocationId = allocationId;
 
 		this.memoryManager = createMemoryManager(resourceProfile, memoryPageSize);
+
+		this.closingFuture = new CompletableFuture<>();
 	}
 
 	// ----------------------------------------------------------------------------------
@@ -245,16 +255,6 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseable {
 	}
 
 	/**
-	 * Mark this slot as releasing. A slot can always be marked as releasing.
-	 *
-	 * @return True
-	 */
-	public boolean markReleasing() {
-		state = TaskSlotState.RELEASING;
-		return true;
-	}
-
-	/**
 	 * Generate the slot offer from this TaskSlot.
 	 *
 	 * @return The sot offer which this task slot can provide
@@ -274,9 +274,39 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseable {
 	}
 
 	@Override
-	public void close() {
-		verifyMemoryFreed();
-		this.memoryManager.shutdown();
+	public CompletableFuture<Void> closeAsync() {
+		return closeAsync(new FlinkException("Closing the slot"));
+	}
+
+	/**
+	 * Close the task slot asynchronously.
+	 *
+	 * <p>Slot is moved to {@link TaskSlotState#RELEASING} state and only once.
+	 * If there are active tasks running in the slot then they are failed.
+	 * The future of all tasks terminated and slot cleaned up is initiated only once and always returned
+	 * in case of multiple attempts to close the slot.
+	 *
+	 * @param cause cause of closing
+	 * @return future of all running task if any being done and slot cleaned up.
+	 */
+	CompletableFuture<Void> closeAsync(Throwable cause) {
+		if (!isReleasing()) {
+			state = TaskSlotState.RELEASING;
+			if (!isEmpty()) {
+				// we couldn't free the task slot because it still contains task, fail the tasks
+				// and set the slot state to releasing so that it gets eventually freed
+				tasks.values().forEach(task -> task.failExternally(cause));
+			}
+			final CompletableFuture<Void> cleanupFuture = FutureUtils
+				.waitForAll(tasks.values().stream().map(TaskSlotPayload::getTerminationFuture).collect(Collectors.toList()))
+				.thenRun(() -> {
+					verifyMemoryFreed();
+					this.memoryManager.shutdown();
+				});
+
+			FutureUtils.forward(cleanupFuture, closingFuture);
+		}
+		return closingFuture;
 	}
 
 	private void verifyMemoryFreed() {
