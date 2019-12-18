@@ -315,11 +315,7 @@ public final class FileUtils {
 	}
 
 	private static void deleteDirectoryInternal(File directory) throws IOException {
-		if (Files.isSymbolicLink(directory.toPath())) {
-			//noinspection ResultOfMethodCallIgnored
-			Files.delete(directory.toPath());
-		}
-		else if (directory.isDirectory()) {
+		if (directory.isDirectory()) {
 			// directory exists and is a directory
 
 			// empty the directory first
@@ -346,6 +342,10 @@ public final class FileUtils {
 	}
 
 	private static void cleanDirectoryInternal(File directory) throws IOException {
+		if (Files.isSymbolicLink(directory.toPath())) {
+			// the user directories which symbolic links point to should not be cleaned.
+			return;
+		}
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
 
