@@ -78,6 +78,7 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutoStarter.class);
 
 	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+	private static final String ZOOKEEPER_4_LW_COMMANDS_WHITELIST = "zookeeper.4lw.commands.whitelist";
 	private static HBaseAdmin admin = null;
 	private static List<TableName> createdTables = new ArrayList<>();
 
@@ -143,6 +144,7 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 	@BeforeClass
 	public static void setUp() throws Exception {
 		LOG.info("HBase minicluster: Starting");
+		enableZooKeeper34Commands();
 
 		TEST_UTIL.startMiniCluster(1);
 
@@ -241,7 +243,24 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		hbaseSiteXmlFile.delete();
 		hbaseSiteXmlDirectory.delete();
 		TEST_UTIL.shutdownMiniCluster();
+		disableZooKeeper34Commands();
 		LOG.info("HBase minicluster: Down");
+	}
+
+	private static void enableZooKeeper34Commands() {
+		// ZOOKEEPER-2693 disables all 4lw by default.
+		// Here we enable the 4lw which this tests depends on
+		final String acceptAllCommands = "*";
+		configureZooKeeper34Commands(acceptAllCommands);
+	}
+
+	private static void disableZooKeeper34Commands() {
+		final String defaultValue = "";
+		configureZooKeeper34Commands(defaultValue);
+	}
+
+	private static void configureZooKeeper34Commands(String acceptAllCommands) {
+		System.getProperties().setProperty(ZOOKEEPER_4_LW_COMMANDS_WHITELIST, acceptAllCommands);
 	}
 
 }
