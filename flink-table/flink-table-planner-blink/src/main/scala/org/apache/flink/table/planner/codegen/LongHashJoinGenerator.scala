@@ -73,6 +73,7 @@ object LongHashJoinGenerator {
     val term = singleType.getTypeRoot match {
       case FLOAT => s"Float.floatToIntBits($getCode)"
       case DOUBLE => s"Double.doubleToLongBits($getCode)"
+      case TIMESTAMP_WITHOUT_TIME_ZONE => s"$getCode.getMillisecond()"
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"$getCode.getMillisecond()"
       case _ => getCode
     }

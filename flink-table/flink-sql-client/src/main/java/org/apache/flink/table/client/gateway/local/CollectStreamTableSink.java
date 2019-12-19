@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.experimental.CollectSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.net.InetAddress;
@@ -46,7 +47,7 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 		this.targetAddress = targetAddress;
 		this.targetPort = targetPort;
 		this.serializer = serializer;
-		this.tableSchema = tableSchema;
+		this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
 	}
 
 	@Override

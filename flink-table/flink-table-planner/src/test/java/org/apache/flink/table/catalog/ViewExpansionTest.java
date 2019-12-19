@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.utils.StreamTableTestUtil;
 
@@ -59,6 +61,40 @@ public class ViewExpansionTest {
 	}
 
 	@Test
+	public void testSqlViewExpansionWithMismatchRowType() throws Exception {
+		CatalogManager catalogManager = root()
+			.builtin(
+				database(
+					"default",
+					table("tab1")
+						.withTableSchema(
+							TableSchema.builder()
+								.field("a", DataTypes.INT())
+								.field("b", DataTypes.STRING())
+								.field("c", DataTypes.INT())
+								.build()),
+					view("view")
+						.withTableSchema(
+							TableSchema.builder()
+								// Change the nullability intentionally.
+								.field("a", DataTypes.INT().notNull())
+								.field("b", DataTypes.STRING())
+								.field("c", DataTypes.INT())
+								.build())
+						.withQuery("SELECT a, b, count(c) FROM `builtin`.`default`.tab1 group by a, b")
+				)
+			).build();
+
+		StreamTableTestUtil util = new StreamTableTestUtil(new Some<>(catalogManager));
+		final String expected = "DataStreamCalc(select=[a, b, CAST(EXPR$2) AS c])\n"
+			+ "DataStreamGroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])\n"
+			+ "StreamTableSourceScan(table=[[builtin, default, tab1]], fields=[a, b, c], source=[isTemporary=[false]])";
+		util.verifyJavaSql(
+				"SELECT * FROM `builtin`.`default`.`view`",
+				expected);
+	}
+
+	@Test
 	public void testTableViewExpansion() throws Exception {
 		CatalogManager catalogManager = root()
 			.builtin(
@@ -74,6 +110,41 @@ public class ViewExpansionTest {
 		util.verifyJavaTable(
 			tab,
 			source("builtin", "default", "tab1"));
+	}
+
+	@Test
+	public void testTableViewExpansionWithMismatchRowType() throws Exception {
+		CatalogManager catalogManager = root()
+			.builtin(
+				database(
+					"default",
+					table("tab1")
+						.withTableSchema(
+							TableSchema.builder()
+								.field("a", DataTypes.INT())
+								.field("b", DataTypes.STRING())
+								.field("c", DataTypes.INT())
+								.build()),
+					view("view")
+						.withTableSchema(
+							TableSchema.builder()
+								// Change the nullability intentionally.
+								.field("a", DataTypes.INT().notNull())
+								.field("b", DataTypes.STRING())
+								.field("c", DataTypes.INT())
+								.build())
+						.withQuery("SELECT a, b, count(c) FROM `builtin`.`default`.tab1 group by a, b")
+				)
+			).build();
+
+		StreamTableTestUtil util = new StreamTableTestUtil(new Some<>(catalogManager));
+		Table tab = util.javaTableEnv().scan("builtin", "default", "view").select("*");
+		final String expected = "DataStreamCalc(select=[a, b, CAST(EXPR$2) AS c])\n"
+			+ "DataStreamGroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])\n"
+			+ "StreamTableSourceScan(table=[[builtin, default, tab1]], fields=[a, b, c], source=[isTemporary=[false]])";
+		util.verifyJavaTable(
+			tab,
+			expected);
 	}
 
 	@Test

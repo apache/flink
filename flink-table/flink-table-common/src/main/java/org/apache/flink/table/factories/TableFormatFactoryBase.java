@@ -23,12 +23,19 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 
 /**
  * Base class for {@link TableFormatFactory}s.
@@ -97,6 +104,8 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 			properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 			properties.add(SCHEMA + ".#." + SCHEMA_FROM);
+			// computed column
+			properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
 			// time attributes
 			properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
 			properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
@@ -107,6 +116,10 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
 			properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
 			properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
+			// watermark
+			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 		}
 		properties.addAll(supportedFormatProperties());
 		return properties;
@@ -133,7 +146,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Finds the table schema that can be used for a format schema (without time attributes).
+	 * Finds the table schema that can be used for a format schema (without time attributes and generated columns).
 	 */
 	public static TableSchema deriveSchema(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = new DescriptorProperties();
@@ -141,7 +154,8 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 
 		final TableSchema.Builder builder = TableSchema.builder();
 
-		final TableSchema baseSchema = descriptorProperties.getTableSchema(SCHEMA);
+		final TableSchema baseSchema = TableSchemaUtils.getPhysicalSchema(
+			descriptorProperties.getTableSchema(SCHEMA));
 		for (int i = 0; i < baseSchema.getFieldCount(); i++) {
 			final String fieldName = baseSchema.getFieldNames()[i];
 			final DataType fieldType = baseSchema.getFieldDataTypes()[i];
@@ -151,7 +165,9 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 				.orElse(false);
 			final String timestampKey = SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_TYPE;
 			final boolean isRowtime = descriptorProperties.containsKey(timestampKey);
-			if (!isProctime && !isRowtime) {
+			boolean isGeneratedColumn = properties.containsKey(SCHEMA + "." + i + "." + TABLE_SCHEMA_EXPR);
+
+			if (!isProctime && !isRowtime && !isGeneratedColumn) {
 				// check for aliasing
 				final String aliasName = descriptorProperties
 					.getOptionalString(SCHEMA + '.' + i + '.' + SCHEMA_FROM)

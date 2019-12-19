@@ -181,6 +181,10 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 
 		final RocksDBMemoryConfiguration newConfig = new RocksDBMemoryConfiguration();
 
+		newConfig.useManagedMemory = other.useManagedMemory != null
+				? other.useManagedMemory
+				: config.getBoolean(RocksDBOptions.USE_MANAGED_MEMORY);
+
 		newConfig.fixedMemoryPerSlot = other.fixedMemoryPerSlot != null
 				? other.fixedMemoryPerSlot
 				: config.get(RocksDBOptions.FIX_PER_SLOT_MEMORY_SIZE);

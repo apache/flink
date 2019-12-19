@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper, _}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -1119,7 +1119,7 @@ trait ImplicitExpressionConversions {
       * Calls a table function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+      val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
         .getReturnTypeOfTableFunction(t, implicitly[TypeInformation[T]])
       unresolvedCall(new TableFunctionDefinition(t.getClass.getName, t, resultTypeInfo), params: _*)
     }
@@ -1129,10 +1129,10 @@ trait ImplicitExpressionConversions {
       (val a: UserDefinedAggregateFunction[T, ACC]) {
 
     private def createFunctionDefinition(): FunctionDefinition = {
-      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+      val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
         .getReturnTypeOfAggregateFunction(a, implicitly[TypeInformation[T]])
 
-      val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper.
+      val accTypeInfo: TypeInformation[ACC] = UserDefinedFunctionHelper.
         getAccumulatorTypeOfAggregateFunction(a, implicitly[TypeInformation[ACC]])
 
       a match {

@@ -2,7 +2,7 @@
 title:  "Kubernetes 安装"
 nav-title: Kubernetes
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

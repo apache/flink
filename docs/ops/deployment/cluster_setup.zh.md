@@ -1,7 +1,7 @@
 ---
 title: "独立集群"
 nav-parent_id: deployment
-nav-pos: 1
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

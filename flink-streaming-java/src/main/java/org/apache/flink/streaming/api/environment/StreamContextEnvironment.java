@@ -81,11 +81,20 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			}
 
 			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
 		} else {
 			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 
-		ctx.setJobExecutionResult(jobExecutionResult);
 		return jobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+		final JobClient jobClient = super.executeAsync(streamGraph);
+
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return jobClient;
 	}
 }

@@ -22,7 +22,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
-import org.apache.flink.table.functions.{FunctionIdentifier, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -91,7 +91,7 @@ class FlinkRelMdHandlerTestBase {
   val plannerContext: PlannerContext =
     new PlannerContext(
       tableConfig,
-      new FunctionCatalog(catalogManager, moduleManager),
+      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
       catalogManager,
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
@@ -713,8 +713,8 @@ class FlinkRelMdHandlerTestBase {
 
   protected lazy val tableAggCall = {
     val top3 = new Top3
-    val resultTypeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(top3)
-    val accTypeInfo = UserFunctionsTypeHelper.getAccumulatorTypeOfAggregateFunction(top3)
+    val resultTypeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(top3)
+    val accTypeInfo = UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(top3)
 
     val resultDataType = TypeConversions.fromLegacyInfoToDataType(resultTypeInfo)
     val accDataType = TypeConversions.fromLegacyInfoToDataType(accTypeInfo)

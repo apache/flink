@@ -2,7 +2,7 @@
 title:  "YARN Setup"
 nav-title: YARN
 nav-parent_id: deployment
-nav-pos: 2
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

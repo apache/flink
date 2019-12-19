@@ -202,6 +202,22 @@ public class FileUtilsTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Deleting a symbolic link directory should not delete the files in it.
+	 */
+	@Test
+	public void testDeleteSymbolicLinkDirectory() throws Exception {
+		// creating a directory to which the test creates a symbolic link
+		File linkedDirectory = tmp.newFolder();
+		File fileInLinkedDirectory = new File(linkedDirectory, "child");
+		fileInLinkedDirectory.createNewFile();
+		File symbolicLink = new File(tmp.getRoot(), "symLink");
+		Files.createSymbolicLink(symbolicLink.toPath(), linkedDirectory.toPath());
+
+		FileUtils.deleteDirectory(symbolicLink);
+		assertTrue(fileInLinkedDirectory.exists());
+	}
+
 	@Ignore
 	@Test
 	public void testDeleteDirectoryConcurrently() throws Exception {

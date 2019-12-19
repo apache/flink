@@ -89,7 +89,10 @@ public class SqlToOperationConverterTest {
 	private final CatalogManager catalogManager =
 		new CatalogManager("builtin", catalog);
 	private final ModuleManager moduleManager = new ModuleManager();
-	private final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+	private final FunctionCatalog functionCatalog = new FunctionCatalog(
+		tableConfig,
+		catalogManager,
+		moduleManager);
 	private final PlannerContext plannerContext =
 		new PlannerContext(tableConfig,
 			functionCatalog,

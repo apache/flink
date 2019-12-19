@@ -30,6 +30,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.utils.TableConnectorUtils;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
@@ -61,7 +62,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		int flushMaxSize,
 		long flushIntervalMills,
 		int maxRetryTime) {
-		this.schema = schema;
+		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.options = options;
 		this.flushMaxSize = flushMaxSize;
 		this.flushIntervalMills = flushIntervalMills;

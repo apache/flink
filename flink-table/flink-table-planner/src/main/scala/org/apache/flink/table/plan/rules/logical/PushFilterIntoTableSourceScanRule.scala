@@ -23,7 +23,7 @@ import java.util
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.{Expression, PlannerExpression}
 import org.apache.flink.table.module.ModuleManager
@@ -74,7 +74,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         call.builder().getRexBuilder,
-        new FunctionCatalog(catalogManager, new ModuleManager))
+        new FunctionCatalog(TableConfig.getDefault, catalogManager, new ModuleManager))
     if (predicates.isEmpty) {
       // no condition can be translated to expression
       return

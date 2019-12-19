@@ -97,6 +97,48 @@ class TableScanITCase extends StreamingTestBase {
   }
 
   @Test
+  def testRowtimeTableSourceWithFieldReMapping(): Unit = {
+    val tableName = "MyTable"
+
+    val data: Seq[Row] = Seq(
+      Row.of(Int.box(1), Long.box(11), "Mary"),
+      Row.of(Int.box(2), Long.box(12), "Peter"),
+      Row.of(Int.box(3), Long.box(13), "Bob"),
+      Row.of(Int.box(4), Long.box(14), "Liz"))
+
+    val schema = new TableSchema(
+      Array("key", "rowtime", "payload"),
+      Array(Types.INT(), Types.SQL_TIMESTAMP(), Types.STRING()))
+    val returnType = Types.ROW(Types.INT(), Types.LONG(), Types.STRING())
+    val mapping = Map("key" -> "f0", "ts" -> "f1", "payload" -> "f2")
+    val tableSource = new TestTableSourceWithTime(
+      false,
+      schema,
+      returnType,
+      data,
+      rowtime = "rowtime",
+      mapping = mapping,
+      existingTs = "ts")
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  CAST(TUMBLE_START(rowtime, INTERVAL '0.005' SECOND) AS VARCHAR),
+         |  COUNT(payload)
+         |FROM $tableName
+         |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+       """.stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("1970-01-01 00:00:00.01,4")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testRowtimeTableSourcePreserveWatermarks(): Unit = {
     val tableName = "MyTable"
 

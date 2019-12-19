@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -127,9 +128,28 @@ public class HadoopUtils {
 	}
 
 	/**
-	 * Checks if the Hadoop dependency is at least of the given version.
+	 * Checks if the Hadoop dependency is at least the given version.
 	 */
 	public static boolean isMinHadoopVersion(int major, int minor) throws FlinkRuntimeException {
+		final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
+		int maj = hadoopVersion.f0;
+		int min = hadoopVersion.f1;
+
+		return maj > major || (maj == major && min >= minor);
+	}
+
+	/**
+	 * Checks if the Hadoop dependency is at most the given version.
+	 */
+	public static boolean isMaxHadoopVersion(int major, int minor) throws FlinkRuntimeException {
+		final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
+		int maj = hadoopVersion.f0;
+		int min = hadoopVersion.f1;
+
+		return maj < major || (maj == major && min < minor);
+	}
+
+	private static Tuple2<Integer, Integer> getMajorMinorBundledHadoopVersion() {
 		String versionString = VersionInfo.getVersion();
 		String[] versionParts = versionString.split("\\.");
 
@@ -140,7 +160,6 @@ public class HadoopUtils {
 
 		int maj = Integer.parseInt(versionParts[0]);
 		int min = Integer.parseInt(versionParts[1]);
-
-		return maj > major || (maj == major && min >= minor);
+		return Tuple2.of(maj, min);
 	}
 }

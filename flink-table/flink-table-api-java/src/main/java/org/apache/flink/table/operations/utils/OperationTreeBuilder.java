@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.FunctionLookup;
@@ -85,6 +86,7 @@ import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperat
 @Internal
 public final class OperationTreeBuilder {
 
+	private final TableConfig config;
 	private final FunctionLookup functionCatalog;
 	private final TableReferenceLookup tableReferenceLookup;
 	private final LookupCallResolver lookupResolver;
@@ -100,6 +102,7 @@ public final class OperationTreeBuilder {
 	private final JoinOperationFactory joinOperationFactory;
 
 	private OperationTreeBuilder(
+			TableConfig config,
 			FunctionLookup functionLookup,
 			TableReferenceLookup tableReferenceLookup,
 			ProjectionOperationFactory projectionOperationFactory,
@@ -108,6 +111,7 @@ public final class OperationTreeBuilder {
 			SetOperationFactory setOperationFactory,
 			AggregateOperationFactory aggregateOperationFactory,
 			JoinOperationFactory joinOperationFactory) {
+		this.config = config;
 		this.functionCatalog = functionLookup;
 		this.tableReferenceLookup = tableReferenceLookup;
 		this.projectionOperationFactory = projectionOperationFactory;
@@ -120,10 +124,12 @@ public final class OperationTreeBuilder {
 	}
 
 	public static OperationTreeBuilder create(
+			TableConfig config,
 			FunctionLookup functionCatalog,
 			TableReferenceLookup tableReferenceLookup,
 			boolean isStreamingMode) {
 		return new OperationTreeBuilder(
+			config,
 			functionCatalog,
 			tableReferenceLookup,
 			new ProjectionOperationFactory(),
@@ -168,7 +174,11 @@ public final class OperationTreeBuilder {
 			boolean explicitAlias,
 			List<OverWindow> overWindows) {
 
-		ExpressionResolver resolver = ExpressionResolver.resolverFor(tableReferenceLookup, functionCatalog, child)
+		ExpressionResolver resolver = ExpressionResolver.resolverFor(
+				config,
+				tableReferenceLookup,
+				functionCatalog,
+				child)
 			.withOverWindows(overWindows)
 			.build();
 		List<ResolvedExpression> projections = resolver.resolve(projectList);
@@ -233,6 +243,7 @@ public final class OperationTreeBuilder {
 		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
 
 		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
+				config,
 				tableReferenceLookup,
 				functionCatalog,
 				child)
@@ -282,9 +293,10 @@ public final class OperationTreeBuilder {
 		// Step3: resolve expressions, including grouping, aggregates and window properties.
 		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
 		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
-			tableReferenceLookup,
-			functionCatalog,
-			child)
+				config,
+				tableReferenceLookup,
+				functionCatalog,
+				child)
 			.withLocalReferences(
 				new LocalReferenceExpression(
 					resolvedWindow.getAlias(),
@@ -327,7 +339,12 @@ public final class OperationTreeBuilder {
 			JoinType joinType,
 			Optional<Expression> condition,
 			boolean correlated) {
-		ExpressionResolver resolver = ExpressionResolver.resolverFor(tableReferenceLookup, functionCatalog, left, right)
+		ExpressionResolver resolver = ExpressionResolver.resolverFor(
+				config,
+				tableReferenceLookup,
+				functionCatalog,
+				left,
+				right)
 			.build();
 		Optional<ResolvedExpression> resolvedCondition = condition.map(expr -> resolveSingleExpression(expr, resolver));
 
@@ -356,6 +373,7 @@ public final class OperationTreeBuilder {
 
 	public Expression resolveExpression(Expression expression, QueryOperation... tableOperation) {
 		ExpressionResolver resolver = ExpressionResolver.resolverFor(
+			config,
 			tableReferenceLookup,
 			functionCatalog,
 			tableOperation).build();
@@ -660,6 +678,7 @@ public final class OperationTreeBuilder {
 		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
 
 		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
+			config,
 			tableReferenceLookup,
 			functionCatalog,
 			child)
@@ -758,7 +777,12 @@ public final class OperationTreeBuilder {
 	}
 
 	private ExpressionResolver getResolver(QueryOperation child) {
-		return ExpressionResolver.resolverFor(tableReferenceLookup, functionCatalog, child).build();
+		return ExpressionResolver.resolverFor(
+				config,
+				tableReferenceLookup,
+				functionCatalog,
+				child)
+			.build();
 	}
 
 	private static class NoWindowPropertyChecker extends ApiExpressionDefaultVisitor<Void> {

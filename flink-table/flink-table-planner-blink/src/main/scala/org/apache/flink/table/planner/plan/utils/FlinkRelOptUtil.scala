@@ -494,5 +494,4 @@ object FlinkRelOptUtil {
         }
     }
   }
-
 }

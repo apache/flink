@@ -34,14 +34,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class HiveModuleDescriptor extends ModuleDescriptor {
 	private String hiveVersion;
 
-	public HiveModuleDescriptor() {
+	public HiveModuleDescriptor(String hiveVersion) {
 		super(MODULE_TYPE_HIVE);
-	}
 
-	public HiveModuleDescriptor hiveVersion(String hiveVersion) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion));
 		this.hiveVersion = hiveVersion;
-		return this;
 	}
 
 	@Override
