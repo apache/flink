@@ -675,7 +675,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 * @param tableSource tableSource to validate
 	 */
 	protected void validateTableSource(TableSource<?> tableSource) {
-		TableSourceValidation.validateTableSource(tableSource);
+		TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema());
 	}
 
 	private void translate(List<ModifyOperation> modifyOperations) {
