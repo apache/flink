@@ -670,10 +670,10 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Returns the total size of the certain type of memory handled by this memory manager.
+	 * Returns the available size of the certain type of memory handled by this memory manager.
 	 *
 	 * @param memoryType The type of memory.
-	 * @return The total size of memory.
+	 * @return The available size of memory.
 	 */
 	public long availableMemory(MemoryType memoryType) {
 		return budgetByType.availableBudgetForKey(memoryType);
