@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.Warehouse;
+import org.apache.hadoop.io.Writable;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -45,6 +46,7 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -56,11 +58,13 @@ public class HiveShimV310 extends HiveShimV235 {
 	private static Class hiveTimestampClz;
 	private static Constructor hiveTimestampConstructor;
 	private static Field hiveTimestampLocalDateTime;
+	private static Constructor timestampWritableConstructor;
 
 	// date classes
 	private static Class hiveDateClz;
 	private static Constructor hiveDateConstructor;
 	private static Field hiveDateLocalDate;
+	private static Constructor dateWritableConstructor;
 
 	private static boolean hiveClassesInited;
 
@@ -74,12 +78,16 @@ public class HiveShimV310 extends HiveShimV235 {
 						hiveTimestampConstructor.setAccessible(true);
 						hiveTimestampLocalDateTime = hiveTimestampClz.getDeclaredField("localDateTime");
 						hiveTimestampLocalDateTime.setAccessible(true);
+						timestampWritableConstructor = Class.forName("org.apache.hadoop.hive.serde2.io.TimestampWritableV2")
+								.getDeclaredConstructor(hiveTimestampClz);
 
 						hiveDateClz = Class.forName("org.apache.hadoop.hive.common.type.Date");
 						hiveDateConstructor = hiveDateClz.getDeclaredConstructor(LocalDate.class);
 						hiveDateConstructor.setAccessible(true);
 						hiveDateLocalDate = hiveDateClz.getDeclaredField("localDate");
 						hiveDateLocalDate.setAccessible(true);
+						dateWritableConstructor = Class.forName("org.apache.hadoop.hive.serde2.io.DateWritableV2")
+								.getDeclaredConstructor(hiveDateClz);
 					} catch (ClassNotFoundException | NoSuchMethodException | NoSuchFieldException e) {
 						throw new FlinkHiveException("Failed to get Hive timestamp class and constructor", e);
 					}
@@ -232,5 +240,27 @@ public class HiveShimV310 extends HiveShimV235 {
 		} catch (IllegalAccessException e) {
 			throw new FlinkHiveException("Failed to convert to Flink date", e);
 		}
+	}
+
+	@Override
+	public Writable hivePrimitiveToWritable(Object value) {
+		if (value == null) {
+			return null;
+		}
+		Optional<Writable> optional = javaToWritable(value);
+		if (optional.isPresent()) {
+			return optional.get();
+		}
+		try {
+			if (getDateDataTypeClass().isInstance(value)) {
+				return (Writable) dateWritableConstructor.newInstance(value);
+			}
+			if (getTimestampDataTypeClass().isInstance(value)) {
+				return (Writable) timestampWritableConstructor.newInstance(value);
+			}
+		} catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
+			throw new FlinkHiveException("Failed to create writable objects", e);
+		}
+		throw new FlinkHiveException("Unsupported primitive java value of class " + value.getClass().getName());
 	}
 }

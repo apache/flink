@@ -80,12 +80,9 @@ import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -118,6 +115,8 @@ public class HiveInspectors {
 						HiveTypeUtil.toHiveTypeInfo(argTypes[i], false));
 			} else {
 				PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) HiveTypeUtil.toHiveTypeInfo(argTypes[i], false);
+				constant = getConversion(getObjectInspector(primitiveTypeInfo), argTypes[i].getLogicalType(), hiveShim)
+						.toHiveObject(constant);
 				argumentInspectors[i] = hiveShim.getObjectInspectorForConstant(primitiveTypeInfo, constant);
 			}
 		}
@@ -155,7 +154,7 @@ public class HiveInspectors {
 				throw new FlinkHiveUDFException("Unsupported primitive object inspector " + inspector.getClass().getName());
 			}
 			if (((PrimitiveObjectInspector) inspector).preferWritable()) {
-				conversion = new WritableHiveObjectConversion(conversion);
+				conversion = new WritableHiveObjectConversion(conversion, hiveShim);
 			}
 			return conversion;
 		}
@@ -405,48 +404,5 @@ public class HiveInspectors {
 			default:
 				throw new CatalogException("Unsupported Hive type category " + type.getCategory());
 		}
-	}
-
-	/**
-	 * Converts a Hive primitive java object to corresponding Writable object.
-	 */
-	public static Writable hivePrimitiveToWritable(Object value) {
-		Writable writable;
-		// in case value is already a Writable
-		if (value instanceof Writable) {
-			writable = (Writable) value;
-		} else if (value instanceof Boolean) {
-			writable = new BooleanWritable((Boolean) value);
-		} else if (value instanceof Byte) {
-			writable = new ByteWritable((Byte) value);
-		} else if (value instanceof Short) {
-			writable = new ShortWritable((Short) value);
-		} else if (value instanceof Integer) {
-			writable = new IntWritable((Integer) value);
-		} else if (value instanceof Long) {
-			writable = new LongWritable((Long) value);
-		} else if (value instanceof Float) {
-			writable = new FloatWritable((Float) value);
-		} else if (value instanceof Double) {
-			writable = new DoubleWritable((Double) value);
-		} else if (value instanceof String) {
-			writable = new Text((String) value);
-		} else if (value instanceof HiveChar) {
-			writable = new HiveCharWritable((HiveChar) value);
-		} else if (value instanceof HiveVarchar) {
-			writable = new HiveVarcharWritable((HiveVarchar) value);
-		} else if (value instanceof Date) {
-			writable = new DateWritable((Date) value);
-		} else if (value instanceof Timestamp) {
-			writable = new TimestampWritable((Timestamp) value);
-		} else if (value instanceof BigDecimal) {
-			HiveDecimal hiveDecimal = HiveDecimal.create((BigDecimal) value);
-			writable = new HiveDecimalWritable(hiveDecimal);
-		} else if (value instanceof byte[]) {
-			writable = new BytesWritable((byte[]) value);
-		} else {
-			throw new CatalogException("Unsupported primitive java value of class " + value.getClass().getName());
-		}
-		return writable;
 	}
 }
