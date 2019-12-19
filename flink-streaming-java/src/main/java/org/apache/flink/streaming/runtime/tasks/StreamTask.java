@@ -503,6 +503,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				throw e;
 			}
 		}
+		catch (CancelTaskException e) {
+			if (!canceled) {
+				LOG.error("Received CancelTaskException while we are not canceled. This is a bug and should be reported", e);
+			}
+		}
 		catch (Exception e) {
 			if (canceled) {
 				LOG.warn("Error while canceling task.", e);
