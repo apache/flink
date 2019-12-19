@@ -35,13 +35,15 @@ public interface ArgumentTypeStrategy {
 	 * Main logic for inferring and validating an argument. Returns the data type that is valid for
 	 * the given call. If the returned type differs from {@link CallContext#getArgumentDataTypes()} at
 	 * {@code argumentPos}, a casting operation can be inserted. An empty result means that the given
-	 * input is invalid.
+	 * input type could not be inferred.
 	 *
 	 * @param callContext provides details about the function call
 	 * @param argumentPos argument index in the {@link CallContext}
 	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
-	 *                       with a meaningful exception in case the validation is not successful or
+	 *                       with a meaningful exception in case the inference is not successful or
 	 *                       if this function should simply return an empty result.
+	 * @return three-state result for either "true, same data type as argument", "true, but argument
+	 *         must be casted to returned data type", or "false, no inferred data type could be found"
 	 * @see CallContext#newValidationError(String, Object...)
 	 */
 	Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure);

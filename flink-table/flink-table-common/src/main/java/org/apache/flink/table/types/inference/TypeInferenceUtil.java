@@ -158,9 +158,9 @@ public final class TypeInferenceUtil {
 			// for retrieving the output type of "this_function(NULL)"
 			final CallContext callContext = new UnknownCallContext(name, functionDefinition, argumentCount);
 			final AdaptedCallContext adaptedContext = adaptArguments(typeInference, callContext, null);
-			final Optional<List<DataType>> inferredDataTypes = typeInference.getInputTypeStrategy()
-				.inferInputTypes(adaptedContext, false);
-			return inferredDataTypes.map(dataTypes -> dataTypes.get(innerCallPosition));
+			return typeInference.getInputTypeStrategy()
+				.inferInputTypes(adaptedContext, false)
+				.map(dataTypes -> dataTypes.get(innerCallPosition));
 		}
 	}
 

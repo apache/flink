@@ -125,7 +125,8 @@ public final class TypeInference {
 		 * signature explicitly.
 		 *
 		 * <p>This information is useful for SQL's concept of named arguments using the assignment
-		 * operator (e.g. {@code FUNC(max => 42)}).
+		 * operator (e.g. {@code FUNC(max => 42)}). The names are used for reordering the call's
+		 * arguments to the formal argument order of the function.
 		 */
 		public Builder namedArguments(List<String> argumentNames) {
 			this.namedArguments =

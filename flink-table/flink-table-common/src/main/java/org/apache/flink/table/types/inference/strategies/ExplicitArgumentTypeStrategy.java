@@ -32,8 +32,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Strategy for an argument that corresponds to an explicitly defined type with or without implicit
- * casting.
+ * Strategy for an argument that corresponds to an explicitly defined type. Implicit casts will be
+ * inserted if possible.
  */
 @Internal
 public final class ExplicitArgumentTypeStrategy implements ArgumentTypeStrategy {

@@ -79,7 +79,7 @@ public final class InputTypeStrategies {
 	}
 
 	/**
-	 * Strategy a varying named function signature like {@code f(i INT, str STRING, num NUMERIC...)}
+	 * Strategy for a varying named function signature like {@code f(i INT, str STRING, num NUMERIC...)}
 	 * using a sequence of {@link ArgumentTypeStrategy}s. The first n - 1 arguments must be constant. The
 	 * n-th argument can occur 0, 1, or more times.
 	 */
@@ -88,8 +88,8 @@ public final class InputTypeStrategies {
 	}
 
 	/**
-	 * Strategy for a function signature of explicitly defined types with or without implicit
-	 * casting like {@code f(STRING, INT)}.
+	 * Strategy for a function signature of explicitly defined types like {@code f(STRING, INT)}.
+	 * Implicit casts will be inserted if possible.
 	 *
 	 * <p>This is equivalent to using {@link #sequence(ArgumentTypeStrategy...)} and
 	 * {@link #explicit(DataType)}.
@@ -102,8 +102,8 @@ public final class InputTypeStrategies {
 	}
 
 	/**
-	 * Strategy for a named function signature of explicitly defined types with or without implicit
-	 * casting like {@code f(s STRING, i INT)}.
+	 * Strategy for a named function signature of explicitly defined types like {@code f(s STRING, i INT)}.
+	 * Implicit casts will be inserted if possible.
 	 *
 	 * <p>This is equivalent to using {@link #sequence(String[], ArgumentTypeStrategy[])} and
 	 * {@link #explicit(DataType)}.
@@ -149,8 +149,8 @@ public final class InputTypeStrategies {
 	public static final LiteralArgumentTypeStrategy LITERAL_OR_NULL = new LiteralArgumentTypeStrategy(true);
 
 	/**
-	 * Strategy for an argument that corresponds to an explicitly defined type with or without implicit
-	 * casting.
+	 * Strategy for an argument that corresponds to an explicitly defined type casting.
+	 * Implicit casts will be inserted if possible.
 	 */
 	public static ExplicitArgumentTypeStrategy explicit(DataType expectedDataType) {
 		return new ExplicitArgumentTypeStrategy(expectedDataType);
@@ -158,8 +158,14 @@ public final class InputTypeStrategies {
 
 	/**
 	 * Strategy for a conjunction of multiple {@link ArgumentTypeStrategy}s into one like
-	 * {@code f(NUMERIC && LITERAL)}. The strategy aims to infer the first more specific type or (if this
-	 * is not possible) an identical type.
+	 * {@code f(NUMERIC && LITERAL)}.
+	 *
+	 * <p>Some {@link ArgumentTypeStrategy}s cannot contribute an inferred type that is different from
+	 * the input type (e.g. {@link #LITERAL}). Therefore, the order {@code f(X && Y)} or {@code f(Y && X)}
+	 * matters as it defines the precedence in case the result must be casted to a more specific type.
+	 *
+	 * <p>This strategy aims to infer the first more specific, casted type or (if this is not possible)
+	 * a type that has been inferred from all {@link ArgumentTypeStrategy}s.
 	 */
 	public static AndArgumentTypeStrategy and(ArgumentTypeStrategy... strategies) {
 		return new AndArgumentTypeStrategy(Arrays.asList(strategies));
@@ -167,8 +173,14 @@ public final class InputTypeStrategies {
 
 	/**
 	 * Strategy for a disjunction of multiple {@link ArgumentTypeStrategy}s into one like
-	 * {@code f(NUMERIC || STRING)}. The strategy aims to infer an identical type or (if this
-	 * is not possible) the first more specific type.
+	 * {@code f(NUMERIC || STRING)}.
+	 *
+	 * <p>Some {@link ArgumentTypeStrategy}s cannot contribute an inferred type that is different from
+	 * the input type (e.g. {@link #LITERAL}). Therefore, the order {@code f(X || Y)} or {@code f(Y || X)}
+	 * matters as it defines the precedence in case the result must be casted to a more specific type.
+	 *
+	 * <p>This strategy aims to infer a type that is equal to the input type (to prevent unnecessary casting)
+	 * or (if this is not possible) the first more specific, casted type.
 	 */
 	public static OrArgumentTypeStrategy or(ArgumentTypeStrategy... strategies) {
 		return new OrArgumentTypeStrategy(Arrays.asList(strategies));

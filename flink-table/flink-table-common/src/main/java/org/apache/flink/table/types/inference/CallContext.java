@@ -75,8 +75,9 @@ public interface CallContext {
 	/**
 	 * Returns the inferred output data type of the function call.
 	 *
-	 * <p>It does this by inferring the input argument data type of a wrapping call (if available)
-	 * where this function call is an argument. For example, {@code takes_string(this_function(NULL))}
+	 * <p>It does this by inferring the input argument data type using
+	 * {@link ArgumentTypeStrategy#inferArgumentType(CallContext, int, boolean)} of a wrapping call (if
+	 * available) where this function call is an argument. For example, {@code takes_string(this_function(NULL))}
 	 * would lead to a {@link DataTypes#STRING()} because the wrapping call expects a string argument.
 	 */
 	Optional<DataType> getOutputDataType();

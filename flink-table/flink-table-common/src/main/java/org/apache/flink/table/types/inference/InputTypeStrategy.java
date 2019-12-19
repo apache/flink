@@ -58,8 +58,10 @@ public interface InputTypeStrategy {
 	 *
 	 * @param callContext provides details about the function call
 	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
-	 *                       with a meaningful exception in case the validation is not successful or
+	 *                       with a meaningful exception in case the inference is not successful or
 	 *                       if this function should simply return an empty result.
+	 * @return three-state result for either "true, same data types as arguments", "true, but arguments
+	 *         must be casted to returned data types", or "false, no inferred data types could be found"
 	 * @see CallContext#newValidationError(String, Object...)
 	 */
 	Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure);

@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
@@ -34,8 +35,15 @@ import java.util.stream.Collectors;
 
 /**
  * Strategy for inferring and validating an argument using a conjunction of multiple {@link ArgumentTypeStrategy}s
- * into one like {@code f(NUMERIC && LITERAL)}. The strategy aims to infer the first more specific type or (if this
- * is not possible) an identical type.
+ * into one like {@code f(NUMERIC && LITERAL)}
+ *
+ * <p>Some {@link ArgumentTypeStrategy}s cannot contribute an inferred type that is different from
+ * the input type (e.g. {@link InputTypeStrategies#LITERAL}). Therefore, the order {@code f(X && Y)} or
+ * {@code f(Y && X)} matters as it defines the precedence in case the result must be casted to a more
+ * specific type.
+ *
+ * <p>The strategy aims to infer the first more specific, casted type or (if this is not possible)
+ * a type that has been inferred from all {@link ArgumentTypeStrategy}s.
  */
 @Internal
 public final class AndArgumentTypeStrategy implements ArgumentTypeStrategy {
@@ -63,7 +71,7 @@ public final class AndArgumentTypeStrategy implements ArgumentTypeStrategy {
 				return Optional.empty();
 			}
 			final LogicalType inferredType = inferredDataType.get().getLogicalType();
-			// a more specific argument type is available
+			// a more specific, casted argument type is available
 			if (!actualType.equals(inferredType) && !closestDataType.isPresent()) {
 				closestDataType = inferredDataType;
 			}

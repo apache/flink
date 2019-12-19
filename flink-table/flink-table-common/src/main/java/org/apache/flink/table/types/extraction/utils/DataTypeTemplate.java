@@ -214,7 +214,7 @@ public final class DataTypeTemplate {
 	/**
 	 * Converts this template into an {@link ArgumentTypeStrategy}.
 	 */
-	public ArgumentTypeStrategy toArgumentTypeValidator() {
+	public ArgumentTypeStrategy toArgumentTypeStrategy() {
 		// data type
 		if (hasDataTypeDefinition()) {
 			return InputTypeStrategies.explicit(dataType);
