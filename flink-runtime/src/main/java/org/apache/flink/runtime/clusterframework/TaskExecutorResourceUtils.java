@@ -188,7 +188,7 @@ public class TaskExecutorResourceUtils {
 					+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
 			shuffleMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeShuffleMemorySize);
-			sanityCheckShuffleMemory(config, shuffleMemorySize, totalFlinkMemorySize);
+			sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, shuffleMemorySize, totalFlinkMemorySize);
 		} else {
 			// derive shuffle memory from shuffle configs
 			if (isUsingLegacyShuffleConfigs(config)) {
@@ -289,7 +289,7 @@ public class TaskExecutorResourceUtils {
 						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
 			shuffleMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeShuffleMemorySize);
-			sanityCheckShuffleMemory(config, shuffleMemorySize, totalFlinkMemorySize);
+			sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, shuffleMemorySize, totalFlinkMemorySize);
 		} else {
 			// task heap memory is not configured
 			// derive managed memory and shuffle memory, leave the remaining to task heap memory
@@ -553,6 +553,21 @@ public class TaskExecutorResourceUtils {
 						+ "), JVM Metaspace (" + jvmMetaspaceAndOverhead.metaspace.toString()
 						+ "), JVM Overhead (" + jvmMetaspaceAndOverhead.overhead.toString() + ").");
 			}
+		}
+	}
+
+	private static void sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(
+			final Configuration config,
+			final MemorySize derivedShuffleMemorySize,
+			final MemorySize totalFlinkMemorySize) {
+		try {
+			sanityCheckShuffleMemory(config, derivedShuffleMemorySize, totalFlinkMemorySize);
+		} catch (IllegalConfigurationException e) {
+			throw new IllegalConfigurationException(
+				"If Total Flink, Task Heap and (or) Managed Memory sizes are explicitly configured then " +
+					"the Shuffle Memory size is the rest of the Total Flink memory after subtracting all other " +
+					"configured types of memory, but the derived Shuffle Memory is inconsistent with its configuration.",
+				e);
 		}
 	}
 
