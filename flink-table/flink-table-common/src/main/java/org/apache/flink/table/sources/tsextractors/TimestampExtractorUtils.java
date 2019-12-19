@@ -20,8 +20,8 @@ package org.apache.flink.table.sources.tsextractors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
@@ -82,7 +82,7 @@ public final class TimestampExtractorUtils {
 		int idx = IntStream.range(0, schema.getFieldCount())
 			.filter(i -> schema.getFieldName(i).get().equals(remappedName))
 			.findFirst()
-			.orElseThrow(() -> new TableException(String.format("Field %s does not exist", remappedName)));
+			.orElseThrow(() -> new ValidationException(String.format("Field %s does not exist", remappedName)));
 
 		TypeInformation<?> dataType = TypeConversions.fromDataTypeToLegacyInfo(schema.getTableColumn(idx)
 			.get()
