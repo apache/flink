@@ -48,12 +48,14 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -144,13 +146,24 @@ public class TableEnvHiveConnectorTest {
 		} else {
 			suffix = "stored as " + format;
 		}
-		hiveShell.execute("create table db1.src (i int,s string,ts timestamp,dt date) " + suffix);
-		hiveShell.execute("create table db1.dest (i int,s string,ts timestamp,dt date) " + suffix);
+		String tableSchema;
+		List<Object> row1 = new ArrayList<>(Arrays.asList(1, "a", "2018-08-20 00:00:00.1"));
+		List<Object> row2 = new ArrayList<>(Arrays.asList(2, "b", "2019-08-26 00:00:00.1"));
+		// some data types are not supported for parquet tables in early versions -- https://issues.apache.org/jira/browse/HIVE-6384
+		if (HiveVersionTestUtil.HIVE_120_OR_LATER || !format.equals("parquet")) {
+			tableSchema = "(i int,s string,ts timestamp,dt date)";
+			row1.add("2018-08-20");
+			row2.add("2019-08-26");
+		} else {
+			tableSchema = "(i int,s string,ts timestamp)";
+		}
+		hiveShell.execute(String.format("create table db1.src %s %s", tableSchema, suffix));
+		hiveShell.execute(String.format("create table db1.dest %s %s", tableSchema, suffix));
 
 		// prepare source data with Hive
 		// TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
-		hiveShell.execute("insert into table db1.src values " +
-				"(1,'a','2018-08-20 00:00:00.1','2018-08-20'),(2,'b','2019-08-26 00:00:00.1','2019-08-26')");
+		hiveShell.execute(String.format("insert into table db1.src values (%s),(%s)",
+				toRowValue(row1), toRowValue(row2)));
 
 		// populate dest table with source table
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
@@ -158,9 +171,21 @@ public class TableEnvHiveConnectorTest {
 
 		// verify data on hive side
 		verifyHiveQueryResult("select * from db1.dest",
-				Arrays.asList("1\ta\t2018-08-20 00:00:00.1\t2018-08-20", "2\tb\t2019-08-26 00:00:00.1\t2019-08-26"));
+				Arrays.asList(
+						row1.stream().map(Object::toString).collect(Collectors.joining("\t")),
+						row2.stream().map(Object::toString).collect(Collectors.joining("\t"))));
 
 		hiveShell.execute("drop database db1 cascade");
+	}
+
+	private String toRowValue(List<Object> row) {
+		return row.stream().map(o -> {
+			String res = o.toString();
+			if (o instanceof String) {
+				res = "'" + res + "'";
+			}
+			return res;
+		}).collect(Collectors.joining(","));
 	}
 
 	@Test
