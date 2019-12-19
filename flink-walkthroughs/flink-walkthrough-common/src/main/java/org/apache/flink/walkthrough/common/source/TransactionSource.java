@@ -43,13 +43,15 @@ public class TransactionSource extends FromIteratorFunction<Transaction> {
 
 		private final Iterator<T> inner;
 
+		private boolean running = true;
+
 		private RateLimitedIterator(Iterator<T> inner) {
 			this.inner = inner;
 		}
 
 		@Override
 		public boolean hasNext() {
-			return inner.hasNext();
+			return running && inner.hasNext();
 		}
 
 		@Override
@@ -57,7 +59,7 @@ public class TransactionSource extends FromIteratorFunction<Transaction> {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
+				running = false;
 			}
 			return inner.next();
 		}
