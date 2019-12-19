@@ -43,7 +43,7 @@ import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.sources.{DefinedFieldMapping, RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
-import org.apache.flink.table.utils.TableSourceUtils
+import org.apache.flink.table.utils.TypeMappingUtils
 import org.apache.flink.types.Row
 
 import org.apache.calcite.plan._
@@ -208,7 +208,7 @@ class StreamExecTableSourceScan(
 
   private def computeIndexMapping()
     : Array[Int] = {
-    TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+    TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
       FlinkTypeFactory.toTableSchema(getRowType).getTableColumns,
       true,

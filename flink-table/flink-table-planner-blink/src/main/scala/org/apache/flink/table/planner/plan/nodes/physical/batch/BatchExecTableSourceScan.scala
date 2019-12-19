@@ -38,7 +38,7 @@ import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.{DefinedFieldMapping, StreamTableSource}
-import org.apache.flink.table.utils.TableSourceUtils
+import org.apache.flink.table.utils.TypeMappingUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -168,7 +168,7 @@ class BatchExecTableSourceScan(
 
   private def computeIndexMapping()
     : Array[Int] = {
-    TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+    TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
       FlinkTypeFactory.toTableSchema(getRowType).getTableColumns,
       false,
