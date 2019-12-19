@@ -173,7 +173,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 		long expectedNextLong = 0L;
 		int nextExpectedBacklog = numBuffers - 1;
 
-		while ((next = reader.getNextBuffer(true)) != null && next.buffer().isBuffer()) {
+		while ((next = reader.getNextBuffer()) != null && next.buffer().isBuffer()) {
 			assertTrue(next.isMoreAvailable());
 			assertEquals(nextExpectedBacklog, next.buffersInBacklog());
 
@@ -210,7 +210,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 				nums--;
 			}
 
-			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true, false));
+			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true));
 
 			// we need to flush after every buffer as long as the add() contract is that
 			// buffer are immediately added and can be filled further after that (for low latency

@@ -72,8 +72,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final boolean blockingShuffleCompressionEnabled;
 
-	private final boolean pipelinedShuffleCompressionEnabled;
-
 	private final String compressionCodec;
 
 	public NettyShuffleEnvironmentConfiguration(
@@ -90,7 +88,6 @@ public class NettyShuffleEnvironmentConfiguration {
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			boolean forcePartitionReleaseOnConsumption,
 			boolean blockingShuffleCompressionEnabled,
-			boolean pipelinedShuffleCompressionEnabled,
 			String compressionCodec) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
@@ -106,7 +103,6 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
 		this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
 	}
 
@@ -164,10 +160,6 @@ public class NettyShuffleEnvironmentConfiguration {
 		return blockingShuffleCompressionEnabled;
 	}
 
-	public boolean isPipelinedShuffleCompressionEnabled() {
-		return pipelinedShuffleCompressionEnabled;
-	}
-
 	public String getCompressionCodec() {
 		return compressionCodec;
 	}
@@ -221,8 +213,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		boolean blockingShuffleCompressionEnabled =
 			configuration.get(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
-		boolean pipelinedShuffleCompressionEnabled =
-			configuration.get(NettyShuffleEnvironmentOptions.PIPELINED_SHUFFLE_COMPRESSION_ENABLED);
 		String compressionCodec = configuration.getString(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
 
 		return new NettyShuffleEnvironmentConfiguration(
@@ -239,7 +229,6 @@ public class NettyShuffleEnvironmentConfiguration {
 			blockingSubpartitionType,
 			forcePartitionReleaseOnConsumption,
 			blockingShuffleCompressionEnabled,
-			pipelinedShuffleCompressionEnabled,
 			compressionCodec);
 	}
 
@@ -352,7 +341,6 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + Arrays.hashCode(tempDirs);
 		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
 		result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
-		result = 31 * result + (pipelinedShuffleCompressionEnabled ? 1 : 0);
 		result = 31 * result + Objects.hashCode(compressionCodec);
 		return result;
 	}
@@ -379,7 +367,6 @@ public class NettyShuffleEnvironmentConfiguration {
 					Arrays.equals(this.tempDirs, that.tempDirs) &&
 					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption &&
 					this.blockingShuffleCompressionEnabled == that.blockingShuffleCompressionEnabled &&
-					this.pipelinedShuffleCompressionEnabled == that.pipelinedShuffleCompressionEnabled &&
 					Objects.equals(this.compressionCodec, that.compressionCodec);
 		}
 	}
@@ -398,7 +385,6 @@ public class NettyShuffleEnvironmentConfiguration {
 				", tempDirs=" + Arrays.toString(tempDirs) +
 				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
 				", blockingShuffleCompressionEnabled=" + blockingShuffleCompressionEnabled +
-				", pipelinedShuffleCompressionEnabled=" + pipelinedShuffleCompressionEnabled +
 				", compressionCodec=" + compressionCodec +
 				'}';
 	}

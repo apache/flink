@@ -67,7 +67,6 @@ public enum PartitionTestUtils {
 			.setResultPartitionType(type)
 			.setFileChannelManager(channelManager)
 			.setBlockingShuffleCompressionEnabled(compressionEnabled)
-			.setPipelinedShuffleCompressionEnabled(compressionEnabled)
 			.setNetworkBufferSize(networkBufferSize)
 			.build();
 	}

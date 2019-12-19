@@ -63,8 +63,6 @@ public class ResultPartitionBuilder {
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
-	private boolean pipelinedShuffleCompressionEnabled = false;
-
 	private String compressionCodec = "LZ4";
 
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
@@ -140,11 +138,6 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setPipelinedShuffleCompressionEnabled(boolean pipelinedShuffleCompressionEnabled) {
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
-		return this;
-	}
-
 	public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
 		this.compressionCodec = compressionCodec;
 		return this;
@@ -167,7 +160,6 @@ public class ResultPartitionBuilder {
 			networkBufferSize,
 			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
-			pipelinedShuffleCompressionEnabled,
 			compressionCodec);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
