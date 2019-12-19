@@ -110,7 +110,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
 			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
 			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
 			.build();
@@ -128,13 +128,12 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
-		TableSchema tableSchema = TableSchema.builder()
-			.field(NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
-			.field(TIME, DataTypes.TIMESTAMP(3))
-			.build();
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
-			tableSchema.toRowType()
+			TableSchema.builder()
+				.field(NAME, DataTypes.STRING())
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
+				.field(TIME, DataTypes.TIMESTAMP(3))
+				.build().toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
@@ -148,7 +147,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceValidation.validateTableSource(expected, tableSchema);
+		TableSourceValidation.validateTableSource(expected, schema);
 
 		// construct table source using descriptors and table source factory
 		final Map<String, String> propertiesMap = new HashMap<>();
@@ -178,7 +177,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
 			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
 			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
 			.build();
@@ -196,13 +195,12 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
-		TableSchema tableSchema = TableSchema.builder()
-			.field(NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
-			.field(TIME, DataTypes.TIMESTAMP(3))
-			.build();
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
-			tableSchema.toRowType()
+			TableSchema.builder()
+				.field(NAME, DataTypes.STRING())
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
+				.field(TIME, DataTypes.TIMESTAMP(3))
+				.build().toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
@@ -216,7 +214,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceValidation.validateTableSource(expected, tableSchema);
+		TableSourceValidation.validateTableSource(expected, schema);
 
 		// construct table source using descriptors and table source factory
 		final Map<String, String> legacyPropertiesMap = new HashMap<>();
@@ -267,7 +265,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 				.withSchema(
 					new Schema()
 						.field(FRUIT_NAME, DataTypes.STRING()).from(NAME)
-						.field(COUNT, DataTypes.DECIMAL(10, 3)) // no from so it must match with the input
+						.field(COUNT, DataTypes.DECIMAL(38, 18)) // no from so it must match with the input
 						.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
 							new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
 						.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
