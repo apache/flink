@@ -22,51 +22,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Table API and SQL are integrated in a joint API. The central concept of this API is a `Table` which serves as input and output of queries. This document shows the common structure of programs with Table API and SQL queries, how to register a `Table`, how to query a `Table`, and how to emit a `Table`.
+Table API 和 SQL 被整合在一套共同的 API 中。这套 API 的核心概念是表，用表作为查询操作的输入和输出。本文档介绍了使用 Table API 和 SQL 查询的程序的通用结构、如何注册表、如何查询表以及如何发出表。
 
 * This will be replaced by the TOC
 {:toc}
 
-Main Differences Between the Two Planners
+两种计划器的主要区别
 -----------------------------------------
 
-1. Blink treats batch jobs as a special case of streaming. As such, the conversion between Table and DataSet is not supported, and batch jobs will not be translated into `DateSet` programs but translated into `DataStream` programs, the same as the streaming jobs.
-2. The Blink planner does not support `BatchTableSource`, uses bounded `StreamTableSource` instead of it.
-3. The Blink planner only support the brand new `Catalog` and does not support `ExternalCatalog` which is deprecated.
-4. The implementations of `FilterableTableSource` for the old planner and the Blink planner are incompatible. The old planner will push down `PlannerExpression`s into `FilterableTableSource`, while the Blink planner will push down `Expression`s.
-5. String based key-value config options (Please see the documentation about [Configuration]({{ site.baseurl }}/dev/table/config.html) for details) are only used for the Blink planner.
-6. The implementation(`CalciteConfig`) of `PlannerConfig` in two planners is different.
-7. The Blink planner will optimize multiple-sinks into one DAG (supported only on `TableEnvironment`, not on `StreamTableEnvironment`). The old planner will always optimize each sink into a new DAG, where all DAGs are independent of each other.
-8. The old planner does not support catalog statistics now, while the Blink planner does.
+1. Blink将批处理作业视为流式处理的特殊情况。因此，也不支持表和数据集之间的转换，批处理作业将不会转换为`DateSet`程序，而是转换为`DataStream`程序，与流作业相同。
+2. Blink计划器不支持`BatchTableSource`，而是使用有界的`StreamTableSource`来替代。
+3. Blink planner只支持全新的`Catalog`，不支持已弃用的`ExternalCatalog`。
+4. 旧计划器和Blink计划器的`FilterableSource`实现不兼容。旧计划器将`PlannerExpression`下推至`filterablesource`，而Blink计划器将`Expression`下推。
+5. 基于字符串的键值配置选项（有关详细信息，请参阅有关 [配置]({{ site.baseurl }}/dev/table/config.html)的文档）仅用于Blink planner。
+6. 两计划器中的PlannerConfig的实现（`CalciteConfig`）不同。
+7. Blink计划器将多个sink优化到一个有向无环图中（仅在`TableEnvironment`上受支持，而在`StreamTableEnvironment`上不受支持）。旧计划器总是将每个sink优化到一个新的有向无环图中，其中所有的有向无环图彼此独立。
+8. 旧计划器已不支持catalog统计，但Blink计划器支持。
 
 
-Structure of Table API and SQL Programs
+Table API 和 SQL 程序的结构
 ---------------------------------------
 
-All Table API and SQL programs for batch and streaming follow the same pattern. The following code example shows the common structure of Table API and SQL programs.
+所有用于批处理和流处理的Table API 和 SQL 程序都遵循相同的模式。下面的代码示例展示了Table API 和 SQL 程序的通用结构。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
+// 为特定计划器的批处理或流处理创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// create a TableEnvironment for specific planner batch or streaming
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
-
-// register a Table
-tableEnv.registerTable("table1", ...)            // or
+// 注册一张表
+tableEnv.registerTable("table1", ...)            // 或者
 tableEnv.registerTableSource("table2", ...);
-// register an output Table
+// 注册一张输出表
 tableEnv.registerTableSink("outputTable", ...);
 
-// create a Table from a Table API query
+// 通过Table API查询创建表
 Table tapiResult = tableEnv.scan("table1").select(...);
-// create a Table from a SQL query
+// 通过SQL查询创建表
 Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
 
-// emit a Table API result Table to a TableSink, same for SQL result
+// 发出一张Table API结果表，SQL结果方法相同
 tapiResult.insertInto("outputTable");
 
-// execute
+// 执行
 tableEnv.execute("java_job");
 
 {% endhighlight %}
@@ -74,25 +73,24 @@ tableEnv.execute("java_job");
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
+// 为特定计划器的批处理或流处理创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// create a TableEnvironment for specific planner batch or streaming
-val tableEnv = ... // see "Create a TableEnvironment" section
-
-// register a Table
+// 注册一张表
 tableEnv.registerTable("table1", ...)           // or
 tableEnv.registerTableSource("table2", ...)
-// register an output Table
+// 注册一张输出表
 tableEnv.registerTableSink("outputTable", ...);
 
-// create a Table from a Table API query
+// 通过Table API查询创建表
 val tapiResult = tableEnv.scan("table1").select(...)
-// create a Table from a SQL query
+// 通过SQL查询创建表
 val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
-// emit a Table API result Table to a TableSink, same for SQL result
+// 发送一张Table API结果表，SQL结果方法相同
 tapiResult.insertInto("outputTable")
 
-// execute
+// 执行
 tableEnv.execute("scala_job")
 
 {% endhighlight %}
@@ -101,61 +99,60 @@ tableEnv.execute("scala_job")
 <div data-lang="python" markdown="1">
 {% highlight python %}
 
-# create a TableEnvironment for specific planner batch or streaming
-table_env = ... # see "Create a TableEnvironment" section
+# 为特定计划器的批处理或流处理创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
-# register a Table
-table_env.register_table("table1", ...)           # or
+# 注册一张表
+table_env.register_table("table1", ...)           # 或
 table_env.register_table_source("table2", ...)
 
-# register an output Table
+# 注册一张输出表
 table_env.register_table_sink("outputTable", ...);
 
-# create a Table from a Table API query
+# 通过Table API查询创建表
 tapi_result = table_env.scan("table1").select(...)
-# create a Table from a SQL query
+# 通过SQL查询创建表
 sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
 
-# emit a Table API result Table to a TableSink, same for SQL result
+# 发送一张 Table API 结果表，SQL 结果方法相同
 tapi_result.insert_into("outputTable")
 
-# execute
+# 执行
 table_env.execute("python_job")
 
 {% endhighlight %}
 </div>
 </div>
 
-**Note:** Table API and SQL queries can be easily integrated with and embedded into DataStream or DataSet programs. Have a look at the [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api) section to learn how DataStreams and DataSets can be converted into Tables and vice versa.
+**注释:** Table API 和 SQL 查询可以被很容易地整合并嵌入DataStream或DataSet程序中。查看 [与DataStream和DataSet API 结合](#integration-with-datastream-and-dataset-api)章节，了解如何将DataStream和DataSet转换为表，反之亦然。
 
 {% top %}
 
-Create a TableEnvironment
+创建 TableEnvironment
 -------------------------
 
-The `TableEnvironment` is a central concept of the Table API and SQL integration. It is responsible for:
+`TableEnvironment`是 Table API 和 SQL 整合的核心概念。 它负责:
 
-* Registering a `Table` in the internal catalog
-* Registering an external catalog 
-* Executing SQL queries
-* Registering a user-defined (scalar, table, or aggregation) function
-* Converting a `DataStream` or `DataSet` into a `Table`
-* Holding a reference to an `ExecutionEnvironment` or `StreamExecutionEnvironment`
+* 在internal catalog中注册一张 `Table` 
+* 注册一个 external catalog 
+* 执行 SQL 查询
+* 注册一个用户自定义的 (scalar, table, 或者 aggregation) function
+* 将一个 `DataStream` 或者 `DataSet` 转换成一张 `Table`
+* 持有对`ExecutionEnvironment`或`StreamExecutionEnvironment`的引用；
 
-A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine tables of different TableEnvironments in the same query, e.g., to join or union them.
+`Table`总是绑定到特定的`TableEnvironment`。不可能在同一查询中组合不同表环境的表，例如联接或联合它们。
 
-A `TableEnvironment` is created by calling the static `BatchTableEnvironment.create()` or `StreamTableEnvironment.create()` method with a `StreamExecutionEnvironment` or an `ExecutionEnvironment` and an optional `TableConfig`. The `TableConfig` can be used to configure the `TableEnvironment` or to customize the query optimization and translation process (see [Query Optimization](#query-optimization)).
+通过`StreamExecutionEnvironment`或`ExecutionEnvironment`和可选的`TableConfig`调用静态方法`BatchTableEnvironment.create()`或`StreamTableEnvironment.create()`来创建`TableEnvironment`。 `TableConfig`可用于配置`TableEnvironment`或自定义查询优化和转换过程(参阅 [查询优化](#query-optimization)).
 
-Make sure to choose the specific planner `BatchTableEnvironment`/`StreamTableEnvironment` that matches your programming language.
+请确保选择与您的编程语言匹配的特定计划器`BatchTableEnvironment`/`StreamTableEnvironment`。
 
-If both planner jars are on the classpath (the default behavior), you should explicitly set which planner to use in the current program.
+如果两种计划器 jar 都在类路径上（默认行为），则应显式设置要在当前程序中使用的计划器。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-
 // **********************
-// FLINK STREAMING QUERY
+// FLINK 流查询
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -167,7 +164,7 @@ StreamTableEnvironment fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSetti
 // or TableEnvironment fsTableEnv = TableEnvironment.create(fsSettings);
 
 // ******************
-// FLINK BATCH QUERY
+// FLINK 批处理查询
 // ******************
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -176,7 +173,7 @@ ExecutionEnvironment fbEnv = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
 
 // **********************
-// BLINK STREAMING QUERY
+// BLINK 流查询
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -188,7 +185,7 @@ StreamTableEnvironment bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSetti
 // or TableEnvironment bsTableEnv = TableEnvironment.create(bsSettings);
 
 // ******************
-// BLINK BATCH QUERY
+// BLINK 批处理查询
 // ******************
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -201,9 +198,8 @@ TableEnvironment bbTableEnv = TableEnvironment.create(bbSettings);
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-
 // **********************
-// FLINK STREAMING QUERY
+// FLINK 流查询
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
@@ -215,7 +211,7 @@ val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 // or val fsTableEnv = TableEnvironment.create(fsSettings)
 
 // ******************
-// FLINK BATCH QUERY
+// FLINK 批处理查询
 // ******************
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.table.api.scala.BatchTableEnvironment
@@ -224,7 +220,7 @@ val fbEnv = ExecutionEnvironment.getExecutionEnvironment
 val fbTableEnv = BatchTableEnvironment.create(fbEnv)
 
 // **********************
-// BLINK STREAMING QUERY
+// BLINK 流查询
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
@@ -236,7 +232,7 @@ val bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSettings)
 // or val bsTableEnv = TableEnvironment.create(bsSettings)
 
 // ******************
-// BLINK BATCH QUERY
+// BLINK 批处理查询
 // ******************
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 
@@ -250,7 +246,7 @@ val bbTableEnv = TableEnvironment.create(bbSettings)
 {% highlight python %}
 
 # **********************
-# FLINK STREAMING QUERY
+# FLINK 流查询
 # **********************
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, EnvironmentSettings
@@ -260,7 +256,7 @@ f_s_settings = EnvironmentSettings.new_instance().use_old_planner().in_streaming
 f_s_t_env = StreamTableEnvironment.create(f_s_env, environment_settings=f_s_settings)
 
 # ******************
-# FLINK BATCH QUERY
+# FLINK 批处理查询
 # ******************
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment
@@ -269,7 +265,7 @@ f_b_env = ExecutionEnvironment.get_execution_environment()
 f_b_t_env = BatchTableEnvironment.create(f_b_env, table_config)
 
 # **********************
-# BLINK STREAMING QUERY
+# BLINK 流查询
 # **********************
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, EnvironmentSettings
@@ -279,7 +275,7 @@ b_s_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streami
 b_s_t_env = StreamTableEnvironment.create(b_s_env, environment_settings=b_s_settings)
 
 # ******************
-# BLINK BATCH QUERY
+# BLINK 批处理查询
 # ******************
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
 
@@ -290,182 +286,184 @@ b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 </div>
 </div>
 
-**Note:** If there is only one planner jar in `/lib` directory, you can use `useAnyPlanner` (`use_any_planner` for python) to create specific `EnvironmentSettings`.
+**注释:** 如果`/lib`目录中只有一个 planner jar，则可以使用`useAnyPlanner`(python的`use_any_planner`)创建特定的`EnvironmentSettings`。
 
 
 {% top %}
 
-Register Tables in the Catalog
+在 Catalog 中注册表
 -------------------------------
 
-A `TableEnvironment` maintains a catalog of tables which are registered by name. There are two types of tables, *input tables* and *output tables*. Input tables can be referenced in Table API and SQL queries and provide input data. Output tables can be used to emit the result of a Table API or SQL query to an external system.
+TableEnvironment维护按名称注册的表的catalog。有两种类型的表, *输入表* 和 *输出表*.。输入表可以在 Table API 和 SQL查询中引用并提供输入数据。输出表可用于将 Table API 或 SQL查询的结果发送到外部系统。
 
-An input table can be registered from various sources:
+输入表可以从多种来源注册：
 
-* an existing `Table` object, usually the result of a Table API or SQL query.
-* a `TableSource`, which accesses external data, such as a file, database, or messaging system. 
-* a `DataStream` or `DataSet` from a DataStream (only for stream job) or DataSet (only for batch job translated from old planner) program. Registering a `DataStream` or `DataSet` is discussed in the [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api) section.
+* 一个现有的`Table`对象，通常是 Table API 或 SQL 查询的结果。
+* 一种访问外部数据，如文件、数据库或消息传递系统，的`TableSource`，。
+* 来自数据流（仅限于流作业）或数据集（仅限于从旧计划器转换的批处理作业）程序的`DataStream`或`DataSet`。注册 `DataStream` 或 `DataSet` 在 [与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api) 章节中讨论。
 
-An output table can be registered using a `TableSink`.
+可以使用`TableSink`注册输出表。
 
-### Register a Table
+### 注册表
 
-A `Table` is registered in a `TableEnvironment` as follows:
+`Table`在`TableEnvironment`中注册方法如下：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// table is the result of a simple projection query
+// 表是简单投影查询的结果
 Table projTable = tableEnv.scan("X").select(...);
 
-// register the Table projTable as table "projectedTable"
+// 将表projTable注册为表“projectedTable”
 tableEnv.registerTable("projectedTable", projTable);
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// table is the result of a simple projection query
+// 表是简单投影查询的结果
 val projTable: Table = tableEnv.scan("X").select(...)
 
-// register the Table projTable as table "projectedTable"
+// 将表projTable注册为表“projectedTable”
 tableEnv.registerTable("projectedTable", projTable)
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = ... # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
-# table is the result of a simple projection query
+# 表是简单投影查询的结果
 proj_table = table_env.scan("X").select(...)
 
-# register the Table projTable as table "projectedTable"
+# 将表projTable注册为表“projectedTable”
 table_env.register_table("projectedTable", proj_table)
 {% endhighlight %}
 </div>
 </div>
 
-**Note:** A registered `Table` is treated similarly to a `VIEW` as known from relational database systems, i.e., the query that defines the `Table` is not optimized but will be inlined when another query references the registered `Table`. If multiple queries reference the same registered `Table`, it will be inlined for each referencing query and executed multiple times, i.e., the result of the registered `Table` will *not* be shared.
+**注释:** 注册的“Table”与关系数据库系统中的“VIEW”处理方式类似，即定义“Table”的查询没有经过优化，但当另一个查询引用注册的“Table”时将被内联。如果多个查询引用同一个已注册的“表”，则它将被每个引用查询内联并多次执行，即已注册的“表”的结果将*不*共享。
 
 {% top %}
 
-### Register a TableSource
+### 注册 TableSource
 
-A `TableSource` provides access to external data which is stored in a storage system such as a database (MySQL, HBase, ...), a file with a specific encoding (CSV, Apache \[Parquet, Avro, ORC\], ...), or a messaging system (Apache Kafka, RabbitMQ, ...). 
+`TableSource`提供对存储在存储系统（如数据库（MySQL、HBase，…）、具有特定编码的文件（CSV、Apache \[Parquet、Avro、ORC \]，…）或消息传递系统（Apache Kafka、RabbitMQ，…）中的外部数据的访问。
 
-Flink aims to provide TableSources for common data formats and storage systems. Please have a look at the [Table Sources and Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) page for a list of supported TableSources and instructions for how to build a custom `TableSource`.
+Flink旨在为常见的数据格式和存储系统提供TableSource。 请参阅 [Table Sources 和 Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) 页以获取受支持 的 TableSource列表以及有关如何生成自定义`TableSource`的说明。
 
-A `TableSource` is registered in a `TableEnvironment` as follows:
+`TableSource`在`TableEnvironment`中注册如下：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// create a TableSource
+// 创建TableSource
 TableSource csvSource = new CsvTableSource("/path/to/file", ...);
 
-// register the TableSource as table "CsvTable"
+// 将TableSource注册为表“CsvTable”
 tableEnv.registerTableSource("CsvTable", csvSource);
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// create a TableSource
+// 创建TableSource
 val csvSource: TableSource = new CsvTableSource("/path/to/file", ...)
 
-// register the TableSource as table "CsvTable"
+// 将TableSource注册为表“CsvTable”
 tableEnv.registerTableSource("CsvTable", csvSource)
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = ... # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
-# create a TableSource
+
+# 创建TableSource
 csv_source = CsvTableSource("/path/to/file", ...)
 
-# register the TableSource as table "csvTable"
+# 将TableSource注册为表“CsvTable”
 table_env.register_table_source("csvTable", csv_source)
 {% endhighlight %}
 </div>
 </div>
 
-**Note:** A `TableEnvironment` used for Blink planner only accepts `StreamTableSource`, `LookupableTableSource` and `InputFormatTableSource`, and a `StreamTableSource` used for Blink planner on batch must be bounded.
+**注释:**用于Blink计划器的`TableEnvironment`只接受`StreamTableSource`、`LookupableTableSource`和`InputFormatTableSource`，用于批处理Blink计划器的`StreamTableSource`必须有界。
 
 {% top %}
 
-### Register a TableSink
+### 注册TableSink
 
-A registered `TableSink` can be used to [emit the result of a Table API or SQL query](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Apache \[Parquet, Avro, ORC\], ...).
+注册的TableSink可以用于向外部存储系统 [发出Table API 或 SQL 的查询结果](common.html#emit-a-table)，例如数据库、键值存储、消息队列或文件系统（在不同的编码中，例如CSV、Apache\[Parquet、Avro、ORC\]，…）。
 
-Flink aims to provide TableSinks for common data formats and storage systems. Please see the documentation about [Table Sources and Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) page for details about available sinks and instructions for how to implement a custom `TableSink`.
+Flink旨在为常见的数据格式和存储系统提供TableSink。请参阅 [Table Sources 和 Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) 章节以获取有关可用TableSource的详细信息以及如何实现自定义`TableSink`的说明。
 
-A `TableSink` is registered in a `TableEnvironment` as follows:
+`TableSource`在`TableEnvironment`中的注册如下：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// create a TableSink
+// 创建TableSink
 TableSink csvSink = new CsvTableSink("/path/to/file", ...);
 
-// define the field names and types
+// 定义字段名称和类型
 String[] fieldNames = {"a", "b", "c"};
 TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
 
-// register the TableSink as table "CsvSinkTable"
+// 将TableSink注册为表“CsvSinkTable”
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink);
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// create a TableSink
+
+// 创建TableSink
 val csvSink: TableSink = new CsvTableSink("/path/to/file", ...)
 
-// define the field names and types
+// 定义字段名称和类型
 val fieldNames: Array[String] = Array("a", "b", "c")
 val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.LONG)
 
-// register the TableSink as table "CsvSinkTable"
+// 将TableSink注册为表“CsvSinkTable”
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink)
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = ... # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
-# define the field names and types
+# 定义字段名称和类型
 field_names = ["a", "b", "c"]
 field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.BIGINT()]
 
-# create a TableSink
+# 创建TableSink
 csv_sink = CsvTableSink(field_names, field_types, "/path/to/file", ...)
 
-# register the TableSink as table "CsvSinkTable"
+# 将TableSink注册为表“CsvSinkTable”
 table_env.register_table_sink("CsvSinkTable", csv_sink)
 {% endhighlight %}
 </div>
@@ -473,79 +471,80 @@ table_env.register_table_sink("CsvSinkTable", csv_sink)
 
 {% top %}
 
-Query a Table 
+查询表 
 -------------
 
 ### Table API
 
-The Table API is a language-integrated query API for Scala and Java. In contrast to SQL, queries are not specified as Strings but are composed step-by-step in the host language. 
+Table API是Scala和Java的语言集成式的查询API。与SQL不同，查询语句不指定为字符串，而是在宿主语言中一步一步组成的。
 
-The API is based on the `Table` class which represents a table (streaming or batch) and offers methods to apply relational operations. These methods return a new `Table` object, which represents the result of applying the relational operation on the input `Table`. Some relational operations are composed of multiple method calls such as `table.groupBy(...).select()`, where `groupBy(...)` specifies a grouping of `table`, and `select(...)` the projection on the grouping of `table`.
+API基于`Table`类，该类表示表（流式处理或批处理），并提供方法使用关系操作。  这些方法返回一个新的`Table`对象，该对象表示对输入`Table`使用关系操作的结果。有些关系操作由多个方法调用组成，如`table.groupBy(…).select()`，其中`groupBy(…)`指定“table”的分组，以及`select(…)`指定“table”分组上的投影。
 
-The [Table API]({{ site.baseurl }}/dev/table/tableApi.html) document describes all Table API operations that are supported on streaming and batch tables.
+[Table API]({{ site.baseurl }}/dev/table/tableApi.html) 文档描述了流式处理和批处理表上支持的所有 Table API 操作。
 
-The following example shows a simple Table API aggregation query:
+以下示例展示了一个简单的“Table API”聚合查询：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// register Orders table
 
-// scan registered Orders table
+// 注册Orders表
+
+// 扫描注册的Orders表
 Table orders = tableEnv.scan("Orders");
-// compute revenue for all customers from France
+// 计算法国所有客户的收入
 Table revenue = orders
   .filter("cCountry === 'FRANCE'")
   .groupBy("cID, cName")
   .select("cID, cName, revenue.sum AS revSum");
 
-// emit or convert Table
-// execute query
+// 发出或转换表
+// 执行查询
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// register Orders table
+// 注册Orders表
 
-// scan registered Orders table
+// 扫描注册的Orders表
 val orders = tableEnv.scan("Orders")
-// compute revenue for all customers from France
+// 计算法国所有客户的收入
 val revenue = orders
   .filter('cCountry === "FRANCE")
   .groupBy('cID, 'cName)
   .select('cID, 'cName, 'revenue.sum AS 'revSum)
 
-// emit or convert Table
-// execute query
+// 发出或转换表
+// 执行查询
 {% endhighlight %}
 
-**Note:** The Scala Table API uses Scala Symbols, which start with a single tick (`'`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._` in order to use Scala implicit conversions.
+**注释:** Scala Table API使用Scala符号（以单个记号(`'`）开头）来引用`Table`的属性。The Table API使用了Scala隐格式。请确保导入`org.apache.flink.api.scala._`和`org.apache.flink.table.api.scala._`，以便使用scala隐式转换。
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = # 请参阅“创建TableEnvironment”章节
 
-# register Orders table
+# 注册Orders表
 
-# scan registered Orders table
+# 扫描注册的Orders表
 orders = table_env.scan("Orders")
-# compute revenue for all customers from France
+# 计算法国所有客户的收入
 revenue = orders \
     .filter("cCountry === 'FRANCE'") \
     .group_by("cID, cName") \
     .select("cID, cName, revenue.sum AS revSum")
 
-# emit or convert Table
-# execute query
+# 发出或转换表
+# 执行查询
 {% endhighlight %}
 </div>
 </div>
@@ -554,21 +553,21 @@ revenue = orders \
 
 ### SQL
 
-Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as regular Strings.
+Flink的SQL集成是基于 [Apache Calcite](https://calcite.apache.org)的， 它实现了SQL标准。SQL查询语句被指定为常规字符串。
 
-The [SQL]({{ site.baseurl }}/dev/table/sql.html) document describes Flink's SQL support for streaming and batch tables.
+[SQL]({{ site.baseurl }}/dev/table/sql.html) 文档描述了Flink SQL对流式处理和批处理表的支持。
 
-The following example shows how to specify a query and return the result as a `Table`.
+下面的示例演示如何指定查询并将结果返回为`Table`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// register Orders table
+// 注册Orders表
 
-// compute revenue for all customers from France
+// 计算法国所有客户的收入
 Table revenue = tableEnv.sqlQuery(
     "SELECT cID, cName, SUM(revenue) AS revSum " +
     "FROM Orders " +
@@ -576,19 +575,19 @@ Table revenue = tableEnv.sqlQuery(
     "GROUP BY cID, cName"
   );
 
-// emit or convert Table
-// execute query
+// 发出或转换表
+// 执行查询
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// register Orders table
+// 注册Orders表
 
-// compute revenue for all customers from France
+// 计算法国所有客户的收入
 val revenue = tableEnv.sqlQuery("""
   |SELECT cID, cName, SUM(revenue) AS revSum
   |FROM Orders
@@ -596,20 +595,20 @@ val revenue = tableEnv.sqlQuery("""
   |GROUP BY cID, cName
   """.stripMargin)
 
-// emit or convert Table
-// execute query
+// 发出或转换表
+// 执行查询
 {% endhighlight %}
 
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = ... # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
-# register Orders table
+# 注册Orders表
 
-# compute revenue for all customers from France
+# 计算法国所有客户的收入
 revenue = table_env.sql_query(
     "SELECT cID, cName, SUM(revenue) AS revSum "
     "FROM Orders "
@@ -617,24 +616,24 @@ revenue = table_env.sql_query(
     "GROUP BY cID, cName"
 )
 
-# emit or convert Table
-# execute query
+# 发出或转换表
+# 执行查询
 {% endhighlight %}
 </div>
 </div>
 
-The following example shows how to specify an update query that inserts its result into a registered table.
+下面的示例演示如何指定将其结果插入已注册表的更新查询。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// register "Orders" table
-// register "RevenueFrance" output table
+// 注册Orders表
+// 注册 "RevenueFrance" 输出表
 
-// compute revenue for all customers from France and emit to "RevenueFrance"
+// 计算来自法国的所有客户的收入并将其放入到 "RevenueFrance"
 tableEnv.sqlUpdate(
     "INSERT INTO RevenueFrance " +
     "SELECT cID, cName, SUM(revenue) AS revSum " +
@@ -643,19 +642,19 @@ tableEnv.sqlUpdate(
     "GROUP BY cID, cName"
   );
 
-// execute query
+// 执行查询
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// register "Orders" table
-// register "RevenueFrance" output table
+// 注册Orders表
+// 注册 "RevenueFrance" 输出表
 
-// compute revenue for all customers from France and emit to "RevenueFrance"
+// 计算来自法国的所有客户的收入并将其放入到 "RevenueFrance"
 tableEnv.sqlUpdate("""
   |INSERT INTO RevenueFrance
   |SELECT cID, cName, SUM(revenue) AS revSum
@@ -664,20 +663,20 @@ tableEnv.sqlUpdate("""
   |GROUP BY cID, cName
   """.stripMargin)
 
-// execute query
+// 执行查询
 {% endhighlight %}
 
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = ... # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
-# register "Orders" table
-# register "RevenueFrance" output table
+# 注册Orders表
+# 注册 "RevenueFrance" 输出表
 
-# compute revenue for all customers from France and emit to "RevenueFrance"
+# 计算来自法国的所有客户的收入并将其放入到 "RevenueFrance"
 table_env.sql_update(
     "INSERT INTO RevenueFrance "
     "SELECT cID, cName, SUM(revenue) AS revSum "
@@ -686,101 +685,101 @@ table_env.sql_update(
     "GROUP BY cID, cName"
 )
 
-# execute query
+# 执行查询
 {% endhighlight %}
 </div>
 </div>
 
 {% top %}
 
-### Mixing Table API and SQL
+### 混合Table API 和 SQL
 
-Table API and SQL queries can be easily mixed because both return `Table` objects:
+Table API 和 SQL 查询很容易混合，因为它们都返回`Table`对象：
 
-* A Table API query can be defined on the `Table` object returned by a SQL query.
-* A SQL query can be defined on the result of a Table API query by [registering the resulting Table](#register-a-table) in the `TableEnvironment` and referencing it in the `FROM` clause of the SQL query.
+* 可以在SQL查询返回的“Table”对象上定义Table API查询。
+* 通过在“TableEnvironment”中[注册结果表](#register-a-table)并在SQL查询的“FROM”子句中引用它，可以在Table API查询的结果上定义SQL查询。
 
 {% top %}
 
-Emit a Table 
+发出表 
 ------------
 
-A `Table` is emitted by writing it to a `TableSink`. A `TableSink` is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). 
+`Table`是通过将其写入`TableSink`而发出的。`TableSink`是一个通用接口，用于支持多种文件格式（如CSV、Apache Parquet、Apache Avro）、存储系统（如JDBC、Apache HBase、Apache Cassandra、Elasticsearch）或消息传递系统（如Apache Kafka、RabbitMQ）。
 
-A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Table` requires either an `AppendStreamTableSink`, a `RetractStreamTableSink`, or an `UpsertStreamTableSink`. 
+批处理`Table`只能写入`BatchTableSink`，而流式处理`Table`需要`AppendStreamTableSink`、`RetractStreamtableSink`或`UpsertStreamTableSink`。
 
-Please see the documentation about [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) for details about available sinks and instructions for how to implement a custom `TableSink`.
+请参阅文档 [Table Sources 和 Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) 获取有关可用接收器的详细信息以及如何实现自定义`TableSink`的说明。
 
-The `Table.insertInto(String tableName)` method emits the `Table` to a registered `TableSink`. The method looks up the `TableSink` from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the `TableSink`. 
+`Table.insertInto(String tableName)`方法将`Table`发出到已注册的`TableSink`中。该方法通过名称从catalog中查找`TableSink`，并验证` Table`的结构与`TableSink`的结构相同。
 
-The following examples shows how to emit a `Table`:
+以下示例展示了如何发出`Table`：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a TableEnvironment
-TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+TableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// create a TableSink
+// 创建TableSink
 TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
 
-// register the TableSink with a specific schema
+// 使用指定结构注册`TableSink`
 String[] fieldNames = {"a", "b", "c"};
 TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink);
 
-// compute a result Table using Table API operators and/or SQL queries
+// 使用Table API算子和/或SQL查询来计算结果表
 Table result = ...
-// emit the result Table to the registered TableSink
+// 将结果表发送到已注册的TableSink
 result.insertInto("CsvSinkTable");
 
-// execute the program
+// 执行程序
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
-// create a TableSink
+// 创建TableSink
 val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
 
-// register the TableSink with a specific schema
+// 使用指定结构注册`TableSink`
 val fieldNames: Array[String] = Array("a", "b", "c")
 val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink)
 
-// compute a result Table using Table API operators and/or SQL queries
+// 使用Table API算子和/或SQL查询来计算结果表
 val result: Table = ...
 
-// emit the result Table to the registered TableSink
+// 将结果表发送到已注册的TableSink
 result.insertInto("CsvSinkTable")
 
-// execute the program
+// 执行程序
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# get a TableEnvironment
-table_env = ... # see "Create a TableEnvironment" section
+# 创建TableEnvironment
+table_env = ... # 请参阅“创建TableEnvironment”章节
 
 field_names = ["a", "b", "c"]
 field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.BIGINT()]
 
-# create a TableSink
+# 创建TableSink
 sink = CsvTableSink(field_names, field_types, "/path/to/file", "|")
 
 table_env.register_table_sink("CsvSinkTable", sink)
 
-# compute a result Table using Table API operators and/or SQL queries
+# 使用Table API算子和/或SQL查询来计算结果表
 result = ...
 
-# emit the result Table to the registered TableSink
+# 将结果表发送到已注册的TableSink
 result.insert_into("CsvSinkTable")
 
-# execute the program
+# 执行程序
 {% endhighlight %}
 </div>
 </div>
@@ -788,140 +787,140 @@ result.insert_into("CsvSinkTable")
 {% top %}
 
 
-Translate and Execute a Query
+解释并执行查询
 -----------------------------
 
-The behavior of translating and executing a query is different for the two planners.
+对于两个计划器来说，解释和执行查询的方法是不同的。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Old planner" markdown="1">
-Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) or [DataSet]({{ site.baseurl }}/dev/batch) programs depending on whether their input is a streaming or batch input. A query is internally represented as a logical query plan and is translated in two phases:
+Table API和SQL查询转换为[DataStream]（{{site.baseurl}} / dev / datastream_api.html）或[DataSet]（{{site.baseurl}} / dev / batch）程序取决于它们的输入是否是流或批处理输入。 查询在内部表示为逻辑查询计划，并分为两个阶段：
 
-1. Optimization of the logical plan
-2. Translation into a DataStream or DataSet program
+1. 优化逻辑计划
+2. 转换为DataStream或DataSet程序
 
-A Table API or SQL query is translated when:
+在以下情况下，Table API或SQL查询将被转换：
 
-* a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
-* a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
-* a `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)).
+* 一个`Table`被发送给`TableSink`，即当调用`Table.insertInto()`时。
+* 指定了SQL更新查询，即在调用`TableEnvironment.sqlUpdate()`时。
+* 一个 `Table` 被转化成一个 `DataStream` 或 `DataSet` (参见 [与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)).
 
-Once translated, a Table API or SQL query is handled like a regular DataStream or DataSet program and is executed when `StreamExecutionEnvironment.execute()` or `ExecutionEnvironment.execute()` is called.
+转换后，将像常规的DataStream或DataSet程序一样处理Table API或SQL查询，并在调用`StreamExecutionEnvironment.execute()`或`ExecutionEnvironment.execute()`时执行。
 
 </div>
 
 <div data-lang="Blink planner" markdown="1">
-Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) programs whether their input is streaming or batch. A query is internally represented as a logical query plan and is translated in two phases:
+无论Table API和SQL查询的输入是流式处理还是批处理，都将转换为[DataStream]（{{site.baseurl}} / dev / datastream_api.html）程序。
 
-1. Optimization of the logical plan,
-2. Translation into a DataStream program.
+1. 优化逻辑计划，
+2. 转换为DataStream程序。
 
-The behavior of translating  a query is different for `TableEnvironment` and `StreamTableEnvironment`.
+`TableEnvironment`和`StreamTableEnvironment`解释查询的方法不同。
 
-For `TableEnvironment`, A Table API or SQL query is translated when `TableEnvironment.execute()` is called, because `TableEnvironment` will optimize multiple-sinks into one DAG.
+对于`TableEnvironment`，在调用`TableEnvironment.execute()`时Table API或SQL查询将被转换，因为TableEnvironment会将多个接收器优化为一个DAG。
 
-while for `StreamTableEnvironment`, A Table API or SQL query is translated when:
+对于`StreamTableEnvironment`，在以下情况下Table API或SQL查询会被转换：
 
-* a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
-* a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
-* a `Table` is converted into a `DataStream`.
+* 一个`Table`被发送给`TableSink`，即当调用`Table.insertInto()`时。
+* 指定了SQL更新查询，即在调用`TableEnvironment.sqlUpdate()`时。
+* 一个`Table`被转换成一个`DataStream`。
 
-Once translated, a Table API or SQL query is handled like a regular DataStream program and is executed when `TableEnvironment.execute()` or `StreamExecutionEnvironment.execute()` is called.
+转换后，将像常规DataStream程序一样处理Table API或SQL查询，并在调用`TableEnvironment.execute()`或`StreamExecutionEnvironment.execute()`时执行。
 
 </div>
 </div>
 
 {% top %}
 
-Integration with DataStream and DataSet API
+与 DataStream 和 DataSet API 结合
 -------------------------------------------
 
-Both planners on stream can integrate with the `DataStream` API. Only old planner can integrate with the `DataSet API`, Blink planner on batch could not be combined with both.
-**Note:** The `DataSet` API discussed below is only relevant for the old planner on batch.
+两个流处理计划器都可以与`DataStream API`结合。 只有旧计划器能与 `DataSet API`结合, Blink批处理计划器两者都不能结合。
+**注释:** 下面讨论的“ DataSet” API仅与旧批处理计划器有关。
 
-Table API and SQL queries can be easily integrated with and embedded into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet]({{ site.baseurl }}/dev/batch) programs. For instance, it is possible to query an external table (for example from a RDBMS), do some pre-processing, such as filtering, projecting, aggregating, or joining with meta data, and then further process the data with either the DataStream or DataSet API (and any of the libraries built on top of these APIs, such as CEP or Gelly). Inversely, a Table API or SQL query can also be applied on the result of a DataStream or DataSet program.
+Table API 和 SQL 查询 可以被轻松的集成并嵌入到 [DataStream]({{ site.baseurl }}/dev/datastream_api.html) 和 [DataSet]({{ site.baseurl }}/dev/batch) 程序中。例如，可以查询外部表（例如从RDBMS），进行一些预处理，例如过滤，投影，聚合或与元数据联接，然后使用DataStream或 DataSet API（以及在这些API之上构建的任何库，例如CEP或Gelly）。相反，也可以将Table API或SQL查询应用于DataStream或DataSet程序的结果。
 
-This interaction can be achieved by converting a `DataStream` or `DataSet` into a `Table` and vice versa. In this section, we describe how these conversions are done.
+可以通过将`DataStream`或`DataSet`转换为`Table`，反之亦然来实现这种交互。 在本节中，我们描述如何完成这些转换。
 
-### Implicit Conversion for Scala
+### Scala的隐式转换
 
-The Scala Table API features implicit conversions for the `DataSet`, `DataStream`, and `Table` classes. These conversions are enabled by importing the package `org.apache.flink.table.api.scala._` in addition to `org.apache.flink.api.scala._` for the Scala DataStream API.
+Scala Table API具有对`DataSet`，`DataStream`和`Table`类的隐式转换。通过为Scala DataStream API导入`org.apache.flink.table.api.scala._`包以及`org.apache.flink.api.scala._`包，可以启用这些转换。
 
-### Register a DataStream or DataSet as Table
+### 将DataStream或DataSet注册为表
 
-A `DataStream` or `DataSet` can be registered in a `TableEnvironment` as a Table. The schema of the resulting table depends on the data type of the registered `DataStream` or `DataSet`. Please check the section about [mapping of data types to table schema](#mapping-of-data-types-to-table-schema) for details.
+在`TableEnvironment`中,可以将`DataStream`或`DataSet`作为表注册。结果表的结构取决于已注册的`DataStream`或`DataSet`的数据类型。请参阅 [数据类型到表结构的映射](#mapping-of-data-types-to-table-schema) 章节以获取细节。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get StreamTableEnvironment
-// registration of a DataSet in a BatchTableEnvironment is equivalent
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment
+// 在BatchTableEnvironment中注册DataSet是相同的
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
 DataStream<Tuple2<Long, String>> stream = ...
 
-// register the DataStream as Table "myTable" with fields "f0", "f1"
+// 将DataStream注册为具有字段“ f0”，“ f1”的表“ myTable”
 tableEnv.registerDataStream("myTable", stream);
 
-// register the DataStream as table "myTable2" with fields "myLong", "myString"
+// 使用字段“ myLong”，“ myString”将DataStream注册为表“ myTable2”
 tableEnv.registerDataStream("myTable2", stream, "myLong, myString");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get TableEnvironment 
-// registration of a DataSet is equivalent
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment 
+// DataSet的注册是相同的
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
 
 val stream: DataStream[(Long, String)] = ...
 
-// register the DataStream as Table "myTable" with fields "f0", "f1"
+// 将DataStream注册为具有字段“ f0”，“ f1”的表“ myTable”
 tableEnv.registerDataStream("myTable", stream)
 
-// register the DataStream as table "myTable2" with fields "myLong", "myString"
+// 使用字段“ myLong”，“ myString”将DataStream注册为表“ myTable2”
 tableEnv.registerDataStream("myTable2", stream, 'myLong, 'myString)
 {% endhighlight %}
 </div>
 </div>
 
-**Note:** The name of a `DataStream` `Table` must not match the `^_DataStreamTable_[0-9]+` pattern and the name of a `DataSet` `Table` must not match the `^_DataSetTable_[0-9]+` pattern. These patterns are reserved for internal use only.
+**注释:** DataStream表的名称不得与`^_DataStreamTable_[0-9]+`模式匹配，DataSet表的名称不得与`^_DataSetTable_[0-9]+`模式匹配。 这些模式仅供内部使用。
 
 {% top %}
 
-### Convert a DataStream or DataSet into a Table
+### 将DataStream或DataSet转换为表
 
-Instead of registering a `DataStream` or `DataSet` in a `TableEnvironment`, it can also be directly converted into a `Table`. This is convenient if you want to use the Table in a Table API query. 
+除了在`TableEnvironment`中注册`DataStream`或`DataSet`之外，还可以将其直接转换为`Table`。如果要在Table API查询中使用Table，这将很方便。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get StreamTableEnvironment
-// registration of a DataSet in a BatchTableEnvironment is equivalent
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment
+// 在BatchTableEnvironment中注册DataSet是相同的
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
 DataStream<Tuple2<Long, String>> stream = ...
 
-// Convert the DataStream into a Table with default fields "f0", "f1"
+// 将DataStream转换为带有默认字段“ f0”，“ f1”的表
 Table table1 = tableEnv.fromDataStream(stream);
 
-// Convert the DataStream into a Table with fields "myLong", "myString"
+// 将DataStream转换为具有字段“ myLong”，“ myString”的表
 Table table2 = tableEnv.fromDataStream(stream, "myLong, myString");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get TableEnvironment
-// registration of a DataSet is equivalent
-val tableEnv = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+// DataSet的注册是相同的
+val tableEnv = ... // 请参阅“创建TableEnvironment”章节
 
 val stream: DataStream[(Long, String)] = ...
 
-// convert the DataStream into a Table with default fields '_1, '_2
+// 将DataStream转换为具有默认字段'_1，'_2的表
 val table1: Table = tableEnv.fromDataStream(stream)
 
-// convert the DataStream into a Table with fields 'myLong, 'myString
+// 将DataStream转换为具有字段'myLong，'myString的表
 val table2: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
 {% endhighlight %}
 </div>
@@ -929,51 +928,50 @@ val table2: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
 
 {% top %}
 
-### Convert a Table into a DataStream or DataSet
+### 将表转换为DataStream或DataSet
 
-A `Table` can be converted into a `DataStream` or `DataSet`. In this way, custom DataStream or DataSet programs can be run on the result of a Table API or SQL query.
+`Table`可被转换成一个`DataStream`或`DataSet`。 这样，可以在Table API或SQL查询的结果上运行自定义DataStream或DataSet程序。
 
-When converting a `Table` into a `DataStream` or `DataSet`, you need to specify the data type of the resulting `DataStream` or `DataSet`, i.e., the data type into which the rows of the `Table` are to be converted. Often the most convenient conversion type is `Row`. The following list gives an overview of the features of the different options:
+在将 `Table` 转换成`DataStream`或者`DataSet`时， 您需要指定生成的`DataStream`或`DataSet`的数据类型，即，`Table`的Row要转换成的数据类型。最方便的转换类型通常是`Row`。 以下列表概述了不同选项的功能：
 
-- **Row**: fields are mapped by position, arbitrary number of fields, support for `null` values, no type-safe access.
-- **POJO**: fields are mapped by name (POJO fields must be named as `Table` fields), arbitrary number of fields, support for `null` values, type-safe access.
-- **Case Class**: fields are mapped by position, no support for `null` values, type-safe access.
-- **Tuple**: fields are mapped by position, limitation to 22 (Scala) or 25 (Java) fields, no support for `null` values, type-safe access.
-- **Atomic Type**: `Table` must have a single field, no support for `null` values, type-safe access.
+- **Row**: 字段是按位置映射的，字段的数量是任意的，支持“null”值，非安全访问类型。
+- **POJO**: 字段按名称映射（POJO字段必须命名为“Table”字段）、任意数量的字段、对“null”值的支持、安全访问类型。
+- **Case Class**: 字段按位置映射，不支持“null”值，类型安全访问。
+- **Tuple**: 字段按位置映射，限制为22个（Scala）或25个（Java）字段，不支持“null”值，安全访问类型。
+- **Atomic Type**: `Table`必须有一个字段，不支持'null'值，安全访问类型。
 
-#### Convert a Table into a DataStream
+#### 将表转换为DataStream
 
-A `Table` that is the result of a streaming query will be updated dynamically, i.e., it is changing as new records arrive on the query's input streams. Hence, the `DataStream` into which such a dynamic query is converted needs to encode the updates of the table. 
+流式查询的结果`Table`将动态更新，即， 当新记录到达查询的输入流时，它将发生变化。因此，将这种动态查询转换成的`DataStream`需要对表的更新进行编码。
 
-There are two modes to convert a `Table` into a `DataStream`:
+将`Table`转换为`DataStream`有两种模式：
 
-1. **Append Mode**: This mode can only be used if the dynamic `Table` is only modified by `INSERT` changes, i.e, it is append-only and previously emitted results are never updated.
-2. **Retract Mode**: This mode can always be used. It encodes `INSERT` and `DELETE` changes with a `boolean` flag.
+1. **Append Mode**: 仅当动态`Table`仅由`INSERT`更改进行修改（即，仅追加且以前发出的结果从不更新）时，才能使用此模式。
+2. **Retract Mode**: 此模式始终可用。它使用“boolean”标志对“INSERT”和“DELETE”更改进行编码。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get StreamTableEnvironment. 
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment. 
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// Table with two fields (String name, Integer age)
+// 带两个字段的表（字符串名称、整数年龄）
 Table table = ...
 
-// convert the Table into an append DataStream of Row by specifying the class
+// 通过指定类将表转换为Row的Append DataStream
 DataStream<Row> dsRow = tableEnv.toAppendStream(table, Row.class);
 
-// convert the Table into an append DataStream of Tuple2<String, Integer> 
-//   via a TypeInformation
+// 通过类型信息将表转换为Tuple2<String，Integer>的Append DataStream
 TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
   Types.STRING(),
   Types.INT());
 DataStream<Tuple2<String, Integer>> dsTuple = 
   tableEnv.toAppendStream(table, tupleType);
 
-// convert the Table into a retract DataStream of Row.
-//   A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
-//   The boolean field indicates the type of the change. 
-//   True is INSERT, false is DELETE.
+// 将表转换为Row的Retract DataStream。
+//  X类型的Retract Stream是一个DataStream<Tuple2<Boolean，X>>。
+//   布尔字段表示更改的类型。
+//   True是INSERT，false是DELETE。
 DataStream<Tuple2<Boolean, Row>> retractStream = 
   tableEnv.toRetractStream(table, Row.class);
 
@@ -982,48 +980,48 @@ DataStream<Tuple2<Boolean, Row>> retractStream =
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get TableEnvironment. 
-// registration of a DataSet is equivalent
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment. 
+// DataSet的注册相同
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
 
-// Table with two fields (String name, Integer age)
+// 带两个字段的表 (String name, Integer age)
 val table: Table = ...
 
-// convert the Table into an append DataStream of Row
+// 将表转换为Row的Append DataStream
 val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
 
-// convert the Table into an append DataStream of Tuple2[String, Int]
+// 将表转换为Tuple2的Append DataStream[String，Int]
 val dsTuple: DataStream[(String, Int)] dsTuple = 
   tableEnv.toAppendStream[(String, Int)](table)
 
-// convert the Table into a retract DataStream of Row.
-//   A retract stream of type X is a DataStream[(Boolean, X)]. 
-//   The boolean field indicates the type of the change. 
-//   True is INSERT, false is DELETE.
+// 将表转换为Row的Retract DataStream。
+//   X类型的Retract Stream是一个DataStream[(Boolean, X)]. 
+//   布尔字段表示更改的类型。
+//   True是INSERT，false是DELETE。
 val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](table)
 {% endhighlight %}
 </div>
 </div>
 
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document.
+**注释:** [动态表]（streaming / dynamic_tables.html）文档中提供了有关动态表及其属性的详细讨论。
 
-#### Convert a Table into a DataSet
+#### 将表转换为DataSet
 
-A `Table` is converted into a `DataSet` as follows:
+将`Table`转换为`DataSet`，如下所示：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get BatchTableEnvironment
+// 创建BatchTableEnvironment
 BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 
-// Table with two fields (String name, Integer age)
+// 带两个字段的表 (String name, Integer age)
 Table table = ...
 
-// convert the Table into a DataSet of Row by specifying a class
+// 通过指定一个类将表转换为Row的DataSet
 DataSet<Row> dsRow = tableEnv.toDataSet(table, Row.class);
 
-// convert the Table into a DataSet of Tuple2<String, Integer> via a TypeInformation
+// 通过TypeInformation将表转换为Tuple2 <String，Integer>的DataSet
 TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
   Types.STRING(),
   Types.INT());
@@ -1034,17 +1032,17 @@ DataSet<Tuple2<String, Integer>> dsTuple =
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get TableEnvironment 
-// registration of a DataSet is equivalent
+// 创建TableEnvironment 
+//DataSet的注册是相同的
 val tableEnv = BatchTableEnvironment.create(env)
 
-// Table with two fields (String name, Integer age)
+// 带两个字段的表 (String name, Integer age)
 val table: Table = ...
 
-// convert the Table into a DataSet of Row
+// 通过指定一个类将表转换为Row的DataSet
 val dsRow: DataSet[Row] = tableEnv.toDataSet[Row](table)
 
-// convert the Table into a DataSet of Tuple2[String, Int]
+// 将表转换为Tuple2 [String，DataSet
 val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 {% endhighlight %}
 </div>
@@ -1052,257 +1050,258 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 
 {% top %}
 
-### Mapping of Data Types to Table Schema
+### 数据类型到表结构的映射
 
-Flink's DataStream and DataSet APIs support very diverse types. Composite types such as Tuples (built-in Scala and Flink Java tuples), POJOs, Scala case classes, and Flink's Row type allow for nested data structures with multiple fields that can be accessed in table expressions. Other types are treated as atomic types. In the following, we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
+Flink的DataStream和DataSet API支持非常多种类型。元组（内置Scala和Flink Java元组），POJO，Scala样例类（case class）和Flink的Row类型等复合类型允许嵌套具有多个可在表表达式中使用的字段的数据结构。其他类型被视为原子类型。下面，我们将叙述Table API如何将这些类型转换为内部row表示形式，并展示将DataStream转换为Table的示例。
 
-The mapping of a data type to a table schema can happen in two ways: **based on the field positions** or **based on the field names**.
+数据类型到表结构的映射可以通过两种方式进行： **基于字段位置** 或 **基于字段名称**.
 
-**Position-based Mapping**
+**基于位置的映射**
 
-Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section). Fields can be projected out but can't be renamed using an alias `as`.
+基于位置的映射可用于在保持字段顺序的同时为字段提供更有意义的名称。此映射可用于*具有定义的字段顺序*的复合数据类型以及原子类型。元组，Row和样例类等复合数据类型具有这样的字段顺序。但是，必须根据字段名称映射POJO的字段（请参阅下一节）。可以将字段映射出来，但不能使用“ as”重命名。
 
-When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
+定义基于位置的映射时，输入数据类型中一定不能存在指定的名称，否则API会认为应该基于字段名称进行映射。如果未指定任何字段名称，则使用默认的字段名称和复合类型的字段顺序，或者使用“ f0”表示原子类型。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
+// 创建StreamTableEnvironment，BatchTableEnvironment操作相同
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节;
 
 DataStream<Tuple2<Long, Integer>> stream = ...
 
-// convert DataStream into Table with default field names "f0" and "f1"
+// 将DataStream转换为具有默认字段名称“ f0”和“ f1”的表
 Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field "myLong" only
+// 仅将数据流转换为具有字段“ myLong”的表
 Table table = tableEnv.fromDataStream(stream, "myLong");
 
-// convert DataStream into Table with field names "myLong" and "myInt"
+// 将DataStream转换为具有字段名称“ myLong”和“ myInt”的表
 Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
 
 val stream: DataStream[(Long, Int)] = ...
 
-// convert DataStream into Table with default field names "_1" and "_2"
+// 将DataStream转换为具有默认字段名称“ _1”和“ _2”的表
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field "myLong" only
+// 仅将数据流转换为具有字段“ myLong”的表
 val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 
-// convert DataStream into Table with field names "myLong" and "myInt"
+// 
+67/5000
+将DataStream转换为具有字段名称“ myLong”和“ myInt”的表
 val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myInt)
 {% endhighlight %}
 </div>
 </div>
 
-**Name-based Mapping**
+**基于名称的映射**
 
-Name-based mapping can be used for any data type including POJOs. It is the most flexible way of defining a table schema mapping. All fields in the mapping are referenced by name and can be possibly renamed using an alias `as`. Fields can be reordered and projected out.
+基于名称的映射可用于任何数据类型，包括POJO。这是定义表结构映射的最灵活的方法。投影中的所有字段均按名称引用，并且可以使用“ as”重命名。字段可以重新排序和投影。
 
-If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types.
+如果未指定字段名，则使用组合类型的默认字段名和字段顺序，或者使用“f0”命名原子类型。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment，BatchTableEnvironment操作相同
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
 DataStream<Tuple2<Long, Integer>> stream = ...
 
-// convert DataStream into Table with default field names "f0" and "f1"
+// 将DataStream转换为具有默认字段名“f0”和“f1”的表
 Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field "f1" only
+// 将DataStream转换为仅包含字段“f1”的表
 Table table = tableEnv.fromDataStream(stream, "f1");
 
-// convert DataStream into Table with swapped fields
+// 将DataStream转换为具有交换字段的表
 Table table = tableEnv.fromDataStream(stream, "f1, f0");
 
-// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
+// 将数据流转换为具有交换字段和字段名“myInt”和“myLong”的表
 Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
 
 val stream: DataStream[(Long, Int)] = ...
 
-// convert DataStream into Table with default field names "_1" and "_2"
+// 将DataStream转换为具有默认字段名“1”和“2”的表
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field "_2" only
+// 将数据流转换为字仅有段“_2”的表
 val table: Table = tableEnv.fromDataStream(stream, '_2)
 
-// convert DataStream into Table with swapped fields
+// 将DataStream转换为具有交换字段的表
 val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
 
-// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
+// 将数据流转换为具有交换字段和字段名“myInt”和“myLong”的表
 val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myInt, '_1 as 'myLong)
 {% endhighlight %}
 </div>
 </div>
 
-#### Atomic Types
+#### 原子类型
 
-Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types that cannot be analyzed and decomposed) as atomic types. A `DataStream` or `DataSet` of an atomic type is converted into a `Table` with a single attribute. The type of the attribute is inferred from the atomic type and the name of the attribute can be specified.
+Flink将原生类型（`Integer`，`Double`，`String`）或泛型类型（无法分析和分解的类型）视为原子类型。原子类型的`DataStream`或`DataSet`转换为具有单个属性的`Table`。属性的类型是从原子类型推断出来的，并且可以指定属性的名称。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment，BatchTableEnvironment操作相同
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
 DataStream<Long> stream = ...
 
-// convert DataStream into Table with default field name "f0"
+// 将DataStream转换为默认字段名为“f0”的表
 Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field name "myLong"
+// 将DataStream转换为字段名为“myLong”的表
 Table table = tableEnv.fromDataStream(stream, "myLong");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
 
 val stream: DataStream[Long] = ...
 
-// convert DataStream into Table with default field name "f0"
+// 将DataStream转换为默认字段名为“f0”的表
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field name "myLong"
+// 将DataStream转换为字段名为“myLong”的表
 val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 {% endhighlight %}
 </div>
 </div>
 
-#### Tuples (Scala and Java) and Case Classes (Scala only)
+#### 元组（Scala和Java）和样例类（仅限Scala）
 
-Flink supports Scala's built-in tuples and provides its own tuple classes for Java. DataStreams and DataSets of both kinds of tuples can be converted into tables. Fields can be renamed by providing names for all fields (mapping based on position). If no field names are specified, the default field names are used. If the original field names (`f0`, `f1`, ... for Flink Tuples and `_1`, `_2`, ... for Scala Tuples) are referenced, the API assumes that the mapping is name-based instead of position-based. Name-based mapping allows for reordering fields and projection with alias (`as`).
+Flink支持Scala的内置元组，并为Java提供了自己的元组类。这两种元组的DataSet和DataStream都可以转换为表。通过为所有字段提供名称（基于位置的映射），可以重命名字段。如果未指定字段名，则使用默认字段名。如果引用了原始字段名称（对于Flink元组为`f0`，`f1` ... ...，对于Scala元组为`_1`，`_2` ... ...），则API会假定映射是基于名称的而不是基于位置的。基于名称的映射允许使用别名（“ as”）对字段和投影进行重新排序。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment，BatchTableEnvironment操作相同
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
 DataStream<Tuple2<Long, String>> stream = ...
 
-// convert DataStream into Table with default field names "f0", "f1"
+// 将DataStream转换为具有默认字段名称“ f0”，“ f1”的表
 Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
+// 使用重命名的字段名称“ myLong”，“ myString”将DataStream转换为表（基于位置）
 Table table = tableEnv.fromDataStream(stream, "myLong, myString");
 
-// convert DataStream into Table with reordered fields "f1", "f0" (name-based)
+// 使用重新排序的字段“ f1”，“ f0”将DataStream转换为表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "f1, f0");
 
-// convert DataStream into Table with projected field "f1" (name-based)
+// 将DataStream转换为带有投影字段“ f1”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "f1");
 
-// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
+// 使用重新排序和重命名的字段“ myString”，“ myLong”将DataStream转换为表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "f1 as 'myString', f0 as 'myLong'");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+// 创建TableEnvironment
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
 
 val stream: DataStream[(Long, String)] = ...
 
-// convert DataStream into Table with renamed default field names '_1, '_2
+// 将DataStream转换为具有重命名的默认字段名'\_1，'\_2的表
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field names "myLong", "myString" (position-based)
+// 将DataStream转换为字段名为“myLong”、“myString”的表（基于位置）
 val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
 
-// convert DataStream into Table with reordered fields "_2", "_1" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+// 将DataStream转换为具有重新排序字段“\_2”、“\_1”的表（基于名称）
+val table: Table = tableEnv.fromDataStream(stream, '\_2, '\_1)
 
-// convert DataStream into Table with projected field "_2" (name-based)
+// 将DataStream转换为具有投影字段“\_2”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, '_2)
 
-// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myString, '_1 as 'myLong)
+// 将DataStream转换为具有重新排序和别名字段“myString”、“myLong”（基于名称）的表
+val table: Table = tableEnv.fromDataStream(stream, '\_2 as 'myString, '_1 as 'myLong)
 
-// define case class
+// 定义样例类
 case class Person(name: String, age: Int)
 val streamCC: DataStream[Person] = ...
 
-// convert DataStream into Table with default field names 'name, 'age
+// 将DataStream转换为具有默认字段名“name“，“age“的表
 val table = tableEnv.fromDataStream(streamCC)
 
-// convert DataStream into Table with field names 'myName, 'myAge (position-based)
+// 将DataStream转换为字段名为“myName“，“myAge“的表（基于位置）
 val table = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
 
-// convert DataStream into Table with reordered and aliased fields "myAge", "myName" (name-based)
+// 将DataStream转换为具有重新排序和别名字段“myAge”、“myName”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
 
 {% endhighlight %}
 </div>
 </div>
 
-#### POJO (Java and Scala)
+#### POJO（Java和Scala）
 
-Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{ site.baseurl }}/dev/api_concepts.html#pojos).
+Flink支持POJO作为复合类型。确定POJO的规则记录在[这里]({{ site.baseurl }}/dev/api_concepts.html#pojos).
 
-When converting a POJO `DataStream` or `DataSet` into a `Table` without specifying field names, the names of the original POJO fields are used. The name mapping requires the original names and cannot be done by positions. Fields can be renamed using an alias (with the `as` keyword), reordered, and projected.
+在不指定字段名称的情况下将POJO DataStream或DataSet转换为Table时，将使用原始POJO字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（使用`as`关键字）来重命名，重新排序和投影。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment，BatchTableEnvironment操作相同
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// Person is a POJO with fields "name" and "age"
+// Person是具有字段“name”和“age”的POJO
 DataStream<Person> stream = ...
 
-// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
+// 将DataStream转换为具有默认字段名称“ age”，“ name”的表（字段按名称排序！）
 Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
+//将DataStream转换为具有重命名字段“ myAge”，“ myName”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "age as myAge, name as myName");
 
-// convert DataStream into Table with projected field "name" (name-based)
+// 将DataStream转换为具有映射字段“name”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "name");
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// 将DataStream转换为具有映射和重命名字段“ myName”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "name as myName");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
-
-// Person is a POJO with field names "name" and "age"
+// 创建TableEnvironment
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
+// Person是具有字段“name”和“age”的POJO
 val stream: DataStream[Person] = ...
 
-// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
+// 将DataStream转换为具有默认字段名称“ age”，“ name”的表（字段按名称排序！）
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
+// 将DataStream转换为具有重命名字段“ myAge”，“ myName”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
 
-// convert DataStream into Table with projected field "name" (name-based)
+// 将DataStream转换为具有映射字段“name”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'name)
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// 将DataStream转换为具有映射和重命名字段“ myName”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% endhighlight %}
 </div>
@@ -1310,55 +1309,54 @@ val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 
 #### Row
 
-The `Row` data type supports an arbitrary number of fields and fields with `null` values. Field names can be specified via a `RowTypeInfo` or when converting a `Row` `DataStream` or `DataSet` into a `Table`. The row type supports mapping of fields by position and by name. Fields can be renamed by providing names for all fields (mapping based on position) or selected individually for projection/ordering/renaming (mapping based on name).
+`Row`数据类型支持任意数量的字段和具有`null`值的字段。字段名称可以通过`RowTypeInfo`指定，也可以在将` Row`` DataStream`或`DataSet`转换为`Table`时指定。Row类型支持按位置和名称映射字段。可以通过提供所有字段的名称（基于位置的映射）来重命名字段，也可以为投影/排序/重命名（基于名称的映射）单独选择字段。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+// 创建StreamTableEnvironment，BatchTableEnvironment操作相同
+StreamTableEnvironment tableEnv = ...; // 请参阅“创建TableEnvironment”章节
 
-// DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
+// 在`RowTypeInfo`中指定了两个字段“ name”和“ age”的Row的DataStream
 DataStream<Row> stream = ...
 
-// convert DataStream into Table with default field names "name", "age"
+// 将DataStream转换为具有默认字段名称“ age”，“ name”的表
 Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+// 将DataStream转换为具有映射字段“ myAge”，“ myName”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "myName, myAge");
 
-// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+// 将DataStream转换为具有重命名字段“ myAge”，“ myName”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "name as myName, age as myAge");
 
-// convert DataStream into Table with projected field "name" (name-based)
+// 将DataStream转换为具有映射字段“name”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "name");
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// 将DataStream转换为具有映射和重命名字段“ myName”的表（基于名称）
 Table table = tableEnv.fromDataStream(stream, "name as myName");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
-
-// DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
+// 创建TableEnvironment
+val tableEnv: StreamTableEnvironment = ... // 请参阅“创建TableEnvironment”章节
+// 在`RowTypeInfo`中指定了两个字段“ name”和“ age”的Row的DataStream
 val stream: DataStream[Row] = ...
 
-// convert DataStream into Table with default field names "name", "age"
+// 使用默认字段名称“ name”，“ age”将DataStream转换为表
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+// 使用重命名的字段名称“ myName”，“ myAge”将DataStream转换为表（基于位置）
 val table: Table = tableEnv.fromDataStream(stream, 'myName, 'myAge)
 
-// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+// 使用重命名字段“ myName”，“ myAge”将DataStream转换为表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName, 'age as 'myAge)
 
-// convert DataStream into Table with projected field "name" (name-based)
+// 将DataStream转换为具有映射字段“name”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'name)
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// 将DataStream转换为具有映射和重命名字段“ myName”的表（基于名称）
 val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% endhighlight %}
 </div>
@@ -1367,54 +1365,53 @@ val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% top %}
 
 
-Query Optimization
+查询优化
 ------------------
 
 <div class="codetabs" markdown="1">
 <div data-lang="Old planner" markdown="1">
 
-Apache Flink leverages Apache Calcite to optimize and translate queries. The optimization currently performed include projection and filter push-down, subquery decorrelation, and other kinds of query rewriting. Old planner does not yet optimize the order of joins, but executes them in the same order as defined in the query (order of Tables in the `FROM` clause and/or order of join predicates in the `WHERE` clause).
+Apache Flink使用Apache Calcite来优化和翻译查询。当前执行的优化包括投影和过滤器下推，子查询去相关以及其他类型的查询重写。旧计划器尚未优化join的顺序，而是按照查询中定义的顺序执行它们（FROM子句中的表顺序和/或WHERE子句中的join谓词顺序）。
 
-It is possible to tweak the set of optimization rules which are applied in different phases by providing a `CalciteConfig` object. This can be created via a builder by calling `CalciteConfig.createBuilder())` and is provided to the TableEnvironment by calling `tableEnv.getConfig.setPlannerConfig(calciteConfig)`.
+通过提供一个CalciteConfig对象，可以调整在不同阶段应用的优化规则集。这可以通过构建器调用`CalciteConfig.createBuilder()`来创建，并通过调用`tableEnv.getConfig.setPlannerConfig(calciteConfig)`提供给TableEnvironment。
 
 </div>
 
 <div data-lang="Blink planner" markdown="1">
+Apache Flink利用并扩展了Apache Calcite来执行复杂的查询优化。
+这包括一系列基于规则和成本的优化，例如：
 
-Apache Flink leverages and extends Apache Calcite to perform sophisticated query optimization.
-This includes a series of rule and cost-based optimizations such as:
+* 基于Apache Calcite的子查询解相关
+* 项目修剪
+* 分区修剪
+* 过滤器下推
+* 子计划重复数据删除避免重复计算
+* 特殊的子查询重写，包括两个部分：
+    * 将IN和EXISTS转换为left semi-joins
+    * 将NOT IN和NOT EXISTS转换为left anti-join
+* Optional join重新排序
+    * 通过`table.optimizer.join-reorder-enabled`启用
 
-* Subquery decorrelation based on Apache Calcite
-* Project pruning
-* Partition pruning
-* Filter push-down
-* Sub-plan deduplication to avoid duplicate computation
-* Special subquery rewriting, including two parts:
-    * Converts IN and EXISTS into left semi-joins
-    * Converts NOT IN and NOT EXISTS into left anti-join
-* Optional join reordering
-    * Enabled via `table.optimizer.join-reorder-enabled`
+**注释:** IN/EXISTS/NOT IN/NOT EXISTS当前仅在子查询重写中的连接条件中受支持。
 
-**Note:** IN/EXISTS/NOT IN/NOT EXISTS are currently only supported in conjunctive conditions in subquery rewriting.
+优化器不仅基于计划，还基于数据源的丰富统计数据和每个运营商（如io、cpu、网络和内存）的细粒度成本，做出智能决策。
 
-The optimizer makes intelligent decisions, based not only on the plan but also rich statistics available from the data sources and fine-grain costs for each operator such as io, cpu, network, and memory.
-
-Advanced users may provide custom optimizations via a `CalciteConfig` object that can be provided to the table environment by calling `TableEnvironment#getConfig#setPlannerConfig`.
+高级用户可以通过`CalciteConfig`对象提供自定义优化，该对象可以通过调用`table environment#getConfig#setPlannerConfig`提供给表环境。
 
 </div>
 </div>
 
 
-### Explaining a Table
+### 解释表
 
-The Table API provides a mechanism to explain the logical and optimized query plans to compute a `Table`. 
-This is done through the `TableEnvironment.explain(table)` method or `TableEnvironment.explain()` method. `explain(table)` returns the plan of a given `Table`. `explain()` returns the result of a multiple-sinks plan and is mainly used for the Blink planner. It returns a String describing three plans:
+Table API提供了一种机制来解释计算`Table`的逻辑和优化查询计划。
+这是通过`TableEnvironment.explain(table)`方法或`TableEnvironment.explain()`方法完成的。`explain(table)`返回给定`Table`的计划。 `explain()`返回多接收器计划的结果，主要用于Blink计划器。它返回一个字符串，描述三个计划：
 
-1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
-2. the optimized logical query plan, and
-3. the physical execution plan.
+1. 关系查询的抽象语法树，即未优化的逻辑查询计划，
+2. 优化的逻辑查询计划，以及
+3. 物理执行计划。
 
-The following code shows an example and the corresponding output for given `Table` using `explain(table)`:
+以下代码使用`explain(Table)`，显示给定`Table`的示例和相应输出：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1494,11 +1491,11 @@ Stage 2 : Data Source
 	Stage 3 : Operator
 		content : from: (count, word)
 		ship_strategy : REBALANCE
-
+	
 		Stage 4 : Operator
 			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
 			ship_strategy : FORWARD
-
+	
 			Stage 5 : Operator
 				content : from: (count, word)
 				ship_strategy : REBALANCE
@@ -1529,11 +1526,11 @@ Stage 2 : Data Source
 	Stage 3 : Operator
 		content : from: (count, word)
 		ship_strategy : REBALANCE
-
+	
 		Stage 4 : Operator
 			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
 			ship_strategy : FORWARD
-
+	
 			Stage 5 : Operator
 				content : from: (count, word)
 				ship_strategy : REBALANCE
@@ -1561,7 +1558,7 @@ Stage 1 : Data Source
 	Stage 2 : Operator
 		content : Flat Map
 		ship_strategy : FORWARD
-
+	
 		Stage 3 : Operator
 			content : Map
 			ship_strategy : FORWARD
@@ -1572,19 +1569,19 @@ Stage 4 : Data Source
 	Stage 5 : Operator
 		content : Flat Map
 		ship_strategy : FORWARD
-
+	
 		Stage 6 : Operator
 			content : Map
 			ship_strategy : FORWARD
-
+	
 			Stage 7 : Operator
 				content : Map
 				ship_strategy : FORWARD
-
+	
 				Stage 8 : Operator
 					content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
 					ship_strategy : FORWARD
-
+	
 					Stage 9 : Operator
 						content : Map
 						ship_strategy : FORWARD
@@ -1592,7 +1589,7 @@ Stage 4 : Data Source
 </div>
 </div>
 
-The following code shows an example and the corresponding output for multiple-sinks plan using `explain()`:
+下面的代码显示了一个示例以及使用`explain()`的多接收器计划的相应输出：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1668,7 +1665,7 @@ print(explanation)
 </div>
 </div>
 
-the result of multiple-sinks plan is
+多接收器计划的结果是
 <div>
 {% highlight text %}
 
@@ -1702,19 +1699,19 @@ Stage 1 : Data Source
 	Stage 2 : Operator
 		content : CsvTableSource(read fields: count, word)
 		ship_strategy : REBALANCE
-
+	
 		Stage 3 : Operator
 			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
 			ship_strategy : FORWARD
-
+	
 			Stage 4 : Operator
 				content : Calc(where: (word LIKE _UTF-16LE'F%'), select: (count, word))
 				ship_strategy : FORWARD
-
+	
 				Stage 5 : Operator
 					content : SinkConversionToRow
 					ship_strategy : FORWARD
-
+	
 					Stage 6 : Operator
 						content : Map
 						ship_strategy : FORWARD
@@ -1725,23 +1722,23 @@ Stage 8 : Data Source
 	Stage 9 : Operator
 		content : CsvTableSource(read fields: count, word)
 		ship_strategy : REBALANCE
-
+	
 		Stage 10 : Operator
 			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
 			ship_strategy : FORWARD
-
+	
 			Stage 12 : Operator
 				content : SinkConversionToRow
 				ship_strategy : FORWARD
-
+	
 				Stage 13 : Operator
 					content : Map
 					ship_strategy : FORWARD
-
+	
 					Stage 7 : Data Sink
 						content : Sink: CsvTableSink(count, word)
 						ship_strategy : FORWARD
-
+	
 						Stage 14 : Data Sink
 							content : Sink: CsvTableSink(count, word)
 							ship_strategy : FORWARD
