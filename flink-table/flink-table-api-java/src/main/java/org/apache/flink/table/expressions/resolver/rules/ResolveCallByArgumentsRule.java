@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -177,7 +179,12 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 			final Result inferenceResult = TypeInferenceUtil.runTypeInference(
 				inference,
-				new TableApiCallContext(name, unresolvedCall.getFunctionDefinition(), resolvedArgs), surroundingInfo);
+				new TableApiCallContext(
+					new UnsupportedDataTypeLookup(),
+					name,
+					unresolvedCall.getFunctionDefinition(),
+					resolvedArgs),
+				surroundingInfo);
 
 			final List<ResolvedExpression> adaptedArguments = adaptArguments(inferenceResult, resolvedArgs);
 
@@ -224,7 +231,27 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 	// --------------------------------------------------------------------------------------------
 
+	private static class UnsupportedDataTypeLookup implements DataTypeLookup {
+
+		@Override
+		public Optional<DataType> lookupDataType(String name) {
+			throw new TableException("Data type lookup is not supported yet.");
+		}
+
+		@Override
+		public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
+			throw new TableException("Data type lookup is not supported yet.");
+		}
+
+		@Override
+		public DataType resolveRawDataType(Class<?> clazz) {
+			throw new TableException("Data type lookup is not supported yet.");
+		}
+	}
+
 	private static class TableApiCallContext implements CallContext {
+
+		private final DataTypeLookup lookup;
 
 		private final String name;
 
@@ -233,19 +260,19 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		private final List<ResolvedExpression> resolvedArgs;
 
 		public TableApiCallContext(
+				DataTypeLookup lookup,
 				String name,
 				FunctionDefinition definition,
 				List<ResolvedExpression> resolvedArgs) {
+			this.lookup = lookup;
 			this.name = name;
 			this.definition = definition;
 			this.resolvedArgs = resolvedArgs;
 		}
 
 		@Override
-		public List<DataType> getArgumentDataTypes() {
-			return resolvedArgs.stream()
-				.map(ResolvedExpression::getOutputDataType)
-				.collect(Collectors.toList());
+		public DataTypeLookup getDataTypeLookup() {
+			return lookup;
 		}
 
 		@Override
@@ -275,6 +302,13 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		@Override
 		public String getName() {
 			return name;
+		}
+
+		@Override
+		public List<DataType> getArgumentDataTypes() {
+			return resolvedArgs.stream()
+				.map(ResolvedExpression::getOutputDataType)
+				.collect(Collectors.toList());
 		}
 
 		@Override

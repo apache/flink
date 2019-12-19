@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
@@ -32,6 +33,11 @@ import java.util.Optional;
  */
 @PublicEvolving
 public interface CallContext {
+
+	/**
+	 * Enables to lookup types in a catalog and resolve RAW types.
+	 */
+	DataTypeLookup getDataTypeLookup();
 
 	/**
 	 * Returns the function definition that defines the function currently being called.

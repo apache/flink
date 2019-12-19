@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
@@ -146,7 +147,7 @@ public final class TypeInferenceUtil {
 			this.innerCallPosition = innerCallPosition;
 		}
 
-		private Optional<DataType> inferOutputType() {
+		private Optional<DataType> inferOutputType(DataTypeLookup lookup) {
 			final boolean isValidCount = validateArgumentCount(
 				typeInference.getInputTypeStrategy().getArgumentCount(),
 				argumentCount,
@@ -156,7 +157,7 @@ public final class TypeInferenceUtil {
 			}
 			// for "takes_string(this_function(NULL))" simulate "takes_string(NULL)"
 			// for retrieving the output type of "this_function(NULL)"
-			final CallContext callContext = new UnknownCallContext(name, functionDefinition, argumentCount);
+			final CallContext callContext = new UnknownCallContext(lookup, name, functionDefinition, argumentCount);
 			final AdaptedCallContext adaptedContext = adaptArguments(typeInference, callContext, null);
 			return typeInference.getInputTypeStrategy()
 				.inferInputTypes(adaptedContext, false)
@@ -376,7 +377,7 @@ public final class TypeInferenceUtil {
 		// use information of surrounding call to determine output type of this call
 		final DataType outputType;
 		if (surroundingInfo != null) {
-			outputType = surroundingInfo.inferOutputType().orElse(null);
+			outputType = surroundingInfo.inferOutputType(callContext.getDataTypeLookup()).orElse(null);
 		} else {
 			outputType = null;
 		}
