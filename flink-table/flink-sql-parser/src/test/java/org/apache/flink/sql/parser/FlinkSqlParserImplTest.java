@@ -556,7 +556,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  a bigint,\n" +
 				"  b VARCHAR\n" +
 				") PARTITIONED BY (a^)^ with ( 'x' = 'y', 'asd' = 'dada')";
-		sql(sql).fails("PARTITION expression is only allowed for HIVE dialect.");
+		sql(sql).fails("Creating partitioned table is only allowed for HIVE dialect.");
 	}
 
 	@Test

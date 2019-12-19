@@ -149,11 +149,7 @@ public enum FlinkSqlConformance implements SqlConformance {
 	/**
 	 * Whether to allow "create table T(i int, j int) partitioned by (i)" grammar.
 	 */
-	public boolean allowCreatePartitionTable() {
-		switch (this) {
-			case HIVE:
-				return true;
-		}
-		return false;
+	public boolean allowCreatePartitionedTable() {
+		return this == FlinkSqlConformance.HIVE;
 	}
 }

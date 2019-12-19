@@ -36,6 +36,6 @@ public interface ParserResource {
 	@Resources.BaseMessage("OVERWRITE expression is only used with INSERT statement.")
 	Resources.ExInst<ParseException> overwriteIsOnlyUsedWithInsert();
 
-	@Resources.BaseMessage("PARTITION expression is only allowed for HIVE dialect.")
-	Resources.ExInst<ParseException> partitionIsOnlyAllowedForHive();
+	@Resources.BaseMessage("Creating partitioned table is only allowed for HIVE dialect.")
+	Resources.ExInst<ParseException> createPartitionedTableIsOnlyAllowedForHive();
 }
