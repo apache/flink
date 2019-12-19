@@ -388,14 +388,7 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static RangeFraction getManagedMemoryRangeFraction(final Configuration config) {
-		final MemorySize minSize = MemorySize.ZERO;
-		final MemorySize maxSize = MemorySize.MAX_VALUE;
-		final double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-		if (fraction >= 1 || fraction < 0) {
-			throw new IllegalConfigurationException("Configured Managed Memory fraction ("
-				+ fraction + ") must be in [0, 1).");
-		}
-		return new RangeFraction(minSize, maxSize, fraction);
+		return getRangeFraction(MemorySize.ZERO, MemorySize.MAX_VALUE, TaskManagerOptions.MANAGED_MEMORY_FRACTION, config);
 	}
 
 	private static MemorySize getShuffleMemorySizeWithLegacyConfig(final Configuration config) {
@@ -409,12 +402,7 @@ public class TaskExecutorResourceUtils {
 	private static RangeFraction getShuffleMemoryRangeFraction(final Configuration config) {
 		final MemorySize minSize = getMemorySizeFromConfig(config, TaskManagerOptions.SHUFFLE_MEMORY_MIN);
 		final MemorySize maxSize = getMemorySizeFromConfig(config, TaskManagerOptions.SHUFFLE_MEMORY_MAX);
-		final double fraction = config.getFloat(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION);
-		if (fraction >= 1 || fraction < 0) {
-			throw new IllegalConfigurationException("Configured Shuffle Memory fraction ("
-				+ fraction + ") must be in [0, 1).");
-		}
-		return new RangeFraction(minSize, maxSize, fraction);
+		return getRangeFraction(minSize, maxSize, TaskManagerOptions.SHUFFLE_MEMORY_FRACTION, config);
 	}
 
 	private static MemorySize getJvmMetaspaceSize(final Configuration config) {
@@ -424,12 +412,27 @@ public class TaskExecutorResourceUtils {
 	private static RangeFraction getJvmOverheadRangeFraction(final Configuration config) {
 		final MemorySize minSize = getMemorySizeFromConfig(config, TaskManagerOptions.JVM_OVERHEAD_MIN);
 		final MemorySize maxSize = getMemorySizeFromConfig(config, TaskManagerOptions.JVM_OVERHEAD_MAX);
-		final double fraction = config.getFloat(TaskManagerOptions.JVM_OVERHEAD_FRACTION);
-		if (fraction >= 1 || fraction < 0) {
-			throw new IllegalConfigurationException("Configured JVM Overhead fraction ("
-				+ fraction + ") must be in [0, 1).");
+		return getRangeFraction(minSize, maxSize, TaskManagerOptions.JVM_OVERHEAD_FRACTION, config);
+	}
+
+	private static RangeFraction getRangeFraction(
+			final MemorySize minSize,
+			final MemorySize maxSize,
+			ConfigOption<Float> fractionOption,
+			final Configuration config) {
+		final double fraction = config.getFloat(fractionOption);
+		try {
+			return new RangeFraction(minSize, maxSize, fraction);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalConfigurationException(
+				String.format(
+					"Inconsistently configured %s (%s) and its min (%s), max (%s) value",
+					fractionOption,
+					fraction,
+					minSize,
+					maxSize),
+				e);
 		}
-		return new RangeFraction(minSize, maxSize, fraction);
 	}
 
 	private static MemorySize getTotalFlinkMemorySize(final Configuration config) {
@@ -610,8 +613,8 @@ public class TaskExecutorResourceUtils {
 			this.minSize = minSize;
 			this.maxSize = maxSize;
 			this.fraction = fraction;
-			checkArgument(minSize.getBytes() <= maxSize.getBytes());
-			checkArgument(fraction >= 0 && fraction <= 1);
+			checkArgument(minSize.getBytes() <= maxSize.getBytes(), "min value must be less or equal to max value");
+			checkArgument(fraction >= 0 && fraction < 1, "fraction must be in range [0, 1)");
 		}
 	}
 
