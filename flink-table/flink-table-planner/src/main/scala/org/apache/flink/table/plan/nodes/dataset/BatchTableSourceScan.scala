@@ -29,7 +29,7 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
-import org.apache.flink.table.utils.TableSourceUtils
+import org.apache.flink.table.utils.TypeMappingUtils
 import org.apache.flink.types.Row
 
 import org.apache.calcite.plan._
@@ -137,7 +137,7 @@ class BatchTableSourceScan(
       case _ => JFunction.identity()
     }
 
-    val fieldIndexes = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+    val fieldIndexes = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
       selectedFields.map(_.map(tableSchema.getTableColumn(_).get()).toList.asJava)
         .getOrElse(tableSchema.getTableColumns),

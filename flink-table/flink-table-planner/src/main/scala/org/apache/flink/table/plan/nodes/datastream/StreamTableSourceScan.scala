@@ -31,7 +31,7 @@ import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, P
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.table.utils.TableSourceUtils
+import org.apache.flink.table.utils.TypeMappingUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -139,7 +139,7 @@ class StreamTableSourceScan(
         nameMapping
       ))
 
-    val fieldIndexes = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+    val fieldIndexes = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
       selectedFields.map(_.map(tableSchema.getTableColumn(_).get()).toList.asJava)
         .getOrElse(tableSchema.getTableColumns),

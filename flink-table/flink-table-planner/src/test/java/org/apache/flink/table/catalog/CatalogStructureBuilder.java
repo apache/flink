@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import java.util.Collections;
@@ -270,20 +270,20 @@ public class CatalogStructureBuilder {
 				}
 
 				@Override
-				public TypeInformation<Row> getReturnType() {
-					return tableSchema.toRowType();
+				public DataType getProducedDataType() {
+					return tableSchema.toRowDataType();
 				}
 
 				@Override
 				public TableSchema getTableSchema() {
-					return tableSchema;
+					throw new UnsupportedOperationException("Should not be called");
 				}
 
 				@Override
 				public String explainSource() {
 					return String.format("isTemporary=[%s]", isTemporary);
 				}
-			}, null, TableSchema.builder().build(), false);
+			}, null, tableSchema, false);
 
 			this.fullyQualifiedPath = fullyQualifiedPath;
 			this.isTemporary = isTemporary;

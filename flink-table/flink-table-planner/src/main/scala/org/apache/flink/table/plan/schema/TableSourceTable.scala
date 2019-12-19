@@ -26,7 +26,7 @@ import org.apache.flink.table.sources.{DefinedFieldMapping, TableSource, TableSo
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.utils.{DataTypeUtils, TypeConversions}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.table.utils.TableSourceUtils
+import org.apache.flink.table.utils.TypeMappingUtils
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
@@ -49,7 +49,7 @@ class TableSourceTable[T](
     val statistic: FlinkStatistic)
   extends AbstractTable {
 
-  TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema)
+  TableSourceValidation.validateTableSource(tableSource, tableSchema)
 
   /**
     * Returns statistics of current table
@@ -76,7 +76,7 @@ class TableSourceTable[T](
     }
 
     val producedDataType = tableSource.getProducedDataType
-    val fieldIndexes = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+    val fieldIndexes = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
       tableSchema.getTableColumns,
       isStreamingMode,

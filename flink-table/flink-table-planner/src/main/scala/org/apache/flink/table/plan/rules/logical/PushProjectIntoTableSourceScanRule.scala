@@ -26,7 +26,7 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.table.utils.TableSourceUtils
+import org.apache.flink.table.utils.TypeMappingUtils
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -62,7 +62,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       case _ => JFunction.identity()
     }
 
-    val accessedIndices = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+    val accessedIndices = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       source,
       accessedLogicalFields.map(scan.tableSchema.getTableColumn(_).get()).toList.asJava,
       source.isInstanceOf[StreamTableSource[_]],

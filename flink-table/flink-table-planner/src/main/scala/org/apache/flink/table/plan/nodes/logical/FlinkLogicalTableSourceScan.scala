@@ -88,7 +88,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
-        .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
+        .item("fields", tableSchema.getFieldNames.mkString(", "))
 
     val sourceDesc = tableSource.explainSource()
     if (sourceDesc.nonEmpty) {
