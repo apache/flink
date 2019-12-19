@@ -39,7 +39,7 @@ class TableSourceTable[T](
     val statistic: FlinkStatistic)
   extends AbstractTable {
 
-  TableSourceValidation.validateTableSource(tableSource)
+  TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema)
 
   /**
     * Returns statistics of current table
