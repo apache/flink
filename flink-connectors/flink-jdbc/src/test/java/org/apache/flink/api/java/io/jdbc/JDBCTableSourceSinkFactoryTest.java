@@ -50,7 +50,7 @@ public class JDBCTableSourceSinkFactoryTest {
 		.field("aaa", DataTypes.INT())
 		.field("bbb", DataTypes.STRING())
 		.field("ccc", DataTypes.DOUBLE())
-		.field("ddd", DataTypes.DECIMAL(24, 3))
+		.field("ddd", DataTypes.DECIMAL(38, 18))
 		.field("eee", DataTypes.TIMESTAMP(3))
 		.build();
 
