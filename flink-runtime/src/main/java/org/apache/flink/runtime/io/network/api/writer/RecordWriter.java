@@ -154,7 +154,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
-		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event, true)) {
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);
 
