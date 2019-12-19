@@ -128,8 +128,8 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedProctime
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		String[] names = new String[] {"Username" , "Data"};
-		TypeInformation[] types = new TypeInformation[] {Types.STRING(), Types.STRING()};
+		String[] names = new String[] {"Username" , "Data", "UserActionTime"};
+		TypeInformation[] types = new TypeInformation[] {Types.STRING(), Types.STRING(), Types.LONG()};
 		return Types.ROW(names, types);
 	}
 
@@ -161,8 +161,8 @@ WindowedTable windowedTable = tEnv
 class UserActionSource extends StreamTableSource[Row] with DefinedProctimeAttribute {
 
 	override def getReturnType = {
-		val names = Array[String]("Username" , "Data")
-		val types = Array[TypeInformation[_]](Types.STRING, Types.STRING)
+		val names = Array[String]("Username" , "Data", "UserActionTime")
+		val types = Array[TypeInformation[_]](Types.STRING, Types.STRING, Types.LONG)
 		Types.ROW(names, types)
 	}
 
