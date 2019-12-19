@@ -1278,11 +1278,7 @@ object ScalarOperatorGens {
       val falseAction = generateIfElse(ctx, operands, resultType, i + 2)
 
       val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
-      val resultTypeTerm = if (trueAction.resultType.isNullable || falseAction.resultType.isNullable) {
-        boxedTypeTermForType(resultType)
-      } else {
-        primitiveTypeTermForType(resultType)
-      }
+      val resultTypeTerm = primitiveTypeTermForType(resultType)
 
       val operatorCode = if (ctx.nullCheck) {
         s"""
@@ -1291,12 +1287,16 @@ object ScalarOperatorGens {
            |boolean $nullTerm;
            |if (${condition.resultTerm}) {
            |  ${trueAction.code}
-           |  $resultTerm = ${trueAction.resultTerm};
+           |  if (!${trueAction.nullTerm}) {
+           |    $resultTerm = ${trueAction.resultTerm};
+           |  }
            |  $nullTerm = ${trueAction.nullTerm};
            |}
            |else {
            |  ${falseAction.code}
-           |  $resultTerm = ${falseAction.resultTerm};
+           |  if (!${falseAction.nullTerm}) {
+           |    $resultTerm = ${falseAction.resultTerm};
+           |  }
            |  $nullTerm = ${falseAction.nullTerm};
            |}
            |""".stripMargin.trim
