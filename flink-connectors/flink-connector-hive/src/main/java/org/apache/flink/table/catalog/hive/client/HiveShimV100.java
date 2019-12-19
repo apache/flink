@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
-import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -32,6 +32,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.common.HiveStatsUtils;
+import org.apache.hadoop.hive.common.type.HiveChar;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -49,6 +52,14 @@ import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.Deserializer;
+import org.apache.hadoop.hive.serde2.io.ByteWritable;
+import org.apache.hadoop.hive.serde2.io.DateWritable;
+import org.apache.hadoop.hive.serde2.io.DoubleWritable;
+import org.apache.hadoop.hive.serde2.io.HiveCharWritable;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
+import org.apache.hadoop.hive.serde2.io.HiveVarcharWritable;
+import org.apache.hadoop.hive.serde2.io.ShortWritable;
+import org.apache.hadoop.hive.serde2.io.TimestampWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantBooleanObjectInspector;
@@ -65,17 +76,27 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantS
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantStringObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.WritableConstantTimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
+import org.apache.hadoop.io.BooleanWritable;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.thrift.TException;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -213,7 +234,7 @@ public class HiveShimV100 implements HiveShim {
 	@Override
 	public ObjectInspector getObjectInspectorForConstant(PrimitiveTypeInfo primitiveTypeInfo, Object value) {
 		String className;
-		value = HiveInspectors.hivePrimitiveToWritable(value);
+		value = hivePrimitiveToWritable(value);
 		// Java constant object inspectors are not available until 1.2.0 -- https://issues.apache.org/jira/browse/HIVE-9766
 		// So we have to use writable constant object inspectors for 1.1.x
 		switch (primitiveTypeInfo.getPrimitiveCategory()) {
@@ -242,18 +263,20 @@ public class HiveShimV100 implements HiveShim {
 				className = WritableConstantStringObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case CHAR:
-				className = WritableConstantHiveCharObjectInspector.class.getName();
 				try {
-					return (ObjectInspector) Class.forName(className).getDeclaredConstructor(
-							CharTypeInfo.class, value.getClass()).newInstance(primitiveTypeInfo, value);
+					Constructor<WritableConstantHiveCharObjectInspector> constructor =
+							WritableConstantHiveCharObjectInspector.class.getDeclaredConstructor(CharTypeInfo.class, value.getClass());
+					constructor.setAccessible(true);
+					return constructor.newInstance(primitiveTypeInfo, value);
 				} catch (Exception e) {
 					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
 				}
 			case VARCHAR:
-				className = WritableConstantHiveVarcharObjectInspector.class.getName();
 				try {
-					return (ObjectInspector) Class.forName(className).getDeclaredConstructor(
-							VarcharTypeInfo.class, value.getClass()).newInstance(primitiveTypeInfo, value);
+					Constructor<WritableConstantHiveVarcharObjectInspector> constructor =
+							WritableConstantHiveVarcharObjectInspector.class.getDeclaredConstructor(VarcharTypeInfo.class, value.getClass());
+					constructor.setAccessible(true);
+					return constructor.newInstance(primitiveTypeInfo, value);
 				} catch (Exception e) {
 					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
 				}
@@ -264,8 +287,14 @@ public class HiveShimV100 implements HiveShim {
 				className = WritableConstantTimestampObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
 			case DECIMAL:
-				className = WritableConstantHiveDecimalObjectInspector.class.getName();
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
+				try {
+					Constructor<WritableConstantHiveDecimalObjectInspector> constructor =
+							WritableConstantHiveDecimalObjectInspector.class.getDeclaredConstructor(DecimalTypeInfo.class, value.getClass());
+					constructor.setAccessible(true);
+					return constructor.newInstance(primitiveTypeInfo, value);
+				} catch (Exception e) {
+					throw new FlinkHiveUDFException("Failed to create writable constant object inspector", e);
+				}
 			case BINARY:
 				className = WritableConstantBinaryObjectInspector.class.getName();
 				return HiveReflectionUtils.createConstantObjectInspector(className, value);
@@ -378,6 +407,55 @@ public class HiveShimV100 implements HiveShim {
 				"Expecting Hive Date to be an instance of %s, but actually got %s",
 				Date.class.getName(), hiveDate.getClass().getName());
 		return ((Date) hiveDate).toLocalDate();
+	}
+
+	@Override
+	public Writable hivePrimitiveToWritable(Object value) {
+		if (value == null) {
+			return null;
+		}
+		Optional<Writable> optional = javaToWritable(value);
+		return optional.orElseThrow(() -> new FlinkHiveException("Unsupported primitive java value of class " + value.getClass().getName()));
+	}
+
+	Optional<Writable> javaToWritable(@Nonnull Object value) {
+		Writable writable = null;
+		// in case value is already a Writable
+		if (value instanceof Writable) {
+			writable = (Writable) value;
+		} else if (value instanceof Boolean) {
+			writable = new BooleanWritable((Boolean) value);
+		} else if (value instanceof Byte) {
+			writable = new ByteWritable((Byte) value);
+		} else if (value instanceof Short) {
+			writable = new ShortWritable((Short) value);
+		} else if (value instanceof Integer) {
+			writable = new IntWritable((Integer) value);
+		} else if (value instanceof Long) {
+			writable = new LongWritable((Long) value);
+		} else if (value instanceof Float) {
+			writable = new FloatWritable((Float) value);
+		} else if (value instanceof Double) {
+			writable = new DoubleWritable((Double) value);
+		} else if (value instanceof String) {
+			writable = new Text((String) value);
+		} else if (value instanceof HiveChar) {
+			writable = new HiveCharWritable((HiveChar) value);
+		} else if (value instanceof HiveVarchar) {
+			writable = new HiveVarcharWritable((HiveVarchar) value);
+		} else if (value instanceof HiveDecimal) {
+			writable = new HiveDecimalWritable((HiveDecimal) value);
+		} else if (value instanceof Date) {
+			writable = new DateWritable((Date) value);
+		} else if (value instanceof Timestamp) {
+			writable = new TimestampWritable((Timestamp) value);
+		} else if (value instanceof BigDecimal) {
+			HiveDecimal hiveDecimal = HiveDecimal.create((BigDecimal) value);
+			writable = new HiveDecimalWritable(hiveDecimal);
+		} else if (value instanceof byte[]) {
+			writable = new BytesWritable((byte[]) value);
+		}
+		return Optional.ofNullable(writable);
 	}
 
 	void ensureSupportedFlinkTimestamp(Object flinkTimestamp) {
