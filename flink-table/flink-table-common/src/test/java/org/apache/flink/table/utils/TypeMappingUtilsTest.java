@@ -53,16 +53,16 @@ import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
- * Tests for {@link TableSourceUtils}.
+ * Tests for {@link TypeMappingUtils}.
  */
-public class TableSourceUtilsTest {
+public class TypeMappingUtilsTest {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testFieldMappingReordered() {
-		int[] indices = TableSourceUtils.computePhysicalIndices(
+		int[] indices = TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f1", DataTypes.BIGINT())
 				.field("f0", DataTypes.STRING())
@@ -79,7 +79,7 @@ public class TableSourceUtilsTest {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("Type TIMESTAMP(3) of table field 'f0' does not match with the physical type STRING of " +
 			"the 'f0' field of the TableSource return type.");
-		TableSourceUtils.computePhysicalIndices(
+		TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f1", DataTypes.BIGINT())
 				.field("f0", DataTypes.TIMESTAMP(3))
@@ -94,7 +94,7 @@ public class TableSourceUtilsTest {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("Type TIMESTAMP(9) of table field 'f0' does not match with the physical type " +
 			"TIMESTAMP(3) of the 'f0' field of the TableSource return type.");
-		TableSourceUtils.computePhysicalIndices(
+		TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f0", DataTypes.TIMESTAMP(9))
 				.build().getTableColumns(),
@@ -104,8 +104,21 @@ public class TableSourceUtilsTest {
 	}
 
 	@Test
+	public void testNameMappingDoesNotExist() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Field 'f0' could not be resolved by the field mapping.");
+		TypeMappingUtils.computePhysicalIndices(
+			TableSchema.builder()
+				.field("f0", DataTypes.BIGINT())
+				.build().getTableColumns(),
+			ROW(FIELD("f0", DataTypes.BIGINT())),
+			str -> null
+		);
+	}
+
+	@Test
 	public void testFieldMappingLegacyDecimalType() {
-		int[] indices = TableSourceUtils.computePhysicalIndices(
+		int[] indices = TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f0", DECIMAL(38, 18))
 				.build().getTableColumns(),
@@ -125,7 +138,7 @@ public class TableSourceUtilsTest {
 			instanceOf(ValidationException.class),
 			hasMessage(equalTo("Legacy decimal type can only be mapped to DECIMAL(38, 18)."))));
 
-		int[] indices = TableSourceUtils.computePhysicalIndices(
+		int[] indices = TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f0", DECIMAL(38, 10))
 				.build().getTableColumns(),
@@ -138,7 +151,7 @@ public class TableSourceUtilsTest {
 
 	@Test
 	public void testFieldMappingRowTypeNotMatchingNamesInNestedType() {
-		int[] indices = TableSourceUtils.computePhysicalIndices(
+		int[] indices = TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f0", DECIMAL(38, 18))
 				.field("f1", ROW(FIELD("logical_f1_0", BIGINT()), FIELD("logical_f1_1", STRING())))
@@ -159,7 +172,7 @@ public class TableSourceUtilsTest {
 		thrown.expectMessage("Type ROW<`f1_0` BIGINT, `f1_1` STRING> of table field 'f1' does not match with the " +
 			"physical type ROW<`f1_0` STRING, `f1_1` STRING> of the 'f1' field of the TableSource return type.");
 
-		TableSourceUtils.computePhysicalIndices(
+		TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f0", DECIMAL(38, 18))
 				.field("f1", ROW(FIELD("f1_0", BIGINT()), FIELD("f1_1", STRING())))
@@ -174,7 +187,7 @@ public class TableSourceUtilsTest {
 
 	@Test
 	public void testFieldMappingLegacyCompositeType() {
-		int[] indices = TableSourceUtils.computePhysicalIndices(
+		int[] indices = TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("f1", DataTypes.BIGINT())
 				.field("f0", DataTypes.STRING())
@@ -188,7 +201,7 @@ public class TableSourceUtilsTest {
 
 	@Test
 	public void testFieldMappingLegacyCompositeTypeWithRenaming() {
-		int[] indices = TableSourceUtils.computePhysicalIndices(
+		int[] indices = TypeMappingUtils.computePhysicalIndices(
 			TableSchema.builder()
 				.field("a", DataTypes.BIGINT())
 				.field("b", DataTypes.STRING())
@@ -216,7 +229,7 @@ public class TableSourceUtilsTest {
 			Collections.singletonList("rowtime"),
 			"proctime"
 		);
-		int[] indices = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+		int[] indices = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
 			tableSource,
 			TableSchema.builder()
 				.field("a", Types.LONG)
@@ -237,7 +250,7 @@ public class TableSourceUtilsTest {
 			Collections.singletonList("rowtime"),
 			"proctime"
 		);
-		int[] indices = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+		int[] indices = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
 			tableSource,
 			TableSchema.builder()
 				.field("a", Types.LONG)
@@ -258,7 +271,7 @@ public class TableSourceUtilsTest {
 			Collections.singletonList("rowtime"),
 			"proctime"
 		);
-		int[] indices = TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+		int[] indices = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
 			tableSource,
 			TableSchema.builder()
 				.field("a", Types.LONG)
@@ -283,7 +296,7 @@ public class TableSourceUtilsTest {
 			Collections.singletonList("rowtime"),
 			"proctime"
 		);
-		TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+		TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
 			tableSource,
 			TableSchema.builder()
 				.field("a", Types.LONG)
@@ -306,7 +319,7 @@ public class TableSourceUtilsTest {
 			Collections.singletonList("rowtime"),
 			"proctime"
 		);
-		TableSourceUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+		TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
 			tableSource,
 			TableSchema.builder()
 				.field("a", Types.LONG)

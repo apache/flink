@@ -20,7 +20,6 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
@@ -53,7 +52,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFa
  * Utility methods for dealing with {@link org.apache.flink.table.sources.TableSource}.
  */
 @Internal
-public final class TableSourceUtils {
+public final class TypeMappingUtils {
 
 	/**
 	 * Computes indices of physical fields corresponding to the selected logical fields of a {@link TableSchema}.
@@ -84,7 +83,7 @@ public final class TableSourceUtils {
 	 * <p>It puts markers (idx < 0) for time attributes extracted from {@link DefinedProctimeAttribute}
 	 * and {@link DefinedRowtimeAttributes}
 	 *
-	 * <p>{@link TableSourceUtils#computePhysicalIndices(List, DataType, Function)} should be preferred. The
+	 * <p>{@link TypeMappingUtils#computePhysicalIndices(List, DataType, Function)} should be preferred. The
 	 * time attribute markers should not be used anymore.
 	 *
 	 * @param tableSource     Used to extract {@link DefinedRowtimeAttributes}, {@link DefinedProctimeAttribute}
@@ -109,7 +108,7 @@ public final class TableSourceUtils {
 				&& proctimeAttribute.map(attr -> !attr.equals(col.getName())).orElse(true))
 			.collect(Collectors.toList());
 
-		Map<TableColumn, Integer> columnsToPhysicalIndices = TableSourceUtils.computePhysicalIndices(
+		Map<TableColumn, Integer> columnsToPhysicalIndices = TypeMappingUtils.computePhysicalIndices(
 			columnsWithoutTimeAttributes.stream(),
 			tableSource.getProducedDataType(),
 			nameRemapping
@@ -155,10 +154,22 @@ public final class TableSourceUtils {
 			Function<String, String> nameRemappingFunction) {
 		if (LogicalTypeChecks.isCompositeType(physicalType.getLogicalType())) {
 			TableSchema physicalSchema = DataTypeUtils.expandCompositeTypeToSchema(physicalType);
-			return computeInCompositeType(columns, physicalSchema, nameRemappingFunction);
+			return computeInCompositeType(columns, physicalSchema, wrapWithNotNullCheck(nameRemappingFunction));
 		} else {
 			return computeInSimpleType(columns, physicalType);
 		}
+	}
+
+	private static Function<String, String> wrapWithNotNullCheck(Function<String, String> nameRemapping) {
+		return name -> {
+			String resolvedFieldName = nameRemapping.apply(name);
+			if (resolvedFieldName == null) {
+				throw new ValidationException(String.format(
+					"Field '%s' could not be resolved by the field mapping.",
+					name));
+			}
+			return resolvedFieldName;
+		};
 	}
 
 	private static Map<TableColumn, Integer> computeInCompositeType(
@@ -174,7 +185,7 @@ public final class TableSourceUtils {
 					int idx = IntStream.range(0, physicalSchema.getFieldCount())
 						.filter(i -> physicalSchema.getFieldName(i).get().equals(remappedName))
 						.findFirst()
-						.orElseThrow(() -> new TableException(String.format(
+						.orElseThrow(() -> new ValidationException(String.format(
 							"Could not map %s column to the underlying physical type %s. No such field.",
 							column.getName(),
 							physicalSchema
@@ -279,6 +290,6 @@ public final class TableSourceUtils {
 		}
 	}
 
-	private TableSourceUtils() {
+	private TypeMappingUtils() {
 	}
 }
