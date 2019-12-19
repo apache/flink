@@ -76,8 +76,8 @@ public class JDBCTableSourceSinkFactoryTest {
 			.setSchema(schema)
 			.build();
 
-		TableSourceValidation.validateTableSource(expected);
-		TableSourceValidation.validateTableSource(actual);
+		TableSourceValidation.validateTableSource(expected, schema);
+		TableSourceValidation.validateTableSource(actual, schema);
 		assertEquals(expected, actual);
 	}
 
