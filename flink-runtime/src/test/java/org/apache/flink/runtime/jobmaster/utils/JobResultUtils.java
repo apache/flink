@@ -19,8 +19,6 @@ package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.runtime.jobmaster.JobResult;
 
-import org.apache.hadoop.mapreduce.Job;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
