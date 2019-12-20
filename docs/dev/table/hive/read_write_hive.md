@@ -137,11 +137,29 @@ Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08'
 Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 {% endhighlight %}
 
+
 ## Formats
 
 We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
 
-# ------ ORC Vectorized Optimization ------ 
+
+## Optimizations
+
+### Partition Pruning
+
+Flink uses partition pruning as a performance optimization to limits the number of files and partitions
+that Flink reads when querying Hive tables. When you partition data, Flink only reads a subset of the partitions in 
+a Hive table when a query matches certain filter criteria.
+
+### Projection Pushdown
+
+Flink leverages projection pushdown to minimize data transfer between Flink and Hive tables by omitting 
+unnecessary fields from table scans.
+
+It is especially beneficial when a table contains many columns.
+
+### ORC Vectorized Optimization upon Read
+
 Optimization is used automatically when the following conditions are met:
 
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
@@ -152,6 +170,7 @@ This feature is turned on by default. If there is a problem, you can use this co
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
 {% endhighlight %}
+
 
 ## Roadmap
 
