@@ -195,7 +195,7 @@ public class PartitionRequestQueueTest {
 	}
 
 	private static class DefaultBufferResultSubpartitionView extends NoOpResultSubpartitionView {
-		/** Number of buffer in the backlog to report with every {@link #getNextBuffer(boolean)} call. */
+		/** Number of buffer in the backlog to report with every {@link #getNextBuffer()} call. */
 		private final AtomicInteger buffersInBacklog;
 
 		private DefaultBufferResultSubpartitionView(int buffersInBacklog) {
@@ -204,7 +204,7 @@ public class PartitionRequestQueueTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
+		public BufferAndBacklog getNextBuffer() {
 			int buffers = buffersInBacklog.decrementAndGet();
 			return new BufferAndBacklog(
 				TestBufferFactory.createBuffer(10),
@@ -226,8 +226,8 @@ public class PartitionRequestQueueTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer(boolean isLocalChannel) {
-			BufferAndBacklog nextBuffer = super.getNextBuffer(isLocalChannel);
+		public BufferAndBacklog getNextBuffer() {
+			BufferAndBacklog nextBuffer = super.getNextBuffer();
 			return new BufferAndBacklog(
 				nextBuffer.buffer().readOnlySlice(),
 				nextBuffer.isMoreAvailable(),

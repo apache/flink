@@ -62,8 +62,6 @@ public class ResultPartitionFactory {
 
 	private final boolean blockingShuffleCompressionEnabled;
 
-	private final boolean pipelinedShuffleCompressionEnabled;
-
 	private final String compressionCodec;
 
 	public ResultPartitionFactory(
@@ -76,7 +74,6 @@ public class ResultPartitionFactory {
 		int networkBufferSize,
 		boolean forcePartitionReleaseOnConsumption,
 		boolean blockingShuffleCompressionEnabled,
-		boolean pipelinedShuffleCompressionEnabled,
 		String compressionCodec) {
 
 		this.partitionManager = partitionManager;
@@ -88,7 +85,6 @@ public class ResultPartitionFactory {
 		this.networkBufferSize = networkBufferSize;
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
 		this.compressionCodec = compressionCodec;
 	}
 
@@ -113,8 +109,7 @@ public class ResultPartitionFactory {
 			int maxParallelism,
 			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 		BufferCompressor bufferCompressor = null;
-		if (type.isBlocking() && blockingShuffleCompressionEnabled
-			|| type.isPipelined() && pipelinedShuffleCompressionEnabled) {
+		if (type.isBlocking() && blockingShuffleCompressionEnabled) {
 			bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
 		}
 
