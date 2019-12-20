@@ -550,6 +550,53 @@ public class DefaultSchedulerTest extends TestLogger {
 		assertThat(duration, lessThan(timeout));
 	}
 
+	@Test
+	public void failJobWillIncrementVertexVersions() {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
+		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
+
+		// suppress restarts so any task failure will lead to job failure
+		testRestartBackoffTimeStrategy.setCanRestart(false);
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final ArchivedExecutionVertex archivedExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
+		final ExecutionAttemptID attemptId = archivedExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED));
+
+		final ExecutionVertexVersioner executionVertexVersioner = scheduler.getExecutionVertexVersioner();
+		assertTrue(executionVertexVersioner.isModified(new ExecutionVertexVersion(onlyExecutionVertexId, 1)));
+	}
+
+	@Test
+	public void cancelJobWillIncrementVertexVersions() {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
+		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
+
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		scheduler.cancel();
+
+		final ExecutionVertexVersioner executionVertexVersioner = scheduler.getExecutionVertexVersioner();
+		assertTrue(executionVertexVersioner.isModified(new ExecutionVertexVersion(onlyExecutionVertexId, 1)));
+	}
+
+	@Test
+	public void suspendJobWillIncrementVertexVersions() {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
+		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
+
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		scheduler.suspend(new Exception("forced suspend"));
+
+		final ExecutionVertexVersioner executionVertexVersioner = scheduler.getExecutionVertexVersioner();
+		assertTrue(executionVertexVersioner.isModified(new ExecutionVertexVersion(onlyExecutionVertexId, 1)));
+	}
+
 	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
 		final JobVertex v = new JobVertex(name);
 		v.setParallelism(parallelism);

@@ -88,8 +88,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final SchedulingStrategy schedulingStrategy;
 
-	private final ExecutionVertexVersioner executionVertexVersioner;
-
 	private final ExecutionVertexOperations executionVertexOperations;
 
 	public DefaultScheduler(
@@ -133,6 +131,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			slotRequestTimeout,
 			shuffleMaster,
 			partitionTracker,
+			executionVertexVersioner,
 			false);
 
 		this.log = log;
@@ -140,7 +139,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.delayExecutor = checkNotNull(delayExecutor);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
 		this.executionVertexOperations = checkNotNull(executionVertexOperations);
-		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
 		final FailoverStrategy failoverStrategy = failoverStrategyFactory.create(
 			getFailoverTopology(),
