@@ -22,27 +22,30 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 
+import java.io.IOException;
+
 /**
- * A {@link RollingPolicy} which rolls (ONLY) on every checkpoint.
+ * An abstract {@link RollingPolicy} which rolls on every checkpoint.
  */
 @PublicEvolving
-public final class OnCheckpointRollingPolicy<IN, BucketID> extends CheckpointRollingPolicy<IN, BucketID> {
-
-	private static final long serialVersionUID = 1L;
-
-	private OnCheckpointRollingPolicy() {}
-
-	@Override
-	public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState, IN element) {
-		return false;
+public abstract class CheckpointRollingPolicy<IN, BucketID> implements RollingPolicy<IN, BucketID> {
+	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) {
+		return true;
 	}
 
-	@Override
-	public boolean shouldRollOnProcessingTime(PartFileInfo<BucketID> partFileState, long currentTime) {
-		return false;
-	}
+	public abstract boolean shouldRollOnEvent(final PartFileInfo<BucketID> partFileState, IN element) throws IOException;
 
-	public static <IN, BucketID> OnCheckpointRollingPolicy<IN, BucketID> build() {
-		return new OnCheckpointRollingPolicy<>();
+	public abstract boolean shouldRollOnProcessingTime(final PartFileInfo<BucketID> partFileState, final long currentTime) throws IOException;
+
+	/**
+	 * The base abstract builder class for {@link CheckpointRollingPolicy}.
+	 */
+	public abstract static class PolicyBuilder<IN, BucketID, T extends PolicyBuilder<IN, BucketID, T>> {
+		@SuppressWarnings("unchecked")
+		protected T self() {
+			return (T) this;
+		}
+
+		public abstract CheckpointRollingPolicy<IN, BucketID> build();
 	}
 }
