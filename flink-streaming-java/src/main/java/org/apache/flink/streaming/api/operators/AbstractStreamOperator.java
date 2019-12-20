@@ -166,6 +166,8 @@ public abstract class AbstractStreamOperator<OUT>
 	private long input1Watermark = Long.MIN_VALUE;
 	private long input2Watermark = Long.MIN_VALUE;
 
+	private WatermarkOption watermarkOption = WatermarkOption.ALL;
+
 	// ------------------------------------------------------------------------
 	//  Life Cycle
 	// ------------------------------------------------------------------------
@@ -673,6 +675,13 @@ public abstract class AbstractStreamOperator<OUT>
 		return chainingStrategy;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Watermark Options
+	// ------------------------------------------------------------------------
+
+	public final void setWatermarkOption(WatermarkOption watermarkOption) {
+		this.watermarkOption = watermarkOption;
+	}
 
 	// ------------------------------------------------------------------------
 	//  Metrics
@@ -799,7 +808,17 @@ public abstract class AbstractStreamOperator<OUT>
 
 	public void processWatermark1(Watermark mark) throws Exception {
 		input1Watermark = mark.getTimestamp();
-		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (watermarkOption == WatermarkOption.STREAM2){
+			return;
+		}
+		long newMin;
+		if (watermarkOption == WatermarkOption.ALL) {
+			newMin = Math.min(input1Watermark, input2Watermark);
+		}else if (watermarkOption == WatermarkOption.STREAM1){
+			newMin = input1Watermark;
+		}else {
+			throw new RuntimeException("WatermarkOption only support ALL,STREAM1,STREAM2");
+		}
 		if (newMin > combinedWatermark) {
 			combinedWatermark = newMin;
 			processWatermark(new Watermark(combinedWatermark));
@@ -808,7 +827,17 @@ public abstract class AbstractStreamOperator<OUT>
 
 	public void processWatermark2(Watermark mark) throws Exception {
 		input2Watermark = mark.getTimestamp();
-		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (watermarkOption == WatermarkOption.STREAM1){
+			return;
+		}
+		long newMin;
+		if (watermarkOption == WatermarkOption.ALL) {
+			newMin = Math.min(input1Watermark, input2Watermark);
+		}else if (watermarkOption == WatermarkOption.STREAM2){
+			newMin = input2Watermark;
+		}else {
+			throw new RuntimeException("WatermarkOption only support ALL,STREAM1,STREAM2");
+		}
 		if (newMin > combinedWatermark) {
 			combinedWatermark = newMin;
 			processWatermark(new Watermark(combinedWatermark));

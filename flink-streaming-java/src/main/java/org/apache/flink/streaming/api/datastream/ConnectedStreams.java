@@ -29,7 +29,9 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.WatermarkOption;
 import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
@@ -62,6 +64,7 @@ public class ConnectedStreams<IN1, IN2> {
 	protected final StreamExecutionEnvironment environment;
 	protected final DataStream<IN1> inputStream1;
 	protected final DataStream<IN2> inputStream2;
+	protected WatermarkOption watermarkOption;
 
 	protected ConnectedStreams(StreamExecutionEnvironment env, DataStream<IN1> input1, DataStream<IN2> input2) {
 		this.environment = requireNonNull(env);
@@ -107,6 +110,16 @@ public class ConnectedStreams<IN1, IN2> {
 	 */
 	public TypeInformation<IN2> getType2() {
 		return inputStream2.getType();
+	}
+
+	/**
+	 * Sets the watermarkOption of the stream
+	 *
+	 * @param watermarkOption The WatermarkOption of the stream
+	 */
+	public ConnectedStreams<IN1, IN2> watermarkOption(WatermarkOption watermarkOption){
+		this.watermarkOption = watermarkOption;
+		return this;
 	}
 
 	/**
@@ -446,6 +459,10 @@ public class ConnectedStreams<IN1, IN2> {
 	public <R> SingleOutputStreamOperator<R> transform(String functionName,
 			TypeInformation<R> outTypeInfo,
 			TwoInputStreamOperator<IN1, IN2, R> operator) {
+
+		if (watermarkOption != null) {
+			((AbstractStreamOperator) operator).setWatermarkOption(watermarkOption);
+		}
 
 		// read the output type of the input Transforms to coax out errors about MissingTypeInfo
 		inputStream1.getType();
