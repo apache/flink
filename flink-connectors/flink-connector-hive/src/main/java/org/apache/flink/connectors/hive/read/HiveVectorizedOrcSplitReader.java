@@ -43,6 +43,7 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
 	private OrcColumnarRowSplitReader reader;
 
 	public HiveVectorizedOrcSplitReader(
+			String hiveVersion,
 			JobConf jobConf,
 			String[] fieldNames,
 			DataType[] fieldTypes,
@@ -62,6 +63,7 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
 		}
 
 		this.reader = genPartColumnarRowReader(
+				hiveVersion,
 				conf,
 				fieldNames,
 				fieldTypes,
