@@ -244,8 +244,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
+		SqlNode node = getParserBySqlDialect(SqlDialect.HIVE).parse(sql);
 		assert node instanceof SqlCreateTable;
 		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
 		assert operation instanceof CreateTableOperation;
@@ -305,8 +305,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
+		SqlNode node = getParserBySqlDialect(SqlDialect.HIVE).parse(sql);
 		assert node instanceof SqlCreateTable;
 		SqlToOperationConverter.convert(planner, catalogManager, node);
 	}
@@ -314,8 +314,8 @@ public class SqlToOperationConverterTest {
 	@Test
 	public void testSqlInsertWithStaticPartition() {
 		final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		SqlNode node = getParserBySqlDialect(SqlDialect.HIVE).parse(sql);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
 		assert node instanceof RichSqlInsert;
 		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
 		assert operation instanceof CatalogSinkModifyOperation;

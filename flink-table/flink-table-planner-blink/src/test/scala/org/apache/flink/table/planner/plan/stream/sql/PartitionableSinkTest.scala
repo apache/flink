@@ -30,9 +30,7 @@ import org.junit.Test
 
 class PartitionableSinkTest extends TableTestBase {
 
-  val conf = new TableConfig
-  conf.setSqlDialect(SqlDialect.HIVE)
-  private val util = streamTestUtil(conf)
+  private val util = streamTestUtil()
   util.addTableSource[(Long, Long, Long)]("MyTable", 'a, 'b, 'c)
   PartitionableSinkITCase.registerTableSink(
     util.tableEnv,
