@@ -48,10 +48,9 @@ public final class CompileUtils {
 	 * number of Meta zone GC (class unloading), resulting in performance bottlenecks. So we add
 	 * a cache to avoid this problem.
 	 */
-	protected static final Cache<ClassLoader, Cache<String, Class>> COMPILED_CACHE = CacheBuilder
+	protected static final Cache<String, Cache<ClassLoader, Class>> COMPILED_CACHE = CacheBuilder
 		.newBuilder()
-		.weakKeys()
-		.maximumSize(10)   // estimated cache size
+		.maximumSize(100)   // estimated cache size
 		.build();
 
 	/**
@@ -64,9 +63,9 @@ public final class CompileUtils {
 	 */
 	public static <T> Class<T> compile(ClassLoader cl, String name, String code) {
 		try {
-			Cache<String, Class> compiledClasses = COMPILED_CACHE.get(cl,
-					() -> CacheBuilder.newBuilder().maximumSize(50).softValues().build());
-			return compiledClasses.get(name, () -> doCompile(cl, name, code));
+			Cache<ClassLoader, Class> compiledClasses = COMPILED_CACHE.get(name,
+					() -> CacheBuilder.newBuilder().maximumSize(5).weakKeys().softValues().build());
+			return compiledClasses.get(cl, () -> doCompile(cl, name, code));
 		} catch (ExecutionException | UncheckedExecutionException e) {
 			if (e.getCause() instanceof InvalidProgramException) {
 				throw (InvalidProgramException) e.getCause();
