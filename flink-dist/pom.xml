@@ -573,16 +573,16 @@ under the License.
 						<goals>
 							<goal>jar</goal>
 						</goals>
-						<configuration>
-							<archive>
-								<manifestEntries>
-									<!-- jaxb-api is packaged as an optional dependency that is only accessible on Java 11 -->
-									<Multi-Release>true</Multi-Release>
-								</manifestEntries>
-							</archive>
-						</configuration>
 					</execution>
 				</executions>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<!-- jaxb-api is packaged as an optional dependency that is only accessible on Java 11 -->
+							<Multi-Release>true</Multi-Release>
+						</manifestEntries>
+					</archive>
+				</configuration>
 			</plugin>
 
 			<plugin>
