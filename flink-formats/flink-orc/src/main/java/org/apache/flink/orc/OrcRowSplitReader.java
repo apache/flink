@@ -19,6 +19,7 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
@@ -46,7 +47,7 @@ public class OrcRowSplitReader extends OrcSplitReader<Row> {
 			Path path,
 			long splitStart,
 			long splitLength) throws IOException {
-		super(conf, schema, selectedFields, conjunctPredicates, batchSize, path, splitStart, splitLength);
+		super(OrcShim.defaultShim(), conf, schema, selectedFields, conjunctPredicates, batchSize, path, splitStart, splitLength);
 		this.schema = schema;
 		this.selectedFields = selectedFields;
 		// create and initialize the row batch

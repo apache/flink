@@ -761,6 +761,19 @@ under the License.
 			<properties>
 				<hive.version>2.2.0</hive.version>
 			</properties>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.orc</groupId>
+					<artifactId>orc-core</artifactId>
+					<version>${orc.version}</version>
+					<exclusions>
+						<exclusion>
+							<groupId>org.apache.hadoop</groupId>
+							<artifactId>hadoop-common</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
 		</profile>
 		<profile>
 			<id>hive-3.1.1</id>
