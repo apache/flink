@@ -448,6 +448,41 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
+	@Test
+	public void testViews() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (key int,val string)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{1, "a"})
+					.addRow(new Object[]{1, "aa"})
+					.addRow(new Object[]{1, "aaa"})
+					.addRow(new Object[]{2, "b"})
+					.addRow(new Object[]{3, "c"})
+					.addRow(new Object[]{3, "ccc"})
+					.commit();
+			hiveShell.execute("create table db1.keys (key int,name string)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "keys")
+					.addRow(new Object[]{1, "key1"})
+					.addRow(new Object[]{2, "key2"})
+					.addRow(new Object[]{3, "key3"})
+					.addRow(new Object[]{4, "key4"})
+					.commit();
+			hiveShell.execute("create view db1.v1 as select key as k,val as v from db1.src limit 2");
+			hiveShell.execute("create view db1.v2 as select key,count(*) from db1.src group by key having count(*)>1 order by key");
+			hiveShell.execute("create view db1.v3 as select k.key,k.name,count(*) from db1.src s join db1.keys k on s.key=k.key group by k.key,k.name order by k.key");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select count(v) from db1.v1"));
+			assertEquals("[2]", results.toString());
+			results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.v2"));
+			assertEquals("[1,3, 3,2]", results.toString());
+			results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.v3"));
+			assertEquals("[1,key1,3, 2,key2,1, 3,key3,2]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
