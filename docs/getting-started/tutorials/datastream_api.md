@@ -93,17 +93,15 @@ use it in our program. Edit the `dependencies` section of the `pom.xml` so that 
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-java</artifactId>
         <version>${flink.version}</version>
-        <scope>provided</scope>
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
-        <artifactId>flink-streaming-java_2.11</artifactId>
+        <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
         <version>${flink.version}</version>
-        <scope>provided</scope>
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
-        <artifactId>flink-connector-wikiedits_2.11</artifactId>
+        <artifactId>flink-connector-wikiedits_${scala.binary.version}</artifactId>
         <version>${flink.version}</version>
     </dependency>
 </dependencies>
@@ -330,6 +328,24 @@ use the Kafka sink. Add this to the `pom.xml` file in the dependencies section:
     <groupId>org.apache.flink</groupId>
     <artifactId>flink-connector-kafka-0.11_2.11</artifactId>
     <version>${flink.version}</version>
+</dependency>
+{% endhighlight %}
+
+Also, set the scope of `flink-java` and `flink-streaming-java_${scala.binary.version}` to `provided` because those 
+classes are provided in the cluster and they should not be packaged into the JAR file:
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-java</artifactId>
+    <version>${flink.version}</version>
+    <scope>provided</scope>
+</dependency>
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+    <version>${flink.version}</version>
+    <scope>provided</scope>
 </dependency>
 {% endhighlight %}
 
