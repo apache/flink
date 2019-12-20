@@ -1287,17 +1287,17 @@ object ScalarOperatorGens {
            |boolean $nullTerm;
            |if (${condition.resultTerm}) {
            |  ${trueAction.code}
-           |  if (!${trueAction.nullTerm}) {
+           |  $nullTerm = ${trueAction.nullTerm};
+           |  if (!$nullTerm) {
            |    $resultTerm = ${trueAction.resultTerm};
            |  }
-           |  $nullTerm = ${trueAction.nullTerm};
            |}
            |else {
            |  ${falseAction.code}
-           |  if (!${falseAction.nullTerm}) {
+           |  $nullTerm = ${falseAction.nullTerm};
+           |  if (!$nullTerm) {
            |    $resultTerm = ${falseAction.resultTerm};
            |  }
-           |  $nullTerm = ${falseAction.nullTerm};
            |}
            |""".stripMargin.trim
       }
