@@ -402,6 +402,7 @@ public class OrcColumnarRowSplitReaderTest {
 			Map<String, Object> partitionSpec,
 			FileInputSplit split) throws IOException {
 		return OrcSplitReaderUtil.genPartColumnarRowReader(
+				"2.3.0",
 				new Configuration(),
 				IntStream.range(0, fullTypes.length)
 						.mapToObj(i -> "f" + i).toArray(String[]::new),

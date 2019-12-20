@@ -115,7 +115,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		if (!parameters.getBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER) &&
 				useOrcVectorizedRead(split.getHiveTablePartition())) {
 			this.reader = new HiveVectorizedOrcSplitReader(
-					jobConf, fieldNames, fieldTypes, selectedFields, split);
+					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
 		} else {
 			this.reader = new HiveMapredSplitReader(jobConf, partitionKeys, fieldTypes, selectedFields, split,
 					HiveShimLoader.loadHiveShim(hiveVersion));
