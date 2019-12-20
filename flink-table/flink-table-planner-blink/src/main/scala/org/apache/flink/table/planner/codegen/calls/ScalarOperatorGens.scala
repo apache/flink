@@ -1279,11 +1279,12 @@ object ScalarOperatorGens {
 
       val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
       val resultTypeTerm = primitiveTypeTermForType(resultType)
+      val defaultValue = primitiveDefaultValue(resultType)
 
       val operatorCode = if (ctx.nullCheck) {
         s"""
            |${condition.code}
-           |$resultTypeTerm $resultTerm;
+           |$resultTypeTerm $resultTerm = $defaultValue;
            |boolean $nullTerm;
            |if (${condition.resultTerm}) {
            |  ${trueAction.code}
