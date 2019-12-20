@@ -78,6 +78,14 @@ Flink supports the following Hive versions.
     - 3.1.1
     - 3.1.2
 
+Please note available features can vary for different Hive versions:
+
+- Hive built-in functions are supported in 1.2.0 and later.
+- Column constraints, i.e. PRIMARY KEY and NOT NULL, are supported in 3.1.0 and later.
+- Altering table statistics is supported in 1.2.0 and later.
+- `DATE` column statistics are supported in 1.2.0 and later.
+- Writing to ORC tables is not supported in 2.0.x.
+
 ### Dependencies
 
 To integrate with Hive, users need some dependencies in your `/lib/` directory in Flink distribution
