@@ -71,7 +71,9 @@ class PartitionableSinkTest extends TableTestBase {
   @Test
   def testStaticWithValues(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Only support static partitions with select, current is: VALUES ROW(5)")
+    thrown.expectMessage(
+      "INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
+          " 'VALUES ROW(5)' is not supported yet")
     util.verifySqlUpdate("INSERT INTO sink PARTITION (b=1, c=1) VALUES (5)")
   }
 }
