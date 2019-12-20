@@ -331,21 +331,21 @@ use the Kafka sink. Add this to the `pom.xml` file in the dependencies section:
 </dependency>
 {% endhighlight %}
 
-Also, set the scope of `flink-java` and `flink-streaming-java_${scala.binary.version}` to `provided` because those 
-classes are provided in the cluster and they should not be packaged into the JAR file:
+Also, set the maven dependency scope of `flink-java` and `flink-streaming-java_${scala.binary.version}` to `provided`  
+because those classes are provided in the cluster and they should not be packaged into the JAR file:
 
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
     <artifactId>flink-java</artifactId>
     <version>${flink.version}</version>
-    <scope>provided</scope>
+    <scope>provided</scope>      <!-- the line to be added -->
 </dependency>
 <dependency>
     <groupId>org.apache.flink</groupId>
     <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
     <version>${flink.version}</version>
-    <scope>provided</scope>
+    <scope>provided</scope>      <!-- the line to be added -->
 </dependency>
 {% endhighlight %}
 
