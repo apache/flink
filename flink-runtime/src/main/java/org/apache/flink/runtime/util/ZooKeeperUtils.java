@@ -44,6 +44,7 @@ import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
 import org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
@@ -129,6 +130,7 @@ public class ZooKeeperUtils {
 				.sessionTimeoutMs(sessionTimeout)
 				.connectionTimeoutMs(connectionTimeout)
 				.retryPolicy(new ExponentialBackoffRetry(retryWait, maxRetryAttempts))
+			    .connectionStateErrorPolicy(new SessionConnectionStateErrorPolicy())
 				// Curator prepends a '/' manually and throws an Exception if the
 				// namespace starts with a '/'.
 				.namespace(rootWithNamespace.startsWith("/") ? rootWithNamespace.substring(1) : rootWithNamespace)
