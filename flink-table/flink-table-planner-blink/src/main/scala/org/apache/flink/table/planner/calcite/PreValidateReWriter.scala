@@ -51,7 +51,8 @@ class PreValidateReWriter(
           appendPartitionProjects(r, catalogReader, typeFactory, select, r.getStaticPartitions)
         case source =>
           throw new ValidationException(
-            s"INSERT INTO <table> PARTITION statement only support SELECT clause for now, '$source' is not supported yet.")
+            s"INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
+                s" '$source' is not supported yet.")
       }
       case _ =>
     }
