@@ -148,7 +148,7 @@ We have tested on the following of table storage formats: text, csv, SequenceFil
 ### Partition Pruning
 
 Flink uses partition pruning as a performance optimization to limits the number of files and partitions
-that Flink reads when querying Hive tables. When you partition data, Flink only reads a subset of the partitions in 
+that Flink reads when querying Hive tables. When your data is partitioned, Flink only reads a subset of the partitions in 
 a Hive table when a query matches certain filter criteria.
 
 ### Projection Pushdown
@@ -157,6 +157,11 @@ Flink leverages projection pushdown to minimize data transfer between Flink and 
 unnecessary fields from table scans.
 
 It is especially beneficial when a table contains many columns.
+
+### Limit Pushdown
+
+For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
+amount of data transferred across network.
 
 ### ORC Vectorized Optimization upon Read
 
