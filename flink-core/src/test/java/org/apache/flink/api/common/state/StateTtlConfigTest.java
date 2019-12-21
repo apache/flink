@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrate
 import org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy;
 import org.apache.flink.api.common.time.Time;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.is;
@@ -79,4 +80,27 @@ public class StateTtlConfigTest {
 		assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
 	}
 
+	@Test
+	public void testStateTtlConfigBuildWithCleanupIncrementallyWithCleanupSize(){
+		StateTtlConfig ttlConfig = null;
+		int cleanupSize = 2;
+
+		try{
+			 ttlConfig = StateTtlConfig
+				.newBuilder(Time.seconds(1))
+				.cleanupIncrementally(cleanupSize,false)
+				.build();
+		}catch (IllegalArgumentException iae){
+			Assert.fail("Number of incrementally cleaned up state entries should be positive.");
+		}
+
+		assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
+
+		CleanupStrategies cleanupStrategies = ttlConfig.getCleanupStrategies();
+		IncrementalCleanupStrategy incrementalCleanupStrategy =
+			cleanupStrategies.getIncrementalCleanupStrategy();
+
+		assertThat(incrementalCleanupStrategy, notNullValue());
+		Assert.assertEquals(cleanupSize, incrementalCleanupStrategy.getCleanupSize());
+	}
 }
