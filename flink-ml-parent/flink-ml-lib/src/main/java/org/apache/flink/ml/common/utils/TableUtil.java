@@ -119,11 +119,11 @@ public class TableUtil {
 	 * @param targetCols  the targetCols to find.
 	 * @return the corresponding types.
 	 */
-	public static TypeInformation[] findColTypes(TableSchema tableSchema, String[] targetCols) {
+	public static TypeInformation<?>[] findColTypes(TableSchema tableSchema, String[] targetCols) {
 		if (targetCols == null) {
 			return tableSchema.getFieldTypes();
 		}
-		TypeInformation[] types = new TypeInformation[targetCols.length];
+		TypeInformation<?>[] types = new TypeInformation[targetCols.length];
 		for (int i = 0; i < types.length; i++) {
 			types[i] = findColType(tableSchema, targetCols[i]);
 		}
@@ -137,7 +137,7 @@ public class TableUtil {
 	 * @param targetCol   the targetCol to find.
 	 * @return the corresponding type.
 	 */
-	public static TypeInformation findColType(TableSchema tableSchema, String targetCol) {
+	public static TypeInformation<?> findColType(TableSchema tableSchema, String targetCol) {
 		int index = findColIndex(tableSchema.getFieldNames(), targetCol);
 
 		return index == -1 ? null : tableSchema.getFieldTypes()[index];
@@ -149,7 +149,7 @@ public class TableUtil {
 	 * @param dataType the dataType to determine.
 	 * @return whether it is number type
 	 */
-	public static boolean isSupportedNumericType(TypeInformation dataType) {
+	public static boolean isSupportedNumericType(TypeInformation<?> dataType) {
 		return Types.DOUBLE == dataType
 			|| Types.LONG == dataType
 			|| Types.BYTE == dataType
@@ -164,7 +164,7 @@ public class TableUtil {
 	 * @param dataType the dataType to determine.
 	 * @return whether it is string type
 	 */
-	public static boolean isString(TypeInformation dataType) {
+	public static boolean isString(TypeInformation<?> dataType) {
 		return Types.STRING == dataType;
 	}
 
@@ -174,7 +174,7 @@ public class TableUtil {
 	 * @param dataType the dataType to determine.
 	 * @return whether it is vector type
 	 */
-	public static boolean isVector(TypeInformation dataType) {
+	public static boolean isVector(TypeInformation<?> dataType) {
 		return VectorTypes.VECTOR.equals(dataType)
 			|| VectorTypes.DENSE_VECTOR.equals(dataType)
 			|| VectorTypes.SPARSE_VECTOR.equals(dataType)
@@ -354,7 +354,7 @@ public class TableUtil {
 			throw new IllegalArgumentException("CategoricalCols must be included in featureCols!");
 		}
 
-		TypeInformation[] featureColTypes = findColTypes(tableSchema, featureCols);
+		TypeInformation<?>[] featureColTypes = findColTypes(tableSchema, featureCols);
 		List<String> res = new ArrayList<>();
 		for (int i = 0; i < featureCols.length; i++) {
 			boolean included = null != categoricalList && categoricalList.contains(featureCols[i]);
