@@ -66,6 +66,7 @@ public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
 	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
+	private static final String METRICS_GROUP_APP_ID = "yarn.application.id";
 
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
 	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
@@ -88,10 +89,13 @@ public class MetricUtils {
 
 	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
 			final MetricRegistry metricRegistry,
-			final String hostname) {
+			final String hostname,
+			final Configuration configuration) {
+		String appId = configuration.toMap().get(METRICS_GROUP_APP_ID);
 		final JobManagerMetricGroup jobManagerMetricGroup = new JobManagerMetricGroup(
 			metricRegistry,
-			hostname);
+			hostname,
+			appId);
 
 		return jobManagerMetricGroup;
 	}
@@ -100,11 +104,14 @@ public class MetricUtils {
 			MetricRegistry metricRegistry,
 			String hostName,
 			ResourceID resourceID,
-			Optional<Time> systemResourceProbeInterval) {
+			Optional<Time> systemResourceProbeInterval,
+			Configuration configuration) {
+		String appId = configuration.toMap().get(METRICS_GROUP_APP_ID);
 		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
 			metricRegistry,
 			hostName,
-			resourceID.toString());
+			resourceID.toString(),
+			appId);
 
 		MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 

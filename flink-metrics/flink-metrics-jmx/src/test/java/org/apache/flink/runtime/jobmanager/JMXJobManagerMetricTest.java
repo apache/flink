@@ -61,6 +61,7 @@ import static org.junit.Assert.assertEquals;
  * Tests to verify JMX reporter functionality on the JobManager.
  */
 public class JMXJobManagerMetricTest extends TestLogger {
+	private static final String APPLICATION_ID = "yarn.application.id";
 
 	@ClassRule
 	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
@@ -75,6 +76,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
 
 		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+		flinkConfiguration.setString(APPLICATION_ID, "app1");
 
 		return flinkConfiguration;
 	}

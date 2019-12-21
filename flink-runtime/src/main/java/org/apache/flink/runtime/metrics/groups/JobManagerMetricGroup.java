@@ -25,6 +25,9 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,14 +38,23 @@ import java.util.Map;
  * not contain tasks any more
  */
 public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup> {
+	protected static final Logger LOG = LoggerFactory.getLogger(JobManagerMetricGroup.class);
 
 	private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
 	private final String hostname;
+	private final String appId;
 
 	public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
 		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname), null);
 		this.hostname = hostname;
+		this.appId = "";
+	}
+
+	public JobManagerMetricGroup(MetricRegistry registry, String hostname, String appId) {
+		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname), null);
+		this.hostname = hostname;
+		this.appId = appId;
 	}
 
 	public String hostname() {
@@ -102,6 +114,7 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 	@Override
 	protected void putVariables(Map<String, String> variables) {
 		variables.put(ScopeFormat.SCOPE_HOST, hostname);
+		variables.put(ScopeFormat.SCOPE_APP_ID, appId);
 	}
 
 	@Override

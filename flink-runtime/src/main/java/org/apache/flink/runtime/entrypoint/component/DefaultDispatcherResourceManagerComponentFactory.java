@@ -186,7 +186,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				resourceManagerGatewayRetriever,
 				blobServer,
 				heartbeatServices,
-				() -> MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostname),
+				() -> MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostname, configuration),
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				historyServerArchivist,

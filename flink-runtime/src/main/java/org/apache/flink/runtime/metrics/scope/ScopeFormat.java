@@ -77,6 +77,7 @@ public abstract class ScopeFormat {
 	// ----- Job -----
 
 	public static final String SCOPE_JOB_ID = asVariable("job_id");
+	public static final String SCOPE_APP_ID = asVariable("app_id");
 	public static final String SCOPE_JOB_NAME = asVariable("job_name");
 
 	// ----- Task ----

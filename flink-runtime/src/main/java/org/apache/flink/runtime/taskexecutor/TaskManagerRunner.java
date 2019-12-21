@@ -370,7 +370,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			metricRegistry,
 			TaskManagerLocation.getHostName(remoteAddress),
 			resourceID,
-			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
+			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval(),
+			configuration);
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
