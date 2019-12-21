@@ -127,7 +127,16 @@ schema: ...
 
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
-tableEnvironment.sqlUpdate("CREATE TABLE MyTable (...) WITH (...)")
+tableEnvironment.sqlUpdate(
+    "CREATE TABLE MyTable (\n" +
+    "  ...    -- declare table schema \n" +
+    ") WITH (\n" +
+    "  'connector.type' = '...',  -- declare connector specific properties\n" +
+    "  ...\n" +
+    "  'update-mode' = 'append',  -- declare update mode\n" +
+    "  'format.type' = '...',     -- declare format specific properties\n" +
+    "  ...\n" +
+    ")");
 {% endhighlight %}
 </div>
 </div>
@@ -181,9 +190,6 @@ tableEnvironment
       .field("message", DataTypes.STRING())
   )
 
-  // specify the update-mode for streaming tables
-  .inAppendMode()
-
   // create a table with given name
   .createTemporaryTable("MyUserTable");
 {% endhighlight %}
@@ -226,9 +232,7 @@ table_environment \
         .field("user", DataTypes.BIGINT())
         .field("message", DataTypes.STRING())
     ) \
-    .in_append_mode() \
     .create_temporary_table("MyUserTable")
-    # specify the update-mode for streaming tables and
     # register as source, sink, or both and under a name
 {% endhighlight %}
 </div>
@@ -238,7 +242,6 @@ table_environment \
 tables:
   - name: MyUserTable      # name the new table
     type: source           # declare if the table should be "source", "sink", or "both"
-    update-mode: append    # specify the update-mode for streaming tables
 
     # declare the external system to connect to
     connector:
@@ -286,6 +289,7 @@ tables:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
+  -- declare the schema of the table
   `user` BIGINT,
   message STRING,
   ts STRING
@@ -297,7 +301,10 @@ CREATE TABLE MyUserTable (
   'connector.startup-mode' = 'earliest-offset',
   'connector.properties.zookeeper.connect' = 'localhost:2181',
   'connector.properties.bootstrap.servers' = 'localhost:9092',
+
+  -- specify the update-mode for streaming tables
   'update-mode' = 'append',
+
   -- declare a format for this system
   'format.type' = 'avro',
   'format.avro-schema' = '{
@@ -654,6 +661,9 @@ The file system connector allows for reading and writing from a local or distrib
   new FileSystem()
     .path("file:///path/to/whatever")    // required: path to a file or directory
 )
+.withFormat(                             // required: file system connector requires to specify a format,
+  ...                                    // currently only Csv format is supported.
+)                                        // Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -663,6 +673,9 @@ The file system connector allows for reading and writing from a local or distrib
     FileSystem()
     .path("file:///path/to/whatever")  # required: path to a file or directory
 )
+.withFormat(                           # required: file system connector requires to specify a format,
+  ...                                  # currently only Csv format is supported.
+)                                      # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -671,6 +684,9 @@ The file system connector allows for reading and writing from a local or distrib
 connector:
   type: filesystem
   path: "file:///path/to/whatever"    # required: path to a file or directory
+format:                               # required: file system connector requires to specify a format,
+  ...                                 # currently only "csv" format is supported.
+                                      # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -679,8 +695,11 @@ connector:
 CREATE TABLE MyUserTable (
   ...
 ) WITH (
-  'connector.type' = 'filesystem',               -- required: specify to connector type
-  'connector.path' = 'file:///path/to/whatever'  -- required: path to a file or directory
+  'connector.type' = 'filesystem',                -- required: specify to connector type
+  'connector.path' = 'file:///path/to/whatever',  -- required: path to a file or directory
+  'format.type' = '...',                          -- required: file system connector requires to specify a format,
+  ...                                             -- currently only 'csv' format is supported.
+                                                  -- Please refer to Table Formats section for more details.
 )
 {% endhighlight %}
 </div>
@@ -696,8 +715,7 @@ The file system connector itself is included in Flink and does not require an ad
 
 <span class="label label-primary">Source: Streaming Append Mode</span>
 <span class="label label-primary">Sink: Streaming Append Mode</span>
-<span class="label label-info">Format: Serialization Schema</span>
-<span class="label label-info">Format: Deserialization Schema</span>
+<span class="label label-info">Format: CSV, JSON, Avro</span>
 
 The Kafka connector allows for reading and writing from and to an Apache Kafka topic. It can be defined as follows:
 
@@ -725,6 +743,9 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
     .sinkPartitionerRoundRobin()    // a Flink partition is distributed to Kafka partitions round-robin
     .sinkPartitionerCustom(MyCustom.class)    // use a custom FlinkKafkaPartitioner subclass
 )
+.withFormat(                                  // required: Kafka connector requires to specify a format,
+  ...                                         // the supported formats are Csv, Json and Avro.
+)                                             // Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -751,6 +772,9 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
     .sink_partitioner_round_robin()  # a Flink partition is distributed to Kafka partitions round-robin
     .sink_partitioner_custom("full.qualified.custom.class.name")  # use a custom FlinkKafkaPartitioner subclass
 )
+.withFormat(                         # required: Kafka connector requires to specify a format,
+  ...                                # the supported formats are Csv, Json and Avro.
+)                                    # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -762,7 +786,7 @@ connector:
                       #   "0.8", "0.9", "0.10", "0.11", and "universal"
   topic: ...          # required: topic name from which the table is read
 
-  properties:          
+  properties:
     zookeeper.connect: localhost:2181  # required: specify the ZooKeeper connection string
     bootstrap.servers: localhost:9092  # required: specify the Kafka server connection string
     group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
@@ -770,12 +794,16 @@ connector:
   startup-mode: ...                                               # optional: valid modes are "earliest-offset", "latest-offset",
                                                                   # "group-offsets", or "specific-offsets"
   specific-offsets: partition:0,offset:42;partition:1,offset:300  # optional: used in case of startup mode with specific offsets
-  
+
   sink-partitioner: ...    # optional: output partitioning from Flink's partitions into Kafka's partitions
                            # valid are "fixed" (each Flink partition ends up in at most one Kafka partition),
                            # "round-robin" (a Flink partition is distributed to Kafka partitions round-robin)
                            # "custom" (use a custom FlinkKafkaPartitioner subclass)
   sink-partitioner-class: org.mycompany.MyPartitioner  # optional: used in case of sink partitioner custom
+
+  format:                  # required: Kafka connector requires to specify a format,
+    ...                    # the supported formats are "csv", "json" and "avro".
+                           # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -791,18 +819,15 @@ CREATE TABLE MyUserTable (
 
   'connector.topic' = 'topic_name', -- required: topic name from which the table is read
 
-  'update-mode' = 'append',         -- required: update mode when used as table sink,
-                                    -- only support append mode now.
-
-  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specifies the ZooKeeper connection string
-  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specifies the Kafka server connection string
-  'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specifies consumer group
+  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specify the ZooKeeper connection string
+  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specify the Kafka server connection string
+  'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specify consumer group
   'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset",
                                                    -- "latest-offset", "group-offsets",
                                                    -- or "specific-offsets"
 
   -- optional: used in case of startup mode with specific offsets
-  'connector.specific-offsets' = 'partition:0,offset:42,partition:1,offset:300',
+  'connector.specific-offsets' = 'partition:0,offset:42;partition:1,offset:300',
 
   'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions
                                          -- into Kafka's partitions valid are "fixed"
@@ -811,7 +836,11 @@ CREATE TABLE MyUserTable (
                                          -- Kafka partitions round-robin)
                                          -- "custom" (use a custom FlinkKafkaPartitioner subclass)
   -- optional: used in case of sink partitioner custom
-  'connector.sink-partitioner-class' = 'org.mycompany.MyPartitioner'
+  'connector.sink-partitioner-class' = 'org.mycompany.MyPartitioner',
+
+  'format.type' = '...',                 -- required: Kafka connector requires to specify a format,
+  ...                                    -- the supported formats are 'csv', 'json' and 'avro'.
+                                         -- Please refer to Table Formats section for more details.
 )
 {% endhighlight %}
 </div>
@@ -881,6 +910,10 @@ The connector can be defined as follows:
     .connectionMaxRetryTimeout(3)  // optional: maximum timeout (in milliseconds) between retries
     .connectionPathPrefix("/v1")   // optional: prefix string to be added to every REST communication
 )
+.withFormat(                      // required: Elasticsearch connector requires to specify a format,
+  ...                             // currently only Json format is supported.
+                                  // Please refer to Table Formats section for more details.
+)
 {% endhighlight %}
 </div>
 
@@ -918,6 +951,10 @@ The connector can be defined as follows:
     # optional: connection properties to be used during REST communication to Elasticsearch
     .connection_max_retry_timeout(3)    # optional: maximum timeout (in milliseconds) between retries
     .connection_path_prefix("/v1")      # optional: prefix string to be added to every REST communication
+)
+.withFormat(                      // required: Elasticsearch connector requires to specify a format,
+  ...                             // currently only Json format is supported.
+                                  // Please refer to Table Formats section for more details.
 )
 {% endhighlight %}
 </div>
@@ -957,6 +994,10 @@ connector:
     # optional: connection properties to be used during REST communication to Elasticsearch
     connection-max-retry-timeout: 3   # optional: maximum timeout (in milliseconds) between retries
     connection-path-prefix: "/v1"     # optional: prefix string to be added to every REST communication
+
+    format:                     # required: Elasticsearch connector requires to specify a format,
+      ...                       # currently only "json" format is supported.
+                                # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -1014,6 +1055,10 @@ CREATE TABLE MyUserTable (
                                                       -- between retries
   'connector.connection-path-prefix' = '/v1'          -- optional: prefix string to be added to every
                                                       -- REST communication
+
+  'format.type' = '...',   -- required: Elasticsearch connector requires to specify a format,
+  ...                      -- currently only 'json' format is supported.
+                           -- Please refer to Table Formats section for more details.
 )
 {% endhighlight %}
 </div>
@@ -1268,6 +1313,17 @@ CREATE TABLE MyUserTable (
 
 {% top %}
 
+
+### Hive Connector
+
+<span class="label label-primary">Source: Batch</span>
+<span class="label label-primary">Sink: Batch</span>
+
+Please refer to [Hive integration]({{ site.baseurl }}/dev/table/hive/).
+
+{% top %}
+
+
 Table Formats
 -------------
 
@@ -1388,7 +1444,7 @@ CREATE TABLE MyUserTable (
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
                                           -- "\r" or "\r\n" are allowed)
   'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
-  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#"
+  'format.allow-comments' = 'true',       -- optional: ignores comment lines that start with "#"
                                           -- (disabled by default);
                                           -- if enabled, make sure to also ignore parse errors to allow empty rows
   'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
@@ -1588,7 +1644,7 @@ The following table shows the mapping of JSON schema types to Flink SQL types:
 | `array`                           | `ARRAY[_]`              |
 | `number`                          | `DECIMAL`               |
 | `integer`                         | `DECIMAL`               |
-| `string`                          | `VARCHAR`               |
+| `string`                          | `STRING`                |
 | `string` with `format: date-time` | `TIMESTAMP`             |
 | `string` with `format: date`      | `DATE`                  |
 | `string` with `format: time`      | `TIME`                  |

@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -51,6 +52,11 @@ import java.util.Properties;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
@@ -81,7 +87,6 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
  * Factory for creating configured instances of {@link KafkaTableSourceBase}.
@@ -93,7 +98,6 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND); // append mode
 		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA); // kafka
 		context.put(CONNECTOR_VERSION, kafkaVersion()); // version
 		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
@@ -103,6 +107,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	@Override
 	public List<String> supportedProperties() {
 		List<String> properties = new ArrayList<>();
+		// update mode
+		properties.add(UPDATE_MODE);
 
 		// kafka
 		properties.add(CONNECTOR_TOPIC);
@@ -122,6 +128,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 		properties.add(SCHEMA + ".#." + SCHEMA_FROM);
+		// computed column
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
 
 		// time attributes
 		properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
@@ -133,6 +141,11 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
+
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
 		// format wildcard
 		properties.add(FORMAT + ".*");
@@ -149,7 +162,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
 		return createKafkaTableSource(
-			descriptorProperties.getTableSchema(SCHEMA),
+			TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA)),
 			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
 			SchemaValidator.deriveRowtimeAttributes(descriptorProperties),
 			SchemaValidator.deriveFieldMapping(
@@ -166,7 +179,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
+		final TableSchema schema = TableSchemaUtils.getPhysicalSchema(
+			descriptorProperties.getTableSchema(SCHEMA));
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(descriptorProperties);
 		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors =

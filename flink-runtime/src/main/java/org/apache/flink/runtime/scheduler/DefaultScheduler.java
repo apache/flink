@@ -191,6 +191,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	@Override
 	public void handleGlobalFailure(final Throwable error) {
+		setGlobalFailureCause(error);
+
 		log.info("Trying to recover from a global failure.", error);
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getGlobalFailureHandlingResult(error);
 		maybeRestartTasks(failureHandlingResult);
@@ -421,8 +423,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private void handleTaskDeploymentFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
-		log.info("Error while scheduling or deploying task {}.", executionVertexId, error);
-		handleTaskFailure(executionVertexId, error);
+		executionVertexOperations.markFailed(getExecutionVertex(executionVertexId), error);
 	}
 
 	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {

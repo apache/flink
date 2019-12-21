@@ -53,7 +53,8 @@ See bundled license files for details.
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
 
-- javax.xml.bind:jaxb-api:2.3.0
+- javax.activation:javax.activation-api:1.2.0
+- javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles "org.tukaani:xz:1.5".
 This Java implementation of XZ has been put into the public domain, thus you can do

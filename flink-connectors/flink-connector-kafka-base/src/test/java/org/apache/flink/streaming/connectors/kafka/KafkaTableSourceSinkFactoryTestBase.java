@@ -52,6 +52,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -84,6 +85,12 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	private static final String TIME = "time";
 	private static final String EVENT_TIME = "event-time";
 	private static final String PROC_TIME = "proc-time";
+	private static final String WATERMARK_EXPRESSION = EVENT_TIME + " - INTERVAL '5' SECOND";
+	private static final DataType WATERMARK_DATATYPE = DataTypes.TIMESTAMP(3);
+	private static final String COMPUTED_COLUMN_NAME = "computed-column";
+	private static final String COMPUTED_COLUMN_EXPRESSION = COUNT + " + 1.0";
+	private static final DataType COMPUTED_COLUMN_DATATYPE = DataTypes.DECIMAL(10, 3);
+
 	private static final Properties KAFKA_PROPERTIES = new Properties();
 	static {
 		KAFKA_PROPERTIES.setProperty("zookeeper.connect", "dummy");
@@ -103,7 +110,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
 			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
 			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
 			.build();
@@ -124,10 +131,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
 			TableSchema.builder()
 				.field(NAME, DataTypes.STRING())
-				.field(COUNT, DataTypes.DECIMAL(10, 3))
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
 				.field(TIME, DataTypes.TIMESTAMP(3))
-				.build()
-				.toRowType()
+				.build().toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
@@ -141,10 +147,18 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceValidation.validateTableSource(expected);
+		TableSourceValidation.validateTableSource(expected, schema);
 
 		// construct table source using descriptors and table source factory
-		final Map<String, String> propertiesMap = createKafkaSourceProperties();
+		final Map<String, String> propertiesMap = new HashMap<>();
+		propertiesMap.putAll(createKafkaSourceProperties());
+		propertiesMap.put("schema.watermark.0.rowtime", EVENT_TIME);
+		propertiesMap.put("schema.watermark.0.strategy.expr", WATERMARK_EXPRESSION);
+		propertiesMap.put("schema.watermark.0.strategy.data-type", WATERMARK_DATATYPE.toString());
+		propertiesMap.put("schema.4.name", COMPUTED_COLUMN_NAME);
+		propertiesMap.put("schema.4.data-type", COMPUTED_COLUMN_DATATYPE.toString());
+		propertiesMap.put("schema.4.expr", COMPUTED_COLUMN_EXPRESSION);
+
 		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, propertiesMap)
 			.createStreamTableSource(propertiesMap);
 
@@ -163,7 +177,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
 			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
 			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
 			.build();
@@ -184,10 +198,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
 			TableSchema.builder()
 				.field(NAME, DataTypes.STRING())
-				.field(COUNT, DataTypes.DECIMAL(10, 3))
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
 				.field(TIME, DataTypes.TIMESTAMP(3))
-				.build()
-				.toRowType()
+				.build().toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
@@ -201,7 +214,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceValidation.validateTableSource(expected);
+		TableSourceValidation.validateTableSource(expected, schema);
 
 		// construct table source using descriptors and table source factory
 		final Map<String, String> legacyPropertiesMap = new HashMap<>();
@@ -213,6 +226,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		legacyPropertiesMap.remove("connector.properties.bootstrap.servers");
 		legacyPropertiesMap.remove("connector.properties.group.id");
 
+		// keep compatible with a specified update-mode
+		legacyPropertiesMap.put("update-mode", "append");
+
+		// legacy properties for specific-offsets and properties
 		legacyPropertiesMap.put("connector.specific-offsets.0.partition", "0");
 		legacyPropertiesMap.put("connector.specific-offsets.0.offset", "100");
 		legacyPropertiesMap.put("connector.specific-offsets.1.partition", "1");
@@ -248,11 +265,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 				.withSchema(
 					new Schema()
 						.field(FRUIT_NAME, DataTypes.STRING()).from(NAME)
-						.field(COUNT, DataTypes.DECIMAL(10, 3)) // no from so it must match with the input
+						.field(COUNT, DataTypes.DECIMAL(38, 18)) // no from so it must match with the input
 						.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
 							new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
-							.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
-				.inAppendMode()
+						.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
 				.toProperties();
 	}
 
@@ -316,6 +332,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		legacyPropertiesMap.remove("connector.properties.bootstrap.servers");
 		legacyPropertiesMap.remove("connector.properties.group.id");
 
+		// keep compatible with a specified update-mode
+		legacyPropertiesMap.put("update-mode", "append");
+
+		// legacy properties for specific-offsets and properties
 		legacyPropertiesMap.put("connector.specific-offsets.0.partition", "0");
 		legacyPropertiesMap.put("connector.specific-offsets.0.offset", "100");
 		legacyPropertiesMap.put("connector.specific-offsets.1.partition", "1");

@@ -65,7 +65,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
@@ -169,6 +169,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.planner = planner;
 		this.parser = planner.getParser();
 		this.operationTreeBuilder = OperationTreeBuilder.create(
+			tableConfig,
 			functionCatalog,
 			path -> {
 				try {
@@ -189,18 +190,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	public static TableEnvironmentImpl create(EnvironmentSettings settings) {
 
+		TableConfig tableConfig = new TableConfig();
+
 		CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
 
 		ModuleManager moduleManager = new ModuleManager();
-		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
 			.create(executorProperties);
 
-		TableConfig tableConfig = new TableConfig();
 		Map<String, String> plannerProperties = settings.toPlannerProperties();
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
 			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
@@ -673,7 +675,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 * @param tableSource tableSource to validate
 	 */
 	protected void validateTableSource(TableSource<?> tableSource) {
-		TableSourceValidation.validateTableSource(tableSource);
+		TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema());
 	}
 
 	private void translate(List<ModifyOperation> modifyOperations) {
@@ -875,9 +877,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
 			AggregateFunction<T, ACC > aggregateFunction =
 				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
 				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
 			functionCatalog.registerTempCatalogAggregateFunction(
@@ -888,7 +890,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (functionDefinition instanceof TableFunctionDefinition) {
 			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
 			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfTableFunction(tableFunction);
 			functionCatalog.registerTempCatalogTableFunction(
 				functionIdentifier,
@@ -908,9 +910,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			AggregateFunctionDefinition aggregateFunctionDefinition = (AggregateFunctionDefinition) functionDefinition;
 			AggregateFunction<T, ACC > aggregateFunction =
 				(AggregateFunction<T, ACC >) aggregateFunctionDefinition.getAggregateFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfAggregateFunction(aggregateFunction);
-			TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
+			TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
 				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 			functionCatalog.registerTempSystemAggregateFunction(
 				functionName,
@@ -921,7 +923,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (functionDefinition instanceof TableFunctionDefinition) {
 			TableFunctionDefinition tableFunctionDefinition = (TableFunctionDefinition) functionDefinition;
 			TableFunction<T> tableFunction = (TableFunction<T>) tableFunctionDefinition.getTableFunction();
-			TypeInformation<T> typeInfo = UserFunctionsTypeHelper
+			TypeInformation<T> typeInfo = UserDefinedFunctionHelper
 				.getReturnTypeOfTableFunction(tableFunction);
 
 			functionCatalog.registerTempSystemTableFunction(

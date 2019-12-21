@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.api.model.ServiceSpec;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Setup services port.
@@ -89,7 +90,13 @@ public class ServiceDecorator extends Decorator<Service, KubernetesService> {
 		}
 
 		spec.setPorts(servicePorts);
-		spec.setSelector(resource.getMetadata().getLabels());
+
+		final Map<String, String> labels = new LabelBuilder()
+			.withExist(resource.getMetadata().getLabels())
+			.withJobManagerComponent()
+			.toLabels();
+
+		spec.setSelector(labels);
 
 		resource.setSpec(spec);
 

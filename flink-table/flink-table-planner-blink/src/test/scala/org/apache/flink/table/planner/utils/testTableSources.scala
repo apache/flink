@@ -150,7 +150,8 @@ class TestTableSourceWithTime[T](
     values: Seq[T],
     rowtime: String = null,
     proctime: String = null,
-    mapping: Map[String, String] = null)
+    mapping: Map[String, String] = null,
+    existingTs: String = null)
   extends StreamTableSource[T]
   with DefinedRowtimeAttributes
   with DefinedProctimeAttribute
@@ -165,9 +166,14 @@ class TestTableSourceWithTime[T](
   override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
     // return a RowtimeAttributeDescriptor if rowtime attribute is defined
     if (rowtime != null) {
+      val existingField = if (existingTs != null) {
+        existingTs
+      } else {
+        rowtime
+      }
       Collections.singletonList(new RowtimeAttributeDescriptor(
         rowtime,
-        new ExistingField(rowtime),
+        new ExistingField(existingField),
         new AscendingTimestamps))
     } else {
       Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]

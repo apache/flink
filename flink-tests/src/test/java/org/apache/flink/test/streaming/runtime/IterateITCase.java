@@ -485,7 +485,11 @@ public class IterateITCase extends AbstractTestBase {
 
 				head.addSink(new TestSink()).setParallelism(1);
 
-				assertEquals(1, env.getStreamGraph().getIterationSourceSinkPairs().size());
+				assertEquals(
+						1,
+						env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
+								.getIterationSourceSinkPairs()
+								.size());
 
 				env.execute();
 
@@ -589,16 +593,8 @@ public class IterateITCase extends AbstractTestBase {
 			try {
 				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-				env.enableCheckpointing();
-
-				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
-						.map(noOpBoolMap).name("ParallelizeMap");
-
-				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
-
-				iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
-
 				try {
+					createIteration(env, timeoutScale);
 					env.execute();
 
 					// this statement should never be reached
@@ -610,6 +606,7 @@ public class IterateITCase extends AbstractTestBase {
 				// Test force checkpointing
 
 				try {
+					createIteration(env, timeoutScale);
 					env.enableCheckpointing(
 						CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
 						CheckpointingMode.EXACTLY_ONCE,
@@ -622,6 +619,7 @@ public class IterateITCase extends AbstractTestBase {
 					// expected behaviour
 				}
 
+				createIteration(env, timeoutScale);
 				env.enableCheckpointing(
 					CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
 					CheckpointingMode.EXACTLY_ONCE,
@@ -639,6 +637,17 @@ public class IterateITCase extends AbstractTestBase {
 				}
 			}
 		}
+	}
+
+	private void createIteration(StreamExecutionEnvironment env, int timeoutScale) {
+		env.enableCheckpointing();
+
+		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
+				.map(noOpBoolMap).name("ParallelizeMap");
+
+		IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
+
+		iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
 	}
 
 	private static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {

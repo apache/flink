@@ -326,7 +326,7 @@ function check_logs_for_errors {
       | grep -v "An exception was thrown by an exception handler" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
-      | grep -v "org.apache.flink.fs.shaded.hadoop3.org.apache.commons.beanutils.FluentPropertyBeanIntrospector  - Error when creating PropertyDescriptor for public final void org.apache.flink.fs.shaded.hadoop3.org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
+      | grep -v "org.apache.commons.beanutils.FluentPropertyBeanIntrospector.*Error when creating PropertyDescriptor.*org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
       | grep -v "Error while loading kafka-version.properties :null" \
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
@@ -729,14 +729,21 @@ function find_latest_completed_checkpoint {
 }
 
 function retry_times() {
+    retry_times_with_backoff_and_cleanup $1 $2 "${@:3}" "true"
+}
+
+function retry_times_with_backoff_and_cleanup() {
     local retriesNumber=$1
     local backoff=$2
-    local command=${@:3}
+    local command="$3"
+    local cleanup_command="$4"
 
     for (( i = 0; i < ${retriesNumber}; i++ ))
     do
         if ${command}; then
             return 0
+        else
+            ${cleanup_command}
         fi
 
         echo "Command: ${command} failed. Retrying..."
@@ -744,6 +751,7 @@ function retry_times() {
     done
 
     echo "Command: ${command} failed ${retriesNumber} times."
+    ${cleanup_command}
     return 1
 }
 

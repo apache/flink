@@ -20,11 +20,8 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
@@ -663,26 +660,8 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected void executeProgram(
-			final Configuration configuration,
-			final PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
-		logAndSysout("Starting execution of program");
-
-		JobSubmissionResult result = ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
-
-		if (result.isJobExecutionResult()) {
-			logAndSysout("Program execution finished");
-			JobExecutionResult execResult = result.getJobExecutionResult();
-			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
-			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
-			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
-			if (accumulatorsResult.size() > 0) {
-				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormatted(accumulatorsResult));
-			}
-		} else {
-			logAndSysout("Job has been submitted with JobID " + result.getJobID());
-		}
+	protected void executeProgram(final Configuration configuration, final PackagedProgram program) throws ProgramInvocationException {
+		ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
 	}
 
 	/**
@@ -852,33 +831,16 @@ public class CliFrontend {
 	 */
 	private <ClusterID> void runClusterAction(CustomCommandLine activeCommandLine, CommandLine commandLine, ClusterAction<ClusterID> clusterAction) throws FlinkException {
 		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
-
 		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
-		final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig);
+
 		final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
-
 		if (clusterId == null) {
-			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
-				"you would like to connect.");
-		} else {
-			try {
-				final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient();
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which you would like to connect.");
+		}
 
-				try {
-					clusterAction.runAction(clusterClient);
-				} finally {
-					try {
-						clusterClient.close();
-					} catch (Exception e) {
-						LOG.info("Could not properly shut down the cluster client.", e);
-					}
-				}
-			} finally {
-				try {
-					clusterDescriptor.close();
-				} catch (Exception e) {
-					LOG.info("Could not properly close the cluster descriptor.", e);
-				}
+		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig)) {
+			try (final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient()) {
+				clusterAction.runAction(clusterClient);
 			}
 		}
 	}
@@ -1074,18 +1036,7 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
-		//	Command line interface of the kubernetes session, with a special initialization here
-		//  to prefix all options with k/kubernetes.
-		final String kubeSessionCLI = "org.apache.flink.kubernetes.cli.FlinkKubernetesCustomCli";
-		try {
-			customCommandLines.add(
-				loadCustomCommandLine(kubeSessionCLI,
-					configuration,
-					"k",
-					"kubernetes"));
-		} catch (NoClassDefFoundError | Exception e) {
-			LOG.warn("Could not load CLI class {}.", kubeSessionCLI, e);
-		}
+		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.

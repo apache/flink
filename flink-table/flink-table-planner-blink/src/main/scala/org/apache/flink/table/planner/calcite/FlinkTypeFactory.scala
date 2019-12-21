@@ -23,6 +23,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
@@ -483,6 +485,17 @@ object FlinkTypeFactory {
         throw new TableException(s"Type is not supported: $t")
     }
     logicalType.copy(relDataType.isNullable)
+  }
+
+  def toTableSchema(relDataType: RelDataType): TableSchema = {
+    val fieldNames = relDataType.getFieldNames.toArray(new Array[String](0))
+    val fieldTypes = relDataType.getFieldList
+      .asScala
+      .map(field =>
+        LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+          FlinkTypeFactory.toLogicalType(field.getType))
+      ).toArray
+    TableSchema.builder.fields(fieldNames, fieldTypes).build
   }
 
   def toLogicalRowType(relType: RelDataType): RowType = {

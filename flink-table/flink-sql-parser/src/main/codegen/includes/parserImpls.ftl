@@ -570,7 +570,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-        partitionColumns = ParenthesizedSimpleIdentifierList()
+        partitionColumns = ParenthesizedSimpleIdentifierList() {
+            if (!((FlinkSqlConformance) this.conformance).allowCreatePartitionedTable()) {
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.createPartitionedTableIsOnlyAllowedForHive());
+            }
+        }
     ]
     [
         <WITH>
@@ -636,10 +641,7 @@ SqlNode RichSqlInsert() :
         <INTO>
     |
         <OVERWRITE> {
-            if (!((FlinkSqlConformance) this.conformance).allowInsertOverwrite()) {
-                throw SqlUtil.newContextException(getPos(),
-                    ParserResource.RESOURCE.overwriteIsOnlyAllowedForHive());
-            } else if (RichSqlInsert.isUpsert(keywords)) {
+            if (RichSqlInsert.isUpsert(keywords)) {
                 throw SqlUtil.newContextException(getPos(),
                     ParserResource.RESOURCE.overwriteIsOnlyUsedWithInsert());
             }
@@ -672,12 +674,7 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
-        <PARTITION> PartitionSpecCommaList(partitionList) {
-            if (!((FlinkSqlConformance) this.conformance).allowInsertIntoPartition()) {
-                throw SqlUtil.newContextException(getPos(),
-                    ParserResource.RESOURCE.partitionIsOnlyAllowedForHive());
-            }
-        }
+        <PARTITION> PartitionSpecCommaList(partitionList)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,

@@ -35,6 +35,11 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
@@ -85,6 +90,12 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
 		return properties;
 	}
 
@@ -122,7 +133,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		params.getOptionalString(FORMAT_LINE_DELIMITER).ifPresent(csvTableSourceBuilder::lineDelimiter);
 
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
-			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldTypes()[i]);
+			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldDataTypes()[i]);
 		}
 		params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER).ifPresent(csvTableSourceBuilder::quoteCharacter);
 		params.getOptionalString(FORMAT_COMMENT_PREFIX).ifPresent(csvTableSourceBuilder::commentPrefix);

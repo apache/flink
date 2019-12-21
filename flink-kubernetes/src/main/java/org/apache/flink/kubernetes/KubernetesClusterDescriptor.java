@@ -91,14 +91,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			}
 
 			try {
-
-				RestClusterClient<String> resultClient = new RestClusterClient<>(
-						configuration, clusterId);
-				LOG.info(
-						"Succesfully retrieved cluster client for cluster {}, JobManager Web Interface : {}",
-						clusterId,
-						resultClient.getWebInterfaceURL());
-				return resultClient;
+				return new RestClusterClient<>(configuration, clusterId);
 			} catch (Exception e) {
 				client.handleException(e);
 				throw new RuntimeException(new ClusterRetrieveException("Could not create the RestClusterClient.", e));
@@ -108,17 +101,31 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 	@Override
 	public ClusterClientProvider<String> retrieve(String clusterId) {
-		return createClusterClientProvider(clusterId);
+		final ClusterClientProvider<String> clusterClientProvider = createClusterClientProvider(clusterId);
+
+		try (ClusterClient<String> clusterClient = clusterClientProvider.getClusterClient()) {
+			LOG.info(
+				"Retrieve flink cluster {} successfully, JobManager Web Interface: {}",
+				clusterId,
+				clusterClient.getWebInterfaceURL());
+		}
+		return clusterClientProvider;
 	}
 
 	@Override
 	public ClusterClientProvider<String> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
-		final ClusterClientProvider<String> clusterClient = deployClusterInternal(
+		final ClusterClientProvider<String> clusterClientProvider = deployClusterInternal(
 			KubernetesSessionClusterEntrypoint.class.getName(),
 			clusterSpecification,
 			false);
 
-		return clusterClient;
+		try (ClusterClient<String> clusterClient = clusterClientProvider.getClusterClient()) {
+			LOG.info(
+				"Create flink session cluster {} successfully, JobManager Web Interface: {}",
+				clusterId,
+				clusterClient.getWebInterfaceURL());
+		}
+		return clusterClientProvider;
 	}
 
 	@Override
@@ -180,16 +187,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			client.createConfigMap();
 			client.createFlinkMasterDeployment(clusterSpecification);
 
-			ClusterClientProvider<String> clusterClientProvider = createClusterClientProvider(clusterId);
-
-			try (ClusterClient<String> clusterClient = clusterClientProvider.getClusterClient()) {
-				LOG.info(
-						"Create flink session cluster {} successfully, JobManager Web Interface: {}",
-						clusterId,
-						clusterClient.getWebInterfaceURL());
-			}
-
-			return clusterClientProvider;
+			return createClusterClientProvider(clusterId);
 		} catch (Exception e) {
 			client.handleException(e);
 			throw new ClusterDeploymentException("Could not create Kubernetes cluster " + clusterId, e);

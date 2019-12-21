@@ -147,24 +147,9 @@ public enum FlinkSqlConformance implements SqlConformance {
 	}
 
 	/**
-	 * Whether to allow "insert into tbl1 partition(col1=val1)" grammar.
+	 * Whether to allow "create table T(i int, j int) partitioned by (i)" grammar.
 	 */
-	public boolean allowInsertIntoPartition() {
-		switch (this) {
-			case HIVE:
-				return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Whether to allow "insert overwrite tbl1 partition(col1=val1)" grammar.
-	 */
-	public boolean allowInsertOverwrite() {
-		switch (this) {
-			case HIVE:
-				return true;
-		}
-		return false;
+	public boolean allowCreatePartitionedTable() {
+		return this == FlinkSqlConformance.HIVE;
 	}
 }

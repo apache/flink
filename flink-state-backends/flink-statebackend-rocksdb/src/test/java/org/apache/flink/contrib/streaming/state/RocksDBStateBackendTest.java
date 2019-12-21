@@ -55,7 +55,6 @@ import org.mockito.stubbing.Answer;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
@@ -115,20 +114,16 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	// Store it because we need it for the cleanup test.
 	private String dbPath;
 	private RocksDB db = null;
-	private File instanceBasePath = null;
 	private ColumnFamilyHandle defaultCFHandle = null;
-	private ColumnFamilyOptions columnOptions = null;
-	private DBOptions dbOptions = null;
+	private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
 	public void prepareRocksDB() throws Exception {
-		instanceBasePath = tempFolder.newFolder();
-		instanceBasePath.mkdirs();
-		String dbPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING).getAbsolutePath();
-		columnOptions = PredefinedOptions.DEFAULT.createColumnOptions();
-		dbOptions = PredefinedOptions.DEFAULT.createDBOptions().setCreateIfMissing(true);
+		String dbPath = new File(tempFolder.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
+		ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
+
 		ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		db = RocksDBOperationUtils.openDB(dbPath, Collections.emptyList(),
-			columnFamilyHandles, columnOptions, dbOptions);
+			columnFamilyHandles, columnOptions, optionsContainer.getDbOptions());
 		defaultCFHandle = columnFamilyHandles.remove(0);
 	}
 
@@ -160,19 +155,13 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		}
 		IOUtils.closeQuietly(defaultCFHandle);
 		IOUtils.closeQuietly(db);
-		IOUtils.closeQuietly(columnOptions);
-		IOUtils.closeQuietly(dbOptions);
+		IOUtils.closeQuietly(optionsContainer);
 
 		if (allCreatedCloseables != null) {
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
 				verify(rocksCloseable, times(1)).close();
 			}
 			allCreatedCloseables = null;
-		}
-		try {
-			org.apache.flink.util.FileUtils.deleteDirectory(instanceBasePath);
-		} catch (Exception ex) {
-			// ignored
 		}
 	}
 
@@ -188,11 +177,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		prepareRocksDB();
 
 		keyedStateBackend = RocksDBTestUtils.builderForTestDB(
-				instanceBasePath,
+				tempFolder.newFolder(), // this is not used anyways because the DB is injected
 				IntSerializer.INSTANCE,
 				spy(db),
 				defaultCFHandle,
-				PredefinedOptions.DEFAULT.createColumnOptions())
+				optionsContainer.getColumnOptions())
 			.setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
 			.build();
 

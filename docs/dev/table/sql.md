@@ -1324,7 +1324,7 @@ MATCH_RECOGNIZE (
 
 ## DDL
 
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success table creation. A `Table` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
+DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table operation. A `CatalogTable` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
 
 **Note:** Flink's DDL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL DDL on batch and streaming tables are listed in the following sections.
 
@@ -1431,6 +1431,79 @@ Drop a table with the given table name. If the table to drop does not exist, an 
 **IF EXISTS**
 
 If the table does not exist, nothing happens.
+
+{% top %}
+
+### Alter Table
+
+* Rename Table
+
+{% highlight sql %}
+ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
+{% endhighlight %}
+
+Rename the given table name to another new table name.
+
+* Set or Alter Table Properties
+
+{% highlight sql %}
+ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
+{% endhighlight %}
+
+Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
+
+{% top %}
+
+### Create Database
+
+{% highlight sql %}
+CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
+  [COMMENT database_comment]
+  WITH (key1=val1, key2=val2, ...)
+{% endhighlight %}
+
+Create a database with the given database properties. If a database with the same name already exists in the catalog, an exception is thrown.
+
+**IF NOT EXISTS**
+
+If the database already exists, nothing happens.
+
+**WITH OPTIONS**
+
+Database properties used to store extra information related to this database. 
+The key and value of expression `key1=val1` should both be string literal. 
+
+{% top %}
+
+### Drop Database
+
+{% highlight sql %}
+DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
+{% endhighlight %}
+
+Drop a database with the given database name. If the database to drop does not exist, an exception is thrown.
+
+**IF EXISTS**
+
+If the database does not exist, nothing happens.
+
+**RESTRICT**
+
+Dropping a non-empty database triggers an exception. Enabled by default.
+
+**CASCADE**
+
+Dropping a non-empty database also drops all associated tables and functions.
+
+{% top %}
+
+### Alter Database
+
+{% highlight sql %}
+ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
+{% endhighlight %}
+
+Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
 
 {% top %}
 

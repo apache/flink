@@ -332,7 +332,7 @@ __注意：__ 如果你使用其他类而不是 *StreamingJob* 作为应用程�
 [DataStream API]({{ site.baseurl }}/zh/dev/datastream_api.html) 和
 [DataSet API]({{ site.baseurl }}/zh/dev/batch/index.html) 章节。
 
-在[这里]({{ site.baseurl }}/zh/getting-started/tutorials/local_setup.html)，你可以找到如何在 IDE 之外的本地集群中运行应用程序。
+在[这里]({{ site.baseurl }}/zh/ops/deployment/local.html)，你可以找到如何在 IDE 之外的本地集群中运行应用程序。
 
 如果你有任何问题，请发信至我们的[邮箱列表](http://mail-archives.apache.org/mod_mbox/flink-user/)，我们很乐意提供帮助。
 

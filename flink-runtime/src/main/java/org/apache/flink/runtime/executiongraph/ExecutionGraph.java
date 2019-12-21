@@ -1260,7 +1260,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		numberOfRestartsCounter.inc();
 	}
 
-	private void initFailureCause(Throwable t) {
+	public void initFailureCause(Throwable t) {
 		this.failureCause = t;
 		this.failureInfo = new ErrorInfo(t, System.currentTimeMillis());
 	}

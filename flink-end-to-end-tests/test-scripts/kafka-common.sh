@@ -75,7 +75,10 @@ function start_kafka_cluster {
 }
 
 function stop_kafka_cluster {
-  $KAFKA_DIR/bin/kafka-server-stop.sh
+ if ! [[ -z $(./bin/kafka-server-stop) ]]; then
+   echo "Kafka server was already shut down; dumping logs:"
+   cat ${KAFKA_DIR}/logs/server.out
+ fi
   $KAFKA_DIR/bin/zookeeper-server-stop.sh
 
   # Terminate Kafka process if it still exists
@@ -143,7 +146,7 @@ function start_confluent_schema_registry {
 
   if ! get_and_verify_schema_subjects_exist; then
       echo "Could not start confluent schema registry"
-      exit 1
+      return 1
   fi
 }
 

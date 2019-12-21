@@ -33,7 +33,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 @Internal
 public class YarnJobClusterExecutor extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String NAME = "yarn-per-job-executor";
+	public static final String NAME = "yarn-per-job";
 
 	public YarnJobClusterExecutor() {
 		super(new YarnClusterClientFactory());

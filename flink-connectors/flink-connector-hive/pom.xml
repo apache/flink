@@ -55,7 +55,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -91,6 +90,12 @@ under the License.
 					<artifactId>orc-core</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Hadoop dependency -->
@@ -682,6 +687,32 @@ under the License.
 						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
 					</systemPropertyVariables>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.flink:flink-hadoop-fs</include>
+									<include>org.apache.flink:flink-orc_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

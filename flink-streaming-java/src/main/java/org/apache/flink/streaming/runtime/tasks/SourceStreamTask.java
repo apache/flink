@@ -131,8 +131,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void cancelTask() {
-		if (headOperator != null) {
-			headOperator.cancel();
+		try {
+			if (headOperator != null) {
+				headOperator.cancel();
+			}
+		}
+		finally {
+			sourceThread.interrupt();
 		}
 	}
 
@@ -191,6 +196,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
 				completionFuture.complete(null);
 			} catch (Throwable t) {
+				// Note, t can be also an InterruptedException
 				completionFuture.completeExceptionally(t);
 			}
 		}

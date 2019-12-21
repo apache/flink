@@ -1649,7 +1649,7 @@ abstract class CodeGenerator(
       function: UserDefinedFunction,
       contextTerm: String = null,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext]): String = {
-    val classQualifier = function.getClass.getCanonicalName
+    val classQualifier = function.getClass.getName
     val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
 

@@ -97,7 +97,7 @@ public class KubernetesConfigOptions {
 		key("kubernetes.cluster-id")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("The cluster id that will be used for flink cluster. If it's not set, " +
+		.withDescription("The cluster id used for identifying the unique flink cluster. If it's not set, " +
 			"the client will generate a random UUID name.");
 
 	public static final ConfigOption<String> CONTAINER_IMAGE =

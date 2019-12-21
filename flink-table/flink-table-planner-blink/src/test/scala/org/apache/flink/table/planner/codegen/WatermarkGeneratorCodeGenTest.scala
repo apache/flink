@@ -45,11 +45,12 @@ import java.util.Collections
 class WatermarkGeneratorCodeGenTest {
 
   // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
+  val config = new TableConfig
   val catalog = new GenericInMemoryCatalog("MockCatalog", "default")
   val catalogManager = new CatalogManager("builtin", catalog)
-  val functionCatalog = new FunctionCatalog(catalogManager, new ModuleManager)
+  val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
   val plannerContext = new PlannerContext(
-    new TableConfig,
+    config,
     functionCatalog,
     catalogManager,
     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),

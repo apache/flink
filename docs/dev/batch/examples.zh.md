@@ -1,7 +1,7 @@
 ---
 title:  "Batch 示例"
 nav-title: Batch 示例
-nav-parent_id: examples
+nav-parent_id: batch
 nav-pos: 20
 ---
 <!--

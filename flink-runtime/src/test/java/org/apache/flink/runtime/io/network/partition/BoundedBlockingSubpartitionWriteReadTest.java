@@ -173,7 +173,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 		long expectedNextLong = 0L;
 		int nextExpectedBacklog = numBuffers - 1;
 
-		while ((next = reader.getNextBuffer(true)) != null && next.buffer().isBuffer()) {
+		while ((next = reader.getNextBuffer()) != null && next.buffer().isBuffer()) {
 			assertTrue(next.isMoreAvailable());
 			assertEquals(nextExpectedBacklog, next.buffersInBacklog());
 

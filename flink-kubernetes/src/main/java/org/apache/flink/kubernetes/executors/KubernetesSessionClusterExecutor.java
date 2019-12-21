@@ -29,7 +29,7 @@ import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
 @Internal
 public class KubernetesSessionClusterExecutor extends AbstractSessionClusterExecutor<String, KubernetesClusterClientFactory> {
 
-	public static final String NAME = "kubernetes-session-cluster";
+	public static final String NAME = "kubernetes-session";
 
 	public KubernetesSessionClusterExecutor() {
 		super(new KubernetesClusterClientFactory());

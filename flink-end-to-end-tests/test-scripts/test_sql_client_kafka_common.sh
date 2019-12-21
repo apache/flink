@@ -213,4 +213,12 @@ for i in {1..10}; do
   sleep 5
 done
 
-check_result_hash "SQL Client Kafka $KAFKA_VERSION" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
+#Expected results:
+#
+#2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.
+#2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.
+#2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.
+#2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding.
+#
+
+check_result_hash "SQL Client Kafka $KAFKA_VERSION" $RESULT "1303e3aa1d7aeb63024d539f15e42dd1"

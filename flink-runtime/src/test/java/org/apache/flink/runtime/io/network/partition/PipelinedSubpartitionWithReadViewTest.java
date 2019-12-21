@@ -41,7 +41,6 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledUnfinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
@@ -94,7 +93,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 	public void testAddTwoNonFinishedBuffer() {
 		subpartition.add(createBufferBuilder().createBufferConsumer());
 		subpartition.add(createBufferBuilder().createBufferConsumer());
-		assertNull(readView.getNextBuffer(true));
+		assertNull(readView.getNextBuffer());
 	}
 
 	@Test
@@ -105,7 +104,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 		subpartition.add(bufferBuilder.createBufferConsumer());
 
 		assertEquals(0, availablityListener.getNumNotifications());
-		assertNull(readView.getNextBuffer(true));
+		assertNull(readView.getNextBuffer());
 
 		bufferBuilder.finish();
 		bufferBuilder = createBufferBuilder();
@@ -113,7 +112,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(1, availablityListener.getNumNotifications()); // notification from finishing previous buffer.
-		assertNull(readView.getNextBuffer(true));
+		assertNull(readView.getNextBuffer());
 		assertEquals(0, subpartition.getBuffersInBacklog());
 	}
 
@@ -316,15 +315,6 @@ public class PipelinedSubpartitionWithReadViewTest {
 		testBacklogConsistentWithNumberOfConsumableBuffers(false, true);
 	}
 
-	@Test
-	public void testBufferCompression() {
-		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-
-		assertFalse(checkNotNull(readView.getNextBuffer(true)).buffer().isCompressed());
-		assertThat(checkNotNull(readView.getNextBuffer(false)).buffer().isCompressed(), is(compressionEnabled));
-	}
-
 	private void testBacklogConsistentWithNumberOfConsumableBuffers(boolean isFlushRequested, boolean isFinished) throws Exception {
 		final int numberOfAddedBuffers = 5;
 
@@ -349,7 +339,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 		int numberOfConsumableBuffers = 0;
 		try (final CloseableRegistry closeableRegistry = new CloseableRegistry()) {
 			while (readView.isAvailable()) {
-				ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer(true);
+				ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer();
 				assertNotNull(bufferAndBacklog);
 
 				if (bufferAndBacklog.buffer().isBuffer()) {
@@ -413,7 +403,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
 		checkArgument(expectedEventClass == null || !expectedIsBuffer);
 
-		ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer(true);
+		ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer();
 		assertNotNull(bufferAndBacklog);
 		try {
 			assertEquals("buffer size", expectedReadableBufferSize,
@@ -442,6 +432,6 @@ public class PipelinedSubpartitionWithReadViewTest {
 	}
 
 	static void assertNoNextBuffer(ResultSubpartitionView readView) throws IOException, InterruptedException {
-		assertNull(readView.getNextBuffer(true));
+		assertNull(readView.getNextBuffer());
 	}
 }
