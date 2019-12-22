@@ -29,7 +29,6 @@ SCRIPT=$1
 CMD=${@:2}
 
 source ${HERE}/setup_docker.sh
-source ${HERE}/setup_kubernetes.sh
 
 ARTIFACTS_DIR="${HERE}/artifacts"
 
