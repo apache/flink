@@ -26,6 +26,21 @@ MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
 
+# If running tests on non-linux os, the kubectl and minikube should be installed manually
+function setup_kubernetes_for_linux {
+    # Download kubectl, which is a requirement for using minikube.
+    if ! [ -x "$(command -v kubectl)" ]; then
+        local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/amd64/kubectl && \
+            chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+    fi
+    # Download minikube.
+    if ! [ -x "$(command -v minikube)" ]; then
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && \
+            chmod +x minikube && sudo mv minikube /usr/local/bin/
+    fi
+}
+
 function check_kubernetes_status {
     minikube status
     return $?
@@ -33,7 +48,12 @@ function check_kubernetes_status {
 
 function start_kubernetes_if_not_running {
     if ! check_kubernetes_status; then
-        minikube start
+        start_command="minikube start"
+        # We need sudo permission to set vm-driver to none in linux os.
+        [[ "${OS_TYPE}" = "linux" ]] && start_command="sudo ${start_command} --vm-driver=none"
+        ${start_command}
+        # Fix the kubectl context, as it's often stale.
+        minikube update-context
     fi
 
     check_kubernetes_status
@@ -41,11 +61,21 @@ function start_kubernetes_if_not_running {
 }
 
 function start_kubernetes {
+    [[ "${OS_TYPE}" = "linux" ]] && setup_kubernetes_for_linux
     if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
-        echo "Minikube not running. Could not start minikube. Aborting..."
+        echo "Could not start minikube. Aborting..."
         exit 1
     fi
     eval $(minikube docker-env)
+}
+
+function stop_kubernetes {
+    stop_command="minikube stop"
+    [[ "${OS_TYPE}" = "linux" ]] && stop_command="sudo ${stop_command}"
+    if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
+        echo "Could not stop minikube. Aborting..."
+        exit 1
+    fi
 }
 
 on_exit cleanup
