@@ -30,6 +30,7 @@ function cleanup {
     kubectl delete job flink-job-cluster
     kubectl delete service flink-job-cluster
     kubectl delete deployment flink-task-manager
+    stop_kubernetes
 }
 
 start_kubernetes
