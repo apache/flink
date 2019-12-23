@@ -351,7 +351,7 @@ jobs:
       name: e2e - checkpoints
     - if: type = cron
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
-      script: ./tools/travis/nightly.sh split_container.sh
+      script: ./tools/travis/nightly.sh split_container.sh without-hadoop
       name: e2e - container
     - if: type = cron
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"

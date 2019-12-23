@@ -27,9 +27,9 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
-import org.apache.flink.table.types.inference.ArgumentTypeValidator;
-import org.apache.flink.table.types.inference.InputTypeValidator;
-import org.apache.flink.table.types.inference.InputTypeValidators;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
@@ -44,7 +44,7 @@ import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extr
 
 /**
  * Internal representation of a {@link DataTypeHint} and template for creating a single {@link DataType}
- * or a {@link InputTypeValidator} for groups of {@link DataType}s.
+ * or a {@link InputTypeStrategy} for groups of {@link DataType}s.
  *
  * <p>All parameters of a template are optional. An empty annotation results in a template where all
  * members are {@code null}.
@@ -212,17 +212,17 @@ public final class DataTypeTemplate {
 	}
 
 	/**
-	 * Converts this template into an {@link ArgumentTypeValidator}.
+	 * Converts this template into an {@link ArgumentTypeStrategy}.
 	 */
-	public ArgumentTypeValidator toArgumentTypeValidator() {
+	public ArgumentTypeStrategy toArgumentTypeStrategy() {
 		// data type
 		if (hasDataTypeDefinition()) {
-			return InputTypeValidators.explicit(dataType);
+			return InputTypeStrategies.explicit(dataType);
 		}
 		// input group
 		else if (hasInputGroupDefinition()) {
 			if (inputGroup == InputGroup.ANY) {
-				return InputTypeValidators.ANY;
+				return InputTypeStrategies.ANY;
 			}
 		}
 		throw ExtractionUtils.extractionError(

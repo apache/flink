@@ -51,8 +51,6 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
-	private boolean pipelinedShuffleCompressionEnabled = false;
-
 	private String compressionCodec = "LZ4";
 
 	private ResourceID taskManagerLocation = ResourceID.generate();
@@ -96,11 +94,6 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setPipelinedShuffleCompressionEnabled(boolean pipelinedShuffleCompressionEnabled) {
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
-		return this;
-	}
-
 	public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
 		this.compressionCodec = compressionCodec;
 		return this;
@@ -132,7 +125,6 @@ public class NettyShuffleEnvironmentBuilder {
 				BoundedBlockingSubpartitionType.AUTO,
 				false,
 				blockingShuffleCompressionEnabled,
-				pipelinedShuffleCompressionEnabled,
 				compressionCodec),
 			taskManagerLocation,
 			new TaskEventDispatcher(),

@@ -91,7 +91,7 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 					}
 				}
 
-				final BufferAndBacklog bufferAndBacklog = subpartitionView.getNextBuffer(true);
+				final BufferAndBacklog bufferAndBacklog = subpartitionView.getNextBuffer();
 
 				if (isSlowConsumer) {
 					Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));

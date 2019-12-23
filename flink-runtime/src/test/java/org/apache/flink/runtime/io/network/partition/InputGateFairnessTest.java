@@ -68,7 +68,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		final BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42, true);
+		final BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 
@@ -122,7 +122,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		try (BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42, true)) {
+		try (BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42)) {
 
 			// ----- create some source channels and fill them with one buffer each -----
 

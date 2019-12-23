@@ -70,7 +70,6 @@ class PartitionableSinkITCase extends BatchTestBase {
     tEnv.getConfig
       .getConfiguration
       .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3)
-    tEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     registerCollection("nonSortTable", testData, type3, "a, b, c", dataNullables)
     registerCollection("sortTable", testData1, type3, "a, b, c", dataNullables)
     PartitionableSinkITCase.init()

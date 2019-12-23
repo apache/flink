@@ -78,6 +78,14 @@ Flink supports the following Hive versions.
     - 3.1.1
     - 3.1.2
 
+Please note Hive itself have different features available for different versions, and these issues are not caused by Flink:
+
+- Hive built-in functions are supported in 1.2.0 and later.
+- Column constraints, i.e. PRIMARY KEY and NOT NULL, are supported in 3.1.0 and later.
+- Altering table statistics is supported in 1.2.0 and later.
+- `DATE` column statistics are supported in 1.2.0 and later.
+- Writing to ORC tables is not supported in 2.0.x.
+
 ### Dependencies
 
 To integrate with Hive, users need some dependencies in your `/lib/` directory in Flink distribution
@@ -97,14 +105,13 @@ We are using Hive 2.3.4 and 1.2.1 as examples here.
        // we highly recommend using Flink's blink planner with Hive integration
        flink-table-blink{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
-       // Flink's Hive connector
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
        // Pick the correct Hadoop dependency for your project.
        // Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop is pre-built with,
        // but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.7.2
-       flink-hadoop-compatibility{{ site.scala_version_suffix }}-{{ site.version }}.jar
        flink-shaded-hadoop-2-uber-2.7.5-{{ site.shaded_version }}.jar
 
        // Hive dependencies
@@ -123,14 +130,13 @@ We are using Hive 2.3.4 and 1.2.1 as examples here.
        // we highly recommend using Flink's blink planner with Hive integration
        flink-table-blink{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
-       // Flink's Hive connector
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
        // Pick the correct Hadoop dependency for your project.
        // Hive 1.2.1 is built with Hadoop 2.6.0. We pick 2.6.5 which flink-shaded-hadoop is pre-built with,
        // but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.6.0
-       flink-hadoop-compatibility{{ site.scala_version_suffix }}-{{ site.version }}.jar
        flink-shaded-hadoop-2-uber-2.6.5-{{ site.shaded_version }}.jar
 
        // Hive dependencies
