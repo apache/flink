@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
+import org.apache.flink.util.ShutdownHookUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,12 +52,30 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	/** The number of the next path to use. */
 	private volatile int nextPath;
 
+	private final String prefix;
+
+	private final Thread shutdownHook;
+
 	public FileChannelManagerImpl(String[] tempDirs, String prefix) {
+		this(tempDirs, prefix, false);
+	}
+
+	public FileChannelManagerImpl(String[] tempDirs, String prefix, boolean deleteOnShutdown) {
 		checkNotNull(tempDirs, "The temporary directories must not be null.");
 		checkArgument(tempDirs.length > 0, "The temporary directories must not be empty.");
 
 		this.random = new Random();
 		this.nextPath = 0;
+		this.prefix = prefix;
+
+		if (deleteOnShutdown) {
+			shutdownHook = ShutdownHookUtil.addShutdownHook(this, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
+		} else {
+			shutdownHook = null;
+		}
+
+		// Creates directories after registering shutdown hook to ensure the directories can be
+		// removed if required.
 		this.paths = createFiles(tempDirs, prefix);
 	}
 
@@ -103,6 +122,10 @@ public class FileChannelManagerImpl implements FileChannelManager {
 			.filter(File::exists)
 			.map(FileChannelManagerImpl::getFileCloser)
 			.collect(Collectors.toList()));
+
+		if (shutdownHook != null) {
+			ShutdownHookUtil.removeShutdownHook(shutdownHook, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
+		}
 	}
 
 	private static AutoCloseable getFileCloser(File path) {
