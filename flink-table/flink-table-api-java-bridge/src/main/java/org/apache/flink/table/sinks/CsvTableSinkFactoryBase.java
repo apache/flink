@@ -19,7 +19,6 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -28,7 +27,8 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
-import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -99,7 +99,7 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		new SchemaValidator(isStreaming, false, false).validate(params);
 
 		// build
-		TableSchema tableSchema = params.getTableSchema(SCHEMA);
+		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA));
 
 		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
 		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
@@ -114,10 +114,8 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		String path = params.getString(CONNECTOR_PATH);
 		String fieldDelimiter = params.getOptionalString(FORMAT_FIELD_DELIMITER).orElse(",");
 
-		CsvTableSink csvTableSink = new CsvTableSink(path, fieldDelimiter);
-
 		// bridge to java.sql.Timestamp/Time/Date
-		TypeInformation<?>[] typeInfos = Arrays.stream(tableSchema.getFieldDataTypes())
+		DataType[] dataTypes = Arrays.stream(tableSchema.getFieldDataTypes())
 			.map(dt -> {
 				switch (dt.getLogicalType().getTypeRoot()) {
 					case TIMESTAMP_WITHOUT_TIME_ZONE:
@@ -130,10 +128,15 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 						return dt;
 				}
 			})
-			.map(TypeConversions::fromDataTypeToLegacyInfo)
-			.toArray(TypeInformation[]::new);
+			.toArray(DataType[]::new);
 
-		return (CsvTableSink) csvTableSink.configure(tableSchema.getFieldNames(), typeInfos);
+		return new CsvTableSink(
+			path,
+			fieldDelimiter,
+			-1,
+			null,
+			tableSchema.getFieldNames(),
+			dataTypes);
 	}
 
 }
