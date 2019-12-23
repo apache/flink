@@ -1364,8 +1364,9 @@ CREATE TABLE MyUserTable (
   'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
-  'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
-                                          -- "\r" or "\r\n" are allowed)
+  'format.line-delimiter' = U&'\000D\000A',  -- optional: line delimiter ("\n" by default; otherwise
+                                             -- "\r" or "\r\n" are allowed)
+                                             -- NOTE: should use unicode to describe carriage return and line feed.
   'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
   'format.allow-comments' = 'true',       -- optional: ignores comment lines that start with "#"
                                           -- (disabled by default);
@@ -1857,7 +1858,8 @@ CREATE TABLE MyUserTable (
   'format.fields.1.data-type' = 'TIMESTAMP(3)',
 
   'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
-  'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
+  'format.line-delimiter' = U&'\000A',    -- optional: string delimiter "\n" by default
+                                          -- NOTE: should use unicode to describe line feed.
   'format.quote-character' = '"',         -- optional: single character for string values, empty by default
   'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
   'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
