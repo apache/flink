@@ -39,6 +39,9 @@ import org.apache.flink.util.TimeUtils;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -95,15 +98,20 @@ public class DescriptorProperties {
 
 	public static final String WATERMARK_STRATEGY_DATA_TYPE = "strategy.data-type";
 
+	public static final String DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss[.SSS]";
+
 	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
 	private final boolean normalizeKeys;
 
 	private final Map<String, String> properties;
 
+	private final DateTimeFormatter dateTimeFormatter;
+
 	public DescriptorProperties(boolean normalizeKeys) {
 		this.properties = new HashMap<>();
 		this.normalizeKeys = normalizeKeys;
+		this.dateTimeFormatter = DateTimeFormatter.ofPattern(DEFAULT_TIMESTAMP_FORMAT);
 	}
 
 	public DescriptorProperties() {
@@ -704,6 +712,26 @@ public class DescriptorProperties {
 	}
 
 	/**
+	 * Returns a Java {@link LocalDateTime} under the given key if it exists.
+	 */
+	public Optional<LocalDateTime> getOptionalLocalDateTime(String key) {
+		return optionalGet(key).map((value) -> {
+			try {
+				return LocalDateTime.parse(value, dateTimeFormatter);
+			} catch (Exception e) {
+				throw new ValidationException("Invalid local datetime value for key '" + key + "'.", e);
+			}
+		});
+	}
+
+	/**
+	 * Returns a java {@link LocalDateTime} under the given existing key.
+	 */
+	public LocalDateTime getLocalDateTime(String key) {
+		return getOptionalLocalDateTime(key).orElseThrow(exceptionSupplier(key));
+	}
+
+	/**
 	 * Returns the property keys of fixed indexed properties.
 	 *
 	 * <p>For example:
@@ -1238,6 +1266,20 @@ public class DescriptorProperties {
 				return ms;
 			}
 		);
+	}
+
+	/**
+	 * Validates a {@link LocalDateTime}. The boundaries are inclusive and in milliseconds.
+	 */
+	public void validateLocalTimestamp(String key, boolean isOptional, long min, long max) {
+		validateComparable(
+			key,
+			isOptional,
+			min,
+			max,
+			"timestamp (with format [yyyy-MM-dd HH:mm:ss[.SSS])",
+			(value) -> LocalDateTime.parse(value, dateTimeFormatter).atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
+			);
 	}
 
 	/**

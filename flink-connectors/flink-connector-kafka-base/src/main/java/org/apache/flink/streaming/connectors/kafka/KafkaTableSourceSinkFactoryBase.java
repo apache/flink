@@ -41,6 +41,8 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -70,6 +72,8 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIF
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_TIMESTAMP;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
@@ -120,6 +124,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET);
+		properties.add(CONNECTOR_STARTUP_TIMESTAMP);
+		properties.add(CONNECTOR_STARTUP_TIMESTAMP_MILLIS);
 		properties.add(CONNECTOR_SINK_PARTITIONER);
 		properties.add(CONNECTOR_SINK_PARTITIONER_CLASS);
 
@@ -172,7 +178,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 			getKafkaProperties(descriptorProperties),
 			deserializationSchema,
 			startupOptions.startupMode,
-			startupOptions.specificOffsets);
+			startupOptions.specificOffsets,
+			startupOptions.startupTimestampMillis);
 	}
 
 	@Override
@@ -240,7 +247,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets);
+		Map<KafkaTopicPartition, Long> specificStartupOffsets,
+		long startupTimestampMillis);
 
 	/**
 	 * Constructs the version-specific Kafka table sink.
@@ -334,6 +342,10 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
 						buildSpecificOffsets(descriptorProperties, topic, specificOffsets);
 						return StartupMode.SPECIFIC_OFFSETS;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_TIMESTAMP:
+						return StartupMode.TIMESTAMP;
+
 					default:
 						throw new TableException("Unsupported startup mode. Validator should have checked that.");
 				}
@@ -341,6 +353,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final StartupOptions options = new StartupOptions();
 		options.startupMode = startupMode;
 		options.specificOffsets = specificOffsets;
+		if (startupMode == StartupMode.TIMESTAMP) {
+			options.startupTimestampMillis = getStartupTimestamp(descriptorProperties);
+		}
 		return options;
 	}
 
@@ -361,6 +376,15 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 				final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
 				specificOffsets.put(topicPartition, offset);
 			});
+		}
+	}
+
+	private long getStartupTimestamp(DescriptorProperties descriptorProperties) {
+		if (descriptorProperties.containsKey(CONNECTOR_STARTUP_TIMESTAMP)) {
+			LocalDateTime startupTimestamp = descriptorProperties.getLocalDateTime(CONNECTOR_STARTUP_TIMESTAMP);
+			return startupTimestamp.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
+		} else {
+			return descriptorProperties.getLong(CONNECTOR_STARTUP_TIMESTAMP_MILLIS);
 		}
 	}
 
@@ -395,5 +419,6 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	private static class StartupOptions {
 		private StartupMode startupMode;
 		private Map<KafkaTopicPartition, Long> specificOffsets;
+		private long startupTimestampMillis;
 	}
 }
