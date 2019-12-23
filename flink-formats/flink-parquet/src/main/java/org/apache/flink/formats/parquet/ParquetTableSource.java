@@ -156,7 +156,7 @@ public class ParquetTableSource
 
 	@Override
 	public TableSource<Row> projectFields(int[] fields) {
-		return new ParquetTableSource(path, parquetSchema, parquetConfig, recursiveEnumeration, fields, null);
+		return new ParquetTableSource(path, parquetSchema, parquetConfig, recursiveEnumeration, fields, predicate);
 	}
 
 	@Override
