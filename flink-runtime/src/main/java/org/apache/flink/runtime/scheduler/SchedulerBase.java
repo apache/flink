@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -412,11 +411,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 			IterableUtils.toStream(schedulingTopology.getVertices())
 				.map(SchedulingExecutionVertex::getId)
 				.collect(Collectors.toSet()));
-	}
-
-	@VisibleForTesting
-	ExecutionVertexVersioner getExecutionVertexVersioner() {
-		return executionVertexVersioner;
 	}
 
 	// ------------------------------------------------------------------------
