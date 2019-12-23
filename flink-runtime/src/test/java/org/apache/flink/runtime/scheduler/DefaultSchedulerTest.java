@@ -64,6 +64,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -556,17 +557,13 @@ public class DefaultSchedulerTest extends TestLogger {
 		final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
 		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
 
-		// suppress restarts so any task failure will lead to job failure
-		testRestartBackoffTimeStrategy.setCanRestart(false);
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+		final ExecutionVertexVersion executionVertexVersion = executionVertexVersioner.getExecutionVertexVersion(
+			onlyExecutionVertexId);
 
-		final ArchivedExecutionVertex archivedExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
-		final ExecutionAttemptID attemptId = archivedExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+		scheduler.failJob(new FlinkException("Test failure."));
 
-		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED));
-
-		final ExecutionVertexVersioner executionVertexVersioner = scheduler.getExecutionVertexVersioner();
-		assertTrue(executionVertexVersioner.isModified(new ExecutionVertexVersion(onlyExecutionVertexId, 1)));
+		assertTrue(executionVertexVersioner.isModified(executionVertexVersion));
 	}
 
 	@Test
@@ -576,11 +573,12 @@ public class DefaultSchedulerTest extends TestLogger {
 		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
 
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+		final ExecutionVertexVersion executionVertexVersion = executionVertexVersioner.getExecutionVertexVersion(
+			onlyExecutionVertexId);
 
 		scheduler.cancel();
 
-		final ExecutionVertexVersioner executionVertexVersioner = scheduler.getExecutionVertexVersioner();
-		assertTrue(executionVertexVersioner.isModified(new ExecutionVertexVersion(onlyExecutionVertexId, 1)));
+		assertTrue(executionVertexVersioner.isModified(executionVertexVersion));
 	}
 
 	@Test
@@ -590,11 +588,12 @@ public class DefaultSchedulerTest extends TestLogger {
 		final ExecutionVertexID onlyExecutionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
 
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+		final ExecutionVertexVersion executionVertexVersion = executionVertexVersioner.getExecutionVertexVersion(
+			onlyExecutionVertexId);
 
 		scheduler.suspend(new Exception("forced suspend"));
 
-		final ExecutionVertexVersioner executionVertexVersioner = scheduler.getExecutionVertexVersioner();
-		assertTrue(executionVertexVersioner.isModified(new ExecutionVertexVersion(onlyExecutionVertexId, 1)));
+		assertTrue(executionVertexVersioner.isModified(executionVertexVersion));
 	}
 
 	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
