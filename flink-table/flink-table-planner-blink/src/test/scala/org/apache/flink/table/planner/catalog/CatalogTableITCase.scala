@@ -200,7 +200,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
        |CREATE TABLE T1 (
        |  price DECIMAL(10, 2),
        |  currency STRING,
-       |  ts TIMESTAMP(3),
+       |  ts6 TIMESTAMP(6),
+       |  ts AS CAST(ts6 AS TIMESTAMP(3)),
        |  WATERMARK FOR ts AS ts
        |) WITH (
        |  'connector.type' = 'filesystem',
@@ -234,7 +235,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |INSERT INTO T2
         |SELECT
         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
-        |  MAX(ts),
+        |  MAX(ts6),
         |  COUNT(*),
         |  MAX(price)
         |FROM T1
@@ -244,8 +245,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     execJob("testJob")
 
     val expected =
-      "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004,3,50.00\n" +
-      "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006,2,5.33\n"
+      "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
+      "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
   @Test
@@ -535,7 +536,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.sqlUpdate(query)
     expectedEx.expect(classOf[ValidationException])
     expectedEx.expectMessage("Field types of query result and registered TableSink "
-      + "`default_catalog`.`default_database`.`t2` do not match.")
+      + "default_catalog.default_database.t2 do not match.")
     execJob("testJob")
   }
 

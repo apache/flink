@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
@@ -115,9 +114,9 @@ class BatchExecSink[T](
   private def translateToTransformation(
       withChangeFlag: Boolean,
       planner: BatchPlanner): Transformation[T] = {
+
     val config = planner.getTableConfig
     val resultDataType = sink.getConsumedDataType
-    val resultType = fromDataTypeToTypeInfo(resultDataType)
     validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {
@@ -130,16 +129,14 @@ class BatchExecSink[T](
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
             CodeGeneratorContext(config),
             config,
-            plan.getOutputType.asInstanceOf[BaseRowTypeInfo],
-            "SinkConversion",
-            None,
+            plan.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType,
+            sink,
             withChangeFlag,
-            resultType,
-            sink
+            "SinkConversion"
           )
           ExecNode.createOneInputTransformation(
             plan,
-            s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
+            s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
             converterOperator,
             outputTypeInfo,
             plan.getParallelism)

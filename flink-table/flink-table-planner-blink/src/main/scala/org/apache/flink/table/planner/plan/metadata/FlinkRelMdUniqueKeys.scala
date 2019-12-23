@@ -135,8 +135,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
                 }
               case _ => // ignore
             }
-          //rename
-          case a: RexCall if a.getKind.equals(SqlKind.AS) &&
+          //rename or cast
+          case a: RexCall if (a.getKind.equals(SqlKind.AS) || a.getKind.equals(SqlKind.CAST)) &&
             a.getOperands.get(0).isInstanceOf[RexInputRef] =>
             appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
           case _ => // ignore
