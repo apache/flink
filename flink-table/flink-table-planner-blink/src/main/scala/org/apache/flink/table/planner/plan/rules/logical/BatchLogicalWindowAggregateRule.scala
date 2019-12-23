@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 
@@ -57,6 +58,8 @@ class BatchLogicalWindowAggregateRule
       windowExprIdx: Int,
       rowType: RelDataType): FieldReferenceExpression = {
     operand match {
+      case c: RexCall if c.getKind == SqlKind.CAST =>
+        getTimeFieldReference(c.getOperands.get(0), windowExprIdx, rowType)
       // match TUMBLE_ROWTIME and TUMBLE_PROCTIME
       case c: RexCall if c.getOperands.size() == 1 &&
         FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
