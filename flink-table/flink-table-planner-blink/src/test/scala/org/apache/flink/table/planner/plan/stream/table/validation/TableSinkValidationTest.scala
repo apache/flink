@@ -89,10 +89,10 @@ class TableSinkValidationTest extends TableTestBase {
   def testValidateSink(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Field types of query result and registered TableSink `default_catalog`." +
-      "`default_database`.`testSink` do not match.\n" +
-      "Query result schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
-      "TableSink schema:    [a: INT, b: BIGINT, c: STRING, d: INT]")
+      "Field types of query result and registered TableSink default_catalog." +
+      "default_database.testSink do not match.\n" +
+      "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
+      "Sink schema: [a: INT, b: BIGINT, c: STRING, d: INT]")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)

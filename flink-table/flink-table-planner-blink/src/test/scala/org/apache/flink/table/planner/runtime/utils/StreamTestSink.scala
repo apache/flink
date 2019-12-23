@@ -284,7 +284,9 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   }
 
   override def getRecordType: TypeInformation[BaseRow] =
-    new BaseRowTypeInfo(fTypes.map(TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType), fNames)
+    new BaseRowTypeInfo(
+      fTypes.map(TypeConversions.fromLegacyInfoToDataType(_).getLogicalType),
+      fNames)
 
   override def getFieldNames: Array[String] = fNames
 
