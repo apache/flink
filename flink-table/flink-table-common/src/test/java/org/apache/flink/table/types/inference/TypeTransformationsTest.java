@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.types.inference;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.junit.Test;
 
@@ -28,7 +30,9 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 
+import static org.apache.flink.table.types.inference.TypeTransformations.legacyDecimalToDefaultDecimal;
 import static org.apache.flink.table.types.inference.TypeTransformations.timeToSqlTypes;
+import static org.apache.flink.table.types.inference.TypeTransformations.toNullable;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -61,4 +65,49 @@ public class TypeTransformationsTest {
 		assertEquals(expected, DataTypeUtils.transform(dataType, timeToSqlTypes()));
 	}
 
+	@Test
+	public void testLegacyDecimalToDefaultDecimal() {
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.STRING()),
+			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+			DataTypes.FIELD("c", createLegacyDecimal()),
+			DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyDecimal()))
+		);
+
+		DataType expected = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.STRING()),
+			DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
+			DataTypes.FIELD("c", DataTypes.DECIMAL(38, 18)),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.DECIMAL(38, 18)))
+		);
+
+		assertEquals(expected, DataTypeUtils.transform(dataType, legacyDecimalToDefaultDecimal()));
+	}
+
+	@Test
+	public void testToNullable() {
+		DataType dataType = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.STRING().notNull()),
+			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
+			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).notNull()),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().notNull())),
+			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE().notNull(), DataTypes.TIME(9).notNull())),
+			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
+		);
+
+		DataType expected = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.STRING()),
+			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
+			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME())),
+			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
+			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
+		);
+
+		assertEquals(expected, DataTypeUtils.transform(dataType, toNullable()));
+	}
+
+	private static DataType createLegacyDecimal() {
+		return TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC);
+	}
 }

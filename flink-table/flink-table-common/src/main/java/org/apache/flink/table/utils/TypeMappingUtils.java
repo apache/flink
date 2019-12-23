@@ -49,7 +49,8 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 
 /**
- * Utility methods for dealing with {@link org.apache.flink.table.sources.TableSource}.
+ * Utility methods for dealing with field types in {@link org.apache.flink.table.sources.TableSource}
+ * and {@link org.apache.flink.table.sinks.TableSink}.
  */
 @Internal
 public final class TypeMappingUtils {
@@ -137,6 +138,40 @@ public final class TypeMappingUtils {
 		}).toArray();
 	}
 
+	/**
+	 * Checks whether the given physical field type and logical field type are compatible
+	 * at the edges of the table ecosystem. Types are still compatible if the physical type
+	 * is a legacy decimal type (converted from Types#BIG_DEC) and the logical type is
+	 * DECIMAL(38, 18). This is to support legacy TypeInformation for {@link TableSource} and
+	 * {@link org.apache.flink.table.sinks.TableSink}.
+	 *
+	 * @param physicalFieldType physical field type
+	 * @param logicalFieldType logical field type
+	 * @param physicalFieldName physical field name
+	 * @param logicalFieldName logical field name
+	 * @param isSource whether it is a source or sink, used for logging.
+	 */
+	public static void checkPhysicalLogicalTypeCompatible(
+			LogicalType physicalFieldType,
+			LogicalType logicalFieldType,
+			String physicalFieldName,
+			String logicalFieldName,
+			boolean isSource) {
+		checkIfCompatible(
+			physicalFieldType,
+			logicalFieldType,
+			(cause) -> new ValidationException(
+				String.format(
+					"Type %s of table field '%s' does not match with " +
+						"the physical type %s of the '%s' field of the %s.",
+					logicalFieldType,
+					logicalFieldName,
+					physicalFieldType,
+					physicalFieldName,
+					isSource ? "TableSource return type" : "TableSink consumed type"),
+				cause));
+	}
+
 	private static void verifyTimeAttributeType(TableColumn logicalColumn, String rowtimeOrProctime) {
 		if (!hasFamily(logicalColumn.getType().getLogicalType(), LogicalTypeFamily.TIMESTAMP)) {
 			throw new ValidationException(String.format(
@@ -194,18 +229,13 @@ public final class TypeMappingUtils {
 					LogicalType physicalFieldType = physicalSchema.getFieldDataType(idx).get().getLogicalType();
 					LogicalType logicalFieldType = column.getType().getLogicalType();
 
-					checkIfCompatible(
+					checkPhysicalLogicalTypeCompatible(
 						physicalFieldType,
 						logicalFieldType,
-						(cause) -> new ValidationException(
-							String.format(
-								"Type %s of table field '%s' does not match with " +
-									"the physical type %s of the '%s' field of the TableSource return type.",
-								logicalFieldType,
-								column.getName(),
-								physicalFieldType,
-								remappedName),
-							cause));
+						remappedName,
+						column.getName(),
+						true
+					);
 
 					return idx;
 				}
