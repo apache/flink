@@ -19,7 +19,6 @@
 package org.apache.flink.core.plugin;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.ArrayUtils;
 import org.apache.flink.util.ChildFirstClassLoader;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -49,7 +48,7 @@ public class PluginLoader {
 		return new ChildFirstClassLoader(
 			pluginDescriptor.getPluginResourceURLs(),
 			parentClassLoader,
-			ArrayUtils.concat(alwaysParentFirstPatterns, pluginDescriptor.getLoaderExcludePatterns()));
+			pluginDescriptor.getLoaderExcludePatterns());
 	}
 
 	public static PluginLoader create(PluginDescriptor pluginDescriptor, ClassLoader parentClassLoader, String[] alwaysParentFirstPatterns) {
