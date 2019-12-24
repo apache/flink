@@ -455,9 +455,9 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	private static MemorySize getMemorySizeFromConfig(final Configuration config, final ConfigOption<String> option) {
+	private static MemorySize getMemorySizeFromConfig(final Configuration config, final ConfigOption<MemorySize> option) {
 		try {
-			return MemorySize.parse(config.getString(option));
+			return config.get(option);
 		} catch (Throwable t) {
 			throw new IllegalConfigurationException("Cannot read memory size from config option '" + option.key() + "'.", t);
 		}
@@ -684,7 +684,7 @@ public class TaskExecutorResourceUtils {
 			.multiply(1 / (1 - shuffleFraction - managedFraction));
 
 		final Configuration modifiedConfig = new Configuration(configuration);
-		modifiedConfig.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, estimatedTotalFlinkMemory.toString());
+		modifiedConfig.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, estimatedTotalFlinkMemory);
 
 		return modifiedConfig;
 	}

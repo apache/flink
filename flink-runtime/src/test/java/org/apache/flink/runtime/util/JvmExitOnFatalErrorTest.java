@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -169,7 +170,7 @@ public class JvmExitOnFatalErrorTest {
 				final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
 				final Configuration copiedConf = new Configuration(taskManagerConfig);
-				copiedConf.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1024m");
+				copiedConf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1024m"));
 
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
 					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConf));

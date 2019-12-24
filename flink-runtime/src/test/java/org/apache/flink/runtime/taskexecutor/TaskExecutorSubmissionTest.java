@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -554,7 +555,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		// set the memory segment to the smallest size possible, because we have to fill one
 		// memory buffer to trigger the schedule or update consumers message to the downstream
 		// operators
-		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 
 		NettyShuffleDescriptor sdd =
 			createRemoteWithIdAndLocation(new IntermediateResultPartitionID(), ResourceID.generate());
@@ -616,7 +617,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final Configuration configuration = new Configuration();
 		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 40);
-		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 
 		try (final TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId)
 					.setSlotSize(1)

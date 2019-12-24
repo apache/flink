@@ -177,9 +177,10 @@ public class TaskManagerOptions {
 	/**
 	 * Size of memory buffers used by the network stack and the memory manager.
 	 */
-	public static final ConfigOption<String> MEMORY_SEGMENT_SIZE =
+	public static final ConfigOption<MemorySize> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
-			.defaultValue("32kb")
+			.memoryType()
+			.defaultValue(MemorySize.parse("32kb"))
 			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
@@ -231,8 +232,9 @@ public class TaskManagerOptions {
 	 * Total Process Memory size for the TaskExecutors.
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
-	public static final ConfigOption<String> TOTAL_PROCESS_MEMORY =
+	public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
 		key("taskmanager.memory.process.size")
+			.memoryType()
 			.noDefaultValue()
 			.withDeprecatedKeys("taskmanager.heap.size")
 			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
@@ -242,8 +244,9 @@ public class TaskManagerOptions {
 	/**
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
-	public static final ConfigOption<String> TOTAL_FLINK_MEMORY =
+	public static final ConfigOption<MemorySize> TOTAL_FLINK_MEMORY =
 		key("taskmanager.memory.flink.size")
+		.memoryType()
 		.noDefaultValue()
 		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
 			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
@@ -252,18 +255,20 @@ public class TaskManagerOptions {
 	/**
 	 * Framework Heap Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> FRAMEWORK_HEAP_MEMORY =
+	public static final ConfigOption<MemorySize> FRAMEWORK_HEAP_MEMORY =
 		key("taskmanager.memory.framework.heap.size")
-			.defaultValue("128m")
+			.memoryType()
+			.defaultValue(MemorySize.parse("128m"))
 			.withDescription("Framework Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved"
 				+ " for TaskExecutor framework, which will not be allocated to task slots.");
 
 	/**
 	 * Framework Off-Heap Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> FRAMEWORK_OFF_HEAP_MEMORY =
+	public static final ConfigOption<MemorySize> FRAMEWORK_OFF_HEAP_MEMORY =
 		key("taskmanager.memory.framework.off-heap.size")
-			.defaultValue("128m")
+			.memoryType()
+			.defaultValue(MemorySize.parse("128m"))
 			.withDescription("Framework Off-Heap Memory size for TaskExecutors. This is the size of off-heap memory"
 				+ " (JVM direct memory and native memory) reserved for TaskExecutor framework, which will not be"
 				+ " allocated to task slots. The configured value will be fully counted when Flink calculates the JVM"
@@ -272,8 +277,9 @@ public class TaskManagerOptions {
 	/**
 	 * Task Heap Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> TASK_HEAP_MEMORY =
+	public static final ConfigOption<MemorySize> TASK_HEAP_MEMORY =
 		key("taskmanager.memory.task.heap.size")
+			.memoryType()
 			.noDefaultValue()
 			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
 				+ " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
@@ -282,9 +288,10 @@ public class TaskManagerOptions {
 	/**
 	 * Task Off-Heap Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> TASK_OFF_HEAP_MEMORY =
+	public static final ConfigOption<MemorySize> TASK_OFF_HEAP_MEMORY =
 		key("taskmanager.memory.task.off-heap.size")
-			.defaultValue("0b")
+			.memoryType()
+			.defaultValue(MemorySize.ZERO)
 			.withDescription("Task Off-Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM"
 				+ " direct memory and native memory) reserved for tasks. The configured value will be fully counted"
 				+ " when Flink calculates the JVM max direct memory size parameter.");
@@ -292,8 +299,9 @@ public class TaskManagerOptions {
 	/**
 	 * Managed Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> MANAGED_MEMORY_SIZE =
+	public static final ConfigOption<MemorySize> MANAGED_MEMORY_SIZE =
 		key("taskmanager.memory.managed.size")
+			.memoryType()
 			.noDefaultValue()
 			.withDeprecatedKeys("taskmanager.memory.size")
 			.withDescription("Managed Memory size for TaskExecutors. This is the size of off-heap memory managed by the"
@@ -316,9 +324,10 @@ public class TaskManagerOptions {
 	/**
 	 * Min Shuffle Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> SHUFFLE_MEMORY_MIN =
+	public static final ConfigOption<MemorySize> SHUFFLE_MEMORY_MIN =
 		key("taskmanager.memory.shuffle.min")
-			.defaultValue("64m")
+			.memoryType()
+			.defaultValue(MemorySize.parse("64m"))
 			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key())
 			.withDescription("Min Shuffle Memory size for TaskExecutors. Shuffle Memory is off-heap memory reserved for"
 				+ " ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to make up the configured"
@@ -329,9 +338,10 @@ public class TaskManagerOptions {
 	/**
 	 * Max Shuffle Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<String> SHUFFLE_MEMORY_MAX =
+	public static final ConfigOption<MemorySize> SHUFFLE_MEMORY_MAX =
 		key("taskmanager.memory.shuffle.max")
-			.defaultValue("1g")
+			.memoryType()
+			.defaultValue(MemorySize.parse("1g"))
 			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
 			.withDescription("Max Shuffle Memory size for TaskExecutors. Shuffle Memory is off-heap memory reserved for"
 				+ " ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to make up the configured"
@@ -356,17 +366,19 @@ public class TaskManagerOptions {
 	/**
 	 * JVM Metaspace Size for the TaskExecutors.
 	 */
-	public static final ConfigOption<String> JVM_METASPACE =
+	public static final ConfigOption<MemorySize> JVM_METASPACE =
 		key("taskmanager.memory.jvm-metaspace.size")
-			.defaultValue("128m")
+			.memoryType()
+			.defaultValue(MemorySize.parse("128m"))
 			.withDescription("JVM Metaspace Size for the TaskExecutors.");
 
 	/**
 	 * Min JVM Overhead size for the TaskExecutors.
 	 */
-	public static final ConfigOption<String> JVM_OVERHEAD_MIN =
+	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
 		key("taskmanager.memory.jvm-overhead.min")
-			.defaultValue("128m")
+			.memoryType()
+			.defaultValue(MemorySize.parse("128m"))
 			.withDescription("Min JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
 				+ " overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct"
 				+ " memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size"
@@ -377,9 +389,10 @@ public class TaskManagerOptions {
 	/**
 	 * Max JVM Overhead size for the TaskExecutors.
 	 */
-	public static final ConfigOption<String> JVM_OVERHEAD_MAX =
+	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MAX =
 		key("taskmanager.memory.jvm-overhead.max")
-			.defaultValue("1g")
+			.memoryType()
+			.defaultValue(MemorySize.parse("1g"))
 			.withDescription("Max JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
 				+ " overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct"
 				+ " memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size"

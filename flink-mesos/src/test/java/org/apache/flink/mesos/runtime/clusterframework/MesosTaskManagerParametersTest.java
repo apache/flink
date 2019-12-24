@@ -44,8 +44,7 @@ import static org.junit.Assert.assertThat;
  */
 public class MesosTaskManagerParametersTest extends TestLogger {
 	private static final int TOTAL_PROCESS_MEMORY_MB = 1280;
-	private static final String TOTAL_PROCESS_MEMORY_MB_STRING = TOTAL_PROCESS_MEMORY_MB + "m";
-	private static final MemorySize TOTAL_PROCESS_MEMORY_SIZE = MemorySize.parse(TOTAL_PROCESS_MEMORY_MB_STRING);
+	private static final MemorySize TOTAL_PROCESS_MEMORY_SIZE = MemorySize.parse(TOTAL_PROCESS_MEMORY_MB + "m");
 
 	@Test
 	public void testBuildVolumes() throws Exception {
@@ -287,7 +286,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_MEMORY_MB_STRING);
+		config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_MEMORY_SIZE);
 		return config;
 	}
 

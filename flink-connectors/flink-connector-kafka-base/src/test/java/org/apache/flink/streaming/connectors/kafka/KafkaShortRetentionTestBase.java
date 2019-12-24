@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -82,7 +83,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 	private static Configuration getConfiguration() {
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
+		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		return flinkConfig;
 	}
 
