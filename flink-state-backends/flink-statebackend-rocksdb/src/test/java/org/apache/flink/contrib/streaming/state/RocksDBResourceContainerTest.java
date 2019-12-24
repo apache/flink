@@ -32,10 +32,13 @@ import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.WriteBufferManager;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests to guard {@link RocksDBResourceContainer}.
@@ -72,6 +75,47 @@ public class RocksDBResourceContainerTest {
 		container.close();
 		for (DBOptions dbOption: dbOptions) {
 			assertThat(dbOption.isOwningHandle(), is(false));
+		}
+	}
+
+	@Test
+	public void testSharedResources() throws Exception {
+		final int optionNumber = 20;
+		final long cacheSize = 1024L, writeBufferSize = 512L;
+		final LRUCache cache = new LRUCache(cacheSize, -1, false, 0.1);
+		final WriteBufferManager wbm = new WriteBufferManager(writeBufferSize, cache);
+		RocksDBSharedResources rocksDBSharedResources = new RocksDBSharedResources(cache, wbm);
+		OpaqueMemoryResource<RocksDBSharedResources> sharedResources =
+			new OpaqueMemoryResource<>(rocksDBSharedResources, cacheSize, rocksDBSharedResources::close);
+		RocksDBResourceContainer container =
+			new RocksDBResourceContainer(PredefinedOptions.DEFAULT, null, sharedResources);
+		HashSet<WriteBufferManager> writeBufferManagers = new HashSet<>();
+		for (int i = 0; i < optionNumber; i++) {
+			DBOptions dbOptions = container.getDbOptions();
+			WriteBufferManager writeBufferManager = getWriteBufferManager(dbOptions);
+			writeBufferManagers.add(writeBufferManager);
+		}
+		assertThat(writeBufferManagers.size(), is(1));
+		assertThat(writeBufferManagers.iterator().next(), is(rocksDBSharedResources.getWriteBufferManager()));
+		container.close();
+		assertThat(rocksDBSharedResources.getCache().isOwningHandle(), is(false));
+		assertThat(rocksDBSharedResources.getWriteBufferManager().isOwningHandle(), is(false));
+	}
+
+	private WriteBufferManager getWriteBufferManager(DBOptions dbOptions) {
+
+		Field writeBufferManagerField = null;
+		try {
+			writeBufferManagerField = DBOptions.class.getDeclaredField("writeBufferManager_");
+		} catch (NoSuchFieldException e) {
+			fail("writeBufferManager_ is not defined.");
+		}
+		writeBufferManagerField.setAccessible(true);
+		try {
+			return (WriteBufferManager) writeBufferManagerField.get(dbOptions);
+		} catch (IllegalAccessException e) {
+			fail("Cannot access writeBufferManager_ field.");
+			return null;
 		}
 	}
 

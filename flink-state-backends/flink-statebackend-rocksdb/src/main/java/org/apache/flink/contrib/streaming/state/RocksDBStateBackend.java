@@ -55,7 +55,6 @@ import org.apache.flink.util.TernaryBoolean;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
 import org.rocksdb.TableFormatConfig;
@@ -509,7 +508,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		final RocksDBResourceContainer resourceContainer = createOptionsAndResourceContainer(sharedResources);
 
-		final DBOptions dbOptions = resourceContainer.getDbOptions();
 		final Function<String, ColumnFamilyOptions> createColumnOptions;
 
 		if (sharedResources != null) {
@@ -517,8 +515,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
 			final Cache blockCache = rocksResources.getCache();
-
-			dbOptions.setWriteBufferManager(rocksResources.getWriteBufferManager());
 
 			createColumnOptions = stateName -> {
 				ColumnFamilyOptions columnOptions = resourceContainer.getColumnOptions();
