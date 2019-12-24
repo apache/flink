@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
@@ -87,7 +88,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		configuration.setString(TaskManagerOptions.HOST, "localhost");
-		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
+		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 		return configuration;
 	}
 

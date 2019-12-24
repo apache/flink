@@ -29,6 +29,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -249,10 +250,10 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zooKeeper.getConnectString(), zookeeperStoragePath.getPath());
 		// Task manager configuration
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
 		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "512m");
+		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("512m"));
 
 		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
 
