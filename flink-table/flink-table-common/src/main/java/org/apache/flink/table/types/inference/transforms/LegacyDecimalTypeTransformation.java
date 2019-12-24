@@ -41,11 +41,7 @@ public class LegacyDecimalTypeTransformation implements TypeTransformation {
 			DataType decimalType = DataTypes
 				.DECIMAL(DecimalType.MAX_PRECISION, 18)
 				.bridgedTo(typeToTransform.getConversionClass());
-			if (!logicalType.isNullable()) {
-				return decimalType.notNull();
-			} else {
-				return decimalType;
-			}
+			return logicalType.isNullable() ? decimalType : decimalType.notNull();
 		}
 		return typeToTransform;
 	}
