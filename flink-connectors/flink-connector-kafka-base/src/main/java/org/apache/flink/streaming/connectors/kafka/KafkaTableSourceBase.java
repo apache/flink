@@ -94,7 +94,7 @@ public abstract class KafkaTableSourceBase implements
 	private final long startupTimestampMillis;
 
 	/** The default value when startup timestamp is not used.*/
-	private static final long DEFAULT_STARTUP_TIMESTAMP_MILLIS = -1L;
+	private static final long DEFAULT_STARTUP_TIMESTAMP_MILLIS = 0L;
 
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.

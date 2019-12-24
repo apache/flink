@@ -146,7 +146,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			deserializationSchema,
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets,
-			-1L);
+			0L);
 
 		TableSourceValidation.validateTableSource(expected, schema);
 
