@@ -256,8 +256,9 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.framework.off-heap.size")
 			.defaultValue("128m")
 			.withDescription("Framework Off-Heap Memory size for TaskExecutors. This is the size of off-heap memory"
-				+ " (JVM direct memory or native memory) reserved for TaskExecutor framework, which will not be"
-				+ " allocated to task slots. It will be accounted as part of the JVM max direct memory size limit.");
+				+ " (JVM direct memory and native memory) reserved for TaskExecutor framework, which will not be"
+				+ " allocated to task slots. The configured value will be fully counted when Flink calculates the JVM"
+				+ " max direct memory size parameter.");
 
 	/**
 	 * Task Heap Memory size for TaskExecutors.
