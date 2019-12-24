@@ -225,7 +225,8 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "dest").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,'c')");
+			// TODO: remove the cast once FLINK-15381 is fixed.
+			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,cast('c' as varchar))");
 			tableEnv.execute("test insert overwrite");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
 
@@ -327,10 +328,10 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.insertInto("db1", "nested").addRow(Arrays.asList(map1, map2)).commit();
 
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			List<Row> results = HiveTestUtils.collectTable(tableEnv,
+			List<Row> results = TableUtils.collectToList(
 					tableEnv.sqlQuery("select x from db1.simple, lateral table(hiveudtf(a)) as T(x)"));
 			assertEquals("[1, 2, 3]", results.toString());
-			results = HiveTestUtils.collectTable(tableEnv,
+			results = TableUtils.collectToList(
 					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
 			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
 
@@ -338,7 +339,7 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "ts").addRow(new Object[]{
 					new Object[]{Timestamp.valueOf("2015-04-28 15:23:00"), Timestamp.valueOf("2016-06-03 17:05:52")}})
 					.commit();
-			results = HiveTestUtils.collectTable(tableEnv,
+			results = TableUtils.collectToList(
 					tableEnv.sqlQuery("select x from db1.ts, lateral table(hiveudtf(a)) as T(x)"));
 			assertEquals("[2015-04-28T15:23, 2016-06-03T17:05:52]", results.toString());
 		} finally {
@@ -410,7 +411,7 @@ public class TableEnvHiveConnectorTest {
 					.commit();
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// test read timestamp from hive
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.src"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src"));
 			assertEquals(2, results.size());
 			assertEquals(LocalDateTime.of(2019, 11, 11, 0, 0), results.get(0).getField(0));
 			assertEquals(LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789), results.get(1).getField(0));
@@ -435,7 +436,7 @@ public class TableEnvHiveConnectorTest {
 					.commit();
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// test read date from hive
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.src"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src"));
 			assertEquals(2, results.size());
 			assertEquals(LocalDate.of(2019, 12, 9), results.get(0).getField(0));
 			assertEquals(LocalDate.of(2019, 12, 12), results.get(1).getField(0));
