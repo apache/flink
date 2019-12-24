@@ -234,6 +234,11 @@ public abstract class FileSystem {
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
 	private static URI defaultScheme;
 
+	/**
+	 * The default filesystemFactory identify.
+	 */
+	private static final String DEFAULT_FILESYSTEM_IDENTIFY = "default";
+
 	// ------------------------------------------------------------------------
 	//  Initialization
 	// ------------------------------------------------------------------------
@@ -306,9 +311,10 @@ public abstract class FileSystem {
 			for (FileSystemFactory factory : fileSystemFactories) {
 				factory.configure(config);
 				String scheme = factory.getScheme();
+				String identify = scheme + factory.getIdentify();
 
 				FileSystemFactory fsf = ConnectionLimitingFactory.decorateIfLimited(factory, scheme, config);
-				FS_FACTORIES.put(scheme, fsf);
+				FS_FACTORIES.put(identify, fsf);
 			}
 
 			// configure the default (fallback) factory
@@ -362,8 +368,20 @@ public abstract class FileSystem {
 		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
 	}
 
+	public static FileSystem get(URI uri, String identify) throws IOException {
+		if (null == identify || "" == identify) {
+			identify = DEFAULT_FILESYSTEM_IDENTIFY;
+		}
+		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri, identify));
+	}
+
 	@Internal
 	public static FileSystem getUnguardedFileSystem(final URI fsUri) throws IOException {
+		return getUnguardedFileSystem(fsUri, "default");
+	}
+
+	@Internal
+	public static FileSystem getUnguardedFileSystem(final URI fsUri, final String identify) throws IOException {
 		checkNotNull(fsUri, "file system URI");
 
 		LOCK.lock();
@@ -433,7 +451,8 @@ public abstract class FileSystem {
 
 			// Try to create a new file system
 			final FileSystem fs;
-			final FileSystemFactory factory = FS_FACTORIES.get(uri.getScheme());
+			String factoryKey = uri.getScheme() + identify;
+			final FileSystemFactory factory = FS_FACTORIES.get(factoryKey);
 
 			if (factory != null) {
 				ClassLoader classLoader = factory.getClassLoader();

@@ -392,6 +392,7 @@ public class BucketsTest {
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
 				subtaskIdx,
+				"default",
 				outputFileConfig
 		);
 	}

@@ -191,6 +191,8 @@ public class StreamingFileSink<IN>
 
 		protected static final long DEFAULT_BUCKET_CHECK_INTERVAL = 60L * 1000L;
 
+		protected static final String DEFAULT_FILESYSTEM_IDENTIFY = "default";
+
 		@SuppressWarnings("unchecked")
 		protected T self() {
 			return (T) this;
@@ -221,8 +223,10 @@ public class StreamingFileSink<IN>
 
 		private OutputFileConfig outputFileConfig;
 
+		private String factoryIdentify;
+
 		protected RowFormatBuilder(Path basePath, Encoder<IN> encoder, BucketAssigner<IN, BucketID> bucketAssigner) {
-			this(basePath, encoder, bucketAssigner, DefaultRollingPolicy.builder().build(), DEFAULT_BUCKET_CHECK_INTERVAL, new DefaultBucketFactoryImpl<>(), OutputFileConfig.builder().build());
+			this(basePath, encoder, bucketAssigner, DefaultRollingPolicy.builder().build(), DEFAULT_BUCKET_CHECK_INTERVAL, DEFAULT_FILESYSTEM_IDENTIFY, new DefaultBucketFactoryImpl<>(), OutputFileConfig.builder().build());
 		}
 
 		protected RowFormatBuilder(
@@ -231,6 +235,7 @@ public class StreamingFileSink<IN>
 				BucketAssigner<IN, BucketID> assigner,
 				RollingPolicy<IN, BucketID> policy,
 				long bucketCheckInterval,
+				String factoryIdentify,
 				BucketFactory<IN, BucketID> bucketFactory,
 				OutputFileConfig outputFileConfig) {
 			this.basePath = Preconditions.checkNotNull(basePath);
@@ -238,6 +243,7 @@ public class StreamingFileSink<IN>
 			this.bucketAssigner = Preconditions.checkNotNull(assigner);
 			this.rollingPolicy = Preconditions.checkNotNull(policy);
 			this.bucketCheckInterval = bucketCheckInterval;
+			this.factoryIdentify = factoryIdentify;
 			this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 			this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
 		}
@@ -266,9 +272,14 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
+		public T withFactoryIdentify(final String factoryIdentify) {
+			this.factoryIdentify = factoryIdentify;
+			return self();
+		}
+
 		public <ID> StreamingFileSink.RowFormatBuilder<IN, ID, ? extends RowFormatBuilder<IN, ID, ?>> withNewBucketAssignerAndPolicy(final BucketAssigner<IN, ID> assigner, final RollingPolicy<IN, ID> policy) {
 			Preconditions.checkState(bucketFactory.getClass() == DefaultBucketFactoryImpl.class, "newBuilderWithBucketAssignerAndPolicy() cannot be called after specifying a customized bucket factory");
-			return new RowFormatBuilder<>(basePath, encoder, Preconditions.checkNotNull(assigner), Preconditions.checkNotNull(policy), bucketCheckInterval, new DefaultBucketFactoryImpl<>(), outputFileConfig);
+			return new RowFormatBuilder<>(basePath, encoder, Preconditions.checkNotNull(assigner), Preconditions.checkNotNull(policy), bucketCheckInterval, factoryIdentify, new DefaultBucketFactoryImpl<>(), outputFileConfig);
 		}
 
 		/** Creates the actual sink. */
@@ -291,6 +302,7 @@ public class StreamingFileSink<IN>
 					new RowWisePartWriter.Factory<>(encoder),
 					rollingPolicy,
 					subtaskIndex,
+					factoryIdentify,
 					outputFileConfig);
 		}
 	}
@@ -313,10 +325,12 @@ public class StreamingFileSink<IN>
 
 		private BucketFactory<IN, BucketID> bucketFactory;
 
+		private String factoryIndentify;
+
 		private OutputFileConfig outputFileConfig;
 
 		protected BulkFormatBuilder(Path basePath, BulkWriter.Factory<IN> writerFactory, BucketAssigner<IN, BucketID> assigner) {
-			this(basePath, writerFactory, assigner, DEFAULT_BUCKET_CHECK_INTERVAL, new DefaultBucketFactoryImpl<>(), OutputFileConfig.builder().build());
+			this(basePath, writerFactory, assigner, DEFAULT_BUCKET_CHECK_INTERVAL, DEFAULT_FILESYSTEM_IDENTIFY, new DefaultBucketFactoryImpl<>(), OutputFileConfig.builder().build());
 		}
 
 		protected BulkFormatBuilder(
@@ -324,12 +338,14 @@ public class StreamingFileSink<IN>
 				BulkWriter.Factory<IN> writerFactory,
 				BucketAssigner<IN, BucketID> assigner,
 				long bucketCheckInterval,
+				String factoryIndentify,
 				BucketFactory<IN, BucketID> bucketFactory,
 				OutputFileConfig outputFileConfig) {
 			this.basePath = Preconditions.checkNotNull(basePath);
 			this.writerFactory = writerFactory;
 			this.bucketAssigner = Preconditions.checkNotNull(assigner);
 			this.bucketCheckInterval = bucketCheckInterval;
+			this.factoryIndentify = factoryIndentify;
 			this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 			this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
 		}
@@ -359,9 +375,14 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
+		public T withFactoryIdentify(final String indentify) {
+			this.factoryIndentify = indentify;
+			return self();
+		}
+
 		public <ID> StreamingFileSink.BulkFormatBuilder<IN, ID, ? extends BulkFormatBuilder<IN, ID, ?>> withNewBucketAssigner(final BucketAssigner<IN, ID> assigner) {
 			Preconditions.checkState(bucketFactory.getClass() == DefaultBucketFactoryImpl.class, "newBuilderWithBucketAssigner() cannot be called after specifying a customized bucket factory");
-			return new BulkFormatBuilder<>(basePath, writerFactory, Preconditions.checkNotNull(assigner), bucketCheckInterval, new DefaultBucketFactoryImpl<>(), outputFileConfig);
+			return new BulkFormatBuilder<>(basePath, writerFactory, Preconditions.checkNotNull(assigner), bucketCheckInterval, factoryIndentify, new DefaultBucketFactoryImpl<>(), outputFileConfig);
 		}
 
 		/** Creates the actual sink. */
@@ -378,6 +399,7 @@ public class StreamingFileSink<IN>
 					new BulkPartWriter.Factory<>(writerFactory),
 					OnCheckpointRollingPolicy.build(),
 					subtaskIndex,
+				factoryIndentify,
 					outputFileConfig);
 		}
 	}

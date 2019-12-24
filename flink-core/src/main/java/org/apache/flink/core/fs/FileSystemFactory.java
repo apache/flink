@@ -40,6 +40,13 @@ public interface FileSystemFactory extends Plugin {
 	String getScheme();
 
 	/**
+	 * Gets the identify of the file system created by this factory, default is for exist plugins.
+	 */
+	default String getIdentify() {
+		return "default";
+	}
+
+	/**
 	 * Creates a new file system for the given file system URI.
 	 * The URI describes the type of file system (via its scheme) and optionally the
 	 * authority (for example the host) of the file system.

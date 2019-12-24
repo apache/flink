@@ -92,6 +92,7 @@ public class Buckets<IN, BucketID> {
 	 * @param partFileWriterFactory The {@link PartFileWriter.PartFileFactory} to be used when writing data.
 	 * @param rollingPolicy The {@link RollingPolicy} as specified by the user.
 	 */
+	@Deprecated
 	Buckets(
 			final Path basePath,
 			final BucketAssigner<IN, BucketID> bucketAssigner,
@@ -114,7 +115,7 @@ public class Buckets<IN, BucketID> {
 		this.bucketerContext = new Buckets.BucketerContext();
 
 		try {
-			this.fsWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
+			this.fsWriter = FileSystem.get(basePath.toUri(), null).createRecoverableWriter();
 		} catch (IOException e) {
 			LOG.error("Unable to create filesystem for path: {}", basePath);
 			throw e;
@@ -124,6 +125,44 @@ public class Buckets<IN, BucketID> {
 				fsWriter.getResumeRecoverableSerializer(),
 				fsWriter.getCommitRecoverableSerializer(),
 				bucketAssigner.getSerializer()
+		);
+
+		this.maxPartCounter = 0L;
+	}
+
+	Buckets(
+		final Path basePath,
+		final BucketAssigner<IN, BucketID> bucketAssigner,
+		final BucketFactory<IN, BucketID> bucketFactory,
+		final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+		final RollingPolicy<IN, BucketID> rollingPolicy,
+		final int subtaskIndex,
+		final String factoryIdentify,
+		final OutputFileConfig outputFileConfig) throws IOException {
+
+		this.basePath = Preconditions.checkNotNull(basePath);
+		this.bucketAssigner = Preconditions.checkNotNull(bucketAssigner);
+		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
+		this.partFileWriterFactory = Preconditions.checkNotNull(partFileWriterFactory);
+		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
+		this.subtaskIndex = subtaskIndex;
+
+		this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
+
+		this.activeBuckets = new HashMap<>();
+		this.bucketerContext = new Buckets.BucketerContext();
+
+		try {
+			this.fsWriter = FileSystem.get(basePath.toUri(), factoryIdentify).createRecoverableWriter();
+		} catch (IOException e) {
+			LOG.error("Unable to create filesystem for path: {}", basePath);
+			throw e;
+		}
+
+		this.bucketStateSerializer = new BucketStateSerializer<>(
+			fsWriter.getResumeRecoverableSerializer(),
+			fsWriter.getCommitRecoverableSerializer(),
+			bucketAssigner.getSerializer()
 		);
 
 		this.maxPartCounter = 0L;
