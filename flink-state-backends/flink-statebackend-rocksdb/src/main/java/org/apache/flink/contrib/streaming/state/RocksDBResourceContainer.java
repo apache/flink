@@ -89,6 +89,10 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 		// add necessary default options
 		opt = opt.setCreateIfMissing(true);
 
+		if (sharedResources != null) {
+			opt.setWriteBufferManager(sharedResources.getResourceHandle().getWriteBufferManager());
+		}
+
 		return opt;
 	}
 
