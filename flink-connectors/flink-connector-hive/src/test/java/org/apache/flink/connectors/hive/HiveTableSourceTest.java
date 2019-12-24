@@ -225,7 +225,7 @@ public class HiveTableSourceTest {
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, query);
+			List<Row> results = TableUtils.collectToList(query);
 			assertEquals("[2, 3]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
@@ -233,7 +233,7 @@ public class HiveTableSourceTest {
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
-			results = HiveTestUtils.collectTable(tableEnv, query);
+			results = TableUtils.collectToList(query);
 			assertEquals("[]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1 in (1,3,5) order by x");
@@ -241,7 +241,7 @@ public class HiveTableSourceTest {
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			results = HiveTestUtils.collectTable(tableEnv, query);
+			results = TableUtils.collectToList(query);
 			assertEquals("[1, 3]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d') order by x");
@@ -249,7 +249,7 @@ public class HiveTableSourceTest {
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			results = HiveTestUtils.collectTable(tableEnv, query);
+			results = TableUtils.collectToList(query);
 			assertEquals("[1, 2]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
