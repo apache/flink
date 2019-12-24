@@ -52,12 +52,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.Cache;
-import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
-import org.rocksdb.TableFormatConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +70,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
@@ -505,33 +500,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		final OpaqueMemoryResource<RocksDBSharedResources> sharedResources = RocksDBOperationUtils
 				.allocateSharedCachesIfConfigured(memoryConfiguration, env.getMemoryManager(), LOG);
-
-		final RocksDBResourceContainer resourceContainer = createOptionsAndResourceContainer(sharedResources);
-
-		final Function<String, ColumnFamilyOptions> createColumnOptions;
-
 		if (sharedResources != null) {
 			LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
-
-			final RocksDBSharedResources rocksResources = sharedResources.getResourceHandle();
-			final Cache blockCache = rocksResources.getCache();
-
-			createColumnOptions = stateName -> {
-				ColumnFamilyOptions columnOptions = resourceContainer.getColumnOptions();
-				TableFormatConfig tableFormatConfig = columnOptions.tableFormatConfig();
-				Preconditions.checkArgument(tableFormatConfig instanceof BlockBasedTableConfig,
-					"We currently only support BlockBasedTableConfig When bounding total memory.");
-				BlockBasedTableConfig blockBasedTableConfig = (BlockBasedTableConfig) tableFormatConfig;
-				blockBasedTableConfig.setBlockCache(blockCache);
-				blockBasedTableConfig.setCacheIndexAndFilterBlocks(true);
-				blockBasedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
-				blockBasedTableConfig.setPinL0FilterAndIndexBlocksInCache(true);
-				columnOptions.setTableFormatConfig(blockBasedTableConfig);
-				return columnOptions;
-			};
-		} else {
-			createColumnOptions = stateName -> resourceContainer.getColumnOptions();
 		}
+		final RocksDBResourceContainer resourceContainer = createOptionsAndResourceContainer(sharedResources);
 
 		ExecutionConfig executionConfig = env.getExecutionConfig();
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
@@ -540,7 +512,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			env.getUserClassLoader(),
 			instanceBasePath,
 			resourceContainer,
-			createColumnOptions,
+			stateName -> resourceContainer.getColumnOptions(),
 			kvStateRegistry,
 			keySerializer,
 			numberOfKeyGroups,
