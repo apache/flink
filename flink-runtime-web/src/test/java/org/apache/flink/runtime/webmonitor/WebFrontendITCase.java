@@ -23,6 +23,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -106,7 +107,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		// !!DO NOT REMOVE!! next line is required for tests
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
 
 		return config;
 	}
@@ -228,8 +229,8 @@ public class WebFrontendITCase extends TestLogger {
 		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
 		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 
-		String expected = CLUSTER_CONFIGURATION.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
-		String actual = conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
+		MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		MemorySize actual = MemorySize.parse(conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
 
 		assertEquals(expected, actual);
 	}
