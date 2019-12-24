@@ -234,7 +234,7 @@ public class TaskManagerOptions {
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
 	public static final ConfigOption<String> TOTAL_FLINK_MEMORY =
-		key("taskmanager.memory.total-flink.size")
+		key("taskmanager.memory.flink.size")
 		.noDefaultValue()
 		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
 			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
