@@ -46,6 +46,7 @@ public class TaskManagerOptions {
 	@Deprecated
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
 			key("taskmanager.heap.mb")
+			.intType()
 			.defaultValue(1024)
 			.withDescription("JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of" +
 				" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
@@ -56,6 +57,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
 			key("taskmanager.jvm-exit-on-oom")
+			.booleanType()
 			.defaultValue(false)
 			.withDescription("Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.");
 
@@ -67,6 +69,7 @@ public class TaskManagerOptions {
 	@Deprecated
 	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
 			key("taskmanager.exit-on-fatal-akka-error")
+			.booleanType()
 			.defaultValue(false)
 			.withDescription("Whether the quarantine monitor for task managers shall be started. The quarantine monitor" +
 				" shuts down the actor system if it detects that it has quarantined another actor system" +
@@ -78,6 +81,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> HOST =
 		key("taskmanager.host")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("The address of the network interface that the TaskManager binds to." +
 				" This option can be used to define explicitly a binding address. Because" +
@@ -90,6 +94,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> RPC_PORT =
 		key("taskmanager.rpc.port")
+			.stringType()
 			.defaultValue("0")
 			.withDescription("The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
 				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
@@ -142,6 +147,7 @@ public class TaskManagerOptions {
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
 		key("taskmanager.numberOfTaskSlots")
+			.intType()
 			.defaultValue(1)
 			.withDescription("The number of parallel operator or user function instances that a single TaskManager can" +
 				" run. If this value is larger than 1, a single TaskManager takes multiple instances of a function or" +
@@ -152,12 +158,14 @@ public class TaskManagerOptions {
 
 	public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
 		key("taskmanager.debug.memory.log")
+			.booleanType()
 			.defaultValue(false)
 			.withDeprecatedKeys("taskmanager.debug.memory.startLogThread")
 			.withDescription("Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.");
 
 	public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
 		key("taskmanager.debug.memory.log-interval")
+			.longType()
 			.defaultValue(5000L)
 			.withDeprecatedKeys("taskmanager.debug.memory.logIntervalMs")
 			.withDescription("The interval (in ms) for the log thread to log the current memory usage.");
@@ -180,6 +188,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> HOST_BIND_POLICY =
 		key("taskmanager.network.bind-policy")
+			.stringType()
 			.defaultValue("ip")
 			.withDescription(Description.builder()
 				.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
@@ -299,6 +308,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
 		key("taskmanager.memory.managed.fraction")
+			.floatType()
 			.defaultValue(0.4f)
 			.withDescription("Fraction of Total Flink Memory to be used as Managed Memory, if Managed Memory size is not"
 				+ " explicitly specified.");
@@ -334,6 +344,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Float> SHUFFLE_MEMORY_FRACTION =
 		key("taskmanager.memory.shuffle.fraction")
+			.floatType()
 			.defaultValue(0.1f)
 			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key())
 			.withDescription("Fraction of Total Flink Memory to be used as Shuffle Memory. Shuffle Memory is off-heap"
@@ -381,6 +392,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Float> JVM_OVERHEAD_FRACTION =
 		key("taskmanager.memory.jvm-overhead.fraction")
+			.floatType()
 			.defaultValue(0.1f)
 			.withDescription("Fraction of Total Process Memory to be reserved for JVM Overhead. This is off-heap memory"
 				+ " reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native"
@@ -400,6 +412,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_INTERVAL =
 			key("task.cancellation.interval")
+			.longType()
 			.defaultValue(30000L)
 			.withDeprecatedKeys("task.cancellation-interval")
 			.withDescription("Time interval between two successive task cancellation attempts in milliseconds.");
@@ -411,6 +424,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
 			key("task.cancellation.timeout")
+			.longType()
 			.defaultValue(180000L)
 			.withDescription("Timeout in milliseconds after which a task cancellation times out and" +
 				" leads to a fatal TaskManager error. A value of 0 deactivates" +
@@ -421,6 +435,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS = ConfigOptions
 			.key("task.cancellation.timers.timeout")
+			.longType()
 			.defaultValue(7500L)
 			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
 			.withDescription("Time we wait for the timers in milliseconds to finish all pending timer threads" +
@@ -435,6 +450,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
+			.longType()
 			.defaultValue(-1L)
 			.withDescription("The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint" +
 				" alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped)." +
