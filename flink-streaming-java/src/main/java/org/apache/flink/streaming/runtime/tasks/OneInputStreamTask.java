@@ -45,8 +45,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -106,14 +104,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
 	}
 
-	private CheckpointedInputGate createCheckpointedInputGate() throws IOException {
+	private CheckpointedInputGate createCheckpointedInputGate() {
 		InputGate[] inputGates = getEnvironment().getAllInputGates();
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
 		return InputProcessorUtil.createCheckpointedInputGate(
 			this,
 			configuration.getCheckpointMode(),
-			getEnvironment().getIOManager(),
 			inputGate,
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getTaskNameWithSubtaskAndId());
