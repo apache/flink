@@ -90,7 +90,7 @@
             <td><h5>taskmanager.memory.task.off-heap.size</h5></td>
             <td style="word-wrap: break-word;">"0b"</td>
             <td>String</td>
-            <td>Task Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM direct memory or native memory) reserved for user code.</td>
+            <td>Task Off-Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM direct memory and native memory) reserved for user code. The configured value will be fully counted when Flink calculates the JVM max direct memory size parameter.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.total-flink.size</h5></td>
