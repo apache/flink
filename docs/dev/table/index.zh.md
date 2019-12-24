@@ -139,7 +139,7 @@ Where to go next?
 * [Streaming Concepts]({{ site.baseurl }}/dev/table/streaming): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
 * [Connect to External Systems]({{ site.baseurl }}/dev/table/connect.html): Available connectors and formats for reading and writing data to external systems.
 * [Table API]({{ site.baseurl }}/dev/table/tableApi.html): Supported operations and API for the Table API.
-* [SQL]({{ site.baseurl }}/dev/table/sql.html): Supported operations and syntax for SQL.
+* [SQL]({{ site.baseurl }}/dev/table/sql/index.html): Supported operations and syntax for SQL.
 * [Built-in Functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html): Supported functions in Table API and SQL.
 * [SQL Client]({{ site.baseurl }}/dev/table/sqlClient.html): Play around with Flink SQL and submit a table program to a cluster without programming knowledge.
 
