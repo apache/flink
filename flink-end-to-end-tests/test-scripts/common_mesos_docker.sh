@@ -39,6 +39,10 @@ on_exit cluster_shutdown
 
 function start_flink_cluster_with_mesos() {
     echo "Starting Flink on Mesos cluster"
+    if ! retry_times $IMAGE_BUILD_RETRIES 0 build_image; then
+        echo "ERROR: Could not build mesos image. Aborting..."
+        exit 1
+    fi
     build_image
 
     docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml up -d
@@ -60,12 +64,9 @@ function start_flink_cluster_with_mesos() {
 
 function build_image() {
     echo "Building Mesos Docker container"
-    if ! retry_times $IMAGE_BUILD_RETRIES 0 docker build -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/Dockerfile \
+    docker build -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/Dockerfile \
         -t flink/docker-mesos-cluster:latest \
-        $END_TO_END_DIR/test-scripts/docker-mesos-cluster/; then
-        echo "ERROR: Could not build mesos image. Aborting..."
-        exit 1
-    fi
+        $END_TO_END_DIR/test-scripts/docker-mesos-cluster/
 }
 
 function wait_job_terminal_state_mesos {
