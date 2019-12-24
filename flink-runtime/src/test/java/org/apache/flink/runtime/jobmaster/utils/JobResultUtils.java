@@ -27,13 +27,7 @@ import java.util.concurrent.ExecutionException;
  */
 public final class JobResultUtils {
 	public static void assertSuccess(final JobResult result) {
-		if (!result.isSuccess()) {
-			if (result.getSerializedThrowable().isPresent()) {
-				throw new AssertionError("Job failed.", result.getSerializedThrowable().get().deserializeError(JobResultUtils.class.getClassLoader()));
-			} else {
-				throw new AssertionError("Job was not successful but did not fail with an error.");
-			}
-		}
+		throwAssertionErrorOnFailedResult(result);
 	}
 
 	public static void assertIncomplete(final CompletableFuture<JobResult> result) {
@@ -49,8 +43,17 @@ public final class JobResultUtils {
 			if (jobResult.isSuccess()) {
 				throw new AssertionError("Job finished successfully.");
 			} else {
-				// this is guarantee to fail with an error
-				assertSuccess(jobResult);
+				throwAssertionErrorOnFailedResult(jobResult);
+			}
+		}
+	}
+
+	private static void throwAssertionErrorOnFailedResult(final JobResult result) {
+		if (!result.isSuccess()) {
+			if (result.getSerializedThrowable().isPresent()) {
+				throw new AssertionError("Job failed.", result.getSerializedThrowable().get().deserializeError(JobResultUtils.class.getClassLoader()));
+			} else {
+				throw new AssertionError("Job was not successful but did not fail with an error.");
 			}
 		}
 	}
