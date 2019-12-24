@@ -91,17 +91,17 @@ function start_hadoop_cluster() {
 
 function build_image() {
     echo "Building Hadoop Docker container"
-    if ! retry_times $IMAGE_BUILD_RETRIES 2 docker build --build-arg HADOOP_VERSION=2.8.4 \
+    docker build --build-arg HADOOP_VERSION=2.8.4 \
         -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile \
         -t flink/docker-hadoop-secure-cluster:latest \
-        $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/; then
-        echo "ERROR: Could not build hadoop image. Aborting..."
-        exit 1
-    fi
+        $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/
 }
 
 function start_hadoop_cluster_and_prepare_flink() {
-    build_image
+    if ! retry_times $IMAGE_BUILD_RETRIES 2 build_image; then
+        echo "ERROR: Could not build hadoop image. Aborting..."
+        exit 1
+    fi
     if ! retry_times $CLUSTER_SETUP_RETRIES 0 start_hadoop_cluster; then
         echo "ERROR: Could not start hadoop cluster. Aborting..."
         exit 1

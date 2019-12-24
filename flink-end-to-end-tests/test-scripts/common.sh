@@ -734,8 +734,7 @@ function find_latest_completed_checkpoint {
 }
 
 function retry_times() {
-    local command=${@:3}
-    retry_times_with_backoff_and_cleanup $1 $2 "$command" "true"
+    retry_times_with_backoff_and_cleanup $1 $2 "$3" "true"
 }
 
 function retry_times_with_backoff_and_cleanup() {
