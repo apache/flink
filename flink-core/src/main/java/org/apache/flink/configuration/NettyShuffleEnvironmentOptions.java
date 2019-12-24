@@ -224,9 +224,11 @@ public class NettyShuffleEnvironmentOptions {
 
 	public static final ConfigOption<String> TRANSPORT_TYPE =
 		key("taskmanager.network.netty.transport")
-			.defaultValue("nio")
+			.defaultValue("auto")
 			.withDeprecatedKeys("taskmanager.net.transport")
-			.withDescription("The Netty transport type, either \"nio\" or \"epoll\"");
+			.withDescription("The Netty transport type, either \"nio\" or \"epoll\". The \"auto\" means selecting the property mode automatically" +
+				" based on the platform. Note that the \"epoll\" mode can get better performance, less GC and have more advanced features which are" +
+				" only available on modern Linux.");
 
 	// ------------------------------------------------------------------------
 	//  Partition Request Options
