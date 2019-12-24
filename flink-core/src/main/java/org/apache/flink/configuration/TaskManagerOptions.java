@@ -223,7 +223,7 @@ public class TaskManagerOptions {
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
 	public static final ConfigOption<String> TOTAL_PROCESS_MEMORY =
-		key("taskmanager.memory.total-process.size")
+		key("taskmanager.memory.process.size")
 			.noDefaultValue()
 			.withDeprecatedKeys("taskmanager.heap.size")
 			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
