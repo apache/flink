@@ -23,6 +23,9 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.util.TimeUtils;
+
+import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -104,9 +107,10 @@ public class TaskManagerOptions {
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
 	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
 	 */
-	public static final ConfigOption<String> INITIAL_REGISTRATION_BACKOFF =
+	public static final ConfigOption<Duration> INITIAL_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.initial-backoff")
-			.defaultValue("500 ms")
+			.durationType()
+			.defaultValue(TimeUtils.parseDuration("500 ms"))
 			.withDeprecatedKeys("taskmanager.initial-registration-pause")
 			.withDescription("The initial registration backoff between two consecutive registration attempts. The backoff" +
 				" is doubled for each new registration attempt until it reaches the maximum registration backoff.");
@@ -114,9 +118,10 @@ public class TaskManagerOptions {
 	/**
 	 * The maximum registration backoff between two consecutive registration attempts.
 	 */
-	public static final ConfigOption<String> REGISTRATION_MAX_BACKOFF =
+	public static final ConfigOption<Duration> REGISTRATION_MAX_BACKOFF =
 		key("taskmanager.registration.max-backoff")
-			.defaultValue("30 s")
+			.durationType()
+			.defaultValue(TimeUtils.parseDuration("30 s"))
 			.withDeprecatedKeys("taskmanager.max-registration-pause")
 			.withDescription("The maximum registration backoff between two consecutive registration attempts. The max" +
 				" registration backoff requires a time unit specifier (ms/s/min/h/d).");
@@ -124,9 +129,10 @@ public class TaskManagerOptions {
 	/**
 	 * The backoff after a registration has been refused by the job manager before retrying to connect.
 	 */
-	public static final ConfigOption<String> REFUSED_REGISTRATION_BACKOFF =
+	public static final ConfigOption<Duration> REFUSED_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.refused-backoff")
-			.defaultValue("10 s")
+			.durationType()
+			.defaultValue(TimeUtils.parseDuration("10 s"))
 			.withDeprecatedKeys("taskmanager.refused-registration-pause")
 			.withDescription("The backoff after a registration has been refused by the job manager before retrying to connect.");
 
@@ -134,9 +140,10 @@ public class TaskManagerOptions {
 	 * Defines the timeout it can take for the TaskManager registration. If the duration is
 	 * exceeded without a successful registration, then the TaskManager terminates.
 	 */
-	public static final ConfigOption<String> REGISTRATION_TIMEOUT =
+	public static final ConfigOption<Duration> REGISTRATION_TIMEOUT =
 		key("taskmanager.registration.timeout")
-			.defaultValue("5 min")
+			.durationType()
+			.defaultValue(TimeUtils.parseDuration("5 min"))
 			.withDeprecatedKeys("taskmanager.maxRegistrationDuration")
 			.withDescription("Defines the timeout for the TaskManager registration. If the duration is" +
 				" exceeded without a successful registration, then the TaskManager terminates.");
