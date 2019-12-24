@@ -32,7 +32,7 @@ import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable}
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
-import org.apache.flink.table.types.logical.{LegacyTypeInformationType, RowType}
+import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.{fromLegacyInfoToDataType, fromLogicalToDataType}
 import org.apache.flink.table.utils.{TableSchemaUtils, TypeMappingUtils}
@@ -61,25 +61,27 @@ object TableSinkUtils {
       typeFactory: FlinkTypeFactory,
       sinkIdentifier: Option[String] = None): RelNode = {
 
-    val queryLogicalType = DataTypeUtils
-      // convert type to nullable, because we ignore nullability when writing query into sink
-      .transform(FlinkTypeFactory.toTableSchema(query.getRowType).toRowDataType, toNullable)
-      .getLogicalType
-      .asInstanceOf[RowType]
+    val queryLogicalType = FlinkTypeFactory.toLogicalRowType(query.getRowType)
     val sinkLogicalType = DataTypeUtils
-      // convert type to nullable, because we ignore nullability when writing query into sink
-      .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal, toNullable)
+      // we recognize legacy decimal is the same to default decimal
+      .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal)
       .getLogicalType
       .asInstanceOf[RowType]
-    if (LogicalTypeChecks.areTypesCompatible(queryLogicalType, sinkLogicalType)) {
-      // types are compatible, do nothing
-      query
-    } else if (LogicalTypeCasts.supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
-      // types can be implicit casted, add a cast project
-      val castedDataType = typeFactory.buildRelNodeRowType(
-        sinkLogicalType.getFieldNames,
-        sinkLogicalType.getFields.map(_.getType))
-      RelOptUtils.createCastRel(query, castedDataType)
+    if (LogicalTypeCasts.supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
+      // the query can be written into sink
+      // but we may need to add a cast project if the types are not compatible
+      if (LogicalTypeChecks.areTypesCompatible(
+          nullableLogicalType(queryLogicalType), nullableLogicalType(sinkLogicalType))) {
+        // types are compatible excepts nullable, do not need cast project
+        // we ignores nullable to avoid cast project as cast non-null to nullable is redundant
+        query
+      } else {
+        // otherwise, add a cast project
+        val castedDataType = typeFactory.buildRelNodeRowType(
+          sinkLogicalType.getFieldNames,
+          sinkLogicalType.getFields.map(_.getType))
+        RelOptUtils.createCastRel(query, castedDataType)
+      }
     } else {
       // format query and sink schema strings
       val srcSchema = queryLogicalType.getFields
@@ -96,6 +98,13 @@ object TableSinkUtils {
           s"Query schema: $srcSchema\n" +
           s"Sink schema: $sinkSchema")
     }
+  }
+
+  /**
+    * Make the logical type nullable recursively.
+    */
+  private def nullableLogicalType(logicalType: LogicalType): LogicalType = {
+    DataTypeUtils.transform(fromLogicalToDataType(logicalType), toNullable).getLogicalType
   }
 
   /**

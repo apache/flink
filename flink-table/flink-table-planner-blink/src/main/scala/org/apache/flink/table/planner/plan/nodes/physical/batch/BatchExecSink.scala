@@ -114,7 +114,6 @@ class BatchExecSink[T](
   private def translateToTransformation(
       withChangeFlag: Boolean,
       planner: BatchPlanner): Transformation[T] = {
-
     val config = planner.getTableConfig
     val resultDataType = sink.getConsumedDataType
     validateType(resultDataType)
