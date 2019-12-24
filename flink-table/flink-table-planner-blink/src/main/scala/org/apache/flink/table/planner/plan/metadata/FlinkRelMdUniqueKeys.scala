@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
@@ -26,11 +27,11 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.planner.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
+import org.apache.flink.table.planner._
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.logical._
 
-import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
@@ -41,6 +42,8 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
+
+import com.google.common.collect.ImmutableSet
 
 import java.util
 
@@ -136,7 +139,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
               case _ => // ignore
             }
           //rename or cast
-          case a: RexCall if (a.getKind.equals(SqlKind.AS) || a.getKind.equals(SqlKind.CAST)) &&
+          case a: RexCall if (a.getKind.equals(SqlKind.AS) || isFidelityCast(a)) &&
             a.getOperands.get(0).isInstanceOf[RexInputRef] =>
             appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
           case _ => // ignore
@@ -171,6 +174,51 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       }
     }
     projUniqueKeySet
+  }
+
+  /**
+    * Whether the [[RexCall]] is a cast that doesn't lose any information.
+    */
+  private def isFidelityCast(call: RexCall): Boolean = {
+    if (call.getKind != SqlKind.CAST) {
+      return false
+    }
+    val originalType = FlinkTypeFactory.toLogicalType(call.getOperands.get(0).getType)
+    val newType = FlinkTypeFactory.toLogicalType(call.getType)
+
+    if (originalType.getTypeRoot != newType.getTypeRoot) {
+      return false
+    }
+
+    // TODO: fully support all types
+    val unsupported = Set(
+      LogicalTypeRoot.ARRAY, LogicalTypeRoot.RAW, LogicalTypeRoot.ROW,
+      LogicalTypeRoot.MAP, LogicalTypeRoot.MULTISET, LogicalTypeRoot.DISTINCT_TYPE,
+      LogicalTypeRoot.UNRESOLVED, LogicalTypeRoot.STRUCTURED_TYPE, LogicalTypeRoot.NULL,
+      LogicalTypeRoot.SYMBOL)
+    if (unsupported.contains(newType)) {
+      return false
+    }
+
+    // new precision should be greater or equal than original precision
+    val precisionFidelity = (originalType, newType) match {
+      case (dt1: DecimalType, dt2: DecimalType) =>
+        dt1.getPrecision <= dt2.getPrecision && dt1.getScale <= dt2.getScale
+      case (ts1: TimestampType, ts2: TimestampType) =>
+        ts1.getPrecision <= ts2.getPrecision
+      case (ts1: LocalZonedTimestampType, ts2: LocalZonedTimestampType) =>
+        ts1.getPrecision <= ts2.getPrecision
+      case (ts1: ZonedTimestampType, ts2: ZonedTimestampType) =>
+        ts1.getPrecision <= ts2.getPrecision
+      case (t1: TimeType, t2: TimeType) =>
+        t1.getPrecision <= t2.getPrecision
+      case (_, _) => true
+    }
+
+    // can convert from not-null to nullable
+    originalType.getClass == newType.getClass &&
+      (newType.isNullable || originalType.isNullable == newType.isNullable) &&
+      precisionFidelity
   }
 
   def getUniqueKeys(

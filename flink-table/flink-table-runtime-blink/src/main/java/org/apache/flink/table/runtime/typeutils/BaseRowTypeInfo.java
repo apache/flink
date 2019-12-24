@@ -25,9 +25,9 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -60,8 +60,7 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 
 	public BaseRowTypeInfo(LogicalType[] logicalTypes, String[] fieldNames) {
 		super(BaseRow.class, Arrays.stream(logicalTypes)
-				.map(TypeConversions::fromLogicalToDataType)
-				.map(TypeConversions::fromDataTypeToLegacyInfo)
+				.map(TypeInfoLogicalTypeConverter::fromLogicalTypeToTypeInfo)
 				.toArray(TypeInformation[]::new));
 		this.logicalTypes = logicalTypes;
 		checkNotNull(fieldNames, "FieldNames should not be null.");

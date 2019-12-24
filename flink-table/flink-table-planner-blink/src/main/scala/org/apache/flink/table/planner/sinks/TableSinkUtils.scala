@@ -21,12 +21,13 @@ package org.apache.flink.table.planner.sinks
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.api.{TableException, TableSchema, Types, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.utils.RelOptUtils
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable}
@@ -36,9 +37,10 @@ import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.{fromLegacyInfoToDataType, fromLogicalToDataType}
 import org.apache.flink.table.utils.{TableSchemaUtils, TypeMappingUtils}
 import org.apache.flink.types.Row
+
 import org.apache.calcite.rel.RelNode
 
-import scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConversions._
 
 object TableSinkUtils {
 
@@ -226,6 +228,11 @@ object TableSinkUtils {
             fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
           case gt: GenericTypeInfo[BaseRow] if gt.getTypeClass == classOf[BaseRow] =>
             fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[BaseRow])
+          case bt: BaseRowTypeInfo =>
+            val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
+              DataTypes.FIELD(n, fromLogicalToDataType(t))
+            }
+            DataTypes.ROW(fields: _*).bridgedTo(classOf[BaseRow])
           case _ =>
             fromLegacyInfoToDataType(requestedTypeInfo)
         }
@@ -262,13 +269,15 @@ object TableSinkUtils {
     }
 
     for (i <- 0 until logicalSchema.getFieldCount) {
-      val logicalFieldType = logicalSchema.getFieldDataTypes()(i).getLogicalType
+      val logicalFieldType = DataTypeUtils.transform(
+        logicalSchema.getFieldDataTypes()(i), toNullable) // ignore nullabilities
       val logicalFieldName = logicalSchema.getFieldNames()(i)
-      val physicalFieldType = physicalSchema.getFieldDataTypes()(i).getLogicalType
+      val physicalFieldType = DataTypeUtils.transform(
+        physicalSchema.getFieldDataTypes()(i), toNullable) // ignore nullabilities
       val physicalFieldName = physicalSchema.getFieldNames()(i)
       TypeMappingUtils.checkPhysicalLogicalTypeCompatible(
-        physicalFieldType,
-        logicalFieldType,
+        physicalFieldType.getLogicalType,
+        logicalFieldType.getLogicalType,
         physicalFieldName,
         logicalFieldName,
         false)
