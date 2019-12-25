@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -33,7 +32,9 @@ import _root_.java.math.{BigDecimal => JBigDecimal}
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
-  * with windowing expression to [[LogicalWindowAggregate]] for batch.
+  * with windowing expression to
+ * [[org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate]]
+ * for batch.
   */
 class BatchLogicalWindowAggregateRule
   extends LogicalWindowAggregateRuleBase("BatchLogicalWindowAggregateRule") {
@@ -56,6 +57,10 @@ class BatchLogicalWindowAggregateRule
       operand: RexNode,
       windowExprIdx: Int,
       rowType: RelDataType): FieldReferenceExpression = {
+    if (FlinkTypeFactory.isProctimeIndicatorType(operand.getType)) {
+      throw new ValidationException("Window can not be defined over "
+        + "a proctime attribute column for batch mode")
+    }
     operand match {
       // match TUMBLE_ROWTIME and TUMBLE_PROCTIME
       case c: RexCall if c.getOperands.size() == 1 &&

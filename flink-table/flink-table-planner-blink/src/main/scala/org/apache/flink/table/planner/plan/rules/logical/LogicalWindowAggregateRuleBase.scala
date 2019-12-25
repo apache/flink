@@ -31,15 +31,20 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Aggregate.Group
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.util.{Pair => CPair}
 
 import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
@@ -54,7 +59,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalAggregate = call.rel(0)
 
-    val windowExpressions = getWindowExpressions(agg)
+    val windowExpressions = getWindowExpressions(
+      agg, trimHep(agg.getInput()).asInstanceOf[LogicalProject])
     if (windowExpressions.length > 1) {
       throw new TableException("Only a single window group function may be used in GROUP BY")
     }
@@ -65,10 +71,11 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
+    val builder = call.builder()
     val agg: LogicalAggregate = call.rel(0)
-    val project: LogicalProject = call.rel(1)
+    val project: LogicalProject = rewriteProctimeTumbling(call.rel(1), builder)
 
-    val (windowExpr, windowExprIdx) = getWindowExpressions(agg).head
+    val (windowExpr, windowExprIdx) = getWindowExpressions(agg, project).head
     val window = translateWindow(windowExpr, windowExprIdx, project.getInput.getRowType)
 
     val rexBuilder = agg.getCluster.getRexBuilder
@@ -76,8 +83,6 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     val inAggGroupExpression = getInAggregateGroupExpression(rexBuilder, windowExpr)
 
     val newGroupSet = agg.getGroupSet.except(ImmutableBitSet.of(windowExprIdx))
-
-    val builder = call.builder()
 
     val newProject = builder
       .push(project.getInput)
@@ -138,6 +143,86 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     call.transformTo(result)
   }
 
+  /** Trim out the HepRelVertex wrapper and get current relational expression. */
+  private def trimHep(node: RelNode): RelNode = {
+    node match {
+      case hepRelVertex: HepRelVertex =>
+        hepRelVertex.getCurrentRel
+      case _ => node
+    }
+  }
+
+  /**
+   * Rewrite plan with PROCTIME() as window call operand: rewrite the window call to
+   * reference the input instead of invoke the PROCTIME() directly, in order to simplify the
+   * subsequent rewrite logic.
+   *
+   * For example, plan
+   * <pre>
+   * LogicalProject($f0=[TUMBLE(PROCTIME(), 1000:INTERVAL SECOND)], a=[$0], b=[$1])
+   *   +- LogicalTableScan
+   * </pre>
+   *
+   * would be rewritten to
+   * <pre>
+   * LogicalProject($f0=[TUMBLE($2, 1000:INTERVAL SECOND)], a=[$0], b=[$1])
+   * +- LogicalProject(a=[$0], b=[$1], $f2=[PROCTIME()])
+   * +- LogicalTableScan
+   * </pre>
+   */
+  private def rewriteProctimeTumbling(
+      project: LogicalProject,
+      relBuilder: RelBuilder): LogicalProject = {
+    def isProctimeCall(rexNode: RexNode): Boolean = {
+      rexNode match {
+        case call: RexCall =>
+          call.getOperator == FlinkSqlOperatorTable.PROCTIME
+        case _ => false
+      }
+    }
+    var proctimeTumbleCall: CPair[RexCall, Int] = null
+    val newProjects: ArrayBuffer[RexNode] = new ArrayBuffer[RexNode]()
+    project.getChildExps.zipWithIndex foreach {
+      case (prj, idx) =>
+        prj match {
+          case call: RexCall
+            if call.getKind == SqlKind.TUMBLE
+              && call.getOperands.nonEmpty
+              && isProctimeCall(call.getOperands.get(0)) =>
+            proctimeTumbleCall = CPair.of(call, idx)
+            newProjects += null // add as a placeholder
+          case o: RexNode =>
+            newProjects += o
+        }
+    }
+    if (proctimeTumbleCall == null) {
+      project
+    } else {
+      val projectInput = trimHep(project.getInput)
+      val newInput = relBuilder
+        .push(projectInput)
+        // Project plus the PROCTIME() call.
+        .projectPlus(proctimeTumbleCall.left.getOperands.get(0))
+        .build()
+      newProjects(proctimeTumbleCall.right) =
+        proctimeTumbleCall.left.accept(
+          new RexShuttle {
+            override def visitCall(call: RexCall): RexNode = {
+              if (isProctimeCall(call)) {
+                RexInputRef.of(newInput.getRowType.getFieldCount - 1, newInput.getRowType)
+              } else {
+                super.visitCall(call)
+              }
+            }
+          }
+        )
+      RelFactories
+        .DEFAULT_PROJECT_FACTORY
+        .createProject(newInput, newProjects, project.getRowType.getFieldNames)
+        .asInstanceOf[LogicalProject]
+    }
+  }
+
   /**
    * Change the types of [[AggregateCall]] to the corresponding inferred types.
    */
@@ -193,8 +278,9 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     }.toMap
   }
 
-  private[table] def getWindowExpressions(agg: LogicalAggregate): Seq[(RexCall, Int)] = {
-    val project = agg.getInput.asInstanceOf[HepRelVertex].getCurrentRel.asInstanceOf[LogicalProject]
+  private[table] def getWindowExpressions(
+      agg: LogicalAggregate,
+      project: LogicalProject): Seq[(RexCall, Int)] = {
     val groupKeys = agg.getGroupSet
 
     // get grouping expressions

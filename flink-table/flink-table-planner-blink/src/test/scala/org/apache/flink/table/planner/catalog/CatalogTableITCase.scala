@@ -34,7 +34,7 @@ import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Rule, Test}
+import org.junit.{Assume, Before, Ignore, Rule, Test}
 
 import java.io.File
 import java.util
@@ -248,6 +248,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006,2,5.33\n"
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
+
   @Test
   def testInsertSourceTableExpressionFields(): Unit = {
     val sourceData = List(
@@ -642,8 +643,12 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test @Ignore // need to implement
+  @Test
   def testStreamSourceTableWithProctime(): Unit = {
+    Assume.assumeTrue(
+      "Proctime group window is only supported for stream mode",
+      isStreamingMode)
+
     val sourceData = List(
       toRow(1, 1000),
       toRow(2, 2000),
@@ -655,8 +660,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t1(
         |  a int,
         |  b int,
-        |  c as proctime,
-        |  primary key(a)
+        |  c as proctime()
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -723,8 +727,12 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
-  @Test @Ignore // need to implement
+  @Test
   def testBatchSourceTableWithProctime(): Unit = {
+    Assume.assumeFalse(
+      "Proctime group window is only supported for stream mode",
+      isStreamingMode)
+
     val sourceData = List(
       toRow(1, 1000),
       toRow(2, 2000),
@@ -736,8 +744,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t1(
         |  a int,
         |  b int,
-        |  c as proctime,
-        |  primary key(a)
+        |  c as proctime()
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -759,9 +766,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage(
+      "Window can not be defined over a proctime attribute column for batch mode")
     tableEnv.sqlUpdate(query)
     execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
 
   @Test @Ignore("FLINK-14320") // need to implement
