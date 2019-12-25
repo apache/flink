@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -28,7 +29,9 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -193,9 +196,10 @@ public class HiveTableUtil {
 	 * @param expressions  The filter expressions in CNF form
 	 * @return an Optional filter string equivalent to the expressions, which is empty if the expressions can't be handled
 	 */
-	public static Optional<String> makePartitionFilter(int partColOffset, List<String> partColNames, List<Expression> expressions) {
+	public static Optional<String> makePartitionFilter(
+			int partColOffset, List<String> partColNames, List<Expression> expressions, HiveShim hiveShim) {
 		List<String> filters = new ArrayList<>(expressions.size());
-		ExpressionExtractor extractor = new ExpressionExtractor(partColOffset, partColNames);
+		ExpressionExtractor extractor = new ExpressionExtractor(partColOffset, partColNames, hiveShim);
 		for (Expression expression : expressions) {
 			String str = expression.accept(extractor);
 			if (str == null) {
@@ -225,10 +229,12 @@ public class HiveTableUtil {
 		// used to shift field reference index
 		private final int partColOffset;
 		private final List<String> partColNames;
+		private final HiveShim hiveShim;
 
-		ExpressionExtractor(int partColOffset, List<String> partColNames) {
+		ExpressionExtractor(int partColOffset, List<String> partColNames, HiveShim hiveShim) {
 			this.partColOffset = partColOffset;
 			this.partColNames = partColNames;
+			this.hiveShim = hiveShim;
 		}
 
 		@Override
@@ -250,7 +256,19 @@ public class HiveTableUtil {
 
 		@Override
 		public String visit(ValueLiteralExpression valueLiteral) {
-			return valueLiteral.asSummaryString();
+			DataType dataType = valueLiteral.getOutputDataType();
+			Object value = valueLiteral.getValueAs(Object.class).orElse(null);
+			if (value == null) {
+				return "null";
+			}
+			value = HiveInspectors.getConversion(HiveInspectors.getObjectInspector(dataType), dataType.getLogicalType(), hiveShim)
+					.toHiveObject(value);
+			String res = value.toString();
+			LogicalTypeRoot typeRoot = dataType.getLogicalType().getTypeRoot();
+			if (typeRoot == LogicalTypeRoot.VARCHAR || typeRoot == LogicalTypeRoot.CHAR) {
+				res = "'" + res.replace("'", "''") + "'";
+			}
+			return res;
 		}
 
 		@Override

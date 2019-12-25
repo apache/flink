@@ -793,7 +793,7 @@ public class HiveCatalog extends AbstractCatalog {
 		ensurePartitionedTable(tablePath, hiveTable);
 		List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
 		Optional<String> filter = HiveTableUtil.makePartitionFilter(
-				getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions);
+				getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions, hiveShim);
 		if (!filter.isPresent()) {
 			throw new UnsupportedOperationException(
 					"HiveCatalog is unable to handle the partition filter expressions: " + expressions);
