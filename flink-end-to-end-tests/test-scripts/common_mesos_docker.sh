@@ -26,8 +26,6 @@ MAX_RETRY_SECONDS=120
 IMAGE_BUILD_RETRIES=5
 NODENAME=${NODENAME:-`hostname -f`}
 
-export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
-
 echo "End-to-end directory $END_TO_END_DIR"
 
 start_time=$(date +%s)
@@ -35,8 +33,6 @@ start_time=$(date +%s)
 # make sure we stop our cluster at the end
 function cluster_shutdown {
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml down
-  rm -rf ${INPUT_VOLUME}/log
-  rm -rf ${INPUT_VOLUME}/tmp
 }
 on_exit cluster_shutdown
 
