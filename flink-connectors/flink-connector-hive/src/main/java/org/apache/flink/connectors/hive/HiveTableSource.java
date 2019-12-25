@@ -31,8 +31,11 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.LimitableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
@@ -56,6 +59,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -81,6 +85,7 @@ public class HiveTableSource implements
 	@Nullable
 	private List<Map<String, String>> remainingPartitions = null;
 	private String hiveVersion;
+	private HiveShim hiveShim;
 	private boolean partitionPruned;
 	private int[] projectedFields;
 	private boolean isLimitPushDown = false;
@@ -92,6 +97,7 @@ public class HiveTableSource implements
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		partitionPruned = false;
 	}
 
@@ -108,6 +114,7 @@ public class HiveTableSource implements
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.remainingPartitions = remainingPartitions;
 		this.hiveVersion = hiveVersion;
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		this.partitionPruned = partitionPruned;
 		this.projectedFields = projectedFields;
 		this.isLimitPushDown = isLimitPushDown;
@@ -286,7 +293,15 @@ public class HiveTableSource implements
 			case DOUBLE:
 				return Double.valueOf(valStr);
 			case DATE:
-				return Date.valueOf(valStr);
+				return HiveInspectors.toFlinkObject(
+						HiveInspectors.getObjectInspector(type),
+						hiveShim.toHiveDate(Date.valueOf(valStr)),
+						hiveShim);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return HiveInspectors.toFlinkObject(
+						HiveInspectors.getObjectInspector(type),
+						hiveShim.toHiveTimestamp(Timestamp.valueOf(valStr)),
+						hiveShim);
 			default:
 				break;
 		}

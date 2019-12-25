@@ -306,6 +306,34 @@ public class TableEnvHiveConnectorTest {
 	}
 
 	@Test
+	public void testDateTimestampPartitionColumns() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.part(x int) partitioned by (dt date,ts timestamp)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{1})
+					.addRow(new Object[]{2})
+					.commit("dt='2019-12-23',ts='2019-12-23 00:00:00'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{3})
+					.commit("dt='2019-12-25',ts='2019-12-25 16:23:43.012'");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.part order by x"));
+			assertEquals("[1,2019-12-23,2019-12-23T00:00, 2,2019-12-23,2019-12-23T00:00, 3,2019-12-25,2019-12-25T16:23:43.012]", results.toString());
+
+			results = TableUtils.collectToList(tableEnv.sqlQuery("select x from db1.part where dt=cast('2019-12-25' as date)"));
+			assertEquals("[3]", results.toString());
+
+			tableEnv.sqlUpdate("insert into db1.part select 4,cast('2019-12-31' as date),cast('2019-12-31 12:00:00.0' as timestamp)");
+			tableEnv.execute("insert");
+			results = TableUtils.collectToList(tableEnv.sqlQuery("select max(dt) from db1.part"));
+			assertEquals("[2019-12-31]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
 	public void testUDTF() throws Exception {
 		// W/o https://issues.apache.org/jira/browse/HIVE-11878 Hive registers the App classloader as the classloader
 		// for the UDTF and closes the App classloader when we tear down the session. This causes problems for JUnit code

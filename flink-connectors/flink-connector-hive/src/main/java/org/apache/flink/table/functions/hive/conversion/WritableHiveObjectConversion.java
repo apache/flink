@@ -23,6 +23,8 @@ package org.apache.flink.table.functions.hive.conversion;
  */
 public class WritableHiveObjectConversion implements HiveObjectConversion {
 
+	private static final long serialVersionUID = 1L;
+
 	private final HiveObjectConversion flinkToJavaConversion;
 
 	WritableHiveObjectConversion(HiveObjectConversion flinkToJavaConversion) {
