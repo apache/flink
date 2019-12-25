@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -208,5 +209,16 @@ public abstract class KafkaTestEnvironment {
 		NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, remoteHost, remotePort);
 		networkFailuresProxies.add(proxy);
 		return proxy;
+	}
+
+	protected void maybePrintDanglingThreadStacktrace(String threadNameKeyword) {
+		for (Map.Entry<Thread, StackTraceElement[]> threadEntry : Thread.getAllStackTraces().entrySet()) {
+			if (threadEntry.getKey().getName().contains(threadNameKeyword)) {
+				System.out.println("Dangling thread found:");
+				for (StackTraceElement ste : threadEntry.getValue()) {
+					System.out.println(ste);
+				}
+			}
+		}
 	}
 }

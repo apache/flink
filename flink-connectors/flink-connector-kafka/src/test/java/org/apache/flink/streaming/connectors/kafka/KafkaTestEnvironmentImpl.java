@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.BindException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -148,11 +150,20 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	@Override
 	public void deleteTestTopic(String topic) {
 		LOG.info("Deleting topic {}", topic);
-		try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
+		Properties props = getSecureProperties();
+		props.putAll(getStandardProperties());
+		String clientId = Long.toString(new Random().nextLong());
+		props.put("client.id", clientId);
+		AdminClient adminClient = AdminClient.create(props);
+		// We do not use a try-catch clause here so we can apply a timeout to the admin client closure.
+		try {
 			tryDelete(adminClient, topic);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(String.format("Delete test topic : %s failed, %s", topic, e.getMessage()));
+		} finally {
+			adminClient.close(Duration.ofMillis(5000L));
+			maybePrintDanglingThreadStacktrace(clientId);
 		}
 	}
 
