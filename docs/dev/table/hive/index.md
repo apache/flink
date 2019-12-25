@@ -179,7 +179,7 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-metastore-1.2.1.jar
        hive-exec-1.2.1.jar
-       libfb303-0.9.3.jar
+       libfb303-0.9.2.jar
 
 {% endhighlight %}
 </div>
@@ -271,7 +271,7 @@ Please find the required dependencies for different Hive major versions below.
 </div>
 
 
-If you are building your own program, you need these dependencies in your mvn file.
+If you are building your own program, you need the following dependencies in your mvn file.
 It's recommended not to include these dependencies in the resulting jar file.
 You're supposed to add dependencies as stated above at runtime.
 
