@@ -52,7 +52,7 @@ function start_flink_cluster_with_mesos() {
     set_config_key "jobmanager.rpc.address" "mesos-master"
     set_config_key "rest.address" "mesos-master"
 
-    docker exec -it mesos-master nohup bash -c "${FLINK_DIR}/bin/mesos-appmaster.sh -Dmesos.master=mesos-master:5050 &"
+    docker exec -itd mesos-master bash -c "${FLINK_DIR}/bin/mesos-appmaster.sh -Dmesos.master=mesos-master:5050"
     wait_rest_endpoint_up "http://${NODENAME}:8081/taskmanagers" "Dispatcher" "\{\"taskmanagers\":\[.*\]\}"
     return 0
 }
