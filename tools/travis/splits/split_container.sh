@@ -52,6 +52,7 @@ run_test "Run kubernetes session test" "$END_TO_END_DIR/test-scripts/test_kubern
 if [[ "${HADOOP_INTEGRATION}" = "with-hadoop" ]]; then
     run_test "Run Mesos WordCount test" "$END_TO_END_DIR/test-scripts/test_mesos_wordcount.sh"
     run_test "Run Mesos multiple submission test" "$END_TO_END_DIR/test-scripts/test_mesos_multiple_submissions.sh"
+    run_test "Run Mesos Heap Backend test" "$END_TO_END_DIR/test-scripts/test_mesos_streaming_heap_state.sh"
 fi
 
 printf "\n[PASS] All tests passed\n"

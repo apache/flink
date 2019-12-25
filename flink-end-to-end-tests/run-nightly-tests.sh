@@ -116,6 +116,7 @@ if [[ ${PROFILE} != *"jdk11"* ]]; then
 	if [[ $PROFILE == *"include-hadoop"* ]]; then
 		run_test "Run Mesos WordCount test" "$END_TO_END_DIR/test-scripts/test_mesos_wordcount.sh"
 		run_test "Run Mesos multiple submission test" "$END_TO_END_DIR/test-scripts/test_mesos_multiple_submissions.sh"
+		run_test "Run Mesos Heap Backend test" "$END_TO_END_DIR/test-scripts/test_mesos_streaming_heap_state.sh"
 	fi
 
 	run_test "Test PubSub connector with Docker based Google PubSub Emulator" "$END_TO_END_DIR/test-scripts/test_streaming_gcp_pubsub.sh"
