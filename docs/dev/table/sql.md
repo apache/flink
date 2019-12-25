@@ -1396,13 +1396,22 @@ table_env \
 
 {% highlight sql %}
 CREATE TABLE [catalog_name.][db_name.]table_name
-  [(col_name1 col_type1 [COMMENT col_comment1], ...)]
+  [([col_name1 col_type1 | col_name1 AS expression] [COMMENT col_comment1], ...)]
   [COMMENT table_comment]
   [PARTITIONED BY (col_name1, col_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
 Create a table with the given table properties. If a table with the same name already exists in the database, an exception is thrown.
+
+**COMPUTED COLUMN**
+Column declared with syntax `col_name1 AS expression` is a computed column, the `expression` part can be any atom(non-query) expression,
+i.e. A user defined function or a binary operator like `col1 + col2`.
+
+**Notes:**
+Computed column defined on a source table indicates that this column is derived with additional computation when reading from the source,
+the column has no real physical storage; Computed column defined on a source table indicates that the column would be ignored when inserting
+into the sink, that means, the select clause's schema(or row type) must equal to the sink table schema without the computed columns.
 
 **PARTITIONED BY**
 

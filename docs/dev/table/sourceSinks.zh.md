@@ -71,7 +71,7 @@ TableSource[T] {
 </div>
 </div>
 
-* `getTableSchema()`: Returns the schema of the table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `TypeInformation` (see [Table API types](tableApi.html#data-types) and [SQL types](sql.html#data-types)).
+* `getTableSchema()`: Returns the schema of the table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `TypeInformation` (see [Table API types](tableApi.html#data-types) and [SQL types](sql.html#data-types)). Since computed column syntax is supported for SQL `create table` DDL, we should always exclude the computed columns for this interface return schema, that means, the schema field should always keep sync with real physical format (see [Create Table](sql.html#create-table)).
 
 * `getReturnType()`: Returns the physical type of the `DataStream` (`StreamTableSource`) or `DataSet` (`BatchTableSource`) and the records that are produced by the `TableSource`.
 
@@ -411,7 +411,7 @@ TableSink[T] {
 </div>
 </div>
 
-The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema.
+The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema. Since computed column syntax is supported for SQL `create table` DDL, we should always exclude the computed columns for this interface return schema, that means, the schema field should always keep sync with real physical format (see [Create Table](sql.html#create-table)).
 
 ### BatchTableSink
 
