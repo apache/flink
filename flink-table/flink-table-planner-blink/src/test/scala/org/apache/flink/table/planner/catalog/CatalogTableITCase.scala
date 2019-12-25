@@ -249,6 +249,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
     assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
+
   @Test
   def testInsertSourceTableExpressionFields(): Unit = {
     val sourceData = List(
@@ -643,47 +644,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test @Ignore // need to implement
-  def testStreamSourceTableWithProctime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a int,
-        |  b int,
-        |  c as proctime,
-        |  primary key(a)
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a int,
-        |  b int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
   @Test @Ignore("FLINK-14320") // need to implement
   def testStreamSourceTableWithRowtime(): Unit = {
     val sourceData = List(
@@ -715,47 +675,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """
         |insert into t2
         |select a, sum(b) from t1 group by TUMBLE(a, INTERVAL '1' SECOND)
-      """.stripMargin
-
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
-    execJob("testJob")
-    assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
-  }
-
-  @Test @Ignore // need to implement
-  def testBatchSourceTableWithProctime(): Unit = {
-    val sourceData = List(
-      toRow(1, 1000),
-      toRow(2, 2000),
-      toRow(3, 3000)
-    )
-    TestCollectionTableFactory.initData(sourceData, emitInterval = 1000L)
-    val sourceDDL =
-      """
-        |create table t1(
-        |  a int,
-        |  b int,
-        |  c as proctime,
-        |  primary key(a)
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
-        |create table t2(
-        |  a int,
-        |  b int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |insert into t2
-        |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
       """.stripMargin
 
     tableEnv.sqlUpdate(sourceDDL)
