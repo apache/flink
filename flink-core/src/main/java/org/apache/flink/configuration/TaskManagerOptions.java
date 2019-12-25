@@ -267,7 +267,7 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.task.heap.size")
 			.noDefaultValue()
 			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
-				+ " user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
+				+ " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
 				+ " Task Off-Heap Memory, Managed Memory and Shuffle Memory.");
 
 	/**
@@ -277,7 +277,7 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.task.off-heap.size")
 			.defaultValue("0b")
 			.withDescription("Task Off-Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM"
-				+ " direct memory and native memory) reserved for user code. The configured value will be fully counted"
+				+ " direct memory and native memory) reserved for tasks. The configured value will be fully counted"
 				+ " when Flink calculates the JVM max direct memory size parameter.");
 
 	/**
