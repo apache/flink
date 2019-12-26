@@ -53,7 +53,6 @@ services:
     networks:
       - docker-mesos-cluster-network
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ${END_TO_END_DIR}:${END_TO_END_DIR}
     environment:
       MESOS_PORT: 5051
