@@ -473,11 +473,11 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.execute("create view db1.v2 as select key,count(*) from db1.src group by key having count(*)>1 order by key");
 			hiveShell.execute("create view db1.v3 as select k.key,k.name,count(*) from db1.src s join db1.keys k on s.key=k.key group by k.key,k.name order by k.key");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select count(v) from db1.v1"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select count(v) from db1.v1"));
 			assertEquals("[2]", results.toString());
-			results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.v2"));
+			results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.v2"));
 			assertEquals("[1,3, 3,2]", results.toString());
-			results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.v3"));
+			results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.v3"));
 			assertEquals("[1,key1,3, 2,key2,1, 3,key3,2]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
