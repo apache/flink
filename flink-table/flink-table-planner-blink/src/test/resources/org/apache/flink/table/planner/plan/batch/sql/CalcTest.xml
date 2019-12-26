@@ -33,6 +33,23 @@ Calc(select=[ARRAY(_UTF-16LE'Hi', _UTF-16LE'Hello', c) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCollationDeriveOnCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT CAST(a AS INT), CAST(b AS VARCHAR) FROM (VALUES (3, 'c')) T(a,b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalValues(type=[RecordType(INTEGER a, CHAR(1) b)], tuples=[[{ 3, _UTF-16LE'c' }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a AS EXPR$0, CAST(b) AS EXPR$1])
++- Values(type=[RecordType(INTEGER a, CHAR(1) b)], tuples=[[{ 3, _UTF-16LE'c' }]], values=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testConjunctiveFilter">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a < 10 AND b > 20]]>
