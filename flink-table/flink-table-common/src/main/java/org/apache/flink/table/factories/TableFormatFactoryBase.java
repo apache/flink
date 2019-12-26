@@ -26,10 +26,12 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
@@ -154,23 +156,29 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 
 		final TableSchema.Builder builder = TableSchema.builder();
 
-		final TableSchema baseSchema = TableSchemaUtils.getPhysicalSchema(
-			descriptorProperties.getTableSchema(SCHEMA));
-		for (int i = 0; i < baseSchema.getFieldCount(); i++) {
-			final String fieldName = baseSchema.getFieldNames()[i];
-			final DataType fieldType = baseSchema.getFieldDataTypes()[i];
+		final TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
+		final TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(tableSchema);
+
+		final Map<Integer, Integer> physicalIndices2Indices = Arrays.stream(physicalSchema.getFieldNames())
+			.collect(Collectors.toMap(
+				Arrays.asList(physicalSchema.getFieldNames())::indexOf,
+				Arrays.asList(tableSchema.getFieldNames())::indexOf));
+
+		for (int i = 0; i < physicalSchema.getFieldCount(); i++) {
+			final String fieldName = physicalSchema.getFieldNames()[i];
+			final DataType fieldType = physicalSchema.getFieldDataTypes()[i];
 
 			final boolean isProctime = descriptorProperties
-				.getOptionalBoolean(SCHEMA + '.' + i + '.' + SCHEMA_PROCTIME)
+				.getOptionalBoolean(SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + SCHEMA_PROCTIME)
 				.orElse(false);
-			final String timestampKey = SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_TYPE;
+			final String timestampKey = SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + ROWTIME_TIMESTAMPS_TYPE;
 			final boolean isRowtime = descriptorProperties.containsKey(timestampKey);
-			boolean isGeneratedColumn = properties.containsKey(SCHEMA + "." + i + "." + TABLE_SCHEMA_EXPR);
+			final boolean isGeneratedColumn = properties.containsKey(SCHEMA + "." + physicalIndices2Indices.get(i) + "." + TABLE_SCHEMA_EXPR);
 
 			if (!isProctime && !isRowtime && !isGeneratedColumn) {
 				// check for aliasing
 				final String aliasName = descriptorProperties
-					.getOptionalString(SCHEMA + '.' + i + '.' + SCHEMA_FROM)
+					.getOptionalString(SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + SCHEMA_FROM)
 					.orElse(fieldName);
 				builder.field(aliasName, fieldType);
 			}
@@ -178,7 +186,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			else if (isRowtime &&
 					descriptorProperties.isValue(timestampKey, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD)) {
 				final String aliasName = descriptorProperties
-					.getString(SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_FROM);
+					.getString(SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + ROWTIME_TIMESTAMPS_FROM);
 				builder.field(aliasName, fieldType);
 			}
 		}
