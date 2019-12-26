@@ -118,4 +118,34 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 
 		assertEquals(expectedDeser, actualDeser);
 	}
+
+	@Test
+	public void testDisableQuoteCharacter() {
+		final Map<String, String> properties = new Csv()
+			.schema(SCHEMA)
+			.fieldDelimiter(';')
+			.lineDelimiter("\r\n")
+			.allowComments()
+			.ignoreParseErrors()
+			.arrayElementDelimiter("|")
+			.escapeCharacter('\\')
+			.nullLiteral("n/a")
+			.disableQuoteCharacter()
+			.toProperties();
+
+		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA)
+			.setFieldDelimiter(';')
+			.setLineDelimiter("\r\n")
+			.setArrayElementDelimiter("|")
+			.setEscapeCharacter('\\')
+			.setNullLiteral("n/a")
+			.disableQuoteCharacter()
+			.build();
+
+		final SerializationSchema<?> actualSer = TableFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+
+		assertEquals(expectedSer, actualSer);
+	}
 }
