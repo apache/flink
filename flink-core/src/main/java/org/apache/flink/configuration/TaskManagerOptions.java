@@ -44,7 +44,7 @@ public class TaskManagerOptions {
 	/**
 	 * JVM heap size for the TaskManagers with memory size.
 	 *
-	 * @deprecated use {@link #TOTAL_PROCESS_MEMORY} instead.
+	 * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link #TOTAL_PROCESS_MEMORY} for containerized setups.
 	 */
 	@Deprecated
 	public static final ConfigOption<MemorySize> TASK_MANAGER_HEAP_MEMORY =
@@ -58,7 +58,7 @@ public class TaskManagerOptions {
 	/**
 	 * JVM heap size (in megabytes) for the TaskManagers.
 	 *
-	 * @deprecated use {@link #TOTAL_PROCESS_MEMORY}
+	 * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link #TOTAL_PROCESS_MEMORY} for containerized setups.
 	 */
 	@Deprecated
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
@@ -257,7 +257,6 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.process.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDeprecatedKeys(TASK_MANAGER_HEAP_MEMORY.key())
 			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
 				+ " TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On"
 				+ " containerized setups, this should be set to the container memory.");
