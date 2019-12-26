@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import java.util.LinkedHashMap;
@@ -36,45 +37,32 @@ public class HivePartitionComputer extends RowPartitionComputer {
 
 	private static final long serialVersionUID = 1L;
 
-	private final HiveShim hiveShim;
-	private final DataType[] columnTypes;
-	private HiveObjectConversion[] partColConversions;
+	private final HiveObjectConversion[] partColConversions;
 
 	HivePartitionComputer(HiveShim hiveShim, String defaultPartValue, String[] columnNames,
 			DataType[] columnTypes, String[] partitionColumns) {
 		super(defaultPartValue, columnNames, partitionColumns);
-		this.hiveShim = hiveShim;
-		this.columnTypes = columnTypes;
+		partColConversions = new HiveObjectConversion[partitionIndexes.length];
+		for (int i = 0; i < partColConversions.length; i++) {
+			DataType partColType = columnTypes[partitionIndexes[i]];
+			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(partColType);
+			partColConversions[i] = HiveInspectors.getConversion(objectInspector, partColType.getLogicalType(), hiveShim);
+		}
 	}
 
 	@Override
 	public LinkedHashMap<String, String> generatePartValues(Row in) throws Exception {
-		initConversions();
 		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 
 		for (int i = 0; i < partitionIndexes.length; i++) {
 			int index = partitionIndexes[i];
 			Object field = in.getField(index);
-			if (field != null) {
-				field = partColConversions[i].toHiveObject(field);
-			}
-			String partitionValue = field != null ? field.toString() : null;
-			if (partitionValue == null || "".equals(partitionValue)) {
+			String partitionValue = field != null ? partColConversions[i].toHiveObject(field).toString() : null;
+			if (StringUtils.isEmpty(partitionValue)) {
 				partitionValue = defaultPartValue;
 			}
 			partSpec.put(partitionColumns[i], partitionValue);
 		}
 		return partSpec;
-	}
-
-	private void initConversions() {
-		if (partColConversions == null) {
-			partColConversions = new HiveObjectConversion[partitionIndexes.length];
-			for (int i = 0; i < partColConversions.length; i++) {
-				DataType partColType = columnTypes[partitionIndexes[i]];
-				ObjectInspector objectInspector = HiveInspectors.getObjectInspector(partColType);
-				partColConversions[i] = HiveInspectors.getConversion(objectInspector, partColType.getLogicalType(), hiveShim);
-			}
-		}
 	}
 }
