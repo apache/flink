@@ -318,15 +318,15 @@ public class TableEnvHiveConnectorTest {
 					.addRow(new Object[]{3})
 					.commit("dt='2019-12-25',ts='2019-12-25 16:23:43.012'");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select * from db1.part order by x"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.part order by x"));
 			assertEquals("[1,2019-12-23,2019-12-23T00:00, 2,2019-12-23,2019-12-23T00:00, 3,2019-12-25,2019-12-25T16:23:43.012]", results.toString());
 
-			results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select x from db1.part where dt=cast('2019-12-25' as date)"));
+			results = TableUtils.collectToList(tableEnv.sqlQuery("select x from db1.part where dt=cast('2019-12-25' as date)"));
 			assertEquals("[3]", results.toString());
 
 			tableEnv.sqlUpdate("insert into db1.part select 4,cast('2019-12-31' as date),cast('2019-12-31 12:00:00.0' as timestamp)");
 			tableEnv.execute("insert");
-			results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select max(dt) from db1.part"));
+			results = TableUtils.collectToList(tableEnv.sqlQuery("select max(dt) from db1.part"));
 			assertEquals("[2019-12-31]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
