@@ -24,10 +24,9 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 
-import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Rule, Test}
+import org.junit.{Before, Test}
 
 import java.sql.Timestamp
 import java.util
@@ -38,11 +37,6 @@ import scala.collection.JavaConversions._
 class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase {
 
   private val util = batchTestUtil()
-
-  private val _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
 
   @Before
   def before(): Unit = {
@@ -69,8 +63,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 " +
         "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-    expectedEx.expect(classOf[TableException])
-    expectedEx.expectMessage("HOP window with alignment is not supported yet.")
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("HOP window with alignment is not supported yet.")
     util.verifyPlan(sqlQuery)
   }
 
@@ -79,15 +73,15 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 " +
         "GROUP BY SESSION(ts, INTERVAL '2' HOUR, TIME '10:00:00')"
-    expectedEx.expect(classOf[TableException])
-    expectedEx.expectMessage("SESSION window with alignment is not supported yet.")
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("SESSION window with alignment is not supported yet.")
     util.verifyPlan(sqlQuery)
   }
 
   @Test
   def testVariableWindowSize(): Unit = {
-    expectedEx.expect(classOf[TableException])
-    expectedEx.expectMessage("Only constant window descriptors are supported")
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("Only constant window descriptors are supported")
     util.verifyPlan("SELECT COUNT(*) FROM MyTable2 GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)")
   }
 
@@ -98,8 +92,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
 
     val sql = "SELECT weightedAvg(c, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("SQL validation failed. "
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("SQL validation failed. "
       + "Given parameters of function 'weightedAvg' do not match any signature.")
     util.verifyPlan(sql)
   }
@@ -109,8 +103,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     val sqlQuery =
       "SELECT TUMBLE_PROCTIME(ts, INTERVAL '4' MINUTE) FROM MyTable2 " +
         "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
       "PROCTIME window property is not supported in batch queries.")
     util.verifyPlan(sqlQuery)
   }
@@ -194,8 +188,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
   @Test
   def testTumblingWindowWithProctime(): Unit = {
     val sql = "select sum(a), max(b) from MyTable3 group by TUMBLE(c, INTERVAL '1' SECOND)"
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
       "Window can not be defined over a proctime attribute column for batch mode")
     util.verifyPlan(sql)
   }
@@ -282,8 +276,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
          |from MyTable3
          |group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
          |""".stripMargin
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
       "Window can not be defined over a proctime attribute column for batch mode")
     util.verifyPlan(sql)
   }
@@ -292,8 +286,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
   // TODO session window is not supported now
   def testNonPartitionedSessionWindow(): Unit = {
     val sqlQuery = "SELECT COUNT(*) AS cnt FROM MyTable2 GROUP BY SESSION(ts, INTERVAL '30' MINUTE)"
-    expectedEx.expect(classOf[TableException])
-    expectedEx.expectMessage(
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
       "Cannot generate a valid execution plan for the given query")
     util.verifyPlan(sqlQuery)
   }
@@ -312,8 +306,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |FROM MyTable2
         |    GROUP BY SESSION(ts, INTERVAL '12' HOUR), c, d
       """.stripMargin
-    expectedEx.expect(classOf[TableException])
-    expectedEx.expectMessage(
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
       "Cannot generate a valid execution plan for the given query")
     util.verifyPlan(sqlQuery)
   }
@@ -326,8 +320,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
          |from MyTable3
          |group by SESSION(c, INTERVAL '1' MINUTE)
          |""".stripMargin
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage(
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
       "Window can not be defined over a proctime attribute column for batch mode")
     util.verifyPlan(sql)
   }
