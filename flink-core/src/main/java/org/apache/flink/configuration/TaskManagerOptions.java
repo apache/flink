@@ -42,6 +42,20 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * JVM heap size for the TaskManagers with memory size.
+	 *
+	 * @deprecated use {@link #TOTAL_PROCESS_MEMORY} instead.
+	 */
+	@Deprecated
+	public static final ConfigOption<MemorySize> TASK_MANAGER_HEAP_MEMORY =
+		key("taskmanager.heap.size")
+			.memoryType()
+			.noDefaultValue()
+			.withDescription("JVM heap size for the TaskManagers, which are the parallel workers of" +
+				" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
+				" YARN container, minus a certain tolerance value.");
+
+	/**
 	 * JVM heap size (in megabytes) for the TaskManagers.
 	 *
 	 * @deprecated use {@link #TOTAL_PROCESS_MEMORY}
@@ -243,7 +257,7 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.process.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDeprecatedKeys("taskmanager.heap.size")
+			.withDeprecatedKeys(TASK_MANAGER_HEAP_MEMORY.key())
 			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
 				+ " TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On"
 				+ " containerized setups, this should be set to the container memory.");
