@@ -1,7 +1,7 @@
 ---
 title: "SQL 客户端"
 nav-parent_id: tableapi
-nav-pos: 100
+nav-pos: 90
 is_beta: true
 ---
 <!--

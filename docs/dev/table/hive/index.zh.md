@@ -2,7 +2,7 @@
 title: "Hive Integration"
 nav-id: hive_tableapi
 nav-parent_id: tableapi
-nav-pos: 110
+nav-pos: 100
 is_beta: true
 nav-show_overview: true
 ---

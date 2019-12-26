@@ -1,7 +1,7 @@
 ---
 title: "Configuration"
 nav-parent_id: tableapi
-nav-pos: 150
+nav-pos: 110
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
