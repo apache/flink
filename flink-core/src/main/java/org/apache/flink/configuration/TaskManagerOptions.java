@@ -50,7 +50,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
 			key("taskmanager.heap.mb")
 			.intType()
-			.defaultValue(1024)
+			.noDefaultValue()
 			.withDescription("JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of" +
 				" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
 				" YARN container, minus a certain tolerance value.");
