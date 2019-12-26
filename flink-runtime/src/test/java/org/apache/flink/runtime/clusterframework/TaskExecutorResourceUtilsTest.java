@@ -438,20 +438,6 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testConfigTotalProcessMemoryLegacyMB() {
-		final MemorySize totalProcessMemorySize = MemorySize.parse("2g");
-
-		@SuppressWarnings("deprecation")
-		final ConfigOption<Integer> legacyOption = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB;
-
-		Configuration conf = new Configuration();
-		conf.setInteger(legacyOption, totalProcessMemorySize.getMebiBytes());
-
-		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
-		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(totalProcessMemorySize));
-	}
-
-	@Test
 	public void testConfigTotalProcessMemorySize() {
 		final MemorySize totalProcessMemorySize = MemorySize.parse("2g");
 
@@ -463,13 +449,77 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testConfigTotalProcessMemoryLegacyEnv() {
+	public void testConfigLegacyTaskManagerHeapSize() {
+		final MemorySize taskManagerHeapSize = MemorySize.parse("1g");
+
+		Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerHeapSize);
+
+		testConfigLegacyTaskManagerHeapMemory(conf, taskManagerHeapSize);
+	}
+
+	@Test
+	public void testConfigLegacyTaskManagerHeapMB() {
+		final MemorySize taskManagerHeapSize = MemorySize.parse("1g");
+
+		Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, taskManagerHeapSize.getMebiBytes());
+
+		testConfigLegacyTaskManagerHeapMemory(conf, taskManagerHeapSize);
+	}
+
+	@Test
+	public void testConfigLegacyTaskManagerHeapEnv() {
+		final MemorySize taskManagerHeapSize = MemorySize.parse("1g");
+
 		final Map<String, String> env = new HashMap<>();
 		env.put("FLINK_TM_HEAP", "1g");
 		CommonTestUtils.setEnv(env);
 
-		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(new Configuration());
-		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(MemorySize.parse("1g")));
+		testConfigLegacyTaskManagerHeapMemory(new Configuration(), taskManagerHeapSize);
+	}
+
+	@Test
+	public void testConfigBothTotalFlinkSizeAndLegacyTaskManagerHeapSize() {
+		final MemorySize totalFlinkSize = MemorySize.parse("1g");
+		final MemorySize taskManagerHeapSize = MemorySize.parse("2g");
+
+		Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, totalFlinkSize);
+		conf.set(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerHeapSize);
+
+		testConfigLegacyTaskManagerHeapMemoryStandalone(conf, totalFlinkSize);
+	}
+
+	@Test
+	public void testConfigBothTotalProcessSizeAndLegacyTaskManagerHeapSize() {
+		final MemorySize totalProcess = MemorySize.parse("1g");
+		final MemorySize taskManagerHeapSize = MemorySize.parse("2g");
+
+		Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcess);
+		conf.set(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerHeapSize);
+
+		testConfigLegacyTaskManagerHeapMemoryContainerized(conf, totalProcess);
+	}
+
+	private void testConfigLegacyTaskManagerHeapMemory(final Configuration configuration, final MemorySize expected) {
+		testConfigLegacyTaskManagerHeapMemoryStandalone(configuration, expected);
+		testConfigLegacyTaskManagerHeapMemoryContainerized(configuration, expected);
+	}
+
+	private void testConfigLegacyTaskManagerHeapMemoryStandalone(final Configuration configuration, final MemorySize expected) {
+		final Configuration adjustedConfig = TaskExecutorResourceUtils
+			.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
+		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(adjustedConfig);
+		assertThat(taskExecutorResourceSpec.getTotalFlinkMemorySize(), is(expected));
+	}
+
+	private void testConfigLegacyTaskManagerHeapMemoryContainerized(final Configuration configuration, final MemorySize expected) {
+		final Configuration adjustedConfig = TaskExecutorResourceUtils
+			.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(adjustedConfig);
+		assertThat(taskExecutorResourceSpec.getTotalProcessMemorySize(), is(expected));
 	}
 
 	@Test

@@ -41,7 +41,8 @@ public abstract class AbstractContainerizedClusterClientFactory<ClusterID> imple
 			.getMebiBytes();
 
 		final int taskManagerMemoryMB = TaskExecutorResourceUtils
-			.resourceSpecFromConfig(configuration)
+			.resourceSpecFromConfig(TaskExecutorResourceUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+				configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY))
 			.getTotalProcessMemorySize()
 			.getMebiBytes();
 
