@@ -23,13 +23,10 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.UncheckedExecutionException;
 
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -61,16 +58,14 @@ public final class CompileUtils {
 	 * @param <T>   the class type
 	 * @return  the compiled class
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> Class<T> compile(ClassLoader cl, String name, String code) {
 		try {
 			Cache<ClassLoader, Class> compiledClasses = COMPILED_CACHE.get(name,
 					() -> CacheBuilder.newBuilder().maximumSize(5).weakKeys().softValues().build());
 			return compiledClasses.get(cl, () -> doCompile(cl, name, code));
-		} catch (ExecutionException | UncheckedExecutionException e) {
-			if (e.getCause() instanceof InvalidProgramException) {
-				throw (InvalidProgramException) e.getCause();
-			}
-			throw new FlinkRuntimeException("Error populating COMPILED_CACHE", e);
+		} catch (Exception e) {
+			throw new FlinkRuntimeException(e.getMessage(), e);
 		}
 	}
 
