@@ -1,5 +1,6 @@
 ---
 title: "Data Definition Language (DDL)"
+nav-title: "Data Definition Language"
 nav-parent_id: sql
 nav-pos: 1
 ---
@@ -25,19 +26,23 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table operation. A `CatalogTable` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
+DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table operation. A catalog table will be registered into the [Catalog]({{ site.baseurl }}/dev/table/catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries.
 
-**Note:** Flink's DDL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL DDL on batch and streaming tables are listed in the following sections.
+Flink SQL DDL statements are documented here, including:
 
-## Specifying a DDL
+- CREATE TABLE, VIEW, DATABASE, FUNCTION
+- DROP TABLE, VIEW, DATABASE, FUNCTION
+- ALTER TABLE, DATABASE
 
-The following examples show how to specify a SQL DDL.
+## Run a DDL
+
+The following examples show how to run a SQL DDL in `TableEnvironment`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+EnvironmentSettings settings = EnvironmentSettings.newInstance()...
+TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -57,8 +62,8 @@ tableEnv.sqlUpdate(
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = StreamTableEnvironment.create(env)
+val settings = EnvironmentSettings.newInstance()...
+val tableEnv = TableEnvironment.create(settings)
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -78,8 +83,8 @@ tableEnv.sqlUpdate(
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env)
+settings = EnvironmentSettings.newInstance()...
+table_env = TableEnvironment.create(settings)
 
 # SQL update with a registered table
 # register a TableSink
@@ -93,7 +98,9 @@ table_env \
 
 {% top %}
 
-## Create Table
+## Table DDL
+
+### CREATE TABLE
 
 {% highlight sql %}
 CREATE TABLE [catalog_name.][db_name.]table_name
@@ -121,7 +128,7 @@ The key and value of expression `key1=val1` should both be string literal. See d
 
 {% top %}
 
-## Drop Table
+### DROP TABLE
 
 {% highlight sql %}
 DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
@@ -135,7 +142,7 @@ If the table does not exist, nothing happens.
 
 {% top %}
 
-## Alter Table
+### ALTER TABLE
 
 * Rename Table
 
@@ -155,7 +162,19 @@ Set one or more properties in the specified table. If a particular property is a
 
 {% top %}
 
-## Create Database
+## View DDL
+
+### CREATE VIEW
+
+*TODO: should add descriptions.*
+
+### DROP VIEW
+
+*TODO: should add descriptions.*
+
+## Database DDL
+
+### CREATE DATABASE
 
 {% highlight sql %}
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
@@ -176,7 +195,7 @@ The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
 
-## Drop Database
+### DROP DATABASE
 
 {% highlight sql %}
 DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
@@ -198,13 +217,23 @@ Dropping a non-empty database also drops all associated tables and functions.
 
 {% top %}
 
-## Alter Database
+### ALTER DATABASE
 
 {% highlight sql %}
 ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
 Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
+
+## Function DDL
+
+### CREATE FUNCTION
+
+*TODO: should add descriptions.*
+
+### DROP FUNCTION
+
+*TODO: should add descriptions.*
 
 {% top %}
 

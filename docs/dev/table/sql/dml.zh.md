@@ -1,5 +1,6 @@
 ---
 title: "Data Manipulation Language (DML)"
+nav-title: "Data Manipulation Language"
 nav-parent_id: sql
 nav-pos: 2
 ---
@@ -27,7 +28,7 @@ under the License.
 
 DMLs are specified with the `sqlUpdate()` method of the `TableEnvironment` (the same to DDLs). The method `sqlUpdate()` for DMLs is a lazy execution, the DMLs will be executed only when `TableEnvironment.execute(jobName)` is invoked.
 
-## Specifying a DML
+## Run a DML
 
 The following examples show how to specify a SQL DDL.
 
@@ -80,48 +81,73 @@ table_env \
 
 {% top %}
 
-## Supported Syntax
+## Insert from select queries
+
+Query Results can be inserted into tables by using the insert clause.
+
+### Syntax
 
 {% highlight sql %}
 
-insert:
-  INSERT INTO tableReference
-  query
+INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] select_statement
+
+part_spec:
+  (part_col_name1=val1 [, part_col_name2=val2, ...])
+
+{% endhighlight %}
+
+**OVERWRITE**
+
+`INSERT OVERWRITE` will overwrite any existing data in the table or partition. Otherwise, new data is appended.
+
+**PARTITION**
+
+`PARTITION` clause should contain all partition columns of this table.
+
+### Examples
+
+{% highlight sql %}
+
+-- Creates a partitioned table
+CREATE TABLE country_page_view (user STRING, cnt INT, date STRING, country STRING)
+PARTITIONED BY (date, country)
+WITH (...)
+
+-- Appends rows into the partition (date='2019-8-30', country='China')
+INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+  SELECT user, cnt FROM page_view_source;
+
+-- Overwrites the partition (date='2019-8-30', country='China') using rows in page_view_source
+INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+  SELECT user, cnt FROM page_view_source;
 
 {% endhighlight %}
 
 
-## Operations
+## Insert values into tables
 
-### Insert
-
-<div markdown="1">
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Operation</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>Insert Into</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
-      </td>
-      <td>
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+### Syntax
 
 {% highlight sql %}
-INSERT INTO OutputTable
-SELECT users, tag
-FROM Orders
-{% endhighlight %}
-      </td>
-    </tr>
+INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name VALUES values_row [, values_row ...]
 
-  </tbody>
-</table>
-</div>
+values_row:
+    : (val1 [, val2, ...])
+{% endhighlight %}
+
+**OVERWRITE**
+
+`INSERT OVERWRITE` will overwrite any existing data in the table. Otherwise, new data is appended.
+
+### Examples
+
+{% highlight sql %}
+
+CREATE TABLE students (name STRING, age INT, gpa DECIMAL(3, 2)) WITH (...);
+
+INSERT INTO students
+  VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
+
+{% endhighlight %}
 
 {% top %}
