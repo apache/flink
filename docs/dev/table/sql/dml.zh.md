@@ -30,7 +30,7 @@ DMLs are specified with the `sqlUpdate()` method of the `TableEnvironment` (the 
 
 ## Run a DML
 
-The following examples show how to specify a SQL DDL.
+The following examples show how to specify a SQL DML.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -102,7 +102,7 @@ part_spec:
 
 **PARTITION**
 
-`PARTITION` clause should contain all partition columns of this table.
+`PARTITION` clause should contain static partition columns of this inserting.
 
 ### Examples
 
