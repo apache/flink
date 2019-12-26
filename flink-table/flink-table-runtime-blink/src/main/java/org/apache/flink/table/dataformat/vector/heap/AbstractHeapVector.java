@@ -19,7 +19,6 @@
 package org.apache.flink.table.dataformat.vector.heap;
 
 import org.apache.flink.table.dataformat.vector.AbstractColumnVector;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
 
@@ -82,41 +81,5 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 	 */
 	public HeapIntVector getDictionaryIds() {
 		return dictionaryIds;
-	}
-
-	public static AbstractHeapVector[] allocateHeapVectors(LogicalType[] fieldTypes, int maxRows) {
-		AbstractHeapVector[] columns = new AbstractHeapVector[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			columns[i] = createHeapColumn(fieldTypes[i], maxRows);
-		}
-		return columns;
-	}
-
-	public static AbstractHeapVector createHeapColumn(LogicalType fieldType, int maxRows) {
-		switch (fieldType.getTypeRoot()) {
-			case BOOLEAN:
-				return new HeapBooleanVector(maxRows);
-			case TINYINT:
-				return new HeapByteVector(maxRows);
-			case DOUBLE:
-				return new HeapDoubleVector(maxRows);
-			case FLOAT:
-				return new HeapFloatVector(maxRows);
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-				return new HeapIntVector(maxRows);
-			case BIGINT:
-				return new HeapLongVector(maxRows);
-			case SMALLINT:
-				return new HeapShortVector(maxRows);
-			case CHAR:
-			case VARCHAR:
-			case BINARY:
-			case VARBINARY:
-				return new HeapBytesVector(maxRows);
-			default:
-				throw new UnsupportedOperationException(fieldType  + " is not supported now.");
-		}
 	}
 }
