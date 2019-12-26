@@ -34,12 +34,15 @@ public class JobSubmission {
 	private final int parallelism;
 	private final boolean detached;
 	private final List<String> arguments;
+	private final List<String> options;
 
-	JobSubmission(final Path jar, final int parallelism, final boolean detached, final List<String> arguments) {
+	JobSubmission(final Path jar, final int parallelism, final boolean detached, final List<String> arguments,
+			final List<String> options) {
 		this.jar = jar;
 		this.parallelism = parallelism;
 		this.detached = detached;
 		this.arguments = Collections.unmodifiableList(arguments);
+		this.options = Collections.unmodifiableList(options);
 	}
 
 	public List<String> getArguments() {
@@ -58,6 +61,10 @@ public class JobSubmission {
 		return jar;
 	}
 
+	public List<String> getOptions() {
+		return options;
+	}
+
 	/**
 	 * Builder for the {@link JobSubmission}.
 	 */
@@ -66,6 +73,7 @@ public class JobSubmission {
 		private int parallelism = 0;
 		private final List<String> arguments = new ArrayList<>(2);
 		private boolean detached = false;
+		private final List<String> options = new ArrayList<>();
 
 		public JobSubmissionBuilder(final Path jar) {
 			Preconditions.checkNotNull(jar);
@@ -96,6 +104,31 @@ public class JobSubmission {
 		}
 
 		/**
+		 * Add a program option.
+		 * @param option option value
+		 * @return the modified builder
+		 */
+		public JobSubmissionBuilder addOption(final String option) {
+			Preconditions.checkNotNull(option);
+			this.options.add(option);
+			return this;
+		}
+
+		/**
+		 * Convenience method for providing key-value program options. Invoking this method is equivalent to invoking
+		 * {@link #addOption(String)} twice.
+		 *
+		 * @param key option key
+		 * @param value option value
+		 * @return the modified builder
+		 */
+		public JobSubmissionBuilder addOption(final String key, final String value) {
+			addOption(key);
+			addOption(value);
+			return this;
+		}
+
+		/**
 		 * Adds a program argument.
 		 *
 		 * @param argument argument argument
@@ -122,7 +155,7 @@ public class JobSubmission {
 		}
 
 		public JobSubmission build() {
-			return new JobSubmission(jar, parallelism, detached, arguments);
+			return new JobSubmission(jar, parallelism, detached, arguments, options);
 		}
 	}
 }

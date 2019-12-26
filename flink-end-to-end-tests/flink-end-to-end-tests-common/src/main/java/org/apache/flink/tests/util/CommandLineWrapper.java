@@ -21,6 +21,7 @@ package org.apache.flink.tests.util;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Utility class for setting up command-line tool usages in a readable fashion.
@@ -158,6 +159,46 @@ public enum CommandLineWrapper {
 			}
 			commandsList.add("-f");
 			commandsList.add(file.toAbsolutePath().toString());
+			return commandsList.toArray(new String[commandsList.size()]);
+		}
+	}
+
+	/**
+	 * Wrapper around docker build used for building image.
+	 */
+	public static final class DockerBuildBuilder{
+		private String buildPath;
+		private String tag;
+
+		final List<String> commandsList = new ArrayList<>();
+
+		public DockerBuildBuilder() {
+			commandsList.add("docker");
+			commandsList.add("build");
+		}
+
+		public DockerBuildBuilder buildArg(String arg) {
+			commandsList.add("--build-arg");
+			commandsList.add(arg);
+			return this;
+		}
+
+		public DockerBuildBuilder buildPath(String path) {
+			this.buildPath = path;
+			return this;
+		}
+
+		public DockerBuildBuilder tag(String tag) {
+			this.tag = tag;
+			return this;
+		}
+
+		public String[] build() {
+			Objects.requireNonNull(buildPath);
+			Objects.requireNonNull(tag);
+			commandsList.add("--tag");
+			commandsList.add(tag);
+			commandsList.add(buildPath);
 			return commandsList.toArray(new String[commandsList.size()]);
 		}
 	}

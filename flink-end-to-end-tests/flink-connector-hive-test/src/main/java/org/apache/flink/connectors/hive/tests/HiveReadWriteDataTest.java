@@ -17,6 +17,7 @@
 
 package org.apache.flink.connectors.hive.tests;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -30,19 +31,25 @@ public class HiveReadWriteDataTest {
 	public static final String CATALOG_NAME = "hive";
 	public static final String DEFAULT_DATABASE = "default";
 	public static final String HIVE_CONF_DIR = "/usr/local/hive/conf";
-	public static final String VERSION = "2.3.4";
 
 	public static void main(String[] args) throws Exception {
+		// parse input arguments
+		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+		String hiveVersion = parameterTool.getRequired("hiveVersion");
+		String sourceTable = parameterTool.getRequired("sourceTable");
+		String targetTable = parameterTool.getRequired("targetTable");
+
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 		tableEnv.getConfig().getConfiguration().setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
 		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
 
-		HiveCatalog hiveCatalog = new HiveCatalog(CATALOG_NAME, DEFAULT_DATABASE, HIVE_CONF_DIR, VERSION);
+		HiveCatalog hiveCatalog = new HiveCatalog(CATALOG_NAME, DEFAULT_DATABASE, HIVE_CONF_DIR, hiveVersion);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlUpdate("insert into hive.`default`.dest_non_partition_table " +
-						"select * from hive.`default`.non_partition_table");
+		String sql = String.format("insert into hive.`default`.%s select * from hive.`default`.%s",
+				targetTable, sourceTable);
+		tableEnv.sqlUpdate(sql);
 		tableEnv.execute("HiveReadWriteDataExample");
 	}
 }

@@ -63,6 +63,10 @@ public class AutoClosableProcess implements AutoCloseable {
 		create(commands).runBlocking();
 	}
 
+	public static void runBlocking(final Duration timeout, String... commands) throws IOException {
+		create(commands).runBlocking(timeout);
+	}
+
 	public static AutoClosableProcessBuilder create(String... commands) {
 		return new AutoClosableProcessBuilder(commands);
 	}
