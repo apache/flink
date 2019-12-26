@@ -37,7 +37,6 @@ import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
@@ -73,7 +72,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
   override def onMatch(call: RelOptRuleCall): Unit = {
     val builder = call.builder()
     val agg: LogicalAggregate = call.rel(0)
-    val project: LogicalProject = rewriteProctimeTumbling(call.rel(1), builder)
+    val project: LogicalProject = rewriteProctimeWindows(call.rel(1), builder)
 
     val (windowExpr, windowExprIdx) = getWindowExpressions(agg, project).head
     val window = translateWindow(windowExpr, windowExprIdx, project.getInput.getRowType)
@@ -166,61 +165,65 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
    * would be rewritten to
    * <pre>
    * LogicalProject($f0=[TUMBLE($2, 1000:INTERVAL SECOND)], a=[$0], b=[$1])
-   * +- LogicalProject(a=[$0], b=[$1], $f2=[PROCTIME()])
-   * +- LogicalTableScan
+   *   +- LogicalProject(a=[$0], b=[$1], $f2=[PROCTIME()])
+   *     +- LogicalTableScan
    * </pre>
    */
-  private def rewriteProctimeTumbling(
+  private def rewriteProctimeWindows(
       project: LogicalProject,
       relBuilder: RelBuilder): LogicalProject = {
-    def isProctimeCall(rexNode: RexNode): Boolean = {
-      rexNode match {
-        case call: RexCall =>
-          call.getOperator == FlinkSqlOperatorTable.PROCTIME
-        case _ => false
-      }
-    }
-    var proctimeTumbleCall: CPair[RexCall, Int] = null
-    val newProjects: ArrayBuffer[RexNode] = new ArrayBuffer[RexNode]()
-    project.getChildExps.zipWithIndex foreach {
-      case (prj, idx) =>
-        prj match {
-          case call: RexCall
-            if call.getKind == SqlKind.TUMBLE
-              && call.getOperands.nonEmpty
-              && isProctimeCall(call.getOperands.get(0)) =>
-            proctimeTumbleCall = CPair.of(call, idx)
-            newProjects += null // add as a placeholder
-          case o: RexNode =>
-            newProjects += o
-        }
-    }
-    if (proctimeTumbleCall == null) {
-      project
-    } else {
-      val projectInput = trimHep(project.getInput)
-      val newInput = relBuilder
-        .push(projectInput)
-        // Project plus the PROCTIME() call.
-        .projectPlus(proctimeTumbleCall.left.getOperands.get(0))
-        .build()
-      newProjects(proctimeTumbleCall.right) =
-        proctimeTumbleCall.left.accept(
+    val projectInput = trimHep(project.getInput)
+    var hasWindowOnProctimeCall: Boolean = false
+    val newProjectExprs = project.getChildExps.map {
+      case call: RexCall if isWindowCall(call) && isProctimeCall(call.getOperands.head) =>
+        hasWindowOnProctimeCall = true
+        // Update the window call to reference a RexInputRef instead of a PROCTIME() call.
+        call.accept(
           new RexShuttle {
             override def visitCall(call: RexCall): RexNode = {
               if (isProctimeCall(call)) {
-                RexInputRef.of(newInput.getRowType.getFieldCount - 1, newInput.getRowType)
+                relBuilder.getRexBuilder.makeInputRef(
+                  call.getType,
+                  // We would project plus an additional PROCTIME() call
+                  // at the end of input projection.
+                  projectInput.getRowType.getFieldCount)
               } else {
                 super.visitCall(call)
               }
             }
-          }
-        )
+          })
+      case rex: RexNode => rex
+    }
+
+    if (hasWindowOnProctimeCall) {
+      val newInput = relBuilder
+        .push(projectInput)
+        // project plus the PROCTIME() call.
+        .projectPlus(relBuilder.call(FlinkSqlOperatorTable.PROCTIME))
+        .build()
+      // we have to use project factory, because RelBuilder will simplify redundant projects
       RelFactories
         .DEFAULT_PROJECT_FACTORY
-        .createProject(newInput, newProjects, project.getRowType.getFieldNames)
+        .createProject(newInput, newProjectExprs, project.getRowType.getFieldNames)
         .asInstanceOf[LogicalProject]
+    } else {
+      project
     }
+  }
+
+  /** Decides if the [[RexNode]] is a PROCTIME call. */
+  def isProctimeCall(rexNode: RexNode): Boolean = rexNode match {
+    case call: RexCall =>
+      call.getOperator == FlinkSqlOperatorTable.PROCTIME
+    case _ => false
+  }
+
+  /** Decides whether the [[RexCall]] is a window call. */
+  def isWindowCall(call: RexCall): Boolean = call.getOperator match {
+    case FlinkSqlOperatorTable.SESSION |
+         FlinkSqlOperatorTable.HOP |
+         FlinkSqlOperatorTable.TUMBLE => true
+    case _ => false
   }
 
   /**

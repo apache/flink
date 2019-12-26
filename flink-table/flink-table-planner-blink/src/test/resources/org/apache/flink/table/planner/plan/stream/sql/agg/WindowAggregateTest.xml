@@ -134,6 +134,30 @@ Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testHopWindowWithProctime">
+    <Resource name="sql">
+      <![CDATA[
+select sum(a), max(b)
+from MyTable1
+group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$1=[MAX($2)])
+   +- LogicalProject($f0=[HOP(PROCTIME(), 1000:INTERVAL SECOND, 60000:INTERVAL MINUTE)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w$, $f2, 60000, 1000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntervalDay">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '35' DAY)]]>
@@ -425,6 +449,30 @@ Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSessionWindowWithProctime">
+    <Resource name="sql">
+      <![CDATA[
+select sum(a), max(b)
+from MyTable1
+group by SESSION(c, INTERVAL '1' MINUTE)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$1=[MAX($2)])
+   +- LogicalProject($f0=[SESSION(PROCTIME(), 60000:INTERVAL MINUTE)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GroupWindowAggregate(window=[SessionGroupWindow('w$, $f2, 60000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTumbleFunAndRegularAggFunInGroupBy">
     <Resource name="sql">
       <![CDATA[
@@ -520,6 +568,26 @@ Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, c, a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumblingWindowWithProctime">
+    <Resource name="sql">
+      <![CDATA[select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$1=[MAX($2)])
+   +- LogicalProject($f0=[TUMBLE(PROCTIME(), 1000:INTERVAL SECOND)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w$, $f2, 1000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

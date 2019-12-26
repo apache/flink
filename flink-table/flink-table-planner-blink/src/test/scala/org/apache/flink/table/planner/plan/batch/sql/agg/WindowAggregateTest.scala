@@ -46,6 +46,16 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, Int, Timestamp)]("MyTable2", 'a, 'b, 'c, 'd, 'ts)
+    util.tableEnv.sqlUpdate(
+      s"""
+         |create table MyTable3 (
+         |  a int,
+         |  b bigint,
+         |  c as proctime()
+         |) with (
+         |  'connector' = 'COLLECTION'
+         |)
+         |""".stripMargin)
   }
 
   @Test(expected = classOf[TableException])
@@ -164,6 +174,12 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.verifyPlan(sql)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testTumblingWindowWithProctime(): Unit = {
+    val sql = "select sum(a), max(b) from MyTable3 group by TUMBLE(c, INTERVAL '1' SECOND)"
+    util.verifyPlan(sql)
+  }
+
   @Test
   def testNoGroupingSlidingWindow(): Unit = {
     val sqlQuery =
@@ -238,6 +254,17 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.verifyPlan(sqlQuery)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testSlidingWindowWithProctime(): Unit = {
+    val sql =
+      s"""
+         |select sum(a), max(b)
+         |from MyTable3
+         |group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
+         |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
   @Test(expected = classOf[TableException])
   // TODO session window is not supported now
   def testNonPartitionedSessionWindow(): Unit = {
@@ -260,6 +287,17 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |    GROUP BY SESSION(ts, INTERVAL '12' HOUR), c, d
       """.stripMargin
     util.verifyPlan(sqlQuery)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testSessionWindowWithProctime(): Unit = {
+    val sql =
+      s"""
+         |select sum(a), max(b)
+         |from MyTable3
+         |group by SESSION(c, INTERVAL '1' MINUTE)
+         |""".stripMargin
+    util.verifyPlan(sql)
   }
 
   @Test
