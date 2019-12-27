@@ -151,7 +151,7 @@ function copy_and_show_logs {
 start_time=$(date +%s)
 if docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 \
-   -p 1 -c org.apache.flink.connectors.hive.tests.HiveReadWriteDataTest /home/hadoop-user/testHive.jar";
+   -p 1 -c org.apache.flink.connectors.hive.tests.HiveReadWriteDataExample /home/hadoop-user/testHive.jar";
 then
     echo "run e2e test hive job successful"
     OUTPUT=$(docker exec -it master bash -c "hive -e \"select * from dest_non_partition_table\"")

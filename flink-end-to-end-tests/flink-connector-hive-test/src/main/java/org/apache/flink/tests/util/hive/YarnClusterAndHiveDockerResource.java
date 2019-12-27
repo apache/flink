@@ -108,7 +108,7 @@ public class YarnClusterAndHiveDockerResource implements YarnClusterAndHiveResou
 
 	@Override
 	public String execHiveSql(String sql) throws IOException {
-		LOG.debug(String.format("execute sql:%s on hive container", sql));
+		LOG.info(String.format("execute sql:%s on hive container", sql));
 		String[] commands = new DockerExecBuilder(ContainerRole.HIVE.getContainerName())
 				.command("hive").arg("-e").arg(sql).build();
 		AutoClosableProcess.AutoClosableProcessBuilder autoClosableProcessBuilder =
@@ -121,7 +121,7 @@ public class YarnClusterAndHiveDockerResource implements YarnClusterAndHiveResou
 
 	@Override
 	public void copyLocalFileToHiveGateWay(String localPath, String remotePath) throws IOException {
-		LOG.debug(String.format("copy localPath %s to hive container path %s", localPath, remotePath));
+		LOG.info(String.format("copy localPath %s to hive container path %s", localPath, remotePath));
 		String[] commands = String.format("docker cp %s %s:%s",
 				localPath, ContainerRole.HIVE.getContainerName(), remotePath).split("\\s+");
 		AutoClosableProcess.runBlocking(commands);
@@ -129,7 +129,7 @@ public class YarnClusterAndHiveDockerResource implements YarnClusterAndHiveResou
 
 	@Override
 	public void copyLocalFileToYarnMaster(String localPath, String remotePath) throws IOException {
-		LOG.debug(String.format("copy localPath %s to yarn master path %s", localPath, remotePath));
+		LOG.info(String.format("copy localPath %s to yarn master path %s", localPath, remotePath));
 		String[] commands = String.format("docker cp %s %s:%s",
 				localPath, ContainerRole.YARN_MASTER.getContainerName(), remotePath).split("\\s+");
 		AutoClosableProcess.runBlocking(commands);

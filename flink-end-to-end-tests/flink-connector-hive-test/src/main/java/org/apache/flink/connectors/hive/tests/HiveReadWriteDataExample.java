@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 /**
  * End to end test for HiveConnector.
  */
-public class HiveReadWriteDataTest {
+public class HiveReadWriteDataExample {
 	public static final String CATALOG_NAME = "hive";
 	public static final String DEFAULT_DATABASE = "default";
 	public static final String HIVE_CONF_DIR = "/usr/local/hive/conf";
