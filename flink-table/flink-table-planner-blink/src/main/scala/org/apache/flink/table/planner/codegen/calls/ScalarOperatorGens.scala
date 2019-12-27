@@ -514,6 +514,13 @@ object ScalarOperatorGens {
           s"$leftTerm.compareTo($rightTerm) $operator 0"
       }
 
+      // both sides are timestamp with local zone
+      else if (isTimestampWithLocalZone(left.resultType) &&
+          isTimestampWithLocalZone(right.resultType)) {
+        (leftTerm, rightTerm) =>
+          s"$leftTerm.compareTo($rightTerm) $operator 0"
+      }
+
       // both sides are temporal of same type
       else if (isTemporal(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
