@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.ml.common.MLEnvironment;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -57,6 +58,7 @@ public class DataStreamConversionUtil {
 	 * @return the converted Table.
 	 */
 	public static Table toTable(Long sessionId, DataStream <Row> data, TableSchema schema) {
+		// TableSchema.getFieldTypes() is deprecated, this should be improved once FLIP-65 is fully merged.
 		return toTable(sessionId, data, schema.getFieldNames(), schema.getFieldTypes());
 	}
 
@@ -79,7 +81,7 @@ public class DataStreamConversionUtil {
 	 * @param data     the DataStream to convert.
 	 * @param colNames the specified colNames.
 	 * @param colTypes the specified colTypes. This variable is used only when the
-	 *                 DataSet is produced by a function and Flink cannot determine
+	 *                 DataStream is produced by a function and Flink cannot determine
 	 *                 automatically what the produced type is.
 	 * @return the converted Table.
 	 */
@@ -90,7 +92,7 @@ public class DataStreamConversionUtil {
 	/**
 	 * Convert the given DataStream to Table with specified colNames.
 	 *
-	 * @param session the MLEnvironment using to convert DataSet to Table.
+	 * @param session the MLEnvironment using to convert DataStream to Table.
 	 * @param data     the DataStream to convert.
 	 * @param colNames the specified colNames.
 	 * @return the converted Table.
@@ -111,22 +113,30 @@ public class DataStreamConversionUtil {
 	/**
 	 * Convert the given DataStream to Table with specified colNames and colTypes.
 	 *
-	 * @param session the MLEnvironment using to convert DataSet to Table.
+	 * @param session the MLEnvironment using to convert DataStream to Table.
 	 * @param data     the DataStream to convert.
 	 * @param colNames the specified colNames.
 	 * @param colTypes the specified colTypes. This variable is used only when the
-	 *                 DataSet is produced by a function and Flink cannot determine
+	 *                 DataStream is produced by a function and Flink cannot determine
 	 *                 automatically what the produced type is.
 	 * @return the converted Table.
 	 */
 	public static Table toTable(MLEnvironment session, DataStream <Row> data, String[] colNames, TypeInformation <?>[] colTypes) {
 		try {
+			if (null != colTypes) {
+				// Try to add row type information for the datastream to be converted.
+				// In most case, this keeps us from the rolling back logic in the catch block,
+				// which adds an unnecessary map function just in order to add row type information.
+				if (data instanceof SingleOutputStreamOperator) {
+					((SingleOutputStreamOperator) data).returns(new RowTypeInfo(colTypes, colNames));
+				}
+			}
 			return toTable(session, data, colNames);
 		} catch (ValidationException ex) {
 			if (null == colTypes) {
 				throw ex;
 			} else {
-				DataStream <Row> t = getDataSetWithExplicitTypeDefine(data, colNames, colTypes);
+				DataStream <Row> t = fallbackToExplicitTypeDefine(data, colNames, colTypes);
 				return toTable(session, t, colNames);
 			}
 		}
@@ -135,27 +145,17 @@ public class DataStreamConversionUtil {
 	/**
 	 * Adds a type information hint about the colTypes with the Row to the DataStream.
 	 *
-	 * @param data     the DataSet to add type information.
+	 * @param data     the DataStream to add type information.
 	 * @param colNames the specified colNames
 	 * @param colTypes the specified colTypes
 	 * @return the DataStream with type information hint.
 	 */
-	private static DataStream <Row> getDataSetWithExplicitTypeDefine(
+	private static DataStream <Row> fallbackToExplicitTypeDefine(
 		DataStream <Row> data,
 		String[] colNames,
 		TypeInformation <?>[] colTypes) {
-
-		DataStream <Row> r = data
-			.map(
-				new MapFunction <Row, Row>() {
-					@Override
-					public Row map(Row t) throws Exception {
-						return t;
-					}
-				}
-			)
+		return data
+			.map((MapFunction<Row, Row>) t -> t)
 			.returns(new RowTypeInfo(colTypes, colNames));
-
-		return r;
 	}
 }

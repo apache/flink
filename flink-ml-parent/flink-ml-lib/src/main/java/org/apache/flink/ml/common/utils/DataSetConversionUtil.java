@@ -59,6 +59,7 @@ public class DataSetConversionUtil {
 	 * @return the converted Table.
 	 */
 	public static Table toTable(Long sessionId, DataSet <Row> data, TableSchema schema) {
+		// TableSchema.getFieldTypes() is deprecated, this should be improved once FLIP-65 is fully merged.
 		return toTable(sessionId, data, schema.getFieldNames(), schema.getFieldTypes());
 	}
 
@@ -102,20 +103,25 @@ public class DataSetConversionUtil {
 	 */
 	public static Table toTable(MLEnvironment session, DataSet <Row> data, String[] colNames, TypeInformation <?>[] colTypes) {
 		try {
-			// Try to add row type information for the dataset to be converted.
-			// In most case, this keeps us from the rolling back logic in the catch block,
-			// which adds an unnecessary map function just in order to add row type information.
-			if (data instanceof SingleInputUdfOperator) {
-				((SingleInputUdfOperator) data).returns(new RowTypeInfo(colTypes, colNames));
-			} else if (data instanceof TwoInputUdfOperator) {
-				((TwoInputUdfOperator) data).returns(new RowTypeInfo(colTypes, colNames));
+			if (null != colTypes) {
+				// Try to add row type information for the dataset to be converted.
+				// In most case, this keeps us from the rolling back logic in the catch block,
+				// which adds an unnecessary map function just in order to add row type information.
+				if (data instanceof SingleInputUdfOperator) {
+					((SingleInputUdfOperator) data).returns(new RowTypeInfo(colTypes, colNames));
+				} else if (data instanceof TwoInputUdfOperator) {
+					((TwoInputUdfOperator) data).returns(new RowTypeInfo(colTypes, colNames));
+				}
 			}
 			return toTable(session, data, colNames);
 		} catch (ValidationException ex) {
+			// currently ValidationException will be thrown and caught for further processing.
+			// Because the getType() API of the Transformation can only be accessed once.
+			// This can be improve if we add "isTypeSet()" API to the Transformation class.
 			if (null == colTypes) {
 				throw ex;
 			} else {
-				DataSet <Row> t = getDataSetWithExplicitTypeDefine(data, colNames, colTypes);
+				DataSet <Row> t = fallbackToExplicitTypeDefine(data, colNames, colTypes);
 				return toTable(session, t, colNames);
 			}
 		}
@@ -150,23 +156,13 @@ public class DataSetConversionUtil {
 	 * @param colTypes the specified colTypes
 	 * @return the DataSet with type information hint.
 	 */
-	private static DataSet <Row> getDataSetWithExplicitTypeDefine(
+	private static DataSet <Row> fallbackToExplicitTypeDefine(
 		DataSet <Row> data,
 		String[] colNames,
 		TypeInformation <?>[] colTypes) {
-
-		DataSet <Row> r = data
-			.map(
-				new MapFunction <Row, Row>() {
-					@Override
-					public Row map(Row t) throws Exception {
-						return t;
-					}
-				}
-			)
+		return data
+			.map((MapFunction<Row, Row>) t -> t)
 			.returns(new RowTypeInfo(colTypes, colNames));
-
-		return r;
 	}
 
 }
