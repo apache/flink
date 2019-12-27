@@ -44,8 +44,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -659,8 +659,7 @@ public class AbstractStreamOperatorTest {
 	}
 
 	/**
-	 * Check the watermark in case that WatermarkOption is ALL,STREAM1,STREAM2
-	 * @throws Exception
+	 * Check the watermark in case that WatermarkOption is ALL,STREAM1,STREAM2.
 	 */
 	@Test
 	public void testWatermarkOption() throws Exception {
@@ -794,7 +793,7 @@ public class AbstractStreamOperatorTest {
 	}
 
 	/**
-	 *Testing TwoInputStreamOperator WatermarkOption
+	 *Testing TwoInputStreamOperator WatermarkOption.
 	 */
 	private static class TestWatermarkOptionOperator
 		extends AbstractStreamOperator<Long>
