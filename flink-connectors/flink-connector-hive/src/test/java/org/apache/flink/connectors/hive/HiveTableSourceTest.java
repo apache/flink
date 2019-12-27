@@ -236,6 +236,9 @@ public class HiveTableSourceTest {
 					.addRow(new Object[]{2}).commit("p1=2,p2='b'");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
 					.addRow(new Object[]{3}).commit("p1=3,p2='c'");
+			// test string partition columns with special characters
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{4}).commit("p1=4,p2='c:2'");
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
 					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
@@ -245,9 +248,9 @@ public class HiveTableSourceTest {
 			String[] explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 3"));
 			List<Row> results = TableUtils.collectToList(query);
-			assertEquals("[2, 3]", results.toString());
+			assertEquals("[2, 3, 4]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
 			explain = tableEnv.explain(query).split("==.*==\n");
@@ -272,6 +275,46 @@ public class HiveTableSourceTest {
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
 			results = TableUtils.collectToList(query);
 			assertEquals("[1, 2]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where p2 = 'c:2' order by x");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
+			results = TableUtils.collectToList(query);
+			assertEquals("[4]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testPartitionFilterDateTimestamp() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.part(x int) partitioned by (p1 date,p2 timestamp)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{1}).commit("p1=date '2018-08-08',p2=timestamp '2018-08-08 08:08:08'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{2}).commit("p1=date '2018-08-09',p2=timestamp '2018-08-08 08:08:09'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{3}).commit("p1=date '2018-08-10',p2=timestamp '2018-08-08 08:08:10'");
+
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
+					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
+			tableEnv.registerCatalog(catalog.getName(), catalog);
+			tableEnv.useCatalog(catalog.getName());
+
+			Table query = tableEnv.sqlQuery(
+					"select x from db1.part where p1>cast('2018-08-09' as date) and p2<>cast('2018-08-08 08:08:09' as timestamp)");
+			String[] explain = tableEnv.explain(query).split("==.*==\n");
+			assertTrue(catalog.fallback);
+			String optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
+			List<Row> results = TableUtils.collectToList(query);
+			assertEquals("[3]", results.toString());
+			System.out.println(results);
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
