@@ -428,7 +428,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 2L, 17, 2))
     data.+=(("ACME", 3L, 13, 3))
     data.+=(("ACME", 4L, 20, 4))
-    val parallelSource = new ParallelCollectionWrapper[(String, Long, Int, Int)](data, 0, data.length)
+    val parallelSource = new ParallelCollectionWrapper[(String, Long, Int, Int)](
+      data, 0, data.length)
 
     val t = env.fromParallelCollection(parallelSource)
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
