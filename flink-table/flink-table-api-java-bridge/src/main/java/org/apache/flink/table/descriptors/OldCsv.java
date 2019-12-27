@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
+import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_EMPTY_COLUMN_AS_NULL;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_IGNORE_FIRST_LINE;
@@ -67,6 +68,7 @@ public class OldCsv extends FormatDescriptor {
 	private Optional<Character> quoteCharacter = Optional.empty();
 	private Optional<String> commentPrefix = Optional.empty();
 	private Optional<Boolean> isIgnoreFirstLine = Optional.empty();
+	private Optional<Boolean> emptyColumnAsNull = Optional.empty();
 	private Optional<Boolean> lenient = Optional.empty();
 	private Optional<Boolean> deriveSchema = Optional.empty();
 
@@ -213,6 +215,14 @@ public class OldCsv extends FormatDescriptor {
 	}
 
 	/**
+	 * Treat empty column as null, false by default.
+	 */
+	public OldCsv emptyColumnAsNull() {
+		this.emptyColumnAsNull = Optional.of(true);
+		return this;
+	}
+
+	/**
 	 * Derives the format schema from the table's schema. Required if no format schema is defined.
 	 *
 	 * <p>This allows for defining schema information only once.
@@ -253,6 +263,7 @@ public class OldCsv extends FormatDescriptor {
 		quoteCharacter.ifPresent(character -> properties.putCharacter(FORMAT_QUOTE_CHARACTER, character));
 		commentPrefix.ifPresent(s -> properties.putString(FORMAT_COMMENT_PREFIX, s));
 		isIgnoreFirstLine.ifPresent(aBoolean -> properties.putBoolean(FORMAT_IGNORE_FIRST_LINE, aBoolean));
+		emptyColumnAsNull.ifPresent(r -> properties.putBoolean(FORMAT_EMPTY_COLUMN_AS_NULL, r));
 		lenient.ifPresent(aBoolean -> properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, aBoolean));
 
 		return properties.asMap();

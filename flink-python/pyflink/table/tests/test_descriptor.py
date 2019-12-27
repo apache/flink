@@ -419,6 +419,15 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
                     'format.property-version': '1'}
         self.assertEqual(expected, properties)
 
+    def test_empty_column_as_null(self):
+        csv = OldCsv().empty_column_as_null()
+
+        properties = csv.to_properties()
+        expected = {'format.empty-column-as-null': 'true',
+                    'format.type': 'csv',
+                    'format.property-version': '1'}
+        self.assertEqual(expected, properties)
+
     def test_field(self):
         csv = OldCsv()
 

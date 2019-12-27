@@ -64,6 +64,7 @@ class OldCsvTest extends DescriptorTestBase {
         Array[TypeInformation[_]](Types.INT, Types.STRING)))
       .quoteCharacter('#')
       .ignoreFirstLine()
+      .emptyColumnAsNull()
 
     val desc3 = new OldCsv()
       .commentPrefix("#")
@@ -93,7 +94,8 @@ class OldCsvTest extends DescriptorTestBase {
       "format.fields.1.name" -> "row",
       "format.fields.1.data-type" -> "VARCHAR(2147483647)",
       "format.quote-character" -> "#",
-      "format.ignore-first-line" -> "true")
+      "format.ignore-first-line" -> "true",
+      "format.empty-column-as-null" -> "true")
 
     val props3 = Map(
       "format.type" -> "csv",

@@ -1866,7 +1866,8 @@ CREATE TABLE MyUserTable (
   'format.quote-character' = '"',         -- optional: single character for string values, empty by default
   'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
   'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
-  'format.ignore-parse-errors' = 'true'   -- optional: skip records with parse error instead of failing by default
+  'format.ignore-parse-errors' = 'true',  -- optional: skip records with parse error instead of failing by default
+  'format.empty-column-as-null' = 'true'  -- optional: treat empty column as null, false by default
 )
 {% endhighlight %}
 </div>
@@ -1883,6 +1884,7 @@ CREATE TABLE MyUserTable (
     .commentPrefix('#')               // optional: string to indicate comments, empty by default
     .ignoreFirstLine()                // optional: ignore the first line, by default it is not skipped
     .ignoreParseErrors()              // optional: skip records with parse error instead of failing by default
+    .emptyColumnAsNull()              // optional: treat empty column as null, false by default
 )
 {% endhighlight %}
 </div>
@@ -1899,6 +1901,7 @@ CREATE TABLE MyUserTable (
     .comment_prefix('#')                    # optional: string to indicate comments, empty by default
     .ignore_first_line()                    # optional: ignore the first line, by default it is not skipped
     .ignore_parse_errors()                  # optional: skip records with parse error instead of failing by default
+    .emptyColumnAsNull()                    # optional: treat empty column as null, false by default
 )
 {% endhighlight %}
 </div>
@@ -1918,6 +1921,7 @@ format:
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
   ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
   ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
+  empty-column-as-null: true # optional: treat empty column as null, false by default
 {% endhighlight %}
 </div>
 </div>

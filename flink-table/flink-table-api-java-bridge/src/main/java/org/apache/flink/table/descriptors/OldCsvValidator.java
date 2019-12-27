@@ -38,6 +38,7 @@ public class OldCsvValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_COMMENT_PREFIX = "format.comment-prefix";
 	public static final String FORMAT_IGNORE_FIRST_LINE = "format.ignore-first-line";
 	public static final String FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors";
+	public static final String FORMAT_EMPTY_COLUMN_AS_NULL = "format.empty-column-as-null";
 	public static final String FORMAT_FIELDS = "format.fields";
 
 	@Override
@@ -50,6 +51,7 @@ public class OldCsvValidator extends FormatDescriptorValidator {
 		properties.validateString(FORMAT_COMMENT_PREFIX, true, 1);
 		properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
+		properties.validateBoolean(FORMAT_EMPTY_COLUMN_AS_NULL, true);
 		properties.validateBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA, true);
 
 		final boolean hasSchema = properties.hasPrefix(FORMAT_FIELDS);

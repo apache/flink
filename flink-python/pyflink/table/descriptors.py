@@ -378,6 +378,15 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.ignoreFirstLine()
         return self
 
+    def empty_column_as_null(self):
+        """
+        Treat empty column as null, false by default.
+
+        :return: This :class:`OldCsv` object.
+        """
+        self._j_csv = self._j_csv.emptyColumnAsNull()
+        return self
+
 
 class Csv(FormatDescriptor):
     """

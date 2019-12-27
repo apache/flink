@@ -45,6 +45,7 @@ import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_T
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
+import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_EMPTY_COLUMN_AS_NULL;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_IGNORE_FIRST_LINE;
@@ -85,6 +86,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(FORMAT_COMMENT_PREFIX);
 		properties.add(FORMAT_IGNORE_FIRST_LINE);
 		properties.add(FORMAT_IGNORE_PARSE_ERRORS);
+		properties.add(FORMAT_EMPTY_COLUMN_AS_NULL);
 		properties.add(CONNECTOR_PATH);
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
@@ -146,6 +148,12 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		params.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).ifPresent(flag -> {
 			if (flag) {
 				csvTableSourceBuilder.ignoreParseErrors();
+			}
+		});
+
+		params.getOptionalBoolean(FORMAT_EMPTY_COLUMN_AS_NULL).ifPresent(flag -> {
+			if (flag) {
+				csvTableSourceBuilder.emptyColumnAsNull();
 			}
 		});
 
