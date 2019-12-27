@@ -126,7 +126,8 @@ public class KubernetesUtils {
 			boolean hasLog4j,
 			String mainClass,
 			@Nullable String mainArgs) {
-		final String jvmMemOpts = String.format("-Xms%sm -Xmx%sm", jobManagerMemoryMb, jobManagerMemoryMb);
+		final int heapSize = BootstrapTools.calculateHeapSize(jobManagerMemoryMb, flinkConfig);
+		final String jvmMemOpts = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
 		return getCommonStartCommand(
 			flinkConfig,
 			ClusterComponent.JOB_MANAGER,
@@ -163,16 +164,21 @@ public class KubernetesUtils {
 			String mainClass,
 			@Nullable String mainArgs) {
 		final TaskExecutorResourceSpec taskExecutorResourceSpec = tmParams.getTaskExecutorResourceSpec();
+		final String jvmMemOpts = TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec);
+		String args = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec);
+		if (mainArgs != null) {
+			args += " " + mainArgs;
+		}
 		return getCommonStartCommand(
 			flinkConfig,
 			ClusterComponent.TASK_MANAGER,
-			TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec),
+			jvmMemOpts,
 			configDirectory,
 			logDirectory,
 			hasLogback,
 			hasLog4j,
 			mainClass,
-			mainArgs
+			args
 		);
 	}
 

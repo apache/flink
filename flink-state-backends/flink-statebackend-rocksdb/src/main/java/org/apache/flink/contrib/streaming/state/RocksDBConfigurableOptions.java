@@ -58,7 +58,7 @@ public class RocksDBConfigurableOptions implements Serializable {
 			.intType()
 			.noDefaultValue()
 			.withDescription("The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. " +
-				"RocksDB has default configuration as '5000'.");
+				"RocksDB has default configuration as '-1'.");
 
 	//--------------------------------------------------------------------------
 	// Provided configurable ColumnFamilyOptions within Flink
@@ -90,14 +90,14 @@ public class RocksDBConfigurableOptions implements Serializable {
 			.memoryType()
 			.noDefaultValue()
 			.withDescription("The target file size for compaction, which determines a level-1 file size. " +
-				"RocksDB has default configuration as '2MB'.");
+				"RocksDB has default configuration as '64MB'.");
 
 	public static final ConfigOption<MemorySize> MAX_SIZE_LEVEL_BASE =
 		key("state.backend.rocksdb.compaction.level.max-size-level-base")
 			.memoryType()
 			.noDefaultValue()
 			.withDescription("The upper-bound of the total size of level base files in bytes. " +
-				"RocksDB has default configuration as '10MB'.");
+				"RocksDB has default configuration as '256MB'.");
 
 	public static final ConfigOption<MemorySize> WRITE_BUFFER_SIZE =
 		key("state.backend.rocksdb.writebuffer.size")

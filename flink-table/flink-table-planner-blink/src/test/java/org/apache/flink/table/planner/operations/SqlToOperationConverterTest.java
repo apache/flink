@@ -89,7 +89,10 @@ public class SqlToOperationConverterTest {
 	private final CatalogManager catalogManager =
 		new CatalogManager("builtin", catalog);
 	private final ModuleManager moduleManager = new ModuleManager();
-	private final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager, moduleManager);
+	private final FunctionCatalog functionCatalog = new FunctionCatalog(
+		tableConfig,
+		catalogManager,
+		moduleManager);
 	private final PlannerContext plannerContext =
 		new PlannerContext(tableConfig,
 			functionCatalog,
@@ -241,8 +244,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
 		Operation operation = parse(sql, planner, parser);
 		assert operation instanceof CreateTableOperation;
 		CreateTableOperation op = (CreateTableOperation) operation;
@@ -260,8 +263,8 @@ public class SqlToOperationConverterTest {
 
 	@Test(expected = SqlConversionException.class)
 	public void testCreateTableWithPkUniqueKeys() {
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +
 			"  b varchar, \n" +
@@ -348,8 +351,8 @@ public class SqlToOperationConverterTest {
 	@Test
 	public void testSqlInsertWithStaticPartition() {
 		final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 		Operation operation = parse(sql, planner, parser);
 		assert operation instanceof CatalogSinkModifyOperation;
 		CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;

@@ -27,11 +27,11 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.testjob.YarnTestCacheJob;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,27 +67,28 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST));
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST, getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED));
+		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, getTestingJobGraph()));
 	}
 
-	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion) throws Exception {
+	@Test
+	public void testPerJobModeWithDistributedCache() throws Exception {
+		runTest(() -> deployPerjob(
+			YarnConfigOptions.UserJarInclusion.DISABLED,
+			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
+	}
+
+	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion, JobGraph jobGraph) throws Exception {
 
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
 		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
 
-		final YarnClient yarnClient = getYarnClient();
-
-		try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			yarnClient,
-			true)) {
+		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
 
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
@@ -99,15 +100,6 @@ public class YARNITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.setNumberTaskManagers(1)
 				.createClusterSpecification();
-
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(2);
-
-			env.addSource(new NoDataSource())
-				.shuffle()
-				.addSink(new DiscardingSink<>());
-
-			final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
 			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
 
@@ -132,5 +124,16 @@ public class YARNITCase extends YarnTestBase {
 					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
 			}
 		}
+	}
+
+	private JobGraph getTestingJobGraph() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
+
+		env.addSource(new NoDataSource())
+			.shuffle()
+			.addSink(new DiscardingSink<>());
+
+		return env.getStreamGraph().getJobGraph();
 	}
 }

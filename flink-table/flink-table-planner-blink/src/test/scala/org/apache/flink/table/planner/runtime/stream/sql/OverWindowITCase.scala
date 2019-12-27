@@ -84,16 +84,15 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRowsOverWithBultinProctime(): Unit = {
-    val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+  def testProcTimeBoundedPartitionedRowsOverWithBulitinProctime(): Unit = {
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
     val sink = new TestingAppendSink
@@ -121,15 +120,14 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {
-    val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
     val sink = new TestingAppendSink

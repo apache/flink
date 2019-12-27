@@ -2,7 +2,7 @@
 title:  "Kubernetes 安装"
 nav-title: Kubernetes
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -129,7 +129,7 @@ data:
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
     jobmanager.heap.size: 1024m
-    taskmanager.memory.total-process.size: 1024m
+    taskmanager.memory.process.size: 1024m
   log4j.properties: |+
     log4j.rootLogger=INFO, file
     log4j.logger.akka=INFO

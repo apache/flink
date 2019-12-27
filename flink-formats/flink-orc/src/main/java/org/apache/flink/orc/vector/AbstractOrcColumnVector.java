@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
@@ -111,6 +112,9 @@ public abstract class AbstractOrcColumnVector implements
 			case DOUBLE:
 				return createDoubleVector(batchSize, value);
 			case DATE:
+				if (value instanceof LocalDate) {
+					value = Date.valueOf((LocalDate) value);
+				}
 				return createLongVector(batchSize, dateToInternal((Date) value));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return createTimestampVector(batchSize, value);

@@ -105,6 +105,7 @@ class DatabaseCalciteSchema implements Schema {
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
 		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
 			.map(tableSource -> new TableSourceTable<>(
+				table.getSchema(),
 				tableSource,
 				!table.isBatch(),
 				FlinkStatistic.UNKNOWN()));
@@ -142,6 +143,7 @@ class DatabaseCalciteSchema implements Schema {
 		}
 
 		return new TableSourceTable<>(
+			table.getSchema(),
 			tableSource,
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource

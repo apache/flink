@@ -80,6 +80,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -88,6 +89,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -97,12 +99,14 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -150,6 +154,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final boolean legacyScheduling;
 
+	protected final ExecutionVertexVersioner executionVertexVersioner;
+
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 		"SchedulerBase is not initialized with proper main thread executor. " +
 			"Call to SchedulerBase.setMainThreadExecutor(...) required.");
@@ -171,6 +177,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final Time slotRequestTimeout,
 		final ShuffleMaster<?> shuffleMaster,
 		final JobMasterPartitionTracker partitionTracker,
+		final ExecutionVertexVersioner executionVertexVersioner,
 		final boolean legacyScheduling) throws Exception {
 
 		this.log = checkNotNull(log);
@@ -200,6 +207,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.blobWriter = checkNotNull(blobWriter);
 		this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
+		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 		this.legacyScheduling = legacyScheduling;
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
@@ -340,11 +348,16 @@ public abstract class SchedulerBase implements SchedulerNG {
 			.transitionState(ExecutionState.SCHEDULED));
 	}
 
+	protected void setGlobalFailureCause(final Throwable cause) {
+		getExecutionGraph().initFailureCause(cause);
+	}
+
 	protected ComponentMainThreadExecutor getMainThreadExecutor() {
 		return mainThreadExecutor;
 	}
 
 	protected void failJob(Throwable cause) {
+		incrementVersionsOfAllVertices();
 		executionGraph.failJob(cause);
 	}
 
@@ -393,6 +406,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected abstract long getNumberOfRestarts();
 
+	private Map<ExecutionVertexID, ExecutionVertexVersion> incrementVersionsOfAllVertices() {
+		return executionVertexVersioner.recordVertexModifications(
+			IterableUtils.toStream(schedulingTopology.getVertices())
+				.map(SchedulingExecutionVertex::getId)
+				.collect(Collectors.toSet()));
+	}
+
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------
@@ -425,12 +445,16 @@ public abstract class SchedulerBase implements SchedulerNG {
 	@Override
 	public void suspend(Throwable cause) {
 		mainThreadExecutor.assertRunningInMainThread();
+
+		incrementVersionsOfAllVertices();
 		executionGraph.suspend(cause);
 	}
 
 	@Override
 	public void cancel() {
 		mainThreadExecutor.assertRunningInMainThread();
+
+		incrementVersionsOfAllVertices();
 		executionGraph.cancel();
 	}
 

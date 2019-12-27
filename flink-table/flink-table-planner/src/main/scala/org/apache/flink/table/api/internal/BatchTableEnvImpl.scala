@@ -95,7 +95,7 @@ abstract class BatchTableEnvImpl(
     * @param tableSource The [[TableSource]] to register.
     */
   override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
-    TableSourceValidation.validateTableSource(tableSource)
+    TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema)
 
     if (!tableSource.isInstanceOf[BatchTableSource[_]] &&
         !tableSource.isInstanceOf[InputFormatTableSource[_]]) {

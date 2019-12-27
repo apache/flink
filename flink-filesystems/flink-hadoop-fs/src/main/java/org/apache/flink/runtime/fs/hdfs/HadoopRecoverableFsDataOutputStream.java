@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -34,6 +35,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.apache.hadoop.util.VersionInfo;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -174,7 +176,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	}
 
 	private static void ensureTruncateInitialized() throws FlinkRuntimeException {
-		if (truncateHandle == null) {
+		if (HadoopUtils.isMinHadoopVersion(2, 7) && truncateHandle == null) {
 			Method truncateMethod;
 			try {
 				truncateMethod = FileSystem.class.getMethod("truncate", Path.class, long.class);
@@ -192,6 +194,10 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	}
 
 	private static boolean truncate(final FileSystem hadoopFs, final Path file, final long length) throws IOException {
+		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
+			throw new IllegalStateException("Truncation is not available in hadoop version < 2.7 , You are on Hadoop " + VersionInfo.getVersion());
+		}
+
 		if (truncateHandle != null) {
 			try {
 				return (Boolean) truncateHandle.invoke(hadoopFs, file, length);

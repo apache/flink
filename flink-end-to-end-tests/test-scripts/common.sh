@@ -154,7 +154,7 @@ function create_ha_config() {
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
     jobmanager.heap.size: 1024m
-    taskmanager.memory.total-process.size: 1024m
+    taskmanager.memory.process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
     #==============================================================================
@@ -230,25 +230,32 @@ function start_local_zk {
     done < <(grep "^server\." "${FLINK_DIR}/conf/zoo.cfg")
 }
 
-function wait_dispatcher_running {
-  # wait at most 10 seconds until the dispatcher is up
-  local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+function wait_rest_endpoint_up {
+  local query_url=$1
+  local endpoint_name=$2
+  local successful_response_regex=$3
+  # wait at most 10 seconds until the endpoint is up
   local TIMEOUT=20
   for i in $(seq 1 ${TIMEOUT}); do
-    # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
+    # without the || true this would exit our script if the endpoint is not yet up
+    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$query_url" 2> /dev/null || true)
 
-    # ensure the taskmanagers field is there at all and is not empty
-    if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
-      echo "Dispatcher REST endpoint is up."
+    # ensure the response adapts with the suceessful regex
+    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+      echo "${endpoint_name} REST endpoint is up."
       return
     fi
 
-    echo "Waiting for dispatcher REST endpoint to come up..."
+    echo "Waiting for ${endpoint_name} REST endpoint to come up..."
     sleep 1
   done
-  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  echo "${endpoint_name} REST endpoint has not started within a timeout of ${TIMEOUT} sec"
   exit 1
+}
+
+function wait_dispatcher_running {
+  local query_url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  wait_rest_endpoint_up "${query_url}" "Dispatcher" "\{\"taskmanagers\":\[.+\]\}"
 }
 
 function start_cluster {
@@ -316,6 +323,7 @@ function check_logs_for_errors {
       | grep -v "NoAvailableBrokersException" \
       | grep -v "Async Kafka commit failed" \
       | grep -v "DisconnectException" \
+      | grep -v "Cannot connect to ResourceManager right now" \
       | grep -v "AskTimeoutException" \
       | grep -v "Error while loading kafka-version.properties" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
@@ -326,7 +334,7 @@ function check_logs_for_errors {
       | grep -v "An exception was thrown by an exception handler" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
-      | grep -v "org.apache.flink.fs.shaded.hadoop3.org.apache.commons.beanutils.FluentPropertyBeanIntrospector  - Error when creating PropertyDescriptor for public final void org.apache.flink.fs.shaded.hadoop3.org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
+      | grep -v "org.apache.commons.beanutils.FluentPropertyBeanIntrospector.*Error when creating PropertyDescriptor.*org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
       | grep -v "Error while loading kafka-version.properties :null" \
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
@@ -347,6 +355,7 @@ function check_logs_for_exceptions {
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \
    | grep -v "DisconnectException" \
+   | grep -v "Cannot connect to ResourceManager right now" \
    | grep -v "AskTimeoutException" \
    | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
    | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
@@ -536,7 +545,7 @@ function tm_watchdog {
 
 # Kills all job manager.
 function jm_kill_all {
-  kill_all 'StandaloneSessionClusterEntrypoint'
+  kill_all 'ClusterEntrypoint'
 }
 
 # Kills all task manager.
@@ -729,14 +738,22 @@ function find_latest_completed_checkpoint {
 }
 
 function retry_times() {
+    local command=${@:3}
+    retry_times_with_backoff_and_cleanup $1 $2 "$command" "true"
+}
+
+function retry_times_with_backoff_and_cleanup() {
     local retriesNumber=$1
     local backoff=$2
-    local command=${@:3}
+    local command="$3"
+    local cleanup_command="$4"
 
     for (( i = 0; i < ${retriesNumber}; i++ ))
     do
         if ${command}; then
             return 0
+        else
+            ${cleanup_command}
         fi
 
         echo "Command: ${command} failed. Retrying..."
@@ -744,6 +761,7 @@ function retry_times() {
     done
 
     echo "Command: ${command} failed ${retriesNumber} times."
+    ${cleanup_command}
     return 1
 }
 

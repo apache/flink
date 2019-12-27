@@ -41,8 +41,9 @@ import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
-import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
+import org.apache.flink.table.sources.{DefinedFieldMapping, RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
+import org.apache.flink.table.utils.TypeMappingUtils
 import org.apache.flink.types.Row
 
 import org.apache.calcite.plan._
@@ -51,6 +52,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
 import java.util
+import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConversions._
 
@@ -102,17 +104,13 @@ class StreamExecTableSourceScan(
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
-    val rowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      rowType,
-      tableSourceTable.isStreamingMode)
+    val fieldIndexes = computeIndexMapping()
 
-    val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataType != TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
+    if (inputTransform.getOutputType !=
+        TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
         s"returned a DataStream of data type $producedDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
@@ -120,11 +118,16 @@ class StreamExecTableSourceScan(
     }
 
     // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeAttributeDescriptor(
       tableSource,
-      tableSourceTable.getRowType,
-      cluster,
-      planner.getRelBuilder
+      tableSourceTable.getRowType
+    ).map(desc =>
+      TableSourceUtil.getRowtimeExtractionExpression(
+        desc.getTimestampExtractor,
+        producedDataType,
+        planner.getRelBuilder,
+        nameMapping
+      )
     )
 
     val streamTransformation = if (needInternalConversion) {
@@ -142,7 +145,7 @@ class StreamExecTableSourceScan(
       // Code generation requires the correct precision of input fields.
       val fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
         tableSource,
-        rowType)
+        FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType))
       val conversionTransform = ScanUtil.convertToInternalRow(
         ctx,
         inputTransform.asInstanceOf[Transformation[Any]],
@@ -189,10 +192,7 @@ class StreamExecTableSourceScan(
   }
 
   private def needInternalConversion: Boolean = {
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType),
-      tableSourceTable.isStreamingMode)
+    val fieldIndexes = computeIndexMapping()
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
@@ -204,6 +204,24 @@ class StreamExecTableSourceScan(
     // See StreamExecutionEnvironment.createInput, it is better to deal with checkpoint.
     // The disadvantage is that streaming not support multi-paths.
     env.createInput(format, t).name(tableSource.explainSource()).getTransformation
+  }
+
+  private def computeIndexMapping()
+    : Array[Int] = {
+    TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+      tableSource,
+      FlinkTypeFactory.toTableSchema(getRowType).getTableColumns,
+      true,
+      nameMapping
+    )
+  }
+
+  private lazy val nameMapping: JFunction[String, String] = tableSource match {
+    case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+      new JFunction[String, String] {
+        override def apply(t: String): String = mapping.getFieldMapping.get(t)
+      }
+    case _ => JFunction.identity()
   }
 }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.ColumnarRow;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
@@ -41,6 +42,7 @@ public class OrcColumnarRowSplitReader extends OrcSplitReader<BaseRow> {
 	private final ColumnarRow row;
 
 	public OrcColumnarRowSplitReader(
+			OrcShim shim,
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
@@ -51,6 +53,7 @@ public class OrcColumnarRowSplitReader extends OrcSplitReader<BaseRow> {
 			long splitStart,
 			long splitLength) throws IOException {
 		super(
+				shim,
 				conf,
 				schema,
 				selectedFields,

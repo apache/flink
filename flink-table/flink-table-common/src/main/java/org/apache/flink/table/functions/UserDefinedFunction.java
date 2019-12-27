@@ -43,7 +43,7 @@ public abstract class UserDefinedFunction implements FunctionDefinition, Seriali
 	 */
 	public final String functionIdentifier() {
 		final String md5 = EncodingUtils.hex(EncodingUtils.md5(EncodingUtils.encodeObjectToString(this)));
-		return getClass().getCanonicalName().replace('.', '$').concat("$").concat(md5);
+		return getClass().getName().replace('.', '$').concat("$").concat(md5);
 	}
 
 	/**

@@ -142,8 +142,12 @@ public class TaskExecutorResourceUtils {
 			// derive from total process memory
 			return deriveResourceSpecWithTotalProcessMemory(config);
 		} else {
-			throw new IllegalConfigurationException("Either Task Heap Memory size and Managed Memory size, or Total Flink"
-				+ " Memory size, or Total Process Memory size need to be configured explicitly.");
+			throw new IllegalConfigurationException(String.format("Either Task Heap Memory size (%s) and Managed Memory size (%s), or Total Flink"
+				+ " Memory size (%s), or Total Process Memory size (%s) need to be configured explicitly.",
+				TaskManagerOptions.TASK_HEAP_MEMORY.key(),
+				TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+				TaskManagerOptions.TOTAL_FLINK_MEMORY.key(),
+				TaskManagerOptions.TOTAL_PROCESS_MEMORY.key()));
 		}
 	}
 
@@ -564,17 +568,22 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static CPUResource getCpuCores(final Configuration config, double fallback) {
-		double cpuCores;
+		final double cpuCores;
 		if (config.contains(TaskManagerOptions.CPU_CORES)) {
 			cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
-			if (cpuCores < 0) {
-				throw new IllegalConfigurationException("Configured cpu cores must be non-negative.");
-			}
-		} else if (fallback >= 0.0) {
+		} else if (fallback > 0.0) {
 			cpuCores = fallback;
 		} else {
 			cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 		}
+
+		if (cpuCores <= 0) {
+			throw new IllegalConfigurationException(
+				String.format(
+					"TaskExecutors need to be started with a positive number of CPU cores. Please configure %s accordingly.",
+					TaskManagerOptions.CPU_CORES.key()));
+		}
+
 		return new CPUResource(cpuCores);
 	}
 

@@ -2,7 +2,7 @@
 title:  "Mesos 安装"
 nav-title: Mesos
 nav-parent_id: deployment
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -219,7 +219,7 @@ For example:
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.memory.total-process.size=3500m \
+        -Dtaskmanager.memory.process.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 

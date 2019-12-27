@@ -90,13 +90,14 @@ public class StreamTableEnvironmentImplTest {
 	private StreamTableEnvironmentImpl getStreamTableEnvironment(
 			StreamExecutionEnvironment env,
 			DataStreamSource<Integer> elements) {
+		TableConfig config = new TableConfig();
 		CatalogManager catalogManager = new CatalogManager("cat", new GenericInMemoryCatalog("cat", "db"));
 		ModuleManager moduleManager = new ModuleManager();
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
 			moduleManager,
-			new FunctionCatalog(catalogManager, moduleManager),
-			new TableConfig(),
+			new FunctionCatalog(config, catalogManager, moduleManager),
+			config,
 			env,
 			new TestPlanner(elements.getTransformation()),
 			new ExecutorMock(),

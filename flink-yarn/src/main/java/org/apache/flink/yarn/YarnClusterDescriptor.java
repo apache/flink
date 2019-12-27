@@ -1647,7 +1647,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		final  Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 
-		int heapSize = Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration);
+		int heapSize = BootstrapTools.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration);
 		String jvmHeapMem = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
 		startCommandValues.put("jvmmem", jvmHeapMem);
 

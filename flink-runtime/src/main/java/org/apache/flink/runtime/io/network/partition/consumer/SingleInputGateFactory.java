@@ -78,8 +78,6 @@ public class SingleInputGateFactory {
 
 	private final boolean blockingShuffleCompressionEnabled;
 
-	private final boolean pipelinedShuffleCompressionEnabled;
-
 	private final String compressionCodec;
 
 	private final int networkBufferSize;
@@ -97,7 +95,6 @@ public class SingleInputGateFactory {
 		this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
 		this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
 		this.blockingShuffleCompressionEnabled = networkConfig.isBlockingShuffleCompressionEnabled();
-		this.pipelinedShuffleCompressionEnabled = networkConfig.isPipelinedShuffleCompressionEnabled();
 		this.compressionCodec = networkConfig.getCompressionCodec();
 		this.networkBufferSize = networkConfig.networkBufferSize();
 		this.connectionManager = connectionManager;
@@ -122,8 +119,7 @@ public class SingleInputGateFactory {
 			igdd.getConsumedPartitionType());
 
 		BufferDecompressor bufferDecompressor = null;
-		if (igdd.getConsumedPartitionType().isBlocking() && blockingShuffleCompressionEnabled
-			|| igdd.getConsumedPartitionType().isPipelined() && pipelinedShuffleCompressionEnabled) {
+		if (igdd.getConsumedPartitionType().isBlocking() && blockingShuffleCompressionEnabled) {
 			bufferDecompressor = new BufferDecompressor(networkBufferSize, compressionCodec);
 		}
 

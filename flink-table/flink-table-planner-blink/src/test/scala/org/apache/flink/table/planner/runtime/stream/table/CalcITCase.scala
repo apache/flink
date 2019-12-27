@@ -19,14 +19,14 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.planner.expressions.utils.{Func1, Func13, Func23, Func24, Func25, RichFunc1, RichFunc2}
+import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
@@ -291,6 +291,79 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "default-nosharp,Sunny-nosharp,kevin2-nosharp"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testInlineScalarFunction(): Unit = {
+    val t = env.fromElements(1, 2, 3, 4).toTable(tEnv).as('a)
+
+    val sink = new TestingAppendSink
+    val result = t.select(
+      (new ScalarFunction() {
+        def eval(i: Int, suffix: String): String = {
+          suffix + i
+        }
+      })('a, ">>"))
+    result.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      ">>1",
+      ">>2",
+      ">>3",
+      ">>4"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testNonStaticObjectScalarFunction(): Unit = {
+    val t = env.fromElements(1, 2, 3, 4).toTable(tEnv).as('a)
+
+    val sink = new TestingAppendSink
+    val result = t.select(NonStaticObjectScalarFunction('a, ">>"))
+
+    result.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      ">>1",
+      ">>2",
+      ">>3",
+      ">>4"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  object NonStaticObjectScalarFunction extends ScalarFunction {
+    def eval(i: Int, suffix: String): String = {
+      suffix + i
+    }
+  }
+
+  @Test(expected = classOf[ValidationException]) // see FLINK-15162
+  def testNonStaticClassScalarFunction(): Unit = {
+    val t = env.fromElements(1, 2, 3, 4).toTable(tEnv).as('a)
+
+    val sink = new TestingAppendSink
+    val result = t.select(new NonStaticClassScalarFunction()('a, ">>"))
+
+    result.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      ">>1",
+      ">>2",
+      ">>3",
+      ">>4"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  class NonStaticClassScalarFunction extends ScalarFunction {
+    def eval(i: Int, suffix: String): String = {
+      suffix + i
+    }
   }
 
   @Test

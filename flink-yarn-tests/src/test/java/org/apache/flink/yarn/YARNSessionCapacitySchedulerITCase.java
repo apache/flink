@@ -248,7 +248,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-s", "3", // set the slots 3 to check if the vCores are set properly!
 					"-nm", "customName",
 					"-Dfancy-configuration-value=veryFancy",
-					"-Dyarn.maximum-failed-containers=3",
 					"-D" + YarnConfigOptions.VCORES.key() + "=2"},
 				"JobManager Web Interface:",
 				RunTypes.YARN_SESSION);
@@ -280,7 +279,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				// Assert dynamic properties
 				//
 				assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
-				assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
 
 				//
 				// FLINK-2213: assert that vcores are set

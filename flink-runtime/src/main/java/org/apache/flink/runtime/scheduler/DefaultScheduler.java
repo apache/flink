@@ -88,8 +88,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final SchedulingStrategy schedulingStrategy;
 
-	private final ExecutionVertexVersioner executionVertexVersioner;
-
 	private final ExecutionVertexOperations executionVertexOperations;
 
 	public DefaultScheduler(
@@ -133,6 +131,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			slotRequestTimeout,
 			shuffleMaster,
 			partitionTracker,
+			executionVertexVersioner,
 			false);
 
 		this.log = log;
@@ -140,7 +139,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.delayExecutor = checkNotNull(delayExecutor);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
 		this.executionVertexOperations = checkNotNull(executionVertexOperations);
-		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
 		final FailoverStrategy failoverStrategy = failoverStrategyFactory.create(
 			getFailoverTopology(),
@@ -191,6 +189,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	@Override
 	public void handleGlobalFailure(final Throwable error) {
+		setGlobalFailureCause(error);
+
 		log.info("Trying to recover from a global failure.", error);
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getGlobalFailureHandlingResult(error);
 		maybeRestartTasks(failureHandlingResult);
@@ -421,8 +421,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private void handleTaskDeploymentFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
-		log.info("Error while scheduling or deploying task {}.", executionVertexId, error);
-		handleTaskFailure(executionVertexId, error);
+		executionVertexOperations.markFailed(getExecutionVertex(executionVertexId), error);
 	}
 
 	private static Throwable maybeWrapWithNoResourceAvailableException(final Throwable failure) {

@@ -19,6 +19,7 @@
 set -o pipefail
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
 FLINK_TARBALL_DIR=$TEST_DATA_DIR
 FLINK_TARBALL=flink.tar.gz
@@ -26,13 +27,12 @@ FLINK_DIRNAME=$(basename $FLINK_DIR)
 
 MAX_RETRY_SECONDS=120
 CLUSTER_SETUP_RETRIES=3
+IMAGE_BUILD_RETRIES=5
 
 echo "Flink Tarball directory $FLINK_TARBALL_DIR"
 echo "Flink tarball filename $FLINK_TARBALL"
 echo "Flink distribution directory name $FLINK_DIRNAME"
 echo "End-to-end directory $END_TO_END_DIR"
-docker --version
-docker-compose --version
 
 start_time=$(date +%s)
 
@@ -62,13 +62,7 @@ function start_hadoop_cluster() {
     done
 
     # perform health checks
-    if ! { [ $(docker inspect -f '{{.State.Running}}' master 2>&1) = 'true' ] &&
-           [ $(docker inspect -f '{{.State.Running}}' slave1 2>&1) = 'true' ] &&
-           [ $(docker inspect -f '{{.State.Running}}' slave2 2>&1) = 'true' ] &&
-           [ $(docker inspect -f '{{.State.Running}}' kdc 2>&1) = 'true' ]; };
-    then
-        return 1
-    fi
+    containers_health_check "master" "slave1" "slave2" "kdc"
 
     # try and see if NodeManagers are up, otherwise the Flink job will not have enough resources
     # to run
@@ -97,16 +91,13 @@ function start_hadoop_cluster() {
 
 function build_image() {
     echo "Building Hadoop Docker container"
-    until docker build --build-arg HADOOP_VERSION=2.8.4 \
+    if ! retry_times $IMAGE_BUILD_RETRIES 2 docker build --build-arg HADOOP_VERSION=2.8.4 \
         -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile \
         -t flink/docker-hadoop-secure-cluster:latest \
-        $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/;
-    do
-        # with all the downloading and ubuntu updating a lot of flakiness can happen, make sure
-        # we don't immediately fail
-        echo "Something went wrong while building the Docker image, retrying ..."
-        sleep 2
-    done
+        $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/; then
+        echo "ERROR: Could not build hadoop image. Aborting..."
+        exit 1
+    fi
 }
 
 function start_hadoop_cluster_and_prepare_flink() {

@@ -92,6 +92,21 @@ The **table schema** defines the schema of a table that is exposed to SQL querie
 The subsequent sections will cover each definition part ([connector](connect.html#table-connectors), [format](connect.html#table-formats), and [schema](connect.html#table-schema)) in more detail. The following example shows how to pass them:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+tableEnvironment.sqlUpdate(
+    "CREATE TABLE MyTable (\n" +
+    "  ...    -- declare table schema \n" +
+    ") WITH (\n" +
+    "  'connector.type' = '...',  -- declare connector specific properties\n" +
+    "  ...\n" +
+    "  'update-mode' = 'append',  -- declare update mode\n" +
+    "  'format.type' = '...',     -- declare format specific properties\n" +
+    "  ...\n" +
+    ")");
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 tableEnvironment
@@ -124,12 +139,6 @@ format: ...
 schema: ...
 {% endhighlight %}
 </div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-tableEnvironment.sqlUpdate("CREATE TABLE MyTable (...) WITH (...)")
-{% endhighlight %}
-</div>
 </div>
 
 The table's type (`source`, `sink`, or `both`) determines how a table is registered. In case of table type `both`, both a table source and table sink are registered under the same name. Logically, this means that we can both read and write to such a table similarly to a table in a regular DBMS.
@@ -139,6 +148,41 @@ For streaming queries, an [update mode](connect.html#update-mode) declares how t
 The following code shows a full example of how to connect to Kafka for reading Avro records.
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  -- declare the schema of the table
+  `user` BIGINT,
+  message STRING,
+  ts STRING
+) WITH (
+  -- declare the external system to connect to
+  'connector.type' = 'kafka',
+  'connector.version' = '0.10',
+  'connector.topic' = 'topic_name',
+  'connector.startup-mode' = 'earliest-offset',
+  'connector.properties.zookeeper.connect' = 'localhost:2181',
+  'connector.properties.bootstrap.servers' = 'localhost:9092',
+
+  -- specify the update-mode for streaming tables
+  'update-mode' = 'append',
+
+  -- declare a format for this system
+  'format.type' = 'avro',
+  'format.avro-schema' = '{
+                            "namespace": "org.myorganization",
+                            "type": "record",
+                            "name": "UserMessage",
+                            "fields": [
+                                {"name": "ts", "type": "string"},
+                                {"name": "user", "type": "long"},
+                                {"name": "message", "type": ["string", "null"]}
+                            ]
+                         }'
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 tableEnvironment
@@ -180,9 +224,6 @@ tableEnvironment
       .field("user", DataTypes.BIGINT())
       .field("message", DataTypes.STRING())
   )
-
-  // specify the update-mode for streaming tables
-  .inAppendMode()
 
   // create a table with given name
   .createTemporaryTable("MyUserTable");
@@ -226,9 +267,7 @@ table_environment \
         .field("user", DataTypes.BIGINT())
         .field("message", DataTypes.STRING())
     ) \
-    .in_append_mode() \
-    .create_temporary_table("MyUserTable")  
-    # specify the update-mode for streaming tables and
+    .create_temporary_table("MyUserTable")
     # register as source, sink, or both and under a name
 {% endhighlight %}
 </div>
@@ -238,7 +277,6 @@ table_environment \
 tables:
   - name: MyUserTable      # name the new table
     type: source           # declare if the table should be "source", "sink", or "both"
-    update-mode: append    # specify the update-mode for streaming tables
 
     # declare the external system to connect to
     connector:
@@ -280,37 +318,6 @@ tables:
         data-type: BIGINT
       - name: message
         data-type: STRING
-{% endhighlight %}
-</div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  `user` BIGINT,
-  message STRING,
-  ts STRING
-) WITH (
-  -- declare the external system to connect to
-  'connector.type' = 'kafka',
-  'connector.version' = '0.10',
-  'connector.topic' = 'topic_name',
-  'connector.startup-mode' = 'earliest-offset',
-  'connector.properties.zookeeper.connect' = 'localhost:2181',
-  'connector.properties.bootstrap.servers' = 'localhost:9092',
-  'update-mode' = 'append',
-  -- declare a format for this system
-  'format.type' = 'avro',
-  'format.avro-schema' = '{
-                            "namespace": "org.myorganization",
-                            "type": "record",
-                            "name": "UserMessage",
-                            "fields": [
-                                {"name": "ts", "type": "string"},
-                                {"name": "user", "type": "long"},
-                                {"name": "message", "type": ["string", "null"]}
-                            ]
-                         }'
-)
 {% endhighlight %}
 </div>
 </div>
@@ -593,6 +600,16 @@ For streaming queries, it is required to declare how to perform the [conversion 
 <span class="label label-danger">Attention</span> The documentation of each connector states which update modes are supported.
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyTable (
+ ...
+) WITH (
+ 'update-mode' = 'append'  -- otherwise: 'retract' or 'upsert'
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .connect(...)
@@ -612,16 +629,6 @@ For streaming queries, it is required to declare how to perform the [conversion 
 tables:
   - name: ...
     update-mode: append    # otherwise: "retract" or "upsert"
-{% endhighlight %}
-</div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyTable (
- ...
-) WITH (
- 'update-mode' = 'append'  -- otherwise: 'retract' or 'upsert'
-)
 {% endhighlight %}
 </div>
 </div>
@@ -648,12 +655,29 @@ Please note that not all connectors are available in both batch and streaming ye
 The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem can be defined as:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'filesystem',                -- required: specify to connector type
+  'connector.path' = 'file:///path/to/whatever',  -- required: path to a file or directory
+  'format.type' = '...',                          -- required: file system connector requires to specify a format,
+  ...                                             -- currently only 'csv' format is supported.
+                                                  -- Please refer to Table Formats section for more details.
+)                                               
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .connect(
   new FileSystem()
     .path("file:///path/to/whatever")    // required: path to a file or directory
 )
+.withFormat(                             // required: file system connector requires to specify a format,
+  ...                                    // currently only Csv format is supported.
+)                                        // Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -663,6 +687,9 @@ The file system connector allows for reading and writing from a local or distrib
     FileSystem()
     .path("file:///path/to/whatever")  # required: path to a file or directory
 )
+.withFormat(                           # required: file system connector requires to specify a format,
+  ...                                  # currently only Csv format is supported.
+)                                      # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -671,17 +698,9 @@ The file system connector allows for reading and writing from a local or distrib
 connector:
   type: filesystem
   path: "file:///path/to/whatever"    # required: path to a file or directory
-{% endhighlight %}
-</div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  ...
-) WITH (
-  'connector.type' = 'filesystem',               -- required: specify to connector type
-  'connector.path' = 'file:///path/to/whatever'  -- required: path to a file or directory
-)
+format:                               # required: file system connector requires to specify a format,
+  ...                                 # currently only "csv" format is supported.
+                                      # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 </div>
@@ -696,12 +715,49 @@ The file system connector itself is included in Flink and does not require an ad
 
 <span class="label label-primary">Source: Streaming Append Mode</span>
 <span class="label label-primary">Sink: Streaming Append Mode</span>
-<span class="label label-info">Format: Serialization Schema</span>
-<span class="label label-info">Format: Deserialization Schema</span>
+<span class="label label-info">Format: CSV, JSON, Avro</span>
 
 The Kafka connector allows for reading and writing from and to an Apache Kafka topic. It can be defined as follows:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'kafka',       
+
+  'connector.version' = '0.11',     -- required: valid connector versions are
+                                    -- "0.8", "0.9", "0.10", "0.11", and "universal"
+
+  'connector.topic' = 'topic_name', -- required: topic name from which the table is read
+
+  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specify the ZooKeeper connection string
+  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specify the Kafka server connection string
+  'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specify consumer group
+  'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset", 
+                                                   -- "latest-offset", "group-offsets", 
+                                                   -- or "specific-offsets"
+
+  -- optional: used in case of startup mode with specific offsets
+  'connector.specific-offsets' = 'partition:0,offset:42;partition:1,offset:300',
+
+  'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions 
+                                         -- into Kafka's partitions valid are "fixed" 
+                                         -- (each Flink partition ends up in at most one Kafka partition),
+                                         -- "round-robin" (a Flink partition is distributed to 
+                                         -- Kafka partitions round-robin)
+                                         -- "custom" (use a custom FlinkKafkaPartitioner subclass)
+  -- optional: used in case of sink partitioner custom
+  'connector.sink-partitioner-class' = 'org.mycompany.MyPartitioner',
+  
+  'format.type' = '...',                 -- required: Kafka connector requires to specify a format,
+  ...                                    -- the supported formats are 'csv', 'json' and 'avro'.
+                                         -- Please refer to Table Formats section for more details.
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .connect(
@@ -725,6 +781,9 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
     .sinkPartitionerRoundRobin()    // a Flink partition is distributed to Kafka partitions round-robin
     .sinkPartitionerCustom(MyCustom.class)    // use a custom FlinkKafkaPartitioner subclass
 )
+.withFormat(                                  // required: Kafka connector requires to specify a format,
+  ...                                         // the supported formats are Csv, Json and Avro.
+)                                             // Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -751,6 +810,9 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
     .sink_partitioner_round_robin()  # a Flink partition is distributed to Kafka partitions round-robin
     .sink_partitioner_custom("full.qualified.custom.class.name")  # use a custom FlinkKafkaPartitioner subclass
 )
+.withFormat(                         # required: Kafka connector requires to specify a format,
+  ...                                # the supported formats are Csv, Json and Avro.
+)                                    # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -776,43 +838,10 @@ connector:
                            # "round-robin" (a Flink partition is distributed to Kafka partitions round-robin)
                            # "custom" (use a custom FlinkKafkaPartitioner subclass)
   sink-partitioner-class: org.mycompany.MyPartitioner  # optional: used in case of sink partitioner custom
-{% endhighlight %}
-</div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  ...
-) WITH (
-  'connector.type' = 'kafka',       
-
-  'connector.version' = '0.11',     -- required: valid connector versions are
-                                    -- "0.8", "0.9", "0.10", "0.11", and "universal"
-
-  'connector.topic' = 'topic_name', -- required: topic name from which the table is read
-
-  'update-mode' = 'append',         -- required: update mode when used as table sink, 
-                                    -- only support append mode now.
-
-  'connector.properties.zookeeper.connect' = 'localhost:2181', -- required: specify the ZooKeeper connection string
-  'connector.properties.bootstrap.servers' = 'localhost:9092', -- required: specify the Kafka server connection string
-  'connector.properties.group.id' = 'testGroup', --optional: required in Kafka consumer, specify consumer group
-  'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset", 
-                                                   -- "latest-offset", "group-offsets", 
-                                                   -- or "specific-offsets"
-
-  -- optional: used in case of startup mode with specific offsets
-  'connector.specific-offsets' = 'partition:0,offset:42;partition:1,offset:300',
-
-  'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions 
-                                         -- into Kafka's partitions valid are "fixed" 
-                                         -- (each Flink partition ends up in at most one Kafka partition),
-                                         -- "round-robin" (a Flink partition is distributed to 
-                                         -- Kafka partitions round-robin)
-                                         -- "custom" (use a custom FlinkKafkaPartitioner subclass)
-  -- optional: used in case of sink partitioner custom
-  'connector.sink-partitioner-class' = 'org.mycompany.MyPartitioner'
-)
+  
+  format:                  # required: Kafka connector requires to specify a format,
+    ...                    # the supported formats are "csv", "json" and "avro".
+                           # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 </div>
@@ -846,120 +875,6 @@ For append-only queries, the connector can also operate in [append mode](#update
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
-{% highlight java %}
-.connect(
-  new Elasticsearch()
-    .version("6")                      // required: valid connector versions are "6"
-    .host("localhost", 9200, "http")   // required: one or more Elasticsearch hosts to connect to
-    .index("MyUsers")                  // required: Elasticsearch index
-    .documentType("user")              // required: Elasticsearch document type
-
-    .keyDelimiter("$")        // optional: delimiter for composite keys ("_" by default)
-                              //   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
-    .keyNullLiteral("n/a")    // optional: representation for null fields in keys ("null" by default)
-
-    // optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
-    .failureHandlerFail()          // optional: throws an exception if a request fails and causes a job failure
-    .failureHandlerIgnore()        //   or ignores failures and drops the request
-    .failureHandlerRetryRejected() //   or re-adds requests that have failed due to queue capacity saturation
-    .failureHandlerCustom(...)     //   or custom failure handling with a ActionRequestFailureHandler subclass
-
-    // optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
-    .disableFlushOnCheckpoint()    // optional: disables flushing on checkpoint (see notes below!)
-    .bulkFlushMaxActions(42)       // optional: maximum number of actions to buffer for each bulk request
-    .bulkFlushMaxSize("42 mb")     // optional: maximum size of buffered actions in bytes per bulk request
-                                   //   (only MB granularity is supported)
-    .bulkFlushInterval(60000L)     // optional: bulk flush interval (in milliseconds)
-
-    .bulkFlushBackoffConstant()    // optional: use a constant backoff type
-    .bulkFlushBackoffExponential() //   or use an exponential backoff type
-    .bulkFlushBackoffMaxRetries(3) // optional: maximum number of retries
-    .bulkFlushBackoffDelay(30000L) // optional: delay between each backoff attempt (in milliseconds)
-
-    // optional: connection properties to be used during REST communication to Elasticsearch
-    .connectionMaxRetryTimeout(3)  // optional: maximum timeout (in milliseconds) between retries
-    .connectionPathPrefix("/v1")   // optional: prefix string to be added to every REST communication
-)
-{% endhighlight %}
-</div>
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-.connect(
-    Elasticsearch()
-    .version("6")                      # required: valid connector versions are "6"
-    .host("localhost", 9200, "http")   # required: one or more Elasticsearch hosts to connect to
-    .index("MyUsers")                  # required: Elasticsearch index
-    .document_type("user")             # required: Elasticsearch document type
-
-    .key_delimiter("$")       # optional: delimiter for composite keys ("_" by default)
-                              #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
-    .key_null_literal("n/a")  # optional: representation for null fields in keys ("null" by default)
-
-    # optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
-    .failure_handler_fail()             # optional: throws an exception if a request fails and causes a job failure
-    .failure_handler_ignore()           #   or ignores failures and drops the request
-    .failure_handler_retry_rejected()   #   or re-adds requests that have failed due to queue capacity saturation
-    .failure_handler_custom(...)        #   or custom failure handling with a ActionRequestFailureHandler subclass
-
-    # optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
-    .disable_flush_on_checkpoint()      # optional: disables flushing on checkpoint (see notes below!)
-    .bulk_flush_max_actions(42)         # optional: maximum number of actions to buffer for each bulk request
-    .bulk_flush_max_size("42 mb")       # optional: maximum size of buffered actions in bytes per bulk request
-                                        #   (only MB granularity is supported)
-    .bulk_flush_interval(60000)         # optional: bulk flush interval (in milliseconds)
-
-    .bulk_flush_backoff_constant()      # optional: use a constant backoff type
-    .bulk_flush_backoff_exponential()   #   or use an exponential backoff type
-    .bulk_flush_backoff_max_retries(3)  # optional: maximum number of retries
-    .bulk_flush_backoff_delay(30000)    # optional: delay between each backoff attempt (in milliseconds)
-
-    # optional: connection properties to be used during REST communication to Elasticsearch
-    .connection_max_retry_timeout(3)    # optional: maximum timeout (in milliseconds) between retries
-    .connection_path_prefix("/v1")      # optional: prefix string to be added to every REST communication
-)
-{% endhighlight %}
-</div>
-
-<div data-lang="YAML" markdown="1">
-{% highlight yaml %}
-connector:
-  type: elasticsearch
-  version: 6                                            # required: valid connector versions are "6"
-    hosts: http://host_name:9092;http://host_name:9093  # required: one or more Elasticsearch hosts to connect to
-    index: "MyUsers"        # required: Elasticsearch index
-    document-type: "user"   # required: Elasticsearch document type
-
-    key-delimiter: "$"      # optional: delimiter for composite keys ("_" by default)
-                            #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
-    key-null-literal: "n/a" # optional: representation for null fields in keys ("null" by default)
-
-    # optional: failure handling strategy in case a request to Elasticsearch fails ("fail" by default)
-    failure-handler: ...    # valid strategies are "fail" (throws an exception if a request fails and
-                            #   thus causes a job failure), "ignore" (ignores failures and drops the request),
-                            #   "retry-rejected" (re-adds requests that have failed due to queue capacity
-                            #   saturation), or "custom" for failure handling with a
-                            #   ActionRequestFailureHandler subclass
-
-    # optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
-    flush-on-checkpoint: true   # optional: disables flushing on checkpoint (see notes below!) ("true" by default)
-    bulk-flush:
-      max-actions: 42           # optional: maximum number of actions to buffer for each bulk request
-      max-size: 42 mb           # optional: maximum size of buffered actions in bytes per bulk request
-                                #   (only MB granularity is supported)
-      interval: 60000           # optional: bulk flush interval (in milliseconds)
-      back-off:                 # optional: backoff strategy ("disabled" by default)
-        type: ...               #   valid strategies are "disabled", "constant", or "exponential"
-        max-retries: 3          # optional: maximum number of retries
-        delay: 30000            # optional: delay between each backoff attempt (in milliseconds)
-
-    # optional: connection properties to be used during REST communication to Elasticsearch
-    connection-max-retry-timeout: 3   # optional: maximum timeout (in milliseconds) between retries
-    connection-path-prefix: "/v1"     # optional: prefix string to be added to every REST communication
-{% endhighlight %}
-</div>
-
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
@@ -1014,7 +929,137 @@ CREATE TABLE MyUserTable (
                                                       -- between retries
   'connector.connection-path-prefix' = '/v1'          -- optional: prefix string to be added to every
                                                       -- REST communication
+                                                      
+  'format.type' = '...',   -- required: Elasticsearch connector requires to specify a format,
+  ...                      -- currently only 'json' format is supported.
+                           -- Please refer to Table Formats section for more details.
 )
+{% endhighlight %}
+</div>
+
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+.connect(
+  new Elasticsearch()
+    .version("6")                      // required: valid connector versions are "6"
+    .host("localhost", 9200, "http")   // required: one or more Elasticsearch hosts to connect to
+    .index("MyUsers")                  // required: Elasticsearch index
+    .documentType("user")              // required: Elasticsearch document type
+
+    .keyDelimiter("$")        // optional: delimiter for composite keys ("_" by default)
+                              //   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    .keyNullLiteral("n/a")    // optional: representation for null fields in keys ("null" by default)
+
+    // optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
+    .failureHandlerFail()          // optional: throws an exception if a request fails and causes a job failure
+    .failureHandlerIgnore()        //   or ignores failures and drops the request
+    .failureHandlerRetryRejected() //   or re-adds requests that have failed due to queue capacity saturation
+    .failureHandlerCustom(...)     //   or custom failure handling with a ActionRequestFailureHandler subclass
+
+    // optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+    .disableFlushOnCheckpoint()    // optional: disables flushing on checkpoint (see notes below!)
+    .bulkFlushMaxActions(42)       // optional: maximum number of actions to buffer for each bulk request
+    .bulkFlushMaxSize("42 mb")     // optional: maximum size of buffered actions in bytes per bulk request
+                                   //   (only MB granularity is supported)
+    .bulkFlushInterval(60000L)     // optional: bulk flush interval (in milliseconds)
+
+    .bulkFlushBackoffConstant()    // optional: use a constant backoff type
+    .bulkFlushBackoffExponential() //   or use an exponential backoff type
+    .bulkFlushBackoffMaxRetries(3) // optional: maximum number of retries
+    .bulkFlushBackoffDelay(30000L) // optional: delay between each backoff attempt (in milliseconds)
+
+    // optional: connection properties to be used during REST communication to Elasticsearch
+    .connectionMaxRetryTimeout(3)  // optional: maximum timeout (in milliseconds) between retries
+    .connectionPathPrefix("/v1")   // optional: prefix string to be added to every REST communication
+)
+.withFormat(                      // required: Elasticsearch connector requires to specify a format,
+  ...                             // currently only Json format is supported.
+                                  // Please refer to Table Formats section for more details.
+)    
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(
+    Elasticsearch()
+    .version("6")                      # required: valid connector versions are "6"
+    .host("localhost", 9200, "http")   # required: one or more Elasticsearch hosts to connect to
+    .index("MyUsers")                  # required: Elasticsearch index
+    .document_type("user")             # required: Elasticsearch document type
+
+    .key_delimiter("$")       # optional: delimiter for composite keys ("_" by default)
+                              #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    .key_null_literal("n/a")  # optional: representation for null fields in keys ("null" by default)
+
+    # optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
+    .failure_handler_fail()             # optional: throws an exception if a request fails and causes a job failure
+    .failure_handler_ignore()           #   or ignores failures and drops the request
+    .failure_handler_retry_rejected()   #   or re-adds requests that have failed due to queue capacity saturation
+    .failure_handler_custom(...)        #   or custom failure handling with a ActionRequestFailureHandler subclass
+
+    # optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+    .disable_flush_on_checkpoint()      # optional: disables flushing on checkpoint (see notes below!)
+    .bulk_flush_max_actions(42)         # optional: maximum number of actions to buffer for each bulk request
+    .bulk_flush_max_size("42 mb")       # optional: maximum size of buffered actions in bytes per bulk request
+                                        #   (only MB granularity is supported)
+    .bulk_flush_interval(60000)         # optional: bulk flush interval (in milliseconds)
+
+    .bulk_flush_backoff_constant()      # optional: use a constant backoff type
+    .bulk_flush_backoff_exponential()   #   or use an exponential backoff type
+    .bulk_flush_backoff_max_retries(3)  # optional: maximum number of retries
+    .bulk_flush_backoff_delay(30000)    # optional: delay between each backoff attempt (in milliseconds)
+
+    # optional: connection properties to be used during REST communication to Elasticsearch
+    .connection_max_retry_timeout(3)    # optional: maximum timeout (in milliseconds) between retries
+    .connection_path_prefix("/v1")      # optional: prefix string to be added to every REST communication
+)
+.withFormat(                      // required: Elasticsearch connector requires to specify a format,
+  ...                             // currently only Json format is supported.
+                                  // Please refer to Table Formats section for more details.
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: elasticsearch
+  version: 6                                            # required: valid connector versions are "6"
+    hosts: http://host_name:9092;http://host_name:9093  # required: one or more Elasticsearch hosts to connect to
+    index: "MyUsers"        # required: Elasticsearch index
+    document-type: "user"   # required: Elasticsearch document type
+
+    key-delimiter: "$"      # optional: delimiter for composite keys ("_" by default)
+                            #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    key-null-literal: "n/a" # optional: representation for null fields in keys ("null" by default)
+
+    # optional: failure handling strategy in case a request to Elasticsearch fails ("fail" by default)
+    failure-handler: ...    # valid strategies are "fail" (throws an exception if a request fails and
+                            #   thus causes a job failure), "ignore" (ignores failures and drops the request),
+                            #   "retry-rejected" (re-adds requests that have failed due to queue capacity
+                            #   saturation), or "custom" for failure handling with a
+                            #   ActionRequestFailureHandler subclass
+
+    # optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+    flush-on-checkpoint: true   # optional: disables flushing on checkpoint (see notes below!) ("true" by default)
+    bulk-flush:
+      max-actions: 42           # optional: maximum number of actions to buffer for each bulk request
+      max-size: 42 mb           # optional: maximum size of buffered actions in bytes per bulk request
+                                #   (only MB granularity is supported)
+      interval: 60000           # optional: bulk flush interval (in milliseconds)
+      back-off:                 # optional: backoff strategy ("disabled" by default)
+        type: ...               #   valid strategies are "disabled", "constant", or "exponential"
+        max-retries: 3          # optional: maximum number of retries
+        delay: 30000            # optional: delay between each backoff attempt (in milliseconds)
+
+    # optional: connection properties to be used during REST communication to Elasticsearch
+    connection-max-retry-timeout: 3   # optional: maximum timeout (in milliseconds) between retries
+    connection-path-prefix: "/v1"     # optional: prefix string to be added to every REST communication
+    
+    format:                     # required: Elasticsearch connector requires to specify a format,
+      ...                       # currently only "json" format is supported.
+                                # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
 </div>
@@ -1046,6 +1091,38 @@ For append-only queries, the connector can also operate in [append mode](#update
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  hbase_rowkey_name rowkey_type,
+  hbase_column_family_name1 ROW<...>,
+  hbase_column_family_name2 ROW<...>
+) WITH (
+  'connector.type' = 'hbase', -- required: specify this table type is hbase
+  
+  'connector.version' = '1.4.3',          -- required: valid connector versions are "1.4.3"
+  
+  'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
+  
+  'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
+  'connector.zookeeper.znode.parent' = '/test',    -- optional: the root dir in Zookeeper for HBase cluster.
+                                                   -- The default value is "/hbase".
+
+  'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered
+                                                    -- rows to insert per round trip. This can help performance on writing to JDBC
+                                                    -- database. The default value is "2mb".
+
+  'connector.write.buffer-flush.max-rows' = '1000', -- optional: writing option, determines how many rows to insert per round trip.
+                                                    -- This can help performance on writing to JDBC database. No default value,
+                                                    -- i.e. the default flushing is not depends on the number of buffered rows.
+
+  'connector.write.buffer-flush.interval' = '2s',   -- optional: writing option, sets a flush interval flushing buffered requesting
+                                                    -- if the interval passes, in milliseconds. Default value is "0s", which means
+                                                    -- no asynchronous flush thread will be scheduled.
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .connect(
@@ -1092,38 +1169,6 @@ connector:
                                  # no asynchronous flush thread will be scheduled.
 {% endhighlight %}
 </div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  hbase_rowkey_name rowkey_type,
-  hbase_column_family_name1 ROW<...>,
-  hbase_column_family_name2 ROW<...>
-) WITH (
-  'connector.type' = 'hbase', -- required: specify this table type is hbase
-  
-  'connector.version' = '1.4.3',          -- required: valid connector versions are "1.4.3"
-  
-  'connector.table-name' = 'hbase_table_name',  -- required: hbase table name
-  
-  'connector.zookeeper.quorum' = 'localhost:2181', -- required: HBase Zookeeper quorum configuration
-  'connector.zookeeper.znode.parent' = '/test',    -- optional: the root dir in Zookeeper for HBase cluster.
-                                                   -- The default value is "/hbase".
-
-  'connector.write.buffer-flush.max-size' = '10mb', -- optional: writing option, determines how many size in memory of buffered
-                                                    -- rows to insert per round trip. This can help performance on writing to JDBC
-                                                    -- database. The default value is "2mb".
-
-  'connector.write.buffer-flush.max-rows' = '1000', -- optional: writing option, determines how many rows to insert per round trip.
-                                                    -- This can help performance on writing to JDBC database. No default value,
-                                                    -- i.e. the default flushing is not depends on the number of buffered rows.
-
-  'connector.write.buffer-flush.interval' = '2s',   -- optional: writing option, sets a flush interval flushing buffered requesting
-                                                    -- if the interval passes, in milliseconds. Default value is "0s", which means
-                                                    -- no asynchronous flush thread will be scheduled.
-)
-{% endhighlight %}
-</div>
 </div>
 
 **Columns:** All the column families in HBase table must be declared as `ROW` type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what's necessary. Except the `ROW` type fields, the only one field of atomic type (e.g. `STRING`, `BIGINT`) will be recognized as row key of the table. There's no constraints on the name of row key field. 
@@ -1161,52 +1206,6 @@ To use JDBC connector, need to choose an actual driver to use. Here are drivers 
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">
-<div data-lang="YAML" markdown="1">
-{% highlight yaml %}
-connector:
-  type: jdbc
-  url: "jdbc:mysql://localhost:3306/flink-test"     # required: JDBC DB url
-  table: "jdbc_table_name"        # required: jdbc table name
-  driver: "com.mysql.jdbc.Driver" # optional: the class name of the JDBC driver to use to connect to this URL.
-                                  # If not set, it will automatically be derived from the URL.
-
-  username: "name"                # optional: jdbc user name and password
-  password: "password"
-  
-  read: # scan options, optional, used when reading from table
-    partition: # These options must all be specified if any of them is specified. In addition, partition.num must be specified. They
-               # describe how to partition the table when reading in parallel from multiple tasks. partition.column must be a numeric,
-               # date, or timestamp column from the table in question. Notice that lowerBound and upperBound are just used to decide
-               # the partition stride, not for filtering the rows in table. So all rows in the table will be partitioned and returned.
-               # This option applies only to reading.
-      column: "column_name" # optional, name of the column used for partitioning the input.
-      num: 50               # optional, the number of partitions.
-      lower-bound: 500      # optional, the smallest value of the first partition.
-      upper-bound: 1000     # optional, the largest value of the last partition.
-    fetch-size: 100         # optional, Gives the reader a hint as to the number of rows that should be fetched
-                            # from the database when reading per round trip. If the value specified is zero, then
-                            # the hint is ignored. The default value is zero.
-  
-  lookup: # lookup options, optional, used in temporary join
-    cache:
-      max-rows: 5000 # optional, max number of rows of lookup cache, over this value, the oldest rows will
-                     # be eliminated. "cache.max-rows" and "cache.ttl" options must all be specified if any
-                     # of them is specified. Cache is not enabled as default.
-      ttl: "10s"     # optional, the max time to live for each rows in lookup cache, over this time, the oldest rows
-                     # will be expired. "cache.max-rows" and "cache.ttl" options must all be specified if any of
-                     # them is specified. Cache is not enabled as default.
-    max-retries: 3   # optional, max retry times if lookup database failed
-  
-  write: # sink options, optional, used when writing into table
-      flush:
-        max-rows: 5000 # optional, flush max size (includes all append, upsert and delete records), 
-                       # over this number of records, will flush data. The default value is "5000".
-        interval: "2s" # optional, flush interval mills, over this time, asynchronous threads will flush data.
-                       # The default value is "0s", which means no asynchronous flush thread will be scheduled. 
-      max-retries: 3   # optional, max retry times if writing records to database failed.
-{% endhighlight %}
-</div>
-
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
@@ -1258,6 +1257,52 @@ CREATE TABLE MyUserTable (
 )
 {% endhighlight %}
 </div>
+
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: jdbc
+  url: "jdbc:mysql://localhost:3306/flink-test"     # required: JDBC DB url
+  table: "jdbc_table_name"        # required: jdbc table name
+  driver: "com.mysql.jdbc.Driver" # optional: the class name of the JDBC driver to use to connect to this URL.
+                                  # If not set, it will automatically be derived from the URL.
+
+  username: "name"                # optional: jdbc user name and password
+  password: "password"
+  
+  read: # scan options, optional, used when reading from table
+    partition: # These options must all be specified if any of them is specified. In addition, partition.num must be specified. They
+               # describe how to partition the table when reading in parallel from multiple tasks. partition.column must be a numeric,
+               # date, or timestamp column from the table in question. Notice that lowerBound and upperBound are just used to decide
+               # the partition stride, not for filtering the rows in table. So all rows in the table will be partitioned and returned.
+               # This option applies only to reading.
+      column: "column_name" # optional, name of the column used for partitioning the input.
+      num: 50               # optional, the number of partitions.
+      lower-bound: 500      # optional, the smallest value of the first partition.
+      upper-bound: 1000     # optional, the largest value of the last partition.
+    fetch-size: 100         # optional, Gives the reader a hint as to the number of rows that should be fetched
+                            # from the database when reading per round trip. If the value specified is zero, then
+                            # the hint is ignored. The default value is zero.
+  
+  lookup: # lookup options, optional, used in temporary join
+    cache:
+      max-rows: 5000 # optional, max number of rows of lookup cache, over this value, the oldest rows will
+                     # be eliminated. "cache.max-rows" and "cache.ttl" options must all be specified if any
+                     # of them is specified. Cache is not enabled as default.
+      ttl: "10s"     # optional, the max time to live for each rows in lookup cache, over this time, the oldest rows
+                     # will be expired. "cache.max-rows" and "cache.ttl" options must all be specified if any of
+                     # them is specified. Cache is not enabled as default.
+    max-retries: 3   # optional, max retry times if lookup database failed
+  
+  write: # sink options, optional, used when writing into table
+      flush:
+        max-rows: 5000 # optional, flush max size (includes all append, upsert and delete records), 
+                       # over this number of records, will flush data. The default value is "5000".
+        interval: "2s" # optional, flush interval mills, over this time, asynchronous threads will flush data.
+                       # The default value is "0s", which means no asynchronous flush thread will be scheduled. 
+      max-retries: 3   # optional, max retry times if writing records to database failed.
+{% endhighlight %}
+</div>
 </div>
 
 **Upsert sink:** Flink automatically extracts valid keys from a query. For example, a query `SELECT a, b, c FROM t GROUP BY a, b` defines a composite key of the fields `a` and `b`. If a JDBC table is used as upsert sink, please make sure keys of the query is one of the unique key sets or primary key of the underlying database. This can guarantee the output result is as expected.
@@ -1267,6 +1312,17 @@ CREATE TABLE MyUserTable (
 **Writing:** As default, the `connector.write.flush.interval` is `0s` and `connector.write.flush.max-rows` is `5000`, which means for low traffic queries, the buffered output rows may not be flushed to database for a long time. So the interval configuration is recommended to set.
 
 {% top %}
+
+
+### Hive Connector
+
+<span class="label label-primary">Source: Batch</span>
+<span class="label label-primary">Sink: Batch</span>
+
+Please refer to [Hive integration]({{ site.baseurl }}/dev/table/hive/).
+
+{% top %}
+
 
 Table Formats
 -------------
@@ -1295,6 +1351,39 @@ schema is interpreted as a field renaming in the format.
 The CSV format can be used as follows:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'csv',                  -- required: specify the schema type
+
+  'format.fields.0.name' = 'lon',         -- optional: define the schema explicitly using type information.
+  'format.fields.0.data-type' = 'FLOAT',  -- This overrides default behavior that uses table's schema as format schema.
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
+
+  'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
+  'format.line-delimiter' = U&'\000D\000A',  -- optional: line delimiter ("\n" by default; otherwise
+                                             -- "\r" or "\r\n" are allowed), unicode is supported if the delimiter
+                                             -- is an invisible special character,
+                                             -- e.g. U&'\000D' is the unicode representation of carriage return "\r"
+                                             -- e.g. U&'\000A' is the unicode representation of line feed "\n"
+  'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
+  'format.allow-comments' = 'true',       -- optional: ignores comment lines that start with "#"
+                                          -- (disabled by default);
+                                          -- if enabled, make sure to also ignore parse errors to allow empty rows
+  'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
+                                          -- fields are set to null in case of errors
+  'format.array-element-delimiter' = '|', -- optional: the array element delimiter string for separating
+                                          -- array and row element values (";" by default)
+  'format.escape-character' = '\\',       -- optional: escape character for escaping values (disabled by default)
+  'format.null-literal' = 'n/a'           -- optional: null literal string that is interpreted as a
+                                          -- null value (disabled by default)
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .withFormat(
@@ -1371,36 +1460,6 @@ format:
                                #   null value (disabled by default)
 {% endhighlight %}
 </div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  ...
-) WITH (
-  'format.type' = 'csv',                  -- required: specify the schema type
-
-  'format.fields.0.name' = 'lon',         -- optional: define the schema explicitly using type information.
-  'format.fields.0.data-type' = 'FLOAT',  -- This overrides default behavior that uses table's schema as format schema.
-  'format.fields.1.name' = 'rideTime',
-  'format.fields.1.data-type' = 'TIMESTAMP(3)',
-
-  'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
-  'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
-                                          -- "\r" or "\r\n" are allowed)
-  'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
-  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#" 
-                                          -- (disabled by default);
-                                          -- if enabled, make sure to also ignore parse errors to allow empty rows
-  'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
-                                          -- fields are set to null in case of errors
-  'format.array-element-delimiter' = '|', -- optional: the array element delimiter string for separating
-                                          -- array and row element values (";" by default)
-  'format.escape-character' = '\\',       -- optional: escape character for escaping values (disabled by default)
-  'format.null-literal' = 'n/a'           -- optional: null literal string that is interpreted as a
-                                          -- null value (disabled by default)
-)
-{% endhighlight %}
-</div>
 </div>
 
 The following table lists supported types that can be read and written:
@@ -1463,6 +1522,36 @@ If the format schema is equal to the table schema, the schema can also be automa
 The JSON format can be used as follows:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'json',                   -- required: specify the format type
+  'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
+
+  'format.fields.0.name' = 'lon',           -- optional: define the schema explicitly using type information.
+  'format.fields.0.data-type' = 'FLOAT',    -- This overrides default behavior that uses table's schema as format schema.
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
+
+  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP.
+    '{                                      -- This also overrides the default behavior.
+      "type": "object",
+      "properties": {
+        "lon": {
+          "type": "number"
+        },
+        "rideTime": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }'
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .withFormat(
@@ -1547,36 +1636,6 @@ format:
     }
 {% endhighlight %}
 </div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  ...
-) WITH (
-  'format.type' = 'json',                   -- required: specify the format type
-  'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
-
-  'format.fields.0.name' = 'lon',           -- optional: define the schema explicitly using type information.
-  'format.fields.0.data-type' = 'FLOAT',    -- This overrides default behavior that uses table's schema as format schema.
-  'format.fields.1.name' = 'rideTime',
-  'format.fields.1.data-type' = 'TIMESTAMP(3)',
-
-  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP.
-    '{                                      -- This also overrides the default behavior.
-      "type": "object",
-      "properties": {
-        "lon": {
-          "type": "number"
-        },
-        "rideTime": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    }'
-)
-{% endhighlight %}
-</div>
 </div>
 
 The following table shows the mapping of JSON schema types to Flink SQL types:
@@ -1588,7 +1647,7 @@ The following table shows the mapping of JSON schema types to Flink SQL types:
 | `array`                           | `ARRAY[_]`              |
 | `number`                          | `DECIMAL`               |
 | `integer`                         | `DECIMAL`               |
-| `string`                          | `VARCHAR`               |
+| `string`                          | `STRING`                |
 | `string` with `format: date-time` | `TIMESTAMP`             |
 | `string` with `format: date`      | `DATE`                  |
 | `string` with `format: time`      | `TIME`                  |
@@ -1658,6 +1717,27 @@ The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro
 The Avro format can be used as follows:
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'avro',                                 -- required: specify the schema type
+  'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
+
+  'format.avro-schema' =                                  -- or by using an Avro schema
+    '{
+      "type": "record",
+      "name": "test",
+      "fields" : [
+        {"name": "a", "type": "long"},
+        {"name": "b", "type": "string"}
+      ]
+    }'
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .withFormat(
@@ -1724,27 +1804,6 @@ format:
     }
 {% endhighlight %}
 </div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  ...
-) WITH (
-  'format.type' = 'avro',                                 -- required: specify the schema type
-  'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
-
-  'format.avro-schema' =                                  -- or by using an Avro schema
-    '{
-      "type": "record",
-      "name": "test",
-      "fields" : [
-        {"name": "a", "type": "long"},
-        {"name": "b", "type": "string"}
-      ]
-    }'
-)
-{% endhighlight %}
-</div>
 </div>
 
 Avro types are mapped to the corresponding SQL data types. Union types are only supported for specifying nullability otherwise they are converted to an `ANY` type. The following table shows the mapping:
@@ -1788,6 +1847,30 @@ replaced by a proper RFC-compliant version. Use the RFC-compliant CSV format whe
 Use the old one for stream/batch filesystem operations for now.
 
 <div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'csv',                  -- required: specify the schema type
+
+  'format.fields.0.name' = 'lon',         -- optional: declare ordered format fields explicitly. This will overrides
+  'format.fields.0.data-type' = 'STRING', --  the default behavior that uses table's schema as format schema.
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.data-type' = 'TIMESTAMP(3)',
+
+  'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
+  'format.line-delimiter' = U&'\000A',    -- optional: string delimiter line feed by default, 
+                                          -- unicode is supported if the delimiter is an invisible special character, 
+                                          -- e.g. U&'\000A' is the unicode representation of line feed "\n"
+  'format.quote-character' = '"',         -- optional: single character for string values, empty by default
+  'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
+  'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
+  'format.ignore-parse-errors' = 'true'   -- optional: skip records with parse error instead of failing by default
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
 .withFormat(
@@ -1835,28 +1918,6 @@ format:
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
   ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
   ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
-{% endhighlight %}
-</div>
-
-<div data-lang="DDL" markdown="1">
-{% highlight sql %}
-CREATE TABLE MyUserTable (
-  ...
-) WITH (
-  'format.type' = 'csv',                  -- required: specify the schema type
-
-  'format.fields.0.name' = 'lon',         -- optional: declare ordered format fields explicitly. This will overrides
-  'format.fields.0.data-type' = 'STRING', --  the default behavior that uses table's schema as format schema.
-  'format.fields.1.name' = 'rideTime',
-  'format.fields.1.data-type' = 'TIMESTAMP(3)',
-
-  'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
-  'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
-  'format.quote-character' = '"',         -- optional: single character for string values, empty by default
-  'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
-  'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
-  'format.ignore-parse-errors' = 'true'   -- optional: skip records with parse error instead of failing by default
-)
 {% endhighlight %}
 </div>
 </div>

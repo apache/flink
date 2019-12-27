@@ -56,14 +56,14 @@ public class ResourceManagerOptions {
 			" Its not possible to use this configuration key to define port ranges.");
 
 	/**
-	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * Percentage of heap space to remove from containers (YARN / Mesos/ Kubernetes), to compensate
 	 * for other JVM memory usage.
 	 */
 	public static final ConfigOption<Float> CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
 		.key("containerized.heap-cutoff-ratio")
 		.defaultValue(0.25f)
 		.withDeprecatedKeys("yarn.heap-cutoff-ratio")
-		.withDescription("Percentage of heap space to remove from containers (YARN / Mesos), to compensate" +
+		.withDescription("Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate" +
 			" for other JVM memory usage.");
 
 	/**

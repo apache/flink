@@ -52,9 +52,8 @@ You can click on the components in the figure to learn more.
 <area id="datastream" title="DataStream API" href="{{ site.baseurl }}/dev/datastream_api.html" shape="rect" coords="64,177,379,255" />
 <area id="dataset" title="DataSet API" href="{{ site.baseurl }}/dev/batch/index.html" shape="rect" coords="382,177,697,255" />
 <area id="runtime" title="Runtime" href="{{ site.baseurl }}/concepts/runtime.html" shape="rect" coords="63,257,700,335" />
-<area id="local" title="Local" href="{{ site.baseurl }}/getting-started/tutorials/local_setup.html" shape="rect" coords="62,337,275,414" />
+<area id="local" title="Local" href="{{ site.baseurl }}/ops/deployment/local.html" shape="rect" coords="62,337,275,414" />
 <area id="cluster" title="Cluster" href="{{ site.baseurl }}/ops/deployment/cluster_setup.html" shape="rect" coords="273,336,486,413" />
-<area id="cloud" title="Cloud" href="{{ site.baseurl }}/ops/deployment/gce_setup.html" shape="rect" coords="485,336,700,414" />
 </map>
 
 {% top %}

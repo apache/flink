@@ -122,5 +122,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "null")
     testSqlApi("CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "null")
     testSqlApi("CASE 1 WHEN 1 THEN true WHEN 2 THEN false ELSE NULL END", "true")
+
+    testSqlApi("CASE WHEN f2 = 1 THEN CAST('' as INT) ELSE 0 END", "null")
   }
 }

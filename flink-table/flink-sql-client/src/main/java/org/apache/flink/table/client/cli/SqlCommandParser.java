@@ -120,7 +120,7 @@ public final class SqlCommandParser {
 			SINGLE_OPERAND),
 
 		SELECT(
-			"(SELECT.*)",
+			"(WITH.*SELECT.*|SELECT.*)",
 			SINGLE_OPERAND),
 
 		INSERT_INTO(

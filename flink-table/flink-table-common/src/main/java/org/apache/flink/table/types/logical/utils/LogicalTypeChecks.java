@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -83,6 +84,21 @@ public final class LogicalTypeChecks {
 
 	public static boolean isProctimeAttribute(LogicalType logicalType) {
 		return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+	}
+
+	/**
+	 * Checks if the given type is a composite type.
+	 *
+	 * @param logicalType Logical data type to check
+	 * @return True if the type is composite type.
+	 */
+	public static boolean isCompositeType(LogicalType logicalType) {
+		if (logicalType instanceof DistinctType) {
+			return isCompositeType(((DistinctType) logicalType).getSourceType());
+		}
+
+		LogicalTypeRoot typeRoot = logicalType.getTypeRoot();
+		return typeRoot == LogicalTypeRoot.STRUCTURED_TYPE || typeRoot == LogicalTypeRoot.ROW;
 	}
 
 	public static int getLength(LogicalType logicalType) {

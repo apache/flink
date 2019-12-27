@@ -357,7 +357,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.createTable(hiveTable);
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new TableAlreadyExistException(getName(), tablePath);
+				throw new TableAlreadyExistException(getName(), tablePath, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
@@ -514,10 +514,21 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
-		if (isGeneric) {
-			properties = retrieveFlinkProperties(properties);
+		// When retrieving a table, a generic table needs explicitly have a key is_generic = true
+		// otherwise, this is a Hive table if 1) the key is missing 2) is_generic = false
+		// this is opposite to creating a table. See instantiateHiveTable()
+
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a hive table
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+		} else {
+			boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+			if (isGeneric) {
+				properties = retrieveFlinkProperties(properties);
+			}
 		}
+
 		String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
 		// Table schema
@@ -559,7 +570,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private  static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	@VisibleForTesting
+	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
 		// let Hive set default parameters for us, e.g. serialization.format
 		Table hiveTable = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(tablePath.getDatabaseName(),
 			tablePath.getObjectName());
@@ -567,13 +579,25 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 		// Table comment
-		properties.put(HiveCatalogConfig.COMMENT, table.getComment());
-
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
-
-		if (isGeneric) {
-			properties = maskFlinkProperties(properties);
+		if (table.getComment() != null) {
+			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
+
+		// When creating a table, A hive table needs explicitly have a key is_generic = false
+		// otherwise, this is a generic table if 1) the key is missing 2) is_generic = true
+		// this is opposite to reading a table and instantiating a CatalogTable. See instantiateCatalogTable()
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a generic catalog
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+			properties = maskFlinkProperties(properties);
+		} else {
+			boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+			if (isGeneric) {
+				properties = maskFlinkProperties(properties);
+			}
+		}
+
 		// Table properties
 		hiveTable.setParameters(properties);
 
@@ -769,7 +793,7 @@ public class HiveCatalog extends AbstractCatalog {
 		ensurePartitionedTable(tablePath, hiveTable);
 		List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
 		Optional<String> filter = HiveTableUtil.makePartitionFilter(
-				getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions);
+				getNonPartitionFields(hiveConf, hiveTable).size(), partColNames, expressions, hiveShim);
 		if (!filter.isPresent()) {
 			throw new UnsupportedOperationException(
 					"HiveCatalog is unable to handle the partition filter expressions: " + expressions);

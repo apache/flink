@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.utils
 
-import java.util
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.DescriptorProperties._
 import org.apache.flink.table.descriptors.Rowtime._
 import org.apache.flink.table.descriptors.Schema._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
@@ -33,6 +33,7 @@ import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyIn
 import org.apache.flink.types.Row
 
 import java.sql.Timestamp
+import java.util
 
 /**
   * Factory for creating stream table sources and sinks.
@@ -135,6 +136,13 @@ class InMemoryTableFactory(terminationCount: Int)
     properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED)
     properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY)
 
+    // watermark
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+    properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
+    // computed column
+    properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR)
     properties
   }
 }

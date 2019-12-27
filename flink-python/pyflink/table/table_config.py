@@ -305,8 +305,7 @@ class TableConfig(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.15.0),
-            Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0).
+            The python udf worker depends on Apache Beam (version == 2.15.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.

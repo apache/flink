@@ -18,15 +18,10 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.ExecutorServiceLoader;
-
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -43,37 +38,20 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private final ClassLoader userCodeClassLoader;
 
-	private final AtomicReference<JobExecutionResult> jobExecutionResult;
-
-	private boolean alreadyCalled;
-
 	public ContextEnvironmentFactory(
 			final ExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader,
-			final AtomicReference<JobExecutionResult> jobExecutionResult) {
+			final ClassLoader userCodeClassLoader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
-		this.jobExecutionResult = checkNotNull(jobExecutionResult);
-
-		this.alreadyCalled = false;
 	}
 
 	@Override
 	public ExecutionEnvironment createExecutionEnvironment() {
-		verifyCreateIsCalledOnceWhenInDetachedMode();
 		return new ContextEnvironment(
 				executorServiceLoader,
 				configuration,
-				userCodeClassLoader,
-				jobExecutionResult);
-	}
-
-	private void verifyCreateIsCalledOnceWhenInDetachedMode() {
-		if (!configuration.getBoolean(DeploymentOptions.ATTACHED) && alreadyCalled) {
-			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
-		}
-		alreadyCalled = true;
+				userCodeClassLoader);
 	}
 }

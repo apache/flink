@@ -26,6 +26,7 @@ if [ -z "${HERE}" ] ; then
 fi
 
 SCRIPT=$1
+CMD=${@:2}
 
 source ${HERE}/setup_docker.sh
 source ${HERE}/setup_kubernetes.sh
@@ -71,7 +72,7 @@ if [ $EXIT_CODE == 0 ]; then
 	printf "Running end-to-end tests\n"
 	printf "==============================================================================\n"
 
-	FLINK_DIR=build-target flink-end-to-end-tests/${SCRIPT}
+	FLINK_DIR=build-target flink-end-to-end-tests/${SCRIPT} ${CMD}
 
 	EXIT_CODE=$?
 else

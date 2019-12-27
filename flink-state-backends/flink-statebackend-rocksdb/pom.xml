@@ -104,6 +104,7 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/benchmark/StateBackendBenchmarkUtils*</include>
 							</includes>
 						</configuration>
 					</execution>

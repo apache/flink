@@ -176,6 +176,8 @@ table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigin
 
 There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
 
+<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
+
 {% highlight python %}
 # option 1: extending the base class `ScalarFunction`
 class Add(ScalarFunction):
@@ -211,6 +213,78 @@ table_env.register_function("add", add)
 # use the function in Python Table API
 my_table.select("add(a, b)")
 {% endhighlight %}
+
+If the python scalar function depends on third-party dependencies, you can specify the dependencies with the following table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command line</a> directly when submitting the job.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">APIs</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><strong>add_python_file</strong></td>
+      <td>
+        <p>Adds python file dependencies which could be python files, python packages or local directories. They will be added to the PYTHONPATH of the python UDF worker.</p>
+{% highlight python %}
+table_env.add_python_file(file_path)
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>set_python_requirements</strong></td>
+      <td>
+        <p>Specifies a requirements.txt file which defines the third-party dependencies. These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the python UDF worker. For the dependencies which could not be accessed in the cluster, a directory which contains the installation packages of these dependencies could be specified using the parameter "requirements_cached_dir". It will be uploaded to the cluster to support offline installation.</p>
+{% highlight python %}
+# commands executed in shell
+echo numpy==1.16.5 > requirements.txt
+pip download -d cached_dir -r requirements.txt --no-binary :all:
+
+# python code
+table_env.set_python_requirements("requirements.txt", "cached_dir")
+{% endhighlight %}
+        <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip, so also make sure the version of Pip (version >= 7.1.0) and the version of SetupTools (version >= 37.0.0).</p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>add_python_archive</strong></td>
+      <td>
+        <p>Adds a python archive file dependency. The file will be extracted to the working directory of python UDF worker. If the parameter "target_dir" is specified, the archive file will be extracted to a directory named "target_dir". Otherwise, the archive file will be extracted to a directory with the same name of the archive file.</p>
+{% highlight python %}
+# command executed in shell
+# assert the relative path of python interpreter is py_env/bin/python
+zip -r py_env.zip py_env
+
+# python code
+table_env.add_python_archive("py_env.zip")
+# or
+table_env.add_python_archive("py_env.zip", "myenv")
+
+# the files contained in the archive file can be accessed in UDF
+def my_udf():
+    with open("myenv/py_env/data/data.txt") as f:
+        ...
+{% endhighlight %}
+        <p>Please make sure the uploaded python environment matches the platform that the cluster is running on. Currently only zip-format is supported. i.e. zip, jar, whl, egg, etc.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>set_python_executable</strong></td>
+      <td>
+        <p>Sets the path of the python interpreter which is used to execute the python udf workers, e.g., "/usr/local/bin/python3".</p>
+{% highlight python %}
+table_env.add_python_archive("py_env.zip")
+table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
+{% endhighlight %}
+        <p>Please make sure that the specified environment matches the platform that the cluster is running on.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 </div>
 

@@ -60,7 +60,7 @@ public class WatermarkSpec {
 	 * Returns the string representation of watermark generation expression.
 	 * The string representation is a qualified SQL expression string (UDFs are expanded).
 	 */
-	public String getWatermarkExpressionString() {
+	public String getWatermarkExpr() {
 		return watermarkExpressionString;
 	}
 
