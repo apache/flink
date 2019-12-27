@@ -803,7 +803,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     cases.foreach {
       caseExpr =>
-        testSqlNullable(caseExpr)
+        testSqlApi(caseExpr, "null")
     }
   }
 
