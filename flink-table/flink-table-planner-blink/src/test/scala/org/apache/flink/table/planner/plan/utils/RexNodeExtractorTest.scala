@@ -798,15 +798,15 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   }
 
   @Test
-  def testExtractPartitionPredicates_UnsupportedType(): Unit = {
+  def testExtractPartitionPredicatesDate(): Unit = {
     // amount
-    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 1)
     // 100
     val t1 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
     val c1 = rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t0, t1)
     // date
     val t2 = rexBuilder.makeInputRef(
-      typeFactory.createFieldTypeFromLogicalType(DataTypes.DATE().getLogicalType), 1)
+      typeFactory.createFieldTypeFromLogicalType(DataTypes.DATE().getLogicalType), 0)
     // 2019-04-14
     val t3 = rexBuilder.makeDateLiteral(DateString.fromDaysSinceEpoch(18000))
     val c2 = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3)
@@ -820,10 +820,9 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("date")
       )
-    assertTrue(partitionPredicate1.isAlwaysTrue)
-    assertEquals(c3, nonPartitionPredicate1)
+    assertEquals(c2, partitionPredicate1)
+    assertEquals(c1, nonPartitionPredicate1)
 
-    // date is not supported
     val (partitionPredicate2, nonPartitionPredicate2) =
       RexNodeExtractor.extractPartitionPredicates(
         c3,
@@ -832,8 +831,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         rexBuilder,
         Array("date", "amount")
       )
-    assertTrue(partitionPredicate2.isAlwaysTrue)
-    assertEquals(c3, nonPartitionPredicate2)
+    assertEquals(c3, partitionPredicate2)
+    assertTrue(nonPartitionPredicate2.isAlwaysTrue)
 
     val (partitionPredicate3, nonPartitionPredicate3) =
       RexNodeExtractor.extractPartitionPredicates(
