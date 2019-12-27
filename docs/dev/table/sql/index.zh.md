@@ -26,17 +26,12 @@ under the License.
 
 This page describes the SQL language supported in Flink, including Data Definition Language (DDL), Data Manipulation Language (DML) and Query Language. Flink’s SQL support is based on [Apache Calcite](https://calcite.apache.org/) which implements the SQL standard.
 
-## Data Definition Language (DDL)
+This page lists all the supported statements supported in Flink SQL for now:
 
-[DDL page](ddl.html) describes all the supported operations and syntax for DDL statements in Flink SQL.
-
-## Data Manipulation Language (DML)
-
-[DML page](dml.html) describes all the supported operations and syntax for DML statements in Flink SQL.
-
-## Data Retrieval (Query)
-
-[Query page](queries.html) describes all the supported operations and syntax for query statements in Flink SQL.
+- [SELECT](select.html)
+- [CREATE TABLE, VIEW, DATABASE, FUNCTION](create.html)
+- [DROP TABLE, VIEW, DATABASE, FUNCTION](drop.html)
+- [ALTER TABLE, DATABASE](alter.html)
 
 ## Data Types
 

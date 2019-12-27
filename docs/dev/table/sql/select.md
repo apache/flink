@@ -1,7 +1,8 @@
 ---
-title: "Data Retrieval (Query)"
+title: "SELECT (Query)"
+nav-title: "SELECT"
 nav-parent_id: sql
-nav-pos: 3
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,7 +26,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
+SELECT queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SELECT query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
 In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment](catalogs.html) to specify the location of the data sources.
 

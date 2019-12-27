@@ -1,8 +1,7 @@
 ---
-title: "Data Definition Language (DDL)"
-nav-title: "Data Definition Language"
+title: "CREATE"
 nav-parent_id: sql
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,17 +25,20 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table operation. A catalog table will be registered into the [Catalog]({{ site.baseurl }}/dev/table/catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries.
+CREATE statements are used to register a table/view/function into current or specified [Catalog]({{ site.baseurl }}/dev/table/catalogs.html). A registered table/view/function can be used in SQL queries.
 
-Flink SQL DDL statements are documented here, including:
+Flink SQL supports the following CREATE statements for now:
 
-- CREATE TABLE, VIEW, DATABASE, FUNCTION
-- DROP TABLE, VIEW, DATABASE, FUNCTION
-- ALTER TABLE, DATABASE
+- CREATE TABLE
+- CREATE VIEW
+- CREATE FUNCTION
+- CREATE DATABASE
 
-## Run a DDL
+## Run a CREATE statement
 
-The following examples show how to run a SQL DDL in `TableEnvironment`.
+CREATE statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful CREATE operation, otherwise will throw an exception.
+
+The following examples show how to run a CREATE statement in `TableEnvironment`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -46,14 +48,14 @@ TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
+tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // SQL update with a registered table
 // register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
+tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
 // run a SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
@@ -67,14 +69,14 @@ val tableEnv = TableEnvironment.create(settings)
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
+tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // run a SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // SQL update with a registered table
 // register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
 // run a SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -86,9 +88,16 @@ tableEnv.sqlUpdate(
 settings = EnvironmentSettings.newInstance()...
 table_env = TableEnvironment.create(settings)
 
+# SQL query with a registered table
+# register a table named "Orders"
+tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+# run a SQL query on the Table and retrieve the result as a new Table
+result = tableEnv.sqlQuery(
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+
 # SQL update with a registered table
 # register a TableSink
-table_env.sql_update("CREATE TABLE RubberOrders(product VARCHAR, amount INT) with (...)")
+table_env.sql_update("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
 # run a SQL update query on the Table and emit the result to the TableSink
 table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -96,11 +105,23 @@ table_env \
 </div>
 </div>
 
+The following examples show how to run a CREATE statement in SQL CLI.
+
+{% highlight sql %}
+Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
+[INFO] Table has been created.
+
+Flink SQL> CREATE TABLE RubberOrders (product STRING, amount INT) WITH (...);
+[INFO] Table has been created.
+
+Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%';
+[INFO] Submitting SQL update statement to the cluster...
+{% endhighlight %}
+
+
 {% top %}
 
-## Table DDL
-
-### CREATE TABLE
+## CREATE TABLE
 
 {% highlight sql %}
 CREATE TABLE [catalog_name.][db_name.]table_name
@@ -129,7 +150,7 @@ Creates a table with the given name. If a table with the same name already exist
 
 Column declared with syntax "`column_name AS computed_column_expression`" is a computed column. A computed column is a virtual column that is not physically stored in the table. The column is computed from an non-query expression that uses other columns in the same table. For example, a computed column can have the definition: `cost AS price * qty`. The expression can be a noncomputed column name, constant, (user-defined/system) function, variable, and any combination of these connected by one or more operators. The expression cannot be a subquery.
 
-Computed column is introduced to Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE DDL.
+Computed column is introduced to Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statement.
 A [processing time attribute]({{ site.baseurl}}/dev/table/streaming/time_attributes.html#processing-time) can be defined easily via `proc AS PROCTIME()` using the system `PROCTIME()` function.
 On the other hand, computed column can be used to derive event time column because an event time column may need to be derived from existing fields, e.g. the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
 
@@ -141,7 +162,7 @@ Notes:
 
 **WATERMARK**
 
-The WATERMARK definition is used to define [event time attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#event-time) in CREATE TABLE DDL.
+The WATERMARK definition is used to define [event time attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#event-time) in CREATE TABLE statement.
 
 The “`FOR rowtime_column_name`” statement defines which existing column is marked as event time attribute, the column must be `TIMESTAMP(3)` type and top-level in the schema and can be a computed column.
 
@@ -186,53 +207,16 @@ The key and value of expression `key1=val1` should both be string literal. See d
 
 {% top %}
 
-### DROP TABLE
 
-{% highlight sql %}
-DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
-{% endhighlight %}
-
-Drop a table with the given table name. If the table to drop does not exist, an exception is thrown.
-
-**IF EXISTS**
-
-If the table does not exist, nothing happens.
-
-{% top %}
-
-### ALTER TABLE
-
-* Rename Table
-
-{% highlight sql %}
-ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
-{% endhighlight %}
-
-Rename the given table name to another new table name.
-
-* Set or Alter Table Properties
-
-{% highlight sql %}
-ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
-{% endhighlight %}
-
-Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
-
-{% top %}
-
-## View DDL
-
-### CREATE VIEW
+## CREATE VIEW
 
 *TODO: should add descriptions.*
 
-### DROP VIEW
+## CREATE FUNCTION
 
 *TODO: should add descriptions.*
 
-## Database DDL
-
-### CREATE DATABASE
+## CREATE DATABASE
 
 {% highlight sql %}
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
@@ -253,45 +237,4 @@ The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
 
-### DROP DATABASE
-
-{% highlight sql %}
-DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
-{% endhighlight %}
-
-Drop a database with the given database name. If the database to drop does not exist, an exception is thrown.
-
-**IF EXISTS**
-
-If the database does not exist, nothing happens.
-
-**RESTRICT**
-
-Dropping a non-empty database triggers an exception. Enabled by default.
-
-**CASCADE**
-
-Dropping a non-empty database also drops all associated tables and functions.
-
-{% top %}
-
-### ALTER DATABASE
-
-{% highlight sql %}
-ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
-{% endhighlight %}
-
-Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
-
-## Function DDL
-
-### CREATE FUNCTION
-
-*TODO: should add descriptions.*
-
-### DROP FUNCTION
-
-*TODO: should add descriptions.*
-
-{% top %}
 

@@ -38,7 +38,7 @@ This page explains how time attributes can be defined for time-based operations 
 Introduction to Time Attributes
 -------------------------------
 
-Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
+Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql/select.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
 
 Time attributes can be part of every table schema. They are defined when creating a table from a CREATE TABLE DDL or a `DataStream` or are pre-defined when using a `TableSource`. Once a time attribute has been defined at the beginning, it can be referenced as a field and can be used in time-based operations.
 
@@ -91,7 +91,7 @@ There are three ways to define a processing time attribute.
 
 ### Defining in create table DDL
 
-The processing time attribute is defined as a computed column in create table DDL using the system `PROCTIME()` function. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/ddl.html#create-table) for more information about computed column.
+The processing time attribute is defined as a computed column in create table DDL using the system `PROCTIME()` function. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about computed column.
 
 {% highlight sql %}
 
@@ -222,7 +222,7 @@ An event time attribute can be defined either in create table DDL or during Data
 
 ### Defining in create table DDL
 
-The event time attribute is defined using WATERMARK statement in CREATE TABLE DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as event time attribute. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/ddl.html#create-table) for more information about watermark statement and watermark strategies.
+The event time attribute is defined using WATERMARK statement in CREATE TABLE DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as event time attribute. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about watermark statement and watermark strategies.
 
 {% highlight sql %}
 

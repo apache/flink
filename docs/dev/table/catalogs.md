@@ -97,7 +97,7 @@ Flink SQL> SHOW TABLES;
 mytable
 {% endhighlight %}
 
-For detailed information, please check out [Flink SQL DDL]({{ site.baseurl }}/dev/table/sql/ddl.html).
+For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
 ### Using Java/Scala/Python API
 
@@ -144,7 +144,7 @@ List<String> tables = catalog.listTables("mydb); // tables should contain "mytab
 ## Catalog API
 
 Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL. 
-For detailed DDL information, please refer to [SQL DDL](sql/ddl.html).
+For detailed DDL information, please refer to [SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
 
 ### Database operations
