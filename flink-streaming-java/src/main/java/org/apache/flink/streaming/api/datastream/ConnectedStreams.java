@@ -113,7 +113,7 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
-	 * Sets the watermarkOption of the stream
+	 * Sets the watermarkOption of the stream.
 	 *
 	 * @param watermarkOption The WatermarkOption of the stream
 	 */

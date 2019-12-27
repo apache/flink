@@ -116,7 +116,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 	}
 
 	/**
-	 * Sets the watermarkOption of the stream
+	 * Sets the watermarkOption of the stream.
 	 *
 	 * @param watermarkOption The WatermarkOption of the stream
 	 */
@@ -236,7 +236,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 		inputStream2.getType();
 
 		if (watermarkOption != null){
-			((AbstractStreamOperator)operator).setWatermarkOption(watermarkOption);
+			((AbstractStreamOperator) operator).setWatermarkOption(watermarkOption);
 		}
 
 		TwoInputTransformation<IN1, IN2, OUT> transform = new TwoInputTransformation<>(

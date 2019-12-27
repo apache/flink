@@ -814,9 +814,9 @@ public abstract class AbstractStreamOperator<OUT>
 		long newMin;
 		if (watermarkOption == WatermarkOption.ALL) {
 			newMin = Math.min(input1Watermark, input2Watermark);
-		}else if (watermarkOption == WatermarkOption.STREAM1){
+		} else if (watermarkOption == WatermarkOption.STREAM1){
 			newMin = input1Watermark;
-		}else {
+		} else {
 			throw new RuntimeException("WatermarkOption only support ALL,STREAM1,STREAM2");
 		}
 		if (newMin > combinedWatermark) {
@@ -833,9 +833,9 @@ public abstract class AbstractStreamOperator<OUT>
 		long newMin;
 		if (watermarkOption == WatermarkOption.ALL) {
 			newMin = Math.min(input1Watermark, input2Watermark);
-		}else if (watermarkOption == WatermarkOption.STREAM2){
+		} else if (watermarkOption == WatermarkOption.STREAM2){
 			newMin = input2Watermark;
-		}else {
+		} else {
 			throw new RuntimeException("WatermarkOption only support ALL,STREAM1,STREAM2");
 		}
 		if (newMin > combinedWatermark) {
