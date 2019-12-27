@@ -21,16 +21,11 @@ package org.apache.flink.formats.avro.registry.confluent;
 import org.apache.flink.formats.avro.AvroSerializationSchema;
 import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.SchemaCoder;
-import org.apache.flink.util.WrappingRuntimeException;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.Encoder;
 import org.apache.avro.specific.SpecificRecord;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * Serialization schema that serializes to Avro binary format that uses
@@ -116,31 +111,6 @@ public class ConfluentRegistryAvroSerializationSchema<T> extends RegistryAvroSer
 			return new ConfluentSchemaRegistryCoder(subject, new CachedSchemaRegistryClient(
 				url,
 				identityMapCapacity));
-		}
-	}
-
-	@Override
-	public byte[] serialize(T object) {
-		checkAvroInitialized();
-
-		if (object == null) {
-			return null;
-		} else {
-			try {
-				Encoder encoder = getEncoder();
-				int schemaId = schemaCoder
-					.writeSchema(getSchema());
-				byte[] schemaIdBytes = ByteBuffer.allocate(4).putInt(schemaId).array();
-				getOutputStream().write(0);
-				getOutputStream().write(schemaIdBytes);
-				getDatumWriter().write(object, encoder);
-				encoder.flush();
-				byte[] bytes = getOutputStream().toByteArray();
-				getOutputStream().reset();
-				return bytes;
-			} catch (IOException e) {
-				throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
-			}
 		}
 	}
 }

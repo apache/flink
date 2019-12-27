@@ -27,6 +27,8 @@ import org.apache.avro.Schema;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static java.lang.String.format;
 
@@ -37,6 +39,7 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
 	private final SchemaRegistryClient schemaRegistryClient;
 	private String subject;
+	private static final int CONFLUENT_MAGIC_BYTE = 0;
 
 	/**
 	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
@@ -78,10 +81,12 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 	}
 
 	@Override
-	public int writeSchema(Schema schema) throws IOException {
+	public void writeSchema(Schema schema, OutputStream out) throws IOException {
 		try {
 			int registeredId = schemaRegistryClient.register(subject, schema);
-			return registeredId;
+			out.write(CONFLUENT_MAGIC_BYTE);
+			byte[] schemaIdBytes = ByteBuffer.allocate(4).putInt(registeredId).array();
+			out.write(schemaIdBytes);
 		} catch (RestClientException e) {
 			throw new IOException("Could not register schema in registry", e);
 		}

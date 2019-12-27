@@ -31,6 +31,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
@@ -61,8 +62,8 @@ public class RegistryAvroDeserializationSchemaTest {
 				}
 
 				@Override
-				public int writeSchema(Schema recordClazz) throws IOException {
-					return 1;
+				public void writeSchema(Schema schema, OutputStream out) throws IOException {
+					//do nothing
 				}
 			}
 		);
@@ -98,8 +99,8 @@ public class RegistryAvroDeserializationSchemaTest {
 				}
 
 				@Override
-				public int writeSchema(Schema recordClazz) {
-					return 1;
+				public void writeSchema(Schema schema, OutputStream out) throws IOException {
+					//Do nothing
 				}
 			}
 		);

@@ -22,6 +22,7 @@ import org.apache.avro.Schema;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
@@ -32,7 +33,7 @@ import java.io.Serializable;
 public interface SchemaCoder {
 	Schema readSchema(InputStream in) throws IOException;
 
-	int writeSchema(Schema schema) throws IOException;
+	void writeSchema(Schema schema, OutputStream out) throws IOException;
 
 	/**
 	 * Provider for {@link SchemaCoder}. It allows creating multiple instances of client in
