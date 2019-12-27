@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.table.planner.utils.{ParallelCollectionWrapper, TableTestUtil}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -413,6 +413,53 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("6,7,8,33,33")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testPartitionByWithParallelSource(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(2)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val data = new mutable.MutableList[(String, Long, Int, Int)]
+    data.+=(("ACME", 1L, 19, 1))
+    data.+=(("ACME", 2L, 17, 2))
+    data.+=(("ACME", 3L, 13, 3))
+    data.+=(("ACME", 4L, 20, 4))
+    val parallelSource = new ParallelCollectionWrapper[(String, Long, Int, Int)](data, 0, data.length)
+
+    val t = env.fromParallelCollection(parallelSource)
+      .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
+      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY rowtime
+         |  MEASURES
+         |    DOWN.tax AS bottom_tax,
+         |    UP.tax AS end_tax
+         |  ONE ROW PER MATCH
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (DOWN UP)
+         |  DEFINE
+         |    DOWN AS DOWN.price = 13,
+         |    UP AS UP.price = 20
+         |) AS T
+         |""".stripMargin
+
+    val sink = new TestingAppendSink()
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("ACME,3,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

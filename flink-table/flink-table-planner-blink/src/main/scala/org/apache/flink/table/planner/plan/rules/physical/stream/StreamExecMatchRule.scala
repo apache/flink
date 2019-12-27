@@ -32,6 +32,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -56,8 +57,16 @@ class StreamExecMatchRule
   override def convert(rel: RelNode): RelNode = {
     val logicalMatch: FlinkLogicalMatch = rel.asInstanceOf[FlinkLogicalMatch]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+
+    val partitionKeys = logicalMatch.getPartitionKeys
+    val newTraitSet = if (partitionKeys != null && !partitionKeys.isEmpty) {
+      traitSet.replace(FlinkRelDistribution.hash(logicalMatch.getPartitionKeys.toList))
+    } else {
+      traitSet.replace(FlinkRelDistribution.SINGLETON)
+    }
+
     val convertInput: RelNode =
-      RelOptRule.convert(logicalMatch.getInput, FlinkConventions.STREAM_PHYSICAL)
+      RelOptRule.convert(logicalMatch.getInput, newTraitSet)
 
     try {
       Class
@@ -71,7 +80,7 @@ class StreamExecMatchRule
 
     new StreamExecMatch(
       rel.getCluster,
-      traitSet,
+      newTraitSet,
       convertInput,
       MatchRecognize(
         logicalMatch.getInput,
