@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch
@@ -57,8 +57,21 @@ class StreamExecMatchRule
   override def convert(rel: RelNode): RelNode = {
     val logicalMatch: FlinkLogicalMatch = rel.asInstanceOf[FlinkLogicalMatch]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val partitionKeys: JList[Integer] = logicalMatch.getPartitionKeys.asScala.map {
+      case rex: RexInputRef => Int.box(rex.getIndex)
+    }.asJava
+
+    val requiredDistribution = if (!partitionKeys.isEmpty) {
+      FlinkRelDistribution.hash(partitionKeys)
+    } else {
+      FlinkRelDistribution.SINGLETON
+    }
+    val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
+      .replace(requiredDistribution)
+      .replace(FlinkConventions.STREAM_PHYSICAL)
+
     val convertInput: RelNode =
-      RelOptRule.convert(logicalMatch.getInput, FlinkConventions.STREAM_PHYSICAL)
+      RelOptRule.convert(logicalMatch.getInput, requiredTraitSet)
 
     try {
       Class
