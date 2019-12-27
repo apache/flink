@@ -136,7 +136,7 @@ On the other hand, computed column can be used to derive event time column becau
 Notes:
 
 - A computed column defined on a source table is computed after reading from the source, it can be used in the following SELECT query statements.
-- A computed column cannot be the target of an INSERT statement, INSERT statement should match SELECT clause's schema with sink table's schema without computed column.
+- A computed column cannot be the target of an INSERT statement. In INSERT statement, the schema of SELECT clause should match the schema of target table without computed columns.
 
 
 **WATERMARK**
@@ -147,7 +147,7 @@ The “`FOR rowtime_column_name`” statement defines which existing column is m
 
 The “`AS watermark_strategy_expression`” statement defines watermark generation strategy. It allows arbitrary non-query expression (can reference computed columns) to calculate watermark. The expression return type must be `TIMESTAMP(3)` which represents the timestamp since Epoch.
 
-The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is called by the framework for every record.
+The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
 The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
 Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/ops/config.html#pipeline-auto-watermark-interval) configuration.
 If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
