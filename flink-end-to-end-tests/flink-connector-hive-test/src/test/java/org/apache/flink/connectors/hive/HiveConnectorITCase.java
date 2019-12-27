@@ -29,7 +29,6 @@ import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.tests.util.hive.YarnClusterAndHiveDockerResource;
 import org.apache.flink.tests.util.hive.YarnClusterAndHiveResource;
 import org.apache.flink.tests.util.hive.YarnClusterFlinkResource;
-import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -43,7 +42,7 @@ import java.nio.file.Path;
 /**
  * A test case used to test hive connector, hive meta and other function in an end to end way.
  */
-@Category(value = {TravisGroup1.class, FailsOnJava11.class})
+@Category(value = {TravisGroup1.class})
 public class HiveConnectorITCase extends TestLogger {
 	private static String hiveVersion = "2.3.6";
 	private static String hadoopVersion = "2.8.5";
