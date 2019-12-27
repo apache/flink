@@ -27,7 +27,6 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -455,7 +454,7 @@ public class TaskExecutorResourceUtils {
 		return config.contains(TaskManagerOptions.TASK_HEAP_MEMORY);
 	}
 
-	private static boolean isManagedMemorySizeExplicitlyConfigured(final Configuration config) {
+	public static boolean isManagedMemorySizeExplicitlyConfigured(final Configuration config) {
 		return config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 	}
 
@@ -472,6 +471,15 @@ public class TaskExecutorResourceUtils {
 
 	private static boolean isShuffleMemoryFractionExplicitlyConfigured(final Configuration config) {
 		return config.contains(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION);
+	}
+
+	public static boolean isShuffleMemoryExplicitlyConfigured(final Configuration config) {
+		@SuppressWarnings("deprecation")
+		final boolean legacyConfigured = config.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
+		return config.contains(TaskManagerOptions.SHUFFLE_MEMORY_MAX) ||
+			config.contains(TaskManagerOptions.SHUFFLE_MEMORY_MIN) ||
+			config.contains(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION) ||
+			legacyConfigured;
 	}
 
 	private static boolean isTotalFlinkMemorySizeExplicitlyConfigured(final Configuration config) {
@@ -648,31 +656,6 @@ public class TaskExecutorResourceUtils {
 		MemorySize getTotalJvmMetaspaceAndOverheadSize() {
 			return metaspace.add(overhead);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Adjusting Configurations
-	// ------------------------------------------------------------------------
-
-	public static Configuration adjustConfigurationForLocalExecution(final Configuration configuration, int numberOfTaskExecutors) {
-
-		final long jvmFreeHeapMemBytesPerTm = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() / numberOfTaskExecutors;
-		final MemorySize totalHeapMemory = new MemorySize(jvmFreeHeapMemBytesPerTm);
-
-		final MemorySize frameworkOffHeap = getFrameworkOffHeapMemorySize(configuration);
-		final MemorySize taskOffHeap = getTaskOffHeapMemorySize(configuration);
-		final MemorySize totalFlinkMemoryExceptShuffleAndManaged = totalHeapMemory.add(frameworkOffHeap).add(taskOffHeap);
-
-		final double shuffleFraction = getShuffleMemoryRangeFraction(configuration).fraction;
-		final double managedFraction = getManagedMemoryRangeFraction(configuration).fraction;
-
-		final MemorySize estimatedTotalFlinkMemory = totalFlinkMemoryExceptShuffleAndManaged
-			.multiply(1 / (1 - shuffleFraction - managedFraction));
-
-		final Configuration modifiedConfig = new Configuration(configuration);
-		modifiedConfig.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, estimatedTotalFlinkMemory);
-
-		return modifiedConfig;
 	}
 
 	public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
