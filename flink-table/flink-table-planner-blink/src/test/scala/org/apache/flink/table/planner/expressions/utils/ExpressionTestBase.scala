@@ -26,14 +26,12 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.expressions.ExpressionBuilder
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
@@ -215,10 +213,6 @@ abstract class ExpressionTestBase {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
     addSqlTestExpr(sqlExpr, expected)
-    if (expected == nullable) {
-      testTableNullable(expr, exprString)
-      testSqlNullable(sqlExpr)
-    }
   }
 
   def testTableApi(
@@ -227,9 +221,6 @@ abstract class ExpressionTestBase {
       expected: String): Unit = {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
-    if (expected == nullable) {
-      testTableNullable(expr, exprString)
-    }
   }
 
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
@@ -243,26 +234,10 @@ abstract class ExpressionTestBase {
     addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }
 
-  def testSqlNullable(nullUdf: String): Unit = {
-    addSqlTestExpr(
-      s"CASE WHEN ($nullUdf) is null THEN '$nullable' ELSE '$notNullable' END", nullable)
-  }
-
   def testSqlApi(
       sqlExpr: String,
       expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected)
-    if (expected == nullable) {
-      testSqlNullable(sqlExpr)
-    }
-  }
-
-  def testTableNullable(nullExpr: Expression, nullExprString: String): Unit = {
-    val retExpr = ExpressionBuilder.ifThenElse(nullExpr.isNull, nullable, notNullable)
-    addTableApiTestExpr(retExpr, nullable)
-    val retStrExpr = ifThenElse(
-      ExpressionParser.parseExpression(nullExprString).isNull, nullable, notNullable)
-    addTableApiTestExpr(retStrExpr, nullable)
   }
 
   def testData: Row
