@@ -81,7 +81,7 @@ public class CollectionExecutionExample {
 		User[] usersArray = { new User(1, "Peter"), new User(2, "John"), new User(3, "Bill") };
 
 		EMail[] emailsArray = {new EMail(1, "Re: Meeting", "How about 1pm?"),
-							new EMail(1, "Re: Meeting", "Sorry, I'm not availble"),
+							new EMail(1, "Re: Meeting", "Sorry, I'm not available"),
 							new EMail(3, "Re: Re: Project proposal", "Give me a few more days to think about it.")};
 
 		// convert objects into a DataSet
