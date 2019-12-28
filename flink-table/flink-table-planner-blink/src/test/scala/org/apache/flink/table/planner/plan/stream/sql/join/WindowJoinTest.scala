@@ -24,8 +24,11 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
+import org.apache.flink.api.common.functions.RichFlatJoinFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 
 import org.apache.calcite.rel.logical.LogicalJoin
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -418,6 +421,20 @@ class WindowJoinTest extends TableTestBase {
       ">($2, $6)")
   }
 
+  @Test
+  def testJoinFunctionGenerate(): Unit ={
+    util.addDataStream[(Int, Long, Int)]("MyTable7", 'a, 'b, 'c, 'proctime.proctime)
+    util.addDataStream[(Int, Long, Int)]("MyTable8", 'a, 'b, 'c, 'proctime.proctime)
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.c FROM MyTable7 AS t1 JOIN MyTable8 AS t2 ON
+        |    t1.proctime >= t2.proctime - INTERVAL '10' SECOND AND
+        |    t1.proctime <= t2.proctime - INTERVAL '5' SECOND
+      """.stripMargin
+    val className = "WindowJoinFunction"
+    verifyJoinFunctionGenerate(sqlQuery, className)
+  }
+
   private def verifyTimeBoundary(
       timeConditionSql: String,
       expLeftSize: Long,
@@ -465,6 +482,34 @@ class WindowJoinTest extends TableTestBase {
         util.tableEnv.getConfig)
     val actual: String = remainCondition.getOrElse("").toString
     assertEquals(expectConditionStr, actual)
+  }
+
+  private def verifyJoinFunctionGenerate(
+      sqlQuery: String,
+      className: String): Unit = {
+
+    val table = util.tableEnv.sqlQuery(sqlQuery)
+    val relNode = TableTestUtil.toRelNode(table)
+    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
+    val (_, remainCondition) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+      joinNode.getCondition,
+      joinNode.getLeft.getRowType.getFieldCount,
+      joinNode.getRowType,
+      joinNode.getCluster.getRexBuilder,
+      util.tableEnv.getConfig)
+
+    val gen = WindowJoinUtil.generateJoinFunction(
+      util.tableEnv.getConfig,
+      joinNode.getJoinType,
+      FlinkTypeFactory.toLogicalRowType(joinNode.getLeft.getRowType),
+      FlinkTypeFactory.toLogicalRowType(joinNode.getRight.getRowType),
+      joinNode.getRowType,
+      remainCondition,
+      className)
+    val generateJoinFunction = gen.newInstance(getClass.getClassLoader)
+    assertEquals(
+      true,
+      generateJoinFunction.isInstanceOf[RichFlatJoinFunction[_, _, _]])
   }
 
 }
