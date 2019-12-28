@@ -110,6 +110,13 @@ __________ __________
 
 {% endhighlight %}
 
+### Querying Hive views
+
+If you need to query Hive views, please note:
+
+1. You have to use the Hive catalog as your current catalog before you can query views in that catalog. It can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
+2. Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals. Make sure the view's query is compatible with Flink grammar.
+
 ## Writing To Hive
 
 Similarly, data can be written into hive using an `INSERT` clause.

@@ -88,10 +88,12 @@ Please note Hive itself have different features available for different versions
 
 ### Dependencies
 
-To integrate with Hive, users need some dependencies in your `/lib/` directory in Flink distribution
+To integrate with Hive, you need to add some extra dependencies to the `/lib/` directory in Flink distribution
 to make the integration work in Table API program or SQL in SQL Client.
+Alternatively, you can put these dependencies in a dedicated folder, and add them to classpath with the `-C`
+or `-l` option for Table API program or SQL Client respectively.
 
-We are using Hive 2.3.4 and 1.2.1 as examples here.
+Please find the required dependencies for different Hive major versions below.
 
 
 <div class="codetabs" markdown="1">
@@ -100,24 +102,63 @@ We are using Hive 2.3.4 and 1.2.1 as examples here.
 
 /flink-{{ site.version }}
    /lib
-       flink-dist{{ site.scala_version_suffix }}-{{ site.version }}.jar
-       flink-table{{ site.scala_version_suffix }}-{{ site.version }}.jar
-       // we highly recommend using Flink's blink planner with Hive integration
-       flink-table-blink{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector.Contains flink-hadoop-compatibility and flink-orc jars
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
-       // Pick the correct Hadoop dependency for your project.
-       // Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop is pre-built with,
-       // but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.7.2
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
        flink-shaded-hadoop-2-uber-2.7.5-{{ site.shaded_version }}.jar
 
        // Hive dependencies
        hive-exec-2.3.4.jar
 
-       ...
+{% endhighlight %}
+</div>
+
+<div data-lang="Hive 1.0.0" markdown="1">
+{% highlight txt %}
+/flink-{{ site.version }}
+   /lib
+
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
+
+       // Hadoop dependencies
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
+       flink-shaded-hadoop-2-uber-2.6.5-{{ site.shaded_version }}.jar
+
+       // Hive dependencies
+       hive-metastore-1.0.0.jar
+       hive-exec-1.0.0.jar
+       libfb303-0.9.0.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Hive 1.1.0" markdown="1">
+{% highlight txt %}
+/flink-{{ site.version }}
+   /lib
+
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
+
+       // Hadoop dependencies
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
+       flink-shaded-hadoop-2-uber-2.6.5-{{ site.shaded_version }}.jar
+
+       // Hive dependencies
+       hive-metastore-1.1.0.jar
+       hive-exec-1.1.0.jar
+       libfb303-0.9.2.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
 {% endhighlight %}
 </div>
 
@@ -125,36 +166,117 @@ We are using Hive 2.3.4 and 1.2.1 as examples here.
 {% highlight txt %}
 /flink-{{ site.version }}
    /lib
-       flink-dist{{ site.scala_version_suffix }}-{{ site.version }}.jar
-       flink-table{{ site.scala_version_suffix }}-{{ site.version }}.jar
-       // we highly recommend using Flink's blink planner with Hive integration
-       flink-table-blink{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
-       // Pick the correct Hadoop dependency for your project.
-       // Hive 1.2.1 is built with Hadoop 2.6.0. We pick 2.6.5 which flink-shaded-hadoop is pre-built with,
-       // but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.6.0
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
        flink-shaded-hadoop-2-uber-2.6.5-{{ site.shaded_version }}.jar
 
        // Hive dependencies
        hive-metastore-1.2.1.jar
        hive-exec-1.2.1.jar
-       libfb303-0.9.3.jar
+       libfb303-0.9.2.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
 
-       ...
+{% endhighlight %}
+</div>
+
+<div data-lang="Hive 2.0.0" markdown="1">
+{% highlight txt %}
+/flink-{{ site.version }}
+   /lib
+
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
+
+       // Hadoop dependencies
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
+       flink-shaded-hadoop-2-uber-2.7.5-{{ site.shaded_version }}.jar
+
+       // Hive dependencies
+       hive-exec-2.0.0.jar
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Hive 2.1.0" markdown="1">
+{% highlight txt %}
+/flink-{{ site.version }}
+   /lib
+
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
+
+       // Hadoop dependencies
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
+       flink-shaded-hadoop-2-uber-2.7.5-{{ site.shaded_version }}.jar
+
+       // Hive dependencies
+       hive-exec-2.1.0.jar
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Hive 2.2.0" markdown="1">
+{% highlight txt %}
+/flink-{{ site.version }}
+   /lib
+
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
+
+       // Hadoop dependencies
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
+       flink-shaded-hadoop-2-uber-2.7.5-{{ site.shaded_version }}.jar
+
+       // Hive dependencies
+       hive-exec-2.2.0.jar
+
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Hive 3.1.0" markdown="1">
+{% highlight txt %}
+/flink-{{ site.version }}
+   /lib
+
+       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
+
+       // Hadoop dependencies
+       // You can pick a pre-built Hadoop uber jar provided by Flink, alternatively
+       // you can use your own hadoop jars. Either way, make sure it's compatible with your Hadoop
+       // cluster and the Hive version you're using.
+       flink-shaded-hadoop-2-uber-2.8.3-{{ site.shaded_version }}.jar
+
+       // Hive dependencies
+       hive-exec-3.1.0.jar
+       libfb303-0.9.3.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
 {% endhighlight %}
 </div>
 </div>
 
 
-Similarly, If you are building your own program, you need the above dependencies in your mvn file.
+If you are building your own program, you need the following dependencies in your mvn file.
+It's recommended not to include these dependencies in the resulting jar file.
+You're supposed to add dependencies as stated above at runtime.
 
-<div class="codetabs" markdown="1">
-<div data-lang="Hive 2.3.4" markdown="1">
 {% highlight xml %}
+<!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
@@ -162,23 +284,10 @@ Similarly, If you are building your own program, you need the above dependencies
   <scope>provided</scope>
 </dependency>
 
-<!-- Hadoop Dependencies -->
-
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-table-api-java-bridge{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-
-<!-- Pick the correct Hadoop dependency for your project.
-Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop is pre-built with,
- but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.7.2 -->
-
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-shaded-hadoop-2-uber</artifactId>
-  <version>2.7.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -186,61 +295,10 @@ Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop i
 <dependency>
     <groupId>org.apache.hive</groupId>
     <artifactId>hive-exec</artifactId>
-    <version>2.3.4</version>
+    <version>${hive.version}</version>
+    <scope>provided</scope>
 </dependency>
 {% endhighlight %}
-</div>
-
-<div data-lang="Hive 1.2.1" markdown="1">
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-
-<!-- Hadoop Dependencies -->
-
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-
-<!-- Pick the correct Hadoop dependency for your project.
-Hive 1.2.1 is built with Hadoop 2.6.0. We pick 2.6.5 which flink-shaded-hadoop is pre-built with,
-but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.6.0 -->
-
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-shaded-hadoop-2-uber</artifactId>
-  <version>2.6.5-{{ site.shaded_version }}</version>
-  <scope>provided</scope>
-</dependency>
-
-<!-- Hive Dependency -->
-<dependency>
-    <groupId>org.apache.hive</groupId>
-    <artifactId>hive-metastore</artifactId>
-    <version>1.2.1</version>
-</dependency>
-
-<dependency>
-    <groupId>org.apache.hive</groupId>
-    <artifactId>hive-exec</artifactId>
-    <version>1.2.1</version>
-</dependency>
-
-<dependency>
-    <groupId>org.apache.thrift</groupId>
-    <artifactId>libfb303</artifactId>
-    <version>0.9.3</version>
-</dependency>
-{% endhighlight %}
-</div>
-</div>
 
 ## Connecting To Hive
 
