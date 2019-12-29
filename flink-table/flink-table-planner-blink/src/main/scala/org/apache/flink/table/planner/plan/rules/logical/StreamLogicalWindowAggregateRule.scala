@@ -22,7 +22,6 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -34,7 +33,9 @@ import _root_.java.math.{BigDecimal => JBigDecimal}
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
-  * with windowing expression to [[LogicalWindowAggregate]] for stream.
+  * with windowing expression to
+ * [[org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate]]
+ * for stream.
   */
 class StreamLogicalWindowAggregateRule
   extends LogicalWindowAggregateRuleBase("StreamLogicalWindowAggregateRule") {
@@ -55,7 +56,8 @@ class StreamLogicalWindowAggregateRule
   override private[table] def getOutAggregateGroupExpression(
       rexBuilder: RexBuilder,
       windowExpression: RexCall): RexNode = {
-
+    // Create a literal with normal SqlTypeName.TIMESTAMP
+    // in case we reference a rowtime field.
     rexBuilder.makeLiteral(
       0L,
       rexBuilder.getTypeFactory.createSqlType(
