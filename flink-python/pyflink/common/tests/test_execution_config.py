@@ -287,6 +287,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.assertEqual(hash(config1), hash(config2))
 
         config1.set_parallelism(12)
+        config2.set_parallelism(11)
 
         self.assertNotEqual(config1, config2)
 
