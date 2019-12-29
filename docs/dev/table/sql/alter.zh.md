@@ -1,5 +1,5 @@
 ---
-title: "ALTER"
+title: "ALTER Statements"
 nav-parent_id: sql
 nav-pos: 4
 ---

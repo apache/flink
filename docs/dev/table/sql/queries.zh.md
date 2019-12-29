@@ -1,7 +1,7 @@
 ---
-title: "Data Retrieval (Query)"
+title: "Queries"
 nav-parent_id: sql
-nav-pos: 3
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,9 +25,9 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
+SELECT queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SELECT query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries]({{ site.baseurl }}/dev/table/common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream]({{ site.baseurl }}/dev/table/common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink]({{ site.baseurl }}/dev/table/common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment](catalogs.html) to specify the location of the data sources.
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({{ site.baseurl }}/dev/table/common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource]({{ site.baseurl }}/dev/table/common.html#register-a-tablesource), [Table]({{ site.baseurl }}/dev/table/common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet]({{ site.baseurl }}/dev/table/common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment]({{ site.baseurl }}/dev/table/catalogs.html) to specify the location of the data sources.
 
 For convenience `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. Hence, `Table` objects can be directly inlined into SQL queries (by string concatenation) as shown in the examples below.
 
@@ -414,7 +414,7 @@ SELECT PRETTY_PRINT(user) FROM Orders
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p><b>Note:</b> GroupBy on a streaming table produces an updating result. See the <a href="streaming/dynamic_tables.html">Dynamic Tables Streaming Concepts</a> page for details.
+        <p><b>Note:</b> GroupBy on a streaming table produces an updating result. See the <a href="{{ site.baseurl}}/dev/table/streaming/dynamic_tables.html">Dynamic Tables Streaming Concepts</a> page for details.
         </p>
 {% highlight sql %}
 SELECT a, SUM(b) as d
@@ -443,7 +443,7 @@ GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user
         <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a></p>
+        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attribute</a></p>
 {% highlight sql %}
 SELECT COUNT(amount) OVER (
   PARTITION BY user
@@ -470,7 +470,7 @@ WINDOW w AS (
 {% highlight sql %}
 SELECT DISTINCT users FROM Orders
 {% endhighlight %}
-       <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+       <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -543,7 +543,7 @@ GROUP BY users
 SELECT *
 FROM Orders INNER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -565,7 +565,7 @@ FROM Orders RIGHT JOIN Product ON Orders.productId = Product.id
 SELECT *
 FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -576,7 +576,7 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       <td>
         <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid window join conditions:</p>
 
         <ul>
@@ -640,13 +640,13 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
-        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table-functions">Temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Join with Table Function</i>.</p>
 
         <p><b>Note:</b> Currently only inner joins with temporal tables are supported.</p>
 
-        <p>Assuming <i>Rates</i> is a <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a>, the join can be expressed in SQL as follows:</p>
+        <p>Assuming <i>Rates</i> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table-functions">temporal table function</a>, the join can be expressed in SQL as follows:</p>
 {% highlight sql %}
 SELECT
   o_amount, r_rate
@@ -656,7 +656,7 @@ FROM
 WHERE
   r_currency = o_currency
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
     </tr>
     <tr>
@@ -665,11 +665,11 @@ WHERE
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
-        A <a href="streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
+        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
+        A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
 
         <p>Only inner and left joins with processing-time temporal tables are supported.</p>
-        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
+        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
 {% highlight sql %}
 SELECT
   o.amout, o.currency, r.rate, o.amount * r.rate
@@ -678,7 +678,7 @@ FROM
   JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
   ON r.currency = o.currency
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
+        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
         <p>Only supported in Blink planner.</p>
       </td>
     </tr>
@@ -772,7 +772,7 @@ WHERE product IN (
     SELECT product FROM NewProducts
 )
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -790,7 +790,7 @@ WHERE product EXISTS (
     SELECT product FROM NewProducts
 )
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -816,7 +816,7 @@ WHERE product EXISTS (
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming/time_attributes.html">time attribute</a>. Additional sorting attributes are supported.
+<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attribute</a>. Additional sorting attributes are supported.
 
 {% highlight sql %}
 SELECT *
@@ -1013,7 +1013,7 @@ WHERE rownum = 1
 
 - `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
 - `PARTITION BY col1[, col2...]`: Specifies the partition columns, i.e. the deduplicate key.
-- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute](streaming/time_attributes.html). Currently only support [proctime attribute](streaming/time_attributes.html#processing-time). [Rowtime atttribute](streaming/time_attributes.html#event-time) will be supported in the future. Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
+- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html). Currently only support [proctime attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time). [Rowtime atttribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#event-time) will be supported in the future. Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
 - `WHERE rownum = 1`: The `rownum = 1` is required for Flink to recognize this query is deduplication.
 
 The following examples show how to specify SQL queries with Deduplication on streaming tables.
@@ -1098,7 +1098,7 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
 
 #### Time Attributes
 
-For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes](streaming/time_attributes.html) to learn how to define time attributes.
+For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes]({{ site.baseurl }}/dev/table/streaming/time_attributes.html) to learn how to define time attributes.
 
 For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
 
@@ -1130,7 +1130,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>exclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1139,7 +1139,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>inclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-      <p>The resulting attribute is a <a href="streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <p>The resulting attribute is a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1147,7 +1147,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>Returns a <a href="streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <td><p>Returns a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
   </tbody>
 </table>
@@ -1259,7 +1259,7 @@ val result4 = tableEnv.sqlQuery(
       </td>
       <td>
         <p>Searches for a given pattern in a streaming table according to the <code>MATCH_RECOGNIZE</code> <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">ISO standard</a>. This makes it possible to express complex event processing (CEP) logic in SQL queries.</p>
-        <p>For a more detailed description, see the dedicated page for <a href="streaming/match_recognize.html">detecting patterns in tables</a>.</p>
+        <p>For a more detailed description, see the dedicated page for <a href="{{ site.baseurl }}/dev/table/streaming/match_recognize.html">detecting patterns in tables</a>.</p>
 
 {% highlight sql %}
 SELECT T.aid, T.bid, T.cid

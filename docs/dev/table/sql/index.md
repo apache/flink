@@ -28,14 +28,14 @@ This page describes the SQL language supported in Flink, including Data Definiti
 
 This page lists all the supported statements supported in Flink SQL for now:
 
-- [SELECT](select.html)
+- [SELECT (Queries)](queries.html)
 - [CREATE TABLE, VIEW, DATABASE, FUNCTION](create.html)
 - [DROP TABLE, VIEW, DATABASE, FUNCTION](drop.html)
 - [ALTER TABLE, DATABASE](alter.html)
 
 ## Data Types
 
-Please see the dedicated page about [data types](types.html).
+Please see the dedicated page about [data types]({{ site.baseurl }}/dev/table/types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 

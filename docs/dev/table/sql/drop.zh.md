@@ -1,5 +1,5 @@
 ---
-title: "DROP"
+title: "DROP Statements"
 nav-parent_id: sql
 nav-pos: 3
 ---

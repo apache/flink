@@ -1,5 +1,5 @@
 ---
-title: "CREATE"
+title: "CREATE Statements"
 nav-parent_id: sql
 nav-pos: 2
 ---
@@ -199,7 +199,7 @@ Partition the created table by the specified columns. A directory is created for
 
 Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
 
-The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems](connect.html) for all the supported table properties of different connectors.
+The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems]({{ site.baseurl }}/dev/table/connect.html) for all the supported table properties of different connectors.
 
 **Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
 
