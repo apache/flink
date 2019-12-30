@@ -30,6 +30,7 @@ import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -103,6 +104,9 @@ public class LogicalTypeDataTypeConverter {
 				} else if (typeInfo instanceof BigDecimalTypeInfo) {
 					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
 					return new DecimalType(decimalType.precision(), decimalType.scale());
+				} else if (typeInfo instanceof SqlTimestampTypeInfo) {
+					SqlTimestampTypeInfo sqlTimestampTypeInfo = (SqlTimestampTypeInfo) typeInfo;
+					return new TimestampType(sqlTimestampTypeInfo.getPrecision());
 				} else if (typeInfo instanceof LegacyLocalDateTimeTypeInfo) {
 					LegacyLocalDateTimeTypeInfo dateTimeType = (LegacyLocalDateTimeTypeInfo) typeInfo;
 					return new TimestampType(dateTimeType.getPrecision());

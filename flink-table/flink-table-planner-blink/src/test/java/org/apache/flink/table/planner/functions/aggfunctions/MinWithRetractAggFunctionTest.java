@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.BooleanMinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.ByteMinWithRetractAggFunction;
@@ -257,11 +258,11 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 						new TimestampMinWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
-										new Timestamp(0),
-										new Timestamp(1000),
-										new Timestamp(100),
+										SqlTimestamp.fromEpochMillis(0),
+										SqlTimestamp.fromEpochMillis(1000),
+										SqlTimestamp.fromEpochMillis(100),
 										null,
-										new Timestamp(10)
+										SqlTimestamp.fromEpochMillis(10)
 								),
 								Arrays.asList(
 										null,
@@ -272,13 +273,13 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 								),
 								Arrays.asList(
 										null,
-										new Timestamp(1)
+										SqlTimestamp.fromEpochMillis(1)
 								)
 						),
 						Arrays.asList(
-								new Timestamp(0),
+								SqlTimestamp.fromEpochMillis(0),
 								null,
-								new Timestamp(1)
+								SqlTimestamp.fromEpochMillis(1)
 						)
 				),
 				/**
