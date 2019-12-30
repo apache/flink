@@ -31,7 +31,7 @@ In order to access a table in a SQL query, it must be [registered in the TableEn
 
 For convenience, `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
 
-**Note:** Flink's SQL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
+**Note:** Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
 
 ## Specifying a Query
 
