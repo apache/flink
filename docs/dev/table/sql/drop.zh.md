@@ -30,15 +30,13 @@ DROP statements are used to remove a registered table/view/function from current
 Flink SQL supports the following DROP statements for now:
 
 - DROP TABLE
-- DROP VIEW
-- DROP FUNCTION
 - DROP DATABASE
 
 ## Run a DROP statement
 
 DROP statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful DROP operation, otherwise will throw an exception.
 
-The following examples show how to run a DROP statement in `TableEnvironment`.
+The following examples show how to run a DROP statement in `TableEnvironment` and in SQL CLI.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -94,10 +92,8 @@ tableEnv.sqlUpdate("DROP TABLE Orders")
 tables = tableEnv.listTable()
 {% endhighlight %}
 </div>
-</div>
 
-The following examples show how to run a DROP statement in SQL CLI.
-
+<div data-lang="SQL CLI" markdown="1">
 {% highlight sql %}
 Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
 [INFO] Table has been created.
@@ -111,7 +107,8 @@ Flink SQL> DROP TABLE Orders;
 Flink SQL> SHOW TABLES;
 [INFO] Result was empty.
 {% endhighlight %}
-
+</div>
+</div>
 
 ## DROP TABLE
 
@@ -124,15 +121,6 @@ Drop a table with the given table name. If the table to drop does not exist, an 
 **IF EXISTS**
 
 If the table does not exist, nothing happens.
-
-
-## DROP VIEW
-
-*TODO: should add descriptions.*
-
-## DROP FUNCTION
-
-*TODO: should add descriptions.*
 
 ## DROP DATABASE
 

@@ -30,15 +30,13 @@ CREATE statements are used to register a table/view/function into current or spe
 Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
-- CREATE VIEW
-- CREATE FUNCTION
 - CREATE DATABASE
 
 ## Run a CREATE statement
 
 CREATE statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful CREATE operation, otherwise will throw an exception.
 
-The following examples show how to run a CREATE statement in `TableEnvironment`.
+The following examples show how to run a CREATE statement in `TableEnvironment` and in SQL CLI.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -103,10 +101,8 @@ table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
-</div>
 
-The following examples show how to run a CREATE statement in SQL CLI.
-
+<div data-lang="SQL CLI" markdown="1">
 {% highlight sql %}
 Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
 [INFO] Table has been created.
@@ -117,7 +113,8 @@ Flink SQL> CREATE TABLE RubberOrders (product STRING, amount INT) WITH (...);
 Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%';
 [INFO] Submitting SQL update statement to the cluster...
 {% endhighlight %}
-
+</div>
+</div>
 
 {% top %}
 
@@ -148,48 +145,43 @@ Creates a table with the given name. If a table with the same name already exist
 
 **COMPUTED COLUMN**
 
-Column declared with syntax "`column_name AS computed_column_expression`" is a computed column. A computed column is a virtual column that is not physically stored in the table. The column is computed from an non-query expression that uses other columns in the same table. For example, a computed column can have the definition: `cost AS price * qty`. The expression can be a noncomputed column name, constant, (user-defined/system) function, variable, and any combination of these connected by one or more operators. The expression cannot be a subquery.
+A computed column is a virtual column that is generated using the syntax  "`column_name AS computed_column_expression`". It is generated from a non-query expression that uses other columns in the same table and is not physically stored within the table. For example, a computed column could be defined as `cost AS price * quantity`. The expression may contain any combination of physical column, constant, function, or variable. The expression cannot contain a subquery.
 
-Computed column is introduced to Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statement.
+Computed columns are commonly used in Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statements.
 A [processing time attribute]({{ site.baseurl}}/dev/table/streaming/time_attributes.html#processing-time) can be defined easily via `proc AS PROCTIME()` using the system `PROCTIME()` function.
 On the other hand, computed column can be used to derive event time column because an event time column may need to be derived from existing fields, e.g. the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
 
 Notes:
 
 - A computed column defined on a source table is computed after reading from the source, it can be used in the following SELECT query statements.
-- A computed column cannot be the target of an INSERT statement. In INSERT statement, the schema of SELECT clause should match the schema of target table without computed columns.
-
+- A computed column cannot be the target of an INSERT statement. In INSERT statements, the schema of SELECT clause should match the schema of the target table without computed columns.
 
 **WATERMARK**
 
-The WATERMARK definition is used to define [event time attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#event-time) in CREATE TABLE statement.
+The `WATERMARK` defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression`.
 
-The “`FOR rowtime_column_name`” statement defines which existing column is marked as event time attribute, the column must be `TIMESTAMP(3)` type and top-level in the schema and can be a computed column.
+The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
 
-The “`AS watermark_strategy_expression`” statement defines watermark generation strategy. It allows arbitrary non-query expression (can reference computed columns) to calculate watermark. The expression return type must be `TIMESTAMP(3)` which represents the timestamp since Epoch.
+The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
 
-The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
-The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
-Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/ops/config.html#pipeline-auto-watermark-interval) configuration.
-If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
+When using event time semantics, tables must contain an event time attribute and watermarking strategy.
 
-For common cases, Flink provide some suggested and easy-to-use ways to define commonly used watermark strategies. Such as:
+Flink provides several commonly used watermark strategies.
 
-- Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`
+- Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`. Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
 
-  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
+- Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`. Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp are not late.
 
-- Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`
+- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`. Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
 
-  Emits a watermark of the maximum observed timestamp so far minus 1 (the smallest unit of watermark is millisecond). Rows that have a timestamp equal to the max timestamp are not late.
-
-- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`
-
-  Emits watermarks which are the maximum observed timestamp minus the specified delay, e.g. `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
-
-- Preserves assigned watermarks from source (**Not supported yet**): `WATERMARK FOR rowtime_column AS SYSTEM_WATERMARK()`
-
-  Indicates the watermarks are preserved from the source (e.g. some sources can generate watermarks themselves).
+{% highlight sql %}
+CREATE TABLE Orders (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - '5' SECONDS
+) WITH ( . . . );
+{% endhighlight %}
 
 **PARTITIONED BY**
 
@@ -206,15 +198,6 @@ The key and value of expression `key1=val1` should both be string literal. See d
 **Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
 
 {% top %}
-
-
-## CREATE VIEW
-
-*TODO: should add descriptions.*
-
-## CREATE FUNCTION
-
-*TODO: should add descriptions.*
 
 ## CREATE DATABASE
 
@@ -236,5 +219,3 @@ Database properties used to store extra information related to this database.
 The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
-
-

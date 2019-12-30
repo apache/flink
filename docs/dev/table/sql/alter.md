@@ -36,7 +36,7 @@ Flink SQL supports the following ALTER statements for now:
 
 ALTER statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful ALTER operation, otherwise will throw an exception.
 
-The following examples show how to run an ALTER statement in `TableEnvironment`.
+The following examples show how to run an ALTER statement in `TableEnvironment` and in SQL CLI.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -92,10 +92,8 @@ tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;")
 tables = tableEnv.listTable()
 {% endhighlight %}
 </div>
-</div>
 
-The following examples show how to run a ALTER statement in SQL CLI.
-
+<div data-lang="SQL CLI" markdown="1">
 {% highlight sql %}
 Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
 [INFO] Table has been created.
@@ -109,6 +107,8 @@ Flink SQL> ALTER TABLE Orders RENAME TO NewOrders;
 Flink SQL> SHOW TABLES;
 NewOrders
 {% endhighlight %}
+</div>
+</div>
 
 ## ALTER TABLE
 
