@@ -663,7 +663,7 @@ CREATE TABLE MyUserTable (
   'connector.type' = 'filesystem',                -- required: specify to connector type
   'connector.path' = 'file:///path/to/whatever',  -- required: path to a file or directory
   'format.type' = '...',                          -- required: file system connector requires to specify a format,
-  ...                                             -- currently only 'csv' format is supported.
+  ...                                             -- currently only 'Old Csv format' is supported if define filesystem connector by DDL.
                                                   -- Please refer to Table Formats section for more details.
 )                                               
 {% endhighlight %}
@@ -676,7 +676,7 @@ CREATE TABLE MyUserTable (
     .path("file:///path/to/whatever")    // required: path to a file or directory
 )
 .withFormat(                             // required: file system connector requires to specify a format,
-  ...                                    // currently only Csv format is supported.
+  ...                                    // currently only 'Csv format' and 'Old Csv format' are supported.
 )                                        // Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
@@ -688,7 +688,7 @@ CREATE TABLE MyUserTable (
     .path("file:///path/to/whatever")  # required: path to a file or directory
 )
 .withFormat(                           # required: file system connector requires to specify a format,
-  ...                                  # currently only Csv format is supported.
+  ...                                  # currently only 'Csv format' and 'Old Csv format' are supported.
 )                                      # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
@@ -699,7 +699,7 @@ connector:
   type: filesystem
   path: "file:///path/to/whatever"    # required: path to a file or directory
 format:                               # required: file system connector requires to specify a format,
-  ...                                 # currently only "csv" format is supported.
+  ...                                 # currently only 'Old Csv format' is supported if define filesystem connector by YAML.
                                       # Please refer to Table Formats section for more details.
 {% endhighlight %}
 </div>
