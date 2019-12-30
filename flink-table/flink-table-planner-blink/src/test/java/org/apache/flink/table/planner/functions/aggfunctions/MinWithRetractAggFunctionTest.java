@@ -43,7 +43,6 @@ import org.junit.runners.Parameterized;
 import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
