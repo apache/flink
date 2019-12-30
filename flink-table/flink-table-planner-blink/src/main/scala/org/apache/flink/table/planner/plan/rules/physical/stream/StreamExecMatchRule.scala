@@ -59,7 +59,7 @@ class StreamExecMatchRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val partitionKeys = logicalMatch.getPartitionKeys
 
-    val requiredDistribution = if (partitionKeys != null && !partitionKeys.isEmpty) {
+    val requiredDistribution = if (!partitionKeys.isEmpty) {
       FlinkRelDistribution.hash(logicalMatch.getPartitionKeys.asList())
     } else {
       FlinkRelDistribution.SINGLETON
