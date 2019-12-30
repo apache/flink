@@ -383,6 +383,9 @@ public class HiveShimV100 implements HiveShim {
 
 	@Override
 	public Object toHiveTimestamp(Object flinkTimestamp) {
+		if (flinkTimestamp == null) {
+			return null;
+		}
 		ensureSupportedFlinkTimestamp(flinkTimestamp);
 		return flinkTimestamp instanceof Timestamp ? flinkTimestamp : Timestamp.valueOf((LocalDateTime) flinkTimestamp);
 	}
@@ -397,6 +400,9 @@ public class HiveShimV100 implements HiveShim {
 
 	@Override
 	public Object toHiveDate(Object flinkDate) {
+		if (flinkDate == null) {
+			return null;
+		}
 		ensureSupportedFlinkDate(flinkDate);
 		return flinkDate instanceof Date ? flinkDate : Date.valueOf((LocalDate) flinkDate);
 	}
