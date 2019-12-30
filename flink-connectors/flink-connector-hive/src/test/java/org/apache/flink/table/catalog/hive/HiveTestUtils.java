@@ -159,6 +159,8 @@ public class HiveTestUtils {
 						}
 						writer.write(toText(rows.get(i)));
 					}
+					// new line at the end of file
+					writer.newLine();
 				}
 				String load = String.format("load data local inpath '%s' into table %s.%s", file.getAbsolutePath(), dbName, tableName);
 				if (partitionSpec != null) {
@@ -178,7 +180,7 @@ public class HiveTestUtils {
 				}
 				String colStr = toText(col);
 				if (colStr != null) {
-					builder.append(toText(col));
+					builder.append(colStr);
 				}
 			}
 			return builder.toString();

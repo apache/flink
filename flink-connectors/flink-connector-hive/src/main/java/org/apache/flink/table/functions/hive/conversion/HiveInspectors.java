@@ -145,9 +145,9 @@ public class HiveInspectors {
 			} else if (inspector instanceof TimestampObjectInspector) {
 				conversion = hiveShim::toHiveTimestamp;
 			} else if (inspector instanceof HiveCharObjectInspector) {
-				conversion = o -> new HiveChar((String) o, ((CharType) dataType).getLength());
+				conversion = o -> o == null ? null : new HiveChar((String) o, ((CharType) dataType).getLength());
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
-				conversion = o -> new HiveVarchar((String) o, ((VarCharType) dataType).getLength());
+				conversion = o -> o == null ? null : new HiveVarchar((String) o, ((VarCharType) dataType).getLength());
 			} else if (inspector instanceof HiveDecimalObjectInspector) {
 				conversion = o -> o == null ? null : HiveDecimal.create((BigDecimal) o);
 			} else {
@@ -164,6 +164,9 @@ public class HiveInspectors {
 				((ListObjectInspector) inspector).getListElementObjectInspector(),
 				((ArrayType) dataType).getElementType(), hiveShim);
 			return o -> {
+				if (o == null) {
+					return null;
+				}
 				Object[] array = (Object[]) o;
 				List<Object> result = new ArrayList<>();
 
@@ -184,6 +187,9 @@ public class HiveInspectors {
 				getConversion(mapInspector.getMapValueObjectInspector(), kvType.getValueType(), hiveShim);
 
 			return o -> {
+				if (o == null) {
+					return null;
+				}
 				Map<Object, Object> map = (Map) o;
 				Map<Object, Object> result = new HashMap<>(map.size());
 
@@ -209,6 +215,9 @@ public class HiveInspectors {
 			}
 
 			return o -> {
+				if (o == null) {
+					return null;
+				}
 				Row row = (Row) o;
 				List<Object> result = new ArrayList<>(row.getArity());
 				for (int i = 0; i < row.getArity(); i++) {
