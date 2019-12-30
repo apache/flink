@@ -676,7 +676,7 @@ CREATE TABLE MyUserTable (
     .path("file:///path/to/whatever")    // required: path to a file or directory
 )
 .withFormat(                             // required: file system connector requires to specify a format,
-  ...                                    // currently only 'csv' format is supported.
+  ...                                    // currently only OldCsv format is supported.
 )                                        // Please refer to old CSV format part of Table Formats section for more details.
 {% endhighlight %}
 </div>
@@ -688,7 +688,7 @@ CREATE TABLE MyUserTable (
     .path("file:///path/to/whatever")  # required: path to a file or directory
 )
 .withFormat(                           # required: file system connector requires to specify a format,
-  ...                                  # currently only 'csv' format is supported.
+  ...                                  # currently only OldCsv format is supported.
 )                                      # Please refer to old CSV format part of Table Formats section for more details.
 {% endhighlight %}
 </div>
