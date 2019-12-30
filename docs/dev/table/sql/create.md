@@ -150,7 +150,7 @@ Creates a table with the given name. If a table with the same name already exist
 
 A computed column is a virtual column that is generated using the syntax  "`column_name AS computed_column_expression`". It is generated from a non-query expression that uses other columns in the same table and is not physically stored within the table. For example, a computed column could be defined as `cost AS price * quantity`. The expression may contain any combination of physical column, constant, function, or variable. The expression cannot contain a subquery.
 
-Computed column is introduced to Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statement.
+Computed columns are commonly used in Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statements.
 A [processing time attribute]({{ site.baseurl}}/dev/table/streaming/time_attributes.html#processing-time) can be defined easily via `proc AS PROCTIME()` using the system `PROCTIME()` function.
 On the other hand, computed column can be used to derive event time column because an event time column may need to be derived from existing fields, e.g. the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
 
@@ -236,4 +236,3 @@ Database properties used to store extra information related to this database.
 The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
-
