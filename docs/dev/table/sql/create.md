@@ -157,7 +157,7 @@ On the other hand, computed column can be used to derive event time column becau
 Notes:
 
 - A computed column defined on a source table is computed after reading from the source, it can be used in the following SELECT query statements.
-- A computed column cannot be the target of an INSERT statement. In INSERT statement, the schema of SELECT clause should match the schema of target table without computed columns.
+- A computed column cannot be the target of an INSERT statement. In INSERT statements, the schema of SELECT clause should match the schema of the target table without computed columns.
 
 
 **WATERMARK**
