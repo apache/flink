@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -100,7 +99,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	@Override
 	public void open() throws Exception {
 		super.open();
-		FunctionUtils.openFunction(userFunction, GlobalConfiguration.loadConfiguration());
+		FunctionUtils.openFunction(userFunction, new Configuration());
 	}
 
 	@Override

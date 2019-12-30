@@ -22,6 +22,7 @@ import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
@@ -107,7 +108,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 
 	@Override
 	public void configure(org.apache.flink.configuration.Configuration parameters) {
-		this.parameters = parameters;
+		this.parameters = GlobalConfiguration.loadConfiguration(parameters);
 	}
 
 	@Override
