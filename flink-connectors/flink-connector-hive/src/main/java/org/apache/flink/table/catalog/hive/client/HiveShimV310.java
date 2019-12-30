@@ -190,6 +190,9 @@ public class HiveShimV310 extends HiveShimV235 {
 
 	@Override
 	public Object toHiveTimestamp(Object flinkTimestamp) {
+		if (flinkTimestamp == null) {
+			return null;
+		}
 		ensureSupportedFlinkTimestamp(flinkTimestamp);
 		initDateTimeClasses();
 		if (flinkTimestamp instanceof Timestamp) {
@@ -217,6 +220,9 @@ public class HiveShimV310 extends HiveShimV235 {
 
 	@Override
 	public Object toHiveDate(Object flinkDate) {
+		if (flinkDate == null) {
+			return null;
+		}
 		ensureSupportedFlinkDate(flinkDate);
 		initDateTimeClasses();
 		if (flinkDate instanceof Date) {
