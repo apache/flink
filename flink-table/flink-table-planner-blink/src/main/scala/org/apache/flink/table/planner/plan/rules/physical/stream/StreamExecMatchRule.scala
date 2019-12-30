@@ -57,16 +57,19 @@ class StreamExecMatchRule
   override def convert(rel: RelNode): RelNode = {
     val logicalMatch: FlinkLogicalMatch = rel.asInstanceOf[FlinkLogicalMatch]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
     val partitionKeys = logicalMatch.getPartitionKeys
-    val newTraitSet = if (partitionKeys != null && !partitionKeys.isEmpty) {
-      traitSet.replace(FlinkRelDistribution.hash(logicalMatch.getPartitionKeys.toList))
+
+    val requiredDistribution = if (partitionKeys != null && !partitionKeys.isEmpty) {
+      FlinkRelDistribution.hash(logicalMatch.getPartitionKeys.asList())
     } else {
-      traitSet.replace(FlinkRelDistribution.SINGLETON)
+      FlinkRelDistribution.SINGLETON
     }
+    val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
+      .replace(requiredDistribution)
+      .replace(FlinkConventions.STREAM_PHYSICAL)
 
     val convertInput: RelNode =
-      RelOptRule.convert(logicalMatch.getInput, newTraitSet)
+      RelOptRule.convert(logicalMatch.getInput, requiredTraitSet)
 
     try {
       Class
@@ -80,7 +83,7 @@ class StreamExecMatchRule
 
     new StreamExecMatch(
       rel.getCluster,
-      newTraitSet,
+      traitSet,
       convertInput,
       MatchRecognize(
         logicalMatch.getInput,

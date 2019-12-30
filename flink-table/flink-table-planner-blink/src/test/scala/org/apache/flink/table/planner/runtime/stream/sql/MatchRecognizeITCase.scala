@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.planner.utils.{ParallelCollectionWrapper, TableTestUtil}
+import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -420,7 +420,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   def testPartitionByWithParallelSource(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    env.setParallelism(2)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -428,11 +427,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 2L, 17, 2))
     data.+=(("ACME", 3L, 13, 3))
     data.+=(("ACME", 4L, 20, 4))
-    val parallelSource = new ParallelCollectionWrapper[(String, Long, Int, Int)](
-      data, 0, data.length)
 
-    val t = env.fromParallelCollection(parallelSource)
+    val t = env.fromCollection(data)
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
+      .setParallelism(env.getParallelism)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
     tEnv.registerTable("Ticker", t)
 
