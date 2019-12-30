@@ -153,6 +153,8 @@ public class HiveInspectors {
 			} else {
 				throw new FlinkHiveUDFException("Unsupported primitive object inspector " + inspector.getClass().getName());
 			}
+			// if the object inspector prefers Writable objects, we should add an extra conversion for that
+			// currently this happens for constant arguments for UDFs
 			if (((PrimitiveObjectInspector) inspector).preferWritable()) {
 				conversion = new WritableHiveObjectConversion(conversion, hiveShim);
 			}
