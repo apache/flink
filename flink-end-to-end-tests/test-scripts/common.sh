@@ -748,7 +748,7 @@ function retry_times_with_backoff_and_cleanup() {
     local command="$3"
     local cleanup_command="$4"
 
-    for (( i = 0; i < ${retriesNumber}; i++ ))
+    for i in $(seq 1 ${retriesNumber})
     do
         if ${command}; then
             return 0
