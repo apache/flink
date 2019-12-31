@@ -122,13 +122,72 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 {% highlight sql %}
 CREATE TABLE [catalog_name.][db_name.]table_name
-  [(col_name1 col_type1 [COMMENT col_comment1], ...)]
+  (
+    { <column_definition> | <computed_column_definition> }[ , ...n]
+    [ <watermark_definition> ]
+  )
   [COMMENT table_comment]
-  [PARTITIONED BY (col_name1, col_name2, ...)]
+  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
+
+<column_definition>:
+  column_name column_type [COMMENT column_comment]
+
+<computed_column_definition>:
+  column_name AS computed_column_expression [COMMENT column_comment]
+
+<watermark_definition>:
+  WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+
 {% endhighlight %}
 
 Creates a table with the given name. If a table with the same name already exists in the catalog, an exception is thrown.
+
+**COMPUTED COLUMN**
+
+A computed column is a virtual column that is generated using the syntax  "`column_name AS computed_column_expression`". It is generated from a non-query expression that uses other columns in the same table and is not physically stored within the table. For example, a computed column could be defined as `cost AS price * quantity`. The expression may contain any combination of physical column, constant, function, or variable. The expression cannot contain a subquery.
+
+Computed columns are commonly used in Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statements.
+A [processing time attribute]({{ site.baseurl}}/dev/table/streaming/time_attributes.html#processing-time) can be defined easily via `proc AS PROCTIME()` using the system `PROCTIME()` function.
+On the other hand, computed column can be used to derive event time column because an event time column may need to be derived from existing fields, e.g. the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
+
+Notes:
+
+- A computed column defined on a source table is computed after reading from the source, it can be used in the following SELECT query statements.
+- A computed column cannot be the target of an INSERT statement. In INSERT statements, the schema of SELECT clause should match the schema of the target table without computed columns.
+
+**WATERMARK**
+
+The `WATERMARK` defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression`.
+
+The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
+
+The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
+
+When using event time semantics, tables must contain an event time attribute and watermarking strategy.
+
+Flink provides several commonly used watermark strategies.
+
+- Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`.
+
+  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
+
+- Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
+
+  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp are not late.
+
+- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`.
+
+  Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
+
+{% highlight sql %}
+CREATE TABLE Orders (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - '5' SECONDS
+) WITH ( . . . );
+{% endhighlight %}
 
 **PARTITIONED BY**
 

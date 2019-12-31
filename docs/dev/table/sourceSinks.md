@@ -1,7 +1,7 @@
 ---
 title: "User-defined Sources & Sinks"
 nav-parent_id: tableapi
-nav-pos: 40
+nav-pos: 130
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL](sql.html) queries.
+A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL]({{ site.baseurl }}/dev/table/sql/queries.html) queries.
 
 A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
 
@@ -71,7 +71,7 @@ TableSource[T] {
 </div>
 </div>
 
-* `getTableSchema()`: Returns the schema of the table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `TypeInformation` (see [Table API types](tableApi.html#data-types) and [SQL types](sql.html#data-types)).
+* `getTableSchema()`: Returns the schema of the produced table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `DataType` (see [Table API types]({{ site.baseurl }}/dev/table/types.html) and [SQL types]({{ site.baseurl }}/dev/table/sql/index.html#data-types)). Note that the returned `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSource`.
 
 * `getReturnType()`: Returns the physical type of the `DataStream` (`StreamTableSource`) or `DataSet` (`BatchTableSource`) and the records that are produced by the `TableSource`.
 
@@ -139,7 +139,7 @@ StreamTableSource[T] extends TableSource[T] {
 
 ### Defining a TableSource with Time Attributes
 
-Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
+Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
 
 A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
 
@@ -411,7 +411,7 @@ TableSink[T] {
 </div>
 </div>
 
-The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema.
+The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema. Note that the provided `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSink`.
 
 ### BatchTableSink
 
