@@ -1,7 +1,7 @@
 ---
 title: "Connect to External Systems"
 nav-parent_id: tableapi
-nav-pos: 19
+nav-pos: 50
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

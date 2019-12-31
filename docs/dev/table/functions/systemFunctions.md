@@ -4582,7 +4582,7 @@ CAST(value AS type)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="/dev/table/sql.html#data-types">here</a>.</p>
+        <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="/dev/table/types.html">here</a>.</p>
         <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>

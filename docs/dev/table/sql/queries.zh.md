@@ -1,7 +1,7 @@
 ---
-title: "SQL"
-nav-parent_id: tableapi
-nav-pos: 30
+title: "Queries"
+nav-parent_id: sql
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,20 +22,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This is a complete list of Data Definition Language (DDL) and Data Manipulation Language (DML) constructs supported in Flink.
 * This will be replaced by the TOC
 {:toc}
 
-## Query
-SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
+SELECT queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SELECT query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries]({{ site.baseurl }}/dev/table/common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream]({{ site.baseurl }}/dev/table/common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink]({{ site.baseurl }}/dev/table/common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment](catalogs.html) to specify the location of the data sources.
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({{ site.baseurl }}/dev/table/common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource]({{ site.baseurl }}/dev/table/common.html#register-a-tablesource), [Table]({{ site.baseurl }}/dev/table/common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet]({{ site.baseurl }}/dev/table/common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment]({{ site.baseurl }}/dev/table/catalogs.html) to specify the location of the data sources.
 
 For convenience `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. Hence, `Table` objects can be directly inlined into SQL queries (by string concatenation) as shown in the examples below.
 
 **Note:** Flink's SQL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
 
-### Specifying a Query
+## Specifying a Query
 
 The following examples show how to specify a SQL queries on registered and inlined tables.
 
@@ -145,7 +143,7 @@ table_env \
 
 {% top %}
 
-### Supported Syntax
+## Supported Syntax
 
 Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html), which supports standard ANSI SQL. DDL statements are not supported by Flink.
 
@@ -156,7 +154,7 @@ The following BNF-grammar describes the superset of supported SQL features in ba
 insert:
   INSERT INTO tableReference
   query
-  
+
 query:
   values
   | {
@@ -182,7 +180,7 @@ select:
   [ GROUP BY { groupItem [, groupItem ]* } ]
   [ HAVING booleanExpression ]
   [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
-  
+
 selectWithoutFrom:
   SELECT [ ALL | DISTINCT ]
   { * | projectItem [, projectItem ]* }
@@ -290,9 +288,9 @@ String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`)
 
 {% top %}
 
-### Operations
+## Operations
 
-#### Show and Use
+### Show and Use
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -343,7 +341,7 @@ USE mydatabase;
 </table>
 </div>
 
-#### Scan, Projection, and Filter
+### Scan, Projection, and Filter
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -398,7 +396,7 @@ SELECT PRETTY_PRINT(user) FROM Orders
 
 {% top %}
 
-#### Aggregations
+### Aggregations
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -416,7 +414,7 @@ SELECT PRETTY_PRINT(user) FROM Orders
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p><b>Note:</b> GroupBy on a streaming table produces an updating result. See the <a href="streaming/dynamic_tables.html">Dynamic Tables Streaming Concepts</a> page for details.
+        <p><b>Note:</b> GroupBy on a streaming table produces an updating result. See the <a href="{{ site.baseurl}}/dev/table/streaming/dynamic_tables.html">Dynamic Tables Streaming Concepts</a> page for details.
         </p>
 {% highlight sql %}
 SELECT a, SUM(b) as d
@@ -445,7 +443,7 @@ GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user
         <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a></p>
+        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attribute</a></p>
 {% highlight sql %}
 SELECT COUNT(amount) OVER (
   PARTITION BY user
@@ -454,11 +452,11 @@ SELECT COUNT(amount) OVER (
 FROM Orders
 
 SELECT COUNT(amount) OVER w, SUM(amount) OVER w
-FROM Orders 
+FROM Orders
 WINDOW w AS (
   PARTITION BY user
   ORDER BY proctime
-  ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)  
+  ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
 {% endhighlight %}
       </td>
     </tr>
@@ -472,7 +470,7 @@ WINDOW w AS (
 {% highlight sql %}
 SELECT DISTINCT users FROM Orders
 {% endhighlight %}
-       <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+       <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -522,7 +520,7 @@ GROUP BY users
 
 {% top %}
 
-#### Joins
+### Joins
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -545,7 +543,7 @@ GROUP BY users
 SELECT *
 FROM Orders INNER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -567,7 +565,7 @@ FROM Orders RIGHT JOIN Product ON Orders.productId = Product.id
 SELECT *
 FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -578,7 +576,7 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       <td>
         <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>), a <code>BETWEEN</code> predicate, or a single equality predicate that compares <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid window join conditions:</p>
 
         <ul>
@@ -642,13 +640,13 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
-        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table-functions">Temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Join with Table Function</i>.</p>
 
         <p><b>Note:</b> Currently only inner joins with temporal tables are supported.</p>
 
-        <p>Assuming <i>Rates</i> is a <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a>, the join can be expressed in SQL as follows:</p>
+        <p>Assuming <i>Rates</i> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table-functions">temporal table function</a>, the join can be expressed in SQL as follows:</p>
 {% highlight sql %}
 SELECT
   o_amount, r_rate
@@ -658,7 +656,7 @@ FROM
 WHERE
   r_currency = o_currency
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
     </tr>
     <tr>
@@ -667,11 +665,11 @@ WHERE
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
-        A <a href="streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
+        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
+        A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
 
         <p>Only inner and left joins with processing-time temporal tables are supported.</p>
-        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
+        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
 {% highlight sql %}
 SELECT
   o.amout, o.currency, r.rate, o.amount * r.rate
@@ -680,7 +678,7 @@ FROM
   JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
   ON r.currency = o.currency
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
+        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
         <p>Only supported in Blink planner.</p>
       </td>
     </tr>
@@ -691,7 +689,7 @@ FROM
 
 {% top %}
 
-#### Set Operations
+### Set Operations
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -774,7 +772,7 @@ WHERE product IN (
     SELECT product FROM NewProducts
 )
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -792,7 +790,7 @@ WHERE product EXISTS (
     SELECT product FROM NewProducts
 )
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{{ site.baseurl }}/dev/table/streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -801,7 +799,7 @@ WHERE product EXISTS (
 
 {% top %}
 
-#### OrderBy & Limit
+### OrderBy & Limit
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -818,7 +816,7 @@ WHERE product EXISTS (
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming/time_attributes.html">time attribute</a>. Additional sorting attributes are supported.
+<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">time attribute</a>. Additional sorting attributes are supported.
 
 {% highlight sql %}
 SELECT *
@@ -833,7 +831,7 @@ ORDER BY orderTime
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-<b>Note:</b> The LIMIT clause requires an ORDER BY clause. 
+<b>Note:</b> The LIMIT clause requires an ORDER BY clause.
 {% highlight sql %}
 SELECT *
 FROM Orders
@@ -849,7 +847,7 @@ LIMIT 3
 
 {% top %}
 
-#### Top-N
+### Top-N
 
 <span class="label label-danger">Attention</span> Top-N is only supported in Blink planner.
 
@@ -932,7 +930,7 @@ val result1 = tableEnv.sqlQuery(
 </div>
 </div>
 
-##### No Ranking Output Optimization
+#### No Ranking Output Optimization
 
 As described above, the `rownum` field will be written into the result table as one field of the unique key, which may lead to a lot of records being written to the result table. For example, when the record (say `product-1001`) of ranking 9 is updated and its rank is upgraded to 1, all the records from ranking 1 ~ 9 will be output to the result table as update messages. If the result table receives too many data, it will become the bottleneck of the SQL job.
 
@@ -991,7 +989,7 @@ val result1 = tableEnv.sqlQuery(
 
 {% top %}
 
-#### Deduplication
+### Deduplication
 
 <span class="label label-danger">Attention</span> Deduplication is only supported in Blink planner.
 
@@ -1015,7 +1013,7 @@ WHERE rownum = 1
 
 - `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
 - `PARTITION BY col1[, col2...]`: Specifies the partition columns, i.e. the deduplicate key.
-- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute](streaming/time_attributes.html). Currently only support [proctime attribute](streaming/time_attributes.html#processing-time). [Rowtime atttribute](streaming/time_attributes.html#event-time) will be supported in the future. Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
+- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html). Currently only support [proctime attribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time). [Rowtime atttribute]({{ site.baseurl }}/dev/table/streaming/time_attributes.html#event-time) will be supported in the future. Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
 - `WHERE rownum = 1`: The `rownum = 1` is required for Flink to recognize this query is deduplication.
 
 The following examples show how to specify SQL queries with Deduplication on streaming tables.
@@ -1070,40 +1068,7 @@ val result1 = tableEnv.sqlQuery(
 
 {% top %}
 
-#### Insert
-
-<div markdown="1">
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Operation</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>Insert Into</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
-      </td>
-      <td>
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
-
-{% highlight sql %}
-INSERT INTO OutputTable
-SELECT users, tag
-FROM Orders
-{% endhighlight %}
-      </td>
-    </tr>
-
-  </tbody>
-</table>
-</div>
-
-{% top %}
-
-#### Group Windows
+### Group Windows
 
 Group windows are defined in the `GROUP BY` clause of a SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a group window function compute a single result row per group. The following group windows functions are supported for SQL on batch and streaming tables.
 
@@ -1131,13 +1096,13 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   </tbody>
 </table>
 
-##### Time Attributes
+#### Time Attributes
 
-For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes](streaming/time_attributes.html) to learn how to define time attributes.
+For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes]({{ site.baseurl }}/dev/table/streaming/time_attributes.html) to learn how to define time attributes.
 
 For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
 
-##### Selecting Group Window Start and End Timestamps
+#### Selecting Group Window Start and End Timestamps
 
 The start and end timestamps of group windows as well as time attributes can be selected with the following auxiliary functions:
 
@@ -1165,7 +1130,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>exclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1174,7 +1139,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>inclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-      <p>The resulting attribute is a <a href="streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <p>The resulting attribute is a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -1182,7 +1147,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>Returns a <a href="streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+      <td><p>Returns a <a href="{{ site.baseurl }}/dev/table/streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
   </tbody>
 </table>
@@ -1276,7 +1241,7 @@ val result4 = tableEnv.sqlQuery(
 
 {% top %}
 
-#### Pattern Recognition
+### Pattern Recognition
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -1294,7 +1259,7 @@ val result4 = tableEnv.sqlQuery(
       </td>
       <td>
         <p>Searches for a given pattern in a streaming table according to the <code>MATCH_RECOGNIZE</code> <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">ISO standard</a>. This makes it possible to express complex event processing (CEP) logic in SQL queries.</p>
-        <p>For a more detailed description, see the dedicated page for <a href="streaming/match_recognize.html">detecting patterns in tables</a>.</p>
+        <p>For a more detailed description, see the dedicated page for <a href="{{ site.baseurl }}/dev/table/streaming/match_recognize.html">detecting patterns in tables</a>.</p>
 
 {% highlight sql %}
 SELECT T.aid, T.bid, T.cid
@@ -1321,217 +1286,3 @@ MATCH_RECOGNIZE (
 </div>
 
 {% top %}
-
-## DDL
-
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success create/drop/alter database or table operation. A `CatalogTable` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
-
-**Note:** Flink's DDL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL DDL on batch and streaming tables are listed in the following sections.
-
-### Specifying a DDL
-
-The following examples show how to specify a SQL DDL.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-
-// SQL query with a registered table
-// register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
-// run a SQL query on the Table and retrieve the result as a new Table
-Table result = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
-
-// SQL update with a registered table
-// register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
-// run a SQL update query on the Table and emit the result to the TableSink
-tableEnv.sqlUpdate(
-  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = StreamTableEnvironment.create(env)
-
-// SQL query with a registered table
-// register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
-// run a SQL query on the Table and retrieve the result as a new Table
-val result = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
-
-// SQL update with a registered table
-// register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH ('connector.path'='/path/to/file' ...)");
-// run a SQL update query on the Table and emit the result to the TableSink
-tableEnv.sqlUpdate(
-  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
-{% endhighlight %}
-</div>
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env)
-
-# SQL update with a registered table
-# register a TableSink
-table_env.sql_update("CREATE TABLE RubberOrders(product VARCHAR, amount INT) with (...)")
-# run a SQL update query on the Table and emit the result to the TableSink
-table_env \
-    .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
-{% endhighlight %}
-</div>
-</div>
-
-{% top %}
-
-### Create Table
-
-{% highlight sql %}
-CREATE TABLE [catalog_name.][db_name.]table_name
-  [(col_name1 col_type1 [COMMENT col_comment1], ...)]
-  [COMMENT table_comment]
-  [PARTITIONED BY (col_name1, col_name2, ...)]
-  WITH (key1=val1, key2=val2, ...)
-{% endhighlight %}
-
-Create a table with the given table properties. If a table with the same name already exists in the database, an exception is thrown.
-
-**PARTITIONED BY**
-
-Partition the created table by the specified columns. A directory is created for each partition if this table is used as a filesystem sink.
-
-**WITH OPTIONS**
-
-Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
-
-The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems](connect.html) for all the supported table properties of different connectors.
-
-**Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
-
-**Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
-
-{% top %}
-
-### Drop Table
-
-{% highlight sql %}
-DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
-{% endhighlight %}
-
-Drop a table with the given table name. If the table to drop does not exist, an exception is thrown.
-
-**IF EXISTS**
-
-If the table does not exist, nothing happens.
-
-{% top %}
-
-### Alter Table
-
-* Rename Table
-
-{% highlight sql %}
-ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
-{% endhighlight %}
-
-Rename the given table name to another new table name.
-
-* Set or Alter Table Properties
-
-{% highlight sql %}
-ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
-{% endhighlight %}
-
-Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
-
-{% top %}
-
-### Create Database
-
-{% highlight sql %}
-CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
-  [COMMENT database_comment]
-  WITH (key1=val1, key2=val2, ...)
-{% endhighlight %}
-
-Create a database with the given database properties. If a database with the same name already exists in the catalog, an exception is thrown.
-
-**IF NOT EXISTS**
-
-If the database already exists, nothing happens.
-
-**WITH OPTIONS**
-
-Database properties used to store extra information related to this database. 
-The key and value of expression `key1=val1` should both be string literal. 
-
-{% top %}
-
-### Drop Database
-
-{% highlight sql %}
-DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
-{% endhighlight %}
-
-Drop a database with the given database name. If the database to drop does not exist, an exception is thrown.
-
-**IF EXISTS**
-
-If the database does not exist, nothing happens.
-
-**RESTRICT**
-
-Dropping a non-empty database triggers an exception. Enabled by default.
-
-**CASCADE**
-
-Dropping a non-empty database also drops all associated tables and functions.
-
-{% top %}
-
-### Alter Database
-
-{% highlight sql %}
-ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
-{% endhighlight %}
-
-Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
-
-{% top %}
-
-## Data Types
-
-Please see the dedicated page about [data types](types.html).
-
-Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
-
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
-
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
-
-For DDLs, we support full data types defined in page [Data Types]({{ site.baseurl }}/dev/table/types.html).
-
-**Notes:** Some of the data types are not supported in SQL queries yet (i.e. in cast expressions or literals). E.g. `STRING`, `BYTES`, `RAW`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`, `ARRAY`, `MULTISET`, `ROW`.
-
-{% top %}
-
-## Reserved Keywords
-
-Although not every SQL feature is implemented yet, some string combinations are already reserved as keywords for future use. If you want to use one of the following strings as a field name, make sure to surround them with backticks (e.g. `` `value` ``, `` `count` ``).
-
-{% highlight sql %}
-
-A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, ALWAYS, AND, ANY, ARE, ARRAY, AS, ASC, ASENSITIVE, ASSERTION, ASSIGNMENT, ASYMMETRIC, AT, ATOMIC, ATTRIBUTE, ATTRIBUTES, AUTHORIZATION, AVG, BEFORE, BEGIN, BERNOULLI, BETWEEN, BIGINT, BINARY, BIT, BLOB, BOOLEAN, BOTH, BREADTH, BY, BYTES, C, CALL, CALLED, CARDINALITY, CASCADE, CASCADED, CASE, CAST, CATALOG, CATALOG_NAME, CEIL, CEILING, CENTURY, CHAIN, CHAR, CHARACTER, CHARACTERISTICS, CHARACTERS, CHARACTER_LENGTH, CHARACTER_SET_CATALOG, CHARACTER_SET_NAME, CHARACTER_SET_SCHEMA, CHAR_LENGTH, CHECK, CLASS_ORIGIN, CLOB, CLOSE, COALESCE, COBOL, COLLATE, COLLATION, COLLATION_CATALOG, COLLATION_NAME, COLLATION_SCHEMA, COLLECT, COLUMN, COLUMN_NAME, COMMAND_FUNCTION, COMMAND_FUNCTION_CODE, COMMIT, COMMITTED, CONDITION, CONDITION_NUMBER, CONNECT, CONNECTION, CONNECTION_NAME, CONSTRAINT, CONSTRAINTS, CONSTRAINT_CATALOG, CONSTRAINT_NAME, CONSTRAINT_SCHEMA, CONSTRUCTOR, CONTAINS, CONTINUE, CONVERT, CORR, CORRESPONDING, COUNT, COVAR_POP, COVAR_SAMP, CREATE, CROSS, CUBE, CUME_DIST, CURRENT, CURRENT_CATALOG, CURRENT_DATE, CURRENT_DEFAULT_TRANSFORM_GROUP, CURRENT_PATH, CURRENT_ROLE, CURRENT_SCHEMA, CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_TRANSFORM_GROUP_FOR_TYPE, CURRENT_USER, CURSOR, CURSOR_NAME, CYCLE, DATA, DATABASE, DATE, DATETIME_INTERVAL_CODE, DATETIME_INTERVAL_PRECISION, DAY, DEALLOCATE, DEC, DECADE, DECIMAL, DECLARE, DEFAULT, DEFAULTS, DEFERRABLE, DEFERRED, DEFINED, DEFINER, DEGREE, DELETE, DENSE_RANK, DEPTH, DEREF, DERIVED, DESC, DESCRIBE, DESCRIPTION, DESCRIPTOR, DETERMINISTIC, DIAGNOSTICS, DISALLOW, DISCONNECT, DISPATCH, DISTINCT, DOMAIN, DOUBLE, DOW, DOY, DROP, DYNAMIC, DYNAMIC_FUNCTION, DYNAMIC_FUNCTION_CODE, EACH, ELEMENT, ELSE, END, END-EXEC, EPOCH, EQUALS, ESCAPE, EVERY, EXCEPT, EXCEPTION, EXCLUDE, EXCLUDING, EXEC, EXECUTE, EXISTS, EXP, EXPLAIN, EXTEND, EXTERNAL, EXTRACT, FALSE, FETCH, FILTER, FINAL, FIRST, FIRST_VALUE, FLOAT, FLOOR, FOLLOWING, FOR, FOREIGN, FORTRAN, FOUND, FRAC_SECOND, FREE, FROM, FULL, FUNCTION, FUSION, G, GENERAL, GENERATED, GET, GLOBAL, GO, GOTO, GRANT, GRANTED, GROUP, GROUPING, HAVING, HIERARCHY, HOLD, HOUR, IDENTITY, IMMEDIATE, IMPLEMENTATION, IMPORT, IN, INCLUDING, INCREMENT, INDICATOR, INITIALLY, INNER, INOUT, INPUT, INSENSITIVE, INSERT, INSTANCE, INSTANTIABLE, INT, INTEGER, INTERSECT, INTERSECTION, INTERVAL, INTO, INVOKER, IS, ISOLATION, JAVA, JOIN, K, KEY, KEY_MEMBER, KEY_TYPE, LABEL, LANGUAGE, LARGE, LAST, LAST_VALUE, LATERAL, LEADING, LEFT, LENGTH, LEVEL, LIBRARY, LIKE, LIMIT, LN, LOCAL, LOCALTIME, LOCALTIMESTAMP, LOCATOR, LOWER, M, MAP, MATCH, MATCHED, MAX, MAXVALUE, MEMBER, MERGE, MESSAGE_LENGTH, MESSAGE_OCTET_LENGTH, MESSAGE_TEXT, METHOD, MICROSECOND, MILLENNIUM, MIN, MINUTE, MINVALUE, MOD, MODIFIES, MODULE, MONTH, MORE, MULTISET, MUMPS, NAME, NAMES, NATIONAL, NATURAL, NCHAR, NCLOB, NESTING, NEW, NEXT, NO, NONE, NORMALIZE, NORMALIZED, NOT, NULL, NULLABLE, NULLIF, NULLS, NUMBER, NUMERIC, OBJECT, OCTETS, OCTET_LENGTH, OF, OFFSET, OLD, ON, ONLY, OPEN, OPTION, OPTIONS, OR, ORDER, ORDERING, ORDINALITY, OTHERS, OUT, OUTER, OUTPUT, OVER, OVERLAPS, OVERLAY, OVERRIDING, PAD, PARAMETER, PARAMETER_MODE, PARAMETER_NAME, PARAMETER_ORDINAL_POSITION, PARAMETER_SPECIFIC_CATALOG, PARAMETER_SPECIFIC_NAME, PARAMETER_SPECIFIC_SCHEMA, PARTIAL, PARTITION, PASCAL, PASSTHROUGH, PATH, PERCENTILE_CONT, PERCENTILE_DISC, PERCENT_RANK, PLACING, PLAN, PLI, POSITION, POWER, PRECEDING, PRECISION, PREPARE, PRESERVE, PRIMARY, PRIOR, PRIVILEGES, PROCEDURE, PUBLIC, QUARTER, RANGE, RANK, RAW, READ, READS, REAL, RECURSIVE, REF, REFERENCES, REFERENCING, REGR_AVGX, REGR_AVGY, REGR_COUNT, REGR_INTERCEPT, REGR_R2, REGR_SLOPE, REGR_SXX, REGR_SXY, REGR_SYY, RELATIVE, RELEASE, REPEATABLE, RESET, RESTART, RESTRICT, RESULT, RETURN, RETURNED_CARDINALITY, RETURNED_LENGTH, RETURNED_OCTET_LENGTH, RETURNED_SQLSTATE, RETURNS, REVOKE, RIGHT, ROLE, ROLLBACK, ROLLUP, ROUTINE, ROUTINE_CATALOG, ROUTINE_NAME, ROUTINE_SCHEMA, ROW, ROWS, ROW_COUNT, ROW_NUMBER, SAVEPOINT, SCALE, SCHEMA, SCHEMA_NAME, SCOPE, SCOPE_CATALOGS, SCOPE_NAME, SCOPE_SCHEMA, SCROLL, SEARCH, SECOND, SECTION, SECURITY, SELECT, SELF, SENSITIVE, SEQUENCE, SERIALIZABLE, SERVER, SERVER_NAME, SESSION, SESSION_USER, SET, SETS, SIMILAR, SIMPLE, SIZE, SMALLINT, SOME, SOURCE, SPACE, SPECIFIC, SPECIFICTYPE, SPECIFIC_NAME, SQL, SQLEXCEPTION, SQLSTATE, SQLWARNING, SQL_TSI_DAY, SQL_TSI_FRAC_SECOND, SQL_TSI_HOUR, SQL_TSI_MICROSECOND, SQL_TSI_MINUTE, SQL_TSI_MONTH, SQL_TSI_QUARTER, SQL_TSI_SECOND, SQL_TSI_WEEK, SQL_TSI_YEAR, SQRT, START, STATE, STATEMENT, STATIC, STDDEV_POP, STDDEV_SAMP, STREAM, STRING, STRUCTURE, STYLE, SUBCLASS_ORIGIN, SUBMULTISET, SUBSTITUTE, SUBSTRING, SUM, SYMMETRIC, SYSTEM, SYSTEM_USER, TABLE, TABLESAMPLE, TABLE_NAME, TEMPORARY, THEN, TIES, TIME, TIMESTAMP, TIMESTAMPADD, TIMESTAMPDIFF, TIMEZONE_HOUR, TIMEZONE_MINUTE, TINYINT, TO, TOP_LEVEL_COUNT, TRAILING, TRANSACTION, TRANSACTIONS_ACTIVE, TRANSACTIONS_COMMITTED, TRANSACTIONS_ROLLED_BACK, TRANSFORM, TRANSFORMS, TRANSLATE, TRANSLATION, TREAT, TRIGGER, TRIGGER_CATALOG, TRIGGER_NAME, TRIGGER_SCHEMA, TRIM, TRUE, TYPE, UESCAPE, UNBOUNDED, UNCOMMITTED, UNDER, UNION, UNIQUE, UNKNOWN, UNNAMED, UNNEST, UPDATE, UPPER, UPSERT, USAGE, USER, USER_DEFINED_TYPE_CATALOG, USER_DEFINED_TYPE_CODE, USER_DEFINED_TYPE_NAME, USER_DEFINED_TYPE_SCHEMA, USING, VALUE, VALUES, VARBINARY, VARCHAR, VARYING, VAR_POP, VAR_SAMP, VERSION, VIEW, WEEK, WHEN, WHENEVER, WHERE, WIDTH_BUCKET, WINDOW, WITH, WITHIN, WITHOUT, WORK, WRAPPER, WRITE, XML, YEAR, ZONE
-
-{% endhighlight %}
-
-{% top %}
-
