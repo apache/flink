@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -27,6 +30,10 @@ class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
 	private final AtomicLong numNotifications = new AtomicLong();
 
+	private final AtomicLong numPriorityEvents = new AtomicLong();
+
+	private final AtomicBoolean consumePriorityEvents = new AtomicBoolean();
+
 	@Override
 	public void notifyDataAvailable() {
 		numNotifications.getAndIncrement();
@@ -34,6 +41,20 @@ class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
 	public long getNumNotifications() {
 		return numNotifications.get();
+	}
+
+	@Override
+	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) {
+		numPriorityEvents.getAndIncrement();
+		return consumePriorityEvents.get();
+	}
+
+	public long getNumPriorityEvents() {
+		return numPriorityEvents.get();
+	}
+
+	public void consumePriorityEvents() {
+		consumePriorityEvents.set(true);
 	}
 
 	public void resetNotificationCounters() {

@@ -248,8 +248,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
+		broadcastEvent(event, false);
+	}
+
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
 		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-			streamOutput.broadcastEvent(event);
+			streamOutput.broadcastEvent(event, isPriorityEvent);
 		}
 	}
 

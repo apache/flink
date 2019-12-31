@@ -19,10 +19,16 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -34,6 +40,9 @@ import org.junit.runners.Parameterized;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
@@ -90,14 +99,14 @@ public class PipelinedSubpartitionWithReadViewTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void testAddTwoNonFinishedBuffer() {
+	public void testAddTwoNonFinishedBuffer() throws IOException {
 		subpartition.add(createBufferBuilder().createBufferConsumer());
 		subpartition.add(createBufferBuilder().createBufferConsumer());
 		assertNull(readView.getNextBuffer());
 	}
 
 	@Test
-	public void testAddEmptyNonFinishedBuffer() {
+	public void testAddEmptyNonFinishedBuffer() throws IOException {
 		assertEquals(0, availablityListener.getNumNotifications());
 
 		BufferBuilder bufferBuilder = createBufferBuilder();
@@ -298,6 +307,72 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertEquals(5, subpartition.getTotalNumberOfBuffers());
 		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 		assertEquals(1, availablityListener.getNumNotifications());
+	}
+
+	@Test
+	public void testBarrierOvertaking() throws Exception {
+		subpartition.add(createFilledFinishedBufferConsumer(1));
+		assertEquals(0, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(2));
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(3));
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		CheckpointOptions options = new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}));
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
+		subpartition.add(barrierBuffer, true);
+		assertEquals(2, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
+		assertEquals(Arrays.asList(1, 2, 3), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
+		inflight.forEach(Buffer::recycleBuffer);
+
+		assertNextEvent(readView, barrierBuffer.getWrittenBytes(), CheckpointBarrier.class, true, 2, false, true);
+		assertNextBuffer(readView, 1, true, 1, false, true);
+		assertNextBuffer(readView, 2, false, 0, false, true);
+		assertNextBuffer(readView, 3, false, 0, false, true);
+		assertNoNextBuffer(readView);
+	}
+
+	@Test
+	public void testBarrierConsumedByAvailabilityListener() throws Exception {
+		availablityListener.consumePriorityEvents();
+
+		subpartition.add(createFilledFinishedBufferConsumer(1));
+		assertEquals(0, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(2));
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(3));
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		CheckpointOptions options = new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}));
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
+		subpartition.add(barrierBuffer, true);
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
+		assertEquals(Arrays.asList(), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
+
+		assertNextBuffer(readView, 1, true, 1, false, true);
+		assertNextBuffer(readView, 2, false, 0, false, true);
+		assertNextBuffer(readView, 3, false, 0, false, true);
+		assertNoNextBuffer(readView);
 	}
 
 	@Test
