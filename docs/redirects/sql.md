@@ -1,9 +1,8 @@
 ---
-title: "Performance Tuning"
-nav-id: tableapi_performance_tuning
-nav-parent_id: tableapi
-nav-pos: 120
-nav-show_overview: false
+title: SQL
+layout: redirect
+redirect: /dev/table/sql/index.html
+permalink: /dev/table/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
