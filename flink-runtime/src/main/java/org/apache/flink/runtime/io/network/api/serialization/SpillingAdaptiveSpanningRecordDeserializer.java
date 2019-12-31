@@ -23,9 +23,14 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
+
+import javax.annotation.Nullable;
 
 import java.io.BufferedInputStream;
 import java.io.EOFException;
@@ -38,6 +43,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -86,6 +92,16 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 		Buffer tmp = currentBuffer;
 		currentBuffer = null;
 		return tmp;
+	}
+
+	@Override
+	public Optional<Buffer> getUnconsumedBuffer() {
+		if (nonSpanningWrapper.remaining() > 0) {
+			return Optional.of(new NetworkBuffer(nonSpanningWrapper.copyToTargetSegment(), FreeingBufferRecycler.INSTANCE));
+		} else {
+			MemorySegment target = spanningWrapper.copyToTargetSegment();
+			return target != null ? Optional.of(new NetworkBuffer(target, FreeingBufferRecycler.INSTANCE)) : Optional.empty();
+		}
 	}
 
 	@Override
@@ -192,6 +208,12 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			this.segment = seg;
 			this.position = position;
 			this.limit = leftOverLimit;
+		}
+
+		MemorySegment copyToTargetSegment() {
+			MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(remaining());
+			segment.copyTo(position, target, 0, remaining());
+			return target;
 		}
 
 		// -------------------------------------------------------------------------------------------------------------
@@ -555,6 +577,29 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 					this.spillFileReader = new DataInputViewStreamWrapper(inStream);
 				}
 			}
+		}
+
+		@Nullable
+		MemorySegment copyToTargetSegment() {
+			// for the case of only partial length, no data
+			final int position = lengthBuffer.position();
+			if (position > 0) {
+				MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(lengthBuffer.remaining());
+				segment.put(0, lengthBuffer, lengthBuffer.remaining());
+				lengthBuffer.position(position);
+				return segment;
+			}
+
+			// for the case of full length, partial data in buffer
+			if (recordLength > THRESHOLD_FOR_SPILLING) {
+				throw new UnsupportedOperationException("Unaligned checkpoint currently do not support spilled " +
+					"records.");
+			} else if (recordLength != -1) {
+				return MemorySegmentFactory.wrap(buffer);
+			}
+
+			// for the case of no remaining partial length or data
+			return null;
 		}
 
 		private void moveRemainderToNonSpanningDeserializer(NonSpanningWrapper deserializer) {
