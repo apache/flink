@@ -375,7 +375,7 @@ object GenerateUtils {
              |  $SQL_TIMESTAMP.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
-        generateNonNullLiteral(literalType, fieldTerm, literalType)
+        generateNonNullLiteral(literalType, fieldTerm, ts)
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val fieldTerm = newName("timestampWithLocalZone")
