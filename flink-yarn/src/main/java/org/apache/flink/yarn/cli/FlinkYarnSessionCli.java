@@ -372,6 +372,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			effectiveConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
 		}
 
+		dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
+		if (!dynamicPropertiesEncoded.isEmpty()) {
+			Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
+			for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+				effectiveConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+			}
+		}
+
 		if (isYarnPropertiesFileMode(commandLine)) {
 			return applyYarnProperties(effectiveConfiguration);
 		} else {
@@ -404,11 +412,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		if (commandLine.hasOption(queue.getOpt())) {
 			final String queueName = commandLine.getOptionValue(queue.getOpt());
 			configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, queueName);
-		}
-
-		dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
-		if (dynamicPropertiesEncoded != null && !dynamicPropertiesEncoded.isEmpty()) {
-			configuration.setString(YarnConfigOptionsInternal.DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
 
 		final boolean detached = commandLine.hasOption(YARN_DETACHED_OPTION.getOpt()) || commandLine.hasOption(DETACHED_OPTION.getOpt());
