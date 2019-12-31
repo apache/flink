@@ -274,7 +274,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 	@Override
 	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) {
-		if (inputGate.bufferReceivedListener == null) {
+		if (inputGate.getBufferReceivedListener() == null) {
 			// in rare cases and very low checkpointing intervals, we may receive the first barrier, before setting
 			// up CheckpointedInputGate
 			return false;
@@ -285,7 +285,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			if (event == null) {
 				throw new IllegalStateException("Currently only checkpoint barriers are known priority events");
 			}
-			inputGate.bufferReceivedListener.notifyBarrierReceived(event, channelInfo);
+			inputGate.getBufferReceivedListener().notifyBarrierReceived(event, channelInfo);
 		} catch (IOException e) {
 			throw new IllegalStateException("Should always be able to deserialize an event that has just been " +
 				"serialized", e);

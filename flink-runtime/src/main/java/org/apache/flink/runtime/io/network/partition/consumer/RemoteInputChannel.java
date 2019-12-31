@@ -111,6 +111,13 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	@Nonnull
 	private final MemorySegmentProvider memorySegmentProvider;
 
+	/** The latest already triggered checkpoint id which would be updated during {@link #requestInflightBuffers(long)}.*/
+	@GuardedBy("receivedBuffers")
+	private long lastRequestedCheckpointId = -1;
+
+	/** The current received checkpoint id from the network. */
+	private long receivedCheckpointId = -1;
+
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
 		int channelIndex,
@@ -206,6 +213,28 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		numBytesIn.inc(next.getSize());
 		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
+	}
+
+	@Override
+	public List<Buffer> requestInflightBuffers(long checkpointId) throws IOException {
+		synchronized (receivedBuffers) {
+			checkState(checkpointId > lastRequestedCheckpointId, "Need to request the next checkpointId");
+
+			final List<Buffer> inflightBuffers = new ArrayList<>(receivedBuffers.size());
+			for (Buffer buffer : receivedBuffers) {
+				CheckpointBarrier checkpointBarrier = parseCheckpointBarrierOrNull(buffer);
+				if (checkpointBarrier != null && checkpointBarrier.getId() >= checkpointId) {
+					break;
+				}
+				if (buffer.isBuffer()) {
+					inflightBuffers.add(buffer.retainBuffer());
+				}
+			}
+
+			lastRequestedCheckpointId = checkpointId;
+
+			return inflightBuffers;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -522,6 +551,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 			final boolean wasEmpty;
 			final CheckpointBarrier notifyReceivedBarrier;
+			final Buffer notifyReceivedBuffer;
 			final BufferReceivedListener listener = inputGate.getBufferReceivedListener();
 			synchronized (receivedBuffers) {
 				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
@@ -534,6 +564,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 				wasEmpty = receivedBuffers.isEmpty();
 				receivedBuffers.add(buffer);
 
+				if (listener != null && buffer.isBuffer() && receivedCheckpointId < lastRequestedCheckpointId) {
+					notifyReceivedBuffer = buffer.retainBuffer();
+				} else {
+					notifyReceivedBuffer = null;
+				}
 				notifyReceivedBarrier = listener != null ? parseCheckpointBarrierOrNull(buffer) : null;
 			}
 			recycleBuffer = false;
@@ -549,7 +584,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			}
 
 			if (notifyReceivedBarrier != null) {
+				receivedCheckpointId = notifyReceivedBarrier.getId();
 				listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
+			} else if (notifyReceivedBuffer != null) {
+				listener.notifyBufferReceived(notifyReceivedBuffer, channelInfo);
 			}
 		} finally {
 			if (recycleBuffer) {

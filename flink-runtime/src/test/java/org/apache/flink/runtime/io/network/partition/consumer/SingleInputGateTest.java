@@ -671,10 +671,14 @@ public class SingleInputGateTest extends InputGateTestBase {
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}));
 
 		remoteInputChannel1.onBuffer(createBuffer(1), 0, 0);
-		remoteInputChannel2.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(1, 0, options)), 0, 0);
+		remoteInputChannel2.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(0, 0, options)), 0, 0);
+		remoteInputChannel1.requestInflightBuffers(0);
+		remoteInputChannel2.requestInflightBuffers(0);
 		remoteInputChannel1.onBuffer(createBuffer(11), 1, 0);
 		remoteInputChannel2.onBuffer(createBuffer(12), 1, 0);
-		remoteInputChannel1.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(2, 0, options)), 2, 0);
+		remoteInputChannel1.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(1, 0, options)), 2, 0);
+		remoteInputChannel1.requestInflightBuffers(1);
+		remoteInputChannel2.requestInflightBuffers(1);
 		remoteInputChannel1.onBuffer(createBuffer(21), 3, 0);
 		remoteInputChannel2.onBuffer(createBuffer(22), 2, 0);
 
