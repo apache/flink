@@ -106,6 +106,15 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "TIMESTAMP '1500-04-30 12:00:00.1234'",
       "1500-04-30 12:00:00.1234")
+
+    testSqlApi(
+      "CAST('1500-04-30 12:00:00.123456789' AS TIMESTAMP(9))",
+      "1500-04-30 12:00:00.123456789")
+
+    // by default, it's TIMESTAMP(6)
+    testSqlApi(
+      "CAST('1500-04-30 12:00:00.123456789' AS TIMESTAMP)",
+      "1500-04-30 12:00:00.123456")
   }
 
   @Test
