@@ -230,9 +230,9 @@ public class SchemaValidator implements DescriptorValidator {
 			boolean isRowtime = properties.containsKey(tsType);
 			if (!isProctime && !isRowtime) {
 				// check for a aliasing
-				String fromFieldName = properties.getOptionalString(SCHEMA + "." + i + "." + SCHEMA_FROM)
+				String aliasName = properties.getOptionalString(SCHEMA + "." + i + "." + SCHEMA_FROM)
 						.orElse(fieldName);
-				builder.field(fromFieldName, dataType);
+				builder.field(aliasName, dataType);
 			}
 			// only use the rowtime attribute if it references a field
 			else if (isRowtime) {
