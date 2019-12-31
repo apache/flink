@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
 import javax.annotation.Nullable;
@@ -95,5 +96,9 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
 		return String.format("PipelinedSubpartitionView(index: %d) of ResultPartition %s",
 				parent.getSubPartitionIndex(),
 				parent.parent.getPartitionId());
+	}
+
+	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) {
+		return availabilityListener.notifyPriorityEvent(eventBufferConsumer);
 	}
 }

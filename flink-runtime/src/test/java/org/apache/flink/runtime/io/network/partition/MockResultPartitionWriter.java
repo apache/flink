@@ -59,7 +59,12 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	public final boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+	}
+
+	@Override
+	public boolean addBufferConsumer(BufferConsumer bufferConsumer,	int targetChannel, boolean isPriorityEvent) throws IOException {
 		bufferConsumer.close();
 		return true;
 	}

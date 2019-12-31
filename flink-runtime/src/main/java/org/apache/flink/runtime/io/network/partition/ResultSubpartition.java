@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -90,11 +91,33 @@ public abstract class ResultSubpartition {
 	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
+	 * @param isPriorityEvent
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	public abstract boolean add(BufferConsumer bufferConsumer) throws IOException;
+	public abstract boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException;
+
+	/**
+	 * Adds the given buffer.
+	 *
+	 * <p>The request may be executed synchronously, or asynchronously, depending on the
+	 * implementation.
+	 *
+	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
+	 * state. Because of the performance reasons, this is only enforced during the data reading.
+	 *
+	 * @param bufferConsumer
+	 * 		the buffer to add (transferring ownership to this writer)
+	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
+	 * @throws IOException
+	 * 		thrown in case of errors while adding the buffer
+	 */
+	public boolean add(BufferConsumer bufferConsumer) throws IOException {
+		return add(bufferConsumer, false);
+	}
+
+	public abstract List<Buffer> requestInflightBufferSnapshot();
 
 	public abstract void flush();
 

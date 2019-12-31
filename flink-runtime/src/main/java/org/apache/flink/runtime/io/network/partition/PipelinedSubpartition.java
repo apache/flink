@@ -35,6 +35,8 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -42,10 +44,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A pipelined in-memory only subpartition, which can be consumed once.
  *
- * <p>Whenever {@link #add(BufferConsumer)} adds a finished {@link BufferConsumer} or a second
+ * <p>Whenever {@link ResultSubpartition#add(BufferConsumer, boolean)} adds a finished {@link BufferConsumer} or a second
  * {@link BufferConsumer} (in which case we will assume the first one finished), we will
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
- * {@link #createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
+ * {@link ResultSubpartition#createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
  * {@link #flush()} explicitly, we always only notify when the first finished buffer turns up and
  * then, the reader has to drain the buffers via {@link #pollBuffer()} until its return value shows
  * no more buffers being available. This results in a buffer queue which is either empty or has an
@@ -86,6 +88,9 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	/** The total number of bytes (both data and event buffers). */
 	private long totalNumberOfBytes;
 
+	/** The collection of buffers which are spanned over by checkpoint barrier and needs to be persisted for snapshot. */
+	private final List<Buffer> inflightBufferSnapshot = new ArrayList<>();
+
 	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
@@ -101,7 +106,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 			// check whether there are some states data filled in this time
 			if (bufferConsumer.isDataAvailable()) {
-				add(bufferConsumer);
+				add(bufferConsumer, false, false);
 				bufferBuilder.finish();
 			} else {
 				bufferConsumer.close();
@@ -115,12 +120,24 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) {
+		if (isPriorityEvent) {
+			if (readView != null && readView.notifyPriorityEvent(bufferConsumer)) {
+				bufferConsumer.close();
+				return true;
+			}
+			return add(bufferConsumer, false, true);
+		}
+		return add(bufferConsumer, false, false);
+	}
+
+	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true, false);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
-	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
+	private boolean add(BufferConsumer bufferConsumer, boolean finish, boolean insertAsHead) {
 		checkNotNull(bufferConsumer);
 
 		final boolean notifyDataAvailable;
@@ -131,10 +148,10 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			}
 
 			// Add the bufferConsumer and update the stats
-			buffers.add(bufferConsumer);
+			handleAddingBarrier(bufferConsumer, insertAsHead);
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
-			notifyDataAvailable = shouldNotifyDataAvailable() || finish;
+			notifyDataAvailable = insertAsHead || finish || shouldNotifyDataAvailable();
 
 			isFinished |= finish;
 		}
@@ -144,6 +161,32 @@ public class PipelinedSubpartition extends ResultSubpartition {
 		}
 
 		return true;
+	}
+
+	private void handleAddingBarrier(BufferConsumer bufferConsumer, boolean insertAsHead) {
+		assert Thread.holdsLock(buffers);
+		if (insertAsHead) {
+			checkState(inflightBufferSnapshot.isEmpty(), "Supporting only one concurrent checkpoint in unaligned " +
+				"checkpoints");
+
+			// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
+			for (BufferConsumer buffer : buffers) {
+				try (BufferConsumer bc = buffer.copy()) {
+					inflightBufferSnapshot.add(bc.build());
+				}
+			}
+
+			buffers.addFirst(bufferConsumer);
+		} else {
+			buffers.add(bufferConsumer);
+		}
+	}
+
+	@Override
+	public List<Buffer> requestInflightBufferSnapshot() {
+		List<Buffer> snapshot = new ArrayList<>(inflightBufferSnapshot);
+		inflightBufferSnapshot.clear();
+		return snapshot;
 	}
 
 	@Override
