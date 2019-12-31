@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -162,7 +163,8 @@ public class HiveTableSource implements
 		return source.name(explainSource());
 	}
 
-	private HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions) {
+	@VisibleForTesting
+	HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions) {
 		return new HiveTableInputFormat(
 				jobConf, catalogTable, allHivePartitions, projectedFields, limit, hiveVersion);
 	}
