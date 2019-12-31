@@ -33,6 +33,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -141,6 +143,10 @@ public abstract class InputChannel {
 	 */
 	protected void notifyChannelNonEmpty() {
 		inputGate.notifyChannelNonEmpty(this);
+	}
+
+	public List<Buffer> requestInflightBuffers(long checkpointId) throws IOException {
+		return Collections.emptyList();
 	}
 
 	// ------------------------------------------------------------------------
