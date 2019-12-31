@@ -24,11 +24,8 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
-import org.apache.flink.api.common.functions.RichFlatJoinFunction
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 
 import org.apache.calcite.rel.logical.LogicalJoin
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -420,6 +417,7 @@ class WindowJoinTest extends TableTestBase {
       query2,
       ">($2, $6)")
   }
+
   private def verifyTimeBoundary(
       timeConditionSql: String,
       expLeftSize: Long,
@@ -468,4 +466,5 @@ class WindowJoinTest extends TableTestBase {
     val actual: String = remainCondition.getOrElse("").toString
     assertEquals(expectConditionStr, actual)
   }
+
 }
