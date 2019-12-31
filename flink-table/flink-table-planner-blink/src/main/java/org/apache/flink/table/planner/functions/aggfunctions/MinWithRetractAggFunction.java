@@ -372,6 +372,12 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 
 		private static final long serialVersionUID = -7494198823345305907L;
 
+		private final int precision;
+
+		public TimestampMinWithRetractAggFunction(int precision) {
+			this.precision = precision;
+		}
+
 		public void accumulate(MinWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
 			super.accumulate(acc, value);
 		}
@@ -382,7 +388,7 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 
 		@Override
 		protected TypeInformation<SqlTimestamp> getValueTypeInfo() {
-			return new SqlTimestampTypeInfo(3);
+			return new SqlTimestampTypeInfo(precision);
 		}
 	}
 

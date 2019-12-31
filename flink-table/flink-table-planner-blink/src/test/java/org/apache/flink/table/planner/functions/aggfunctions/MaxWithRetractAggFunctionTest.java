@@ -251,10 +251,10 @@ public class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Max
 						)
 				),
 				/**
-				 * Test for TimestampMaxWithRetractAggFunction.
+				 * Test for TimestampMaxWithRetractAggFunction with millisecond's precision.
 				 */
 				new AggFunctionTestSpec<>(
-						new TimestampMaxWithRetractAggFunction(),
+						new TimestampMaxWithRetractAggFunction(3),
 						Arrays.asList(
 								Arrays.asList(
 										SqlTimestamp.fromEpochMillis(0),
@@ -279,6 +279,39 @@ public class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Max
 								SqlTimestamp.fromEpochMillis(1000),
 								null,
 								SqlTimestamp.fromEpochMillis(1)
+						)
+				),
+				/**
+				 * Test for TimestampMaxWithRetractAggFunction with nanosecond's precision.
+				 */
+				new AggFunctionTestSpec<>(
+						new TimestampMaxWithRetractAggFunction(9),
+						Arrays.asList(
+								Arrays.asList(
+										SqlTimestamp.fromEpochMillis(0, 0),
+										SqlTimestamp.fromEpochMillis(1000, 0),
+										SqlTimestamp.fromEpochMillis(1000, 1),
+										SqlTimestamp.fromEpochMillis(100, 0),
+										null,
+										SqlTimestamp.fromEpochMillis(10, 0)
+								),
+								Arrays.asList(
+										null,
+										null,
+										null,
+										null,
+										null
+								),
+								Arrays.asList(
+										null,
+										SqlTimestamp.fromEpochMillis(1, 0),
+										SqlTimestamp.fromEpochMillis(1, 1)
+								)
+						),
+						Arrays.asList(
+								SqlTimestamp.fromEpochMillis(1000, 1),
+								null,
+								SqlTimestamp.fromEpochMillis(1, 1)
 						)
 				),
 				/**

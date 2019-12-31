@@ -251,10 +251,10 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 						)
 				),
 				/**
-				 * Test for TimestampMinWithRetractAggFunction.
+				 * Test for TimestampMinWithRetractAggFunction with millisecond's precision.
 				 */
 				new AggFunctionTestSpec<>(
-						new TimestampMinWithRetractAggFunction(),
+						new TimestampMinWithRetractAggFunction(3),
 						Arrays.asList(
 								Arrays.asList(
 										SqlTimestamp.fromEpochMillis(0),
@@ -281,6 +281,40 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 								SqlTimestamp.fromEpochMillis(1)
 						)
 				),
+				/**
+				 * Test for TimestampMinWithRetractAggFunction with nanosecond's precision.
+				 */
+				new AggFunctionTestSpec<>(
+						new TimestampMinWithRetractAggFunction(9),
+						Arrays.asList(
+								Arrays.asList(
+										SqlTimestamp.fromEpochMillis(0, 1),
+										SqlTimestamp.fromEpochMillis(0, 2),
+										SqlTimestamp.fromEpochMillis(1000, 0),
+										SqlTimestamp.fromEpochMillis(100, 0),
+										null,
+										SqlTimestamp.fromEpochMillis(10, 0)
+								),
+								Arrays.asList(
+										null,
+										null,
+										null,
+										null,
+										null
+								),
+								Arrays.asList(
+										null,
+										SqlTimestamp.fromEpochMillis(1, 1),
+										SqlTimestamp.fromEpochMillis(1, 2)
+								)
+						),
+						Arrays.asList(
+								SqlTimestamp.fromEpochMillis(0, 1),
+								null,
+								SqlTimestamp.fromEpochMillis(1, 1)
+						)
+				),
+
 				/**
 				 * Test for DateMinWithRetractAggFunction.
 				 */

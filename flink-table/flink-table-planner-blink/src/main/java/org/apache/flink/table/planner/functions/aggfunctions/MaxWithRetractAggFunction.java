@@ -372,6 +372,12 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 
 		private static final long serialVersionUID = -7096481949093142944L;
 
+		private final int precision;
+
+		public TimestampMaxWithRetractAggFunction(int precision) {
+			this.precision = precision;
+		}
+
 		public void accumulate(MaxWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
 			super.accumulate(acc, value);
 		}
@@ -382,7 +388,7 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 
 		@Override
 		protected TypeInformation<SqlTimestamp> getValueTypeInfo() {
-			return new SqlTimestampTypeInfo(3);
+			return new SqlTimestampTypeInfo(precision);
 		}
 	}
 
