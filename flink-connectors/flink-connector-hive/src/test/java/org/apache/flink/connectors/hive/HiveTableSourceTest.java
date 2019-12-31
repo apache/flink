@@ -403,7 +403,7 @@ public class HiveTableSourceTest {
 		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
 
 		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
-		doReturn(new TestVectorReaderSource(new JobConf(hiveCatalog.getHiveConf()), tablePath, catalogTable, fallback))
+		doReturn(new TestVectorReaderSource(new JobConf(hiveCatalog.getHiveConf()), tablePath, catalogTable))
 				.when(tableFactorySpy).createTableSource(any(ObjectPath.class), any(CatalogTable.class));
 		HiveCatalog catalogSpy = spy(hiveCatalog);
 		doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
@@ -420,19 +420,17 @@ public class HiveTableSourceTest {
 	private static class TestVectorReaderSource extends HiveTableSource {
 		private final JobConf jobConf;
 		private final CatalogTable catalogTable;
-		private final boolean fallback;
 
-		TestVectorReaderSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable, boolean fallback) {
+		TestVectorReaderSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
 			super(jobConf, tablePath, catalogTable);
 			this.jobConf = jobConf;
 			this.catalogTable = catalogTable;
-			this.fallback = fallback;
 		}
 
 		@Override
-		HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions) {
+		HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
 			return new TestVectorReaderInputFormat(
-					jobConf, catalogTable, allHivePartitions, null, -1, hiveCatalog.getHiveVersion(), fallback);
+					jobConf, catalogTable, allHivePartitions, null, -1, hiveCatalog.getHiveVersion(), useMapRedReader);
 		}
 	}
 
@@ -441,17 +439,15 @@ public class HiveTableSourceTest {
 
 		private static final long serialVersionUID = 1L;
 
-		private final boolean fallback;
-
 		TestVectorReaderInputFormat(JobConf jobConf, CatalogTable catalogTable, List<HiveTablePartition> partitions,
-				int[] projectedFields, long limit, String hiveVersion, boolean fallback) {
-			super(jobConf, catalogTable, partitions, projectedFields, limit, hiveVersion);
-			this.fallback = fallback;
+				int[] projectedFields, long limit, String hiveVersion, boolean useMapRedReader) {
+			super(jobConf, catalogTable, partitions, projectedFields, limit, hiveVersion, useMapRedReader);
 		}
 
 		@Override
 		public void open(HiveTableInputSplit split) throws IOException {
 			super.open(split);
+			boolean fallback = GlobalConfiguration.loadConfiguration().getBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
 			assertTrue((fallback && reader instanceof HiveMapredSplitReader) || (!fallback && reader instanceof HiveVectorizedOrcSplitReader));
 		}
 	}

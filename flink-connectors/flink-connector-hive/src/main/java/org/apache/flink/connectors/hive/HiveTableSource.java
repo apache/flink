@@ -134,10 +134,10 @@ public class HiveTableSource implements
 		@SuppressWarnings("unchecked")
 		TypeInformation<BaseRow> typeInfo =
 				(TypeInformation<BaseRow>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
-		HiveTableInputFormat inputFormat = getInputFormat(allHivePartitions);
+		Configuration conf = GlobalConfiguration.loadConfiguration();
+		HiveTableInputFormat inputFormat = getInputFormat(allHivePartitions, conf.getBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
 		DataStreamSource<BaseRow> source = execEnv.createInput(inputFormat, typeInfo);
 
-		Configuration conf = GlobalConfiguration.loadConfiguration();
 		if (conf.getBoolean(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
 			int max = conf.getInteger(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
 			if (max < 1) {
@@ -164,9 +164,9 @@ public class HiveTableSource implements
 	}
 
 	@VisibleForTesting
-	HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions) {
+	HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
 		return new HiveTableInputFormat(
-				jobConf, catalogTable, allHivePartitions, projectedFields, limit, hiveVersion);
+				jobConf, catalogTable, allHivePartitions, projectedFields, limit, hiveVersion, useMapRedReader);
 	}
 
 	@Override
