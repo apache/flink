@@ -31,6 +31,7 @@ Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
 - CREATE DATABASE
+- CREATE FUNCTION
 
 ## Run a CREATE statement
 
@@ -225,3 +226,25 @@ Database properties used to store extra information related to this database.
 The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
+
+## CREATE FUNCTION
+{% highlight sql%}
+CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
+  [IF NOT EXISTS] [[catalog_name.]db_name.]function_name 
+  AS identifier [LANGUAGE JAVA|SCALA]
+{% endhighlight %}
+
+Create a catalog function that has catalog and database namespaces with the identifier which is full classpath for JAVA/SCALA and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+
+**TEMPORARY**
+Create temporary catalog function that has catalog and database namespaces and overrides catalog functions.
+
+**TEMPORARY SYSTEM**
+Create temporary system function that has no namespace and overrides built-in functions
+
+**IF NOT EXISTS**
+If the function already exists, nothing happens.
+
+**LANGUAGE JAVA|SCALA**
+Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+
