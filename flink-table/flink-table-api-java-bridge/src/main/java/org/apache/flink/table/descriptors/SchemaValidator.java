@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -29,7 +30,6 @@ import org.apache.flink.table.factories.TableFormatFactory;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
-import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -212,12 +212,16 @@ public class SchemaValidator implements DescriptorValidator {
 	@Deprecated
 	public static TableSchema deriveTableSinkSchema(DescriptorProperties properties) {
 		TableSchema.Builder builder = TableSchema.builder();
-
-		TableSchema schema = TableSchemaUtils.getPhysicalSchema(properties.getTableSchema(SCHEMA));
-
-		for (int i = 0; i < schema.getFieldCount(); i++) {
-			TypeInformation t = schema.getFieldTypes()[i];
-			String n = schema.getFieldNames()[i];
+		TableSchema tableSchema = properties.getTableSchema(SCHEMA);
+		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
+			TypeInformation t = tableSchema.getFieldTypes()[i];
+			String n = tableSchema.getFieldNames()[i];
+			Optional<TableColumn> tableColumn = tableSchema.getTableColumn(n);
+			boolean isGeneratedColumn = tableColumn.isPresent() && tableColumn.get().isGenerated();
+			if (isGeneratedColumn) {
+				// skip generated column
+				continue;
+			}
 			boolean isProctime = properties
 					.getOptionalBoolean(SCHEMA + "." + i + "." + SCHEMA_PROCTIME)
 					.orElse(false);
@@ -261,7 +265,7 @@ public class SchemaValidator implements DescriptorValidator {
 
 		Map<String, String> mapping = new HashMap<>();
 
-		TableSchema schema = TableSchemaUtils.getPhysicalSchema(properties.getTableSchema(SCHEMA));
+		TableSchema schema = properties.getTableSchema(SCHEMA);
 
 		List<String> columnNames = new ArrayList<>();
 		inputType.ifPresent(t -> columnNames.addAll(Arrays.asList(((CompositeType) t).getFieldNames())));

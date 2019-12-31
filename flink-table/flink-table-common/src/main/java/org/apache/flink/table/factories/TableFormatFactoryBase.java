@@ -19,19 +19,18 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
@@ -157,28 +156,25 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 		final TableSchema.Builder builder = TableSchema.builder();
 
 		final TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
-		final TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(tableSchema);
+		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
+			final String fieldName = tableSchema.getFieldNames()[i];
+			final DataType fieldType = tableSchema.getFieldDataTypes()[i];
 
-		final Map<Integer, Integer> physicalIndices2Indices = Arrays.stream(physicalSchema.getFieldNames())
-			.collect(Collectors.toMap(
-				Arrays.asList(physicalSchema.getFieldNames())::indexOf,
-				Arrays.asList(tableSchema.getFieldNames())::indexOf));
-
-		for (int i = 0; i < physicalSchema.getFieldCount(); i++) {
-			final String fieldName = physicalSchema.getFieldNames()[i];
-			final DataType fieldType = physicalSchema.getFieldDataTypes()[i];
-
+			final Optional<TableColumn> tableColumn = tableSchema.getTableColumn(fieldName);
+			final boolean isGeneratedColumn = tableColumn.isPresent() && tableColumn.get().isGenerated();
+			if (isGeneratedColumn) {
+				//skip generated column
+				continue;
+			}
 			final boolean isProctime = descriptorProperties
-				.getOptionalBoolean(SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + SCHEMA_PROCTIME)
+				.getOptionalBoolean(SCHEMA + '.' + i + '.' + SCHEMA_PROCTIME)
 				.orElse(false);
-			final String timestampKey = SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + ROWTIME_TIMESTAMPS_TYPE;
+			final String timestampKey = SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_TYPE;
 			final boolean isRowtime = descriptorProperties.containsKey(timestampKey);
-			final boolean isGeneratedColumn = properties.containsKey(SCHEMA + "." + physicalIndices2Indices.get(i) + "." + TABLE_SCHEMA_EXPR);
-
-			if (!isProctime && !isRowtime && !isGeneratedColumn) {
+			if (!isProctime && !isRowtime) {
 				// check for aliasing
 				final String aliasName = descriptorProperties
-					.getOptionalString(SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + SCHEMA_FROM)
+					.getOptionalString(SCHEMA + '.' + i + '.' + SCHEMA_FROM)
 					.orElse(fieldName);
 				builder.field(aliasName, fieldType);
 			}
@@ -186,7 +182,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			else if (isRowtime &&
 					descriptorProperties.isValue(timestampKey, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD)) {
 				final String aliasName = descriptorProperties
-					.getString(SCHEMA + '.' + physicalIndices2Indices.get(i) + '.' + ROWTIME_TIMESTAMPS_FROM);
+					.getString(SCHEMA + '.' + i + '.' + ROWTIME_TIMESTAMPS_FROM);
 				builder.field(aliasName, fieldType);
 			}
 		}
