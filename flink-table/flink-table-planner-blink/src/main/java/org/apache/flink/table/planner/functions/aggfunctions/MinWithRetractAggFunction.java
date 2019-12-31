@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
 import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -367,13 +367,13 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 	/**
 	 * Built-in Timestamp Min with retraction aggregate function.
 	 */
-	public static class TimestampMinWithRetractAggFunction extends MinWithRetractAggFunction<Timestamp> {
+	public static class TimestampMinWithRetractAggFunction extends MinWithRetractAggFunction<LocalDateTime> {
 
 		private static final long serialVersionUID = -7494198823345305907L;
 
 		@Override
-		protected TypeInformation<Timestamp> getValueTypeInfo() {
-			return Types.SQL_TIMESTAMP;
+		protected TypeInformation<LocalDateTime> getValueTypeInfo() {
+			return Types.LOCAL_DATE_TIME;
 		}
 	}
 

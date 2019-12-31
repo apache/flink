@@ -40,6 +40,7 @@ import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -433,17 +434,17 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 	/**
 	 * Test for TimestampMaxWithRetractAggFunction.
 	 */
-	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<Timestamp> {
+	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTest<LocalDateTime> {
 
 		@Override
-		protected List<List<Timestamp>> getInputValueSets() {
+		protected List<List<LocalDateTime>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Timestamp(0),
-							new Timestamp(1000),
-							new Timestamp(100),
+							new Timestamp(0).toLocalDateTime(),
+							new Timestamp(1000).toLocalDateTime(),
+							new Timestamp(100).toLocalDateTime(),
 							null,
-							new Timestamp(10)
+							new Timestamp(10).toLocalDateTime()
 					),
 					Arrays.asList(
 							null,
@@ -454,22 +455,22 @@ public abstract class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBa
 					),
 					Arrays.asList(
 							null,
-							new Timestamp(1)
+							new Timestamp(1).toLocalDateTime()
 					)
 			);
 		}
 
 		@Override
-		protected List<Timestamp> getExpectedResults() {
+		protected List<LocalDateTime> getExpectedResults() {
 			return Arrays.asList(
-					new Timestamp(1000),
+					new Timestamp(1000).toLocalDateTime(),
 					null,
-					new Timestamp(1)
+					new Timestamp(1).toLocalDateTime()
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Timestamp, MaxWithRetractAccumulator<Timestamp>> getAggregator() {
+		protected AggregateFunction<LocalDateTime, MaxWithRetractAccumulator<LocalDateTime>> getAggregator() {
 			return new TimestampMaxWithRetractAggFunction();
 		}
 	}
