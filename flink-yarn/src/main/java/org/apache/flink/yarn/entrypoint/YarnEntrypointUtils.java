@@ -34,7 +34,6 @@ import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -67,9 +66,6 @@ public class YarnEntrypointUtils {
 
 		final String zooKeeperNamespace = env.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
 
-		final Map<String, String> dynamicProperties = FlinkYarnSessionCli.getDynamicProperties(
-			env.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
-
 		final String hostname = env.get(ApplicationConstants.Environment.NM_HOST.key());
 		Preconditions.checkState(
 			hostname != null,
@@ -83,10 +79,6 @@ public class YarnEntrypointUtils {
 //		final String portRange = configuration.getString(
 //			ConfigConstants.YARN_APPLICATION_MASTER_PORT,
 //			ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
-
-		for (Map.Entry<String, String> property : dynamicProperties.entrySet()) {
-			configuration.setString(property.getKey(), property.getValue());
-		}
 
 		if (zooKeeperNamespace != null) {
 			configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zooKeeperNamespace);

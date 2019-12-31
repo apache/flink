@@ -22,10 +22,13 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -37,7 +40,6 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,7 +48,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -87,20 +88,14 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLineParser parser = new DefaultParser();
 		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar",
-				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar", "-D", "security.ssl.internal.key-password=changeit"});
+				"-D", AkkaOptions.ASK_TIMEOUT.key() + "=5 min",
+				"-D", CoreOptions.FLINK_JVM_OPTIONS.key() + "=-DappName=foobar",
+				"-D", SecurityOptions.SSL_INTERNAL_KEY_PASSWORD.key() + "=changeit"});
 
 		Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(cmd);
-		ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		YarnClusterDescriptor flinkYarnDescriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
-
-		Assert.assertNotNull(flinkYarnDescriptor);
-
-		Map<String, String> dynProperties =
-			FlinkYarnSessionCli.getDynamicProperties(flinkYarnDescriptor.getDynamicPropertiesEncoded());
-		assertEquals(3, dynProperties.size());
-		assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
-		assertEquals("-DappName=foobar", dynProperties.get("env.java.opts"));
-		assertEquals("changeit", dynProperties.get("security.ssl.internal.key-password"));
+		assertEquals("5 min", executorConfig.get(AkkaOptions.ASK_TIMEOUT));
+		assertEquals("-DappName=foobar", executorConfig.get(CoreOptions.FLINK_JVM_OPTIONS));
+		assertEquals("changeit", executorConfig.get(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD));
 	}
 
 	@Test
