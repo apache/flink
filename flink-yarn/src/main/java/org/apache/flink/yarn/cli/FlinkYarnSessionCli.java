@@ -156,6 +156,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private final ClusterClientServiceLoader clusterClientServiceLoader;
 
+	@Nullable
+	private String dynamicPropertiesEncoded = null;
+
 	public FlinkYarnSessionCli(
 			Configuration configuration,
 			String configurationDirectory,
@@ -403,7 +406,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, queueName);
 		}
 
-		final String dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
+		dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
 		if (dynamicPropertiesEncoded != null && !dynamicPropertiesEncoded.isEmpty()) {
 			configuration.setString(YarnConfigOptionsInternal.DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
@@ -568,7 +571,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						writeYarnPropertiesFile(
 							yarnApplicationId,
 							clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
-							yarnClusterDescriptor.getDynamicPropertiesEncoded());
+							dynamicPropertiesEncoded);
 					} catch (Exception e) {
 						try {
 							clusterClient.close();
