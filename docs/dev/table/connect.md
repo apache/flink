@@ -650,7 +650,7 @@ Please note that not all connectors are available in both batch and streaming ye
 <span class="label label-primary">Source: Streaming Append Mode</span>
 <span class="label label-primary">Sink: Batch</span>
 <span class="label label-primary">Sink: Streaming Append Mode</span>
-<span class="label label-info">Format: CSV-only</span>
+<span class="label label-info">Format: OldCsv-only</span>
 
 The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem can be defined as:
 
@@ -664,7 +664,7 @@ CREATE TABLE MyUserTable (
   'connector.path' = 'file:///path/to/whatever',  -- required: path to a file or directory
   'format.type' = '...',                          -- required: file system connector requires to specify a format,
   ...                                             -- currently only 'csv' format is supported.
-                                                  -- Please refer to Table Formats section for more details.
+                                                  -- Please refer to old CSV format part of Table Formats section for more details.
 )                                               
 {% endhighlight %}
 </div>
@@ -676,8 +676,8 @@ CREATE TABLE MyUserTable (
     .path("file:///path/to/whatever")    // required: path to a file or directory
 )
 .withFormat(                             // required: file system connector requires to specify a format,
-  ...                                    // currently only Csv format is supported.
-)                                        // Please refer to Table Formats section for more details.
+  ...                                    // currently only OldCsv format is supported.
+)                                        // Please refer to old CSV format part of Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -688,8 +688,8 @@ CREATE TABLE MyUserTable (
     .path("file:///path/to/whatever")  # required: path to a file or directory
 )
 .withFormat(                           # required: file system connector requires to specify a format,
-  ...                                  # currently only Csv format is supported.
-)                                      # Please refer to Table Formats section for more details.
+  ...                                  # currently only OldCsv format is supported.
+)                                      # Please refer to old CSV format part of Table Formats section for more details.
 {% endhighlight %}
 </div>
 
@@ -699,8 +699,8 @@ connector:
   type: filesystem
   path: "file:///path/to/whatever"    # required: path to a file or directory
 format:                               # required: file system connector requires to specify a format,
-  ...                                 # currently only "csv" format is supported.
-                                      # Please refer to Table Formats section for more details.
+  ...                                 # currently only 'csv' format is supported.
+                                      # Please refer to old CSV format part of Table Formats section for more details.
 {% endhighlight %}
 </div>
 </div>
