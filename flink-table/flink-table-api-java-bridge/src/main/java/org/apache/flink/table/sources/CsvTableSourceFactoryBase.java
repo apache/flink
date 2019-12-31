@@ -27,6 +27,7 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -114,7 +115,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		// build
 		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
 
-		TableSchema tableSchema = params.getTableSchema(SCHEMA);
+		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA));
 
 		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
 		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);

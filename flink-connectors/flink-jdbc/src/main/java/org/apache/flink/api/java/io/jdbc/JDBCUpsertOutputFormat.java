@@ -112,7 +112,7 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
 
-		if (flushIntervalMills != 0) {
+		if (flushIntervalMills != 0 && flushMaxSize != 1) {
 			this.scheduler = Executors.newScheduledThreadPool(
 					1, new ExecutorThreadFactory("jdbc-upsert-output-format"));
 			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {

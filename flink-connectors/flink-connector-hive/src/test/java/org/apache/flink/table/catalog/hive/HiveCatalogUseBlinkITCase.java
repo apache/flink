@@ -27,6 +27,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
@@ -261,7 +262,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select myyear(ts) as y from src"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select myyear(ts) as y from src"));
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[2013, 2019]", results.toString());
 		} finally {
@@ -285,7 +286,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select mymonth(dt) as m from src order by m"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select mymonth(dt) as m from src order by m"));
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[1, 3]", results.toString());
 		} finally {

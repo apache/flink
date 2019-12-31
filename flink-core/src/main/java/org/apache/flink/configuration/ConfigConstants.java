@@ -370,7 +370,7 @@ public final class ConfigConstants {
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
-	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate
 	 * for other JVM memory usage.
 	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
 	 */
@@ -433,17 +433,6 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
-
-	/**
-	 * The maximum number of failed YARN containers before entirely stopping
-	 * the YARN session / job on YARN.
-	 *
-	 * <p>By default, we take the number of initially requested containers.
-	 *
-	 * @deprecated in favor of {@code YarnConfigOptions#MAX_FAILED_CONTAINERS}.
-	 */
-	@Deprecated
-	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high

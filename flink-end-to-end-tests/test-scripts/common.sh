@@ -154,7 +154,7 @@ function create_ha_config() {
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
     jobmanager.heap.size: 1024m
-    taskmanager.memory.total-process.size: 1024m
+    taskmanager.memory.process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
     #==============================================================================
@@ -323,6 +323,7 @@ function check_logs_for_errors {
       | grep -v "NoAvailableBrokersException" \
       | grep -v "Async Kafka commit failed" \
       | grep -v "DisconnectException" \
+      | grep -v "Cannot connect to ResourceManager right now" \
       | grep -v "AskTimeoutException" \
       | grep -v "Error while loading kafka-version.properties" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
@@ -354,6 +355,7 @@ function check_logs_for_exceptions {
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \
    | grep -v "DisconnectException" \
+   | grep -v "Cannot connect to ResourceManager right now" \
    | grep -v "AskTimeoutException" \
    | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
    | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \

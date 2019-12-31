@@ -110,6 +110,13 @@ __________ __________
 
 {% endhighlight %}
 
+### Querying Hive views
+
+If you need to query Hive views, please note:
+
+1. You have to use the Hive catalog as your current catalog before you can query views in that catalog. It can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
+2. Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals. Make sure the view's query is compatible with Flink grammar.
+
 ## Writing To Hive
 
 Similarly, data can be written into hive using an `INSERT` clause.
@@ -137,11 +144,34 @@ Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08'
 Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 {% endhighlight %}
 
+
 ## Formats
 
 We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
 
-# ------ ORC Vectorized Optimization ------ 
+
+## Optimizations
+
+### Partition Pruning
+
+Flink uses partition pruning as a performance optimization to limits the number of files and partitions
+that Flink reads when querying Hive tables. When your data is partitioned, Flink only reads a subset of the partitions in 
+a Hive table when a query matches certain filter criteria.
+
+### Projection Pushdown
+
+Flink leverages projection pushdown to minimize data transfer between Flink and Hive tables by omitting 
+unnecessary fields from table scans.
+
+It is especially beneficial when a table contains many columns.
+
+### Limit Pushdown
+
+For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
+amount of data transferred across network.
+
+### ORC Vectorized Optimization upon Read
+
 Optimization is used automatically when the following conditions are met:
 
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
@@ -152,6 +182,7 @@ This feature is turned on by default. If there is a problem, you can use this co
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
 {% endhighlight %}
+
 
 ## Roadmap
 

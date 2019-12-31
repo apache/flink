@@ -102,10 +102,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(FLINK_CONFIG, flinkKubeClient);
 
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(1)
-			.setTaskManagerMemoryMB(1)
-			.setNumberTaskManagers(1)
-			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
 
 		descriptor.deploySessionCluster(clusterSpecification);

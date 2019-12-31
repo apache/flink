@@ -33,6 +33,16 @@ class WindowAggregateTest extends TableTestBase {
   util.addDataStream[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addFunction("weightedAvg", new WeightedAvgWithMerge)
+  util.tableEnv.sqlUpdate(
+    s"""
+       |create table MyTable1 (
+       |  a int,
+       |  b bigint,
+       |  c as proctime()
+       |) with (
+       |  'connector' = 'COLLECTION'
+       |)
+       |""".stripMargin)
 
   @Test(expected = classOf[TableException])
   def testTumbleWindowNoOffset(): Unit = {
@@ -133,6 +143,12 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testTumblingWindowWithProctime(): Unit = {
+    val sql = "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)"
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testMultiHopWindows(): Unit = {
     val sql =
       """
@@ -195,6 +211,17 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testHopWindowWithProctime(): Unit = {
+    val sql =
+      s"""
+         |select sum(a), max(b)
+         |from MyTable1
+         |group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
+         |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testSessionFunction(): Unit = {
     val sql =
       """
@@ -205,6 +232,17 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY SESSION(proctime, INTERVAL '15' MINUTE)
       """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testSessionWindowWithProctime(): Unit = {
+    val sql =
+      s"""
+         |select sum(a), max(b)
+         |from MyTable1
+         |group by SESSION(c, INTERVAL '1' MINUTE)
+         |""".stripMargin
     util.verifyPlan(sql)
   }
 

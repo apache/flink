@@ -79,7 +79,8 @@ public class ConfigOptionsDocGenerator {
 		"org.apache.flink.configuration.WritableConfig",
 		"org.apache.flink.configuration.ConfigOptions",
 		"org.apache.flink.streaming.api.environment.CheckpointConfig",
-		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
+		"org.apache.flink.contrib.streaming.state.PredefinedOptions",
+		"org.apache.flink.python.PythonConfig"));
 
 	static final String DEFAULT_PATH_PREFIX = "src/main/java";
 

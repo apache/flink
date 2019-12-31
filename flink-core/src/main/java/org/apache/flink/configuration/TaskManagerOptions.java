@@ -223,7 +223,7 @@ public class TaskManagerOptions {
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
 	public static final ConfigOption<String> TOTAL_PROCESS_MEMORY =
-		key("taskmanager.memory.total-process.size")
+		key("taskmanager.memory.process.size")
 			.noDefaultValue()
 			.withDeprecatedKeys("taskmanager.heap.size")
 			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
@@ -234,7 +234,7 @@ public class TaskManagerOptions {
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
 	public static final ConfigOption<String> TOTAL_FLINK_MEMORY =
-		key("taskmanager.memory.total-flink.size")
+		key("taskmanager.memory.flink.size")
 		.noDefaultValue()
 		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
 			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
@@ -256,8 +256,9 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.framework.off-heap.size")
 			.defaultValue("128m")
 			.withDescription("Framework Off-Heap Memory size for TaskExecutors. This is the size of off-heap memory"
-				+ " (JVM direct memory or native memory) reserved for TaskExecutor framework, which will not be"
-				+ " allocated to task slots. It will be accounted as part of the JVM max direct memory size limit.");
+				+ " (JVM direct memory and native memory) reserved for TaskExecutor framework, which will not be"
+				+ " allocated to task slots. The configured value will be fully counted when Flink calculates the JVM"
+				+ " max direct memory size parameter.");
 
 	/**
 	 * Task Heap Memory size for TaskExecutors.
@@ -266,7 +267,7 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.task.heap.size")
 			.noDefaultValue()
 			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
-				+ " user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
+				+ " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
 				+ " Task Off-Heap Memory, Managed Memory and Shuffle Memory.");
 
 	/**
@@ -275,8 +276,9 @@ public class TaskManagerOptions {
 	public static final ConfigOption<String> TASK_OFF_HEAP_MEMORY =
 		key("taskmanager.memory.task.off-heap.size")
 			.defaultValue("0b")
-			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM direct"
-				+ " memory or native memory) reserved for user code.");
+			.withDescription("Task Off-Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM"
+				+ " direct memory and native memory) reserved for tasks. The configured value will be fully counted"
+				+ " when Flink calculates the JVM max direct memory size parameter.");
 
 	/**
 	 * Managed Memory size for TaskExecutors.
@@ -355,10 +357,11 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.jvm-overhead.min")
 			.defaultValue("128m")
 			.withDescription("Min JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
-				+ " overhead, such as thread stack space, I/O direct memory, compile cache, etc. The size of JVM"
-				+ " Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived"
-				+ " size is less/greater than the configured min/max size, the min/max size will be used. The exact size"
-				+ " of JVM Overhead can be explicitly specified by setting the min/max size to the same value.");
+				+ " overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct"
+				+ " memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size"
+				+ " of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the"
+				+ " derived size is less/greater than the configured min/max size, the min/max size will be used. The"
+				+ " exact size of JVM Overhead can be explicitly specified by setting the min/max size to the same value.");
 
 	/**
 	 * Max JVM Overhead size for the TaskExecutors.
@@ -367,10 +370,11 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.jvm-overhead.max")
 			.defaultValue("1g")
 			.withDescription("Max JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
-				+ " overhead, such as thread stack space, I/O direct memory, compile cache, etc. The size of JVM"
-				+ " Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived"
-				+ " size is less/greater than the configured min/max size, the min/max size will be used. The exact size"
-				+ " of JVM Overhead can be explicitly specified by setting the min/max size to the same value.");
+				+ " overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct"
+				+ " memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size"
+				+ " of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the"
+				+ " derived size is less/greater than the configured min/max size, the min/max size will be used. The"
+				+ " exact size of JVM Overhead can be explicitly specified by setting the min/max size to the same value.");
 
 	/**
 	 * Fraction of Total Process Memory to be reserved for JVM Overhead.
@@ -379,11 +383,12 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.jvm-overhead.fraction")
 			.defaultValue(0.1f)
 			.withDescription("Fraction of Total Process Memory to be reserved for JVM Overhead. This is off-heap memory"
-				+ " reserved for JVM overhead, such as thread stack space, I/O direct memory, compile cache, etc. The"
-				+ " size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If"
-				+ " the derived size is less/greater than the configured min/max size, the min/max size will be used."
-				+ " The exact size of JVM Overhead can be explicitly specified by setting the min/max size to the same"
-				+ " value.");
+				+ " reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native"
+				+ " memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory"
+				+ " size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total"
+				+ " Process Memory. If the derived size is less/greater than the configured min/max size, the min/max"
+				+ " size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min/max"
+				+ " size to the same value.");
 
 	// ------------------------------------------------------------------------
 	//  Task Options

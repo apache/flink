@@ -26,8 +26,6 @@ MAX_RETRY_SECONDS=120
 IMAGE_BUILD_RETRIES=5
 NODENAME=${NODENAME:-`hostname -f`}
 
-export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
-
 echo "End-to-end directory $END_TO_END_DIR"
 
 start_time=$(date +%s)
@@ -35,8 +33,6 @@ start_time=$(date +%s)
 # make sure we stop our cluster at the end
 function cluster_shutdown {
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml down
-  rm -rf ${INPUT_VOLUME}/log
-  rm -rf ${INPUT_VOLUME}/tmp
 }
 on_exit cluster_shutdown
 
@@ -56,7 +52,7 @@ function start_flink_cluster_with_mesos() {
     set_config_key "jobmanager.rpc.address" "mesos-master"
     set_config_key "rest.address" "mesos-master"
 
-    docker exec -it mesos-master nohup bash -c "${FLINK_DIR}/bin/mesos-appmaster.sh -Dmesos.master=mesos-master:5050 &"
+    docker exec -itd mesos-master bash -c "${FLINK_DIR}/bin/mesos-appmaster.sh -Dmesos.master=mesos-master:5050"
     wait_rest_endpoint_up "http://${NODENAME}:8081/taskmanagers" "Dispatcher" "\{\"taskmanagers\":\[.*\]\}"
     return 0
 }

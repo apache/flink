@@ -75,10 +75,10 @@ function start_kafka_cluster {
 }
 
 function stop_kafka_cluster {
- if ! [[ -z $(./bin/kafka-server-stop) ]]; then
-   echo "Kafka server was already shut down; dumping logs:"
-   cat ${KAFKA_DIR}/logs/server.out
- fi
+  if ! [[ -z $($KAFKA_DIR/bin/kafka-server-stop.sh) ]]; then
+    echo "Kafka server was already shut down; dumping logs:"
+    cat ${KAFKA_DIR}/logs/server.out
+  fi
   $KAFKA_DIR/bin/zookeeper-server-stop.sh
 
   # Terminate Kafka process if it still exists
