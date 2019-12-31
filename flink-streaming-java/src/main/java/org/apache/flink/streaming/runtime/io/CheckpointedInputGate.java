@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -171,6 +174,14 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 				return next;
 			}
 		}
+	}
+
+	public List<Buffer> requestInflightBuffers(long checkpointId, int channelIndex) throws IOException {
+		if (((CheckpointBarrierUnaligner) barrierHandler).hasInflightData(checkpointId, channelIndex)) {
+			return inputGate.getChannel(channelIndex).requestInflightBuffers(checkpointId);
+		}
+
+		return Collections.emptyList();
 	}
 
 	private int offsetChannelIndex(int channelIndex) {
