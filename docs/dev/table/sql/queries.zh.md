@@ -759,7 +759,7 @@ FROM (
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>若表达式在给定的表子查询中存在，则返回 true。子查询表必须由单个列构成，且该列的数据类型需与表达式保持一致。</p>
+        <p>若表达式在给定的表子查询中存在，则返回 true 。子查询表必须由单个列构成，且该列的数据类型需与表达式保持一致。</p>
 {% highlight sql %}
 SELECT user, amount
 FROM Orders
@@ -870,7 +870,7 @@ WHERE rownum <= N [AND conditions]
 - `[AND conditions]`: 在 where 语句中，可以随意添加其他的查询条件，但其他条件只允许通过 `AND` 与 `rownum <= N` 结合使用。
 
 <span class="label label-danger">流处理模式需注意</span> TopN 查询 <span class="label label-info">可自动更新结果</span>。 Flink SQL 会根据排序键对输入的流进行排序；若 top N 的记录发生了变化，变化的部分会以撤销、更新记录的形式发送到下游。
-推荐使用一个支持更新的存储作为 Top-N 查询的 sink。另外，若 top N 记录需要存储到外部存储，则结果表需要拥有相同与 Top-N 查询相同的唯一键。
+推荐使用一个支持更新的存储作为 Top-N 查询的 sink 。另外，若 top N 记录需要存储到外部存储，则结果表需要拥有相同与 Top-N 查询相同的唯一键。
 
 Top-N 的唯一键是分区列和 rownum 列的结合，另外 Top-N 查询也可以获得上游的唯一键。以下面的任务为例，`product_id` 是 `ShopSales` 的唯一键，然后 Top-N 的唯一键是 [`category`, `rownum`] 和 [`product_id`] 。
 
@@ -884,7 +884,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // 接收来自外部数据源的 DataStream
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
-// 把 DataStream 注册为表，表名是“ShopSales”
+// 把 DataStream 注册为表，表名是 “ShopSales”
 tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
 
 // 选择每个分类中销量前5的产品
@@ -939,7 +939,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // 从外部数据源读取 DataStream
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
-// 把 DataStream 注册为表，表名是“ShopSales”
+// 把 DataStream 注册为表，表名是 “ShopSales”
 tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
 
 // 选择每个分类中销量前5的产品
