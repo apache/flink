@@ -1,5 +1,5 @@
 ---
-title: "ALTER Statements"
+title: "ALTER 语句"
 nav-parent_id: sql
 nav-pos: 4
 ---
@@ -25,18 +25,18 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-ALTER statements are used to modified a registered table/view/function definition in the [Catalog]({{ site.baseurl }}/dev/table/catalogs.html).
+ALTER 语句用于修改一个已经在 [Catalog]({{ site.baseurl }}/zh/dev/table/catalogs.html) 中注册的表、视图或函数定义。
 
-Flink SQL supports the following ALTER statements for now:
+Flink SQL 目前支持以下 ALTER 语句：
 
 - ALTER TABLE
 - ALTER DATABASE
 
-## Run an ALTER statement
+## 执行 ALTER 语句
 
-ALTER statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful ALTER operation, otherwise will throw an exception.
+可以使用 `TableEnvironment` 中的 `sqlUpdate()` 方法执行 ALTER 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 ALTER 语句。 若 ALTER 操作执行成功，`sqlUpdate()` 方法不返回任何内容，否则会抛出异常。
 
-The following examples show how to run an ALTER statement in `TableEnvironment` and in SQL CLI.
+以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 ALTER 语句。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -44,16 +44,16 @@ The following examples show how to run an ALTER statement in `TableEnvironment` 
 EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-// register a table named "Orders"
+// 注册名为 “Orders” 的表
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
-// a string array: ["Orders"]
+// 字符串数组： ["Orders"]
 String[] tables = tableEnv.listTable();
 
-// rename "Orders" to "NewOrders"
+// 把 “Orders” 的表名改为 “NewOrders”
 tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;");
 
-// a string array: ["NewOrders"]
+// 字符串数组：["NewOrders"]
 String[] tables = tableEnv.listTable();
 {% endhighlight %}
 </div>
@@ -63,16 +63,16 @@ String[] tables = tableEnv.listTable();
 val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
-// register a table named "Orders"
+// 注册名为 “Orders” 的表
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
-// a string array: ["Orders"]
+// 字符串数组： ["Orders"]
 val tables = tableEnv.listTable()
 
-// rename "Orders" to "NewOrders"
+// 把 “Orders” 的表名改为 “NewOrders”
 tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;")
 
-// a string array: ["NewOrders"]
+// 字符串数组：["NewOrders"]
 val tables = tableEnv.listTable()
 {% endhighlight %}
 </div>
@@ -82,13 +82,13 @@ val tables = tableEnv.listTable()
 settings = EnvironmentSettings.newInstance()...
 table_env = TableEnvironment.create(settings)
 
-# a string array: ["Orders"]
+# 字符串数组： ["Orders"]
 tables = tableEnv.listTable()
 
-# rename "Orders" to "NewOrders"
+# 把 “Orders” 的表名改为 “NewOrders”
 tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;")
 
-# a string array: ["NewOrders"]
+# 字符串数组：["NewOrders"]
 tables = tableEnv.listTable()
 {% endhighlight %}
 </div>
@@ -110,28 +110,28 @@ NewOrders
 </div>
 </div>
 
-## ALTER TABLE
+## 修改表
 
-* Rename Table
+* 重命名表
 
 {% highlight sql %}
 ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
 {% endhighlight %}
 
-Rename the given table name to another new table name.
+把原有的表名更改为新的表名。
 
-* Set or Alter Table Properties
+* 设置或修改表属性
 
 {% highlight sql %}
 ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
-Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
+为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新的值覆盖旧的值。
 
-## ALTER DATABASE
+## 修改数据库
 
 {% highlight sql %}
 ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
-Set one or more properties in the specified database. If a particular property is already set in the database, override the old value with the new one.
+在数据库中设置一个或读个属性。若个别属性已经在数据库中设定，将会使用新值覆盖旧值。
