@@ -310,7 +310,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 		this.taskInfo = new TaskInfo(
 				taskInformation.getTaskName(),
-				taskInformation.getMaxNumberOfSubtaks(),
+				taskInformation.getMaxNumberOfSubtasks(),
 				subtaskIndex,
 				taskInformation.getNumberOfSubtasks(),
 				attemptNumber,
