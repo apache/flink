@@ -28,6 +28,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.RunnableWithException;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.Future;
 
@@ -233,6 +236,22 @@ public abstract class AbstractInvokable {
 	 */
 	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
 		throw new UnsupportedOperationException(String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+	}
+
+	/**
+	 * This method performs some action asynchronously in the task thread.
+	 *
+	 * @param runnable the action to perform
+	 * @param descriptionFormat the optional description for the command that is used for debugging and error-reporting.
+	 * @param descriptionArgs the parameters used to format the final description string.
+	 *
+	 * @return future indicating if the action was performed.
+	 */
+	public Future<Void> runInTaskThread(
+			RunnableWithException runnable,
+			@Nullable String descriptionFormat,
+			Object... descriptionArgs) {
+		throw new UnsupportedOperationException(String.format("runInTaskThread not supported by %s", this.getClass().getName()));
 	}
 
 	/**

@@ -26,8 +26,14 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.util.function.RunnableWithException;
 
+import javax.annotation.Nullable;
+
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Different implementations may either simply track barriers, or block certain inputs on
  * barriers.
  */
-public abstract class CheckpointBarrierHandler {
+public abstract class CheckpointBarrierHandler implements Closeable {
 
 	/** The listener to be notified on complete checkpoints. */
 	private final AbstractInvokable toNotifyOnCheckpoint;
@@ -56,6 +62,10 @@ public abstract class CheckpointBarrierHandler {
 	 * @return True if the channel is blocked, false if not.
 	 */
 	public abstract boolean isBlocked(int channelIndex);
+
+	@Override
+	public void close() throws IOException {
+	}
 
 	/**
 	 * @return true if some blocked data should be unblocked/rolled over.
@@ -114,5 +124,11 @@ public abstract class CheckpointBarrierHandler {
 		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
 			0,
 			System.currentTimeMillis() - checkpointCreationTimestamp);
+	}
+
+	protected Future<Void> runInTaskThread(
+			RunnableWithException runnable,
+			@Nullable String descriptionFormat, Object... descriptionArgs) {
+		return toNotifyOnCheckpoint.runInTaskThread(runnable, descriptionFormat, descriptionArgs);
 	}
 }

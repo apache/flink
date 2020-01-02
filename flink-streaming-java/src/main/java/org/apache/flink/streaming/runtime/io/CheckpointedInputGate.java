@@ -214,6 +214,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 */
 	public void close() throws IOException {
 		bufferStorage.close();
+		barrierHandler.close();
 	}
 
 	// ------------------------------------------------------------------------

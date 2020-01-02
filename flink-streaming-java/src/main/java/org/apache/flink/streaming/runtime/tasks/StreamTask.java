@@ -73,6 +73,8 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -742,6 +744,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
 				return false;
 			}
+		}
+	}
+
+	@Override
+	public Future<Void> runInTaskThread(RunnableWithException runnable, String description, Object... args) {
+		if (mailboxProcessor.isMailboxThread()) {
+			return FutureUtils.runSync(FunctionUtils.asCallable(runnable, null));
+		} else {
+			return mailboxProcessor.getMainMailboxExecutor().submit(runnable, description, args);
 		}
 	}
 
