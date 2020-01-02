@@ -421,13 +421,13 @@ class MatchCodeGenerator(
         expr
 
       case None =>
-        val nullTerm = newName("isNull")
+        val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
 
         ctx.addReusableMember(s"$eventTypeTerm $keyRowTerm;")
 
         val keyCode =
           j"""
-             |boolean $nullTerm = true;
+             |$nullTerm = true;
              |for (java.util.Map.Entry entry : $input1Term.entrySet()) {
              |  java.util.List value = (java.util.List) entry.getValue();
              |  if (value != null && value.size() > 0) {
@@ -539,7 +539,8 @@ class MatchCodeGenerator(
   }
 
   private def findEventByLogicalPosition(patternFieldAlpha: String): GeneratedExpression = {
-    val Seq(rowNameTerm, isRowNull) = newNames("row", "isRowNull")
+    val isRowNull = ctx.addReusableLocalVariable("boolean", "isRowNull")
+    val rowNameTerm = ctx.addReusableLocalVariable(eventTypeTerm, "row")
 
     val listName = findEventsByPatternName(patternFieldAlpha).resultTerm
     val resultIndex = if (first) {
@@ -550,8 +551,8 @@ class MatchCodeGenerator(
 
     val funcCode =
       j"""
-         |$eventTypeTerm $rowNameTerm = null;
-         |boolean $isRowNull = true;
+         |$rowNameTerm = null;
+         |$isRowNull = true;
          |if ($listName.size() > $offset) {
          |  $rowNameTerm = (($eventTypeTerm) $listName.get($resultIndex));
          |  $isRowNull = false;
@@ -620,8 +621,6 @@ class MatchCodeGenerator(
     }
 
     private def generateAggAccess(aggCall: RexCall): GeneratedExpression = {
-      val singleAggResultTerm = newName("result")
-      val singleAggNullTerm = newName("nullTerm")
       val singleAggResultType = FlinkTypeFactory.toLogicalType(aggCall.`type`)
       val primitiveSingleAggResultTypeTerm = primitiveTypeTermForType(singleAggResultType)
       val boxedSingleAggResultTypeTerm = boxedTypeTermForType(singleAggResultType)
@@ -637,10 +636,12 @@ class MatchCodeGenerator(
       ctx.addReusablePerRecordStatement(codeForAgg)
 
       val defaultValue = primitiveDefaultValue(singleAggResultType)
+
+      val singleAggNullTerm = ctx.addReusableLocalVariable("boolean", "nullTerm")
+      val singleAggResultTerm = ctx.addReusableLocalVariable(
+        primitiveSingleAggResultTypeTerm, "result")
       val codeForSingleAgg = if (ctx.nullCheck) {
         j"""
-           |boolean $singleAggNullTerm;
-           |$primitiveSingleAggResultTypeTerm $singleAggResultTerm;
            |if ($allAggRowTerm.getField(${aggregates.size}) != null) {
            |  $singleAggResultTerm = ($boxedSingleAggResultTypeTerm) $allAggRowTerm
            |    .getField(${aggregates.size});
