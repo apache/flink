@@ -29,6 +29,7 @@ import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
@@ -49,7 +50,10 @@ public class InputProcessorUtil {
 
 		BufferStorage bufferStorage = createBufferStorage(config, pageSize, taskManagerConfig, taskName);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
-			config, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
+			config,
+			IntStream.of(inputGate.getNumberOfInputChannels()),
+			taskName,
+			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
 		barrierHandler.getBufferReceivedListener().ifPresent(inputGate::registerBufferReceivedListener);
@@ -87,7 +91,7 @@ public class InputProcessorUtil {
 
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
-			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum(),
+			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels),
 			taskName,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
@@ -120,17 +124,20 @@ public class InputProcessorUtil {
 
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
 			StreamConfig config,
-			int numberOfInputChannels,
+			IntStream numberOfInputChannelsPerGate,
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
 		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
-				return new CheckpointBarrierAligner(
-					numberOfInputChannels,
-					taskName,
-					toNotifyOnCheckpoint);
+				if (config.isUnalignedCheckpointsEnabled()) {
+					return new CheckpointBarrierUnaligner(
+						numberOfInputChannelsPerGate.toArray(),
+						taskName,
+						toNotifyOnCheckpoint);
+				}
+				return new CheckpointBarrierAligner(numberOfInputChannelsPerGate.sum(), taskName, toNotifyOnCheckpoint);
 			case AT_LEAST_ONCE:
-				return new CheckpointBarrierTracker(numberOfInputChannels, toNotifyOnCheckpoint);
+				return new CheckpointBarrierTracker(numberOfInputChannelsPerGate.sum(), toNotifyOnCheckpoint);
 			default:
 				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
 		}
@@ -142,7 +149,10 @@ public class InputProcessorUtil {
 			Configuration taskManagerConfig,
 			String taskName) {
 		switch (config.getCheckpointMode()) {
-			case EXACTLY_ONCE: {
+			case EXACTLY_ONCE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					return new EmptyBufferStorage();
+				}
 				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
 				if (!(maxAlign == -1 || maxAlign > 0)) {
 					throw new IllegalConfigurationException(
@@ -150,7 +160,6 @@ public class InputProcessorUtil {
 							+ " must be positive or -1 (infinite)");
 				}
 				return new CachedBufferStorage(pageSize, maxAlign, taskName);
-			}
 			case AT_LEAST_ONCE:
 				return new EmptyBufferStorage();
 			default:
