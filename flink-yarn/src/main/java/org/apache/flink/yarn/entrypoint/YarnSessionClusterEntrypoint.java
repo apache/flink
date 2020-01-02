@@ -80,7 +80,7 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			LOG.warn("Could not log YARN environment information.", e);
 		}
 
-		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env, LOG);
+		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
 
 		YarnSessionClusterEntrypoint yarnSessionClusterEntrypoint = new YarnSessionClusterEntrypoint(configuration);
 
