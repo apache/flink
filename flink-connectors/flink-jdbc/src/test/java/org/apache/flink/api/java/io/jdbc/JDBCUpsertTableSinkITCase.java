@@ -73,6 +73,8 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE2 + " (" +
 					"id INT NOT NULL DEFAULT 0," +
 					"num BIGINT NOT NULL DEFAULT 0)");
+
+			stat.executeUpdate("CREATE TABLE REAL_TABLE (real_data REAL)");
 		}
 	}
 
@@ -84,6 +86,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			Statement stat = conn.createStatement()) {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE1);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
+			stat.execute("DROP TABLE REAL_TABLE");
 		}
 	}
 
@@ -113,6 +116,27 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 
 		Collections.shuffle(data);
 		return env.fromCollection(data);
+	}
+
+	@Test
+	public void testReal() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+		tEnv.sqlUpdate(
+				"CREATE TABLE upsertSink (" +
+						"  real_data float" +
+						") WITH (" +
+						"  'connector.type'='jdbc'," +
+						"  'connector.url'='" + DB_URL + "'," +
+						"  'connector.table'='REAL_TABLE'" +
+						")");
+
+		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
+		env.execute();
+		check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[]{"real_data"});
 	}
 
 	@Test
