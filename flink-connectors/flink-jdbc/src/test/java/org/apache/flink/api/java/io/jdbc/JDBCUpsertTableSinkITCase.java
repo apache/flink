@@ -85,6 +85,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			Statement stat = conn.createStatement()) {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE1);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
+			stat.execute("DROP TABLE REAL_TABLE");
 		}
 	}
 
