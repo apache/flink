@@ -56,6 +56,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
+import org.apache.calcite.util.Bug;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
@@ -184,11 +185,14 @@ public class FlinkRelMdCollation implements MetadataHandler<BuiltInMetadata.Coll
 		return mq.collations(rel.getCurrentRel());
 	}
 
-	public com.google.common.collect.ImmutableList<RelCollation> collations(RelSubset rel, RelMetadataQuery mq) {
-		if (rel.getBest() != null) {
-			return mq.collations(rel.getBest());
+	public com.google.common.collect.ImmutableList<RelCollation> collations(RelSubset subset, RelMetadataQuery mq) {
+		if (!Bug.CALCITE_1048_FIXED) {
+			//if the best node is null, so we can get the collation based original node, due to
+			//the original node is logically equivalent as the rel.
+			RelNode rel = Util.first(subset.getBest(), subset.getOriginal());
+			return mq.collations(rel);
 		} else {
-			return mq.collations(rel.getOriginal());
+			throw new RuntimeException("CALCITE_1048 is fixed, so check this method again!");
 		}
 	}
 
