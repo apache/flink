@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -27,6 +28,10 @@ import java.io.IOException;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
 
@@ -46,16 +51,23 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 	private final String query;
 	private final int batchInterval;
 	private final int[] typesArray;
+	private final long flushIntervalMills;
+
+	private transient ScheduledExecutorService scheduler;
+	private transient ScheduledFuture scheduledFuture;
+	private transient volatile boolean closed = false;
+	private transient volatile Exception flushException;
 
 	private PreparedStatement upload;
 	private int batchCount = 0;
 
 	public JDBCOutputFormat(String username, String password, String drivername,
-			String dbURL, String query, int batchInterval, int[] typesArray) {
+			String dbURL, String query, int batchInterval, long flushIntervalMills, int[] typesArray) {
 		super(username, password, drivername, dbURL);
 		this.query = query;
 		this.batchInterval = batchInterval;
 		this.typesArray = typesArray;
+		this.flushIntervalMills = flushIntervalMills;
 	}
 
 	/**
@@ -75,10 +87,35 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
+
+		if (flushIntervalMills != DEFAULT_FLUSH_INTERVAL_MILLS && batchCount != 1) {
+			this.scheduler = Executors.newScheduledThreadPool(
+				1, new ExecutorThreadFactory("jdbc-output-format"));
+			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
+				synchronized (JDBCOutputFormat.this) {
+					if (closed) {
+						return;
+					}
+					try {
+						flush();
+					} catch (Exception e) {
+						flushException = e;
+					}
+				}
+			}, flushIntervalMills, flushIntervalMills, TimeUnit.MILLISECONDS);
+		}
+	}
+
+	private void checkFlushException() {
+		if (flushException != null) {
+			throw new RuntimeException("Writing records to JDBC failed.", flushException);
+		}
 	}
 
 	@Override
 	public void writeRecord(Row row) throws IOException {
+		checkFlushException();
+
 		try {
 			setRecordToStatement(upload, typesArray, row);
 			upload.addBatch();
@@ -95,6 +132,8 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 	}
 
 	void flush() {
+		checkFlushException();
+
 		try {
 			upload.executeBatch();
 			batchCount = 0;
@@ -114,6 +153,18 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
+		if (closed) {
+			return;
+		}
+		closed = true;
+
+		checkFlushException();
+
+		if (this.scheduledFuture != null) {
+			scheduledFuture.cancel(false);
+			this.scheduler.shutdown();
+		}
+
 		if (upload != null) {
 			flush();
 			try {
@@ -142,6 +193,7 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 		private String dbURL;
 		private String query;
 		private int batchInterval = DEFAULT_FLUSH_MAX_SIZE;
+		private long flushIntervalMills = DEFAULT_FLUSH_INTERVAL_MILLS;
 		private int[] typesArray;
 
 		protected JDBCOutputFormatBuilder() {}
@@ -181,6 +233,11 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 			return this;
 		}
 
+		public JDBCOutputFormatBuilder setFlushIntervalMills(long flushIntervalMills) {
+			this.flushIntervalMills = flushIntervalMills;
+			return this;
+		}
+
 		/**
 		 * Finalizes the configuration and checks validity.
 		 *
@@ -205,7 +262,7 @@ public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
 
 			return new JDBCOutputFormat(
 					username, password, drivername, dbURL,
-					query, batchInterval, typesArray);
+					query, batchInterval, flushIntervalMills, typesArray);
 		}
 	}
 

@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
 
 /**
@@ -32,6 +33,7 @@ public class JDBCAppendTableSinkBuilder {
 	private String driverName;
 	private String dbURL;
 	private String query;
+	private long flushIntervalMills = DEFAULT_FLUSH_INTERVAL_MILLS;
 	private int batchSize = DEFAULT_FLUSH_MAX_SIZE;
 	private int[] parameterTypes;
 
@@ -94,6 +96,16 @@ public class JDBCAppendTableSinkBuilder {
 	}
 
 	/**
+	 * Specify the flush interval (in milliseconds). By default the flush interval will be set as 0,
+	 * which means no periodical flush will be performed.
+	 * @param flushIntervalMills the flush interval.
+	 */
+	public JDBCAppendTableSinkBuilder setFlushIntervalMills(long flushIntervalMills) {
+		this.flushIntervalMills = flushIntervalMills;
+		return this;
+	}
+
+	/**
 	 * Specify the type of the rows that the sink will be accepting.
 	 * @param types the type of each field
 	 */
@@ -132,6 +144,7 @@ public class JDBCAppendTableSinkBuilder {
 			.setQuery(query)
 			.setDrivername(driverName)
 			.setBatchInterval(batchSize)
+			.setFlushIntervalMills(flushIntervalMills)
 			.setSqlTypes(parameterTypes)
 			.finish();
 
