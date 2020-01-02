@@ -29,6 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,6 +85,7 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 	private static void assertExistingOptionsAreWellDefined(Map<String, List<ExistingOption>> allOptions) {
 		allOptions.values().stream()
+			.filter(options -> !options.stream().allMatch(option -> option.isSuffixOption))
 			.forEach(options -> options.stream()
 				.reduce((option1, option2) -> {
 					if (option1.equals(option2)) {
@@ -233,21 +235,32 @@ public class ConfigOptionsDocsCompletenessITCase {
 		String defaultValue = stringifyDefault(optionWithMetaInfo);
 		String typeValue = typeToHtml(optionWithMetaInfo);
 		String description = htmlFormatter.format(optionWithMetaInfo.option.description());
-		return new ExistingOption(key, defaultValue, typeValue, description, optionsClass);
+		boolean isSuffixOption = isSuffixOption(optionWithMetaInfo.field);
+		return new ExistingOption(key, defaultValue, typeValue, description, optionsClass, isSuffixOption);
+	}
+
+	private static boolean isSuffixOption(Field field) {
+		final Class<?> containingOptionsClass = field.getDeclaringClass();
+
+		return field.getAnnotation(Documentation.SuffixOption.class) != null ||
+			containingOptionsClass.getAnnotation(Documentation.SuffixOption.class) != null;
 	}
 
 	private static final class ExistingOption extends Option {
 
 		private final Class<?> containingClass;
+		private final boolean isSuffixOption;
 
 		private ExistingOption(
 				String key,
 				String defaultValue,
 				String typeValue,
 				String description,
-				Class<?> containingClass) {
+				Class<?> containingClass,
+				boolean isSuffixOption) {
 			super(key, defaultValue, typeValue, description);
 			this.containingClass = containingClass;
+			this.isSuffixOption = isSuffixOption;
 		}
 	}
 
