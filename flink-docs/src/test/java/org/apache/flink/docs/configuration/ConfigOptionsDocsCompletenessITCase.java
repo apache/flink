@@ -206,13 +206,10 @@ public class ConfigOptionsDocsCompletenessITCase {
 				List<ConfigOptionsDocGenerator.OptionWithMetaInfo> configOptions = extractConfigOptions(optionsClass);
 				for (ConfigOptionsDocGenerator.OptionWithMetaInfo option : configOptions) {
 					if (predicate.test(option)) {
-						String key = option.option.key();
-						String defaultValue = stringifyDefault(option);
-						String typeValue = typeToHtml(option);
-						String description = htmlFormatter.format(option.option.description());
+						ExistingOption newOption = toExistingOption(option, optionsClass)
 						ExistingOption duplicate = existingOptions.put(
-							key,
-							new ExistingOption(key, defaultValue, typeValue, description, optionsClass));
+							newOption.key,
+							newOption);
 						if (duplicate != null) {
 							// multiple documented options have the same key
 							// we fail here outright as this is not a documentation-completeness problem
@@ -228,6 +225,13 @@ public class ConfigOptionsDocsCompletenessITCase {
 		}
 
 		return existingOptions;
+
+	private static ExistingOption toExistingOption(ConfigOptionsDocGenerator.OptionWithMetaInfo optionWithMetaInfo, Class<?> optionsClass) {
+		String key = optionWithMetaInfo.option.key();
+		String defaultValue = stringifyDefault(optionWithMetaInfo);
+		String typeValue = typeToHtml(optionWithMetaInfo);
+		String description = htmlFormatter.format(optionWithMetaInfo.option.description());
+		return new ExistingOption(key, defaultValue, typeValue, description, optionsClass);
 	}
 
 	private static final class ExistingOption extends Option {
