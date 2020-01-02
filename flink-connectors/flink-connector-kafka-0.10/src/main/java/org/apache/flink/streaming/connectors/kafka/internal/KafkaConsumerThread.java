@@ -44,6 +44,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,9 +83,6 @@ public class KafkaConsumerThread extends Thread {
 
 	/** The queue of unassigned partitions that we need to assign to the Kafka consumer. */
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue;
-
-	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken. */
-	private final KafkaConsumerCallBridge09 consumerCallBridge;
 
 	/** The maximum number of milliseconds to wait for a fetch batch. */
 	private final long pollTimeout;
@@ -131,7 +129,6 @@ public class KafkaConsumerThread extends Thread {
 			Handover handover,
 			Properties kafkaProperties,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
-			KafkaConsumerCallBridge09 consumerCallBridge,
 			String threadName,
 			long pollTimeout,
 			boolean useMetrics,
@@ -147,7 +144,6 @@ public class KafkaConsumerThread extends Thread {
 		this.kafkaProperties = checkNotNull(kafkaProperties);
 		this.consumerMetricGroup = checkNotNull(consumerMetricGroup);
 		this.subtaskMetricGroup = checkNotNull(subtaskMetricGroup);
-		this.consumerCallBridge = checkNotNull(consumerCallBridge);
 
 		this.unassignedPartitionsQueue = checkNotNull(unassignedPartitionsQueue);
 
@@ -423,7 +419,7 @@ public class KafkaConsumerThread extends Thread {
 			newPartitionAssignments.addAll(convertKafkaPartitions(newPartitions));
 
 			// reassign with the new partitions
-			consumerCallBridge.assignPartitions(consumerTmp, newPartitionAssignments);
+			consumerTmp.assign(newPartitionAssignments);
 			reassignmentStarted = true;
 
 			// old partitions should be seeked to their previous position
@@ -439,10 +435,10 @@ public class KafkaConsumerThread extends Thread {
 			// replace those with actual offsets, according to what the sentinel value represent.
 			for (KafkaTopicPartitionState<TopicPartition> newPartitionState : newPartitions) {
 				if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET) {
-					consumerCallBridge.seekPartitionToBeginning(consumerTmp, newPartitionState.getKafkaPartitionHandle());
+					consumerTmp.seekToBeginning(Collections.singletonList(newPartitionState.getKafkaPartitionHandle()));
 					newPartitionState.setOffset(consumerTmp.position(newPartitionState.getKafkaPartitionHandle()) - 1);
 				} else if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.LATEST_OFFSET) {
-					consumerCallBridge.seekPartitionToEnd(consumerTmp, newPartitionState.getKafkaPartitionHandle());
+					consumerTmp.seekToEnd(Collections.singletonList(newPartitionState.getKafkaPartitionHandle()));
 					newPartitionState.setOffset(consumerTmp.position(newPartitionState.getKafkaPartitionHandle()) - 1);
 				} else if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.GROUP_OFFSET) {
 					// the KafkaConsumer by default will automatically seek the consumer position
@@ -464,8 +460,7 @@ public class KafkaConsumerThread extends Thread {
 				// if reassignment had already started and affected the consumer,
 				// we do a full roll back so that it is as if it was left untouched
 				if (reassignmentStarted) {
-					consumerCallBridge.assignPartitions(
-							this.consumer, new ArrayList<>(oldPartitionAssignmentsToPosition.keySet()));
+					this.consumer.assign(oldPartitionAssignmentsToPosition.keySet());
 
 					for (Map.Entry<TopicPartition, Long> oldPartitionToPosition : oldPartitionAssignmentsToPosition.entrySet()) {
 						this.consumer.seek(oldPartitionToPosition.getKey(), oldPartitionToPosition.getValue());

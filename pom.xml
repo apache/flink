@@ -770,7 +770,7 @@ under the License.
 								<configuration>
 									<name>maven.test.skip</name>
 									<value>${project.artifactId}</value>
-									<regex>(flink-connector-kafka-0.9.*)|(flink-scala-shell.*)</regex>
+									<regex>(flink-scala-shell.*)</regex>
 									<replacement>true</replacement>
 									<failIfNoMatch>false</failIfNoMatch>
 								</configuration>

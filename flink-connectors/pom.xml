@@ -41,7 +41,6 @@ under the License.
 		<module>flink-hbase</module>
 		<module>flink-hcatalog</module>
 		<module>flink-connector-kafka-base</module>
-		<module>flink-connector-kafka-0.9</module>
 		<module>flink-connector-kafka-0.10</module>
 		<module>flink-connector-kafka-0.11</module>
 		<module>flink-connector-elasticsearch-base</module>

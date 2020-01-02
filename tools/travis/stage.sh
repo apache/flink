@@ -96,7 +96,6 @@ flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
-flink-connectors/flink-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
 flink-connectors/flink-sql-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\

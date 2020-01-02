@@ -34,7 +34,7 @@ exactly-once processing semantics. To achieve that, Flink does not purely rely o
 offset tracking, but tracks and checkpoints these offsets internally as well.
 
 Please pick a package (maven artifact id) and class name for your use-case and environment.
-For most users, the `FlinkKafkaConsumer09` (part of `flink-connector-kafka`) is appropriate.
+For most users, the `FlinkKafkaConsumer010` (part of `flink-connector-kafka`) is appropriate.
 
 <table class="table table-bordered">
   <thead>
@@ -48,14 +48,6 @@ For most users, the `FlinkKafkaConsumer09` (part of `flink-connector-kafka`) is 
     </tr>
   </thead>
   <tbody>
-    <tr>
-        <td>flink-connector-kafka-0.9{{ site.scala_version_suffix }}</td>
-        <td>1.0.0</td>
-        <td>FlinkKafkaConsumer09<br>
-        FlinkKafkaProducer09</td>
-        <td>0.9.x</td>
-        <td>Uses the new <a href="http://kafka.apache.org/documentation.html#newconsumerapi">Consumer API</a> Kafka.</td>
-    </tr>
     <tr>
         <td>flink-connector-kafka-0.10{{ site.scala_version_suffix }}</td>
         <td>1.2.0</td>
@@ -113,7 +105,7 @@ Starting with Flink 1.7, there is a new universal Kafka connector that does not 
 Rather, it tracks the latest version of Kafka at the time of the Flink release.
 
 If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connector.
-If you use an older version of Kafka (0.11, 0.10, or 0.9), you should use the connector corresponding to the broker version.
+If you use an older version of Kafka (0.11 or 0.10), you should use the connector corresponding to the broker version.
 
 ### Compatibility
 
@@ -148,7 +140,7 @@ except of dropping specific Kafka version from the module and class names.
 
 ## Kafka Consumer
 
-Flink's Kafka consumer is called `FlinkKafkaConsumer09` (or 010 for Kafka 0.10.0.x versions, etc.
+Flink's Kafka consumer is called `FlinkKafkaConsumer010` (or 011 for Kafka 0.11.0.x versions, etc.
 or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions). It provides access to one or more Kafka topics.
 
 The constructor accepts the following arguments:
@@ -169,7 +161,7 @@ Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "test");
 DataStream<String> stream = env
-	.addSource(new FlinkKafkaConsumer09<>("topic", new SimpleStringSchema(), properties));
+	.addSource(new FlinkKafkaConsumer010<>("topic", new SimpleStringSchema(), properties));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -178,7 +170,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 stream = env
-    .addSource(new FlinkKafkaConsumer09[String]("topic", new SimpleStringSchema(), properties))
+    .addSource(new FlinkKafkaConsumer010[String]("topic", new SimpleStringSchema(), properties))
     .print()
 {% endhighlight %}
 </div>
@@ -263,7 +255,7 @@ Example:
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-FlinkKafkaConsumer09<String> myConsumer = new FlinkKafkaConsumer09<>(...);
+FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010<>(...);
 myConsumer.setStartFromEarliest();     // start from the earliest record possible
 myConsumer.setStartFromLatest();       // start from the latest record
 myConsumer.setStartFromTimestamp(...); // start from specified epoch timestamp (milliseconds)
@@ -277,7 +269,7 @@ DataStream<String> stream = env.addSource(myConsumer);
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val myConsumer = new FlinkKafkaConsumer09[String](...)
+val myConsumer = new FlinkKafkaConsumer010[String](...)
 myConsumer.setStartFromEarliest()      // start from the earliest record possible
 myConsumer.setStartFromLatest()        // start from the latest record
 myConsumer.setStartFromTimestamp(...)  // start from specified epoch timestamp (milliseconds)
@@ -424,7 +416,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer09[String](
+val myConsumer = new FlinkKafkaConsumer010[String](
   java.util.regex.Pattern.compile("test-topic-[0-9]"),
   new SimpleStringSchema,
   properties)
@@ -490,8 +482,8 @@ Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "test");
 
-FlinkKafkaConsumer09<String> myConsumer =
-    new FlinkKafkaConsumer09<>("topic", new SimpleStringSchema(), properties);
+FlinkKafkaConsumer010<String> myConsumer =
+    new FlinkKafkaConsumer010<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
 
 DataStream<String> stream = env
@@ -505,7 +497,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer09[String]("topic", new SimpleStringSchema(), properties)
+val myConsumer = new FlinkKafkaConsumer010[String]("topic", new SimpleStringSchema(), properties)
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter())
 stream = env
     .addSource(myConsumer)
@@ -610,9 +602,9 @@ the `FlinkFixedPartitioner` is used instead.
 
 ### Kafka Producers and Fault Tolerance
 
-#### Kafka 0.9 and 0.10
+#### Kafka 0.10
 
-With Flink's checkpointing enabled, the `FlinkKafkaProducer09` and `FlinkKafkaProducer010`
+With Flink's checkpointing enabled, the `FlinkKafkaProducer010`
 can provide at-least-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you should also configure the setter
@@ -630,7 +622,7 @@ methods `setLogFailuresOnly(boolean)` and `setFlushOnCheckpoint(boolean)` approp
  been written to Kafka. This must be enabled for at-least-once.
  
 In conclusion, the Kafka producer by default has at-least-once guarantees for versions
-0.9 and 0.10, with `setLogFailureOnly` set to `false` and `setFlushOnCheckpoint` set
+0.10, with `setLogFailureOnly` set to `false` and `setFlushOnCheckpoint` set
 to `true`.
 
 **Note**: By default, the number of retries is set to "0". This means that when `setLogFailuresOnly` is set to `false`,
@@ -742,14 +734,14 @@ config.setWriteTimestampToKafka(true);
 Flink's Kafka connectors provide some metrics through Flink's [metrics system]({{ site.baseurl }}/monitoring/metrics.html) to analyze
 the behavior of the connector.
 The producers export Kafka's internal metrics through Flink's metric system for all supported versions. The consumers export 
-all metrics starting from Kafka version 0.9. The Kafka documentation lists all exported metrics 
+all metrics starting from Kafka version 0.10. The Kafka documentation lists all exported metrics 
 in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
 
 In addition to these metrics, all consumers expose the `current-offsets` and `committed-offsets` for each topic partition.
 The `current-offsets` refers to the current offset in the partition. This refers to the offset of the last element that
 we retrieved and emitted successfully. The `committed-offsets` is the last committed offset.
 
-The Kafka Consumers in Flink commit the offsets back to the Kafka brokers (Kafka 0.9+). If checkpointing
+The Kafka Consumers in Flink commit the offsets back to the Kafka brokers (Kafka 0.10+). If checkpointing
 is disabled, offsets are committed periodically.
 With checkpointing, the commit happens once all operators in the streaming topology have confirmed that they've created a checkpoint of their state. 
 This provides users with at-least-once semantics for the offsets committed to Zookeeper or the broker. For offsets checkpointed to Flink, the system 

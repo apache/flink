@@ -30,7 +30,7 @@ under the License.
 
 Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入数据。Flink Kafka Consumer 集成了 Flink 的 Checkpoint 机制，可提供 exactly-once 的处理语义。为此，Flink 并不完全依赖于跟踪 Kafka 消费组的偏移量，而是在内部跟踪和检查偏移量。
 
-根据你的用例和环境选择相应的包（maven artifact id）和类名。对于大多数用户来说，使用 `FlinkKafkaConsumer09`（ `flink-connector-kafka` 的一部分）是比较合适的。
+根据你的用例和环境选择相应的包（maven artifact id）和类名。对于大多数用户来说，使用 `FlinkKafkaConsumer010`（ `flink-connector-kafka` 的一部分）是比较合适的。
 
 <table class="table table-bordered">
   <thead>
@@ -43,14 +43,6 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
     </tr>
   </thead>
   <tbody>
-    <tr>
-        <td>flink-connector-kafka-0.9{{ site.scala_version_suffix }}</td>
-        <td>1.0.0</td>
-        <td>FlinkKafkaConsumer09<br>
-        FlinkKafkaProducer09</td>
-        <td>0.9.x</td>
-        <td>这个连接器使用新的 Kafka <a href="http://kafka.apache.org/documentation.html#newconsumerapi">Consumer API</a></td>
-    </tr>
     <tr>
         <td>flink-connector-kafka-0.10{{ site.scala_version_suffix }}</td>
         <td>1.2.0</td>
@@ -103,7 +95,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 
 从 Flink 1.7 开始，有一个新的通用 Kafka 连接器，它不跟踪特定的 Kafka 主版本。相反，它是在 Flink 发布时跟踪最新版本的 Kafka。
 如果你的 Kafka broker 版本是 1.0.0 或 更新的版本，你应该使用这个 Kafka 连接器。
-如果你使用的是 Kafka 的旧版本( 0.11、0.10 或 0.9 )，那么你应该使用与 Kafka broker 版本相对应的连接器。
+如果你使用的是 Kafka 的旧版本( 0.11 或 0.10 )，那么你应该使用与 Kafka broker 版本相对应的连接器。
 
 ### 兼容性
 
@@ -134,7 +126,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 
 ## Kafka Consumer
 
-Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer09`（或适用于 Kafka 0.10.0.x 版本的 `FlinkKafkaConsumer010`，或适用于 Kafka >= 1.0.0 的版本的 `FlinkKafkaConsumer`）。它提供对一个或多个 Kafka topics 的访问。
+Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer010`（或适用于 Kafka 0.11.0.x 版本的 `FlinkKafkaConsumer011`，或适用于 Kafka >= 1.0.0 的版本的 `FlinkKafkaConsumer`）。它提供对一个或多个 Kafka topics 的访问。
 
 构造函数接受以下参数：
 
@@ -153,7 +145,7 @@ Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "test");
 DataStream<String> stream = env
-  .addSource(new FlinkKafkaConsumer09<>("topic", new SimpleStringSchema(), properties));
+  .addSource(new FlinkKafkaConsumer010<>("topic", new SimpleStringSchema(), properties));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -162,7 +154,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 stream = env
-    .addSource(new FlinkKafkaConsumer09[String]("topic", new SimpleStringSchema(), properties))
+    .addSource(new FlinkKafkaConsumer010[String]("topic", new SimpleStringSchema(), properties))
     .print()
 {% endhighlight %}
 </div>
@@ -228,7 +220,7 @@ Flink Kafka Consumer 允许通过配置来确定 Kafka 分区的起始位置。
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-FlinkKafkaConsumer09<String> myConsumer = new FlinkKafkaConsumer09<>(...);
+FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010<>(...);
 myConsumer.setStartFromEarliest();     // 尽可能从最早的记录开始
 myConsumer.setStartFromLatest();       // 从最新的记录开始
 myConsumer.setStartFromTimestamp(...); // 从指定的时间开始（毫秒）
@@ -242,7 +234,7 @@ DataStream<String> stream = env.addSource(myConsumer);
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val myConsumer = new FlinkKafkaConsumer09[String](...)
+val myConsumer = new FlinkKafkaConsumer010[String](...)
 myConsumer.setStartFromEarliest()      // 尽可能从最早的记录开始
 myConsumer.setStartFromLatest()        // 从最新的记录开始
 myConsumer.setStartFromTimestamp(...)  // 从指定的时间开始（毫秒）
@@ -358,7 +350,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer09[String](
+val myConsumer = new FlinkKafkaConsumer010[String](
   java.util.regex.Pattern.compile("test-topic-[0-9]"),
   new SimpleStringSchema,
   properties)
@@ -400,8 +392,8 @@ Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "test");
 
-FlinkKafkaConsumer09<String> myConsumer =
-    new FlinkKafkaConsumer09<>("topic", new SimpleStringSchema(), properties);
+FlinkKafkaConsumer010<String> myConsumer =
+    new FlinkKafkaConsumer010<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
 
 DataStream<String> stream = env
@@ -415,7 +407,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer09[String]("topic", new SimpleStringSchema(), properties)
+val myConsumer = new FlinkKafkaConsumer010[String]("topic", new SimpleStringSchema(), properties)
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter())
 stream = env
     .addSource(myConsumer)
@@ -488,16 +480,16 @@ stream.addSink(myProducer)
 
 ### Kafka Producer 和容错
 
-#### Kafka 0.9 and 0.10
+#### Kafka 0.10
 
-启用 Flink 的 checkpointing 后，`FlinkKafkaProducer09` 和 `FlinkKafkaProducer010` 可以提供至少一次的语义。
+启用 Flink 的 checkpointing 后，`FlinkKafkaProducer010` 可以提供至少一次的语义。
 
 除了启用 Flink 的 checkpointing 之外，还应该适当地配置 setter 方法，`setLogFailuresOnly(boolean)` 和 `setFlushOnCheckpoint(boolean)`。
 
  * `setLogFailuresOnly(boolean)`：默认情况下，此值设置为 `false`。启用这个选项将使 producer 仅记录失败而不是捕获和重新抛出它们。这基本上是记录了成功的记录，即使它从未写入目标 Kafka topic。对 at-least-once 的语义，这个方法必须禁用。
  * `setFlushOnCheckpoint(boolean)`：默认情况下，此值设置为 `true`。启用此功能后，Flink 的 checkpoint 将在 checkpoint 成功之前等待 Kafka 确认 checkpoint 时的任意即时记录。这样可确保 checkpoint 之前的所有记录都已写入 Kafka。对 at-least-once 的语义，这个方法必须启用。
 
-总之，默认情况下，Kafka producer 中，`setLogFailureOnly` 设置为 `false` 及  `setFlushOnCheckpoint` 设置为 `true`  会为 0.9 和 0.10 版本提供 at-least-once 语义。
+总之，默认情况下，Kafka producer 中，`setLogFailureOnly` 设置为 `false` 及  `setFlushOnCheckpoint` 设置为 `true`  会为 0.10 版本提供 at-least-once 语义。
 
 **注意**：默认情况下，重试次数设置为 0。这意味着当 `setLogFailuresOnly` 设置为 `false` 时，producer 会立即失败，包括 leader 更改。该值默认设置为 0，以避免重试导致目标 topic 中出现重复的消息。对于大多数频繁更改 broker 的生产环境，我们建议将重试次数设置为更高的值。
 
@@ -566,7 +558,7 @@ config.setWriteTimestampToKafka(true);
 
 ## Kafka 连接器指标
 
-Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({{ site.baseurl }}/zh/monitoring/metrics.html) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.9 版本开始导出所有指标。Kafka 文档在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
+Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({{ site.baseurl }}/zh/monitoring/metrics.html) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.10 版本开始导出所有指标。Kafka 文档在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
 
 除了这些指标之外，所有 consumer 都暴露了每个主题分区的 `current-offsets` 和 `committed-offsets`。`current-offsets` 是指分区中的当前偏移量。指的是我们成功检索和发出的最后一个元素的偏移量。`committed-offsets` 是最后提交的偏移量。这为用户提供了 at-least-once 语义，用于提交给 Zookeeper 或 broker 的偏移量。对于 Flink 的偏移检查点，系统提供精准一次语义。
 
