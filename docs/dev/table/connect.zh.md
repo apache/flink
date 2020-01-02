@@ -83,7 +83,7 @@ This allows not only for better unification of APIs and SQL Client but also for 
 
 Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the schema of the table, a connector, and a data format upfront for connecting to an external system.
 
-The **connector** describes the external system that stores the data of a table. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format with fields and schema.
+The **connector** describes the external system that stores the data of a table. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format.
 
 Some systems support different **data formats**. For example, a table that is stored in Kafka or in files can encode its rows with CSV, JSON, or Avro. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
 
@@ -143,9 +143,9 @@ schema: ...
 
 The table's type (`source`, `sink`, or `both`) determines how a table is registered. In case of table type `both`, both a table source and table sink are registered under the same name. Logically, this means that we can both read and write to such a table similarly to a table in a regular DBMS.
 
-For streaming queries, an [update mode](connect.html#update-mode) declares how to communicate between a dynamic table and the storage system for continuous queries.
+For streaming queries, an [update mode](connect.html#update-mode) declares how to communicate between a dynamic table and the storage system for continuous queries. The connector might already provide a default update mode, e.g. Kafka connector works in append mode by default.
 
-The following code shows a full example of how to connect to Kafka for reading Avro records.
+The following code shows a full example of how to connect to Kafka for reading Json records.
 
 <div class="codetabs" markdown="1">
 <div data-lang="DDL" markdown="1">
@@ -343,7 +343,8 @@ In order to declare time attributes in the schema, the following ways are suppor
 CREATE TABLE MyTable (
   MyField1 AS PROCTIME(), -- declares this field as a processing-time attribute
   MyField2 TIMESTAMP(3),
-  MyField3 BOOLEAN,
+  mf3 BOOLEAN,
+  MyField3 AS mf3,  --  reference/alias an original field to a new field
   -- declares this MyField2 as a event-time attribute
   WATERMARK FOR MyField2 AS MyField2 - INTERVAL '1' SECOND
 ) WITH (
@@ -422,11 +423,13 @@ CREATE TABLE MyTable (
 -- use system functions or UDFs or expressions to extract the expected TIMESTAMP(3) rowtime field
 CREATE TABLE MyTable (
   log_ts STRING,
-  ts_field TO_TIMESTAMP(log_ts),
+  ts_field AS TO_TIMESTAMP(log_ts),
   WATERMARK FOR ts_field AS ...
 ) WITH (
   ...
 )
+
+-- NOTE: preserving assigned timestamp from the source as rowtime attribute is not supported in DDL currently.
 {% endhighlight %}
 </div>
 
@@ -524,13 +527,15 @@ CREATE TABLE MyTable (
 )
 
 -- Sets a watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
--- Emits watermarks which are the maximum observed timestamp minus the specified delay, e.g. 5 seconds.
+-- Emits watermarks which are the maximum observed timestamp minus the specified delay, e.g. 2 seconds.
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
-  WATERMARK FOR ts_field AS ts_field - INTERVAL '5' SECOND
+  WATERMARK FOR ts_field AS ts_field - INTERVAL '2' SECOND
 ) WITH (
   ...
 )
+
+-- NOTE: preserving assigned watermark from the source is not supported in DDL currently.
 {% endhighlight %}
 </div>
 
