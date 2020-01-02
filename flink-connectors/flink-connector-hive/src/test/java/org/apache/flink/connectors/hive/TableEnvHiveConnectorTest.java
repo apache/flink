@@ -225,8 +225,7 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "dest").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			// TODO: remove the cast once FLINK-15381 is fixed.
-			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,cast('c' as varchar))");
+			tableEnv.sqlUpdate("insert overwrite db1.dest values (3, 'c')");
 			tableEnv.execute("test insert overwrite");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
 
