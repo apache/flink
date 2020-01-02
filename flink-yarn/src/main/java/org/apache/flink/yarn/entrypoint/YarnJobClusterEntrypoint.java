@@ -47,19 +47,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
-	private final String workingDirectory;
-
 	public YarnJobClusterEntrypoint(
-			Configuration configuration,
-			String workingDirectory) {
+		Configuration configuration) {
 
 		super(configuration);
-		this.workingDirectory = Preconditions.checkNotNull(workingDirectory);
 	}
 
 	@Override
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
-		return YarnEntrypointUtils.installSecurityContext(configuration, workingDirectory);
+		return YarnEntrypointUtils.installSecurityContext(configuration);
 	}
 
 	@Override
@@ -118,8 +114,7 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env, LOG);
 
 		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(
-			configuration,
-			workingDirectory);
+			configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
 	}

@@ -51,8 +51,7 @@ import java.util.Map;
 public class YarnEntrypointUtils {
 
 	public static SecurityContext installSecurityContext(
-			Configuration configuration,
-			String workingDirectory) throws Exception {
+			Configuration configuration) throws Exception {
 
 		SecurityConfiguration sc = new SecurityConfiguration(configuration);
 
