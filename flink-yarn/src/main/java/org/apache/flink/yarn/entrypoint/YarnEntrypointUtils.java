@@ -28,9 +28,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityContext;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
@@ -48,16 +45,6 @@ import java.util.Map;
  * {@link YarnJobClusterEntrypoint}.
  */
 public class YarnEntrypointUtils {
-
-	public static SecurityContext installSecurityContext(
-			Configuration configuration) throws Exception {
-
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-
-		SecurityUtils.install(sc);
-
-		return SecurityUtils.getInstalledContext();
-	}
 
 	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env) {
 		Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
