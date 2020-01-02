@@ -54,6 +54,8 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 		function = hiveFunctionWrapper.createFunction();
 
+		ObjectInspector[] argInspectors = HiveInspectors.toInspectors(constantArguments, argTypes);
+
 		try {
 			returnInspector = function.initializeAndFoldConstants(
 				HiveInspectors.toInspectors(constantArguments, argTypes));
@@ -65,8 +67,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 		for (int i = 0; i < deferredObjects.length; i++) {
 			deferredObjects[i] = new DeferredObjectAdapter(
-				TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(
-					HiveTypeUtil.toHiveTypeInfo(argTypes[i])),
+				argInspectors[i],
 				argTypes[i].getLogicalType()
 			);
 		}

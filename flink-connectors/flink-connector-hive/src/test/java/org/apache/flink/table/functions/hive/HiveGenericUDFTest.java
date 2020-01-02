@@ -30,6 +30,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAddMonths;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCeil;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFConcat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDecode;
@@ -44,6 +45,7 @@ import java.sql.Timestamp;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * Test for {@link HiveGenericUDF}.
@@ -378,6 +380,31 @@ public class HiveGenericUDFTest {
 		);
 
 		assertEquals(3, udf.eval(result));
+	}
+
+	@Test
+	public void testConstantArgs() throws Exception {
+		HiveGenericUDF udf = init(
+				GenericUDFConcat.class,
+				new Object[]{"an", "bn"},
+				new DataType[]{DataTypes.CHAR(2), DataTypes.VARCHAR(2)}
+		);
+		assertEquals("anbn", udf.eval("an", "bn"));
+
+		udf = init(
+				GenericUDFConcat.class,
+				new Object[]{"ab", new BigDecimal("12.34")},
+				new DataType[]{DataTypes.CHAR(2), DataTypes.DECIMAL(10, 5)}
+		);
+		assertEquals("ab12.34", udf.eval("ab", new BigDecimal("12.34")));
+
+		// TODO: null cannot be a constant argument at the moment. This test will make more sense when that changes.
+		udf = init(
+				GenericUDFConcat.class,
+				new Object[]{"ab", null},
+				new DataType[]{DataTypes.CHAR(2), DataTypes.INT()}
+		);
+		assertNull(udf.eval("ab", null));
 	}
 
 	private static HiveGenericUDF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
