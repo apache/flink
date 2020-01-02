@@ -20,13 +20,13 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
 
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.List;
 
 /**
- * The ConsumerCallBridge simply calls methods on the {@link KafkaConsumer}.
+ * The ConsumerCallBridge simply calls methods on the {@link Consumer}.
  *
  * <p>This indirection is necessary, because Kafka broke binary compatibility between 0.9 and 0.10,
  * for example changing {@code assign(List)} to {@code assign(Collection)}.
@@ -38,15 +38,15 @@ import java.util.List;
 @Internal
 public class KafkaConsumerCallBridge09 {
 
-	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
+	public void assignPartitions(Consumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
 		consumer.assign(topicPartitions);
 	}
 
-	public void seekPartitionToBeginning(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+	public void seekPartitionToBeginning(Consumer<?, ?> consumer, TopicPartition partition) {
 		consumer.seekToBeginning(partition);
 	}
 
-	public void seekPartitionToEnd(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+	public void seekPartitionToEnd(Consumer<?, ?> consumer, TopicPartition partition) {
 		consumer.seekToEnd(partition);
 	}
 

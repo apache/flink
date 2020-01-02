@@ -31,16 +31,20 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -54,16 +58,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,7 +84,7 @@ public class KafkaConsumerThreadTest {
 	@Test(timeout = 10000)
 	public void testCloseWithoutAssignedPartitions() throws Exception {
 		// no initial assignment
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
 			new LinkedHashMap<TopicPartition, Long>(),
 			Collections.<TopicPartition, Long>emptyMap(),
 			false,
@@ -140,7 +143,7 @@ public class KafkaConsumerThreadTest {
 		// no initial assignment
 		final Map<TopicPartition, Long> mockConsumerAssignmentsAndPositions = new LinkedHashMap<>();
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsAndPositions,
 				Collections.<TopicPartition, Long>emptyMap(),
 				false,
@@ -218,7 +221,7 @@ public class KafkaConsumerThreadTest {
 		mockRetrievedPositions.put(newPartition1.getKafkaPartitionHandle(), 23L);
 		mockRetrievedPositions.put(newPartition2.getKafkaPartitionHandle(), 32L);
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsAndPositions,
 				mockRetrievedPositions,
 				false,
@@ -309,7 +312,7 @@ public class KafkaConsumerThreadTest {
 			mockConsumerAssignmentsAndPositions.put(oldPartition.getKafkaPartitionHandle(), oldPartition.getOffset() + 1);
 		}
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsAndPositions,
 				Collections.<TopicPartition, Long>emptyMap(),
 				false,
@@ -399,7 +402,7 @@ public class KafkaConsumerThreadTest {
 		final Map<TopicPartition, Long> mockRetrievedPositions = new HashMap<>();
 		mockRetrievedPositions.put(newPartition.getKafkaPartitionHandle(), 30L);
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsAndPositions,
 				mockRetrievedPositions,
 				false,
@@ -486,7 +489,7 @@ public class KafkaConsumerThreadTest {
 			mockConsumerAssignmentsToPositions.put(oldPartition.getKafkaPartitionHandle(), oldPartition.getOffset() + 1);
 		}
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final TestConsumer mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsToPositions,
 				Collections.<TopicPartition, Long>emptyMap(),
 				true,
@@ -510,7 +513,7 @@ public class KafkaConsumerThreadTest {
 		testThread.waitPartitionReassignmentInvoked();
 
 		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
-		verify(mockConsumer, times(1)).wakeup();
+		assertEquals(1, mockConsumer.getNumWakeupCalls());
 
 		testThread.startPartitionReassignment();
 		testThread.waitPartitionReassignmentComplete();
@@ -570,7 +573,7 @@ public class KafkaConsumerThreadTest {
 		mockRetrievedPositions.put(newPartition1.getKafkaPartitionHandle(), 23L);
 		mockRetrievedPositions.put(newPartition2.getKafkaPartitionHandle(), 32L);
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final TestConsumer mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsAndPositions,
 				mockRetrievedPositions,
 				true,
@@ -598,7 +601,7 @@ public class KafkaConsumerThreadTest {
 		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 
 		// make sure the consumer was actually woken up
-		verify(mockConsumer, times(1)).wakeup();
+		assertEquals(1, mockConsumer.getNumWakeupCalls());
 
 		testThread.startPartitionReassignment();
 		testThread.waitPartitionReassignmentComplete();
@@ -654,7 +657,7 @@ public class KafkaConsumerThreadTest {
 		final OneShotLatch midAssignmentLatch = new OneShotLatch();
 		final OneShotLatch continueAssigmentLatch = new OneShotLatch();
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+		final TestConsumer mockConsumer = createMockConsumer(
 				mockConsumerAssignmentsAndPositions,
 				mockRetrievedPositions,
 				false,
@@ -684,7 +687,7 @@ public class KafkaConsumerThreadTest {
 		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 
 		// the wakeup in the setOffsetsToCommit() call should have been buffered, and not called on the consumer
-		verify(mockConsumer, never()).wakeup();
+		assertEquals(0, mockConsumer.getNumWakeupCalls());
 
 		continueAssigmentLatch.trigger();
 
@@ -704,7 +707,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		// after the reassignment, the consumer should be restored the wakeup call
-		verify(mockConsumer, times(1)).wakeup();
+		assertEquals(1, mockConsumer.getNumWakeupCalls());
 
 		assertEquals(0, unassignedPartitionsQueue.size());
 	}
@@ -806,14 +809,14 @@ public class KafkaConsumerThreadTest {
 	 */
 	private static class TestKafkaConsumerThread extends KafkaConsumerThread {
 
-		private final KafkaConsumer<byte[], byte[]> mockConsumer;
+		private final Consumer<byte[], byte[]> mockConsumer;
 		private final MultiShotLatch preReassignmentLatch = new MultiShotLatch();
 		private final MultiShotLatch startReassignmentLatch = new MultiShotLatch();
 		private final MultiShotLatch reassignmentCompleteLatch = new MultiShotLatch();
 		private final MultiShotLatch postReassignmentLatch = new MultiShotLatch();
 
 		public TestKafkaConsumerThread(
-				KafkaConsumer<byte[], byte[]> mockConsumer,
+				Consumer<byte[], byte[]> mockConsumer,
 				ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
 				Handover handover) {
 
@@ -850,7 +853,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
+		Consumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
 			return mockConsumer;
 		}
 
@@ -875,109 +878,194 @@ public class KafkaConsumerThreadTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static KafkaConsumer<byte[], byte[]> createMockConsumer(
+	private static TestConsumer createMockConsumer(
 			final Map<TopicPartition, Long> mockConsumerAssignmentAndPosition,
 			final Map<TopicPartition, Long> mockRetrievedPositions,
 			final boolean earlyWakeup,
 			final OneShotLatch midAssignmentLatch,
 			final OneShotLatch continueAssignmentLatch) {
 
-		final KafkaConsumer<byte[], byte[]> mockConsumer = mock(KafkaConsumer.class);
+		return new TestConsumer(mockConsumerAssignmentAndPosition, mockRetrievedPositions, earlyWakeup, midAssignmentLatch, continueAssignmentLatch);
+	}
 
-		when(mockConsumer.assignment()).thenAnswer(new Answer<Object>() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				if (midAssignmentLatch != null) {
-					midAssignmentLatch.trigger();
-				}
+	private static class TestConsumer implements Consumer<byte[], byte[]> {
+		private final Map<TopicPartition, Long> mockConsumerAssignmentAndPosition;
+		private final Map<TopicPartition, Long> mockRetrievedPositions;
+		private final boolean earlyWakeup;
+		private final OneShotLatch midAssignmentLatch;
+		private final OneShotLatch continueAssignmentLatch;
 
-				if (continueAssignmentLatch != null) {
-					continueAssignmentLatch.await();
-				}
-				return mockConsumerAssignmentAndPosition.keySet();
-			}
-		});
+		private int numWakeupCalls = 0;
 
-		when(mockConsumer.poll(anyLong())).thenReturn(mock(ConsumerRecords.class));
-
-		if (!earlyWakeup) {
-			when(mockConsumer.position(any(TopicPartition.class))).thenAnswer(new Answer<Object>() {
-				@Override
-				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					return mockConsumerAssignmentAndPosition.get(invocationOnMock.getArgument(0));
-				}
-			});
-		} else {
-			when(mockConsumer.position(any(TopicPartition.class))).thenThrow(new WakeupException());
+		private TestConsumer(Map<TopicPartition, Long> mockConsumerAssignmentAndPosition, Map<TopicPartition, Long> mockRetrievedPositions, boolean earlyWakeup, OneShotLatch midAssignmentLatch, OneShotLatch continueAssignmentLatch) {
+			this.mockConsumerAssignmentAndPosition = mockConsumerAssignmentAndPosition;
+			this.mockRetrievedPositions = mockRetrievedPositions;
+			this.earlyWakeup = earlyWakeup;
+			this.midAssignmentLatch = midAssignmentLatch;
+			this.continueAssignmentLatch = continueAssignmentLatch;
 		}
 
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				mockConsumerAssignmentAndPosition.clear();
-
-				List<TopicPartition> assignedPartitions = invocationOnMock.getArgument(0);
-				for (TopicPartition assigned : assignedPartitions) {
-					mockConsumerAssignmentAndPosition.put(assigned, null);
-				}
-				return null;
+		@Override
+		public Set<TopicPartition> assignment() {
+			if (midAssignmentLatch != null) {
+				midAssignmentLatch.trigger();
 			}
-		}).when(mockConsumer).assign(anyListOf(TopicPartition.class));
 
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				TopicPartition partition = invocationOnMock.getArgument(0);
-				long position = invocationOnMock.getArgument(1);
-
-				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
-					throw new Exception("the current mock assignment does not contain partition " + partition);
-				} else {
-					mockConsumerAssignmentAndPosition.put(partition, position);
+			if (continueAssignmentLatch != null) {
+				try {
+					continueAssignmentLatch.await();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
 				}
-				return null;
 			}
-		}).when(mockConsumer).seek(any(TopicPartition.class), anyLong());
+			return mockConsumerAssignmentAndPosition.keySet();
+		}
 
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				TopicPartition partition = invocationOnMock.getArgument(0);
+		@Override
+		public Set<String> subscription() {
+			throw new UnsupportedOperationException();
+		}
 
+		@Override
+		public void subscribe(List<String> list) {
+		}
+
+		@Override
+		public void subscribe(List<String> list, ConsumerRebalanceListener consumerRebalanceListener) {
+		}
+
+		@Override
+		public void assign(List<TopicPartition> assignedPartitions) {
+			mockConsumerAssignmentAndPosition.clear();
+
+			for (TopicPartition assigned : assignedPartitions) {
+				mockConsumerAssignmentAndPosition.put(assigned, null);
+			}
+		}
+
+		@Override
+		public void subscribe(Pattern pattern, ConsumerRebalanceListener consumerRebalanceListener) {
+		}
+
+		@Override
+		public void unsubscribe() {
+		}
+
+		@Override
+		public ConsumerRecords<byte[], byte[]> poll(long l) {
+			return mock(ConsumerRecords.class);
+		}
+
+		@Override
+		public void commitSync() {
+		}
+
+		@Override
+		public void commitSync(Map<TopicPartition, OffsetAndMetadata> map) {
+		}
+
+		@Override
+		public void commitAsync() {
+		}
+
+		@Override
+		public void commitAsync(OffsetCommitCallback offsetCommitCallback) {
+		}
+
+		@Override
+		public void commitAsync(Map<TopicPartition, OffsetAndMetadata> map, OffsetCommitCallback offsetCommitCallback) {
+		}
+
+		@Override
+		public void seek(TopicPartition partition, long position) {
+			if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
+				throw new RuntimeException("the current mock assignment does not contain partition " + partition);
+			} else {
+				mockConsumerAssignmentAndPosition.put(partition, position);
+			}
+		}
+
+		@Override
+		public void seekToBeginning(TopicPartition... partitions) {
+			for (TopicPartition partition : partitions) {
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
-					throw new Exception("the current mock assignment does not contain partition " + partition);
+					throw new RuntimeException("the current mock assignment does not contain partition " + partition);
 				} else {
 					Long mockRetrievedPosition = mockRetrievedPositions.get(partition);
 					if (mockRetrievedPosition == null) {
-						throw new Exception("mock consumer needed to retrieve a position, but no value was provided in the mock values for retrieval");
+						throw new RuntimeException("mock consumer needed to retrieve a position, but no value was provided in the mock values for retrieval");
 					} else {
 						mockConsumerAssignmentAndPosition.put(partition, mockRetrievedPositions.get(partition));
 					}
 				}
-				return null;
 			}
-		}).when(mockConsumer).seekToBeginning(any(TopicPartition.class));
+		}
 
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				TopicPartition partition = invocationOnMock.getArgument(0);
-
+		@Override
+		public void seekToEnd(TopicPartition... partitions) {
+			for (TopicPartition partition : partitions) {
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
-					throw new Exception("the current mock assignment does not contain partition " + partition);
+					throw new RuntimeException("the current mock assignment does not contain partition " + partition);
 				} else {
 					Long mockRetrievedPosition = mockRetrievedPositions.get(partition);
 					if (mockRetrievedPosition == null) {
-						throw new Exception("mock consumer needed to retrieve a position, but no value was provided in the mock values for retrieval");
+						throw new RuntimeException("mock consumer needed to retrieve a position, but no value was provided in the mock values for retrieval");
 					} else {
 						mockConsumerAssignmentAndPosition.put(partition, mockRetrievedPositions.get(partition));
 					}
 				}
-				return null;
 			}
-		}).when(mockConsumer).seekToEnd(any(TopicPartition.class));
+		}
 
-		return mockConsumer;
+		@Override
+		public long position(TopicPartition topicPartition) {
+			if (!earlyWakeup) {
+				return mockConsumerAssignmentAndPosition.get(topicPartition);
+			} else {
+				throw new WakeupException();
+			}
+		}
+
+		@Override
+		public OffsetAndMetadata committed(TopicPartition topicPartition) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Map<MetricName, ? extends Metric> metrics() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public List<PartitionInfo> partitionsFor(String s) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Map<String, List<PartitionInfo>> listTopics() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void pause(TopicPartition... topicPartitions) {
+		}
+
+		@Override
+		public void resume(TopicPartition... topicPartitions) {
+		}
+
+		@Override
+		public void close() {
+		}
+
+		@Override
+		public void wakeup() {
+			numWakeupCalls++;
+		}
+
+		public int getNumWakeupCalls() {
+			return numWakeupCalls;
+		}
 	}
 
 	/**
@@ -987,7 +1075,7 @@ public class KafkaConsumerThreadTest {
 
 	private static class TestKafkaConsumerThreadRateLimit extends KafkaConsumerThread {
 
-		KafkaConsumer mockConsumer;
+		Consumer<byte[], byte[]> mockConsumer;
 
 		public TestKafkaConsumerThreadRateLimit(Logger log,
 				Handover handover, Properties kafkaProperties,
@@ -995,7 +1083,7 @@ public class KafkaConsumerThreadTest {
 				KafkaConsumerCallBridge09 consumerCallBridge, String threadName, long pollTimeout,
 				boolean useMetrics, MetricGroup consumerMetricGroup,
 				MetricGroup subtaskMetricGroup,
-				KafkaConsumer mockConsumer,
+				Consumer<byte[], byte[]> mockConsumer,
 				FlinkConnectorRateLimiter rateLimiter) {
 			super(log, handover, kafkaProperties, unassignedPartitionsQueue, consumerCallBridge,
 					threadName,
@@ -1005,7 +1093,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		public KafkaConsumer getConsumer(Properties properties) {
+		public Consumer<byte[], byte[]> getConsumer(Properties properties) {
 			return mockConsumer;
 		}
 	}
