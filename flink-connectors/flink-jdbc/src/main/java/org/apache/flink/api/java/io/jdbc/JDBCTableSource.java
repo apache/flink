@@ -199,6 +199,20 @@ public class JDBCTableSource implements
 		}
 	}
 
+	@Override
+	public String explainSource() {
+		if (selectFields == null) {
+			return String.format(
+				"JDBCTableSource(read fields: %s)", String.join(", ", schema.getFieldNames()));
+		} else {
+			String[] fields = new String[selectFields.length];
+			for (int i = 0; i < selectFields.length; i++) {
+				fields[i] = schema.getFieldName(selectFields[i]).get();
+			}
+			return String.format("JDBCTableSource(read fields: %s)", String.join(", ", fields));
+		}
+	}
+
 	/**
 	 * Builder for a {@link JDBCTableSource}.
 	 */

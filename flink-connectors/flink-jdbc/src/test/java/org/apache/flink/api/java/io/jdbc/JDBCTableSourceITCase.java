@@ -109,4 +109,38 @@ public class JDBCTableSourceITCase extends AbstractTestBase {
 				"2,2020-01-01T15:36:01.123456,15:36:01,101.1234");
 		StreamITCase.compareWithList(expected);
 	}
+
+	@Test
+	public void testProjectableJDBCSource() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
+				.useBlinkPlanner()
+				.inStreamingMode()
+				.build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+
+		tEnv.sqlUpdate(
+			"CREATE TABLE " + INPUT_TABLE + "(" +
+				"id BIGINT," +
+				"timestamp6_col TIMESTAMP(6)," +
+				"time_col TIME," +
+				"decimal_col DECIMAL(10, 4)" +
+				") WITH (" +
+				"  'connector.type'='jdbc'," +
+				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.table'='" + INPUT_TABLE + "'" +
+				")"
+		);
+
+		StreamITCase.clear();
+		tEnv.toAppendStream(tEnv.sqlQuery("SELECT timestamp6_col, decimal_col FROM " + INPUT_TABLE), Row.class)
+				.addSink(new StreamITCase.StringSink<>());
+		env.execute();
+
+		List<String> expected =
+			Arrays.asList(
+				"2020-01-01T15:35:00.123456,100.1234",
+				"2020-01-01T15:36:01.123456,101.1234");
+		StreamITCase.compareWithList(expected);
+	}
 }
