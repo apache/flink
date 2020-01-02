@@ -29,6 +29,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -102,7 +103,7 @@ public class KafkaConsumerThread extends Thread {
 	private final MetricGroup consumerMetricGroup;
 
 	/** Reference to the Kafka consumer, once it is created. */
-	private volatile KafkaConsumer<byte[], byte[]> consumer;
+	private volatile Consumer<byte[], byte[]> consumer;
 
 	/** This lock is used to isolate the consumer for partition reassignment. */
 	private final Object consumerReassignmentLock;
@@ -404,7 +405,7 @@ public class KafkaConsumerThread extends Thread {
 		// since the reassignment may introduce several Kafka blocking calls that cannot be interrupted,
 		// the consumer needs to be isolated from external wakeup calls in setOffsetsToCommit() and shutdown()
 		// until the reassignment is complete.
-		final KafkaConsumer<byte[], byte[]> consumerTmp;
+		final Consumer<byte[], byte[]> consumerTmp;
 		synchronized (consumerReassignmentLock) {
 			consumerTmp = this.consumer;
 			this.consumer = null;
@@ -498,7 +499,7 @@ public class KafkaConsumerThread extends Thread {
 	}
 
 	@VisibleForTesting
-	KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
+	Consumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
 		return new KafkaConsumer<>(kafkaProperties);
 	}
 
