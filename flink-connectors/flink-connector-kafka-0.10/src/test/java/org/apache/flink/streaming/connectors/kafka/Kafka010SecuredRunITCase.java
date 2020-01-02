@@ -31,14 +31,14 @@ import org.slf4j.LoggerFactory;
  * Kafka Secure Connection (kerberos) IT test case.
  */
 @Category(FailsOnJava11.class)
-public class Kafka09SecuredRunITCase extends KafkaConsumerTestBase {
+public class Kafka010SecuredRunITCase extends KafkaConsumerTestBase {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(Kafka09SecuredRunITCase.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(Kafka010SecuredRunITCase.class);
 
 	@BeforeClass
 	public static void prepare() throws Exception {
 		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting Kafka09SecuredRunITCase ");
+		LOG.info("    Starting Kafka010SecuredRunITCase ");
 		LOG.info("-------------------------------------------------------------------------");
 
 		SecureTestEnvironment.prepare(tempFolder);

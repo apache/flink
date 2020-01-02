@@ -37,6 +37,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
@@ -52,6 +53,7 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -59,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertEquals;
@@ -757,7 +760,6 @@ public class KafkaConsumerThreadTest {
 		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
 		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
 		Properties properties = new Properties();
-		KafkaConsumerCallBridge09 mockBridge = mock(KafkaConsumerCallBridge09.class);
 
 		// -- mock Handover and logger ---
 		Handover mockHandover = PowerMockito.mock(Handover.class);
@@ -776,7 +778,6 @@ public class KafkaConsumerThreadTest {
 				mockHandover,
 				properties,
 				unassignedPartitionsQueue,
-				mockBridge,
 				"test",
 				30L,
 				false,
@@ -825,7 +826,6 @@ public class KafkaConsumerThreadTest {
 					handover,
 					new Properties(),
 					unassignedPartitionsQueue,
-					new KafkaConsumerCallBridge09(),
 					"test-kafka-consumer-thread",
 					0,
 					false,
@@ -927,15 +927,15 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		public void subscribe(List<String> list) {
+		public void subscribe(Collection<String> collection) {
 		}
 
 		@Override
-		public void subscribe(List<String> list, ConsumerRebalanceListener consumerRebalanceListener) {
+		public void subscribe(Collection<String> collection, ConsumerRebalanceListener consumerRebalanceListener) {
 		}
 
 		@Override
-		public void assign(List<TopicPartition> assignedPartitions) {
+		public void assign(Collection<TopicPartition> assignedPartitions) {
 			mockConsumerAssignmentAndPosition.clear();
 
 			for (TopicPartition assigned : assignedPartitions) {
@@ -986,7 +986,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		public void seekToBeginning(TopicPartition... partitions) {
+		public void seekToBeginning(Collection<TopicPartition> partitions) {
 			for (TopicPartition partition : partitions) {
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
 					throw new RuntimeException("the current mock assignment does not contain partition " + partition);
@@ -1002,7 +1002,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		public void seekToEnd(TopicPartition... partitions) {
+		public void seekToEnd(Collection<TopicPartition> partitions) {
 			for (TopicPartition partition : partitions) {
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
 					throw new RuntimeException("the current mock assignment does not contain partition " + partition);
@@ -1047,15 +1047,39 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		public void pause(TopicPartition... topicPartitions) {
+		public Set<TopicPartition> paused() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public void resume(TopicPartition... topicPartitions) {
+		public void pause(Collection<TopicPartition> collection) {
+		}
+
+		@Override
+		public void resume(Collection<TopicPartition> collection) {
+		}
+
+		@Override
+		public Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(Map<TopicPartition, Long> map) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Map<TopicPartition, Long> beginningOffsets(Collection<TopicPartition> collection) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Map<TopicPartition, Long> endOffsets(Collection<TopicPartition> collection) {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public void close() {
+		}
+
+		@Override
+		public void close(long l, TimeUnit timeUnit) {
 		}
 
 		@Override
@@ -1080,12 +1104,12 @@ public class KafkaConsumerThreadTest {
 		public TestKafkaConsumerThreadRateLimit(Logger log,
 				Handover handover, Properties kafkaProperties,
 				ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
-				KafkaConsumerCallBridge09 consumerCallBridge, String threadName, long pollTimeout,
+				String threadName, long pollTimeout,
 				boolean useMetrics, MetricGroup consumerMetricGroup,
 				MetricGroup subtaskMetricGroup,
 				Consumer<byte[], byte[]> mockConsumer,
 				FlinkConnectorRateLimiter rateLimiter) {
-			super(log, handover, kafkaProperties, unassignedPartitionsQueue, consumerCallBridge,
+			super(log, handover, kafkaProperties, unassignedPartitionsQueue,
 					threadName,
 					pollTimeout, useMetrics, consumerMetricGroup, subtaskMetricGroup,
 				rateLimiter);

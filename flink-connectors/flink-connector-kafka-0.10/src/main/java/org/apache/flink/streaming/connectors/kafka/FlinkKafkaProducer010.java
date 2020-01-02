@@ -41,7 +41,7 @@ import java.util.Properties;
  * Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.10.x
  */
 @PublicEvolving
-public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
+public class FlinkKafkaProducer010<T> extends FlinkKafkaProducerBase<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -339,9 +339,7 @@ public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 	 */
 	@Deprecated
 	public FlinkKafkaProducer010(String topicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, KafkaPartitioner<T> customPartitioner) {
-		// We create a Kafka 09 producer instance here and only "override" (by intercepting) the
-		// invoke call.
-		super(topicId, serializationSchema, producerConfig, customPartitioner);
+		super(topicId, serializationSchema, producerConfig, new FlinkKafkaDelegatePartitioner<>(customPartitioner));
 	}
 
 	// ----------------------------- Generic element processing  ---------------------------
@@ -380,6 +378,13 @@ public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 			}
 		}
 		producer.send(record, callback);
+	}
+
+	@Override
+	protected void flush() {
+		if (this.producer != null) {
+			producer.flush();
+		}
 	}
 
 	/**
