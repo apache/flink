@@ -100,7 +100,7 @@ class ScalarFunctionCallGen(
     val functionCallCode =
       s"""
         |${parameters.map(_.code).mkString("\n")}
-        |$resultTypeTerm $resultTerm = $functionReference.eval(
+        |$resultTypeTerm $resultTerm = ($resultTypeTerm)$functionReference.eval(
         |  ${parameters.map(_.resultTerm).mkString(", ")});
         |""".stripMargin
 
