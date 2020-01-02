@@ -57,6 +57,7 @@ public class JDBCTableSource implements
 	// index of fields selected, null means that all fields are selected
 	private final int[] selectFields;
 	private final RowTypeInfo returnType;
+	private final DataType producedDataType;
 
 	private JDBCTableSource(
 		JDBCOptions options, JDBCReadOptions readOptions, JDBCLookupOptions lookupOptions, TableSchema schema) {
@@ -74,17 +75,23 @@ public class JDBCTableSource implements
 		this.selectFields = selectFields;
 
 		final TypeInformation<?>[] schemaTypeInfos = schema.getFieldTypes();
+		final DataType[] schemaDataTypes = schema.getFieldDataTypes();
 		final String[] schemaFieldNames = schema.getFieldNames();
 		if (selectFields != null) {
 			TypeInformation<?>[] typeInfos = new TypeInformation[selectFields.length];
-			String[] typeNames = new String[selectFields.length];
+			DataType[] dataTypes = new DataType[selectFields.length];
+			String[] fieldNames = new String[selectFields.length];
 			for (int i = 0; i < selectFields.length; i++) {
 				typeInfos[i] = schemaTypeInfos[selectFields[i]];
-				typeNames[i] = schemaFieldNames[selectFields[i]];
+				dataTypes[i] = schemaDataTypes[selectFields[i]];
+				fieldNames[i] = schemaFieldNames[selectFields[i]];
 			}
-			this.returnType = new RowTypeInfo(typeInfos, typeNames);
+			this.returnType = new RowTypeInfo(typeInfos, fieldNames);
+			this.producedDataType =
+					TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
 		} else {
 			this.returnType = new RowTypeInfo(schemaTypeInfos, schemaFieldNames);
+			this.producedDataType = schema.toRowDataType();
 		}
 	}
 
@@ -116,7 +123,7 @@ public class JDBCTableSource implements
 
 	@Override
 	public DataType getProducedDataType() {
-		return schema.toRowDataType();
+		return producedDataType;
 	}
 
 	@Override
