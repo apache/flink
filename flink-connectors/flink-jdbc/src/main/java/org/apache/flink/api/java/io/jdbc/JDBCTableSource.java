@@ -31,6 +31,7 @@ import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
@@ -111,6 +112,11 @@ public class JDBCTableSource implements
 	@Override
 	public TypeInformation<Row> getReturnType() {
 		return returnType;
+	}
+
+	@Override
+	public DataType getProducedDataType() {
+		return schema.toRowDataType();
 	}
 
 	@Override
