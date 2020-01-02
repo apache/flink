@@ -23,7 +23,6 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
-import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -47,15 +46,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
-	public YarnJobClusterEntrypoint(
-		Configuration configuration) {
-
+	public YarnJobClusterEntrypoint(Configuration configuration) {
 		super(configuration);
-	}
-
-	@Override
-	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
-		return YarnEntrypointUtils.installSecurityContext(configuration);
 	}
 
 	@Override
@@ -113,8 +105,7 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
 		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
 
-		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(
-			configuration);
+		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
 	}
