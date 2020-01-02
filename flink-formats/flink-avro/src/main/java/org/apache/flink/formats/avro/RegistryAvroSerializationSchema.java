@@ -25,6 +25,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.specific.SpecificRecord;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -74,14 +75,14 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 			return null;
 		} else {
 			try {
+				ByteArrayOutputStream outputStream = getOutputStream();
+				outputStream.reset();
 				Encoder encoder = getEncoder();
 				schemaCoderProvider.get()
-					.writeSchema(getSchema(), getOutputStream());
+					.writeSchema(getSchema(), outputStream);
 				getDatumWriter().write(object, encoder);
 				encoder.flush();
-				byte[] bytes = getOutputStream().toByteArray();
-				getOutputStream().reset();
-				return bytes;
+				return outputStream.toByteArray();
 			} catch (IOException e) {
 				throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
 			}
