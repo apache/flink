@@ -212,7 +212,7 @@ class UserDefinedFunctionTests(object):
                              "'flink',"
                              "cast ('2014-09-13' as DATE),"
                              "cast ('12:00:00' as TIME),"
-                             "cast ('1999-09-10 05:20:10' as TIMESTAMP))"
+                             "cast ('1999-9-10 05:20:10' as TIMESTAMP))"
                              " from test_table").insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
