@@ -60,7 +60,7 @@ public class YarnEntrypointUtils {
 		return SecurityUtils.getInstalledContext();
 	}
 
-	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env, Logger log) {
+	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env) {
 		Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
 
 		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
