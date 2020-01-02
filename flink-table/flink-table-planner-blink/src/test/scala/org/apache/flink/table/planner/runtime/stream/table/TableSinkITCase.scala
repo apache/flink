@@ -302,20 +302,19 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault)
+    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault).configure(
+      Array[String]("cnt", "lencnt", "cTrue"),
+      Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN))
     sink.expectedKeys = Some(Array("cnt", "cTrue"))
     sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("cnt", "lencnt", "cTrue"),
-        Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN)))
+    tEnv.registerTableSink("upsertSink", sink)
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
-      .select('len, 'id.count as 'cnt, 'cTrue)
-      .groupBy('cnt, 'cTrue)
-      .select('cnt, 'len.count as 'lencnt, 'cTrue)
+      // test query field name is different with registered sink field name
+      .select('len, 'id.count as 'count, 'cTrue)
+      .groupBy('count, 'cTrue)
+      .select('count, 'len.count as 'lencnt, 'cTrue)
       .insertInto("upsertSink")
 
     env.execute()
@@ -344,18 +343,17 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault)
+    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault).configure(
+      Array[String]("num", "wend", "icnt"),
+      Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG))
     sink.expectedKeys = Some(Array("wend", "num"))
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("num", "wend", "icnt"),
-        Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG)))
+    tEnv.registerTableSink("upsertSink", sink)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
-      .select('num, 'w.end as 'wend, 'id.count as 'icnt)
+      // test query field name is different with registered sink field name
+      .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
     env.execute()
