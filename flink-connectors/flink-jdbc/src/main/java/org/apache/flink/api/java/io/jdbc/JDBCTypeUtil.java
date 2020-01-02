@@ -51,7 +51,7 @@ class JDBCTypeUtil {
 		m.put(SHORT_TYPE_INFO, Types.SMALLINT);
 		m.put(INT_TYPE_INFO, Types.INTEGER);
 		m.put(LONG_TYPE_INFO, Types.BIGINT);
-		m.put(FLOAT_TYPE_INFO, Types.FLOAT);
+		m.put(FLOAT_TYPE_INFO, Types.REAL);
 		m.put(DOUBLE_TYPE_INFO, Types.DOUBLE);
 		m.put(SqlTimeTypeInfo.DATE, Types.DATE);
 		m.put(SqlTimeTypeInfo.TIME, Types.TIME);
