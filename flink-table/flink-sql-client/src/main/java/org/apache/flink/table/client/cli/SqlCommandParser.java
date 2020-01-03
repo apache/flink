@@ -127,6 +127,10 @@ public final class SqlCommandParser {
 			"(INSERT\\s+INTO.*)",
 			SINGLE_OPERAND),
 
+		INSERT_OVERWRITE(
+			"(INSERT\\s+OVERWRITE.*)",
+			SINGLE_OPERAND),
+
 		CREATE_TABLE("(CREATE\\s+TABLE\\s+.*)", SINGLE_OPERAND),
 
 		DROP_TABLE("(DROP\\s+TABLE\\s+.*)", SINGLE_OPERAND),

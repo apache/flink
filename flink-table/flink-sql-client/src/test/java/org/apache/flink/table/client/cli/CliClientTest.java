@@ -68,17 +68,20 @@ import static org.mockito.Mockito.verify;
 public class CliClientTest extends TestLogger {
 
 	private static final String INSERT_INTO_STATEMENT = "INSERT INTO MyTable SELECT * FROM MyOtherTable";
+	private static final String INSERT_OVERWRITE_STATEMENT = "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
 
 	@Test
 	public void testUpdateSubmission() {
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
+		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, false, false);
 	}
 
 	@Test
 	public void testFailedUpdateSubmission() {
 		// fail at executor
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
+		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
 
 		// fail early in client
 		verifyUpdateSubmission(SELECT_STATEMENT, false, true);
