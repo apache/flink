@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -41,6 +42,7 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
+			ChannelStateWriter channelStateWriter,
 			InputGate inputGate,
 			Configuration taskManagerConfig,
 			TaskIOMetricGroup taskIOMetricGroup,
@@ -52,6 +54,7 @@ public class InputProcessorUtil {
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
 			IntStream.of(inputGate.getNumberOfInputChannels()),
+			channelStateWriter,
 			taskName,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
@@ -68,6 +71,7 @@ public class InputProcessorUtil {
 	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
+			ChannelStateWriter channelStateWriter,
 			Configuration taskManagerConfig,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
@@ -92,6 +96,7 @@ public class InputProcessorUtil {
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
 			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels),
+			channelStateWriter,
 			taskName,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
@@ -125,6 +130,7 @@ public class InputProcessorUtil {
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
 			StreamConfig config,
 			IntStream numberOfInputChannelsPerGate,
+			ChannelStateWriter channelStateWriter,
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
 		switch (config.getCheckpointMode()) {
@@ -132,6 +138,7 @@ public class InputProcessorUtil {
 				if (config.isUnalignedCheckpointsEnabled()) {
 					return new CheckpointBarrierUnaligner(
 						numberOfInputChannelsPerGate.toArray(),
+						channelStateWriter,
 						taskName,
 						toNotifyOnCheckpoint);
 				}

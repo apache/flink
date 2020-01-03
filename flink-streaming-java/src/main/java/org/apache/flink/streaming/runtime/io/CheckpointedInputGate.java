@@ -184,6 +184,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		return Collections.emptyList();
 	}
 
+	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+		return ((CheckpointBarrierUnaligner) barrierHandler).getAllBarriersReceivedFuture(checkpointId);
+	}
+
 	private int offsetChannelIndex(int channelIndex) {
 		return channelIndex + channelIndexOffset;
 	}
