@@ -48,6 +48,7 @@ Table API 和 SQL 程序的结构
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
+
 // 为指定计划器的批处理或流处理作业创建 TableEnvironment
 TableEnvironment tableEnv = ...; // 参阅“创建 TableEnvironment ”章节
 
@@ -152,6 +153,7 @@ table_env.execute("python_job")
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
+
 // **********************
 // FLINK 流式查询
 // **********************
@@ -315,6 +317,7 @@ b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 {% highlight java %}
 // 创建 TableEnvironment
 TableEnvironment tableEnv = ...; // 参阅“创建 TableEnvironment ”章节
+
 // 表是简单投影查询的结果
 Table projTable = tableEnv.scan("X").select(...);
 
@@ -354,7 +357,7 @@ table_env.register_table("projectedTable", proj_table)
 
 {% top %}
 
-### 注册表Source
+### 注册 TableSource
 
 `TableSource`可访问存储在存储系统中的外部数据，例如数据库（MySQL，HBase 等），具有特定编码的文件（CSV，Apache \[Parquet，Avro，ORC \]， ...）或消息传递系统（Apache Kafka，RabbitMQ 等）。
 
@@ -419,6 +422,7 @@ Flink旨在为常见的数据格式和存储系统提供 TableSink。请参阅�
 {% highlight java %}
 // 创建 TableEnvironment
 TableEnvironment tableEnv = ...; // 参阅“创建 TableEnvironment ”章节
+
 // 创建 TableSink
 TableSink csvSink = new CsvTableSink("/path/to/file", ...);
 
@@ -625,6 +629,7 @@ revenue = table_env.sql_query(
 {% highlight java %}
 // 创建 TableEnvironment
 TableEnvironment tableEnv = ...; // 参阅“创建 TableEnvironment ”章节
+
 // 注册"Orders"表
 // 注册"RevenueFrance"输出表
 
