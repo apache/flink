@@ -75,6 +75,6 @@ wait_oper_metric_num_in_records TtlVerifyUpdateFunction.0 ${UPDATE_NUM} "State T
 
 # if verification fails job produces failed TTL'ed state updates,
 # output would be non-empty and contains TTL verification failed:
-if grep "TTL verification failed:" $FLINK_DIR/log/*.out > /dev/null; then
+if grep --quiet "TTL verification failed:" $FLINK_DIR/log/*.out ; then
    exit 1
 fi
