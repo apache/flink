@@ -24,17 +24,11 @@ import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.common.HiveStatsUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
-import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.io.Writable;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -45,7 +39,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -136,29 +129,6 @@ public class HiveShimV310 extends HiveShimV235 {
 	public Class<?> getTimestampDataTypeClass() {
 		initDateTimeClasses();
 		return hiveTimestampClz;
-	}
-
-	@Override
-	public FileStatus[] getFileStatusRecurse(Path path, int level, FileSystem fs) throws IOException {
-		try {
-			Method method = HiveStatsUtils.class.getMethod("getFileStatusRecurse", Path.class, Integer.TYPE, FileSystem.class);
-			// getFileStatusRecurse is a static method
-			List<FileStatus> results = (List<FileStatus>) method.invoke(null, path, level, fs);
-			return results.toArray(new FileStatus[0]);
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to invoke HiveStatsUtils.getFileStatusRecurse()", ex);
-		}
-	}
-
-	@Override
-	public void makeSpecFromName(Map<String, String> partSpec, Path currPath) {
-		try {
-			Method method = Warehouse.class.getMethod("makeSpecFromName", Map.class, Path.class, Set.class);
-			// makeSpecFromName is a static method
-			method.invoke(null, partSpec, currPath, null);
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to invoke Warehouse.makeSpecFromName()", ex);
-		}
 	}
 
 	@Override
