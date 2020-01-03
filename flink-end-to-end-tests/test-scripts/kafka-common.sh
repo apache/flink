@@ -36,7 +36,7 @@ function setup_kafka_dist {
   mkdir -p $TEST_DATA_DIR
   KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.11-$KAFKA_VERSION.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
-  curl "$KAFKA_URL" --retry 10 --retry-max-time 120 > $TEST_DATA_DIR/kafka.tgz
+  curl ${KAFKA_URL} --retry 10 --retry-max-time 120 --output ${TEST_DATA_DIR}/kafka.tgz
 
   tar xzf $TEST_DATA_DIR/kafka.tgz -C $TEST_DATA_DIR/
 
@@ -50,7 +50,7 @@ function setup_confluent_dist {
   mkdir -p $TEST_DATA_DIR
   CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-oss-$CONFLUENT_VERSION-2.11.tar.gz"
   echo "Downloading confluent from $CONFLUENT_URL"
-  curl "$CONFLUENT_URL" > $TEST_DATA_DIR/confluent.tgz
+  curl ${CONFLUENT_URL} --retry 10 --retry-max-time 120 --output ${TEST_DATA_DIR}/confluent.tgz
 
   tar xzf $TEST_DATA_DIR/confluent.tgz -C $TEST_DATA_DIR/
 
