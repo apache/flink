@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -81,6 +82,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -282,7 +284,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			getAsyncOperationsThreadPool(),
 			getEnvironment(),
 			this,
-			false); // todo: pass true if unaligned checkpoints enabled
+			configuration.isUnalignedCheckpointsEnabled(),
+			this::prepareInputSnapshot);
 
 		// if the clock is not already set, then assign a default TimeServiceProvider
 		if (timerService == null) {
@@ -291,6 +294,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		} else {
 			this.timerService = timerService;
 		}
+	}
+
+	private CompletableFuture<Void> prepareInputSnapshot(ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+		if (inputProcessor == null) {
+			return FutureUtils.completedVoidFuture();
+		}
+		return inputProcessor.prepareSnapshot(channelStateWriter, checkpointId);
+	}
+
+	protected ChannelStateWriter getChannelStateWriter() {
+		return subtaskCheckpointCoordinator.getChannelStateWriter();
 	}
 
 	// ------------------------------------------------------------------------
@@ -727,6 +741,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				.setBytesBufferedInAlignment(0L)
 				.setAlignmentDurationNanos(0L);
 
+			subtaskCheckpointCoordinator.getChannelStateWriter().start(checkpointMetaData.getCheckpointId(), checkpointOptions);
 			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
 			if (!success) {
 				declineCheckpoint(checkpointMetaData.getCheckpointId());
@@ -863,6 +878,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
 			}
 
+			subtaskCheckpointCoordinator.getChannelStateWriter().notifyCheckpointComplete(checkpointId);
 			getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
 			if (isRunning && isSynchronousSavepointId(checkpointId)) {
 				finishTask();

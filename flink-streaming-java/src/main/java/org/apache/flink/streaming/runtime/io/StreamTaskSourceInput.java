@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.SourceReaderOperator;
 import org.apache.flink.util.IOUtils;
 
@@ -61,6 +62,13 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T> {
 	@Override
 	public void close() {
 		IOUtils.closeQuietly(operator::close);
+	}
+
+	@Override
+	public CompletableFuture<Void> prepareSnapshot(
+			ChannelStateWriter channelStateWriter,
+			long checkpointId) {
+		return CompletableFuture.completedFuture(null);
 	}
 }
 

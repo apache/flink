@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -1174,6 +1175,13 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public CompletableFuture<Void> prepareSnapshot(
+				ChannelStateWriter channelStateWriter,
+				final long checkpointId) {
+			return FutureUtils.completedVoidFuture();
+		}
+
+		@Override
 		public void close() throws IOException {
 		}
 
@@ -1336,6 +1344,11 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public InputStatus processInput() throws Exception {
 			return isFinished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
+		}
+
+		@Override
+		public CompletableFuture<Void> prepareSnapshot(ChannelStateWriter channelStateWriter, long checkpointId) {
+			return FutureUtils.completedVoidFuture();
 		}
 
 		@Override

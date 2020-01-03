@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -42,6 +43,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link CheckpointBarrierUnaligner} is used for triggering checkpoint while reading the first barrier
@@ -86,6 +89,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	CheckpointBarrierUnaligner(
 			int[] numberOfInputChannelsPerGate,
+			ChannelStateWriter channelStateWriter,
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
 		super(toNotifyOnCheckpoint);
@@ -108,7 +112,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			.flatMap(Function.identity())
 			.toArray(InputChannelInfo[]::new);
 
-		threadSafeUnaligner = new ThreadSafeUnaligner(totalNumChannels,	this);
+		threadSafeUnaligner = new ThreadSafeUnaligner(totalNumChannels,	checkNotNull(channelStateWriter), this);
 	}
 
 	@Override
@@ -315,12 +319,16 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		/** The number of opened channels. */
 		private int numOpenChannels;
 
+		private final ChannelStateWriter channelStateWriter;
+
 		private final CheckpointBarrierUnaligner handler;
 
 		public ThreadSafeUnaligner(
 				int totalNumChannels,
+				ChannelStateWriter channelStateWriter,
 				CheckpointBarrierUnaligner handler) {
 			storeNewBuffers = new boolean[totalNumChannels];
+			this.channelStateWriter = channelStateWriter;
 			this.handler = handler;
 			numOpenChannels = totalNumChannels;
 		}
@@ -350,7 +358,15 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 		@Override
 		public synchronized void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
-			buffer.recycleBuffer();
+			if (storeNewBuffers[handler.getFlattenedChannelIndex(channelInfo)]) {
+				channelStateWriter.addInputData(
+					currentReceivedCheckpointId,
+					channelInfo,
+					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+					buffer);
+			} else {
+				buffer.recycleBuffer();
+			}
 		}
 
 		@Override
@@ -382,6 +398,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			Arrays.fill(storeNewBuffers, true);
 			numBarriersReceived = 0;
 			allBarriersReceivedFuture = new CompletableFuture<>();
+			channelStateWriter.start(barrierId, barrier.getCheckpointOptions());
 		}
 
 		public synchronized void resetReceivedBarriers(long checkpointId) {
