@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.util.MathUtils;
@@ -28,9 +29,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.hashtable.BaseHybridHashTable.partitionLevelHash;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -139,6 +141,8 @@ public class BinaryHashBucketArea {
 	final BinaryHashTable table;
 	private final double estimatedRowCount;
 	private final double loadFactor;
+	private final boolean spillingAllowed;
+
 	BinaryHashPartition partition;
 	private int size;
 
@@ -154,13 +158,23 @@ public class BinaryHashBucketArea {
 	private boolean inReHash = false;
 
 	BinaryHashBucketArea(BinaryHashTable table, double estimatedRowCount, int maxSegs) {
-		this(table, estimatedRowCount, maxSegs, DEFAULT_LOAD_FACTOR);
+		this(table, estimatedRowCount, maxSegs, DEFAULT_LOAD_FACTOR, true);
 	}
 
-	private BinaryHashBucketArea(BinaryHashTable table, double estimatedRowCount, int maxSegs, double loadFactor) {
+	BinaryHashBucketArea(BinaryHashTable table, double estimatedRowCount, int maxSegs, boolean spillingAllowed) {
+		this(table, estimatedRowCount, maxSegs, DEFAULT_LOAD_FACTOR, spillingAllowed);
+	}
+
+	private BinaryHashBucketArea(
+			BinaryHashTable table,
+			double estimatedRowCount,
+			int maxSegs,
+			double loadFactor,
+			boolean spillingAllowed) {
 		this.table = table;
 		this.estimatedRowCount = estimatedRowCount;
 		this.loadFactor = loadFactor;
+		this.spillingAllowed = spillingAllowed;
 		this.size = 0;
 
 		int minNumBuckets = (int) Math.ceil((estimatedRowCount / loadFactor / NUM_ENTRIES_PER_BUCKET));
@@ -198,7 +212,7 @@ public class BinaryHashBucketArea {
 		this.partition = partition;
 	}
 
-	private void resize(boolean spillingAllowed) throws IOException {
+	private void resize() throws IOException {
 		MemorySegment[] oldBuckets = this.buckets;
 		int oldNumBuckets = numBuckets;
 		MemorySegment[] oldOverflowSegments = overflowSegments;
@@ -265,7 +279,7 @@ public class BinaryHashBucketArea {
 				while (numInBucket < countInBucket) {
 					int hashCode = bucketSeg.getInt(hashCodeOffset);
 					int pointer = bucketSeg.getInt(pointerOffset);
-					if (!insertToBucket(hashCode, pointer, true, false)) {
+					if (!insertToBucket(hashCode, pointer, false)) {
 						buildBloomFilterAndFree(oldBuckets, oldNumBuckets, oldOverflowSegments);
 						return;
 					}
@@ -293,17 +307,6 @@ public class BinaryHashBucketArea {
 		LOG.info("The rehash take {} ms for {} segments", (System.currentTimeMillis() - reHashStartTime), numBuckets);
 	}
 
-	private void freeMemory(MemorySegment[] buckets, MemorySegment[] overflowSegments) {
-		for (MemorySegment segment : buckets) {
-			table.free(segment);
-		}
-		for (MemorySegment segment : overflowSegments) {
-			if (segment != null) {
-				table.free(segment);
-			}
-		}
-	}
-
 	private void initMemorySegment(MemorySegment seg) {
 		// go over all buckets in the segment
 		for (int k = 0; k < table.bucketsPerSegment; k++) {
@@ -315,8 +318,11 @@ public class BinaryHashBucketArea {
 	}
 
 	private boolean insertToBucket(
-			MemorySegment bucket, int bucketInSegmentPos,
-			int hashCode, int pointer, boolean spillingAllowed, boolean sizeAddAndCheckResize) throws IOException {
+			MemorySegment bucket,
+			int bucketInSegmentPos,
+			int hashCode,
+			int pointer,
+			boolean sizeAddAndCheckResize) throws IOException {
 		final int count = bucket.getShort(bucketInSegmentPos + HEADER_COUNT_OFFSET);
 		if (count < NUM_ENTRIES_PER_BUCKET) {
 			// we are good in our current bucket, put the values
@@ -364,19 +370,23 @@ public class BinaryHashBucketArea {
 				// no space left in last bucket, or no bucket yet, so create an overflow segment
 				overflowSeg = table.getNextBuffer();
 				if (overflowSeg == null) {
-					// no memory available to create overflow bucket. we need to spill a partition
 					if (!spillingAllowed) {
-						throw new IOException("Hashtable memory ran out in a non-spillable situation. " +
-								"This is probably related to wrong size calculations.");
-					}
-					final int spilledPart = table.spillPartition();
-					if (spilledPart == partition.partitionNumber) {
-						// this bucket is no longer in-memory
-						return false;
-					}
-					overflowSeg = table.getNextBuffer();
-					if (overflowSeg == null) {
-						throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling a partition.");
+						// In this corner case, we steal memory from heap.
+						// Because the linked hash conflict solution, the required memory
+						// calculation are not accurate, in this case, we apply for insufficient
+						// memory from heap.
+						// NOTE: must be careful, the steal memory should not return to table.
+						overflowSeg = MemorySegmentFactory.allocateUnpooledSegment(table.segmentSize, this);
+					} else {
+						final int spilledPart = table.spillPartition();
+						if (spilledPart == partition.partitionNumber) {
+							// this bucket is no longer in-memory
+							return false;
+						}
+						overflowSeg = table.getNextBuffer();
+						if (overflowSeg == null) {
+							throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling a partition.");
+						}
 					}
 				}
 				overflowBucketOffset = 0;
@@ -420,26 +430,27 @@ public class BinaryHashBucketArea {
 		}
 
 		if (sizeAddAndCheckResize && ++size > threshold) {
-			resize(spillingAllowed);
+			resize();
 		}
 		return true;
 	}
 
-	private int findBucket(int hashCode) {
-		return hashCode & this.numBucketsMask;
+	private int findBucket(int hash) {
+		// Avoid two layer hash conflict
+		return partitionLevelHash(hash) & this.numBucketsMask;
 	}
 
 	/**
 	 * Insert into bucket by hashCode and pointer.
 	 * @return return false when spill own partition.
 	 */
-	boolean insertToBucket(int hashCode, int pointer, boolean spillingAllowed, boolean sizeAddAndCheckResize) throws IOException {
+	boolean insertToBucket(int hashCode, int pointer, boolean sizeAddAndCheckResize) throws IOException {
 		final int posHashCode = findBucket(hashCode);
 		// get the bucket for the given hash code
 		final int bucketArrayPos = posHashCode >> table.bucketsPerSegmentBits;
 		final int bucketInSegmentPos = (posHashCode & table.bucketsPerSegmentMask) << BUCKET_SIZE_BITS;
 		final MemorySegment bucket = this.buckets[bucketArrayPos];
-		return insertToBucket(bucket, bucketInSegmentPos, hashCode, pointer, spillingAllowed, sizeAddAndCheckResize);
+		return insertToBucket(bucket, bucketInSegmentPos, hashCode, pointer, sizeAddAndCheckResize);
 	}
 
 	/**
@@ -458,7 +469,7 @@ public class BinaryHashBucketArea {
 			int pointer = partition.insertIntoBuildBuffer(record);
 			if (pointer != -1) {
 				// record was inserted into an in-memory partition. a pointer must be inserted into the buckets
-				insertToBucket(bucket, bucketInSegmentPos, hashCode, pointer, true, true);
+				insertToBucket(bucket, bucketInSegmentPos, hashCode, pointer, true);
 				return true;
 			} else {
 				return false;
@@ -536,13 +547,27 @@ public class BinaryHashBucketArea {
 	}
 
 	void returnMemory(List<MemorySegment> target) {
-		target.addAll(Arrays.asList(overflowSegments).subList(0, numOverflowSegments));
-		target.addAll(Arrays.asList(buckets));
+		returnMemory(target, buckets, overflowSegments);
 	}
 
-	private void freeMemory() {
-		table.availableMemory.addAll(Arrays.asList(overflowSegments).subList(0, numOverflowSegments));
-		table.availableMemory.addAll(Arrays.asList(buckets));
+	void freeMemory() {
+		returnMemory(table.availableMemory, buckets, overflowSegments);
+	}
+
+	private void freeMemory(MemorySegment[] buckets, MemorySegment[] overflowSegments) {
+		returnMemory(table.availableMemory, buckets, overflowSegments);
+	}
+
+	private void returnMemory(
+			List<MemorySegment> target, MemorySegment[] buckets, MemorySegment[] overflowSegments) {
+		Collections.addAll(target, buckets);
+		for (MemorySegment segment : overflowSegments) {
+			if (segment != null &&
+					// except stealing from heap.
+					segment.getOwner() != this) {
+				target.add(segment);
+			}
+		}
 	}
 
 	/**

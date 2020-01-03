@@ -477,7 +477,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 
 			// first read the partition in
 			final List<MemorySegment> partitionBuffers = readAllBuffers(p.getBuildSideChannel().getChannelID(), p.getBuildSideBlockCount());
-			BinaryHashBucketArea area = new BinaryHashBucketArea(this, (int) p.getBuildSideRecordCount(), maxBucketAreaBuffers);
+			BinaryHashBucketArea area = new BinaryHashBucketArea(this, (int) p.getBuildSideRecordCount(), maxBucketAreaBuffers, false);
 			final BinaryHashPartition newPart = new BinaryHashPartition(area, this.binaryBuildSideSerializer, this.binaryProbeSideSerializer,
 					0, nextRecursionLevel, partitionBuffers, p.getBuildSideRecordCount(), this.segmentSize, p.getLastSegmentLimit());
 			area.setPartition(newPart);
@@ -490,7 +490,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			while (pIter.advanceNext()) {
 				final int hashCode = hash(buildSideProjection.apply(pIter.getRow()).hashCode(), nextRecursionLevel);
 				final int pointer = (int) pIter.getPointer();
-				area.insertToBucket(hashCode, pointer, false, true);
+				area.insertToBucket(hashCode, pointer, true);
 			}
 		} else {
 			// go over the complete input and insert every element into the hash table
@@ -624,7 +624,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 		return largestPartNum;
 	}
 
-	boolean applyCondition(BinaryRow candidate) throws Exception {
+	boolean applyCondition(BinaryRow candidate) {
 		BinaryRow buildKey = buildSideProjection.apply(candidate);
 		// They come from Projection, so we can make sure it is in byte[].
 		boolean equal = buildKey.getSizeInBytes() == probeKey.getSizeInBytes()
