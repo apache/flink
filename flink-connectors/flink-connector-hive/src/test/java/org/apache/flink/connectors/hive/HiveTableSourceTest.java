@@ -294,11 +294,11 @@ public class HiveTableSourceTest {
 		try {
 			hiveShell.execute("create table db1.part(x int) partitioned by (p1 date,p2 timestamp)");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
-					.addRow(new Object[]{1}).commit("p1=date '2018-08-08',p2=timestamp '2018-08-08 08:08:08'");
+					.addRow(new Object[]{1}).commit("p1='2018-08-08',p2='2018-08-08 08:08:08'");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
-					.addRow(new Object[]{2}).commit("p1=date '2018-08-09',p2=timestamp '2018-08-08 08:08:09'");
+					.addRow(new Object[]{2}).commit("p1='2018-08-09',p2='2018-08-08 08:08:09'");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
-					.addRow(new Object[]{3}).commit("p1=date '2018-08-10',p2=timestamp '2018-08-08 08:08:10'");
+					.addRow(new Object[]{3}).commit("p1='2018-08-10',p2='2018-08-08 08:08:10'");
 
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
