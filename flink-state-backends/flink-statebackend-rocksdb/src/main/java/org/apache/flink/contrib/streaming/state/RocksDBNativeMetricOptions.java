@@ -157,7 +157,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.key(RocksDBProperty.IsWriteStopped.getConfigKey())
 		.booleanType()
 		.defaultValue(false)
-		.withDescription("Monitor whether write has been stopped. 1 means that has been stopped.");
+		.withDescription("Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.");
 
 	public static final ConfigOption<Boolean> BLOCK_CACHE_CAPACITY = ConfigOptions
 		.key(RocksDBProperty.BlockCacheCapacity.getConfigKey())
