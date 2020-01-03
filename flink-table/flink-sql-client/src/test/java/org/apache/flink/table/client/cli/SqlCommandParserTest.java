@@ -65,6 +65,9 @@ public class SqlCommandParserTest {
 			"INSERT INTO other SELECT 1+1",
 			new SqlCommandCall(SqlCommand.INSERT_INTO, new String[]{"INSERT INTO other SELECT 1+1"}));
 		testValidSqlCommand(
+			"INSERT OVERWRITE other SELECT 1+1",
+			new SqlCommandCall(SqlCommand.INSERT_OVERWRITE, new String[]{"INSERT OVERWRITE other SELECT 1+1"}));
+		testValidSqlCommand(
 			"CREATE VIEW x AS SELECT 1+1",
 			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"x", "SELECT 1+1"}));
 		testValidSqlCommand(
