@@ -102,7 +102,7 @@ public class JDBCTableSource implements
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv.createInput(getInputFormat(), getReturnType()).name(explainSource());
+		return execEnv.createInput(getInputFormat(), returnType).name(explainSource());
 	}
 
 	@Override
@@ -114,11 +114,6 @@ public class JDBCTableSource implements
 				.setFieldNames(returnType.getFieldNames())
 				.setKeyNames(lookupKeys)
 				.build();
-	}
-
-	@Override
-	public TypeInformation<Row> getReturnType() {
-		return returnType;
 	}
 
 	@Override
@@ -201,16 +196,8 @@ public class JDBCTableSource implements
 
 	@Override
 	public String explainSource() {
-		if (selectFields == null) {
-			return String.format(
-				"JDBCTableSource(read fields: %s)", String.join(", ", schema.getFieldNames()));
-		} else {
-			String[] fields = new String[selectFields.length];
-			for (int i = 0; i < selectFields.length; i++) {
-				fields[i] = schema.getFieldName(selectFields[i]).get();
-			}
-			return String.format("JDBCTableSource(read fields: %s)", String.join(", ", fields));
-		}
+		return String.format(
+			"JDBCTableSource(read fields: %s)", String.join(", ", returnType.getFieldNames()));
 	}
 
 	/**
