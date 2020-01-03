@@ -112,7 +112,7 @@ public class LocalExecutor implements Executor {
 	private final ResultStore resultStore;
 
 	// insert into sql match pattern
-	public static final Pattern INSERT_INTO_SQL_PATTERN = Pattern.compile("(INSERT\\s+INTO.*)",
+	private static final Pattern INSERT_SQL_PATTERN = Pattern.compile("(INSERT\\s+(INTO|OVERWRITE).*)",
 			Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
 	/**
@@ -576,7 +576,7 @@ public class LocalExecutor implements Executor {
 		applyUpdate(context, context.getTableEnvironment(), context.getQueryConfig(), statement);
 
 		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-		if (!INSERT_INTO_SQL_PATTERN.matcher(statement.trim()).matches()) {
+		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
 			return null;
 		}
 
