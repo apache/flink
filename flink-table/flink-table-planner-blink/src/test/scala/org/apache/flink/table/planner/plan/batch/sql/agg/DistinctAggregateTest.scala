@@ -27,6 +27,7 @@ import org.junit.Test
 class DistinctAggregateTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addTableSource[(Int, Long, String, String, String)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
 
   @Test
   def testSingleDistinctAggregate(): Unit = {
@@ -79,6 +80,41 @@ class DistinctAggregateTest extends TableTestBase {
   @Test
   def testTwoDifferentDistinctAggregateWithGroupingAndCountStar(): Unit = {
     val sqlQuery = "SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT c) FROM MyTable GROUP BY a"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSingleDistinctWithFilter(): Unit = {
+    val sqlQuery = "SELECT d, COUNT(DISTINCT c) FILTER (WHERE a > 0) FROM MyTable2 GROUP BY d"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiDistinctOnSameColumnWithFilter(): Unit = {
+    val sqlQuery = "SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 10),\n" +
+      "COUNT(DISTINCT c) FILTER (WHERE a < 10) FROM MyTable2 GROUP BY d"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def TestMultiDistinctOnDifferentColumnWithFilter(): Unit = {
+    val sqlQuery = "SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),\n" +
+      "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY d"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def TestMultiDistinctWithFilterAndNonDistinctAgg(): Unit = {
+    val sqlQuery = "SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),\n" +
+      "MAX(e), MIN(e) FROM MyTable2 GROUP BY d"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiDistinctAndNonDistinctAggWithFilter(): Unit = {
+    val sqlQuery = "SELECT d, MAX(e), MAX(e) FILTER (WHERE a < 10), COUNT(DISTINCT c),\n" +
+      "COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
+      "FROM MyTable2 GROUP BY d"
     util.verifyPlan(sqlQuery)
   }
 

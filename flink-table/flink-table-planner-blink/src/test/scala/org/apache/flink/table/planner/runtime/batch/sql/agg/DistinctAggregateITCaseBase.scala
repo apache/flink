@@ -282,6 +282,42 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testSingleDistinctWithFilter(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5 GROUP BY e",
+      Seq(row(1, 3), row(2, 4), row(3, 2))
+    )
+  }
+
+  @Test
+  def testMultiDistinctOnSameColumnWithFilter(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+      "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 3), row(2, 4, 4, 3), row(3, 2, 2, 1)))
+  }
+
+  @Test
+  def TestMultiDistinctOnDifferentColumnWithFilter(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+      "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 4), row(2, 4, 4, 7), row(3, 2, 2, 3)))
+  }
+
+  @Test
+  def TestMultiDistinctWithFilterAndNonDistinctAgg(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+      "MAX(c), MIN(c) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 10, 0), row(2, 4, 4, 14, 1), row (3, 2, 2, 12, 5)))
+  }
+
+  @Test
+  def testMultiDistinctAndNonDistinctAggWithFilter(): Unit = {
+    checkResult("SELECT e, MAX(c), MAX(c) FILTER (WHERE b < 10), COUNT(DISTINCT a), " +
+      "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
+      "FROM Table5 GROUP BY e",
+      Seq(row(1, 10, 8, 4, 2, 3), row(2, 14, 6, 4, 2, 6), row (3, 12, 5, 2, 1, 3)))
+  }
+
   // TODO remove Ignore after supporting generated code cloud be splitted into
   //  small classes or methods due to code is too large
   @Ignore
