@@ -112,7 +112,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	@Override
 	public long getAndIncrement() throws Exception {
 		while (true) {
-			checkConnectionState();
+			connStateListener.checkConnectionState();
 
 			VersionedValue<Integer> current = sharedCount.getVersionedValue();
 			int newCount = current.getValue() + 1;
@@ -131,18 +131,14 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 
 	@Override
 	public long get() {
-		checkConnectionState();
+		connStateListener.checkConnectionState();
 
 		return sharedCount.getVersionedValue().getValue();
 	}
 
 	@Override
 	public void setCount(long newId) throws Exception {
-		ConnectionState connState = connStateListener.getLastState();
-
-		if (connState != null) {
-			throw new IllegalStateException("Connection state: " + connState);
-		}
+		connStateListener.checkConnectionState();
 
 		if (newId > Integer.MAX_VALUE) {
 			throw new IllegalArgumentException("ZooKeeper checkpoint counter only supports " +
@@ -151,14 +147,6 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		}
 
 		sharedCount.setCount((int) newId);
-	}
-
-	private void checkConnectionState() {
-		ConnectionState connState = connStateListener.getLastState();
-
-		if (connState != null) {
-			throw new IllegalStateException("Connection state: " + connState);
-		}
 	}
 
 	/**
@@ -171,13 +159,17 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 
 		@Override
 		public void stateChanged(CuratorFramework client, ConnectionState newState) {
-			if (newState == ConnectionState.SUSPENDED || newState == ConnectionState.LOST) {
-				lastState = newState;
-			}
+			lastState = newState;
 		}
 
-		private ConnectionState getLastState() {
-			return lastState;
+		private void checkConnectionState() {
+			if (lastState == null) {
+				return;
+			}
+
+			if (lastState != ConnectionState.CONNECTED && lastState != ConnectionState.RECONNECTED) {
+				throw new IllegalStateException("Connection state: " + lastState);
+			}
 		}
 	}
 }
