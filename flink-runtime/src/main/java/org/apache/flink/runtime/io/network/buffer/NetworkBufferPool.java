@@ -92,11 +92,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
 	public NetworkBufferPool(
-		int numberOfSegmentsToAllocate,
-		int segmentSize,
-		int numberOfSegmentsToRequest,
-		Duration requestSegmentsTimeout) {
-
+			int numberOfSegmentsToAllocate,
+			int segmentSize,
+			int numberOfSegmentsToRequest,
+			Duration requestSegmentsTimeout) {
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 

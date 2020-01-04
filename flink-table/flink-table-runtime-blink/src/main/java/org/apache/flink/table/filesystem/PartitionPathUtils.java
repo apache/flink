@@ -146,7 +146,7 @@ public class PartitionPathUtils {
 		return fullPartSpec;
 	}
 
-	private static String unescapePathName(String path) {
+	public static String unescapePathName(String path) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < path.length(); i++) {
 			char c = path.charAt(i);

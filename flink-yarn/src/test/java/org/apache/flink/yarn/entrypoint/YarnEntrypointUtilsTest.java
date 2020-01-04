@@ -27,8 +27,6 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -45,8 +43,6 @@ import static org.junit.Assert.assertThat;
  * Tests for the {@link YarnEntrypointUtils}.
  */
 public class YarnEntrypointUtilsTest extends TestLogger {
-
-	private static final Logger LOG = LoggerFactory.getLogger(YarnEntrypointUtilsTest.class);
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -104,7 +100,7 @@ public class YarnEntrypointUtilsTest extends TestLogger {
 		env.put(ApplicationConstants.Environment.NM_HOST.key(), "foobar");
 
 		BootstrapTools.writeConfiguration(initialConfiguration, new File(workingDirectory, "flink-conf.yaml"));
-		return YarnEntrypointUtils.loadConfiguration(workingDirectory.getAbsolutePath(), env, LOG);
+		return YarnEntrypointUtils.loadConfiguration(workingDirectory.getAbsolutePath(), env);
 	}
 
 }

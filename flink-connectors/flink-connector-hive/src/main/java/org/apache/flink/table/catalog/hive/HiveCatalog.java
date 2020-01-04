@@ -107,6 +107,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.filesystem.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -953,7 +954,7 @@ public class HiveCatalog extends AbstractCatalog {
 		Map<String, String> spec = new HashMap<>(partKeyVals.length);
 		for (String keyVal : partKeyVals) {
 			String[] kv = keyVal.split("=");
-			spec.put(kv[0], kv[1]);
+			spec.put(unescapePathName(kv[0]), unescapePathName(kv[1]));
 		}
 		return new CatalogPartitionSpec(spec);
 	}

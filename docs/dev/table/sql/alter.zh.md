@@ -31,6 +31,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 
 - ALTER TABLE
 - ALTER DATABASE
+- ALTER FUNCTION
 
 ## 执行 ALTER 语句
 

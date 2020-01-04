@@ -120,7 +120,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
-import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 /**
  * The descriptor with deployment information for deploying a Flink cluster on Yarn.
@@ -141,8 +140,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private final String yarnQueue;
 
 	private Path flinkJarPath;
-
-	private final String dynamicPropertiesEncoded;
 
 	private final Configuration flinkConfiguration;
 
@@ -173,7 +170,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		decodeDirsToShipToCluster(flinkConfiguration).ifPresent(this::addShipFiles);
 
 		this.yarnQueue = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_QUEUE);
-		this.dynamicPropertiesEncoded = flinkConfiguration.getString(YarnConfigOptionsInternal.DYNAMIC_PROPERTIES);
 		this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
 		this.applicationType = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_TYPE);
 		this.nodeLabel = flinkConfiguration.getString(YarnConfigOptions.NODE_LABEL);
@@ -267,10 +263,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			YarnConfigOptions.UserJarInclusion.DISABLED,
 			ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
 		this.shipFiles.addAll(shipFiles);
-	}
-
-	public String getDynamicPropertiesEncoded() {
-		return this.dynamicPropertiesEncoded;
 	}
 
 	private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws YarnDeploymentException {
@@ -500,12 +492,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// ------------------ Check if the specified queue exists --------------------
 
 		checkYarnQueues(yarnClient);
-
-		// ------------------ Add dynamic properties to local flinkConfiguraton ------
-		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
-		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
-			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
-		}
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
@@ -866,9 +852,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				TaskManagerOptions.NUM_TASK_SLOTS,
 				clusterSpecification.getSlotsPerTaskManager());
 
-		configuration.setString(
+		configuration.set(
 				TaskManagerOptions.TOTAL_PROCESS_MEMORY,
-				clusterSpecification.getTaskManagerMemoryMB() + "m");
+				MemorySize.parse(clusterSpecification.getTaskManagerMemoryMB() + "m"));
 
 		// Upload the flink configuration
 		// write out configuration file
@@ -1045,10 +1031,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			appMasterEnv.put(YarnConfigKeys.ENV_KRB5_PATH, remoteKrb5Path.toString());
 		}
 
-		if (dynamicPropertiesEncoded != null) {
-			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
-		}
-
 		// set classpath from YARN configuration
 		Utils.setupYarnClassPath(yarnConfiguration, appMasterEnv);
 
@@ -1101,7 +1083,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			LOG.debug("Application State: {}", appState);
 			switch(appState) {
 				case FAILED:
-				case FINISHED:
 				case KILLED:
 					throw new YarnDeploymentException("The YARN application unexpectedly switched to state "
 							+ appState + " during deployment. \n" +
@@ -1111,6 +1092,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					//break ..
 				case RUNNING:
 					LOG.info("YARN application has been deployed successfully.");
+					break loop;
+				case FINISHED:
+					LOG.info("YARN application has been finished successfully.");
 					break loop;
 				default:
 					if (appState != lastAppState) {

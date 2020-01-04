@@ -28,12 +28,13 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
-import java.time.{Instant, ZoneId}
+import java.time.{Instant, ZoneId, ZoneOffset}
 import java.util.{Locale, TimeZone}
-
 import org.apache.flink.table.runtime.typeutils.{LegacyInstantTypeInfo, LegacyLocalDateTimeTypeInfo}
 
 class TemporalTypesTest extends ExpressionTestBase {
@@ -106,6 +107,20 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "TIMESTAMP '1500-04-30 12:00:00.1234'",
       "1500-04-30 12:00:00.1234")
+
+    testSqlApi(
+      "CAST('1500-04-30 12:00:00.123456789' AS TIMESTAMP(9))",
+      "1500-04-30 12:00:00.123456789")
+
+    // by default, it's TIMESTAMP(6)
+    testSqlApi(
+      "CAST('1500-04-30 12:00:00.123456789' AS TIMESTAMP)",
+      "1500-04-30 12:00:00.123456")
+
+    testSqlApi(
+      "CAST('1999-9-10 05:20:10.123456' AS TIMESTAMP)",
+      "1999-09-10 05:20:10.123456"
+    )
   }
 
   @Test
@@ -784,6 +799,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(timestampTz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.01")
 
     testSqlApi(
+      timestampTz("2018-03-14 19:00:00.010") + " > " + "f25",
+      "true")
+
+    testSqlApi(
       s"${timestampTz("2018-03-14 01:02:03.123456789", 9)}",
       "2018-03-14 01:02:03.123456789")
 
@@ -1189,7 +1208,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(25)
+    val testData = new Row(26)
     testData.setField(0, localDate("1990-10-14"))
     testData.setField(1, DateTimeTestUtil.localTime("10:20:45"))
     testData.setField(2, localDateTime("1990-10-14 10:20:45.123"))
@@ -1220,6 +1239,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(23, localDateTime("1970-01-01 00:00:00.123456789")
       .atZone(config.getLocalTimeZone).toInstant)
     testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789"))
+    testData.setField(25, localDateTime("1970-01-01 00:00:00.123456789").toInstant(ZoneOffset.UTC))
     testData
   }
 
@@ -1249,7 +1269,8 @@ class TemporalTypesTest extends ExpressionTestBase {
       /* 21 */ Types.LONG,
       /* 22 */ Types.INT,
       /* 23 */ new LegacyInstantTypeInfo(9),
-      /* 24 */ new LegacyLocalDateTimeTypeInfo(9)
+      /* 24 */ new LegacyLocalDateTimeTypeInfo(9),
+      /* 25 */ Types.INSTANT
     )
   }
 }

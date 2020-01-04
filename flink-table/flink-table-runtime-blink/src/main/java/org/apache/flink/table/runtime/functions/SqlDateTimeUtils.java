@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -253,7 +254,13 @@ public class SqlDateTimeUtils {
 				return SqlTimestamp.fromLocalDateTime(ldt);
 			}
 		} catch (DateTimeParseException e) {
-			return null;
+			// fall back to support cases like '1999-9-10 05:20:10'
+			try {
+				Timestamp ts = Timestamp.valueOf(dateStr);
+				return SqlTimestamp.fromTimestamp(ts);
+			} catch (IllegalArgumentException ie) {
+				return null;
+			}
 		}
 	}
 

@@ -249,7 +249,8 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
-		final Configuration config, final MemorySize totalFlinkMemorySize) {
+			final Configuration config,
+			final MemorySize totalFlinkMemorySize) {
 		final MemorySize jvmMetaspaceSize = getJvmMetaspaceSize(config);
 		final MemorySize jvmOverheadSize = deriveJvmOverheadWithInverseFraction(config,
 			totalFlinkMemorySize.add(jvmMetaspaceSize));
@@ -257,7 +258,8 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static FlinkInternalMemory deriveInternalMemoryFromTotalFlinkMemory(
-		final Configuration config, final MemorySize totalFlinkMemorySize) {
+			final Configuration config,
+			final MemorySize totalFlinkMemorySize) {
 		final MemorySize frameworkHeapMemorySize = getFrameworkHeapMemorySize(config);
 		final MemorySize frameworkOffHeapMemorySize = getFrameworkOffHeapMemorySize(config);
 		final MemorySize taskOffHeapMemorySize = getTaskOffHeapMemorySize(config);
@@ -453,9 +455,9 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	private static MemorySize getMemorySizeFromConfig(final Configuration config, final ConfigOption<String> option) {
+	private static MemorySize getMemorySizeFromConfig(final Configuration config, final ConfigOption<MemorySize> option) {
 		try {
-			return MemorySize.parse(config.getString(option));
+			return config.get(option);
 		} catch (Throwable t) {
 			throw new IllegalConfigurationException("Cannot read memory size from config option '" + option.key() + "'.", t);
 		}
@@ -516,7 +518,10 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	private static void sanityCheckTotalProcessMemory(final Configuration config, final MemorySize totalFlinkMemory, final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+	private static void sanityCheckTotalProcessMemory(
+			final Configuration config,
+			final MemorySize totalFlinkMemory,
+			final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		final MemorySize derivedTotalProcessMemorySize =
 			totalFlinkMemory.add(jvmMetaspaceAndOverhead.metaspace).add(jvmMetaspaceAndOverhead.overhead);
 		if (isTotalProcessMemorySizeExplicitlyConfigured(config)) {
@@ -533,7 +538,10 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	private static void sanityCheckShuffleMemory(final Configuration config, final MemorySize derivedShuffleMemorySize, final MemorySize totalFlinkMemorySize) {
+	private static void sanityCheckShuffleMemory(
+			final Configuration config,
+			final MemorySize derivedShuffleMemorySize,
+			final MemorySize totalFlinkMemorySize) {
 		if (isUsingLegacyShuffleConfigs(config)) {
 			final MemorySize configuredShuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
 			if (!configuredShuffleMemorySize.equals(derivedShuffleMemorySize)) {
@@ -676,7 +684,7 @@ public class TaskExecutorResourceUtils {
 			.multiply(1 / (1 - shuffleFraction - managedFraction));
 
 		final Configuration modifiedConfig = new Configuration(configuration);
-		modifiedConfig.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, estimatedTotalFlinkMemory.toString());
+		modifiedConfig.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, estimatedTotalFlinkMemory);
 
 		return modifiedConfig;
 	}

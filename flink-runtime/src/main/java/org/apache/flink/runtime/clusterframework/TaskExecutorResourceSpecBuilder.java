@@ -50,7 +50,7 @@ public class TaskExecutorResourceSpecBuilder {
 	}
 
 	public TaskExecutorResourceSpecBuilder withTotalProcessMemory(MemorySize totalProcessMemory) {
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory.toString());
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory);
 		return this;
 	}
 

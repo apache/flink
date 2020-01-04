@@ -20,10 +20,8 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.Date;
-import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -35,8 +33,6 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.thrift.TException;
 
 import java.lang.reflect.Constructor;
@@ -69,63 +65,6 @@ public class HiveShimV120 extends HiveShimV111 {
 		// Don't use StatsSetupConst.DO_NOT_UPDATE_STATS because it wasn't defined in Hive 1.1.x.
 		table.getParameters().put("DO_NOT_UPDATE_STATS", "true");
 		client.alter_table(databaseName, tableName, table);
-	}
-
-	@Override
-	public ObjectInspector getObjectInspectorForConstant(PrimitiveTypeInfo primitiveTypeInfo, Object value) {
-		String className;
-		switch (primitiveTypeInfo.getPrimitiveCategory()) {
-			case BOOLEAN:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBooleanObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case BYTE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantByteObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case SHORT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantShortObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case INT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantIntObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case LONG:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantLongObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case FLOAT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantFloatObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case DOUBLE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDoubleObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case STRING:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case CHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveCharObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case VARCHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveVarcharObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case DATE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDateObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case TIMESTAMP:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantTimestampObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case DECIMAL:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveDecimalObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case BINARY:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBinaryObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case UNKNOWN:
-			case VOID:
-				// If type is null, we use the Java Constant String to replace
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value.toString());
-			default:
-				throw new FlinkHiveUDFException(
-					String.format("Cannot find ConstantObjectInspector for %s", primitiveTypeInfo));
-		}
 	}
 
 	@Override

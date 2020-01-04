@@ -18,15 +18,21 @@
 package org.apache.flink.table.module.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.List;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V1_2_0;
@@ -87,5 +93,29 @@ public class HiveModuleTest {
 	@Test
 	public void testNonExistFunction() {
 		assertFalse(new HiveModule(HiveShimLoader.getHiveVersion()).getFunctionDefinition("nonexist").isPresent());
+	}
+
+	@Test
+	public void testConstantArguments() throws Exception {
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tEnv.unloadModule("core");
+		tEnv.loadModule("hive", new HiveModule(HiveShimLoader.getHiveVersion()));
+
+		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select concat('an', 'bn')"));
+		assertEquals("[anbn]", results.toString());
+
+		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab', cast('cdefghi' as varchar(5)))"));
+		assertEquals("[abcdefg]", results.toString());
+
+		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab',cast(12.34 as decimal(10,5)))"));
+		assertEquals("[ab12.34]", results.toString());
+
+		results = TableUtils.collectToList(tEnv.sqlQuery("select concat(cast('2018-01-19' as date),cast('2019-12-27 17:58:23.385' as timestamp))"));
+		assertEquals("[2018-01-192019-12-27 17:58:23.385]", results.toString());
+
+		// TODO: null cannot be a constant argument at the moment. This test will make more sense when that changes.
+		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab',cast(null as int))"));
+		assertEquals("[null]", results.toString());
 	}
 }

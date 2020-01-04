@@ -150,7 +150,11 @@ public class Csv extends FormatDescriptor {
 	 * Sets the format schema with field names and the types. Required if schema is not derived.
 	 *
 	 * @param schemaType type information that describes the schema
+	 * @deprecated {@link Csv} supports derive schema from table schema by default,
+	 *             it is no longer necessary to explicitly declare the format schema.
+	 *             This method will be removed in the future.
 	 */
+	@Deprecated
 	public Csv schema(TypeInformation<Row> schemaType) {
 		Preconditions.checkNotNull(schemaType);
 		internalProperties.putString(FORMAT_SCHEMA, TypeStringUtils.writeTypeInfo(schemaType));
