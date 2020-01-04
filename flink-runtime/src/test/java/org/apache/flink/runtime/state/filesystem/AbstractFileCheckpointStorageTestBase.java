@@ -229,6 +229,29 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		catch (IOException ignored) {}
 	}
 
+	@Test
+	public void testCleanUpOnShutDown() throws Exception {
+		verifyStorageShutDownAsExpected(true);
+	}
+
+	@Test
+	public void testNotCleanUpOnShutDown() throws Exception {
+		verifyStorageShutDownAsExpected(false);
+	}
+
+	private void verifyStorageShutDownAsExpected(boolean cleanUpOnShutDown) throws Exception {
+		CheckpointStorage checkpointStorage = createCheckpointStorage(randomTempPath());
+		checkpointStorage.initializeBaseLocations();
+		CheckpointStorageLocation checkpointStorageLocation = checkpointStorage.initializeLocationForCheckpoint(177L);
+		// discard pending checkpoint before shutdown storage.
+		checkpointStorageLocation.disposeOnFailure();
+		checkpointStorage.shutDown(cleanUpOnShutDown);
+
+		verifyDirectoriesCleanUpAsExpected(checkpointStorage, !cleanUpOnShutDown);
+	}
+
+	protected abstract void verifyDirectoriesCleanUpAsExpected(CheckpointStorage checkpointStorage, boolean expectedDirectoriesExistence);
+
 	// ------------------------------------------------------------------------
 	//  savepoints
 	// ------------------------------------------------------------------------

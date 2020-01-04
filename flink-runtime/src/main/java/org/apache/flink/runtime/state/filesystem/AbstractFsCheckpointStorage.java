@@ -169,6 +169,15 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
 	protected abstract CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) throws IOException;
 
+	@Override
+	public void shutDown(boolean cleanUpOnShutDown) throws IOException {
+		if (cleanUpOnShutDown) {
+			discardCheckpointDirectories(false);
+		}
+	}
+
+	protected abstract void discardCheckpointDirectories(boolean cleanUpDirectoryRecursively) throws IOException;
+
 	// ------------------------------------------------------------------------
 	//  Creating and resolving paths
 	// ------------------------------------------------------------------------

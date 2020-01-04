@@ -39,9 +39,11 @@ import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -66,6 +68,17 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 	@Override
 	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
 		return new FsCheckpointStorage(checkpointDir, savepointDir, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
+	}
+
+	@Override
+	protected void verifyDirectoriesCleanUpAsExpected(CheckpointStorage checkpointStorage, boolean expectedDirectoriesExistence) {
+		FsCheckpointStorage storage = (FsCheckpointStorage) checkpointStorage;
+		File checkpointDirectory = new File(storage.getCheckpointsDirectory().getPath());
+		File sharedStateDirectory = new File(storage.getSharedStateDirectory().getPath());
+		File taskOwnedStateDirectory = new File(storage.getTaskOwnedStateDirectory().getPath());
+		assertThat(checkpointDirectory.exists(), equalTo(expectedDirectoriesExistence));
+		assertThat(sharedStateDirectory.exists(), equalTo(expectedDirectoriesExistence));
+		assertThat(taskOwnedStateDirectory.exists(), equalTo(expectedDirectoriesExistence));
 	}
 
 	// ------------------------------------------------------------------------

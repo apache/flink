@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
+import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
@@ -97,6 +98,16 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 		return checkpointsDirectory;
 	}
 
+	@VisibleForTesting
+	Path getSharedStateDirectory() {
+		return sharedStateDirectory;
+	}
+
+	@VisibleForTesting
+	Path getTaskOwnedStateDirectory() {
+		return taskOwnedStateDirectory;
+	}
+
 	// ------------------------------------------------------------------------
 	//  CheckpointStorage implementation
 	// ------------------------------------------------------------------------
@@ -132,6 +143,33 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 				CheckpointStorageLocationReference.getDefault(),
 				fileSizeThreshold,
 				writeBufferSize);
+	}
+
+	@Override
+	protected void discardCheckpointDirectories(boolean cleanUpDirectoryRecursively) throws IOException {
+		// collect exceptions and continue cleanup
+		Exception exception = null;
+		try {
+			fileSystem.delete(taskOwnedStateDirectory, cleanUpDirectoryRecursively);
+		} catch (Exception e) {
+			exception = e;
+		}
+
+		try {
+			fileSystem.delete(sharedStateDirectory, cleanUpDirectoryRecursively);
+		} catch (Exception e) {
+			ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			fileSystem.delete(checkpointsDirectory, cleanUpDirectoryRecursively);
+		} catch (Exception e) {
+			ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			ExceptionUtils.rethrowIOException(exception);
+		}
 	}
 
 	@Override

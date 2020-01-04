@@ -49,10 +49,9 @@ import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -84,6 +83,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -1045,6 +1045,48 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testShutDownStorageOnNeverRetain() {
+		verifyStorageShutDownAsExpected(JobStatus.CANCELED, CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION, true);
+
+		verifyStorageShutDownAsExpected(JobStatus.FINISHED, CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION, true);
+
+		verifyStorageShutDownAsExpected(JobStatus.FAILED, CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION, true);
+
+		// a job which reaches the suspended status won’t be completely cleaned up
+		verifyStorageShutDownAsExpected(JobStatus.SUSPENDED, CheckpointRetentionPolicy.RETAIN_ON_FAILURE, false);
+	}
+
+	@Test
+	public void testShutDownStorageOnRetainWhenCanceled() {
+		verifyStorageShutDownAsExpected(JobStatus.CANCELED, CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION, false);
+
+		verifyStorageShutDownAsExpected(JobStatus.FINISHED, CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION, true);
+
+		verifyStorageShutDownAsExpected(JobStatus.FAILED, CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION, false);
+
+		// a job which reaches the suspended status won’t be completely cleaned up
+		verifyStorageShutDownAsExpected(JobStatus.SUSPENDED, CheckpointRetentionPolicy.RETAIN_ON_FAILURE, false);
+	}
+
+	@Test
+	public void testShutDownStorageOnRetainWhenFailed() {
+		verifyStorageShutDownAsExpected(JobStatus.CANCELED, CheckpointRetentionPolicy.RETAIN_ON_FAILURE, true);
+
+		verifyStorageShutDownAsExpected(JobStatus.FINISHED, CheckpointRetentionPolicy.RETAIN_ON_FAILURE, true);
+
+		verifyStorageShutDownAsExpected(JobStatus.FAILED, CheckpointRetentionPolicy.RETAIN_ON_FAILURE, false);
+
+		// a job which reaches the suspended status won’t be completely cleaned up
+		verifyStorageShutDownAsExpected(JobStatus.SUSPENDED, CheckpointRetentionPolicy.RETAIN_ON_FAILURE, false);
+	}
+
+	private void verifyStorageShutDownAsExpected(JobStatus jobStatus, CheckpointRetentionPolicy checkpointRetentionPolicy, boolean expectedToCleanUpStorage) {
+		Assert.assertThat(
+			CheckpointCoordinator.cleanUpCheckpointStorageOnShutDown(jobStatus, CheckpointProperties.forCheckpoint(checkpointRetentionPolicy)),
+			equalTo(expectedToCleanUpStorage));
 	}
 
 	/**

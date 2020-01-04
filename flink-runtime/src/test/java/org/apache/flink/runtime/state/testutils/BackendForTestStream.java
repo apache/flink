@@ -105,6 +105,11 @@ public class BackendForTestStream extends MemoryStateBackend {
 		}
 
 		@Override
+		public void shutDown(boolean cleanUpOnShutDown) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
 			return streamFactory;
 		}

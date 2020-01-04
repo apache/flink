@@ -37,10 +37,12 @@ import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -202,5 +204,13 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// mkdirs only be called when initializeLocationForCheckpoint
 		storage.initializeLocationForCheckpoint(177L);
 		assertTrue(baseDir.exists());
+	}
+
+	@Override
+	protected void verifyDirectoriesCleanUpAsExpected(CheckpointStorage checkpointStorage, boolean expectedDirectoriesExistence) {
+		MemoryBackendCheckpointStorage storage = (MemoryBackendCheckpointStorage) checkpointStorage;
+		assertNotNull(storage.getCheckpointsDirectory());
+		File checkpointsDirectory = new File(storage.getCheckpointsDirectory().getPath());
+		assertThat(checkpointsDirectory.exists(), equalTo(expectedDirectoriesExistence));
 	}
 }

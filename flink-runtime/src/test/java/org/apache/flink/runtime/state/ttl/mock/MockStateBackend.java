@@ -110,6 +110,11 @@ public class MockStateBackend extends AbstractStateBackend {
 			}
 
 			@Override
+			public void shutDown(boolean cleanUpOnShutDown) {
+
+			}
+
+			@Override
 			public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
 				return null;
 			}

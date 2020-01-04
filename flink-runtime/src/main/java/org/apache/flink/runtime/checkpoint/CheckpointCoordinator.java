@@ -394,8 +394,29 @@ public class CheckpointCoordinator {
 
 				completedCheckpointStore.shutdown(jobStatus);
 				checkpointIdCounter.shutdown(jobStatus);
+				boolean cleanUpCheckpointStorageOnShutDown = cleanUpCheckpointStorageOnShutDown(jobStatus, checkpointProperties);
+				if (cleanUpCheckpointStorageOnShutDown) {
+					// Cleanup storage asynchronously as it would consume much time.
+					CompletableFuture.runAsync(() -> {
+						try {
+							checkpointStorage.shutDown(true);
+						} catch (IOException e) {
+							LOG.warn("Error while shutting down checkpoint storage.", e);
+						}
+					}, executor);
+				} else {
+					checkpointStorage.shutDown(false);
+				}
 			}
 		}
+	}
+
+	@VisibleForTesting
+	static boolean cleanUpCheckpointStorageOnShutDown(JobStatus jobStatus, CheckpointProperties props) {
+		// a job which reaches the suspended status won’t cleaned up checkpoint storage.
+		return jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
+			jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
+			jobStatus == JobStatus.FAILED && props.discardOnJobFailed();
 	}
 
 	public boolean isShutdown() {

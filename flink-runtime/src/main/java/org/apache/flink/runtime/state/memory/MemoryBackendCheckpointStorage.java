@@ -160,6 +160,13 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 		return new PersistentMetadataCheckpointStorageLocation(fs, location, maxStateSize);
 	}
 
+	@Override
+	protected void discardCheckpointDirectories(boolean cleanUpDirectoryRecursively) throws IOException {
+		if (fileSystem != null) {
+			fileSystem.delete(checkpointsDirectory, cleanUpDirectoryRecursively);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

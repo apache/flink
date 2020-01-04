@@ -103,4 +103,13 @@ public interface CheckpointStorageCoordinatorView {
 	CheckpointStorageLocation initializeLocationForSavepoint(
 		long checkpointId,
 		@Nullable String externalLocationPointer) throws IOException;
+
+	/**
+	 * Shuts down the checkpoint storage on the coordinator side.
+	 *
+	 * @param cleanUpOnShutDown Whether to clear files when shutting down this storage.
+	 *
+	 * @throws IOException Thrown if the storage cannot be shut down well due to an I/O exception.
+	 */
+	void shutDown(boolean cleanUpOnShutDown) throws IOException;
 }
