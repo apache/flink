@@ -118,7 +118,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 {% top %}
 
-##  创建表
+##  CREATE TABLE
 
 {% highlight sql %}
 CREATE TABLE [catalog_name.][db_name.]table_name
@@ -141,7 +141,7 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 {% endhighlight %}
 
-根据给定的表属性创建表。若数据库中已存在同名表会抛出异常。
+根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
 
 **COMPUTED COLUMN**
 
@@ -153,16 +153,20 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 注意：
 
-- 定义在一个数据源表（ source table ）上的计算列会在从数据源读取数据后被计算，它们可以在 SELECT 查询语句后使用。
-- 计算列不可以作为 INSERT 语句的目标，在 INSERT 语句中，SELECT 语句的结构（ schema ）需要与目标表不带有计算列的结构一致。
+- 定义在一个数据源表（ source table ）上的计算列会在从数据源读取数据后被计算，它们可以在 SELECT 查询语句中使用。
+- 计算列不可以作为 INSERT 语句的目标，在 INSERT 语句中，SELECT 语句的 schema 需要与目标表不带有计算列的 schema 一致。
 
 **WATERMARK**
 
 `WATERMARK` 定义了表的事件时间属性，其形式为 `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression` 。
 
-`rowtime_column_name` 把一个现有的列定义为一个为表标记事件时间的属性。该列的类型必须为 `TIMESTAMP(3)`，且是结构中最高级别的列，它也可以是一个计算列。
+`rowtime_column_name` 把一个现有的列定义为一个为表标记事件时间的属性。该列的类型必须为 `TIMESTAMP(3)`，且是 schema 中的顶层列，它也可以是一个计算列。
 
-`watermark_strategy_expression` 定义了 watermark 的生成策略。它允许使用包括计算列在内的任意非查询表达式来计算 watermark ；表达式的返回类型必须是表示了从起始点（ Epoch ）以来的时间戳的 TIMESTAMP(3) 。
+`watermark_strategy_expression` 定义了 watermark 的生成策略。它允许使用包括计算列在内的任意非查询表达式来计算 watermark ；表达式的返回类型必须是 `TIMESTAMP(3)`，表示了从 Epoch 以来的经过的时间。
+The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
+The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
+Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/ops/config.html#pipeline-auto-watermark-interval) configuration.
+If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
 
 使用事件时间语义时，表必须包含事件时间属性和 watermark 策略。
 
@@ -170,13 +174,13 @@ Flink 提供了几种常用的 watermark 策略。
 
 - 严格递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column`。
 
-  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳小于最大时间戳的行不会迟到。
+  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳小于最大时间戳的行被认为没有迟到。
 
 - 递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`。
 
-  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳等于最大时间戳的行不会迟到。
+  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳等于或小于最大时间戳的行被认为没有迟到。
 
-- 有界有序时间戳： `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`。
+- 有界乱序时间戳： `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`。
 
   发出到目前为止已观察到的最大时间戳减去指定延迟的 watermark ，例如， `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` 是一个 5 秒延迟的 watermark 策略。
 
@@ -205,7 +209,7 @@ CREATE TABLE Orders (
 
 {% top %}
 
-## 创建数据库
+## CREATE DATABASE
 
 {% highlight sql %}
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name

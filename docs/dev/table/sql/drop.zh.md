@@ -110,7 +110,7 @@ Flink SQL> SHOW TABLES;
 </div>
 </div>
 
-## 删除表
+## DROP TABLE
 
 {% highlight sql %}
 DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
@@ -122,7 +122,7 @@ DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
 
 表不存在时不会进行任何操作。
 
-## 删除数据库
+## DROP DATABASE
 
 {% highlight sql %}
 DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
@@ -141,3 +141,20 @@ DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
 **CASCADE**
 
 删除一个非空数据库时，把相关联的表与函数一并删除。
+
+## DROP FUNCTION
+
+{% highlight sql%}
+DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]function_name;
+{% endhighlight %}
+
+Drop a catalog function that has catalog and database namespaces. If the function to drop does not exist, an exception is thrown.
+
+**TEMPORARY**
+Drop temporary catalog function that has catalog and database namespaces.
+
+**TEMPORARY SYSTEM**
+Drop temporary system function that has no namespace.
+
+**IF EXISTS**
+If the function doesn't exists, nothing happens.

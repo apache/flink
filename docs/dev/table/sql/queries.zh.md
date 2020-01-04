@@ -27,7 +27,7 @@ under the License.
 
 SELECT 查询需要使用 `TableEnvironment` 的 `sqlQuery()` 方法加以指定。这个方法会以 `Table` 的形式返回 SELECT 的查询结果。 `Table` 可以被用于 [随后的SQL 与 Table API 查询]({{ site.baseurl }}/zh/dev/table/common.html#mixing-table-api-and-sql) 、 [转换为 DataSet 或 DataStream ]({{ site.baseurl }}/zh/dev/table/common.html#integration-with-datastream-and-dataset-api)或 [输出到 TableSink ]({{ site.baseurl }}/dev/table/common.html#emit-a-table))。SQL 与 Table API 的查询可以进行无缝融合、整体优化并翻译为单一的程序。
 
-为了可以在 SQL 查询中访问到表，你需要先 [在 TableEnvironment 中注册表 ]({{ site.baseurl }}/zh/dev/table/common.html#register-tables-in-the-catalog). 表可以通过 [TableSource]({{ site.baseurl }}/zh/dev/table/common.html#register-a-tablesource)、 [Table]({{ site.baseurl }}/zh/dev/table/common.html#register-a-table)、[CREATE TABLE 语句](create.html)、 [DataStream 或 DataSet]({{ site.baseurl }}/zh/dev/table/common.html#register-a-datastream-or-dataset-as-table) 注册。 用户也可以通过 [向 TableEnvironment 中注册 catalog ]({{ site.baseurl }}/zh/dev/table/catalogs.html) 的方式指定数据源的位置。
+为了可以在 SQL 查询中访问到表，你需要先 [在 TableEnvironment 中注册表 ]({{ site.baseurl }}/zh/dev/table/common.html#register-tables-in-the-catalog)。表可以通过 [TableSource]({{ site.baseurl }}/zh/dev/table/common.html#register-a-tablesource)、 [Table]({{ site.baseurl }}/zh/dev/table/common.html#register-a-table)、[CREATE TABLE 语句](create.html)、 [DataStream 或 DataSet]({{ site.baseurl }}/zh/dev/table/common.html#register-a-datastream-or-dataset-as-table) 注册。 用户也可以通过 [向 TableEnvironment 中注册 catalog ]({{ site.baseurl }}/zh/dev/table/catalogs.html) 的方式指定数据源的位置。
 
 为方便起见 `Table.toString()` 将会在其 `TableEnvironment` 中自动使用一个唯一的名字注册表并返回表名。 因此， `Table` 对象可以如下文所示样例，直接内联到 SQL 查询中。
 
@@ -106,7 +106,7 @@ tableEnv.connect(new FileSystem("/path/to/file"))
     .withSchema(schema)
     .createTemporaryTable("RubberOrders")
 
-// 在表上执行 SQL 更新操纵，并把结果发出到 TableSink
+// 在表上执行 SQL 更新操作，并把结果发出到 TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -134,7 +134,7 @@ t_env.connect(FileSystem().path("/path/to/file")))
                  .field("amount", DataTypes.BIGINT()))
     .create_temporary_table("RubberOrders")
 
-# 在表上执行 SQL 更新操纵，并把结果发出到 TableSink
+# 在表上执行 SQL 更新操作，并把结果发出到 TableSink
 table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -631,17 +631,17 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
     </tr>
     <tr>
       <td>
-        <strong>Join Temporal Tables 函数</strong><br>
+        <strong>Join Temporal Table Function</strong><br>
         <span class="label label-primary">流处理</span>
       </td>
       <td>
         <p><a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html">Temporal Tables</a> 是跟随时间变化而变化的表。</p>
-        <p><a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table-functions"> Temporal Tables 函数（ Temporal table function ）</a> 提供访问 Temporal Tables 在某一时间点的状态的能力。
-        与 Temporal Tables 函数 join 的语法与 <i>Join 表函数</i> 一致。</p>
+        <p><a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table-functions"> Temporal Table Function</a> 提供访问 Temporal Tables 在某一时间点的状态的能力。
+        Join Temporal Table Function 的语法与 <i>Join Table Function</i> 一致。</p>
 
         <p><b>注意：</b> 目前仅支持在 Temporal Tables 上的 inner join 。</p>
 
-        <p>加入 <i>Rates</i> 是一个 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table-functions"> Temporal Tables 函数</a>, join 可以使用SQL 进行如下的表达:</p>
+        <p>假如 <i>Rates</i> 是一个 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table-functions"> Temporal Table Function</a>, join 可以使用 SQL 进行如下的表达:</p>
 {% highlight sql %}
 SELECT
   o_amount, r_rate
@@ -664,7 +664,7 @@ WHERE
         <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 提供访问指定时间点的 temporal table 版本的功能。</p>
 
         <p>仅支持带有处理时间的 temporal tables 的 inner 和 left join。</p>
-        <p>下述示例中，假设 <strong>LatestRates</strong> 是一个根据最新的 rates 实现的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 。</p>
+        <p>下述示例中，假设 <strong>LatestRates</strong> 是一个根据最新的 rates 物化的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 。</p>
 {% highlight sql %}
 SELECT
   o.amout, o.currency, r.rate, o.amount * r.rate
@@ -865,7 +865,7 @@ WHERE rownum <= N [AND conditions]
 
 - `ROW_NUMBER()`: 根据当前分区内的各行的顺序从第一行开始，依次为每一行分配一个唯一且连续的号码。目前，我们只支持 `ROW_NUMBER` 在 over 窗口函数中使用。未来将会支持 `RANK()` 和 `DENSE_RANK()`函数。
 - `PARTITION BY col1[, col2...]`: 指定分区列，每个分区都将会有一个 Top-N 结果。
-- `ORDER BY col1 [asc|desc][, col2 [asc|desc]...]`: 指定排序列，不同列的排序方式可以不一样。
+- `ORDER BY col1 [asc|desc][, col2 [asc|desc]...]`: 指定排序列，不同列的排序方向可以不一样。
 - `WHERE rownum <= N`: Flink 需要 `rownum <= N` 才能识别一个查询是否为 Top-N 查询。 其中， N 代表最大或最小的 N 条记录会被保留。
 - `[AND conditions]`: 在 where 语句中，可以随意添加其他的查询条件，但其他条件只允许通过 `AND` 与 `rownum <= N` 结合使用。
 
@@ -923,9 +923,9 @@ val result1 = tableEnv.sqlQuery(
 </div>
 </div>
 
-#### 不进行排序输出的优化
+#### 无排名输出优化
 
-如上文所描述，`rownum` 字段会作为唯一键的其中一个字段写到结果表里面，这会导致大量的结构写出到结果表。比如，当原始结果（名为 `product-1001` ）从排序第九变化为排序第一时，排名 1-9 的所有结果都会以更新消息的形式发送到结果表。若结果表收到太多的数据，将会成为 SQL 任务的瓶颈。
+如上文所描述，`rownum` 字段会作为唯一键的其中一个字段写到结果表里面，这会导致大量的结果写出到结果表。比如，当原始结果（名为 `product-1001` ）从排序第九变化为排序第一时，排名 1-9 的所有结果都会以更新消息的形式发送到结果表。若结果表收到太多的数据，将会成为 SQL 任务的瓶颈。
 
 优化方法是在 Top-N 查询的外部 SELECT 子句中省略 rownum 字段。由于前N条记录的数量通常不大，因此消费者可以自己对记录进行快速排序，因此这是合理的。去掉 rownum 字段后，上述的例子中，只有变化了的记录（ `product-1001` ）需要发送到下游，从而可以节省大量的对结果表的 IO 操作。
 
@@ -1077,7 +1077,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
     </tr>
     <tr>
       <td><code>HOP(time_attr, interval, interval)</code></td>
-      <td>定义一个跳跃的时间窗口（在 Table API 中称为滑动窗口）。滑动窗口有一个固定的持续时间（ 第二个 <code>interval</code> 参数 ）以及一个滑动的间隔（第一个 code>interval</code> 参数 ）。若滑动间隔小于窗口的持续时间，滑动窗口则会出现重叠；因此，行将会被分配到多个窗口中。比如，一个大小为 15 分组的滑动窗口，其滑动间隔为 5 分钟，将会把每一行数据分配到 3 个 15 分钟的窗口中。滑动窗口可以定义在事件时间（批处理、流处理）或处理时间（流处理）上。</td>
+      <td>定义一个跳跃的时间窗口（在 Table API 中称为滑动窗口）。滑动窗口有一个固定的持续时间（ 第二个 <code>interval</code> 参数 ）以及一个滑动的间隔（第一个 <code>interval</code> 参数 ）。若滑动间隔小于窗口的持续时间，滑动窗口则会出现重叠；因此，行将会被分配到多个窗口中。比如，一个大小为 15 分组的滑动窗口，其滑动间隔为 5 分钟，将会把每一行数据分配到 3 个 15 分钟的窗口中。滑动窗口可以定义在事件时间（批处理、流处理）或处理时间（流处理）上。</td>
     </tr>
     <tr>
       <td><code>SESSION(time_attr, interval)</code></td>
@@ -1111,7 +1111,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>HOP_START(time_attr, interval, interval)</code><br/>
         <code>SESSION_START(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回相对应的滚动，滑动和会话窗口范围内的下界时间戳。</p></td>
+      <td><p>返回相对应的滚动、滑动和会话窗口范围内的下界时间戳。</p></td>
     </tr>
     <tr>
       <td>
@@ -1119,7 +1119,7 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>HOP_END(time_attr, interval, interval)</code><br/>
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回相对应的滚动，滑动和会话窗口<i>范围以外</i>的上界时间戳。</p>
+      <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以外</i>的上界时间戳。</p>
         <p><b>注意：</b> 范围以外的上界时间戳<i>不可以</i> 在随后基于时间的操作中，作为 <a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a> 使用，比如 <a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
@@ -1128,8 +1128,8 @@ SQL 查询的分组窗口是通过 `GROUP BY` 子句定义的。类似于使用�
         <code>HOP_ROWTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回相对应的滚动，滑动和会话窗口<i>范围以内</i>的上界时间戳。</p>
-      <p>结果属性是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">行时间属性</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
+      <td><p>返回相对应的滚动、滑动和会话窗口<i>范围以内</i>的上界时间戳。</p>
+      <p>返回的是一个可用于后续需要基于时间的操作的<a href="{{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html">时间属性（rowtime attribute）</a>，比如<a href="#joins">基于时间窗口的 join </a> 以及 <a href="#aggregations">分组窗口或分组窗口上的聚合</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -1231,7 +1231,7 @@ val result4 = tableEnv.sqlQuery(
 
 {% top %}
 
-## 模式匹配
+### 模式匹配
 
 <div markdown="1">
 <table class="table table-bordered">

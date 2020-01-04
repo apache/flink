@@ -110,7 +110,7 @@ NewOrders
 </div>
 </div>
 
-## 修改表
+## ALTER TABLE
 
 * 重命名表
 
@@ -128,10 +128,32 @@ ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 
 为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新的值覆盖旧的值。
 
-## 修改数据库
+## ALTER DATABASE
 
 {% highlight sql %}
 ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
-在数据库中设置一个或读个属性。若个别属性已经在数据库中设定，将会使用新值覆盖旧值。
+在数据库中设置一个或多个属性。若个别属性已经在数据库中设定，将会使用新值覆盖旧值。
+
+## ALTER FUNCTION
+
+{% highlight sql%}
+ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
+  [IF EXISTS] [catalog_name.][db_name.]function_name 
+  AS identifier [LANGUAGE JAVA|SCALA|
+{% endhighlight %}
+
+Alter a catalog function that has catalog and database namespaces with the new identifier which is full classpath for JAVA/SCALA and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+
+**TEMPORARY**
+Alter temporary catalog function that has catalog and database namespaces and overrides catalog functions.
+
+**TEMPORARY SYSTEM**
+Alter temporary system function that has no namespace and overrides built-in functions
+
+**IF EXISTS**
+If the function doesn't exist, nothing happens.
+
+**LANGUAGE JAVA|SCALA**
+Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
