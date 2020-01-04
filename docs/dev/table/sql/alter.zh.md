@@ -145,16 +145,16 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   AS identifier [LANGUAGE JAVA|SCALA|
 {% endhighlight %}
 
-Alter a catalog function that has catalog and database namespaces with the new identifier which is full classpath for JAVA/SCALA and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+修改一个有 catalog 和数据库命名空间的 catalog function ，其需要指定 JAVA / SCALA 或其他 language tag 完整的 classpath。若函数不存在，删除会抛出异常。
 
 **TEMPORARY**
-Alter temporary catalog function that has catalog and database namespaces and overrides catalog functions.
+修改一个有 catalog 和数据库命名空间的临时 catalog function ，并覆盖原有的 catalog function 。
 
 **TEMPORARY SYSTEM**
-Alter temporary system function that has no namespace and overrides built-in functions
+修改一个没有数据库命名空间的临时系统 catalog function ，并覆盖系统内置的函数。
 
 **IF EXISTS**
-If the function doesn't exist, nothing happens.
+若函数不存在，则不进行任何操作。
 
 **LANGUAGE JAVA|SCALA**
-Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+Language tag 用于指定 flink runtime 如何执行这个函数。目前，只支持 Java 和 SCALA，且函数的默认语言为 JAVA。

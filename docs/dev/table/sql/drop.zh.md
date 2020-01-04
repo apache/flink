@@ -148,13 +148,13 @@ DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
 DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]function_name;
 {% endhighlight %}
 
-Drop a catalog function that has catalog and database namespaces. If the function to drop does not exist, an exception is thrown.
+删除一个有 catalog 和数据库命名空间的 catalog function。若需要删除的函数不存在，则会产生异常。
 
 **TEMPORARY**
-Drop temporary catalog function that has catalog and database namespaces.
+删除一个有 catalog 和数据库命名空间的临时 catalog function。
 
 **TEMPORARY SYSTEM**
-Drop temporary system function that has no namespace.
+删除一个没有数据库命名空间的临时系统函数。
 
 **IF EXISTS**
-If the function doesn't exists, nothing happens.
+若函数不存在，则不会进行任何操作。
