@@ -426,9 +426,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
+
+    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
+
     val field =
       s"""
-         |final $SQL_TIMESTAMP $fieldTerm =
+         |$fieldTerm =
          |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)

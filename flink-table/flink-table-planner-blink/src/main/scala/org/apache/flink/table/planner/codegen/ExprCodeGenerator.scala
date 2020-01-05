@@ -224,10 +224,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       outRow: String = DEFAULT_OUT_RECORD_TERM,
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
-      outRowAlreadyExists: Boolean = false): GeneratedExpression = {
+      outRowAlreadyExists: Boolean = false,
+      allowSplit: Boolean = false): GeneratedExpression = {
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     generateResultExpression(fieldExprs, fieldExprIdxToOutputRowPosMap, returnType,
-      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists)
+      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists, allowSplit)
   }
 
   /**
@@ -253,7 +254,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     outRow: String,
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
-    outRowAlreadyExists: Boolean)
+    outRowAlreadyExists: Boolean,
+    allowSplit: Boolean)
   : GeneratedExpression = {
     // initial type check
     if (returnType.getFieldCount != fieldExprs.length) {
@@ -292,14 +294,14 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     }
     val totalLen = setFieldsCodes.map(_.length).sum
     val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
-    val setFieldsCode = if (totalLen > maxCodeLength) {
+    val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
       // do the split.
       ctx.setSplit()
       setFieldsCodes.map(project => {
         val methodName = newName("split")
         val method =
           s"""
-            |private void $methodName() {
+            |private void $methodName() throw Exception {
             |  $project
             |}
             |""".stripMargin
