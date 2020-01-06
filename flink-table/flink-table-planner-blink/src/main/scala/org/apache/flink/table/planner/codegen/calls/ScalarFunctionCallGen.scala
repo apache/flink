@@ -80,7 +80,8 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
         val boxedResultClass = ExtractionUtils.boxPrimitive(resultClass).asInstanceOf[Class[_]]
         val javaTypeTerm = boxedResultClass.getCanonicalName
         val resultExternalTypeWithResultClass =
-          if (LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(resultExternalType).supportsOutputConversion(boxedResultClass)) {
+          if (LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(resultExternalType)
+            .supportsOutputConversion(boxedResultClass)) {
             // resultClass of HiveScalarFunction is Object, which cannot be a valid
             // conversion class
             resultExternalType.bridgedTo(boxedResultClass)
