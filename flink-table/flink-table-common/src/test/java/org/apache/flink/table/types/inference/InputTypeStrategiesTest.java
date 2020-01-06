@@ -420,9 +420,8 @@ public class InputTypeStrategiesTest {
 		final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
 		functionDefinitionMock.functionKind = FunctionKind.SCALAR;
 
-		final DataTypeLookupMock dataTypeLookupMock = new DataTypeLookupMock();
-
 		final CallContextMock callContextMock = new CallContextMock();
+		callContextMock.lookup = new DataTypeLookupMock();
 		callContextMock.functionDefinition = functionDefinitionMock;
 		callContextMock.argumentDataTypes = actualArgumentTypes;
 		callContextMock.argumentLiterals = IntStream.range(0, actualArgumentTypes.size())
