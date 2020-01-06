@@ -25,7 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class SetOperatorsTest extends TableTestBase {
 
@@ -159,13 +159,57 @@ class SetOperatorsTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // Calcite bug
   def testNotInWithFilter(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("A", 'a, 'b, 'c)
-    util.addTable[(Int, Long, Int, String, Long)]("B", 'a, 'b, 'c, 'd, 'e)
+    val tableA = util.addTable[(Int, Long, String)]("A", 'a, 'b, 'c)
+    val tableB = util.addTable[(Int, Long, Int, String, Long)]("B", 'a, 'b, 'c, 'd, 'e)
 
-    val expected = "FAIL"
+    val expected = unaryNode(
+      "DataSetCalc",
+      binaryNode(
+        "DataSetJoin",
+        unaryNode(
+          "DataSetCalc",
+          binaryNode(
+            "DataSetSingleRowJoin",
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(tableB),
+              term("select", "d"),
+              term("where", "<(CAST(d), 5:BIGINT)")
+            ),
+            unaryNode(
+              "DataSetAggregate",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(tableA),
+                term("select", "a")
+              ),
+              term("select", "COUNT(*) AS $f0, COUNT(a) AS $f1")
+            ),
+            term("where", "true"),
+            term("join", "d, $f0, $f1"),
+            term("joinType", "NestedLoopInnerJoin")
+          ),
+          term("select", "d, $f0, $f1, d AS d0")
+        ),
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(tableA),
+            term("select", "a, true AS $f1")
+          ),
+          term("groupBy", "a"),
+          term("select", "a, MIN($f1) AS $f1")
+        ),
+        term("where", "=(d0, a)"),
+        term("join", "d, $f0, $f1, d0, a, $f10"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "d"),
+      term("where", "OR(=($f0, 0:BIGINT), AND(IS NULL($f10), >=($f1, $f0), IS NOT NULL(d0)))")
+    )
 
     util.verifySql(
       "SELECT d FROM B WHERE d NOT IN (SELECT a FROM A) AND d < 5",
