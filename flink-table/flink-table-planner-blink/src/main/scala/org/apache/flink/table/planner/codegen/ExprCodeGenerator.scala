@@ -301,7 +301,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         val methodName = newName("split")
         val method =
           s"""
-            |private void $methodName() throw Exception {
+            |private void $methodName() throws Exception {
             |  $project
             |}
             |""".stripMargin
