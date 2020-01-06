@@ -155,13 +155,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		String clientId = Long.toString(new Random().nextLong());
 		props.put("client.id", clientId);
 		AdminClient adminClient = AdminClient.create(props);
+		// We do not use a try-catch clause here so we can apply a timeout to the admin client closure.
 		try {
 			tryDelete(adminClient, topic);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(String.format("Delete test topic : %s failed, %s", topic, e.getMessage()));
 		} finally {
-			adminClient.close(Duration.ofMillis(30000L));
+			adminClient.close(Duration.ofMillis(5000L));
 			maybePrintDanglingThreadStacktrace(clientId);
 		}
 	}
