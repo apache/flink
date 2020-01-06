@@ -208,7 +208,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
 			Configuration config) throws IOException {
-		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(TOTAL_FLINK_MEMORY_MB + "m"));
+		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.ofMebiBytes(TOTAL_FLINK_MEMORY_MB));
 		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(config);
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,

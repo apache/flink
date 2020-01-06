@@ -232,7 +232,7 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		// derive network memory which is bigger than the number of legacy network buffers
 		final int networkMemorySizeMbToDerive = pageSizeMb * (numberOfNetworkBuffers + 1);
 		final Configuration configuration = setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(networkMemorySizeMbToDerive);
-		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(pageSizeMb + "m"));
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.ofMebiBytes(pageSizeMb));
 		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, numberOfNetworkBuffers);
 		// internal validation should fail
 		TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
@@ -251,12 +251,12 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 			// adjust total Flink memory size to accommodate for more network memory
 			final int adjustedTotalFlinkMemoryMb = taskExecutorResourceSpec.getTotalFlinkMemorySize().getMebiBytes() -
 				derivedNetworkMemorySizeMb + networkMemorySizeToDeriveMb;
-			conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(adjustedTotalFlinkMemoryMb + "m"));
+			conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.ofMebiBytes(adjustedTotalFlinkMemoryMb));
 		} else if (derivedNetworkMemorySizeMb > networkMemorySizeToDeriveMb) {
 			// reduce derived network memory by increasing task heap size
 			final int adjustedTaskHeapMemoryMb = taskExecutorResourceSpec.getTaskHeapSize().getMebiBytes() +
 				derivedNetworkMemorySizeMb - networkMemorySizeToDeriveMb;
-			conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse(adjustedTaskHeapMemoryMb + "m"));
+			conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.ofMebiBytes(adjustedTaskHeapMemoryMb));
 		}
 
 		final TaskExecutorResourceSpec adjusteedTaskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);

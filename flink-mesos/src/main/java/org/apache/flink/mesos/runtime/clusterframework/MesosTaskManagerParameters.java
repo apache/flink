@@ -429,7 +429,7 @@ public class MesosTaskManagerParameters {
 	}
 
 	private static MemorySize getTotalProcessMemory(final Configuration configuration) {
-		MemorySize legacyTotalProcessMemory = MemorySize.parse(configuration.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
+		MemorySize legacyTotalProcessMemory = MemorySize.ofMebiBytes(configuration.getInteger(MESOS_RM_TASKS_MEMORY_MB));
 		MemorySize unifiedTotalProcessMemory = configuration.get(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 
 		if (configuration.contains(MESOS_RM_TASKS_MEMORY_MB) &&
