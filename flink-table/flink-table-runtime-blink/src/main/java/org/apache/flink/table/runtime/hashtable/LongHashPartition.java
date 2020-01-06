@@ -250,7 +250,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	 * Returns an iterator for all the values for the given key, or null if no value found.
 	 */
 	public MatchIterator get(long key, int hashCode) {
-		int bucket = hashCode & numBucketsMask;
+		int bucket = findBucket(hashCode);
 
 		int bucketOffset = bucket << 4;
 		MemorySegment segment = buckets[bucketOffset >>> segmentSizeBits];
