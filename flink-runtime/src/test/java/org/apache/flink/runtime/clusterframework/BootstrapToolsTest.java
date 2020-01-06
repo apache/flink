@@ -43,6 +43,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -508,5 +509,28 @@ public class BootstrapToolsTest extends TestLogger {
 		final Configuration conf = new Configuration();
 		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
 		BootstrapTools.calculateHeapSize(4000, conf);
+	}
+
+	@Test
+	public void testGetEnvironmentVariables() {
+		Configuration testConf = new Configuration();
+		testConf.setString("containerized.master.env.LD_LIBRARY_PATH", "/usr/lib/native");
+
+		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+
+		Assert.assertEquals(1, res.size());
+		Map.Entry<String, String> entry = res.entrySet().iterator().next();
+		Assert.assertEquals("LD_LIBRARY_PATH", entry.getKey());
+		Assert.assertEquals("/usr/lib/native", entry.getValue());
+	}
+
+	@Test
+	public void testGetEnvironmentVariablesErroneous() {
+		Configuration testConf = new Configuration();
+		testConf.setString("containerized.master.env.", "/usr/lib/native");
+
+		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+
+		Assert.assertEquals(0, res.size());
 	}
 }
