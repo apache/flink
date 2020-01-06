@@ -938,7 +938,7 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :type elements: list
         :param schema: The schema of the table.
-        :type schema: pyflink.table.types.DataType
+        :type schema: pyflink.table.types.DataType or list[str]
         :param verify_schema: Whether to verify the elements against the schema.
         :type verify_schema: bool
         :return: The result table.
