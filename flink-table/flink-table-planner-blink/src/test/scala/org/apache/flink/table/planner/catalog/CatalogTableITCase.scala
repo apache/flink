@@ -352,16 +352,16 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   @Test
   def testInsertSourceTableWithFuncField(): Unit = {
     val sourceData = List(
-      toRow(1, "1990-02-10 12:34:56"),
-      toRow(2, "2019-09-10 09:23:41"),
-      toRow(3, "2019-09-10 09:23:42"),
+      toRow(1, "1990-02-10 12:34:56.123456789"),
+      toRow(2, "2019-09-10 09:23:41.123456"),
+      toRow(3, "2019-09-10 09:23:42.123"),
       toRow(1, "2019-09-10 09:23:43"),
       toRow(2, "2019-09-10 09:23:44")
     )
     val expected = List(
-      toRow(1, "1990-02-10 12:34:56", localDateTime("1990-02-10 12:34:56")),
-      toRow(2, "2019-09-10 09:23:41", localDateTime("2019-09-10 09:23:41")),
-      toRow(3, "2019-09-10 09:23:42", localDateTime("2019-09-10 09:23:42")),
+      toRow(1, "1990-02-10 12:34:56.123456789", localDateTime("1990-02-10 12:34:56.123456789")),
+      toRow(2, "2019-09-10 09:23:41.123456", localDateTime("2019-09-10 09:23:41.123456")),
+      toRow(3, "2019-09-10 09:23:42.123", localDateTime("2019-09-10 09:23:42.123")),
       toRow(1, "2019-09-10 09:23:43", localDateTime("2019-09-10 09:23:43")),
       toRow(2, "2019-09-10 09:23:44", localDateTime("2019-09-10 09:23:44"))
     )
@@ -381,7 +381,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |create table t2(
         |  a int,
         |  b varchar,
-        |  c timestamp(3)
+        |  c timestamp(9)
         |) with (
         |  'connector' = 'COLLECTION'
         |)
