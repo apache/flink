@@ -304,7 +304,7 @@ public final class ResourceSpec implements Serializable {
 	// ------------------------------------------------------------------------
 
 	public static Builder newBuilder(double cpuCores, int taskHeapMemoryMB) {
-		return new Builder(new CPUResource(cpuCores), MemorySize.parse(taskHeapMemoryMB + "m"));
+		return new Builder(new CPUResource(cpuCores), MemorySize.ofMebiBytes(taskHeapMemoryMB));
 	}
 
 	/**
@@ -334,7 +334,7 @@ public final class ResourceSpec implements Serializable {
 		}
 
 		public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
-			this.taskHeapMemory = MemorySize.parse(taskHeapMemoryMB + "m");
+			this.taskHeapMemory = MemorySize.ofMebiBytes(taskHeapMemoryMB);
 			return this;
 		}
 
@@ -344,7 +344,7 @@ public final class ResourceSpec implements Serializable {
 		}
 
 		public Builder setOffTaskHeapMemoryMB(int taskOffHeapMemoryMB) {
-			this.taskOffHeapMemory = MemorySize.parse(taskOffHeapMemoryMB + "m");
+			this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
 			return this;
 		}
 
@@ -354,7 +354,7 @@ public final class ResourceSpec implements Serializable {
 		}
 
 		public Builder setManagedMemoryMB(int managedMemoryMB) {
-			this.managedMemory = MemorySize.parse(managedMemoryMB + "m");
+			this.managedMemory = MemorySize.ofMebiBytes(managedMemoryMB);
 			return this;
 		}
 
