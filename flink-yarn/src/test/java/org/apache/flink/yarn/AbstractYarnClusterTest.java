@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -40,6 +39,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.junit.Assert.assertThat;
+
 /**
  * Tests for the {@link YarnClusterDescriptor}.
  */
@@ -51,7 +53,7 @@ public class AbstractYarnClusterTest extends TestLogger {
 	/**
 	 * Tests that the cluster retrieval of a finished YARN application fails.
 	 */
-	@Test(expected = ClusterRetrieveException.class)
+	@Test
 	public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
 		final ApplicationId applicationId = ApplicationId.newInstance(System.currentTimeMillis(), 42);
 		final ApplicationReport applicationReport = createApplicationReport(
@@ -73,6 +75,8 @@ public class AbstractYarnClusterTest extends TestLogger {
 
 		try {
 			clusterDescriptor.retrieve(applicationId);
+		} catch (Exception e) {
+			assertThat(e.getMessage(), containsString("Couldn't retrieve Yarn cluster"));
 		} finally {
 			clusterDescriptor.close();
 		}

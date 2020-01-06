@@ -32,9 +32,11 @@ import javax.annotation.Nonnull;
 @Internal
 public class YarnJobClusterExecutorFactory implements ExecutorFactory {
 
+	public static final String NAME = "yarn-per-job";
+
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
+		return NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override

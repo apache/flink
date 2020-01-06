@@ -19,26 +19,34 @@
 package org.apache.flink.yarn.executors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.SessionClusterExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.yarn.YarnClusterClientFactory;
 
-import javax.annotation.Nonnull;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 /**
- * An {@link ExecutorFactory} for executing jobs on an existing (session) cluster.
+ * An {@link ExecutorFactory} for executing jobs on an existing YARN session cluster.
  */
 @Internal
 public class YarnSessionClusterExecutorFactory implements ExecutorFactory {
 
+	public static final String NAME = "yarn-session";
+
 	@Override
-	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return YarnSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
+	public boolean isCompatibleWith(final Configuration configuration) {
+		return NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override
-	public Executor getExecutor(@Nonnull final Configuration configuration) {
-		return new YarnSessionClusterExecutor();
+	public Executor getExecutor(final Configuration configuration) {
+		final YarnClusterClientFactory clientFactory = new YarnClusterClientFactory();
+		try (final ClusterDescriptor<ApplicationId> descriptor = clientFactory.createClusterDescriptor(configuration)) {
+			return new SessionClusterExecutor<>(descriptor.retrieve(clientFactory.getClusterId(configuration)));
+		}
 	}
 }

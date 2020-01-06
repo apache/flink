@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.executors.RemoteExecutor;
+import org.apache.flink.client.deployment.executors.RemoteExecutorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -76,7 +76,7 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 	@Override
 	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		final Configuration resultingConfiguration = new Configuration(configuration);
-		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutorFactory.NAME);
 
 		if (commandLine.hasOption(addressOption.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());

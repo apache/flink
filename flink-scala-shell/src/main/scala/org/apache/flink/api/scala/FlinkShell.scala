@@ -22,10 +22,10 @@ import java.io._
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
-import org.apache.flink.client.deployment.executors.RemoteExecutor
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader
+import org.apache.flink.client.deployment.executors.RemoteExecutorFactory
 import org.apache.flink.client.program.{ClusterClient, MiniClusterClient}
-import org.apache.flink.configuration.{ConfigConstants, Configuration, DeploymentOptions, GlobalConfiguration, JobManagerOptions, RestOptions, TaskManagerOptions}
+import org.apache.flink.configuration._
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
 
 import scala.collection.mutable.ArrayBuffer
@@ -318,7 +318,7 @@ object FlinkShell {
 
     val effectiveConfig = new Configuration(flinkConfig)
     setJobManagerInfoToConfig(effectiveConfig, config.host.get, config.port.get)
-    effectiveConfig.set(DeploymentOptions.TARGET, RemoteExecutor.NAME)
+    effectiveConfig.set(DeploymentOptions.TARGET, RemoteExecutorFactory.NAME)
     effectiveConfig.setBoolean(DeploymentOptions.ATTACHED, true)
 
     (effectiveConfig, None)
@@ -332,7 +332,7 @@ object FlinkShell {
     val port = cluster.getRestAddress.get.getPort
 
     setJobManagerInfoToConfig(config, "localhost", port)
-    config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME)
+    config.set(DeploymentOptions.TARGET, RemoteExecutorFactory.NAME)
     config.setBoolean(DeploymentOptions.ATTACHED, true)
 
     println(s"\nStarting local Flink cluster (host: localhost, port: ${port}).\n")

@@ -47,8 +47,8 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
+import org.apache.flink.yarn.executors.YarnJobClusterExecutorFactory;
+import org.apache.flink.yarn.executors.YarnSessionClusterExecutorFactory;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -304,8 +304,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		final boolean yarnJobManager = ID.equals(jobManagerOption);
 		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())
 				|| configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
-		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET))
-				|| YarnJobClusterExecutor.NAME.equals(configuration.get(DeploymentOptions.TARGET));
+		final boolean hasYarnExecutor = YarnSessionClusterExecutorFactory.NAME.equals(configuration.get(DeploymentOptions.TARGET))
+				|| YarnJobClusterExecutorFactory.NAME.equals(configuration.get(DeploymentOptions.TARGET));
 		return hasYarnExecutor || yarnJobManager || hasYarnAppId || (isYarnPropertiesFileMode(commandLine) && yarnApplicationIdFromYarnProperties != null);
 	}
 
@@ -347,9 +347,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 			effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
 			effectiveConfiguration.setString(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(applicationId));
-			effectiveConfiguration.setString(DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
+			effectiveConfiguration.setString(DeploymentOptions.TARGET, YarnSessionClusterExecutorFactory.NAME);
 		} else {
-			effectiveConfiguration.setString(DeploymentOptions.TARGET, YarnJobClusterExecutor.NAME);
+			effectiveConfiguration.setString(DeploymentOptions.TARGET, YarnJobClusterExecutorFactory.NAME);
 		}
 
 		if (commandLine.hasOption(jmMemory.getOpt())) {

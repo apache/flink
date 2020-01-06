@@ -27,44 +27,35 @@ import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
-import javax.annotation.Nonnull;
-
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An abstract {@link Executor} used to execute {@link Pipeline pipelines} on an existing (session) cluster.
  *
  * @param <ClusterID> the type of the id of the cluster.
- * @param <ClientFactory> the type of the {@link ClusterClientFactory} used to create/retrieve a client to the target cluster.
  */
 @Internal
-public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>> implements Executor {
+public final class SessionClusterExecutor<ClusterID> implements Executor {
 
-	private final ClientFactory clusterClientFactory;
+	private final ClusterClientProvider<ClusterID> clusterClientProvider;
 
-	public AbstractSessionClusterExecutor(@Nonnull final ClientFactory clusterClientFactory) {
-		this.clusterClientFactory = checkNotNull(clusterClientFactory);
+	public SessionClusterExecutor(final ClusterClientProvider<ClusterID> clusterClientProvider) {
+		this.clusterClientProvider = checkNotNull(clusterClientProvider);
 	}
 
 	@Override
-	public CompletableFuture<JobClient> execute(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration) throws Exception {
+	public CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration) throws Exception {
 		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
 
-		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
-			final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
-			checkState(clusterID != null);
+		final ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
 
-			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor.retrieve(clusterID);
-			ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
-			return clusterClient
-					.submitJob(jobGraph)
-					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
-							clusterClientProvider,
-							jobID))
-					.whenComplete((ignored1, ignored2) -> clusterClient.close());
-		}
+		return clusterClient
+				.submitJob(jobGraph)
+				.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
+						clusterClientProvider,
+						jobID))
+				.whenComplete((ignored1, ignored2) -> clusterClient.close());
 	}
 }

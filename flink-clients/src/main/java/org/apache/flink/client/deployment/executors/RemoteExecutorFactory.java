@@ -19,24 +19,33 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.SessionClusterExecutor;
+import org.apache.flink.client.deployment.StandaloneClientFactory;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
 
 /**
- * An {@link ExecutorFactory} for {@link RemoteExecutor remote executors}.
+ * An {@link ExecutorFactory} for standalone session cluster executors.
  */
 @Internal
 public class RemoteExecutorFactory implements ExecutorFactory {
 
+	public static final String NAME = "remote";
+
 	@Override
 	public boolean isCompatibleWith(final Configuration configuration) {
-		return RemoteExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
+		return NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override
 	public Executor getExecutor(final Configuration configuration) {
-		return new RemoteExecutor();
+		final StandaloneClientFactory clientFactory = new StandaloneClientFactory();
+		try (final ClusterDescriptor<StandaloneClusterId> descriptor = clientFactory.createClusterDescriptor(configuration)) {
+			return new SessionClusterExecutor<>(descriptor.retrieve(clientFactory.getClusterId(configuration)));
+		}
 	}
 }

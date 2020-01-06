@@ -24,8 +24,8 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
+import org.apache.flink.yarn.executors.YarnJobClusterExecutorFactory;
+import org.apache.flink.yarn.executors.YarnSessionClusterExecutorFactory;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -46,8 +46,8 @@ public class YarnClusterClientFactory extends AbstractClusterClientFactory<Appli
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
 		final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
-		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget) ||
-				YarnSessionClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget);
+		return YarnJobClusterExecutorFactory.NAME.equalsIgnoreCase(deploymentTarget) ||
+				YarnSessionClusterExecutorFactory.NAME.equalsIgnoreCase(deploymentTarget);
 	}
 
 	@Override

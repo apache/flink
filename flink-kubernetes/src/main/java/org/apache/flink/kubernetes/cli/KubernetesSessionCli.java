@@ -32,7 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
+import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutorFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -81,7 +81,7 @@ public class KubernetesSessionCli {
 	public Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
 		final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
 		final Configuration effectiveConfiguration = cli.applyCommandLineOptionsToConfiguration(commandLine);
-		effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
+		effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutorFactory.NAME);
 		return effectiveConfiguration;
 	}
 

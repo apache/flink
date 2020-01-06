@@ -41,7 +41,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @return Client for the cluster
 	 * @throws ClusterRetrieveException if the cluster client could not be retrieved
 	 */
-	ClusterClientProvider<T> retrieve(T clusterId) throws ClusterRetrieveException;
+	ClusterClientProvider<T> retrieve(T clusterId);
 
 	/**
 	 * Triggers deployment of a cluster.

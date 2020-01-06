@@ -19,10 +19,13 @@
 package org.apache.flink.kubernetes.executors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.SessionClusterExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
+import org.apache.flink.kubernetes.KubernetesClusterDescriptor;
 
 import javax.annotation.Nonnull;
 
@@ -32,14 +35,18 @@ import javax.annotation.Nonnull;
 @Internal
 public class KubernetesSessionClusterExecutorFactory implements ExecutorFactory {
 
+	public static final String NAME = "kubernetes-session";
+
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return configuration.get(DeploymentOptions.TARGET)
-				.equalsIgnoreCase(KubernetesSessionClusterExecutor.NAME);
+		return NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override
 	public Executor getExecutor(@Nonnull final Configuration configuration) {
-		return new KubernetesSessionClusterExecutor();
+		final KubernetesClusterClientFactory clientFactory = new KubernetesClusterClientFactory();
+		try (final KubernetesClusterDescriptor descriptor = clientFactory.createClusterDescriptor(configuration)) {
+			return new SessionClusterExecutor<>(descriptor.retrieve(clientFactory.getClusterId(configuration)));
+		}
 	}
 }

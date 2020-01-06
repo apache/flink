@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.deployment.executors.RemoteExecutor;
+import org.apache.flink.client.deployment.executors.RemoteExecutorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -55,7 +55,7 @@ public class JobListenerITCase extends TestLogger {
 
 	private static Configuration getClientConfiguration() {
 		Configuration result = new Configuration(miniClusterResource.getClientConfiguration());
-		result.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+		result.set(DeploymentOptions.TARGET, RemoteExecutorFactory.NAME);
 		return result;
 	}
 

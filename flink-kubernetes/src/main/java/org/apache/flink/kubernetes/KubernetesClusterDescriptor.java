@@ -20,7 +20,6 @@ package org.apache.flink.kubernetes;
 
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
@@ -85,16 +84,14 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 				configuration.setString(RestOptions.ADDRESS, restEndpoint.getAddress());
 				configuration.setInteger(RestOptions.PORT, restEndpoint.getPort());
 			} else {
-				throw new RuntimeException(
-						new ClusterRetrieveException(
-								"Could not get the rest endpoint of " + clusterId));
+				throw new RuntimeException("Could not get the rest endpoint of " + clusterId);
 			}
 
 			try {
 				return new RestClusterClient<>(configuration, clusterId);
 			} catch (Exception e) {
 				client.handleException(e);
-				throw new RuntimeException(new ClusterRetrieveException("Could not create the RestClusterClient.", e));
+				throw new RuntimeException("Could not create the RestClusterClient.", e);
 			}
 		};
 	}

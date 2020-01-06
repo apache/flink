@@ -49,8 +49,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class LocalExecutor implements Executor {
 
-	public static final String NAME = "local";
-
 	@Override
 	public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration) throws Exception {
 		checkNotNull(pipeline);

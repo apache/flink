@@ -30,7 +30,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.cli.KubernetesSessionCli;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
+import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutorFactory;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -54,7 +54,7 @@ public class KubernetesSessionCliTest {
 		final String[] args = {};
 		final Configuration configuration = cli.getEffectiveConfiguration(args);
 
-		assertEquals(KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+		assertEquals(KubernetesSessionClusterExecutorFactory.NAME, configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Test
@@ -62,7 +62,7 @@ public class KubernetesSessionCliTest {
 
 		final KubernetesSessionCli cli = new KubernetesSessionCli(new Configuration());
 		final String[] args = new String[] {
-			"-e", KubernetesSessionClusterExecutor.NAME,
+			"-e", KubernetesSessionClusterExecutorFactory.NAME,
 			"-Dakka.ask.timeout=5 min",
 			"-Denv.java.opts=-DappName=foobar"
 		};
@@ -82,7 +82,7 @@ public class KubernetesSessionCliTest {
 	@Test
 	public void testCorrectSettingOfMaxSlots() throws Exception {
 		final String[] params = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-e", KubernetesSessionClusterExecutorFactory.NAME,
 				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=3"};
 
 		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1234);
@@ -102,7 +102,7 @@ public class KubernetesSessionCliTest {
 
 		final String clusterId = "my-test-CLUSTER_ID";
 		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-e", KubernetesSessionClusterExecutorFactory.NAME,
 				"-D" + KubernetesConfigOptions.CLUSTER_ID.key() + "=" + clusterId};
 
 		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
@@ -127,7 +127,7 @@ public class KubernetesSessionCliTest {
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
 		final String[] args = {
-				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-e", KubernetesSessionClusterExecutorFactory.NAME,
 				"-D" + JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key() + "=" + jobManagerMemory + "m",
 				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=" + taskManagerMemory + "m",
 				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=" + slotsPerTaskManager
@@ -158,7 +158,7 @@ public class KubernetesSessionCliTest {
 		final int slotsPerTaskManager = 42;
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-		final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
+		final String[] args = {"-e", KubernetesSessionClusterExecutorFactory.NAME};
 		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
 
 		Configuration executorConfig = cli.getEffectiveConfiguration(args);
@@ -176,7 +176,7 @@ public class KubernetesSessionCliTest {
 	@Test
 	public void testHeapMemoryPropertyWithUnitMB() throws Exception {
 		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-e", KubernetesSessionClusterExecutorFactory.NAME,
 				"-D" + JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key() + "=1024m",
 				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=2048m"
 		};
@@ -197,7 +197,7 @@ public class KubernetesSessionCliTest {
 	@Test
 	public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
 		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
+				"-e", KubernetesSessionClusterExecutorFactory.NAME,
 				"-D" + JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key() + "=1g",
 				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=3g"
 		};
@@ -218,7 +218,7 @@ public class KubernetesSessionCliTest {
 	@Test
 	public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
+		configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutorFactory.NAME);
 		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
 		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
 
@@ -238,7 +238,7 @@ public class KubernetesSessionCliTest {
 	@Test
 	public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
 		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME
+				"-e", KubernetesSessionClusterExecutorFactory.NAME
 		};
 
 		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithTmTotalMemory(1024);

@@ -45,7 +45,7 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public ClusterClientProvider<StandaloneClusterId> retrieve(StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
+	public ClusterClientProvider<StandaloneClusterId> retrieve(StandaloneClusterId standaloneClusterId) {
 		return () -> {
 			try {
 				return new RestClusterClient<>(config, standaloneClusterId);

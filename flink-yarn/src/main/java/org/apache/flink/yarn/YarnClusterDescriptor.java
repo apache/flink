@@ -23,7 +23,6 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
@@ -356,7 +355,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	// -------------------------------------------------------------
 
 	@Override
-	public ClusterClientProvider<ApplicationId> retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
+	public ClusterClientProvider<ApplicationId> retrieve(ApplicationId applicationId) {
 
 		try {
 			// check if required Hadoop environment variables are set. If not, warn user
@@ -386,7 +385,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				}
 			};
 		} catch (Exception e) {
-			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
+			throw new RuntimeException("Couldn't retrieve Yarn cluster", e);
 		}
 	}
 

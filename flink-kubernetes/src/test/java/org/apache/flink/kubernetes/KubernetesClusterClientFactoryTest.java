@@ -23,7 +23,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
+import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutorFactory;
 
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class KubernetesClusterClientFactoryTest {
 
 	@Test
 	public void testKubernetesClusterClientFactoryDiscoveryWithSessionExecutor() {
-		testKubernetesClusterClientFactoryDiscoveryHelper(KubernetesSessionClusterExecutor.NAME);
+		testKubernetesClusterClientFactoryDiscoveryHelper(KubernetesSessionClusterExecutorFactory.NAME);
 	}
 
 	private void testKubernetesClusterClientFactoryDiscoveryHelper(final String targetName) {
