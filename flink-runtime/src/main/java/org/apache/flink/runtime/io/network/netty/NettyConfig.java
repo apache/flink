@@ -86,10 +86,6 @@ public class NettyConfig {
 		return serverPort;
 	}
 
-	int getMemorySegmentSize() {
-		return memorySegmentSize;
-	}
-
 	// ------------------------------------------------------------------------
 	// Getters
 	// ------------------------------------------------------------------------
