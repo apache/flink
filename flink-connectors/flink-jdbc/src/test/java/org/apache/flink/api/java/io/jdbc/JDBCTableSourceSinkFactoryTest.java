@@ -30,8 +30,8 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
-
 import org.apache.flink.table.types.logical.RowType;
+
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -189,7 +189,7 @@ public class JDBCTableSourceSinkFactoryTest {
 		List<String> fieldNames = ((RowType) actual.getProducedDataType().getLogicalType()).getFieldNames();
 		String expectedSourceDescription = actual.getClass().getSimpleName()
 			+ "(" + String.join(", ", fieldNames.stream().toArray(String[]::new)) + ")";
-		assertEquals(expectedSourceDescription ,actual.explainSource());
+		assertEquals(expectedSourceDescription, actual.explainSource());
 	}
 
 	@Test
