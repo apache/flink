@@ -641,7 +641,6 @@ class AggregateITCase(
     assertMapStrEquals(expected.sorted.toString, sink.getRetractResults.sorted.toString)
   }
 
-  @Ignore("[FLINK-12088]: JOIN is not supported")
   @Test
   def testGroupBySingleValue(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]

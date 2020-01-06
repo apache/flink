@@ -456,7 +456,6 @@ class CalcITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO support agg
   @Test
   def testExternalTypeFunc2(): Unit = {
     registerFunction("func1", RowFunc)
@@ -605,7 +604,6 @@ class CalcITCase extends BatchTestBase {
       Seq(row("Hello"), row("Hello world")))
   }
 
-  @Ignore // TODO support substring
   @Test
   def testComplexNotInLargeValues(): Unit = {
     checkResult(
@@ -802,7 +800,6 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore //TODO support cast string to bigint.
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
     val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
@@ -1077,7 +1074,6 @@ class CalcITCase extends BatchTestBase {
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
     */
-  @Ignore
   @Test
   def testTimestampCompareWithDateString(): Unit = {
     //j 2015-05-20 10:00:00.887
