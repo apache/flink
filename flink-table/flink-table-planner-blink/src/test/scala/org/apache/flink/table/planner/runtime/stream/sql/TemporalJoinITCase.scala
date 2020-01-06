@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -131,13 +131,11 @@ class TemporalJoinITCase(state: StateBackendMode)
 
     val orders = env
       .fromCollection(ordersData)
-      .asInstanceOf[DataStream[Product]]
-      .assignTimestampsAndWatermarks(new TimestampExtractor())
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Timestamp)]())
       .toTable(tEnv, 'amount, 'currency, 'rowtime.rowtime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
-      .asInstanceOf[DataStream[Product]]
-      .assignTimestampsAndWatermarks(new TimestampExtractor())
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
     tEnv.registerTable("Orders", orders)
@@ -170,19 +168,26 @@ class TemporalJoinITCase(state: StateBackendMode)
     val sqlQuery =
       """
         |SELECT
-        |  o.amount, r.rate, p.price
+        |  o.orderId,
+        |  (o.amount * p.price * r.rate) as total_price
         |FROM
         |  Orders AS o,
-        |  LATERAL TABLE (Rates(o.rowtime)) AS r,
-        |  LATERAL TABLE (Prices(o.rowtime)) AS p
-        |WHERE r.currency = o.currency AND p.productId = o.productId
+        |  LATERAL TABLE (Prices(o.rowtime)) AS p,
+        |  LATERAL TABLE (Rates(o.rowtime)) AS r
+        |WHERE
+        |  o.productId = p.productId AND
+        |  r.currency = p.currency
         |""".stripMargin
 
-    val ordersData = new mutable.MutableList[(Long, String, String, Timestamp)]
-    ordersData.+=((2L, "A1", "Euro", new Timestamp(2L)))
-    ordersData.+=((1L, "A2", "US Dollar", new Timestamp(3L)))
-    ordersData.+=((50L, "A4", "Yen", new Timestamp(4L)))
-    ordersData.+=((3L, "A2", "Euro", new Timestamp(5L)))
+    val ordersData = new mutable.MutableList[(Long, String, Long, Timestamp)]
+    ordersData.+=((1L, "A1", 2L, new Timestamp(2L)))
+    ordersData.+=((2L, "A2", 1L, new Timestamp(3L)))
+    ordersData.+=((3L, "A4", 50L, new Timestamp(4L)))
+    ordersData.+=((4L, "A1", 3L, new Timestamp(5L)))
+    val orders = env
+      .fromCollection(ordersData)
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Long, Timestamp)]())
+      .toTable(tEnv, 'orderId, 'productId, 'amount, 'rowtime.rowtime)
 
     val ratesHistoryData = new mutable.MutableList[(String, Long, Timestamp)]
     ratesHistoryData.+=(("US Dollar", 102L, new Timestamp(1L)))
@@ -190,29 +195,21 @@ class TemporalJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Yen", 1L, new Timestamp(1L)))
     ratesHistoryData.+=(("Euro", 116L, new Timestamp(5L)))
     ratesHistoryData.+=(("Euro", 119L, new Timestamp(7L)))
-
-    val pricesHistoryData = new mutable.MutableList[(String, Double, Timestamp)]
-    pricesHistoryData.+=(("A2", 10.2D, new Timestamp(1L)))
-    pricesHistoryData.+=(("A1", 11.4D, new Timestamp(1L)))
-    pricesHistoryData.+=(("A4", 1D, new Timestamp(1L)))
-    pricesHistoryData.+=(("A1", 11.6D, new Timestamp(5L)))
-    pricesHistoryData.+=(("A1", 11.9D, new Timestamp(7L)))
-
-    val orders = env
-      .fromCollection(ordersData)
-      .asInstanceOf[DataStream[Product]]
-      .assignTimestampsAndWatermarks(new TimestampExtractor())
-      .toTable(tEnv, 'amount, 'productId, 'currency, 'rowtime.rowtime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
-      .asInstanceOf[DataStream[Product]]
-      .assignTimestampsAndWatermarks(new TimestampExtractor())
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
+
+    val pricesHistoryData = new mutable.MutableList[(String, String, Double, Timestamp)]
+    pricesHistoryData.+=(("A2", "US Dollar", 10.2D, new Timestamp(1L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.4D, new Timestamp(1L)))
+    pricesHistoryData.+=(("A4", "Yen", 1D, new Timestamp(1L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.6D, new Timestamp(5L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.9D, new Timestamp(7L)))
     val pricesHistory = env
       .fromCollection(pricesHistoryData)
-      .asInstanceOf[DataStream[Product]]
-      .assignTimestampsAndWatermarks(new TimestampExtractor())
-      .toTable(tEnv, 'productId, 'price, 'rowtime.rowtime)
+      .assignTimestampsAndWatermarks(new TimestampExtractor[(String, String, Double, Timestamp)]())
+      .toTable(tEnv, 'productId, 'currency, 'price, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("Orders", orders)
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
@@ -232,15 +229,21 @@ class TemporalJoinITCase(state: StateBackendMode)
     result.addSink(sink)
     env.execute()
 
-    val expected = List("1,102,10.2", "3,116,10.2", "2,114,11.4", "50,1,1.0")
+    val expected = List(
+      s"1,${2 * 114 * 11.4}",
+      s"2,${1 * 102 * 10.2}",
+      s"3,${50 * 1 * 1.0}",
+      s"4,${3 * 116 * 11.6}")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }
 
-class TimestampExtractor
-  extends BoundedOutOfOrdernessTimestampExtractor[Product](Time.seconds(10))  {
-  override def extractTimestamp(element: Product): Long = element match {
+class TimestampExtractor[T <: Product]
+  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10))  {
+  override def extractTimestamp(element: T): Long = element match {
     case (_, _, ts: Timestamp) => ts.getTime
     case (_, _, _, ts: Timestamp) => ts.getTime
+    case _ => throw new IllegalArgumentException(
+      "Expected the last element in a tuple to be of a Timestamp type.")
   }
 }

@@ -76,7 +76,6 @@ class TemporalJoinTest extends TableTestBase {
   @Test
   def testJoinOnQueryLeft(): Unit = {
     val orders = util.tableEnv.sqlQuery("SELECT * FROM Orders WHERE o_amount > 1000")
-    // register a query as left side
     util.tableEnv.createTemporaryView("Orders2", orders)
 
     val sqlQuery = "SELECT " +
