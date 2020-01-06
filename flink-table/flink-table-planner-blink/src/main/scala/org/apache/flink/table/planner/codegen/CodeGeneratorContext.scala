@@ -109,9 +109,9 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   private var currentMethodNameForLocalVariables = "DEFAULT"
 
   /**
-   * Flag indicating whether split has occurred.
+   * Flag that indicates whether the generated code is split into several methods.
    */
-  private var isSplit = false
+  private var isCodeSplit = false
 
   // map of local variable statements. It will be placed in method if method code not excess
   // max code length, otherwise will be placed in member area of the class. The statements
@@ -148,8 +148,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableLocalVariableStatements(methodName) = mutable.LinkedHashSet[String]()
   }
 
-  def setSplit(): Unit = {
-    isSplit = true
+  /**
+   * Set the flag [[isCodeSplit]] to be true, which indicates the generated code is split into
+   * several methods.
+   */
+  def setCodeSplit(): Unit = {
+    isCodeSplit = true
   }
 
   /**
@@ -206,7 +210,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   def reuseMemberCode(): String = {
     val result = reusableMemberStatements.mkString("\n")
-    if (isSplit) {
+    if (isCodeSplit) {
       val localVariableAsMember = reusableLocalVariableStatements.map(
         statements => statements._2.map("private " + _).mkString("\n")
       ).mkString("\n")
@@ -221,7 +225,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         if generated code is split or in local variables of method
     */
   def reuseLocalVariableCode(methodName: String = null): String = {
-    if (isSplit) {
+    if (isCodeSplit) {
       GeneratedExpression.NO_CODE
     } else if (methodName == null) {
       reusableLocalVariableStatements(currentMethodNameForLocalVariables).mkString("\n")

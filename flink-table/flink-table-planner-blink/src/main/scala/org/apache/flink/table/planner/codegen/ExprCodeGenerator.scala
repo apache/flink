@@ -296,7 +296,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
     val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
       // do the split.
-      ctx.setSplit()
+      ctx.setCodeSplit()
       setFieldsCodes.map(project => {
         val methodName = newName("split")
         val method =
