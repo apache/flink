@@ -260,17 +260,4 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("2,2,Hello", "3,2,Hello world")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
-
-  @Test
-  def testFromBase64(): Unit = {
-    val sqlQuery = "SELECT FROM_BASE64('aGVsbG8gd29ybGQ=')"
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
-    env.execute()
-
-    val expected = List("hello world")
-    assertEquals(expected, sink.getAppendResults)
-  }
 }
