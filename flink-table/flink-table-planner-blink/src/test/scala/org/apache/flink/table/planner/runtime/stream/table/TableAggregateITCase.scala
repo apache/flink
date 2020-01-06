@@ -30,12 +30,11 @@ import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 /**
   * Tests of groupby (without window) table aggregations
   */
-@Ignore("Remove this ignore when FLINK-13740 is solved.")
 @RunWith(classOf[Parameterized])
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
