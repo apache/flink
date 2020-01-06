@@ -83,6 +83,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 		this.bytes = bytes;
 	}
 
+	public static MemorySize ofMebiBytes(long mebiBytes) {
+		return new MemorySize(mebiBytes << 20);
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

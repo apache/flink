@@ -125,7 +125,7 @@ public class ResourceProfileTest {
 		ResourceSpec rs5 = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(2.2).
 				build();
-		MemorySize networkMemory = MemorySize.parse(100 + "m");
+		MemorySize networkMemory = MemorySize.ofMebiBytes(100);
 		assertEquals(ResourceProfile.fromResourceSpec(rs3, networkMemory), ResourceProfile.fromResourceSpec(rs5, networkMemory));
 
 		final ResourceProfile rp1 = ResourceProfile.newBuilder()
@@ -199,7 +199,7 @@ public class ResourceProfileTest {
 		ResourceSpec rs = ResourceSpec.newBuilder(1.0, 100).
 				setGPUResource(1.6).
 				build();
-		ResourceProfile rp = ResourceProfile.fromResourceSpec(rs, MemorySize.parse(50 + "m"));
+		ResourceProfile rp = ResourceProfile.fromResourceSpec(rs, MemorySize.ofMebiBytes(50));
 
 		assertEquals(new CPUResource(1.0), rp.getCpuCores());
 		assertEquals(150, rp.getTotalMemory().getMebiBytes());

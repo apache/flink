@@ -486,7 +486,7 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
-			this.taskHeapMemory = MemorySize.parse(taskHeapMemoryMB + "m");
+			this.taskHeapMemory = MemorySize.ofMebiBytes(taskHeapMemoryMB);
 			return this;
 		}
 
@@ -496,7 +496,7 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setTaskOffHeapMemoryMB(int taskOffHeapMemoryMB) {
-			this.taskOffHeapMemory = MemorySize.parse(taskOffHeapMemoryMB + "m");
+			this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
 			return this;
 		}
 
@@ -506,7 +506,7 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setManagedMemoryMB(int managedMemoryMB) {
-			this.managedMemory = MemorySize.parse(managedMemoryMB + "m");
+			this.managedMemory = MemorySize.ofMebiBytes(managedMemoryMB);
 			return this;
 		}
 
@@ -516,7 +516,7 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setNetworkMemoryMB(int networkMemoryMB) {
-			this.networkMemory = MemorySize.parse(networkMemoryMB + "m");
+			this.networkMemory = MemorySize.ofMebiBytes(networkMemoryMB);
 			return this;
 		}
 
