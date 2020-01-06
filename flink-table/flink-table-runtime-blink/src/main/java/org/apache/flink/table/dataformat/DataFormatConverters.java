@@ -164,9 +164,10 @@ public class DataFormatConverters {
 				Tuple2<Integer, Integer> ps = getPrecision(logicalType);
 				if (clazz == BigDecimal.class) {
 					return new BigDecimalConverter(ps.f0, ps.f1);
-				} else {
+				} else if (clazz == Decimal.class) {
 					return new DecimalConverter(ps.f0, ps.f1);
 				}
+				throw new RuntimeException("Not support class for DECIMAL: " + clazz);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				int precisionOfTS = getDateTimePrecision(logicalType);
 				if (clazz == Timestamp.class) {
