@@ -60,16 +60,20 @@ public final class ConstantArgumentCount implements ArgumentCount {
 	}
 
 	public static ArgumentCount any() {
-		return new ConstantArgumentCount(0, OPEN_INTERVAL);
+		return new ConstantArgumentCount(OPEN_INTERVAL, OPEN_INTERVAL);
 	}
 
 	@Override
 	public boolean isValidCount(int count) {
-		return count >= minCount && (maxCount == OPEN_INTERVAL || count <= maxCount);
+		return (minCount == OPEN_INTERVAL || count >= minCount) &&
+			(maxCount == OPEN_INTERVAL || count <= maxCount);
 	}
 
 	@Override
 	public Optional<Integer> getMinCount() {
+		if (minCount == OPEN_INTERVAL) {
+			return Optional.empty();
+		}
 		return Optional.of(minCount);
 	}
 
