@@ -57,7 +57,7 @@ class AggSqlFunction(
     requiresOver: Boolean,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
-    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
+    new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
     createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
