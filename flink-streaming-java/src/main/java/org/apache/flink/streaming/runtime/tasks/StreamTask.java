@@ -76,7 +76,6 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +87,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -484,27 +484,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void runMailboxLoop() throws Exception {
 		try {
-			try {
-				mailboxProcessor.runMailboxLoop();
-			}
-			catch (WrappingRuntimeException wrappingException) {
-				Throwable unwrapped = wrappingException.unwrap();
-				if (unwrapped instanceof Exception) {
-					throw (Exception) unwrapped;
-				}
-				else {
-					throw wrappingException;
-				}
-			}
-		}
-		catch (InterruptedException e) {
-			if (!canceled) {
-				Thread.currentThread().interrupt();
-				throw e;
-			}
+			mailboxProcessor.runMailboxLoop();
 		}
 		catch (Exception e) {
-			if (canceled) {
+			Optional<InterruptedException> interruption = ExceptionUtils.findThrowable(e, InterruptedException.class);
+			if (interruption.isPresent()) {
+				if (!canceled) {
+					Thread.currentThread().interrupt();
+					throw interruption.get();
+				}
+			} else if (canceled) {
 				LOG.warn("Error while canceling task.", e);
 			}
 			else {
