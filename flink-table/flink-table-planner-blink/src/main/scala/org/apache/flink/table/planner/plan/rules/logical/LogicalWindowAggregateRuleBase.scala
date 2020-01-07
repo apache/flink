@@ -25,9 +25,7 @@ import org.apache.flink.table.planner.expressions.PlannerWindowReference
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 
 
 import com.google.common.collect.ImmutableList
@@ -43,10 +41,8 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.calcite.util.{Pair => CPair}
 
 import _root_.scala.collection.JavaConversions._
-import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]

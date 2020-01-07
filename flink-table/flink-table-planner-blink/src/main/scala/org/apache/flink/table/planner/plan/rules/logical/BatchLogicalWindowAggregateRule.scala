@@ -27,7 +27,6 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 
