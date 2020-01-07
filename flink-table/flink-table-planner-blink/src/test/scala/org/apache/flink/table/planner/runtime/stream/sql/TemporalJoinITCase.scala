@@ -211,8 +211,8 @@ class TemporalJoinITCase(state: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, String, Double, Timestamp)]())
       .toTable(tEnv, 'productId, 'currency, 'price, 'rowtime.rowtime)
 
-    tEnv.createTemporaryView("Orders", orders)
-    tEnv.createTemporaryView("RatesHistory", ratesHistory)
+    tEnv.registerTable("Orders", orders)
+    tEnv.registerTable("RatesHistory", ratesHistory)
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction("rowtime", "currency"))
@@ -220,11 +220,11 @@ class TemporalJoinITCase(state: StateBackendMode)
       "Prices",
       pricesHistory.createTemporalTableFunction("rowtime", "productId"))
 
-    tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
+    tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.scan("TemporalJoinResult").toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
