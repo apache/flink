@@ -79,7 +79,7 @@ tableEnv.sqlUpdate("CREATE DATABASE mydb WITH (...)");
 // Create a catalog table
 tableEnv.sqlUpdate("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
 
-tableEnv.sqlQuery("SHOW TABLES"); // should see the table
+tableEnv.listTables(); // should return the tables in current catalog and database.
 
 {% endhighlight %}
 </div>
