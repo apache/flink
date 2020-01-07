@@ -27,7 +27,7 @@ function get_total_number_of_valid_lines {
   # this method assumes that pending files contain valid data.
   # That is because close() cannot move files to FINAL state but moves them to PENDING.
   # Given this, the job of the test has bucket size = Long.MAX
-  find ${TEST_DATA_DIR}/out -type f \( -iname "*.pending" -or -iname "*.in-progress" -or -iname "part-*" \) -exec cat {} + | sort -g | wc -l
+  find ${TEST_DATA_DIR}/out -type f \( -iname "part-*" \) -exec cat {} + | sort -g | wc -l
 }
 
 function wait_for_complete_result {
@@ -124,8 +124,6 @@ echo "Restarting 1 TM"
 $FLINK_DIR/bin/taskmanager.sh start
 wait_for_number_of_running_tms 4
 
-sleep 10
-
 echo "Killing 2 TMs"
 kill_random_taskmanager
 kill_random_taskmanager
@@ -150,7 +148,7 @@ wait_job_terminal_state ${JOB_ID} "CANCELED"
 echo "Job $JOB_ID was cancelled, time to verify"
 
 # get all lines in pending or part files
-find ${TEST_DATA_DIR}/out -type f \( -iname "*.pending" -or -iname "part-*" \) -exec cat {} + > ${TEST_DATA_DIR}/complete_result
+find ${TEST_DATA_DIR}/out -type f \( -iname "part-*" \) -exec cat {} + > ${TEST_DATA_DIR}/complete_result
 
 # for debugging purposes
 #echo "Checking proper result..."
