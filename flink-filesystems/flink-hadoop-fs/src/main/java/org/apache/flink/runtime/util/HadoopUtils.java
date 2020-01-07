@@ -147,19 +147,18 @@ public class HadoopUtils {
 	 * Search Hadoop configuration files in the given path, and add them to the configuration if found.
 	 */
 	private static boolean addHadoopConfIfFound(Configuration configuration, String possibleHadoopConfPath) {
-		boolean foundHadoopConfiguration = false;
 		if (new File(possibleHadoopConfPath).exists()) {
 			if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
 				configuration.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
 				LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
-				foundHadoopConfiguration = true;
+				return true;
 			}
 			if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
 				configuration.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
 				LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
-				foundHadoopConfiguration = true;
+				return true;
 			}
 		}
-		return foundHadoopConfiguration;
+		return false;
 	}
 }
