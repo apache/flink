@@ -25,6 +25,7 @@ source "$(dirname "$0")"/common_docker.sh
 MAX_RETRY_SECONDS=120
 IMAGE_BUILD_RETRIES=5
 NODENAME=${NODENAME:-`hostname -f`}
+export MESOS_AGENT_CPU=1
 
 echo "End-to-end directory $END_TO_END_DIR"
 
