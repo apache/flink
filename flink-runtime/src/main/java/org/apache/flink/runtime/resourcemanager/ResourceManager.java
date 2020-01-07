@@ -1120,11 +1120,22 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
 			validateRunsInMainThread();
-			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
+
+			final WorkerRegistration workerRegistration = taskExecutors.get(resourceID);
+			final String taskManagerIdStr;
+
+			if (workerRegistration != null) {
+				taskManagerIdStr = String.format("%s @ %s (dataPort=%d)",
+					resourceID, workerRegistration.getTaskExecutorGateway().getHostname(), workerRegistration.getDataPort());
+			} else {
+				taskManagerIdStr = resourceID.toString();
+			}
+
+			log.info("The heartbeat of TaskManager with id {} timed out.", taskManagerIdStr);
 
 			closeTaskManagerConnection(
 				resourceID,
-				new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
+				new TimeoutException("The heartbeat of TaskManager with id " + taskManagerIdStr + "  timed out."));
 		}
 
 		@Override

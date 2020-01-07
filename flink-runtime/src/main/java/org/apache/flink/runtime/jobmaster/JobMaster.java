@@ -1144,9 +1144,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
 			validateRunsInMainThread();
+
+			final Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(resourceID);
+			final String taskManagerIdStr;
+			if (taskManagerInfo != null) {
+				taskManagerIdStr = taskManagerInfo.f0.toString();
+			} else {
+				taskManagerIdStr = resourceID.toString();
+			}
+
 			disconnectTaskManager(
 				resourceID,
-				new TimeoutException("Heartbeat of TaskManager with id " + resourceID + " timed out."));
+				new TimeoutException("Heartbeat of TaskManager with id " + taskManagerIdStr + " timed out."));
 		}
 
 		@Override
