@@ -893,6 +893,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64('aGVsbG8gd29ybGQ=')",
       "hello world")
 
+    testSqlApi(
+      "CONCAT(FROM_BASE64('5L2g5aW9'), ' flink')",
+      "你好 flink")
+
     //null test
     testSqlApi(
       "FROM_BASE64(f33)",
