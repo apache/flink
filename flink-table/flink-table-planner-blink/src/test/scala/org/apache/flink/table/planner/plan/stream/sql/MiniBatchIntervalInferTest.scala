@@ -150,8 +150,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[NullPointerException])
-  // TODO remove the exception after TableImpl implements createTemporalTableFunction
+  @Test
   def testTemporalTableFunctionJoinWithMiniBatch(): Unit = {
     util.addTableWithWatermark("Orders", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RatesHistory", util.tableEnv.scan("MyTable2"), "rowtime", 0)
