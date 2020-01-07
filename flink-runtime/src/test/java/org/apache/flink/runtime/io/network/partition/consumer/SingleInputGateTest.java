@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -31,10 +33,13 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -48,27 +53,32 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -609,7 +619,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			resultPartition.setup();
 			inputGate.setup();
 
-			remoteInputChannel.onBuffer(TestBufferFactory.createBuffer(1), 0, 0);
+			remoteInputChannel.onBuffer(createBuffer(1), 0, 0);
 			assertEquals(1, inputGate.getNumberOfQueuedBuffers());
 
 			resultPartition.addBufferConsumer(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(1), 0);
@@ -619,6 +629,74 @@ public class SingleInputGateTest extends InputGateTestBase {
 			inputGate.close();
 			network.close();
 		}
+	}
+
+	@Test
+	public void testBufferReceivedListener() throws Exception {
+		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
+
+		// Setup
+		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
+
+		final int channelIndex1 = 0, channelIndex2 = 1;
+		final RemoteInputChannel remoteInputChannel1 = InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex1)
+			.setupFromNettyShuffleEnvironment(network)
+			.setConnectionManager(new TestingConnectionManager())
+			.buildRemoteChannel(inputGate);
+		final RemoteInputChannel remoteInputChannel2 = InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex2)
+			.setupFromNettyShuffleEnvironment(network)
+			.setConnectionManager(new TestingConnectionManager())
+			.buildRemoteChannel(inputGate);
+		inputGate.setInputChannels(remoteInputChannel1, remoteInputChannel2);
+
+		final List<BufferOrEvent> notifications = new ArrayList<>();
+		inputGate.registerBufferReceivedListener(new BufferReceivedListener() {
+			@Override
+			public void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
+				notifications.add(new BufferOrEvent(buffer, channelInfo.getInputChannelIdx()));
+			}
+
+			@Override
+			public void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) {
+				notifications.add(new BufferOrEvent(barrier, channelInfo.getInputChannelIdx()));
+			}
+		});
+		inputGate.setup();
+
+		// Test
+		CheckpointOptions options = new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}));
+
+		remoteInputChannel1.onBuffer(createBuffer(1), 0, 0);
+		remoteInputChannel2.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(1, 0, options)), 0, 0);
+		remoteInputChannel1.onBuffer(createBuffer(11), 1, 0);
+		remoteInputChannel2.onBuffer(createBuffer(12), 1, 0);
+		remoteInputChannel1.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(2, 0, options)), 2, 0);
+		remoteInputChannel1.onBuffer(createBuffer(21), 3, 0);
+		remoteInputChannel2.onBuffer(createBuffer(22), 2, 0);
+
+		inputGate.notifyChannelNonEmpty(remoteInputChannel1);
+		inputGate.notifyChannelNonEmpty(remoteInputChannel2);
+
+		while (inputGate.pollNext().isPresent()) {
+			// do nothing here, all logic is handled by the listener in this test
+		}
+
+		assertEquals(getIds(asList(
+			new BufferOrEvent(new CheckpointBarrier(0, 0, options), channelIndex2),
+			new BufferOrEvent(createBuffer(11), channelIndex1),
+			new BufferOrEvent(new CheckpointBarrier(1, 0, options), channelIndex1),
+			new BufferOrEvent(createBuffer(22), channelIndex2)
+		)), getIds(notifications));
+	}
+
+	private List<Object> getIds(Collection<BufferOrEvent> buffers) {
+		return buffers.stream()
+			.map(boe -> boe.isBuffer() ? boe.getSize() : boe.getEvent())
+			.collect(Collectors.toList());
 	}
 
 	/**
@@ -711,7 +789,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		SingleInputGate[] gates = network.createInputGates(
 			network.createShuffleIOOwnerContext("", consumerID, new UnregisteredMetricsGroup()),
 			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-			Arrays.asList(gateDescs)).toArray(new SingleInputGate[] {});
+			asList(gateDescs)).toArray(new SingleInputGate[] {});
 		Map<InputGateID, SingleInputGate> inputGatesById = new HashMap<>();
 		for (int i = 0; i < numberOfGates; i++) {
 			inputGatesById.put(new InputGateID(ids[i], consumerID), gates[i]);

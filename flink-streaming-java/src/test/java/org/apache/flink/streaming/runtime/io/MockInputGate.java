@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -109,5 +110,9 @@ public class MockInputGate extends InputGate {
 
 	@Override
 	public void close() {
+	}
+
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener listener) {
 	}
 }

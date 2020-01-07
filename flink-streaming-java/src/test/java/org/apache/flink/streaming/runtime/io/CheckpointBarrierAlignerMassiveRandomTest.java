@@ -22,6 +22,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -192,6 +193,10 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 		@Override
 		public void close() {
+		}
+
+		@Override
+		public void registerBufferReceivedListener(BufferReceivedListener listener) {
 		}
 	}
 }
