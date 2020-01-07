@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -491,6 +492,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private void afterInvoke() throws Exception {
 		LOG.debug("Finished task {}", getName());
 
+		final CompletableFuture<Void> timersFinishedFuture = new CompletableFuture<>();
+
 		// make sure no further checkpoint and notification actions happen.
 		// we make sure that no other thread is currently in the locked scope before
 		// we close the operators by trying to acquire the checkpoint scope lock
@@ -501,7 +504,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			closeAllOperators();
 
 			// make sure no new timers can come
-			timerService.quiesce();
+			FutureUtils.forward(timerService.quiesce(), timersFinishedFuture);
 
 			// let mailbox execution reject all new letters from this point
 			mailboxProcessor.prepareClose();
@@ -514,7 +517,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		mailboxProcessor.drain();
 
 		// make sure all timers finish
-		timerService.awaitPendingAfterQuiesce();
+		timersFinishedFuture.get();
 
 		LOG.debug("Closed operators for task {}", getName());
 
