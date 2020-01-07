@@ -62,27 +62,14 @@ class BatchLogicalWindowAggregateRule
       throw new ValidationException("Window can not be defined over "
         + "a proctime attribute column for batch mode")
     }
-    operand match {
-      case c: RexCall if c.getKind == SqlKind.CAST =>
-        getTimeFieldReference(c.getOperands.get(0), windowExprIdx, rowType)
-      // match TUMBLE_ROWTIME and TUMBLE_PROCTIME
-      case c: RexCall if c.getOperands.size() == 1 &&
-        FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
-        new FieldReferenceExpression(
-          rowType.getFieldList.get(windowExprIdx).getName,
-          fromLogicalTypeToDataType(toLogicalType(c.getType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-      case ref: RexInputRef =>
-        // resolve field name of window attribute
-        val fieldName = rowType.getFieldList.get(ref.getIndex).getName
-        val fieldType = rowType.getFieldList.get(ref.getIndex).getType
-        new FieldReferenceExpression(
-          fieldName,
-          fromLogicalTypeToDataType(toLogicalType(fieldType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-    }
+
+    val fieldName = rowType.getFieldList.get(windowExprIdx).getName
+    val fieldType = rowType.getFieldList.get(windowExprIdx).getType
+    new FieldReferenceExpression(
+      fieldName,
+      fromLogicalTypeToDataType(toLogicalType(fieldType)),
+      0,
+      windowExprIdx)
   }
 
   def getOperandAsLong(call: RexCall, idx: Int): Long =

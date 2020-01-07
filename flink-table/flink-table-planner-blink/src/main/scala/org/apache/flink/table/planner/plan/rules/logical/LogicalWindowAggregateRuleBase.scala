@@ -25,7 +25,10 @@ import org.apache.flink.table.planner.expressions.PlannerWindowReference
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -75,7 +78,6 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     val project: LogicalProject = rewriteProctimeWindows(call.rel(1), builder)
 
     val (windowExpr, windowExprIdx) = getWindowExpressions(agg, project).head
-    val window = translateWindow(windowExpr, windowExprIdx, project.getInput.getRowType)
 
     val rexBuilder = agg.getCluster.getRexBuilder
 
@@ -87,6 +89,9 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       .push(project.getInput)
       .project(project.getChildExps.updated(windowExprIdx, inAggGroupExpression))
       .build()
+
+    // translate window against newProject.
+    val window = translateWindow(windowExpr, windowExprIdx, newProject.getRowType)
 
     // Currently, this rule removes the window from GROUP BY operation which may lead to changes
     // of AggCall's type which brings fails on type checks.

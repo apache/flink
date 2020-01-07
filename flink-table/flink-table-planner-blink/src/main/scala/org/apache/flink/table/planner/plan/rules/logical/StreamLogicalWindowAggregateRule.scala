@@ -69,24 +69,17 @@ class StreamLogicalWindowAggregateRule
       operand: RexNode,
       windowExprIdx: Int,
       rowType: RelDataType): FieldReferenceExpression = {
-    operand match {
-        // match TUMBLE_ROWTIME and TUMBLE_PROCTIME
-      case c: RexCall if c.getOperands.size() == 1 &&
-        FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
-        new FieldReferenceExpression(
-          rowType.getFieldList.get(windowExprIdx).getName,
-          fromLogicalTypeToDataType(toLogicalType(c.getType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-      case v: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(v.getType) =>
-        new FieldReferenceExpression(
-          rowType.getFieldList.get(v.getIndex).getName,
-          fromLogicalTypeToDataType(toLogicalType(v.getType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-      case _ =>
-        throw new ValidationException("Window can only be defined over a time attribute column.")
+    if (!FlinkTypeFactory.isTimeIndicatorType(operand.getType)) {
+      throw new ValidationException("Window can only be defined over a time attribute column.")
     }
+
+    val fieldName = rowType.getFieldList.get(windowExprIdx).getName
+    val fieldType = rowType.getFieldList.get(windowExprIdx).getType
+    new FieldReferenceExpression(
+      fieldName,
+      fromLogicalTypeToDataType(toLogicalType(fieldType)),
+      0,
+      windowExprIdx)
   }
 
   def getOperandAsLong(call: RexCall, idx: Int): Long =
