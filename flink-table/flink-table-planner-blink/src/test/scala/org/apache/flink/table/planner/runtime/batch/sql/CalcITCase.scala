@@ -306,6 +306,14 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testDecimalReturnType(): Unit = {
+    registerFunction("myNegative", MyNegative)
+    checkResult("SELECT myNegative(5.1)",
+      Seq(row(new java.math.BigDecimal("-5.100000000000000000"))
+      ))
+  }
+
+  @Test
   def testUDFWithInternalClass(): Unit = {
     registerFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
