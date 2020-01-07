@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -131,4 +132,6 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
 	 */
 	public abstract void setup() throws IOException, InterruptedException;
+
+	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
 }
