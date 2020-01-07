@@ -159,11 +159,11 @@ object FlinkRelBuilder {
     }
   }
 
-  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+  def of(cluster: RelOptCluster, relOptSchema: RelOptSchema): FlinkRelBuilder = {
     val clusterContext = cluster.getPlanner.getContext
     new FlinkRelBuilder(
       clusterContext,
       cluster,
-      relTable.getRelOptSchema)
+      relOptSchema)
   }
 }
