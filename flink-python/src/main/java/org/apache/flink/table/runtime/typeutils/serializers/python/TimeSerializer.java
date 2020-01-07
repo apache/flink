@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.sql.Time;
-import java.util.TimeZone;
+import java.time.LocalTime;
 
 /**
  * Uses int instead of long as the serialized value. It not only reduces the length of the serialized
@@ -38,11 +38,6 @@ import java.util.TimeZone;
 public class TimeSerializer extends TypeSerializerSingleton<Time> {
 
 	private static final long serialVersionUID = 1L;
-
-	// The local time zone.
-	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
-
-	private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
 	public static final TimeSerializer INSTANCE = new TimeSerializer();
 
@@ -75,7 +70,7 @@ public class TimeSerializer extends TypeSerializerSingleton<Time> {
 
 	@Override
 	public int getLength() {
-		return 4;
+		return 8;
 	}
 
 	@Override
@@ -83,28 +78,26 @@ public class TimeSerializer extends TypeSerializerSingleton<Time> {
 		if (record == null) {
 			throw new IllegalArgumentException("The Time record must not be null.");
 		}
-		target.writeInt(timeToInternal(record));
+		target.writeLong(timeToInternal(record));
 	}
 
 	@Override
 	public Time deserialize(DataInputView source) throws IOException {
-		return internalToTime(source.readInt());
+		return internalToTime(source.readLong());
 	}
 
-	private int timeToInternal(Time time) {
-		long ts = time.getTime() + LOCAL_TZ.getOffset(time.getTime());
-		return (int) (ts % MILLIS_PER_DAY);
+	private long timeToInternal(Time time) {
+		LocalTime localTime = time.toLocalTime();
+		return localTime.toNanoOfDay();
 	}
 
-	private Time internalToTime(int time) {
-		return new Time(time - LOCAL_TZ.getOffset(time));
+	private Time internalToTime(Long time) {
+		return Time.valueOf(LocalTime.ofNanoOfDay(time));
 	}
 
 	@Override
 	public Time deserialize(Time reuse, DataInputView source) throws IOException {
-		int time = source.readInt();
-		reuse.setTime(time - LOCAL_TZ.getOffset(time));
-		return reuse;
+		return deserialize(source);
 	}
 
 	@Override

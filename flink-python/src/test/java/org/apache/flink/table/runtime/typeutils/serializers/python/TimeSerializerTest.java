@@ -34,7 +34,7 @@ public class TimeSerializerTest extends SerializerTestBase<Time> {
 
 	@Override
 	protected int getLength() {
-		return 4;
+		return 8;
 	}
 
 	@Override

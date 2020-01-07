@@ -264,7 +264,7 @@ public final class PythonTypeUtils {
 
 		@Override
 		public TypeSerializer visit(TimeType timeType) {
-			return IntSerializer.INSTANCE;
+			return LongSerializer.INSTANCE;
 		}
 
 		@Override
