@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupW
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan._
