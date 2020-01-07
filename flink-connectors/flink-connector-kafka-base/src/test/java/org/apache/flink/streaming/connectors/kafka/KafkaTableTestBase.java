@@ -72,6 +72,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		// TODO: use DDL to register Kafka once FLINK-15282 is fixed.
 		//  we have to register into Catalog manually because it will use Calcite's ParameterScope
 		TableSchema schema = TableSchema.builder()
+			.field("computed-price", DataTypes.DECIMAL(38, 18), "price + 1.0")
 			.field("price", DataTypes.DECIMAL(38, 18))
 			.field("currency", DataTypes.STRING())
 			.field("log_ts", DataTypes.TIMESTAMP(3))
@@ -101,6 +102,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 
 		// TODO: use the following DDL instead of the preceding code to register Kafka
 //		String ddl = "CREATE TABLE kafka (\n" +
+//			"  computed-price as price + 1.0,\n" +
 //			"  price DECIMAL(38, 18),\n" +
 //			"  currency STRING,\n" +
 //			"  log_ts TIMESTAMP(3),\n" +

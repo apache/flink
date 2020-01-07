@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -623,7 +622,6 @@ public interface TableEnvironment {
 	 * @param catalogName The name of the catalog to set as the current default catalog.
 	 * @see TableEnvironment#useDatabase(String)
 	 */
-	@Experimental
 	void useCatalog(String catalogName);
 
 	/**
@@ -690,7 +688,6 @@ public interface TableEnvironment {
 	 * @param databaseName The name of the database to set as the current database.
 	 * @see TableEnvironment#useCatalog(String)
 	 */
-	@Experimental
 	void useDatabase(String databaseName);
 
 	/**

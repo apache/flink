@@ -265,8 +265,18 @@ public class HiveTableUtil {
 					.toHiveObject(value);
 			String res = value.toString();
 			LogicalTypeRoot typeRoot = dataType.getLogicalType().getTypeRoot();
-			if (typeRoot == LogicalTypeRoot.VARCHAR || typeRoot == LogicalTypeRoot.CHAR) {
-				res = "'" + res.replace("'", "''") + "'";
+			switch (typeRoot) {
+				case CHAR:
+				case VARCHAR:
+					res = "'" + res.replace("'", "''") + "'";
+					break;
+				case DATE:
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+					// hive not support partition filter push down with these types.
+					return null;
+				default:
+					break;
 			}
 			return res;
 		}

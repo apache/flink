@@ -112,6 +112,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -1313,7 +1314,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test
 	public void testMaximumRegistrationDuration() throws Exception {
-		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
+		configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
 
 		final TaskExecutor taskExecutor = createTaskExecutor(new TaskManagerServicesBuilder().build());
 
@@ -1332,7 +1333,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test
 	public void testMaximumRegistrationDurationAfterConnectionLoss() throws Exception {
-		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "100 ms");
+		configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("100 ms"));
 		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -68,10 +67,8 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 	}
 
 	public static Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
-		final TaskExecutorResourceSpec tmResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(originalConfiguration);
-		final Configuration resourceManagerConfig = new Configuration(originalConfiguration);
-		resourceManagerConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, tmResourceSpec.getManagedMemorySize().getBytes() + "b");
-		return resourceManagerConfig;
+		return TaskExecutorResourceUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 
 	protected abstract ResourceManager<T> createActiveResourceManager(

@@ -514,6 +514,13 @@ object ScalarOperatorGens {
           s"$leftTerm.compareTo($rightTerm) $operator 0"
       }
 
+      // both sides are timestamp with local zone
+      else if (isTimestampWithLocalZone(left.resultType) &&
+          isTimestampWithLocalZone(right.resultType)) {
+        (leftTerm, rightTerm) =>
+          s"$leftTerm.compareTo($rightTerm) $operator 0"
+      }
+
       // both sides are temporal of same type
       else if (isTemporal(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
@@ -1030,8 +1037,7 @@ object ScalarOperatorGens {
         resultNullable = true) {
         operandTerm =>
           s"""
-             |$SQL_TIMESTAMP.fromEpochMillis(
-             | ${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}($operandTerm.toString()))
+             |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
            """.stripMargin
       }
 
@@ -2282,8 +2288,7 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
-           |${SQL_TIMESTAMP}.fromEpochMillis(
-           |  ${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}($operandTerm.toString()))
+           |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
            |""".stripMargin
       case _ => throw new UnsupportedOperationException
     }

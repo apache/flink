@@ -112,7 +112,16 @@ function read_messages_from_kafka {
 }
 
 function send_messages_to_kafka_avro {
-echo -e $1 | $CONFLUENT_DIR/bin/kafka-avro-console-producer --broker-list localhost:9092 --topic $2 --property value.schema=$3 --property schema.registry.url=${SCHEMA_REGISTRY_URL}
+  echo -e $1 | $CONFLUENT_DIR/bin/kafka-avro-console-producer --broker-list localhost:9092 --topic $2 --property value.schema=$3 --property schema.registry.url=${SCHEMA_REGISTRY_URL}
+}
+
+function read_messages_from_kafka_avro {
+  $CONFLUENT_DIR/bin/kafka-avro-console-consumer --bootstrap-server localhost:9092 --from-beginning \
+    --max-messages $1 \
+    --topic $2 \
+    --property value.schema=$3 \
+    --property schema.registry.url=${SCHEMA_REGISTRY_URL} \
+    --consumer-property group.id=$4
 }
 
 function modify_num_partitions {

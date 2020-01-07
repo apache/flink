@@ -125,7 +125,6 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 				next = inputGate.pollNext();
 			}
 			else {
-				// TODO: FLINK-12536 for non credit-based flow control, getNext method is blocking
 				next = bufferStorage.pollNext();
 				if (!next.isPresent()) {
 					return pollNext();

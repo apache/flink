@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -49,7 +50,7 @@ import java.util.stream.Collectors;
  */
 public class MiniClusterResource extends ExternalResource {
 
-	private static final String DEFAULT_MANAGED_MEMORY_SIZE = "80m";
+	private static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("80m");
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -160,7 +161,7 @@ public class MiniClusterResource extends ExternalResource {
 		}
 
 		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-			configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
+			configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
 		}
 
 		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters

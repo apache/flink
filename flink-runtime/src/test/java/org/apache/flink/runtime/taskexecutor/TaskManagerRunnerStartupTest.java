@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -122,7 +122,8 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
-		cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
+		cfg.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("100m"));
+		cfg.set(TaskManagerOptions.SHUFFLE_MEMORY_MAX, MemorySize.parse("10m"));
 		try {
 
 			startTaskManager(
@@ -131,7 +132,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 				highAvailabilityServices);
 
 			fail("Should fail synchronously with an exception");
-		} catch (IllegalConfigurationException e) {
+		} catch (IllegalArgumentException e) {
 			// splendid!
 		}
 	}
@@ -164,7 +165,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 	private static Configuration createFlinkConfiguration() {
 		final Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEMORY_MB + "m");
+		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(TOTAL_FLINK_MEMORY_MB + "m"));
 
 		return config;
 	}

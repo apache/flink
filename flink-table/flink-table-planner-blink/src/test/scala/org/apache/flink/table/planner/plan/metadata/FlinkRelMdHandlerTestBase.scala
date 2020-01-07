@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericI
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -61,8 +62,8 @@ import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQu
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, INTEGER, TIME, TIMESTAMP, VARCHAR}
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -71,7 +72,6 @@ import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
 import java.util
-import org.apache.flink.table.module.ModuleManager
 
 import scala.collection.JavaConversions._
 
@@ -2377,7 +2377,7 @@ class FlinkRelMdHandlerTestBase {
     scan.asInstanceOf[T]
   }
 
-  private def createLiteralList(
+  protected def createLiteralList(
       rowType: RelDataType,
       literalValues: Seq[String]): util.List[RexLiteral] = {
     require(literalValues.length == rowType.getFieldCount)
@@ -2390,6 +2390,7 @@ class FlinkRelMdHandlerTestBase {
         } else {
           fieldType.getSqlTypeName match {
             case BIGINT => rexBuilder.makeLiteral(v.toLong, fieldType, true)
+            case INTEGER => rexBuilder.makeLiteral(v.toInt, fieldType, true)
             case BOOLEAN => rexBuilder.makeLiteral(v.toBoolean)
             case DATE => rexBuilder.makeDateLiteral(new DateString(v))
             case TIME => rexBuilder.makeTimeLiteral(new TimeString(v), 0)

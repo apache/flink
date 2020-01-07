@@ -156,6 +156,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private final ClusterClientServiceLoader clusterClientServiceLoader;
 
+	@Nullable
+	private String dynamicPropertiesEncoded = null;
+
 	public FlinkYarnSessionCli(
 			Configuration configuration,
 			String configurationDirectory,
@@ -362,11 +365,19 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			if (!MemorySize.MemoryUnit.hasUnit(tmMemoryVal)) {
 				tmMemoryVal += "m";
 			}
-			effectiveConfiguration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, tmMemoryVal);
+			effectiveConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(tmMemoryVal));
 		}
 
 		if (commandLine.hasOption(slots.getOpt())) {
 			effectiveConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
+		}
+
+		dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
+		if (!dynamicPropertiesEncoded.isEmpty()) {
+			Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
+			for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+				effectiveConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+			}
 		}
 
 		if (isYarnPropertiesFileMode(commandLine)) {
@@ -401,11 +412,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		if (commandLine.hasOption(queue.getOpt())) {
 			final String queueName = commandLine.getOptionValue(queue.getOpt());
 			configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, queueName);
-		}
-
-		final String dynamicPropertiesEncoded = encodeDynamicProperties(commandLine);
-		if (dynamicPropertiesEncoded != null && !dynamicPropertiesEncoded.isEmpty()) {
-			configuration.setString(YarnConfigOptionsInternal.DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
 
 		final boolean detached = commandLine.hasOption(YARN_DETACHED_OPTION.getOpt()) || commandLine.hasOption(DETACHED_OPTION.getOpt());
@@ -568,7 +574,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						writeYarnPropertiesFile(
 							yarnApplicationId,
 							clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
-							yarnClusterDescriptor.getDynamicPropertiesEncoded());
+							dynamicPropertiesEncoded);
 					} catch (Exception e) {
 						try {
 							clusterClient.close();

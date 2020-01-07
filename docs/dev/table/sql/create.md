@@ -31,6 +31,7 @@ Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
 - CREATE DATABASE
+- CREATE FUNCTION
 
 ## Run a CREATE statement
 
@@ -163,6 +164,10 @@ The `WATERMARK` defines the event time attributes of a table and takes the form 
 The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
 
 The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
+The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
+The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
+Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/ops/config.html#pipeline-auto-watermark-interval) configuration.
+If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
 
 When using event time semantics, tables must contain an event time attribute and watermarking strategy.
 
@@ -174,7 +179,7 @@ Flink provides several commonly used watermark strategies.
 
 - Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
 
-  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal and smaller to the max timestamp are not late.
 
 - Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`.
 
@@ -225,3 +230,28 @@ Database properties used to store extra information related to this database.
 The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
+
+## CREATE FUNCTION
+{% highlight sql%}
+CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
+  [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
+  AS identifier [LANGUAGE JAVA|SCALA]
+{% endhighlight %}
+
+Create a catalog function that has catalog and database namespaces with the identifier which is full classpath for JAVA/SCALA and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+
+**TEMPORARY**
+
+Create temporary catalog function that has catalog and database namespaces and overrides catalog functions.
+
+**TEMPORARY SYSTEM**
+
+Create temporary system function that has no namespace and overrides built-in functions
+
+**IF NOT EXISTS**
+
+If the function already exists, nothing happens.
+
+**LANGUAGE JAVA\|SCALA**
+
+Language tag to instruct Flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.

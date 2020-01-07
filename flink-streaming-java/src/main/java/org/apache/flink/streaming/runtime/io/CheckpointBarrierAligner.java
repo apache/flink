@@ -144,7 +144,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 				releaseBlocksAndResetBarriers();
 				checkpointAborted = true;
 
-				// begin a the new checkpoint
+				// begin a new checkpoint
 				beginNewAlignment(barrierId, channelIndex);
 			}
 			else {

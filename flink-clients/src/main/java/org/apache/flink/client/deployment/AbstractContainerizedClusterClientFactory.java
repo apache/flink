@@ -27,10 +27,10 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An abstract {@link ClusterClientFactory} containing some common implementations for different deployment clusters.
+ * An abstract {@link ClusterClientFactory} containing some common implementations for different containerized deployment clusters.
  */
 @Internal
-public abstract class AbstractClusterClientFactory<ClusterID> implements ClusterClientFactory<ClusterID> {
+public abstract class AbstractContainerizedClusterClientFactory<ClusterID> implements ClusterClientFactory<ClusterID> {
 
 	@Override
 	public ClusterSpecification getClusterSpecification(Configuration configuration) {
@@ -41,7 +41,8 @@ public abstract class AbstractClusterClientFactory<ClusterID> implements Cluster
 			.getMebiBytes();
 
 		final int taskManagerMemoryMB = TaskExecutorResourceUtils
-			.resourceSpecFromConfig(configuration)
+			.resourceSpecFromConfig(TaskExecutorResourceUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+				configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY))
 			.getTotalProcessMemorySize()
 			.getMebiBytes();
 

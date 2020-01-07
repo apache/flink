@@ -34,6 +34,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -662,7 +663,7 @@ public class SavepointITCase extends TestLogger {
 
 		Configuration config = getFileBasedCheckpointsConfig();
 		config.addAll(jobGraph.getJobConfiguration());
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.ZERO);
 
 		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
