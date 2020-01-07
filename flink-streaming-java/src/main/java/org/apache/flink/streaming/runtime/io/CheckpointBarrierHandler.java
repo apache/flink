@@ -24,9 +24,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -80,6 +82,10 @@ public abstract class CheckpointBarrierHandler {
 	}
 
 	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
+
+	public Optional<BufferReceivedListener> getBufferReceivedListener() {
+		return Optional.empty();
+	}
 
 	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws IOException {
 		CheckpointMetaData checkpointMetaData =

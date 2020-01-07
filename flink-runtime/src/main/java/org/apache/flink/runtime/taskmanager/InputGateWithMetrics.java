@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -95,6 +96,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	@Override
 	public void close() throws Exception {
 		inputGate.close();
+	}
+
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener listener) {
+		inputGate.registerBufferReceivedListener(listener);
 	}
 
 	private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {

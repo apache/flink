@@ -25,9 +25,11 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
@@ -519,6 +521,8 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			}
 
 			final boolean wasEmpty;
+			final CheckpointBarrier notifyReceivedBarrier;
+			final BufferReceivedListener listener = inputGate.getBufferReceivedListener();
 			synchronized (receivedBuffers) {
 				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
 				// after releaseAllResources() released all buffers from receivedBuffers
@@ -529,6 +533,8 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 				wasEmpty = receivedBuffers.isEmpty();
 				receivedBuffers.add(buffer);
+
+				notifyReceivedBarrier = listener != null ? parseCheckpointBarrierOrNull(buffer) : null;
 			}
 			recycleBuffer = false;
 
@@ -540,6 +546,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 			if (backlog >= 0) {
 				onSenderBacklog(backlog);
+			}
+
+			if (notifyReceivedBarrier != null) {
+				listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
 			}
 		} finally {
 			if (recycleBuffer) {

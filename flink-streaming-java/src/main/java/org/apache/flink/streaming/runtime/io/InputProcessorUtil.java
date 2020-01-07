@@ -52,6 +52,8 @@ public class InputProcessorUtil {
 			config, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
+		barrierHandler.getBufferReceivedListener().ifPresent(inputGate::registerBufferReceivedListener);
+
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
 	}
 
@@ -89,6 +91,12 @@ public class InputProcessorUtil {
 			taskName,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
+		barrierHandler.getBufferReceivedListener().ifPresent(listener -> {
+			for (final InputGate inputGate : inputGates) {
+				inputGate.registerBufferReceivedListener(listener);
+			}
+		});
 
 		CheckpointedInputGate[] checkpointedInputGates = new CheckpointedInputGate[inputGates.length];
 
