@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -1444,25 +1445,31 @@ public class SqlDateTimeUtils {
 		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz));
 	}
 
-	public static LocalTime timeStringToLocalTime(String timeString) {
+	public static Long timeStringToTime(String timeString) {
 		int length = timeString.length();
 		String format;
-
 		if (length >= 10 && length <= 18) {
 			format = DEFAULT_TIME_FORMATS[length - 9];
 		} else {
 			// otherwise fall back to second's precision
 			format = DEFAULT_TIME_FORMATS[0];
 		}
-		return timeStringToLocalTime(timeString, format);
+		return timeStringToTime(timeString, format);
 	}
 
-	public static LocalTime timeStringToLocalTime(String timeString, String format) {
+	public static Long timeStringToTime(String timeString, String format) {
 		DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
 		try {
-			return LocalTime.parse(timeString, formatter);
+			LocalTime time = LocalTime.parse(timeString, formatter);
+			return time.toNanoOfDay();
 		} catch (DateTimeParseException e) {
-			return null;
+			try {
+				// fall back to support corner cases like: 9:10:11 or 9:10:61
+				Time time = Time.valueOf(timeString);
+				return time.toLocalTime().toNanoOfDay();
+			} catch (IllegalArgumentException ie) {
+				return null;
+			}
 		}
 	}
 

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.table.dataformat.DataFormatConverters.LocalDateConverter
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.{timeStringToLocalTime, toSqlTimestamp}
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.{timeStringToTime, toSqlTimestamp}
 import org.apache.calcite.avatica.util.DateTimeUtils.dateStringToUnixDate
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 
@@ -37,7 +37,12 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      timeStringToLocalTime(s)
+      val time = timeStringToTime(s)
+      if (time == null) {
+        null
+      } else {
+        LocalTime.ofNanoOfDay(time)
+      }
     }
   }
 

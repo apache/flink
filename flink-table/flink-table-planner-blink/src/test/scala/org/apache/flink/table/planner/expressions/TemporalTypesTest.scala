@@ -136,6 +136,15 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "TIME '14:15:16.1234'",
       "14:15:16.1234")
+
+    testSqlApi(
+      "CAST('14:15:16.123456789' AS TIME(9))",
+      "14:15:16.123456789")
+
+    // by default, it's TIME(0)
+    testSqlApi(
+      "CAST('14:15:16.123456789' AS TIME)",
+      "14:15:16")
   }
 
   @Test

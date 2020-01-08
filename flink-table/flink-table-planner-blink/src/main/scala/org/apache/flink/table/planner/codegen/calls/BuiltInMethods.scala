@@ -432,7 +432,7 @@ object BuiltInMethods {
     classOf[SqlDateTimeUtils], "dateStringToUnixDate", classOf[String])
 
   val STRING_TO_TIME = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "timeStringToUnixDate", classOf[String])
+    classOf[SqlDateTimeUtils], "timeStringToTime", classOf[String])
 
   val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
     classOf[Double])

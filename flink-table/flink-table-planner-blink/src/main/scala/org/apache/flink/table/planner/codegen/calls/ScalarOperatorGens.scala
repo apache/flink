@@ -1038,7 +1038,7 @@ object ScalarOperatorGens {
         operand, 
         resultNullable = true) {
         operandTerm =>
-          s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString()) * 1000000L"
+          s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       }
 
     // String -> Timestamp
@@ -2380,7 +2380,7 @@ object ScalarOperatorGens {
       case DATE =>
         s"${qualifyMethod(BuiltInMethods.STRING_TO_DATE)}($operandTerm.toString())"
       case TIME_WITHOUT_TIME_ZONE =>
-        s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString()) * 1000000L"
+        s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
            |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
