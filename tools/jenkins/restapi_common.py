@@ -64,7 +64,7 @@ def get_avg_qps_by_restful_interface(am_seserver_dddress, job_id):
     vertices = result.get("vertices", "")
     plan = result.get("plan", "")
     source_nodes = get_source_node(plan)
-    totaltps = 0
+    total_tps = 0
     for vertice in vertices:
         id = vertice.get("id", "")
         if id in source_nodes:
@@ -79,5 +79,5 @@ def get_avg_qps_by_restful_interface(am_seserver_dddress, job_id):
                     for value in value_result:
                         tps = value.get("avg", 0)
                         if tps > 0:
-                            totaltps = totaltps + tps
-    return totaltps
+                            total_tps = total_tps + tps
+    return total_tps

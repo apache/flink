@@ -38,12 +38,14 @@ if sys.version_info < (3, 5):
 
 from logger import logger
 from utils import run_command
-from restapi_common import get_avg_qps_by_restful_interface
+from restapi_common import get_avg_qps_by_restful_interface, check_task_managers
+from init_env import get_host_list
 
 
 def start_server(flink_home):
     cmd = "bash %s/bin/start-cluster.sh" % flink_home
     status, output = run_command(cmd)
+    print("status:%s, output:%s"%(status, output))
     if status and output.find("Exception") < 0:
         return True
     else:
@@ -57,9 +59,9 @@ def end_server(flink_home, try_num=3):
         cmd = "bash %s/bin/stop-cluster.sh" % flink_home
         status, output = run_command(cmd)
         print("end-server status:%s, output:%s" % (status, output))
-        print("No taskexecutor daemon:%s" % (output.find("No taskexecutor daemon")))
+        cmd = "ps -aux|grep StandaloneSessionClusterEntrypoint|awk '{print $2}'|xargs kill -9 "
+        run_command(cmd)
         if output.find("No taskexecutor daemon") >= 0:
-            print("-----no task")
             return True
         if end_num > try_num:
             return False
@@ -78,21 +80,24 @@ def get_scenarios(scenario_file_name, test_jar):
     params_name = []
     scenarios = []
     scenario_names = []
-    linenum = 0
+    line_num = 0
     with open(scenario_file_name) as file:
         for data in file:
-            if data.startswith("#") or data.startswith(" .*") or data == "":
+            if (data.startswith("#") or data.startswith(" *") or data == "\n" or
+                data.startswith("/*") or data.startswith(" */")):
                 continue
             line = data.split("\n")[0]
-            linenum = linenum + 1
+            line_num = line_num + 1
             cmd = ""
             scenario_name = ""
-            if linenum == 1:
-                params_name = line.split(" ")
+            if line_num == 1:
+                params_name = list(filter(None, line.split(" ")))
+                print("params_name:%s"%params_name)
                 if not ("testClassPath" in params_name):
-                    return 1, []
+                    return 1, [], []
             else:
-                params_value = line.split(" ")
+                params_value = list(filter(None, line.split(" ")))
+                print("params_value:%s"%params_value)
                 for index in range(0, len(params_name)):
                     param = params_name[index]
                     value = params_value[index]
@@ -103,11 +108,11 @@ def get_scenarios(scenario_file_name, test_jar):
                             cmd = "--%s %s" % (param, value)
                         else:
                             cmd = "%s --%s %s" % (cmd, param, value)
-                    scenario_name = "%s_%s" % (scenario_name, value)
-            scenario_names.append(scenario_name[1:-1])
-            if cmd!="":
+                    if param != "testClassPath":
+                        scenario_name = "%s_%s" % (scenario_name, value)
+            if cmd != "":
                 scenarios.append(cmd)
-    print("scenario:%s"%scenarios)
+                scenario_names.append(scenario_name[1:])
     return 0, scenarios, scenario_names
 
 
@@ -128,41 +133,78 @@ def cancel_job(job_id, flink_home, am_seserver_dddress):
         return False
 
 
+def cancel_all_job(flink_home, am_seserver_dddress):
+    cmd = "bash %s/bin/flink list |grep RUNNING|awk '{print $4}'|xargs bash %s/bin/flink cancel -m %s "\
+          % (flink_home, flink_home, am_seserver_dddress)
+    run_command(cmd)
+
+
 def get_job_id(output):
     regex_match = re.search("Job has been submitted with JobID ([a-z0-9]{32})", output)
     job_id = regex_match.group(1)
     return job_id
 
 
-def run_cases(scenario_file_name, flink_home, am_seserver_dddress, test_jar, inter_nums=10, wait_minute=10):
+def env_check(flink_home, am_seserver_dddress, expect_task_managers_num):
+    if not check_task_managers(am_seserver_dddress, expect_task_managers_num):
+        end_server(flink_home)
+        start_server(flink_home)
+        cancel_all_job(flink_home, am_seserver_dddress)
+
+
+def get_host_num(flink_home):
+    host_file = "%s/conf/slaves"%flink_home
+    host_list = get_host_list(host_file)
+    return len(host_list)
+
+
+def run_cases(scenario_file_name, flink_home, am_seserver_dddress, test_jar, result_file,
+              inter_nums, wait_minute):
     end_result = end_server(flink_home)
+
     if not end_result:
-        return False
+        logger.info("end server failed")
+    else:
+        logger.info("end server success")
+
     status = start_server(flink_home)
     if not status:
         logger.info("start server failed")
-        return False
+    else:
+        logger.info("start server success")
     status, scenarios, scenario_names = get_scenarios(scenario_file_name, test_jar)
+    print("scenarios:%s" % scenarios)
+    print("scenario_names:%s" % scenario_names)
+    host_num = get_host_num(flink_home)
     for scenario_index in range(0, len(scenarios)):
         scenario = scenarios[scenario_index]
-        print("scenario:%s" % scenario)
         scenario_name = scenario_names[scenario_index]
+        print("scenario:%s,scenario_name:%s " % (scenario, scenario_name))
         total_qps = []
         for inter_index in range(0, inter_nums):
+            env_check(flink_home, am_seserver_dddress, host_num)
             cmd = "bash %s/bin/flink run -d -m %s %s" % (flink_home, am_seserver_dddress, scenario)
-            status, output = run_command(cmd)
+            status, output = run_command(cmd, timeout=150)
+            logger.info("inter_index:%s, status:%s, output:%s" % (inter_index, status, output))
             if status:
+                time.sleep(120)
                 job_id = get_job_id(output)
-                for qps_index in range(0, 20):
+                print("job_id:%s" % job_id)
+                for qps_index in range(0, 10):
                     qps = get_avg_qps_by_restful_interface(am_seserver_dddress, job_id)
                     total_qps.append(qps)
                     time.sleep(wait_minute)
                 cancel_job(job_id, flink_home, am_seserver_dddress)
             else:
-                logger.error("status:%s, output:%s" % (status, output))
-                return False
+                logger.error("commit job failed")
+                continue
+        logger.info("total_qps:%s" % total_qps)
         avg_qps = get_avg(total_qps)
         logger.info("The avg qps of %s's  is %s" % (scenario_name, avg_qps))
+        logger.info("type(avg_qps):%s, result_file:%s" % (type(avg_qps), result_file))
+        result = open(result_file, "w")
+        result.write("%s %s \n" % (scenario_name, avg_qps))
+        result.close()
     end_server(flink_home)
 
 
@@ -179,9 +221,14 @@ if __name__ == "__main__":
     scenario_file = sys.argv[2]
     flink_home = sys.argv[3]
     test_jar = sys.argv[4]
-    if len(sys.argv) > 5:
-        inter_nums = sys.argv[5]
+    result_file = sys.argv[5]
+    inter_nums = 2
     if len(sys.argv) > 6:
-        wait_minute = sys.argv[6]
-
-    run_cases(scenario_file, flink_home, am_seserver_dddress, test_jar, inter_nums=10, wait_minute=10)
+        inter_nums = int(sys.argv[6])
+    wait_minute = 10
+    if len(sys.argv) > 7:
+        wait_minute = int(sys.argv[7])
+    print("scenario_file:%s, flink_home:%s, am_seserver_dddress:%s, test_jar:%s, result_file :%s,inter_nums:%s,  "
+          "wait_minute:%s" % (scenario_file, flink_home, am_seserver_dddress, test_jar,
+                              result_file, inter_nums, wait_minute))
+    run_cases(scenario_file, flink_home, am_seserver_dddress, test_jar, result_file, inter_nums, wait_minute)

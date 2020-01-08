@@ -28,9 +28,9 @@ from logger import logger
 from utils import run_command
 
 
-def init_standalone_env(host_list, user, source_path, dest_path):
+def init_standalone_env(host_list, dest_path):
     for host in host_list:
-        cmd = "scp -r %s %s:%s'" % (source_path, host, dest_path)
+        cmd = "ssh %s \" rm -rf %s\"; scp -r %s %s:%s" % (host, dest_path, dest_path, host, dest_path)
         logger.info("init_standalone_env  cmd:%s" % cmd)
         run_command(cmd)
 
@@ -47,18 +47,24 @@ def get_host_list(slave_file):
 def package(flink_home):
     cmd = "cd %s; mvn clean install -B -U -DskipTests -Drat.skip=true -Dcheckstyle.skip=true " % flink_home
     status, output = run_command(cmd)
-    if status and output.find("BUILD SUCCESS") > 0:
+    print("package, status:%s, output:%s" % (status, output))
+    if output.find("BUILD SUCCESS") > 0:
+        print("package success")
         return True
     else:
+        print("package error~~~")
         return False
 
 
-def get_target(flink_home):
-    cmd = "ls %s/flink-dist/target/flink-*-bin/ |grep -v tar.gz" % flink_home
+def get_target(flink_code_path):
+    print("flink_code_path:%s" % flink_code_path)
+    cmd = "ls %s/flink-dist/target/flink-*-bin/ |grep -v tar.gz" % flink_code_path
     status, output = run_command(cmd)
+    print("status:%s, output:%s" % (status, output))
     if status:
         target_file = output.split("\n")[0]
-        return target_file, "%s/flink-dist/target/%s-bin/%s" % (flink_home, target_file, target_file)
+        print(target_file, "%s/flink-dist/target/%s-bin/%s" % (flink_code_path, target_file, target_file))
+        return target_file, "%s/flink-dist/target/%s-bin/%s" % (flink_code_path, target_file, target_file)
     else:
         return "", ""
 
@@ -68,17 +74,31 @@ def update_conf_slaves(dest_path, slave_file):
     run_command(cmd)
 
 
-def init_env(user, flink_home, slaves_file):
-    package_result = package(flink_home)
+def init_env(flink_code_path, slave_file, dest_path, am_seserver_dddress):
+    package_result = package(flink_code_path)
+    print("package_result:%s" % package_result)
     if not package_result:
         logger.error("package error")
-        return False
-    host_list = get_host_list(slaves_file)
-    flink_path, source_path = get_target(flink_home)
-    dest_path = "/home/%s/%s" % (user, flink_path)
+        return 1, ""
+
+    host_list = get_host_list(slave_file)
+    flink_path, source_path = get_target(flink_code_path)
+    print("flink_path:%s, source_path:%s" % (flink_path, source_path))
+    if flink_path == "":
+        return False, ""
+    dest_path = "%s/%s" % (dest_path, flink_path)
     if source_path != "":
-        update_conf_slaves(source_path, slaves_file)
-        init_standalone_env(host_list, user, source_path, dest_path)
+        update_conf_slaves(source_path, slave_file)
+        if os.path.exists(dest_path):
+            cmd = "rm -rf %s" % dest_path
+            run_command(cmd)
+        cmd = "cp -r %s %s" % (source_path, dest_path)
+        run_command(cmd)
+        cmd = "sed -i \"s/jobmanager.rpc.address.*/jobmanager.rpc.address: %s/\" " \
+              "%s/conf/flink-conf.yaml" % (dest_path, am_seserver_dddress.split(":")[0])
+        run_command(cmd)
+        init_standalone_env(host_list, dest_path)
+
         return True, dest_path
     else:
         logger.error("find target file error")
@@ -86,17 +106,17 @@ def init_env(user, flink_home, slaves_file):
 
 
 def usage():
-    logger.info("python3 init_env.py user flink_home, slaves_file")
+    logger.info("python3 init_env.py flink_code_path, slaves_file, dest_path, am_seserver_dddress")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        logger.error("The param's number must be larger than 3")
+    if len(sys.argv) < 4:
+        logger.error("The param's number must be larger than 4")
         usage()
         sys.exit(1)
-    user = sys.argv[1]
-    flink_home = sys.argv[2]
-    slaves_file = sys.argv[3]
-    init_env(user, flink_home, slaves_file)
+    flink_code_path = sys.argv[1]
+    slaves_file = sys.argv[2]
+    dest_path = sys.argv[3]
+    am_seserver_dddress = sys.argv[4]
 
-
+    init_env(flink_code_path, slaves_file, dest_path, am_seserver_dddress)

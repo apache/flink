@@ -61,15 +61,15 @@ class Logger(object):
         kwargs['extra']['colorcode'] = colorcode
 
     def debug(self, msg, *args, **kwargs):
-        self.update_colors(kwargs, '1;30')#black
+        self.update_colors(kwargs, '1;30') #black
         self._logger.debug(msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
-        self.update_colors(kwargs, '1;33')#yellow
+        self.update_colors(kwargs, '1;33') #yellow
         self._logger.info(msg, *args, **kwargs)
 
     def error(self, msg, *args, **kwargs):
-        self.update_colors(kwargs, '1;30')#black
+        self.update_colors(kwargs, '1;30') #black
         self._logger.error(msg, *args, **kwargs)
 
 
