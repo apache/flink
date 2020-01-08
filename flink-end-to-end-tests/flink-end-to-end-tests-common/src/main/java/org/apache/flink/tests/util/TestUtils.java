@@ -93,11 +93,11 @@ public enum TestUtils {
 			@Override
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
 				throws IOException {
-				final Path targetRir = destination.resolve(source.relativize(dir));
+				final Path targetDir = destination.resolve(source.relativize(dir));
 				try {
-					Files.copy(dir, targetRir, StandardCopyOption.COPY_ATTRIBUTES);
+					Files.copy(dir, targetDir, StandardCopyOption.COPY_ATTRIBUTES);
 				} catch (FileAlreadyExistsException e) {
-					if (!Files.isDirectory(targetRir)) {
+					if (!Files.isDirectory(targetDir)) {
 						throw e;
 					}
 				}
