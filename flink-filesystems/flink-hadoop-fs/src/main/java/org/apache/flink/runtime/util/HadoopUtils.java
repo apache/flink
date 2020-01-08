@@ -49,63 +49,62 @@ public class HadoopUtils {
 
 		// Instantiate a HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
 		// from the classpath
+
 		Configuration result = new HdfsConfiguration();
 		boolean foundHadoopConfiguration = false;
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
-		// the hdfs configuration
-		// Try to load HDFS configuration from Hadoop's own configuration files
-		// 1. approach: Flink configuration
+		// the hdfs configuration.
+		// The properties of a newly added resource will override the ones in previous resources, so a configuration
+		// file with higher priority should be added later.
+
+		// Approach 1: HADOOP_HOME environment variables
+		String[] possibleHadoopConfPaths = new String[2];
+
+		final String hadoopHome = System.getenv("HADOOP_HOME");
+		if (hadoopHome != null) {
+			LOG.debug("Searching Hadoop configuration files in HADOOP_HOME: {}", hadoopHome);
+			possibleHadoopConfPaths[0] = hadoopHome + "/conf";
+			possibleHadoopConfPaths[1] = hadoopHome + "/etc/hadoop"; // hadoop 2.2
+		}
+
+		for (String possibleHadoopConfPath : possibleHadoopConfPaths) {
+			if (possibleHadoopConfPath != null) {
+				foundHadoopConfiguration = addHadoopConfIfFound(result, possibleHadoopConfPath);
+			}
+		}
+
+		// Approach 2: Flink configuration (deprecated)
 		final String hdfsDefaultPath =
 			flinkConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
-
 		if (hdfsDefaultPath != null) {
 			result.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
-			LOG.debug("Using hdfs-default configuration-file path form Flink config: {}", hdfsDefaultPath);
+			LOG.debug("Using hdfs-default configuration-file path from Flink config: {}", hdfsDefaultPath);
 			foundHadoopConfiguration = true;
-		} else {
-			LOG.debug("Cannot find hdfs-default configuration-file path in Flink config.");
 		}
 
 		final String hdfsSitePath = flinkConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
 		if (hdfsSitePath != null) {
 			result.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
-			LOG.debug("Using hdfs-site configuration-file path form Flink config: {}", hdfsSitePath);
+			LOG.debug("Using hdfs-site configuration-file path from Flink config: {}", hdfsSitePath);
 			foundHadoopConfiguration = true;
-		} else {
-			LOG.debug("Cannot find hdfs-site configuration-file path in Flink config.");
 		}
 
-		// 2. Approach environment variables
-		String[] possibleHadoopConfPaths = new String[4];
-		possibleHadoopConfPaths[0] = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
-		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
-
-		final String hadoopHome = System.getenv("HADOOP_HOME");
-		if (hadoopHome != null) {
-			possibleHadoopConfPaths[2] = hadoopHome + "/conf";
-			possibleHadoopConfPaths[3] = hadoopHome + "/etc/hadoop"; // hadoop 2.2
+		final String hadoopConfigPath = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		if (hadoopConfigPath != null) {
+			LOG.debug("Searching Hadoop configuration files in Flink config: {}", hadoopConfigPath);
+			foundHadoopConfiguration = addHadoopConfIfFound(result, hadoopConfigPath) || foundHadoopConfiguration;
 		}
 
-		for (String possibleHadoopConfPath : possibleHadoopConfPaths) {
-			if (possibleHadoopConfPath != null) {
-				if (new File(possibleHadoopConfPath).exists()) {
-					if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
-						result.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
-						LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
-						foundHadoopConfiguration = true;
-					}
-					if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
-						result.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
-						LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
-						foundHadoopConfiguration = true;
-					}
-				}
-			}
+		// Approach 3: HADOOP_CONF_DIR environment variable
+		String hadoopConfDir = System.getenv("HADOOP_CONF_DIR");
+		if (hadoopConfDir != null) {
+			LOG.debug("Searching Hadoop configuration files in HADOOP_CONF_DIR: {}", hadoopConfDir);
+			foundHadoopConfiguration = addHadoopConfIfFound(result, hadoopConfDir) || foundHadoopConfiguration;
 		}
 
 		if (!foundHadoopConfiguration) {
-			LOG.debug("Could not find Hadoop configuration via any of the supported methods " +
+			LOG.warn("Could not find Hadoop configuration via any of the supported methods " +
 				"(Flink configuration, environment variables).");
 		}
 
@@ -142,5 +141,25 @@ public class HadoopUtils {
 		int min = Integer.parseInt(versionParts[1]);
 
 		return maj > major || (maj == major && min >= minor);
+	}
+
+	/**
+	 * Search Hadoop configuration files in the given path, and add them to the configuration if found.
+	 */
+	private static boolean addHadoopConfIfFound(Configuration configuration, String possibleHadoopConfPath) {
+		boolean foundHadoopConfiguration = false;
+		if (new File(possibleHadoopConfPath).exists()) {
+			if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
+				configuration.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
+				LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
+				foundHadoopConfiguration = true;
+			}
+			if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
+				configuration.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
+				LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
+				foundHadoopConfiguration = true;
+			}
+		}
+		return foundHadoopConfiguration;
 	}
 }
