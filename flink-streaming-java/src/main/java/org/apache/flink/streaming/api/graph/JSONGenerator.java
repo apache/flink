@@ -74,7 +74,8 @@ public class JSONGenerator {
 			}
 		});
 		visit(nodes, operatorIDs, new HashMap<Integer, Integer>());
-		return json.toString();
+
+		return json.toPrettyString();
 	}
 
 	private void visit(ArrayNode jsonArray, List<Integer> toVisit,
