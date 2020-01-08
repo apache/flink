@@ -348,6 +348,11 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	}
 
 	@Override
+	public int freePages() {
+		throw new UnsupportedOperationException("Contains spill memories, it is hard to estimate free pages.");
+	}
+
+	@Override
 	public int pageSize() {
 		return segmentSize;
 	}
