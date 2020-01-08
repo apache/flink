@@ -44,7 +44,7 @@ Flink's native Kubernetes integration is still experimental. There may be change
 
 ### Start Flink Session
 
-Follow these instructions to start a Flink Session within your Yarn cluster.
+Follow these instructions to start a Flink Session within your Kubernetes cluster.
 
 A session will start all required Flink services (JobManager and TaskManagers) so that you can submit programs to the cluster.
 Note that you can run multiple programs per session.
@@ -194,6 +194,6 @@ When users submit jobs through the Flink client, the job graph will be generated
 A JobMaster for that Job will be then be spawned.
 
 The JobMaster requests resources, known as slots, from the KubernetesResourceManager.
-If to few slots are available the resource manager will bring up TaskManager pods and registering them with the cluster.
+If no slots are available, the resource manager will bring up TaskManager pods and registering them with the cluster.
 
 {% top %}
