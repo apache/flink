@@ -24,6 +24,7 @@ import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.FlinkDistribution;
+import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -45,7 +46,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -94,6 +94,9 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
+	@Rule
+	public final DownloadCache downloadCache = DownloadCache.get();
+
 	@Test
 	public void testReporter() throws Exception {
 		dist.copyOptJarsToLib("flink-metrics-prometheus");
@@ -111,14 +114,10 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		final Path prometheusBinary = prometheusBinDir.resolve("prometheus");
 		Files.createDirectory(tmpPrometheusDir);
 
-		LOG.info("Downloading Prometheus.");
-		AutoClosableProcess
-			.create(
-				CommandLineWrapper
-					.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
-					.targetDir(tmpPrometheusDir)
-					.build())
-			.runBlocking(Duration.ofMinutes(5));
+		downloadCache.getOrDownload(
+			"https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName(),
+			tmpPrometheusDir
+		);
 
 		LOG.info("Unpacking Prometheus.");
 		runBlocking(
