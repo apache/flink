@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
+import org.apache.flink.util.Preconditions;
 
 /** In memory mock internal folding state. */
 @SuppressWarnings("deprecation")
@@ -42,6 +43,7 @@ class MockInternalFoldingState<K, N, T, ACC>
 
 	@Override
 	public void add(T value) throws Exception {
+		Preconditions.checkNotNull(value, "You cannot add null to a FoldingState.");
 		updateInternal(foldFunction.fold(get(), value));
 	}
 

@@ -91,11 +91,7 @@ class HeapReducingState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-
-		if (value == null) {
-			clear();
-			return;
-		}
+		Preconditions.checkNotNull(value, "You cannot add null to a ReducingState.");
 
 		try {
 			stateTable.transform(currentNamespace, value, reduceTransformation);

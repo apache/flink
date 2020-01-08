@@ -1768,6 +1768,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
+	public void testReducingStateAddNull() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
+
+			ReducingState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			expectedException.expect(NullPointerException.class);
+			state.add(null);
+		} finally {
+			backend.close();
+			backend.dispose();
+		}
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testReducingState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
@@ -2034,6 +2049,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	@Test
+	public void testAggregatingStateAddNull() throws Exception {
+		final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
+			new AggregatingStateDescriptor<>("my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
+
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		try {
+			AggregatingState<Long, Long> state =
+				keyedBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
+			expectedException.expect(NullPointerException.class);
+			state.add(null);
+		} finally {
 			keyedBackend.close();
 			keyedBackend.dispose();
 		}
@@ -2382,6 +2415,25 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		finally {
 			keyedBackend.close();
 			keyedBackend.dispose();
+		}
+	}
+
+	@Test
+	public void testFoldingStateAddNull() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new AppendingFold(),
+				String.class);
+
+			FoldingState<Integer, String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			expectedException.expect(NullPointerException.class);
+			state.add(null);
+		} finally {
+			backend.close();
+			backend.dispose();
 		}
 	}
 

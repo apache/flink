@@ -94,11 +94,7 @@ class HeapFoldingState<K, N, T, ACC>
 
 	@Override
 	public void add(T value) throws IOException {
-
-		if (value == null) {
-			clear();
-			return;
-		}
+		Preconditions.checkNotNull(value, "You cannot add null to a FoldingState.");
 
 		try {
 			stateTable.transform(currentNamespace, value, foldTransformation);

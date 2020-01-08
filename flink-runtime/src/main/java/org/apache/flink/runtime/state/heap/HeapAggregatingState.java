@@ -94,12 +94,8 @@ class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	public void add(IN value) throws IOException {
+		Preconditions.checkNotNull(value, "You cannot add null to an AggregatingState.");
 		final N namespace = currentNamespace;
-
-		if (value == null) {
-			clear();
-			return;
-		}
 
 		try {
 			stateTable.transform(namespace, value, aggregateTransformation);

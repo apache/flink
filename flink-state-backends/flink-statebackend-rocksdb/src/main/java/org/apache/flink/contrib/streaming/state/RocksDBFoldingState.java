@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 
@@ -93,6 +94,7 @@ class RocksDBFoldingState<K, N, T, ACC>
 
 	@Override
 	public void add(T value) throws Exception {
+		Preconditions.checkNotNull(value, "You cannot add null to a FoldingState.");
 		byte[] key = getKeyBytes();
 		ACC accumulator = getInternal(key);
 		accumulator = accumulator == null ? getDefaultValue() : accumulator;

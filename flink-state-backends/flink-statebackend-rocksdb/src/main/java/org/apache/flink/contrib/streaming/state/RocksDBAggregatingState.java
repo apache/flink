@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 
@@ -97,6 +98,7 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 
 	@Override
 	public void add(T value) {
+		Preconditions.checkNotNull(value, "You cannot add null to an AggregatingState.");
 		byte[] key = getKeyBytes();
 		ACC accumulator = getInternal(key);
 		accumulator = accumulator == null ? aggFunction.createAccumulator() : accumulator;

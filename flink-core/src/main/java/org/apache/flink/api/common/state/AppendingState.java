@@ -60,10 +60,11 @@ public interface AppendingState<IN, OUT> extends State {
 	 * to the list of values. The next time {@link #get()} is called (for the same state
 	 * partition) the returned state will represent the updated list.
 	 *
-	 * <p>If null is passed in, the state value will remain unchanged.
+	 * <p>AppendingState refuses to add null element.
 	 *
 	 * @param value The new value for the state.
 	 *
+	 * @throws NullPointerException Thrown if the passed in parameter is null.
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	void add(IN value) throws Exception;
