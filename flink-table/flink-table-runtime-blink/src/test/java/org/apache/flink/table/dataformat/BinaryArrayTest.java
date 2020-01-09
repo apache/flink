@@ -432,13 +432,13 @@ public class BinaryArrayTest {
 			int precision = 4;
 			int scale = 2;
 			writer.reset();
-			writer.writeDecimal(0, Decimal.fromLong(5, precision, scale), precision);
+			writer.writeDecimal(0, CompactDecimal.fromLong(5, precision, scale), precision);
 			writer.setNullAt(1);
 			writer.complete();
 
 			assertEquals("0.05", array.getDecimal(0, precision, scale).toString());
 			assertTrue(array.isNullAt(1));
-			array.setDecimal(0, Decimal.fromLong(6, precision, scale), precision);
+			array.setDecimal(0, CompactDecimal.fromLong(6, precision, scale), precision);
 			assertEquals("0.06", array.getDecimal(0, precision, scale).toString());
 		}
 

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.table.dataformat.CompactDecimal;
 import org.apache.flink.table.dataformat.Decimal;
 
 import java.io.IOException;
@@ -73,7 +74,7 @@ public final class DecimalSerializer extends TypeSerializer<Decimal> {
 	public void serialize(Decimal record, DataOutputView target) throws IOException {
 		if (Decimal.isCompact(precision)) {
 			assert record.isCompact();
-			target.writeLong(record.toUnscaledLong());
+			target.writeLong(((CompactDecimal) record).toUnscaledLong());
 		} else {
 			byte[] bytes = record.toUnscaledBytes();
 			target.writeInt(bytes.length);
@@ -85,7 +86,7 @@ public final class DecimalSerializer extends TypeSerializer<Decimal> {
 	public Decimal deserialize(DataInputView source) throws IOException {
 		if (Decimal.isCompact(precision)) {
 			long longVal = source.readLong();
-			return Decimal.fromUnscaledLong(precision, scale, longVal);
+			return CompactDecimal.fromUnscaledLong(precision, scale, longVal);
 		} else {
 			int length = source.readInt();
 			byte[] bytes = new byte[length];

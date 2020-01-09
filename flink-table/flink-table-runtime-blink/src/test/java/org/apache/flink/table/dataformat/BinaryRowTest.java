@@ -413,13 +413,13 @@ public class BinaryRowTest {
 			int scale = 2;
 			BinaryRow row = new BinaryRow(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
-			writer.writeDecimal(0, Decimal.fromLong(5, precision, scale), precision);
+			writer.writeDecimal(0, CompactDecimal.fromLong(5, precision, scale), precision);
 			writer.setNullAt(1);
 			writer.complete();
 
 			assertEquals("0.05", row.getDecimal(0, precision, scale).toString());
 			assertTrue(row.isNullAt(1));
-			row.setDecimal(0, Decimal.fromLong(6, precision, scale), precision);
+			row.setDecimal(0, CompactDecimal.fromLong(6, precision, scale), precision);
 			assertEquals("0.06", row.getDecimal(0, precision, scale).toString());
 		}
 

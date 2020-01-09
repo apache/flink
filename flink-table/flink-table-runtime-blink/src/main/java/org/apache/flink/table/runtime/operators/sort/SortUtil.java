@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.sort;
 import org.apache.flink.api.common.typeutils.base.NormalizedKeyUtil;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.CompactDecimal;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 
@@ -91,7 +92,7 @@ public class SortUtil {
 	public static void putDecimalNormalizedKey(
 			Decimal record, MemorySegment target, int offset, int len) {
 		assert record.getPrecision() <= Decimal.MAX_COMPACT_PRECISION;
-		putLongNormalizedKey(record.toUnscaledLong(), target, offset, len);
+		putLongNormalizedKey(((CompactDecimal) record).toUnscaledLong(), target, offset, len);
 	}
 
 	public static void putIntNormalizedKey(int value, MemorySegment target, int offset, int numBytes) {

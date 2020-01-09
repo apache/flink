@@ -30,26 +30,26 @@ public class DecimalTest {
 
 	@Test
 	public void testNormal() {
-		Decimal decimal1 = Decimal.fromLong(10, 5, 0);
-		Decimal decimal2 = Decimal.fromLong(15, 5, 0);
+		Decimal decimal1 = CompactDecimal.fromLong(10, 5, 0);
+		Decimal decimal2 = CompactDecimal.fromLong(15, 5, 0);
 		Assert.assertEquals(decimal1.hashCode(),
 				Decimal.fromBigDecimal(new BigDecimal(10), 5, 0).hashCode());
 		Assert.assertEquals(decimal1, decimal1.copy());
-		Assert.assertEquals(decimal1, Decimal.fromUnscaledLong(5, 0, decimal1.toUnscaledLong()));
-		Assert.assertEquals(decimal1, Decimal.fromUnscaledBytes(5, 0, decimal1.toUnscaledBytes()));
+		Assert.assertEquals(decimal1, CompactDecimal.fromUnscaledLong(5, 0, ((CompactDecimal) decimal1).toUnscaledLong()));
+		Assert.assertEquals(decimal1, CompactDecimal.fromUnscaledBytes(5, 0, ((CompactDecimal) decimal1).toUnscaledBytes()));
 		Assert.assertTrue(decimal1.compareTo(decimal2) < 0);
 		Assert.assertEquals(1, decimal1.signum());
 		Assert.assertTrue(10.5 == Decimal.castFrom(10.5, 5, 1).doubleValue());
-		Assert.assertEquals(Decimal.fromLong(-10, 5, 0), decimal1.negate());
+		Assert.assertEquals(CompactDecimal.fromLong(-10, 5, 0), decimal1.negate());
 		Assert.assertEquals(decimal1, decimal1.abs());
 		Assert.assertEquals(decimal1, decimal1.negate().abs());
-		Assert.assertEquals(25, Decimal.add(decimal1, decimal2, 5, 0).toUnscaledLong());
-		Assert.assertEquals(-5, Decimal.subtract(decimal1, decimal2, 5, 0).toUnscaledLong());
-		Assert.assertEquals(150, Decimal.multiply(decimal1, decimal2, 5, 0).toUnscaledLong());
+		Assert.assertEquals(25, ((CompactDecimal) Decimal.add(decimal1, decimal2, 5, 0)).toUnscaledLong());
+		Assert.assertEquals(-5, ((CompactDecimal) Decimal.subtract(decimal1, decimal2, 5, 0)).toUnscaledLong());
+		Assert.assertEquals(150, ((CompactDecimal) Decimal.multiply(decimal1, decimal2, 5, 0)).toUnscaledLong());
 		Assert.assertTrue(0.67 == Decimal.divide(decimal1, decimal2, 5, 2).doubleValue());
 		Assert.assertEquals(decimal1, Decimal.mod(decimal1, decimal2, 5, 0));
-		Assert.assertEquals(5, Decimal.divideToIntegralValue(
-				decimal1, Decimal.fromLong(2, 5, 0), 5, 0).toUnscaledLong());
+		Assert.assertEquals(5, ((CompactDecimal) Decimal.divideToIntegralValue(
+				decimal1, CompactDecimal.fromLong(2, 5, 0), 5, 0)).toUnscaledLong());
 		Assert.assertEquals(10, Decimal.castToIntegral(decimal1));
 		Assert.assertEquals(true, Decimal.castToBoolean(decimal1));
 		Assert.assertTrue(Decimal.compare(decimal1, 10) == 0);
@@ -60,8 +60,8 @@ public class DecimalTest {
 		Assert.assertEquals(0, Decimal.zero(5, 2).toBigDecimal().intValue());
 		Assert.assertEquals(0, Decimal.zero(20, 2).toBigDecimal().intValue());
 
-		Assert.assertEquals(Decimal.fromLong(10, 5, 0), Decimal.castFrom(10.5, 5, 1).floor());
-		Assert.assertEquals(Decimal.fromLong(11, 5, 0), Decimal.castFrom(10.5, 5, 1).ceil());
+		Assert.assertEquals(CompactDecimal.fromLong(10, 5, 0), Decimal.castFrom(10.5, 5, 1).floor());
+		Assert.assertEquals(CompactDecimal.fromLong(11, 5, 0), Decimal.castFrom(10.5, 5, 1).ceil());
 		Assert.assertEquals("5.00", Decimal.castToDecimal(Decimal.castFrom(5.0, 10, 1), 10, 2).toString());
 
 		Assert.assertEquals(true, Decimal.castToBoolean(Decimal.castFrom(true, 5, 0)));
@@ -77,8 +77,8 @@ public class DecimalTest {
 		Assert.assertEquals(true, Decimal.is64BitDecimal(11));
 		Assert.assertEquals(true, Decimal.isByteArrayDecimal(20));
 
-		Assert.assertEquals(6, Decimal.sround(Decimal.castFrom(5.555, 5, 0), 1).toUnscaledLong());
-		Assert.assertEquals(56, Decimal.sround(Decimal.castFrom(5.555, 5, 3), 1).toUnscaledLong());
+		Assert.assertEquals(6, ((CompactDecimal) Decimal.sround(Decimal.castFrom(5.555, 5, 0), 1)).toUnscaledLong());
+		Assert.assertEquals(56, ((CompactDecimal) Decimal.sround(Decimal.castFrom(5.555, 5, 3), 1)).toUnscaledLong());
 	}
 
 	@Test

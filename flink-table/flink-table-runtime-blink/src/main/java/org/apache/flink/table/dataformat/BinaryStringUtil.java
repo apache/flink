@@ -296,7 +296,7 @@ public class BinaryStringUtil {
 			int k = negative ? -5 : 5;
 			significand = (significand + k * Decimal.POW10[-change - 1]) / Decimal.POW10[-change];
 		}
-		return Decimal.fromLong(significand, precision, scale);
+		return CompactDecimal.fromLong(significand, precision, scale);
 	}
 
 	private static Decimal toBigPrecisionDecimal(BinaryString str, int precision, int scale) {

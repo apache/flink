@@ -62,8 +62,8 @@ public class BaseRowTest {
 		str = BinaryString.fromString("haha");
 		generic = new BinaryGeneric<>("haha");
 		genericSerializer = new BinaryGenericSerializer<>(StringSerializer.INSTANCE);
-		decimal1 = Decimal.fromLong(10, 5, 0);
-		decimal2 = Decimal.fromBigDecimal(new BigDecimal(11), 20, 0);
+		decimal1 = CompactDecimal.fromLong(10, 5, 0);
+		decimal2 = CompactDecimal.fromBigDecimal(new BigDecimal(11), 20, 0);
 		array = new BinaryArray();
 		{
 			BinaryArrayWriter arrayWriter = new BinaryArrayWriter(array, 2, 4);
@@ -238,8 +238,8 @@ public class BaseRowTest {
 		assertEquals(6, (int) row.getFloat(5));
 		row.setDouble(6, 7);
 		assertEquals(7, (int) row.getDouble(6));
-		row.setDecimal(10, Decimal.fromLong(11, 5, 0), 5);
-		assertEquals(Decimal.fromLong(11, 5, 0), row.getDecimal(10, 5, 0));
+		row.setDecimal(10, CompactDecimal.fromLong(11, 5, 0), 5);
+		assertEquals(CompactDecimal.fromLong(11, 5, 0), row.getDecimal(10, 5, 0));
 		row.setDecimal(11, Decimal.fromBigDecimal(new BigDecimal(12), 20, 0), 20);
 		assertEquals(Decimal.fromBigDecimal(new BigDecimal(12), 20, 0), row.getDecimal(11, 20, 0));
 

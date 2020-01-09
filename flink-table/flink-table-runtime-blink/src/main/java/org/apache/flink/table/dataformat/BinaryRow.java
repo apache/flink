@@ -191,7 +191,7 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 
 		if (Decimal.isCompact(precision)) {
 			// compact format
-			setLong(pos, value.toUnscaledLong());
+			setLong(pos, ((CompactDecimal) value).toUnscaledLong());
 		} else {
 			int fieldOffset = getFieldOffset(pos);
 			int cursor = (int) (segments[0].getLong(fieldOffset) >>> 32);
@@ -325,7 +325,7 @@ public final class BinaryRow extends BinarySection implements BaseRow {
 		assertIndexIsValid(pos);
 
 		if (Decimal.isCompact(precision)) {
-			return Decimal.fromUnscaledLong(precision, scale,
+			return CompactDecimal.fromUnscaledLong(precision, scale,
 					segments[0].getLong(getFieldOffset(pos)));
 		}
 

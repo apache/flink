@@ -182,7 +182,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 	public Decimal getDecimal(int pos, int precision, int scale) {
 		assertIndexIsValid(pos);
 		if (Decimal.isCompact(precision)) {
-			return Decimal.fromUnscaledLong(precision, scale,
+			return CompactDecimal.fromUnscaledLong(precision, scale,
 					SegmentsUtil.getLong(segments, getElementOffset(pos, 8)));
 		}
 
@@ -350,7 +350,7 @@ public final class BinaryArray extends BinarySection implements BaseArray {
 
 		if (Decimal.isCompact(precision)) {
 			// compact format
-			setLong(pos, value.toUnscaledLong());
+			setLong(pos, ((CompactDecimal) value).toUnscaledLong());
 		} else {
 			int fieldOffset = getElementOffset(pos, 8);
 			int cursor = (int) (SegmentsUtil.getLong(segments, fieldOffset) >>> 32);

@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataformat.vector;
 
 import org.apache.flink.table.dataformat.ColumnarRow;
+import org.apache.flink.table.dataformat.CompactDecimal;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.dataformat.vector.heap.HeapBooleanVector;
@@ -212,7 +213,7 @@ public class VectorizedColumnBatchTest {
 
 			@Override
 			public Decimal getDecimal(int i, int precision, int scale) {
-				return Decimal.fromLong(vector11[i], precision, scale);
+				return CompactDecimal.fromLong(vector11[i], precision, scale);
 			}
 		};
 		for (int i = 0; i < VECTOR_SIZE; i++) {
@@ -248,7 +249,7 @@ public class VectorizedColumnBatchTest {
 			assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
 			assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
 			assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
-			assertEquals(row.getDecimal(11, 10, 0).toUnscaledLong(), i);
+			assertEquals(((CompactDecimal) row.getDecimal(11, 10, 0)).toUnscaledLong(), i);
 		}
 
 		assertEquals(VECTOR_SIZE, batch.getNumRows());

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.table.dataformat.CompactDecimal;
 import org.apache.flink.table.dataformat.Decimal;
 
 /**
@@ -44,10 +45,10 @@ public class DecimalSerializerTest extends SerializerTestBase<Decimal> {
 	@Override
 	protected Decimal[] getTestData() {
 		return new Decimal[] {
-				Decimal.fromLong(1, 5, 2),
-				Decimal.fromLong(2, 5, 2),
-				Decimal.fromLong(3, 5, 2),
-				Decimal.fromLong(4, 5, 2)
+			CompactDecimal.fromLong(1, 5, 2),
+			CompactDecimal.fromLong(2, 5, 2),
+			CompactDecimal.fromLong(3, 5, 2),
+			CompactDecimal.fromLong(4, 5, 2)
 		};
 	}
 }
