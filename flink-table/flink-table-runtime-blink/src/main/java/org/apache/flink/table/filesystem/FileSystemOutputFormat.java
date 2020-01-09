@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 
+import static org.apache.flink.table.filesystem.FileSystemCommitter.CHECKPOINT_ID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -41,8 +42,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMaster, Serializable {
 
 	private static final long serialVersionUID = 1L;
-
-	private static final long CHECKPOINT_ID = 0;
 
 	private final FileSystemFactory fsFactory;
 	private final TableMetaStoreFactory msFactory;
@@ -87,7 +86,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 					overwrite,
 					tmpPath,
 					partitionColumns.length);
-			committer.commitUpToCheckpoint(CHECKPOINT_ID);
+			committer.commitJob();
 		} catch (Exception e) {
 			throw new TableException("Exception in finalizeGlobal", e);
 		}

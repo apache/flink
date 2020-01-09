@@ -48,7 +48,7 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
 	}
 
 	@Override
-	public void write(T in) throws Exception {
+	public String write(T in) throws Exception {
 		String partition = generatePartitionPath(computer.generatePartValues(in));
 		OutputFormat<T> format = formats.get(partition);
 
@@ -58,6 +58,7 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
 			formats.put(partition, format);
 		}
 		format.writeRecord(computer.projectColumnsToWrite(in));
+		return partition;
 	}
 
 	@Override

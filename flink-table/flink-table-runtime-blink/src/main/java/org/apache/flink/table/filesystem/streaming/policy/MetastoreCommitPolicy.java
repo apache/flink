@@ -16,27 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.table.filesystem.streaming.policy;
 
-import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedHashMap;
 
-public class TestGlobalAggregateManager implements GlobalAggregateManager {
+/**
+ * Partition commit policy to update metastore.
+ */
+public class MetastoreCommitPolicy implements PartitionCommitPolicy {
 
-	private Map<String, Object> accumulators = new HashMap<>();
-
-	@SuppressWarnings("unchecked")
 	@Override
-	public <IN, ACC, OUT> OUT updateGlobalAggregate(String aggregateName, Object aggregand,
-		AggregateFunction<IN, ACC, OUT> aggregateFunction) {
-		Object accumulator = accumulators.get(aggregateName);
-		if(null == accumulator) {
-			accumulator = aggregateFunction.createAccumulator();
-		}
-		accumulator = aggregateFunction.add((IN) aggregand, (ACC) accumulator);
-		accumulators.put(aggregateName, accumulator);
-		return aggregateFunction.getResult((ACC) accumulator);
+	public void commit(
+			LinkedHashMap<String, String> partitionSpec,
+			Path partitionPath,
+			FileSystem fileSystem,
+			TableMetaStoreFactory.TableMetaStore metaStore) throws Exception {
+		metaStore.createPartition(partitionSpec, partitionPath);
 	}
 }

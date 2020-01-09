@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.descriptors.FileSystemValidator
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
@@ -58,9 +59,18 @@ class StreamExecSinkRule extends ConverterRule(
             }
 
             if (!partitionSink.isInstanceOf[DataStreamTableSink[_]]) {
-              requiredTraitSet = requiredTraitSet.plus(
-                FlinkRelDistribution.hash(dynamicPartIndices
-                    .map(Integer.valueOf), requireStrict = false))
+
+              val shuffleEnable = sinkNode
+                  .catalogTable
+                  .getProperties
+                  .get(FileSystemValidator.CONNECTOR_SINK_SHUFFLE_ENABLE)
+
+              // streaming mode, default not shuffle
+              if (shuffleEnable != null && shuffleEnable.toBoolean) {
+                requiredTraitSet = requiredTraitSet.plus(
+                  FlinkRelDistribution.hash(dynamicPartIndices
+                      .map(Integer.valueOf), requireStrict = false))
+              }
             }
           }
         case _ => throw new TableException("We need PartitionableTableSink to write data to" +

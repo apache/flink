@@ -24,9 +24,13 @@ import org.apache.flink.table.filesystem.FileSystemFactory;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.security.UserGroupInformation;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.security.PrivilegedExceptionAction;
 
 /**
  * Hive {@link FileSystemFactory}, hive need use job conf to create file system.
@@ -35,14 +39,31 @@ public class HadoopFileSystemFactory implements FileSystemFactory {
 
 	private static final long serialVersionUID = 1L;
 
-	private JobConfWrapper jobConfWrapper;
+	private final JobConfWrapper jobConfWrapper;
 
-	HadoopFileSystemFactory(JobConf jobConf) {
+	@Nullable
+	private final String username;
+
+	HadoopFileSystemFactory(JobConf jobConf, @Nullable String username) {
 		this.jobConfWrapper = new JobConfWrapper(jobConf);
+		this.username = username;
 	}
 
 	@Override
 	public FileSystem create(URI uri) throws IOException {
+		if (username == null) {
+			return internalCreate(uri);
+		}
+		try {
+			return UserGroupInformation
+					.createRemoteUser(username)
+					.doAs((PrivilegedExceptionAction<FileSystem>) () -> internalCreate(uri));
+		} catch (InterruptedException e) {
+			throw new IOException(e);
+		}
+	}
+
+	private FileSystem internalCreate(URI uri) throws IOException {
 		return new HadoopFileSystem(new Path(uri).getFileSystem(jobConfWrapper.conf()));
 	}
 }

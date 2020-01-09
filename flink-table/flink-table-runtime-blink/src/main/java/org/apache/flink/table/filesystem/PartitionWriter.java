@@ -38,9 +38,9 @@ import java.io.IOException;
 public interface PartitionWriter<T> {
 
 	/**
-	 * Write a record.
+	 * Write a record, return partition.
 	 */
-	void write(T in) throws Exception;
+	String write(T in) throws Exception;
 
 	/**
 	 * End a transaction.

@@ -22,69 +22,30 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.filesystem.TableMetaStoreFactory.TableMetaStore;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
 import static org.apache.flink.table.filesystem.PartitionPathUtils.listStatusWithoutHidden;
 
 /**
- * Loader to temporary files to final output path and meta store. According to overwrite,
+ * Loader to temporary files to final output path. According to overwrite,
  * the loader will delete the previous data.
- *
- * <p>This provide two interface to load:
- * 1.{@link #loadPartition}: load temporary partitioned files, if it is new partition,
- * will create partition to meta store.
- * 2.{@link #loadNonPartition}: just rename all files to final output path.
  *
  * <p>TODO: src and dest may be on different FS.
  */
 @Internal
-public class PartitionLoader implements Closeable {
+public class PartitionLoader {
 
 	private final boolean overwrite;
 	private final FileSystem fs;
-	private final TableMetaStore metaStore;
 
-	public PartitionLoader(
-			boolean overwrite,
-			FileSystem fs,
-			TableMetaStoreFactory factory) throws Exception {
+	public PartitionLoader(boolean overwrite, FileSystem fs) {
 		this.overwrite = overwrite;
 		this.fs = fs;
-		this.metaStore = factory.createTableMetaStore();
 	}
 
-	/**
-	 * Load a single partition.
-	 */
-	public void loadPartition(
-			LinkedHashMap<String, String> partSpec, List<Path> srcDirs) throws Exception {
-		Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
-		Path path = pathFromMeta.orElseGet(() -> new Path(
-				metaStore.getLocationPath(), generatePartitionPath(partSpec)));
-
-		overwriteAndRenameFiles(srcDirs, path);
-		if (!pathFromMeta.isPresent()) {
-			metaStore.createPartition(partSpec, path);
-		}
-	}
-
-	/**
-	 * Load a non-partition files to output path.
-	 */
-	public void loadNonPartition(List<Path> srcDirs) throws Exception {
-		Path tableLocation = metaStore.getLocationPath();
-		overwriteAndRenameFiles(srcDirs, tableLocation);
-	}
-
-	private void overwriteAndRenameFiles(List<Path> srcDirs, Path destDir) throws Exception {
+	public void loadPath(List<Path> srcDirs, Path destDir) throws Exception {
 		boolean dirSuccessExist = fs.exists(destDir) || fs.mkdirs(destDir);
 		Preconditions.checkState(dirSuccessExist, "Failed to create dest path " + destDir);
 		overwrite(destDir);
@@ -125,10 +86,5 @@ public class PartitionLoader implements Closeable {
 				}
 			}
 		}
-	}
-
-	@Override
-	public void close() throws IOException {
-		metaStore.close();
 	}
 }

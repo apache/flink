@@ -35,6 +35,7 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
 
 	private final PartitionComputer<T> computer;
 	private final OutputFormat<T> format;
+	private final String partition;
 
 	public SingleDirectoryWriter(
 			Context<T> context,
@@ -42,14 +43,16 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
 			PartitionComputer<T> computer,
 			LinkedHashMap<String, String> staticPartitions) throws Exception {
 		this.computer = computer;
+		this.partition = staticPartitions.size() == 0 ? "" : generatePartitionPath(staticPartitions);
 		this.format = context.createNewOutputFormat(staticPartitions.size() == 0 ?
 				manager.createPartitionDir() :
-				manager.createPartitionDir(generatePartitionPath(staticPartitions)));
+				manager.createPartitionDir(partition));
 	}
 
 	@Override
-	public void write(T in) throws Exception {
+	public String write(T in) throws Exception {
 		format.writeRecord(computer.projectColumnsToWrite(in));
+		return partition;
 	}
 
 	@Override

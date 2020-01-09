@@ -28,6 +28,19 @@ public class FileSystemValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE = "filesystem";
 	public static final String CONNECTOR_PATH = "connector.path";
+	public static final String CONNECTOR_SINK_SHUFFLE_ENABLE =
+			"connector.sink.shuffle-by-partition.enable";
+	public static final String CONNECTOR_SINK_STREAMING_ENABLE =
+			"connector.sink.streaming-mode.enable";
+	public static final String CONNECTOR_HADOOP_USERNAME = "connector.hadoop.username";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_POLICY =
+			"connector.sink.partition-commit.policy";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
+			"connector.sink.partition-commit.success-file.name";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER =
+			"connector.sink.partition-commit.trigger";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER_CLASS =
+			"connector.sink.partition-commit.trigger.class";
 
 	@Override
 	public void validate(DescriptorProperties properties) {

@@ -45,4 +45,10 @@ public class HiveOptions {
 			key("table.exec.hive.infer-source-parallelism.max")
 					.defaultValue(1000)
 					.withDescription("Sets max infer parallelism for source operator.");
+
+	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_STREAMING_SINK =
+			key("table.exec.hive.streaming-sink")
+					.defaultValue(false)
+					.withDescription(
+							"Using streaming mode in sink to write to hive.\n");
 }

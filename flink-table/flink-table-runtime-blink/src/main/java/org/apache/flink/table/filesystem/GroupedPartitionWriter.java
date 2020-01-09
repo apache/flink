@@ -49,7 +49,7 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
 	}
 
 	@Override
-	public void write(T in) throws Exception {
+	public String write(T in) throws Exception {
 		String partition = generatePartitionPath(computer.generatePartValues(in));
 		if (!partition.equals(currentPartition)) {
 			if (currentFormat != null) {
@@ -60,6 +60,7 @@ public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
 			currentPartition = partition;
 		}
 		currentFormat.writeRecord(computer.projectColumnsToWrite(in));
+		return partition;
 	}
 
 	@Override

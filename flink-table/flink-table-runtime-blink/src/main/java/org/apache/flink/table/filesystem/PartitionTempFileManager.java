@@ -57,7 +57,7 @@ public class PartitionTempFileManager {
 
 	private transient int nameCounter = 0;
 
-	PartitionTempFileManager(
+	public PartitionTempFileManager(
 			FileSystemFactory factory,
 			Path tmpPath,
 			int taskNumber,
@@ -67,9 +67,7 @@ public class PartitionTempFileManager {
 		this.checkpointId = checkpointId;
 
 		// generate and clean task temp dir.
-		this.taskTmpDir = new Path(
-				new Path(tmpPath, checkpointName(checkpointId)),
-				TASK_DIR_PREFIX + taskNumber);
+		this.taskTmpDir = getTaskTempDir(tmpPath, checkpointId, taskNumber);
 		factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
 	}
 
@@ -88,6 +86,12 @@ public class PartitionTempFileManager {
 		return String.format(
 				checkpointName(checkpointId) + "-" + taskName(taskNumber) + "-file-%d",
 				nameCounter++);
+	}
+
+	public static Path getTaskTempDir(Path tmpPath, long checkpointId, int taskNumber) {
+		return new Path(
+				new Path(tmpPath, checkpointName(checkpointId)),
+				TASK_DIR_PREFIX + taskNumber);
 	}
 
 	private static boolean isTaskDir(String fileName) {
@@ -136,6 +140,21 @@ public class PartitionTempFileManager {
 			}
 		}
 		return cps.stream().mapToLong(v -> v).toArray();
+	}
+
+	/**
+	 * Clean task temporary files.
+	 */
+	public static void cleanTaskTempFiles(
+			FileSystem fs, Path basePath, int taskNumber) throws IOException {
+		for (FileStatus taskStatus : fs.listStatus(basePath)) {
+			String name = taskStatus.getPath().getName();
+			if (isCheckpointDir(name)) {
+				long currentCp = getCheckpointId(name);
+				Path taskTmpDir = getTaskTempDir(basePath, currentCp, taskNumber);
+				fs.delete(taskTmpDir, true);
+			}
+		}
 	}
 
 	/**
