@@ -370,6 +370,13 @@ object UserDefinedFunctionTestUtils {
     }
   }
 
+  @SerialVersionUID(1L)
+  object MyNegative extends ScalarFunction {
+    def eval(d: java.math.BigDecimal): java.lang.Object = d.negate()
+
+    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.JAVA_BIG_DEC
+  }
+
   // ------------------------------------------------------------------------------------
   // POJOs
   // ------------------------------------------------------------------------------------

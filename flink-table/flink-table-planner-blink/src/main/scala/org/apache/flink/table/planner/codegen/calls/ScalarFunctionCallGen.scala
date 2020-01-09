@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepar
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils, GeneratedExpression}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils
 import org.apache.flink.table.types.logical.LogicalType
@@ -79,7 +80,8 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
         val boxedResultClass = ExtractionUtils.boxPrimitive(resultClass).asInstanceOf[Class[_]]
         val javaTypeTerm = boxedResultClass.getCanonicalName
         val resultExternalTypeWithResultClass =
-          if (resultExternalType.getLogicalType.supportsOutputConversion(boxedResultClass)) {
+          if (LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(resultExternalType)
+            .supportsOutputConversion(boxedResultClass)) {
             // resultClass of HiveScalarFunction is Object, which cannot be a valid
             // conversion class
             resultExternalType.bridgedTo(boxedResultClass)

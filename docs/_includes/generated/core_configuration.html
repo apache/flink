@@ -38,5 +38,17 @@
             <td>Integer</td>
             <td>Default parallelism for jobs.</td>
         </tr>
+        <tr>
+            <td><h5>plugin.classloader.parent-first-patterns.additional</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked  against the fully qualified class name. These patterns are appended to "plugin.classloader.parent-first-patterns.default".</td>
+        </tr>
+        <tr>
+            <td><h5>plugin.classloader.parent-first-patterns.default</h5></td>
+            <td style="word-wrap: break-word;">"java.;<wbr>scala.;<wbr>org.apache.flink.;<wbr>javax.annotation.;<wbr>org.slf4j;<wbr>org.apache.log4j;<wbr>org.apache.logging;<wbr>org.apache.commons.logging;<wbr>ch.qos.logback"</td>
+            <td>String</td>
+            <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked  against the fully qualified class name. This setting should generally not be modified. To add another  pattern we recommend to use "plugin.classloader.parent-first-patterns.additional" instead.</td>
+        </tr>
     </tbody>
 </table>

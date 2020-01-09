@@ -118,4 +118,16 @@ public class HiveModuleTest {
 		results = TableUtils.collectToList(tEnv.sqlQuery("select concat('ab',cast(null as int))"));
 		assertEquals("[null]", results.toString());
 	}
+
+	@Test
+	public void testDecimalReturnType() throws Exception {
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tEnv.unloadModule("core");
+		tEnv.loadModule("hive", new HiveModule(HiveShimLoader.getHiveVersion()));
+
+		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select negative(5.1)"));
+
+		assertEquals("[-5.1]", results.toString());
+	}
 }

@@ -567,13 +567,15 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorResourceSpec, numSlotsPerTaskManager);
 
-		log.debug("TaskExecutor {} will be started with {}.",
+		log.info("TaskExecutor {} will be started on {} with {}.",
 			containerId,
+			host,
 			taskExecutorResourceSpec);
 
-		Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
+		final Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
 
-		String taskManagerDynamicProperties = BootstrapTools.getDynamicProperties(flinkClientConfig, taskManagerConfig);
+		final String taskManagerDynamicProperties =
+			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
 
 		log.debug("TaskManager configuration: {}", taskManagerConfig);
 

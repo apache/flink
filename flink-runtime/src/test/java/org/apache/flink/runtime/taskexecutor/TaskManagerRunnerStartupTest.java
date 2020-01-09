@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -117,24 +118,17 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	/**
 	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
 	 */
-	@Test
+	@Test(expected = IllegalConfigurationException.class)
 	public void testMemoryConfigWrong() throws Exception {
 		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
 		cfg.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("100m"));
 		cfg.set(TaskManagerOptions.SHUFFLE_MEMORY_MAX, MemorySize.parse("10m"));
-		try {
-
-			startTaskManager(
-				cfg,
-				rpcService,
-				highAvailabilityServices);
-
-			fail("Should fail synchronously with an exception");
-		} catch (IllegalArgumentException e) {
-			// splendid!
-		}
+		startTaskManager(
+			cfg,
+			rpcService,
+			highAvailabilityServices);
 	}
 
 	/**

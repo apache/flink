@@ -46,7 +46,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>See {@link TaskExecutorResourceSpec} for details about memory components of TaskExecutor and their relationships.
  */
 public class TaskExecutorResourceUtils {
-
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorResourceUtils.class);
 
 	private TaskExecutorResourceUtils() {}
@@ -189,7 +188,7 @@ public class TaskExecutorResourceUtils {
 					+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
 			shuffleMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeShuffleMemorySize);
-			sanityCheckShuffleMemory(config, shuffleMemorySize, totalFlinkMemorySize);
+			sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, shuffleMemorySize, totalFlinkMemorySize);
 		} else {
 			// derive shuffle memory from shuffle configs
 			if (isUsingLegacyShuffleConfigs(config)) {
@@ -290,15 +289,12 @@ public class TaskExecutorResourceUtils {
 						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
 			shuffleMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeShuffleMemorySize);
-			sanityCheckShuffleMemory(config, shuffleMemorySize, totalFlinkMemorySize);
+			sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, shuffleMemorySize, totalFlinkMemorySize);
 		} else {
 			// task heap memory is not configured
 			// derive managed memory and shuffle memory, leave the remaining to task heap memory
-			if (isManagedMemorySizeExplicitlyConfigured(config)) {
-				managedMemorySize = getManagedMemorySize(config);
-			} else {
-				managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
-			}
+			managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
+
 			if (isUsingLegacyShuffleConfigs(config)) {
 				shuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
 			} else {
@@ -334,35 +330,64 @@ public class TaskExecutorResourceUtils {
 		if (isManagedMemorySizeExplicitlyConfigured(config)) {
 			return getManagedMemorySize(config);
 		} else {
-			return deriveWithFraction(base, getManagedMemoryRangeFraction(config));
+			return deriveWithFraction("managed memory", base, getManagedMemoryRangeFraction(config));
 		}
 	}
 
 	private static MemorySize deriveShuffleMemoryWithFraction(final Configuration config, final MemorySize base) {
-		return deriveWithFraction(base, getShuffleMemoryRangeFraction(config));
+		return deriveWithFraction("shuffle memory", base, getShuffleMemoryRangeFraction(config));
 	}
 
 	private static MemorySize deriveShuffleMemoryWithInverseFraction(final Configuration config, final MemorySize base) {
-		return deriveWithInverseFraction(base, getShuffleMemoryRangeFraction(config));
+		return deriveWithInverseFraction("shuffle memory", base, getShuffleMemoryRangeFraction(config));
 	}
 
 	private static MemorySize deriveJvmOverheadWithFraction(final Configuration config, final MemorySize base) {
-		return deriveWithFraction(base, getJvmOverheadRangeFraction(config));
+		return deriveWithFraction("jvm overhead memory", base, getJvmOverheadRangeFraction(config));
 	}
 
 	private static MemorySize deriveJvmOverheadWithInverseFraction(final Configuration config, final MemorySize base) {
-		return deriveWithInverseFraction(base, getJvmOverheadRangeFraction(config));
+		return deriveWithInverseFraction("jvm overhead memory", base, getJvmOverheadRangeFraction(config));
 	}
 
-	private static MemorySize deriveWithFraction(final MemorySize base, final RangeFraction rangeFraction) {
+	private static MemorySize deriveWithFraction(
+			final String memoryDescription,
+			final MemorySize base,
+			final RangeFraction rangeFraction) {
 		final long relative = (long) (rangeFraction.fraction * base.getBytes());
-		return new MemorySize(Math.max(rangeFraction.minSize.getBytes(), Math.min(rangeFraction.maxSize.getBytes(), relative)));
+		return new MemorySize(capToMinMax(memoryDescription, relative, rangeFraction));
 	}
 
-	private static MemorySize deriveWithInverseFraction(final MemorySize base, final RangeFraction rangeFraction) {
+	private static MemorySize deriveWithInverseFraction(
+			final String memoryDescription,
+			final MemorySize base,
+			final RangeFraction rangeFraction) {
 		checkArgument(rangeFraction.fraction < 1);
 		final long relative = (long) (rangeFraction.fraction / (1 - rangeFraction.fraction) * base.getBytes());
-		return new MemorySize(Math.max(rangeFraction.minSize.getBytes(), Math.min(rangeFraction.maxSize.getBytes(), relative)));
+		return new MemorySize(capToMinMax(memoryDescription, relative, rangeFraction));
+	}
+
+	private static long capToMinMax(
+			final String memoryDescription,
+			final long relative,
+			final RangeFraction rangeFraction) {
+		long size = relative;
+		if (size > rangeFraction.maxSize.getBytes()) {
+			LOG.info(
+				"The derived from fraction {} ({}b) is greater than its max value {}, max value will be used instead",
+				memoryDescription,
+				relative,
+				rangeFraction.maxSize);
+			size = rangeFraction.maxSize.getBytes();
+		} else if (size < rangeFraction.minSize.getBytes()) {
+			LOG.info(
+				"The derived from fraction {} ({}b) is less than its min value {}, max value will be used instead",
+				memoryDescription,
+				relative,
+				rangeFraction.minSize);
+			size = rangeFraction.minSize.getBytes();
+		}
+		return size;
 	}
 
 	private static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
@@ -388,14 +413,7 @@ public class TaskExecutorResourceUtils {
 	}
 
 	private static RangeFraction getManagedMemoryRangeFraction(final Configuration config) {
-		final MemorySize minSize = MemorySize.ZERO;
-		final MemorySize maxSize = MemorySize.MAX_VALUE;
-		final double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-		if (fraction >= 1 || fraction < 0) {
-			throw new IllegalConfigurationException("Configured Managed Memory fraction ("
-				+ fraction + ") must be in [0, 1).");
-		}
-		return new RangeFraction(minSize, maxSize, fraction);
+		return getRangeFraction(MemorySize.ZERO, MemorySize.MAX_VALUE, TaskManagerOptions.MANAGED_MEMORY_FRACTION, config);
 	}
 
 	private static MemorySize getShuffleMemorySizeWithLegacyConfig(final Configuration config) {
@@ -409,12 +427,7 @@ public class TaskExecutorResourceUtils {
 	private static RangeFraction getShuffleMemoryRangeFraction(final Configuration config) {
 		final MemorySize minSize = getMemorySizeFromConfig(config, TaskManagerOptions.SHUFFLE_MEMORY_MIN);
 		final MemorySize maxSize = getMemorySizeFromConfig(config, TaskManagerOptions.SHUFFLE_MEMORY_MAX);
-		final double fraction = config.getFloat(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION);
-		if (fraction >= 1 || fraction < 0) {
-			throw new IllegalConfigurationException("Configured Shuffle Memory fraction ("
-				+ fraction + ") must be in [0, 1).");
-		}
-		return new RangeFraction(minSize, maxSize, fraction);
+		return getRangeFraction(minSize, maxSize, TaskManagerOptions.SHUFFLE_MEMORY_FRACTION, config);
 	}
 
 	private static MemorySize getJvmMetaspaceSize(final Configuration config) {
@@ -424,12 +437,27 @@ public class TaskExecutorResourceUtils {
 	private static RangeFraction getJvmOverheadRangeFraction(final Configuration config) {
 		final MemorySize minSize = getMemorySizeFromConfig(config, TaskManagerOptions.JVM_OVERHEAD_MIN);
 		final MemorySize maxSize = getMemorySizeFromConfig(config, TaskManagerOptions.JVM_OVERHEAD_MAX);
-		final double fraction = config.getFloat(TaskManagerOptions.JVM_OVERHEAD_FRACTION);
-		if (fraction >= 1 || fraction < 0) {
-			throw new IllegalConfigurationException("Configured JVM Overhead fraction ("
-				+ fraction + ") must be in [0, 1).");
+		return getRangeFraction(minSize, maxSize, TaskManagerOptions.JVM_OVERHEAD_FRACTION, config);
+	}
+
+	private static RangeFraction getRangeFraction(
+			final MemorySize minSize,
+			final MemorySize maxSize,
+			ConfigOption<Float> fractionOption,
+			final Configuration config) {
+		final double fraction = config.getFloat(fractionOption);
+		try {
+			return new RangeFraction(minSize, maxSize, fraction);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalConfigurationException(
+				String.format(
+					"Inconsistently configured %s (%s) and its min (%s), max (%s) value",
+					fractionOption,
+					fraction,
+					minSize,
+					maxSize),
+				e);
 		}
-		return new RangeFraction(minSize, maxSize, fraction);
 	}
 
 	private static MemorySize getTotalFlinkMemorySize(final Configuration config) {
@@ -528,6 +556,21 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
+	private static void sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(
+			final Configuration config,
+			final MemorySize derivedShuffleMemorySize,
+			final MemorySize totalFlinkMemorySize) {
+		try {
+			sanityCheckShuffleMemory(config, derivedShuffleMemorySize, totalFlinkMemorySize);
+		} catch (IllegalConfigurationException e) {
+			throw new IllegalConfigurationException(
+				"If Total Flink, Task Heap and (or) Managed Memory sizes are explicitly configured then " +
+					"the Shuffle Memory size is the rest of the Total Flink memory after subtracting all other " +
+					"configured types of memory, but the derived Shuffle Memory is inconsistent with its configuration.",
+				e);
+		}
+	}
+
 	private static void sanityCheckShuffleMemory(
 			final Configuration config,
 			final MemorySize derivedShuffleMemorySize,
@@ -550,9 +593,13 @@ public class TaskExecutorResourceUtils {
 			}
 			if (isShuffleMemoryFractionExplicitlyConfigured(config) &&
 				!derivedShuffleMemorySize.equals(totalFlinkMemorySize.multiply(shuffleRangeFraction.fraction))) {
-				throw new IllegalConfigurationException("Derived Shuffle Memory size("
-					+ derivedShuffleMemorySize.toString() + ") does not match configured Shuffle Memory fraction ("
-					+ shuffleRangeFraction.fraction + ").");
+				LOG.info(
+					"The derived Shuffle Memory size ({}) does not match " +
+						"the configured Shuffle Memory fraction ({}) from the configured Total Flink Memory size ({}). " +
+						"The derived Shuffle Memory size will be used.",
+					derivedShuffleMemorySize,
+					shuffleRangeFraction.fraction,
+					totalFlinkMemorySize);
 			}
 		}
 	}
@@ -610,8 +657,8 @@ public class TaskExecutorResourceUtils {
 			this.minSize = minSize;
 			this.maxSize = maxSize;
 			this.fraction = fraction;
-			checkArgument(minSize.getBytes() <= maxSize.getBytes());
-			checkArgument(fraction >= 0 && fraction <= 1);
+			checkArgument(minSize.getBytes() <= maxSize.getBytes(), "min value must be less or equal to max value");
+			checkArgument(fraction >= 0 && fraction < 1, "fraction must be in range [0, 1)");
 		}
 	}
 

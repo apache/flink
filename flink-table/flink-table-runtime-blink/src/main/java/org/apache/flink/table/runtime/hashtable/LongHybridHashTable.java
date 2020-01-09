@@ -247,7 +247,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
 			this.denseBuckets = denseBuckets;
 			this.densePartition = new LongHashPartition(this, buildSideSerializer,
-					dataBuffers.toArray(new MemorySegment[dataBuffers.size()]));
+					dataBuffers.toArray(new MemorySegment[0]));
 			freeCurrent();
 		}
 	}
