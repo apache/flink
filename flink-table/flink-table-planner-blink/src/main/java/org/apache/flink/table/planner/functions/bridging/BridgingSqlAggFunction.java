@@ -43,7 +43,7 @@ import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.cr
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Bridges {@link FunctionDefinition} to Calcite's representation of a aggregating function
+ * Bridges {@link FunctionDefinition} to Calcite's representation of an aggregating function
  * (either a system or user-defined function).
  */
 @Internal

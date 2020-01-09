@@ -153,7 +153,6 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 	/**
 	 * Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}.
 	 */
-	@Deprecated
 	private void updateInferredType(SqlValidator validator, SqlNode node, RelDataType type) {
 		validator.setValidatedNodeType(node, type);
 		final SqlValidatorNamespace namespace = validator.getNamespace(node);

@@ -81,7 +81,7 @@ public abstract class AbstractSqlCallContext implements CallContext {
 	 * Bridges to {@link ValueLiteralExpression#getValueAs(Class)}.
 	 */
 	@SuppressWarnings("unchecked")
-	protected static <T, V> T getLiteralValueAs(LiteralValueAccessor accessor, Class<T> clazz) {
+	protected static <T> T getLiteralValueAs(LiteralValueAccessor accessor, Class<T> clazz) {
 		final Object value = accessor.getValueAs(Object.class);
 		final Class<?> valueClass = value.getClass();
 
