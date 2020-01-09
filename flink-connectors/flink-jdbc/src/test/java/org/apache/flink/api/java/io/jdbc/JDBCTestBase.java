@@ -20,6 +20,9 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -33,7 +36,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Base test class for JDBC Input and Output formats.
+ * Base test class for JDBC Input and Output.
  */
 public class JDBCTestBase {
 
@@ -46,6 +49,7 @@ public class JDBCTestBase {
 	public static final String OUTPUT_TABLE = "newbooks";
 	public static final String OUTPUT_TABLE_2 = "newbooks2";
 	public static final String SELECT_ALL_BOOKS = "select * from " + INPUT_TABLE;
+	public static final String SELECT_ID_BOOKS = "select id from " + INPUT_TABLE;
 	public static final String SELECT_ALL_NEWBOOKS = "select * from " + OUTPUT_TABLE;
 	public static final String SELECT_ALL_NEWBOOKS_2 = "select * from " + OUTPUT_TABLE_2;
 	public static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
@@ -88,6 +92,17 @@ public class JDBCTestBase {
 		BasicTypeInfo.STRING_TYPE_INFO,
 		BasicTypeInfo.DOUBLE_TYPE_INFO,
 		BasicTypeInfo.INT_TYPE_INFO);
+
+	public static final TableSchema TABLE_SCHEMA = TableSchema.builder().fields(
+				new String[]{"id", "title", "author", "price", "qty"},
+				new DataType[]{
+					DataTypes.INT(),
+					DataTypes.STRING(),
+					DataTypes.STRING(),
+					DataTypes.DOUBLE(),
+					DataTypes.INT()
+				})
+		.build();
 
 	public static String getCreateQuery(String tableName) {
 		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE ");
