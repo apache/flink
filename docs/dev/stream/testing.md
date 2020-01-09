@@ -147,7 +147,7 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 Testing the functionality of a user-defined function, which makes use of managed state or timers is more difficult because it involves testing the interaction between the user code and Flink's runtime.
 For this Flink comes with a collection of so called test harnesses, which can be used to test such user-defined functions as well as custom operators:
 
-* `OneInputStreamOperatorTestHarness` (for operators on `DataStreams`s)
+* `OneInputStreamOperatorTestHarness` (for operators on `DataStream`s)
 * `KeyedOneInputStreamOperatorTestHarness` (for operators on `KeyedStream`s)
 * `TwoInputStreamOperatorTestHarness` (for operators of `ConnectedStreams` of two `DataStream`s)
 * `KeyedTwoInputStreamOperatorTestHarness` (for operators on `ConnectedStreams` of two `KeyedStream`s)
