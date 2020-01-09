@@ -27,13 +27,20 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{Broadcast
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
-
+import org.junit.{Assert, Before, Test}
 import java.util
 
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, SinkTransformation, TwoInputTransformation}
+import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.sinks.CollectRowTableSink
+import org.apache.flink.table.planner.utils.TestingTableEnvironment
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+
+import scala.collection.JavaConversions._
 import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
@@ -92,13 +99,33 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
-      checkResult(
-        "SELECT c FROM SmallTable3, Table5 WHERE b = e",
-        Seq(
-          row("Hi"),
-          row("Hello"),
-          row("Hello world")
-        ))
+      val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
+      tEnv.registerTableSink("outputTable", sink)
+      tEnv.insertInto("outputTable", tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"))
+      val testingTEnv = tEnv.asInstanceOf[TestingTableEnvironment]
+      val transforms = testingTEnv.getPlanner.asInstanceOf[PlannerBase]
+        .translate(testingTEnv.getBufferedOperations)
+      var haveTwoOp = false
+
+      @scala.annotation.tailrec
+      def findTwoInputTransform(t: Transformation[_]): TwoInputTransformation[_, _, _] = {
+        t match {
+          case sink: SinkTransformation[_] => findTwoInputTransform(sink.getInput)
+          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInput)
+          case two: TwoInputTransformation[_, _, _] => two
+        }
+      }
+
+      transforms.map(findTwoInputTransform).foreach { transform =>
+        transform.getOperatorFactory match {
+          case factory: CodeGenOperatorFactory[_] =>
+            if (factory.getGeneratedClass.getCode.contains("LongHashJoinOperator")) {
+              haveTwoOp = true
+            }
+          case _ =>
+        }
+      }
+      Assert.assertTrue(haveTwoOp)
     }
   }
 
