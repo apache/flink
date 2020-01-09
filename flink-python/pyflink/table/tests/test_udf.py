@@ -321,7 +321,7 @@ class UserDefinedFunctionTests(object):
 
         def time_func(time_param):
             from datetime import time
-            assert time_param == time(hour=12, minute=0, second=0, microsecond=123000), \
+            assert time_param == time(hour=12, minute=0, second=0), \
                 'time_param is wrong value %s !' % time_param
             return time_param
 
@@ -424,7 +424,7 @@ class UserDefinedFunctionTests(object):
         t = self.t_env.from_elements(
             [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
               bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
-              datetime.time(hour=12, minute=0, second=0, microsecond=123000),
+              datetime.time(hour=12, minute=0, second=0),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [[1, 2, 3]],
               {1: 'flink', 2: 'pyflink'}, decimal.Decimal('1000000000000000000.05'),
               decimal.Decimal('1000000000000000000.05999999999999999899999999999'))],

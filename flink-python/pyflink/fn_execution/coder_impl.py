@@ -266,24 +266,25 @@ class DateCoderImpl(StreamCoderImpl):
 class TimeCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
-        out_stream.write_bigendian_int32(self.time_to_internal(value))
+        out_stream.write_bigendian_int64(self.time_to_internal(value))
 
     def decode_from_stream(self, in_stream, nested):
-        value = in_stream.read_bigendian_int32()
+        value = in_stream.read_bigendian_int64()
         return self.internal_to_time(value)
 
     def time_to_internal(self, t):
-        milliseconds = (t.hour * 3600000
-                        + t.minute * 60000
-                        + t.second * 1000
-                        + t.microsecond // 1000)
-        return milliseconds
+        microseconds = (t.hour * 3600000000
+                        + t.minute * 60000000
+                        + t.second * 1000000
+                        + t.microsecond)
+        return microseconds * 1000
 
     def internal_to_time(self, v):
-        seconds, milliseconds = divmod(v, 1000)
+        v = v // 1000
+        seconds, microseconds = divmod(v, 1000000)
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
-        return datetime.time(hours, minutes, seconds, milliseconds * 1000)
+        return datetime.time(hours, minutes, seconds, microseconds)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
