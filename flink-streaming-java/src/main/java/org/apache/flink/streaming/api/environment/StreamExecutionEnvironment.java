@@ -273,6 +273,7 @@ public class StreamExecutionEnvironment {
 	 * value.
 	 */
 	public int getParallelism() {
+		consolidateParallelismDefinitionsInConfiguration();
 		return config.getParallelism();
 	}
 
@@ -1757,8 +1758,9 @@ public class StreamExecutionEnvironment {
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
+		if (config.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			final int parallelism = configuration.get(CoreOptions.DEFAULT_PARALLELISM);
+			this.setParallelism(parallelism);
 		}
 	}
 

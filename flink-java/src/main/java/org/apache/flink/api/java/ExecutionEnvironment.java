@@ -214,6 +214,7 @@ public class ExecutionEnvironment {
 	 *         returns {@link ExecutionConfig#PARALLELISM_DEFAULT}, if the environment's default parallelism should be used.
 	 */
 	public int getParallelism() {
+		consolidateParallelismDefinitionsInConfiguration();
 		return config.getParallelism();
 	}
 
@@ -924,8 +925,9 @@ public class ExecutionEnvironment {
 	}
 
 	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
+		if (config.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+			final int parallelism = configuration.get(CoreOptions.DEFAULT_PARALLELISM);
+			this.setParallelism(parallelism);
 		}
 	}
 
