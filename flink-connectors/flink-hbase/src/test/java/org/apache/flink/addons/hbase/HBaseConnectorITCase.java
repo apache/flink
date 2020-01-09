@@ -345,13 +345,15 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		tEnv.registerDataStream("src", ds);
 
 		// register hbase table
+		// TODO: HBase connector should use new type system to suppport precision/scale
+		//  https://issues.apache.org/jira/browse/FLINK-15525
 		String quorum = getZookeeperQuorum();
 		String ddl = "CREATE TABLE hbase (\n" +
 			"    rowkey INT," +
 			"    family1 ROW<col1 INT>,\n" +
 			"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
 			"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
-			"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
+			"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(0)>\n" +
 			") WITH (\n" +
 			"    'connector.type' = 'hbase',\n" +
 			"    'connector.version' = '1.4.3',\n" +

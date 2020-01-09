@@ -178,7 +178,7 @@ object PartitionPruner {
         val decimalType = t.asInstanceOf[DecimalType]
         Decimal.castFrom(v, decimalType.getPrecision, decimalType.getScale)
       case DATE => SqlDateTimeUtils.dateStringToUnixDate(v)
-      case TIME_WITHOUT_TIME_ZONE => SqlDateTimeUtils.timeStringToUnixDate(v) * 1000000L
+      case TIME_WITHOUT_TIME_ZONE => SqlDateTimeUtils.timeStringToTime(v)
       case TIMESTAMP_WITHOUT_TIME_ZONE => SqlDateTimeUtils.toSqlTimestamp(v)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE => SqlTimestamp.fromInstant(
         SqlDateTimeUtils.toSqlTimestamp(v).toLocalDateTime.atZone(timeZone).toInstant)
