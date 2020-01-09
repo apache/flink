@@ -23,7 +23,9 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.util.ArrayUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -109,16 +111,7 @@ public class CoreOptions {
 	public static String[] getParentFirstLoaderPatterns(Configuration config) {
 		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
 		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
-
-		String[] basePatterns = base.isEmpty()
-			? new String[0]
-			: base.split(";");
-
-		if (append.isEmpty()) {
-			return basePatterns;
-		} else {
-			return ArrayUtils.concat(basePatterns, append.split(";"));
-		}
+		return parseParentFirstLoaderPatterns(base, append);
 	}
 
 	/**
@@ -147,8 +140,12 @@ public class CoreOptions {
 	public static String[] getPluginParentFirstLoaderPatterns(Configuration config) {
 		String base = config.getString(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
 		String append = config.getString(PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+		return parseParentFirstLoaderPatterns(base, append);
+	}
 
-		return ArrayUtils.concat(base.split(";"), append.split(";"));
+	private static String[] parseParentFirstLoaderPatterns(String base, String append) {
+		Splitter splitter = Splitter.on(';').omitEmptyStrings();
+		return Iterables.toArray(Iterables.concat(splitter.split(base), splitter.split(append)), String.class);
 	}
 
 	// ------------------------------------------------------------------------
