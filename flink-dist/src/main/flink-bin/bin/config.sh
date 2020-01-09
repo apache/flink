@@ -605,26 +605,36 @@ runBashJavaUtilsCmd() {
     local cmd=$1
     local class_path=$2
     local conf_dir=$3
+    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    local output="`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} 2> /dev/null`"
+    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} | tail -n 1`
     if [[ $? -ne 0 ]]; then
-        echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}."
+        echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
+        # Print the output in case the user redirect the log to console.
+        echo $output 1>&2
         exit 1
     fi
 
-    echo ${output}
+    if ! [[ $output =~ ^${EXECUTION_PREFIX}.* ]]; then
+        echo "[ERROR] Unexpected result: $output" 1>&2
+        echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
+        echo $output 1>&2
+        exit 1
+    fi
+
+    echo ${output} | sed "s/$EXECUTION_PREFIX//g"
 }
 
 getTmResourceJvmParams() {
     local class_path=`constructFlinkClassPath`
     class_path=`manglePathList ${class_path}`
 
-    echo $(runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS ${class_path} ${FLINK_CONF_DIR})
+    runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS ${class_path} ${FLINK_CONF_DIR}
 }
 
 getTmResourceDynamicConfigs() {
     local class_path=`constructFlinkClassPath`
     class_path=`manglePathList ${class_path}`
 
-    echo $(runBashJavaUtilsCmd GET_TM_RESOURCE_DYNAMIC_CONFIGS ${class_path} ${FLINK_CONF_DIR})
+    runBashJavaUtilsCmd GET_TM_RESOURCE_DYNAMIC_CONFIGS ${class_path} ${FLINK_CONF_DIR}
 }
