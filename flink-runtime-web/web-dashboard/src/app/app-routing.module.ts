@@ -24,7 +24,7 @@ const routes: Routes = [
   { path: 'submit', loadChildren: './pages/submit/submit.module#SubmitModule' },
   { path: 'job-manager', loadChildren: './pages/job-manager/job-manager.module#JobManagerModule' },
   { path: 'task-manager', loadChildren: './pages/task-manager/task-manager.module#TaskManagerModule' },
-  { path: 'job', loadChildren: './pages/job/job.module#JobModule', data: { collapse: true } },
+  { path: 'job', loadChildren: './pages/job/job.module#JobModule' },
   { path: '**', redirectTo: 'overview', pathMatch: 'full' }
 ];
 
