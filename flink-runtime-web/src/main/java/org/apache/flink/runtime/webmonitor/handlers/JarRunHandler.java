@@ -135,7 +135,7 @@ public class JarRunHandler extends
 			JarHandlerContext context,
 			final SavepointRestoreSettings savepointRestoreSettings) {
 		return CompletableFuture.supplyAsync(() -> {
-			final JobGraph jobGraph = context.toJobGraph(configuration);
+			final JobGraph jobGraph = context.toJobGraph(configuration, false);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 			return jobGraph;
 		}, executor);

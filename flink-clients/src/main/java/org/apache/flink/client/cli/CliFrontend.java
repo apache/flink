@@ -268,7 +268,7 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism, true);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {
