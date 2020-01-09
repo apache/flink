@@ -48,12 +48,14 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 
 	private final long start;
 	private final long end;
+	private final long rowsPerSecond;
 
 	private volatile boolean isRunning = true;
 
 	private transient Deque<Long> valuesToEmit;
 
 	private transient ListState<Long> checkpointedState;
+
 
 	/**
 	 * Creates a source that emits all numbers from the given interval exactly once.
@@ -62,8 +64,20 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 	 * @param end End of the range of numbers to emit.
 	 */
 	public StatefulSequenceSource(long start, long end) {
+		this(start, end, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Creates a source that emits all numbers from the given interval exactly once.
+	 *
+	 * @param start Start of the range of numbers to emit.
+	 * @param end End of the range of numbers to emit.
+	 * @param rowsPerSecond Control the emit rate.
+	 */
+	public StatefulSequenceSource(long start, long end, long rowsPerSecond) {
 		this.start = start;
 		this.end = end;
+		this.rowsPerSecond = rowsPerSecond;
 	}
 
 	@Override
@@ -105,9 +119,25 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 
 	@Override
 	public void run(SourceContext<Long> ctx) throws Exception {
+		double taskRowsPerSecond = (double) rowsPerSecond / getRuntimeContext().getNumberOfParallelSubtasks();
+		long readTimeIncrement = (long) (1000 / taskRowsPerSecond);
+		long nextReadTime = System.currentTimeMillis();
+
 		while (isRunning && !this.valuesToEmit.isEmpty()) {
 			synchronized (ctx.getCheckpointLock()) {
 				ctx.collect(this.valuesToEmit.poll());
+			}
+
+			if (readTimeIncrement > 0) {
+				nextReadTime += readTimeIncrement;
+				try {
+					long toWaitMs = nextReadTime - System.currentTimeMillis();
+					while (toWaitMs > 0) {
+						Thread.sleep(toWaitMs);
+						toWaitMs = nextReadTime - System.currentTimeMillis();
+					}
+				} catch (InterruptedException ignored) {
+				}
 			}
 		}
 	}

@@ -52,6 +52,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.connectors.hive.HiveTablePartition.isOrc;
+import static org.apache.flink.connectors.hive.HiveTablePartition.isParquet;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
 
@@ -124,10 +126,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 	@Override
 	public void open(HiveTableInputSplit split) throws IOException {
 		HiveTablePartition partition = split.getHiveTablePartition();
-		if (!useMapRedReader && useOrcVectorizedRead(partition)) {
+		if (!useMapRedReader && isOrc(partition.getStorageDescriptor()) && useVectorizedRead()) {
 			this.reader = new HiveVectorizedOrcSplitReader(
 					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
-		} else if (!useMapRedReader && useParquetVectorizedRead(partition)) {
+		} else if (!useMapRedReader && isParquet(partition.getStorageDescriptor()) && useVectorizedRead()) {
 			this.reader = new HiveVectorizedParquetSplitReader(
 					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
 		} else {
@@ -196,13 +198,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 		}
 	}
 
-	private boolean useParquetVectorizedRead(HiveTablePartition partition) {
-		boolean isParquet = partition.getStorageDescriptor().getSerdeInfo().getSerializationLib()
-				.toLowerCase().contains("parquet");
-		if (!isParquet) {
-			return false;
-		}
-
+	private boolean useVectorizedRead() {
 		for (int i : selectedFields) {
 			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
 				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
@@ -210,25 +206,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			}
 		}
 
-		LOG.info("Use flink parquet ColumnarRow reader.");
-		return true;
-	}
-
-	private boolean useOrcVectorizedRead(HiveTablePartition partition) {
-		boolean isOrc = partition.getStorageDescriptor().getSerdeInfo().getSerializationLib()
-				.toLowerCase().contains("orc");
-		if (!isOrc) {
-			return false;
-		}
-
-		for (int i : selectedFields) {
-			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
-				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
-				return false;
-			}
-		}
-
-		LOG.info("Use flink orc ColumnarRow reader.");
+		LOG.info("Use flink ColumnarRow reader.");
 		return true;
 	}
 

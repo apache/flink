@@ -65,4 +65,14 @@ public class HiveTablePartition implements Serializable {
 	public Properties getTableProps() {
 		return tableProps;
 	}
+
+	public static boolean isParquet(StorageDescriptor sd) {
+		return sd.getSerdeInfo().getSerializationLib()
+				.toLowerCase().contains("parquet");
+	}
+
+	public static boolean isOrc(StorageDescriptor sd) {
+		return sd.getSerdeInfo().getSerializationLib()
+				.toLowerCase().contains("orc");
+	}
 }

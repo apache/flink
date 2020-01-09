@@ -29,7 +29,7 @@ import java.io.IOException;
  */
 @PublicEvolving
 public abstract class CheckpointRollingPolicy<IN, BucketID> implements RollingPolicy<IN, BucketID> {
-	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) {
+	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) throws IOException {
 		return true;
 	}
 

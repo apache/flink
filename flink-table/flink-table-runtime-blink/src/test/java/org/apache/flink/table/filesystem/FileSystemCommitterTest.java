@@ -29,8 +29,10 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Test for {@link FileSystemCommitter}.
@@ -121,11 +123,15 @@ public class FileSystemCommitterTest {
 		Assert.assertTrue(new File(outputFile, "f5").exists());
 	}
 
-	static class TestMetaStoreFactory implements TableMetaStoreFactory {
+	/**
+	 * Test TableMetaStoreFactory.
+	 */
+	public static class TestMetaStoreFactory implements TableMetaStoreFactory {
 
 		private final Path outputPath;
+		public final Set<LinkedHashMap<String, String>> partitionCreated = new HashSet<>();
 
-		TestMetaStoreFactory(Path outputPath) {
+		public TestMetaStoreFactory(Path outputPath) {
 			this.outputPath = outputPath;
 		}
 
@@ -146,6 +152,7 @@ public class FileSystemCommitterTest {
 
 				@Override
 				public void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
+					partitionCreated.add(partitionSpec);
 				}
 
 				@Override

@@ -18,8 +18,11 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.parquet.row.ParquetRowBuilder;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -31,12 +34,18 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
+import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.filesystem.FileSystemOutputFormat;
-import org.apache.flink.table.sinks.OutputFormatTableSink;
+import org.apache.flink.table.filesystem.streaming.FileSystemStreamingSink;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -54,14 +63,17 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.connectors.hive.HiveTablePartition.isParquet;
+
 /**
  * Table sink to write to Hive tables.
  */
-public class HiveTableSink extends OutputFormatTableSink<Row> implements PartitionableTableSink, OverwritableTableSink {
+public class HiveTableSink implements AppendStreamTableSink, PartitionableTableSink, OverwritableTableSink {
 
 	private final JobConf jobConf;
 	private final CatalogTable catalogTable;
@@ -85,8 +97,20 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		tableSchema = TableSchemaUtils.getPhysicalSchema(table.getSchema());
 	}
 
+	private boolean isStreaming() {
+		return Boolean.parseBoolean(catalogTable.getProperties()
+				.get(FileSystemValidator.CONNECTOR_SINK_STREAMING_ENABLE));
+	}
+
 	@Override
-	public OutputFormat<Row> getOutputFormat() {
+	public final DataStreamSink consumeDataStream(DataStream dataStream) {
+		int parallelism = dataStream.getParallelism();
+		String sinkParallelism = catalogTable.getProperties()
+				.get(ConnectorDescriptorValidator.CONNECTOR_SINK_PARALLELISM);
+		if (sinkParallelism != null) {
+			parallelism = Integer.parseInt(sinkParallelism);
+		}
+
 		String[] partitionColumns = getPartitionFieldNames().toArray(new String[0]);
 		String dbName = tablePath.getDatabaseName();
 		String tableName = tablePath.getObjectName();
@@ -94,44 +118,90 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 				new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			Table table = client.getTable(dbName, tableName);
 			StorageDescriptor sd = table.getSd();
+			HiveTableMetaStoreFactory msFactory = new HiveTableMetaStoreFactory(
+					jobConf, hiveVersion, dbName, tableName);
 
-			FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
-			builder.setPartitionComputer(new HivePartitionComputer(
-					hiveShim,
-					jobConf.get(
-							HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-							HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal),
-					tableSchema.getFieldNames(),
-					tableSchema.getFieldDataTypes(),
-					partitionColumns));
-			builder.setDynamicGrouped(dynamicGrouping);
-			builder.setPartitionColumns(partitionColumns);
-			builder.setFileSystemFactory(new HadoopFileSystemFactory(jobConf));
+			String defaultPartName = jobConf.get(
+					HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+					HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 
 			boolean isCompressed = jobConf.getBoolean(HiveConf.ConfVars.COMPRESSRESULT.varname, false);
 			Class hiveOutputFormatClz = hiveShim.getHiveOutputFormatClass(Class.forName(sd.getOutputFormat()));
-			builder.setFormatFactory(new HiveOutputFormatFactory(
-					jobConf,
-					hiveOutputFormatClz,
-					sd.getSerdeInfo(),
-					tableSchema,
-					partitionColumns,
-					HiveReflectionUtils.getTableMetadata(hiveShim, table),
-					hiveShim,
-					isCompressed));
-			builder.setMetaStoreFactory(
-					new HiveTableMetaStoreFactory(jobConf, hiveVersion, dbName, tableName));
-			builder.setOverwrite(overwrite);
-			builder.setStaticPartitions(staticPartitionSpec);
-			builder.setTempPath(new org.apache.flink.core.fs.Path(
-					toStagingDir(sd.getLocation(), jobConf)));
 			String extension = Utilities.getFileExtension(jobConf, isCompressed,
 					(HiveOutputFormat<?, ?>) hiveOutputFormatClz.newInstance());
 			extension = extension == null ? "" : extension;
 			OutputFileConfig outputFileConfig = new OutputFileConfig("", extension);
-			builder.setOutputFileConfig(outputFileConfig);
 
-			return builder.build();
+			if (isStreaming()) {
+				if (overwrite) {
+					throw new IllegalStateException("Streaming mode not support overwrite.");
+				}
+
+				if (!isParquet(sd)) {
+					throw new UnsupportedOperationException("Only support parquet now.");
+				}
+
+				HiveBaseRowPartitionComputer partitionComputer = new HiveBaseRowPartitionComputer(
+						hiveShim,
+						defaultPartName,
+						tableSchema.getFieldNames(),
+						tableSchema.getFieldDataTypes(),
+						partitionColumns);
+
+				Configuration conf = new Configuration(jobConf);
+				sd.getSerdeInfo().getParameters().forEach(conf::set);
+				BulkWriter.Factory<BaseRow> bulkFormat = ParquetRowBuilder.createWriterFactory(
+						getTypeWithoutParts(),
+						conf,
+						partitionComputer,
+						hiveVersion.startsWith("3"));
+
+				FileSystemStreamingSink.Builder<BaseRow> builder = new FileSystemStreamingSink.Builder<>();
+				builder.setPartitionComputer(partitionComputer);
+				builder.setPartitionColumns(partitionColumns);
+				builder.enableBulkFormat(bulkFormat);
+				builder.setMetaStoreFactory(msFactory);
+				builder.setBasePath(new org.apache.flink.core.fs.Path(sd.getLocation()));
+				builder.setProperties(catalogTable.getProperties());
+
+				return dataStream.addSink(builder.build()).setParallelism(parallelism);
+			} else {
+				org.apache.flink.core.fs.Path tmpPath = new org.apache.flink.core.fs.Path(
+						toStagingDir(sd.getLocation(), jobConf));
+
+				HivePartitionComputer partitionComputer = new HivePartitionComputer(
+						hiveShim,
+						defaultPartName,
+						tableSchema.getFieldNames(),
+						tableSchema.getFieldDataTypes(),
+						partitionColumns);
+				HadoopFileSystemFactory fsFactory = new HadoopFileSystemFactory(jobConf);
+				HiveOutputFormatFactory outputFormatFactory = new HiveOutputFormatFactory(
+						jobConf,
+						hiveOutputFormatClz,
+						sd.getSerdeInfo(),
+						tableSchema,
+						partitionColumns,
+						HiveReflectionUtils.getTableMetadata(hiveShim, table),
+						hiveShim,
+						isCompressed);
+
+				FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
+				builder.setPartitionComputer(partitionComputer);
+				builder.setDynamicGrouped(dynamicGrouping);
+				builder.setPartitionColumns(partitionColumns);
+				builder.setFileSystemFactory(fsFactory);
+				builder.setFormatFactory(outputFormatFactory);
+				builder.setMetaStoreFactory(msFactory);
+				builder.setOverwrite(overwrite);
+				builder.setStaticPartitions(staticPartitionSpec);
+				builder.setTempPath(tmpPath);
+				builder.setOutputFileConfig(outputFileConfig);
+
+				return dataStream
+						.writeUsingOutputFormat(builder.build())
+						.setParallelism(parallelism);
+			}
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} catch (IOException e) {
@@ -143,14 +213,30 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		}
 	}
 
+	private RowType getTypeWithoutParts() {
+		RowType fullType = (RowType) getConsumedDataType().getLogicalType();
+		List<String> names = new ArrayList<>();
+		List<LogicalType> types = new ArrayList<>();
+		List<String> partKeys = catalogTable.getPartitionKeys();
+		for (int i = 0; i < fullType.getFieldCount(); i++) {
+			String name = fullType.getFieldNames().get(i);
+			if (!partKeys.contains(name)) {
+				names.add(name);
+				types.add(fullType.getTypeAt(i));
+			}
+		}
+		return RowType.of(types.toArray(new LogicalType[0]), names.toArray(new String[0]));
+	}
+
 	@Override
-	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public TableSink configure(String[] fieldNames, TypeInformation[] fieldTypes) {
 		return new HiveTableSink(jobConf, tablePath, catalogTable);
 	}
 
 	@Override
 	public DataType getConsumedDataType() {
-		return getTableSchema().toRowDataType();
+		DataType dataType = getTableSchema().toRowDataType();
+		return isStreaming() ? dataType.bridgedTo(BaseRow.class) : dataType;
 	}
 
 	@Override

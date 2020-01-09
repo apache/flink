@@ -18,14 +18,40 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import java.io.IOException;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TestGlobalAggregateManager implements GlobalAggregateManager {
 
+	private Map<String, Object> accumulators = new HashMap<>();
+
+	@SuppressWarnings("unchecked")
 	@Override
-	public <IN, ACC, OUT> OUT updateGlobalAggregate(String aggregateName, Object aggregand,
-		AggregateFunction<IN, ACC, OUT> aggregateFunction) throws IOException {
-		return aggregateFunction.getResult(aggregateFunction.createAccumulator());
+	public <IN, ACC, OUT> OUT updateGlobalAggregate(
+			String aggregateName,
+			Object aggregand,
+			AggregateFunction<IN, ACC, OUT> aggregateFunction) throws IOException {
+		try {
+			InstantiationUtil.clone((Serializable) aggregand);
+			InstantiationUtil.clone(aggregateFunction);
+
+			Object accumulator = accumulators.get(aggregateName);
+			if(null == accumulator) {
+				accumulator = aggregateFunction.createAccumulator();
+			}
+			accumulator = aggregateFunction.add((IN) aggregand, (ACC) accumulator);
+			accumulators.put(aggregateName, accumulator);
+			OUT result = aggregateFunction.getResult((ACC) accumulator);
+
+			InstantiationUtil.clone((Serializable) result);
+			return result;
+		} catch (ClassNotFoundException e) {
+			throw new IOException(e);
+		}
 	}
 }
