@@ -435,6 +435,17 @@ public final class ConfigConstants {
 	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
 
 	/**
+	 * The maximum number of failed YARN containers before entirely stopping
+	 * the YARN session / job on YARN.
+	 *
+	 * <p>By default, we take the number of initially requested containers.
+	 *
+	 * @deprecated in favor of {@code YarnConfigOptions#MAX_FAILED_CONTAINERS}.
+	 */
+	@Deprecated
+	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
+
+	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
 	 * availability mode. This value is usually limited by YARN.
 	 *
