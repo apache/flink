@@ -387,7 +387,7 @@ public class ConfigOptionsDocGenerator {
 			}
 			return "\"" + value + "\"";
 		} else if (value instanceof Duration) {
-			return TimeUtils.getStringInMillis((Duration) value);
+			return TimeUtils.formatWithHighestUnit((Duration) value);
 		} else if (value instanceof List) {
 			return ((List<Object>) value).stream()
 				.map(ConfigOptionsDocGenerator::stringifyObject)
