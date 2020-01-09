@@ -194,7 +194,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		shipPath = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
 		flinkJar = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
 		jmMemory = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container with optional unit (default: MB)");
-		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container with optional unit (default: MB)");
+		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true,
+			"Memory per TaskManager Container with optional unit (default: MB). This will be used to overwrite total process memory size configuration, and total flink memory size configuration will be overlooked.");
 		slots = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
 		dynamicproperties = Option.builder(shortPrefix + "D")
 			.argName("property=value")
@@ -364,6 +365,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 				tmMemoryVal += "m";
 			}
 			effectiveConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(tmMemoryVal));
+			if (effectiveConfiguration.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY)) {
+				LOG.warn("TaskExecutor total process memory is specified as {} via {}. "
+						+ "Ignoring configured TaskExecutor total flink memory ({}).",
+					tmMemoryVal,
+					tmMemory.getOpt(),
+					effectiveConfiguration.get(TaskManagerOptions.TOTAL_FLINK_MEMORY));
+				effectiveConfiguration.removeConfig(TaskManagerOptions.TOTAL_FLINK_MEMORY);
+			}
 		}
 
 		if (commandLine.hasOption(slots.getOpt())) {
