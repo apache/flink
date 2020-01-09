@@ -165,6 +165,16 @@ public class ExecutionEnvironment {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+
+		// the parallelism of a job or an operator can only be specified at the following places:
+		//     i) at the operator level using the SingleOutputStreamOperator.setParallelism().
+		//     ii) programmatically by using the env.setParallelism() method
+		//
+		// if specified in multiple places, the priority order is the above.
+		//
+		// Given this, it is safe to overwrite the execution config default value here because all other ways assume
+		// that the env is already instantiated so they will overwrite the value passed here.
+		this.config.setParallelism(configuration.get(CoreOptions.DEFAULT_PARALLELISM));
 	}
 
 	/**
@@ -895,8 +905,6 @@ public class ExecutionEnvironment {
 	public JobClient executeAsync(String jobName) throws Exception {
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
-		consolidateParallelismDefinitionsInConfiguration();
-
 		final Plan plan = createProgramPlan(jobName);
 		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
@@ -920,12 +928,6 @@ public class ExecutionEnvironment {
 
 			// make javac happy, this code path will not be reached
 			return null;
-		}
-	}
-
-	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
 		}
 	}
 
