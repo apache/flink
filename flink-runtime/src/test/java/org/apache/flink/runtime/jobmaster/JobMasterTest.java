@@ -960,7 +960,8 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			jobGraph,
 			haServices,
-			new TestingJobManagerSharedServicesBuilder().build());
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
 
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
@@ -1002,7 +1003,8 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			jobGraph,
 			haServices,
-			new TestingJobManagerSharedServicesBuilder().build());
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
