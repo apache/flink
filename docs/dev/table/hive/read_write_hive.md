@@ -24,6 +24,7 @@ under the License.
 
 Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine.
 Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.
+And please also note that Hive connector only works with blink planner.
 
 * This will be replaced by the TOC
 {:toc}
