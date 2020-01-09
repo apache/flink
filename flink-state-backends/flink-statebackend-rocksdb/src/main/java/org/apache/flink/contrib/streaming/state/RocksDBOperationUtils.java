@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -190,11 +191,8 @@ public class RocksDBOperationUtils {
 		final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
 		final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
 
-		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) -> {
-			final Cache cache = new LRUCache(size, -1, false, highPriorityPoolRatio);
-			final WriteBufferManager wbm = new WriteBufferManager((long) (writeBufferRatio * size), cache);
-			return new RocksDBSharedResources(cache, wbm);
-		};
+		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) ->
+			allocateRocksDBSharedResources(size, writeBufferRatio, highPriorityPoolRatio);
 
 		try {
 			if (memoryConfig.isUsingFixedMemoryPerSlot()) {
@@ -212,5 +210,41 @@ public class RocksDBOperationUtils {
 		catch (Exception e) {
 			throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
 		}
+	}
+
+	@VisibleForTesting
+	static RocksDBSharedResources allocateRocksDBSharedResources(long size, double writeBufferRatio, double highPriorityPoolRatio) {
+		long calculatedCacheSize = calculateActualCacheSize(size, writeBufferRatio);
+		final Cache cache = createCache(calculatedCacheSize, highPriorityPoolRatio);
+		final WriteBufferManager wbm = new WriteBufferManager((long) (writeBufferRatio * size), cache);
+		return new RocksDBSharedResources(cache, wbm);
+	}
+
+	/**
+	 * Calculate the actual calculated memory size of cache, which would be shared among rocksDB instance(s).
+	 * We introduce this method because:
+	 * a) We cannot create a strict capacity limit cache util FLINK-15532 resolved.
+	 * b) Regardless of the memory usage of blocks pinned by RocksDB iterators,
+	 * which is difficult to calculate and only happened when we iterator entries in RocksDBMapState, the overuse of memory is mainly occupied by at most half of the write buffer usage.
+	 * (see <a href="https://github.com/dataArtisans/frocksdb/blob/958f191d3f7276ae59b270f9db8390034d549ee0/include/rocksdb/write_buffer_manager.h#L51">the flush implementation of write buffer manager</a>).
+	 * Thus, we have four equations below:
+	 *   write_buffer_manager_memory = 1.5 * write_buffer_manager_capacity
+	 *   write_buffer_manager_memory = total_memory_size * write_buffer_ratio
+	 *   write_buffer_manager_memory + other_part = total_memory_size
+	 *   write_buffer_manager_capacity + other_part = cache_size
+	 * And we would deduce the formula: cache_size = 3 * total_memory_size / (3 + write_buffer_ratio)
+	 *
+	 * @param totalMemorySize  Total off-heap memory size reserved for RocksDB instance(s).
+	 * @param writeBufferRatio The ratio of memory size which could be reserved for write buffer manager to control the memory usage.
+	 * @return The actual calculated memory size.
+	 */
+	@VisibleForTesting
+	static long calculateActualCacheSize(long totalMemorySize, double writeBufferRatio) {
+		return (long) (3 * totalMemorySize / (3 + writeBufferRatio));
+	}
+
+	@VisibleForTesting
+	static Cache createCache(long cacheSize, double highPriorityPoolRatio) {
+		return new LRUCache(cacheSize, -1, false, highPriorityPoolRatio);
 	}
 }

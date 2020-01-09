@@ -111,7 +111,7 @@ public class RocksDBOptions {
 		.doubleType()
 		.defaultValue(0.5)
 		.withDescription(String.format(
-			"The maximum amount of memory that write buffers may take, as a fraction of the total cache memory. " +
+			"The maximum amount of memory that write buffers may take, as a fraction of the total shared memory. " +
 			"This option only has an effect when '%s' or '%s' are configured.",
 			USE_MANAGED_MEMORY.key(),
 			FIX_PER_SLOT_MEMORY_SIZE.key()));
@@ -121,7 +121,7 @@ public class RocksDBOptions {
 		.doubleType()
 		.defaultValue(0.1)
 		.withDescription(String.format(
-				"The fraction of cache memory that is reserved for high-priority data like index, filter, and " +
+				"The fraction of total shared memory that is reserved for high-priority data like index, filter, and " +
 				"compression dictionary blocks. This option only has an effect when '%s' or '%s' are configured.",
 				USE_MANAGED_MEMORY.key(),
 				FIX_PER_SLOT_MEMORY_SIZE.key()));
