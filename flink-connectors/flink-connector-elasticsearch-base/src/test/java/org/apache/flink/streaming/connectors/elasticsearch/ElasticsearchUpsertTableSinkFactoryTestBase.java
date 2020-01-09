@@ -143,7 +143,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 		sinkOptions.put(SinkOption.BULK_FLUSH_BACKOFF_RETRIES, "3");
 		sinkOptions.put(SinkOption.BULK_FLUSH_INTERVAL, "100");
 		sinkOptions.put(SinkOption.BULK_FLUSH_MAX_ACTIONS, "1000");
-		sinkOptions.put(SinkOption.BULK_FLUSH_MAX_SIZE, "1048576 bytes");
+		sinkOptions.put(SinkOption.BULK_FLUSH_MAX_SIZE, "1 mb");
 		sinkOptions.put(SinkOption.REST_MAX_RETRY_TIMEOUT, "100");
 		sinkOptions.put(SinkOption.REST_PATH_PREFIX, "/myapp");
 		return sinkOptions;
