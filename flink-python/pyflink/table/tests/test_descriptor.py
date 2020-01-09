@@ -277,7 +277,7 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
         elasticsearch = Elasticsearch().bulk_flush_max_size("42 mb")
 
         properties = elasticsearch.to_properties()
-        expected = {'connector.bulk-flush.max-size': '44040192 bytes',
+        expected = {'connector.bulk-flush.max-size': '42 mb',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)

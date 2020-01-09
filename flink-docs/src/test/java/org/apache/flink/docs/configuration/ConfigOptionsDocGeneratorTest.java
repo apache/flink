@@ -159,7 +159,7 @@ public class ConfigOptionsDocGeneratorTest {
 				"        </tr>\n" +
 				"        <tr>\n" +
 				"            <td><h5>option.memory</h5></td>\n" +
-				"            <td style=\"word-wrap: break-word;\">1024 bytes</td>\n" +
+				"            <td style=\"word-wrap: break-word;\">1 kb</td>\n" +
 				"            <td>MemorySize</td>\n" +
 				"            <td>Description</td>\n" +
 				"        </tr>\n" +
