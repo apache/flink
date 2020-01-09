@@ -50,10 +50,18 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     # Startup parameters
 
     jvm_params=$(getTmResourceJvmParams)
+    if [[ $? -ne 0 ]]; then
+        echo "[ERROR] Could not get JVM parameters properly."
+        exit 1
+    fi
     export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
 
     IFS=$" "
     dynamic_configs=($(getTmResourceDynamicConfigs))
+    if [[ $? -ne 0 ]]; then
+        echo "[ERROR] Could not get dynamic configurations properly."
+        exit 1
+    fi
     ARGS+=("--configDir" "${FLINK_CONF_DIR}" ${dynamic_configs[@]})
 fi
 
