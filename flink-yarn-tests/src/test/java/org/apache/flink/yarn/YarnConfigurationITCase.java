@@ -105,7 +105,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
 
 			final PackagedProgram packagedProgram = PackagedProgram.newBuilder().setJarFile(streamingWordCountFile).build();
-			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, 1);
+			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, 1, false);
 
 			try {
 				final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()

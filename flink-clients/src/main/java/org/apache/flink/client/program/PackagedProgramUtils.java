@@ -35,6 +35,7 @@ public class PackagedProgramUtils {
 	private static final String PYTHON_DRIVER_CLASS_NAME = "org.apache.flink.client.python.PythonDriver";
 
 	private static final String PYTHON_GATEWAY_CLASS_NAME = "org.apache.flink.client.python.PythonGatewayServer";
+
 	/**
 	 * Creates a {@link JobGraph} with a specified {@link JobID}
 	 * from the given {@link PackagedProgram}.
@@ -50,8 +51,9 @@ public class PackagedProgramUtils {
 			PackagedProgram packagedProgram,
 			Configuration configuration,
 			int defaultParallelism,
-			@Nullable JobID jobID) throws ProgramInvocationException {
-		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism);
+			@Nullable JobID jobID,
+			boolean suppressOutput) throws ProgramInvocationException {
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism, suppressOutput);
 		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
 
 		if (jobID != null) {
@@ -71,19 +73,22 @@ public class PackagedProgramUtils {
 	 * @param packagedProgram to extract the JobGraph from
 	 * @param configuration to use for the optimizer and job graph generator
 	 * @param defaultParallelism for the JobGraph
+	 * @param suppressOutput Whether to suppress stdout/stderr during interactive JobGraph creation.
 	 * @return JobGraph extracted from the PackagedProgram
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
 	public static JobGraph createJobGraph(
 			PackagedProgram packagedProgram,
 			Configuration configuration,
-			int defaultParallelism) throws ProgramInvocationException {
-		return createJobGraph(packagedProgram, configuration, defaultParallelism, null);
+			int defaultParallelism,
+			boolean suppressOutput) throws ProgramInvocationException {
+		return createJobGraph(packagedProgram, configuration, defaultParallelism, null, suppressOutput);
 	}
 
 	public static Pipeline getPipelineFromProgram(
 			PackagedProgram prog,
-			int parallelism) throws CompilerException, ProgramInvocationException {
+			int parallelism,
+			boolean suppressOutput) throws CompilerException, ProgramInvocationException {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
@@ -93,7 +98,7 @@ public class PackagedProgramUtils {
 			if (parallelism > 0) {
 				env.setParallelism(parallelism);
 			}
-			return env.getPipeline(prog);
+			return env.getPipeline(prog, suppressOutput);
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
