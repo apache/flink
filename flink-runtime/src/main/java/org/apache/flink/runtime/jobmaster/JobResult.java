@@ -232,7 +232,7 @@ public class JobResult implements Serializable {
 		builder.netRuntime(guardedNetRuntime);
 		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
 
-		if (jobStatus != JobStatus.FINISHED) {
+		if (jobStatus == JobStatus.FAILED) {
 			final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();
 
 			if (errorInfo != null) {
