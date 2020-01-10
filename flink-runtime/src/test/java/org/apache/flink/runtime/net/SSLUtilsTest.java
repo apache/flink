@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Locale;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -453,6 +454,22 @@ public class SSLUtilsTest extends TestLogger {
 		assertThat(
 			sslHandler.engine().getEnabledCipherSuites(),
 			arrayContainingInAnyOrder(sslAlgorithms));
+	}
+
+	@Test
+	public void testInvalidFingerprintParsing() throws Exception {
+		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
+		final String fingerprint = getCertificateFingerprint(config, "flink.test");
+
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, fingerprint.substring(0, fingerprint.length() - 3));
+
+		try {
+			SSLUtils.createInternalServerSSLEngineFactory(config);
+			fail("expected exception");
+		}
+		catch (IllegalArgumentException e) {
+			assertThat(e.getMessage(), containsString("malformed fingerprint"));
+		}
 	}
 
 	// ------------------------------- utils ----------------------------------
