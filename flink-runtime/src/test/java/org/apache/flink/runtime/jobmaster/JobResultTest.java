@@ -133,4 +133,13 @@ public class JobResultTest extends TestLogger {
 			assertThat(expected.getCause(), is(equalTo(cause)));
 		}
 	}
+
+	@Test(expected = NullPointerException.class)
+	public void testFailureResultRequiresFailureCause() {
+		JobResult.createFrom(
+			new ArchivedExecutionGraphBuilder()
+				.setJobID(new JobID())
+				.setState(JobStatus.FAILED)
+				.build());
+	}
 }
