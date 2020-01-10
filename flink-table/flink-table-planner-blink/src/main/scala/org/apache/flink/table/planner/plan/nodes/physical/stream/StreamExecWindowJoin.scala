@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, MapFunction}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap, TwoInputStreamOperator}
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation, UnionTransformation}
 import org.apache.flink.table.api.TableException
@@ -303,7 +303,7 @@ class StreamExecWindowJoin(
       leftPlan,
       rightPlan,
       getRelDetailedDescription,
-      new LegacyKeyedCoProcessOperator(procJoinFunc).
+      new KeyedCoProcessOperator(procJoinFunc).
         asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
       leftPlan.getParallelism
