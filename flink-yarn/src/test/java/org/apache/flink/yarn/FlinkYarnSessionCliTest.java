@@ -114,7 +114,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
 		assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
-		assertEquals(1, clusterSpecification.getNumberTaskManagers());
 	}
 
 	@Test
