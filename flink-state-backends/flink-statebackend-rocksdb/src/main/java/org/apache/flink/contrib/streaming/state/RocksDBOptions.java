@@ -121,7 +121,7 @@ public class RocksDBOptions {
 		.doubleType()
 		.defaultValue(0.1)
 		.withDescription(String.format(
-				"The fraction of total shared memory that is reserved for high-priority data like index, filter, and " +
+				"The fraction of cache memory that is reserved for high-priority data like index, filter, and " +
 				"compression dictionary blocks. This option only has an effect when '%s' or '%s' are configured.",
 				USE_MANAGED_MEMORY.key(),
 				FIX_PER_SLOT_MEMORY_SIZE.key()));

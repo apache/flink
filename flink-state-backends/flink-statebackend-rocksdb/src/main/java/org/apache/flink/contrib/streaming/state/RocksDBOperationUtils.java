@@ -213,10 +213,11 @@ public class RocksDBOperationUtils {
 	}
 
 	@VisibleForTesting
-	static RocksDBSharedResources allocateRocksDBSharedResources(long size, double writeBufferRatio, double highPriorityPoolRatio) {
-		long calculatedCacheSize = calculateActualCacheSize(size, writeBufferRatio);
-		final Cache cache = createCache(calculatedCacheSize, highPriorityPoolRatio);
-		final WriteBufferManager wbm = new WriteBufferManager((long) (writeBufferRatio * size), cache);
+	static RocksDBSharedResources allocateRocksDBSharedResources(long memorySize, double writeBufferRatio, double highPriorityPoolRatio) {
+		long calculatedCacheCapacity = calculateActualCacheCapacity(memorySize, writeBufferRatio);
+		final Cache cache = createCache(calculatedCacheCapacity, highPriorityPoolRatio);
+		long writeBufferManagerCapacity = calculateWriteBufferManagerCapacity(memorySize, writeBufferRatio);
+		final WriteBufferManager wbm = new WriteBufferManager(writeBufferManagerCapacity, cache);
 		return new RocksDBSharedResources(cache, wbm);
 	}
 
@@ -231,20 +232,28 @@ public class RocksDBOperationUtils {
 	 *   write_buffer_manager_memory = 1.5 * write_buffer_manager_capacity
 	 *   write_buffer_manager_memory = total_memory_size * write_buffer_ratio
 	 *   write_buffer_manager_memory + other_part = total_memory_size
-	 *   write_buffer_manager_capacity + other_part = cache_size
-	 * And we would deduce the formula: cache_size = 3 * total_memory_size / (3 + write_buffer_ratio)
+	 *   write_buffer_manager_capacity + other_part = cache_capacity
+	 * And we would deduce the formula:
+	 *   cache_capacity =  (3 - write_buffer_ratio) * total_memory_size / 3
+	 *   write_buffer_manager_capacity = 2 * total_memory_size * write_buffer_ratio / 3
 	 *
 	 * @param totalMemorySize  Total off-heap memory size reserved for RocksDB instance(s).
 	 * @param writeBufferRatio The ratio of memory size which could be reserved for write buffer manager to control the memory usage.
 	 * @return The actual calculated memory size.
 	 */
 	@VisibleForTesting
-	static long calculateActualCacheSize(long totalMemorySize, double writeBufferRatio) {
-		return (long) (3 * totalMemorySize / (3 + writeBufferRatio));
+	static long calculateActualCacheCapacity(long totalMemorySize, double writeBufferRatio) {
+		return (long) ((3 - writeBufferRatio) * totalMemorySize / 3);
 	}
 
 	@VisibleForTesting
-	static Cache createCache(long cacheSize, double highPriorityPoolRatio) {
-		return new LRUCache(cacheSize, -1, false, highPriorityPoolRatio);
+	static long calculateWriteBufferManagerCapacity(long totalMemorySize, double writeBufferRatio) {
+		return (long) (2 * totalMemorySize * writeBufferRatio / 3);
+	}
+
+	@VisibleForTesting
+	static Cache createCache(long cacheCapacity, double highPriorityPoolRatio) {
+		// TODO use strict capacity limit until FLINK-15532 resolved
+		return new LRUCache(cacheCapacity, -1, false, highPriorityPoolRatio);
 	}
 }

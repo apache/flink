@@ -163,12 +163,12 @@ public class RocksDBResourceContainerTest {
 	@Test
 	public void testCreateSharedResourcesWithExpectedCapacity() throws Exception {
 		PowerMockito.spy(RocksDBOperationUtils.class);
-		final AtomicLong actualCacheSize = new AtomicLong(0L);
+		final AtomicLong actualCacheCapacity = new AtomicLong(0L);
 		// the `createCache` wrapper is introduced due to PowerMockito cannot mock on native static method easily.
 		PowerMockito.when(RocksDBOperationUtils.createCache(anyLong(), anyDouble()))
 			.thenAnswer((Answer<LRUCache>) invocation -> {
 				Object[] arguments = invocation.getArguments();
-				actualCacheSize.set((long) arguments[0]);
+				actualCacheCapacity.set((long) arguments[0]);
 				return (LRUCache) invocation.callRealMethod();
 			});
 
@@ -176,8 +176,8 @@ public class RocksDBResourceContainerTest {
 		double writeBufferRatio = 0.5;
 		double highPriPoolRatio = 0.1;
 		createSharedResources(totalMemorySize, writeBufferRatio, highPriPoolRatio);
-		long expectedCacheSize = RocksDBOperationUtils.calculateActualCacheSize(totalMemorySize, writeBufferRatio);
-		assertThat(actualCacheSize.get(), is(expectedCacheSize));
+		long expectedCacheCapacity = RocksDBOperationUtils.calculateActualCacheCapacity(totalMemorySize, writeBufferRatio);
+		assertThat(actualCacheCapacity.get(), is(expectedCacheCapacity));
 	}
 
 	private OpaqueMemoryResource<RocksDBSharedResources> getSharedResources() {
