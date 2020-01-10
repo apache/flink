@@ -1311,4 +1311,49 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
   }
 
+  @Test
+  def testRetractRank(): Unit = {
+    val data = List(
+      ("aaa", 97.0, 200.0),
+      ("bbb", 67.0, 200.0),
+      ("bbb", 162.0, 200.0)
+    )
+
+    val ds = failingDataSource(data).toTable(tEnv, 'guid, 'a, 'b)
+    tEnv.registerTable("T", ds)
+
+    val aggreagtedTable = tEnv.sqlQuery(
+      """
+        |select guid,
+        |    sum(a) as reached_score,
+        |    sum(b) as max_score,
+        |    sum(a) / sum(b) as score
+        |from T group by guid
+        |""".stripMargin
+    )
+
+    tEnv.registerTable("T2", aggreagtedTable)
+
+    val sql =
+      """
+        |SELECT guid, reached_score, max_score, score
+        |FROM (
+        |  SELECT *,
+        |      ROW_NUMBER() OVER (ORDER BY score DESC) as rank_num
+        |  FROM T2)
+        |WHERE rank_num <= 5
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "(true,aaa,97.0,200.0,0.485)",
+       "(true,bbb,67.0,200.0,0.335)",
+      "(false,bbb,67.0,200.0,0.335)",
+      "(true,bbb,229.0,400.0,0.5725)")
+    assertEquals(expected, sink.getRawResults)
+  }
+
 }
