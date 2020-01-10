@@ -97,7 +97,13 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		@Override
 		public List<ResolvedExpression> visit(UnresolvedCallExpression unresolvedCall) {
-			final FunctionDefinition definition = prepareUserDefinedFunction(unresolvedCall.getFunctionDefinition());
+			final FunctionDefinition definition;
+			// clean functions that were not registered in a catalog
+			if (!unresolvedCall.getFunctionIdentifier().isPresent()) {
+				definition = prepareInlineUserDefinedFunction(unresolvedCall.getFunctionDefinition());
+			} else {
+				definition = unresolvedCall.getFunctionDefinition();
+			}
 
 			final String name = unresolvedCall.getFunctionIdentifier()
 				.map(FunctionIdentifier::toString)
@@ -238,23 +244,23 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		/**
 		 * Validates and cleans an inline, unregistered {@link UserDefinedFunction}.
 		 */
-		private FunctionDefinition prepareUserDefinedFunction(FunctionDefinition definition) {
+		private FunctionDefinition prepareInlineUserDefinedFunction(FunctionDefinition definition) {
 			if (definition instanceof ScalarFunctionDefinition) {
 				final ScalarFunctionDefinition sf = (ScalarFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), sf.getScalarFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), sf.getScalarFunction());
 				return new ScalarFunctionDefinition(
 					sf.getName(),
 					sf.getScalarFunction());
 			} else if (definition instanceof TableFunctionDefinition) {
 				final TableFunctionDefinition tf = (TableFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), tf.getTableFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), tf.getTableFunction());
 				return new TableFunctionDefinition(
 					tf.getName(),
 					tf.getTableFunction(),
 					tf.getResultType());
 			} else if (definition instanceof AggregateFunctionDefinition) {
 				final AggregateFunctionDefinition af = (AggregateFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), af.getAggregateFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), af.getAggregateFunction());
 				return new AggregateFunctionDefinition(
 					af.getName(),
 					af.getAggregateFunction(),
@@ -262,12 +268,16 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					af.getAccumulatorTypeInfo());
 			} else if (definition instanceof TableAggregateFunctionDefinition) {
 				final TableAggregateFunctionDefinition taf = (TableAggregateFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), taf.getTableAggregateFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), taf.getTableAggregateFunction());
 				return new TableAggregateFunctionDefinition(
 					taf.getName(),
 					taf.getTableAggregateFunction(),
 					taf.getResultTypeInfo(),
 					taf.getAccumulatorTypeInfo());
+			} else if (definition instanceof UserDefinedFunction) {
+				UserDefinedFunctionHelper.prepareInstance(
+					resolutionContext.configuration(),
+					(UserDefinedFunction) definition);
 			}
 			return definition;
 		}

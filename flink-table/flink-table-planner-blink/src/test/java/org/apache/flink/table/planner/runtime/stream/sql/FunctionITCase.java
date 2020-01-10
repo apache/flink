@@ -344,7 +344,9 @@ public class FunctionITCase extends StreamingTestBase {
 		try {
 			tEnv().sqlUpdate(ddl2);
 		} catch (Exception e) {
-			assertEquals(e.getMessage(), "Temporary system function f5 doesn't exist");
+			assertEquals(
+				e.getMessage(),
+				"Could not drop temporary system function. A function named 'f5' doesn't exist.");
 		}
 	}
 

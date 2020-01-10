@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions.resolver;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.TableConfig;
@@ -97,7 +98,7 @@ public class ExpressionResolver {
 
 	private static final VerifyResolutionVisitor VERIFY_RESOLUTION_VISITOR = new VerifyResolutionVisitor();
 
-	private final TableConfig config;
+	private final ReadableConfig config;
 
 	private final FieldReferenceLookup fieldLookup;
 
@@ -121,7 +122,7 @@ public class ExpressionResolver {
 			FieldReferenceLookup fieldLookup,
 			List<OverWindow> localOverWindows,
 			List<LocalReferenceExpression> localReferences) {
-		this.config = Preconditions.checkNotNull(config);
+		this.config = Preconditions.checkNotNull(config).getConfiguration();
 		this.tableLookup = Preconditions.checkNotNull(tableLookup);
 		this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
 		this.functionLookup = Preconditions.checkNotNull(functionLookup);
@@ -261,7 +262,7 @@ public class ExpressionResolver {
 	private class ExpressionResolverContext implements ResolverRule.ResolutionContext {
 
 		@Override
-		public TableConfig configuration() {
+		public ReadableConfig configuration() {
 			return config;
 		}
 
