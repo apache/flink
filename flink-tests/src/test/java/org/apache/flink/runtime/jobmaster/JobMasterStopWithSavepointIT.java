@@ -26,6 +26,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -40,12 +41,14 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -192,6 +195,30 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 		clusterClient.cancel(jobGraph.getJobID()).get();
 		assertThat(getJobStatus(), either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
+	}
+
+	@Test
+	public void testRestartCheckpointCoordinatorIfStopWithSavepointFails() throws Exception {
+		setUpJobGraph(ExceptionOnCallbackStreamTask.class, RestartStrategies.noRestart());
+
+		try {
+			Files.setPosixFilePermissions(savepointDirectory, Collections.emptySet());
+		} catch (IOException e) {
+			Assume.assumeNoException(e);
+		}
+
+		try {
+			stopWithSavepoint(true).get();
+			fail();
+		} catch (Exception e) {
+			assertThat(ExceptionUtils.findThrowable(e, CheckpointException.class).isPresent(), equalTo(true));
+		}
+
+		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
+		assertThat(jobStatus, equalTo(JobStatus.RUNNING));
+		// assert that checkpoints are continued to be triggered
+		checkpointsToWaitFor = new CountDownLatch(1);
+		assertThat(checkpointsToWaitFor.await(60L, TimeUnit.SECONDS), equalTo(true));
 	}
 
 	private CompletableFuture<String> stopWithSavepoint(boolean terminate) {
