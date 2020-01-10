@@ -74,6 +74,8 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Builder class for {@link RocksDBKeyedStateBackend} which handles all necessary initializations and clean ups.
  *
@@ -110,6 +112,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 	private boolean enableTtlCompactionFilter;
 	private RocksDBNativeMetricOptions nativeMetricOptions;
 	private int numberOfTransferingThreads;
+	private long writeBatchSize = RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
 	private RocksDB injectedTestDB; // for testing
 	private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
@@ -223,6 +226,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		return this;
 	}
 
+	RocksDBKeyedStateBackendBuilder<K> setWriteBatchSize(long writeBatchSize) {
+		checkArgument(writeBatchSize >= 0, "Write batch size should be non negative.");
+		this.writeBatchSize = writeBatchSize;
+		return this;
+	}
+
 	private static void checkAndCreateDirectory(File directory) throws IOException {
 		if (directory.exists()) {
 			if (!directory.isDirectory()) {
@@ -278,9 +287,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				}
 			}
 
-			// Init after db instantiated thus native library loaded. We disable write ahead logging.
 			writeOptions = new WriteOptions().setDisableWAL(true);
-			writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeOptions);
+			writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeOptions, writeBatchSize);
 			// it is important that we only create the key builder after the restore, and not before;
 			// restore operations may reconfigure the key serializer, so accessing the key serializer
 			// only now we can be certain that the key serializer used in the builder is final.
@@ -355,7 +363,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			sharedRocksKeyBuilder,
 			priorityQueueFactory,
 			ttlCompactFiltersManager,
-			keyContext);
+			keyContext,
+			writeBatchSize);
 	}
 
 	private AbstractRocksDBRestoreOperation<K> getRocksDBRestoreOperation(
@@ -400,7 +409,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager);
+				ttlCompactFiltersManager,
+				writeBatchSize);
 		} else {
 			return new RocksDBFullRestoreOperation<>(
 				keyGroupRange,
@@ -417,7 +427,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager);
+				ttlCompactFiltersManager,
+				writeBatchSize);
 		}
 	}
 
