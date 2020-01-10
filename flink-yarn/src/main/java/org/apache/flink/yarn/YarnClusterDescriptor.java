@@ -100,7 +100,6 @@ import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -266,9 +265,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 	private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws YarnDeploymentException {
 
-		if (clusterSpecification.getNumberTaskManagers() <= 0) {
-			throw new YarnDeploymentException("Taskmanager count must be positive");
-		}
 		if (this.flinkJarPath == null) {
 			throw new YarnDeploymentException("The Flink jar path is null");
 		}
@@ -319,16 +315,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		} catch (Exception e) {
 			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
 		}
-	}
-
-	private static boolean allocateResource(int[] nodeManagers, int toAllocate) {
-		for (int i = 0; i < nodeManagers.length; i++) {
-			if (nodeManagers[i] >= toAllocate) {
-				nodeManagers[i] -= toAllocate;
-				return true;
-			}
-		}
-		return false;
 	}
 
 	public String getZookeeperNamespace() {
@@ -545,7 +531,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		Resource maximumResourceCapability,
 		ClusterResourceDescription freeClusterResources) throws YarnDeploymentException {
 
-		int taskManagerCount = clusterSpecification.getNumberTaskManagers();
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
 		int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
 
@@ -579,13 +564,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				"connecting from the beginning because the resources are currently not available in the cluster. " +
 				"The allocation might take more time than usual because the Flink YARN client needs to wait until " +
 				"the resources become available.";
-		int totalMemoryRequired = jobManagerMemoryMb + taskManagerMemoryMb * taskManagerCount;
 
-		if (freeClusterResources.totalFreeMemory < totalMemoryRequired) {
-			LOG.warn("This YARN session requires " + totalMemoryRequired + "MB of memory in the cluster. "
-					+ "There are currently only " + freeClusterResources.totalFreeMemory + "MB available." + noteRsc);
-
-		}
 		if (taskManagerMemoryMb > freeClusterResources.containerLimit) {
 			LOG.warn("The requested amount of memory for the TaskManagers (" + taskManagerMemoryMb + "MB) is more than "
 					+ "the largest possible YARN container: " + freeClusterResources.containerLimit + noteRsc);
@@ -595,30 +574,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					+ "the largest possible YARN container: " + freeClusterResources.containerLimit + noteRsc);
 		}
 
-		// ----------------- check if the requested containers fit into the cluster.
-
-		int[] nmFree = Arrays.copyOf(freeClusterResources.nodeManagersFree, freeClusterResources.nodeManagersFree.length);
-		// first, allocate the jobManager somewhere.
-		if (!allocateResource(nmFree, jobManagerMemoryMb)) {
-			LOG.warn("Unable to find a NodeManager that can fit the JobManager/Application master. " +
-					"The JobManager requires " + jobManagerMemoryMb + "MB. NodeManagers available: " +
-					Arrays.toString(freeClusterResources.nodeManagersFree) + noteRsc);
-		}
-		// allocate TaskManagers
-		for (int i = 0; i < taskManagerCount; i++) {
-			if (!allocateResource(nmFree, taskManagerMemoryMb)) {
-				LOG.warn("There is not enough memory available in the YARN cluster. " +
-						"The TaskManager(s) require " + taskManagerMemoryMb + "MB each. " +
-						"NodeManagers available: " + Arrays.toString(freeClusterResources.nodeManagersFree) + "\n" +
-						"After allocating the JobManager (" + jobManagerMemoryMb + "MB) and (" + i + "/" + taskManagerCount + ") TaskManagers, " +
-						"the following NodeManagers are available: " + Arrays.toString(nmFree)  + noteRsc);
-			}
-		}
-
 		return new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(jobManagerMemoryMb)
 				.setTaskManagerMemoryMB(taskManagerMemoryMb)
-				.setNumberTaskManagers(clusterSpecification.getNumberTaskManagers())
 				.setSlotsPerTaskManager(clusterSpecification.getSlotsPerTaskManager())
 				.createClusterSpecification();
 

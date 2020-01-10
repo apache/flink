@@ -51,7 +51,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(1234)
 			.setTaskManagerMemoryMB(1222)
-			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
 
