@@ -42,7 +42,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -438,26 +437,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	}
 
 	/**
-	 * Method to validate cluster specification before deploy it, it will throw
-	 * an {@link FlinkException} if the {@link ClusterSpecification} is invalid.
-	 *
-	 * @param clusterSpecification cluster specification to check against the configuration of the
-	 *                             YarnClusterDescriptor
-	 * @throws FlinkException if the cluster cannot be started with the provided {@link ClusterSpecification}
-	 */
-	private void validateClusterSpecification(ClusterSpecification clusterSpecification) throws FlinkException {
-		MemorySize totalProcessMemory = MemorySize.parse(clusterSpecification.getTaskManagerMemoryMB() + "m");
-		try {
-			TaskExecutorResourceUtils
-				.newResourceSpecBuilder(flinkConfiguration)
-				.withTotalProcessMemory(totalProcessMemory)
-				.build();
-		} catch (IllegalArgumentException iae) {
-			throw new FlinkException("Inconsistent cluster specification.", iae);
-		}
-	}
-
-	/**
 	 * This method will block until the ApplicationMaster/JobManager have been deployed on YARN.
 	 *
 	 * @param clusterSpecification Initial cluster specification for the Flink cluster to be deployed
@@ -472,9 +451,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			String yarnClusterEntrypoint,
 			@Nullable JobGraph jobGraph,
 			boolean detached) throws Exception {
-
-		// ------------------ Check if configuration is valid --------------------
-		validateClusterSpecification(clusterSpecification);
 
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// note: UGI::hasKerberosCredentials inaccurately reports false
