@@ -23,6 +23,7 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -104,6 +105,8 @@ public class ExpressionResolver {
 
 	private final FunctionLookup functionLookup;
 
+	private final DataTypeFactory typeFactory;
+
 	private final PostResolverFactory postResolverFactory = new PostResolverFactory();
 
 	private final Map<String, LocalReferenceExpression> localReferences;
@@ -114,6 +117,7 @@ public class ExpressionResolver {
 			TableConfig config,
 			TableReferenceLookup tableLookup,
 			FunctionLookup functionLookup,
+			DataTypeFactory typeFactory,
 			FieldReferenceLookup fieldLookup,
 			List<OverWindow> localOverWindows,
 			List<LocalReferenceExpression> localReferences) {
@@ -121,6 +125,7 @@ public class ExpressionResolver {
 		this.tableLookup = Preconditions.checkNotNull(tableLookup);
 		this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
 		this.functionLookup = Preconditions.checkNotNull(functionLookup);
+		this.typeFactory = Preconditions.checkNotNull(typeFactory);
 
 		this.localReferences = localReferences.stream().collect(Collectors.toMap(
 			LocalReferenceExpression::getName,
@@ -136,6 +141,7 @@ public class ExpressionResolver {
 	 * @param config general configuration
 	 * @param tableCatalog a way to lookup a table reference by name
 	 * @param functionLookup a way to lookup call by name
+	 * @param typeFactory a way to lookup and create data types
 	 * @param inputs inputs to use for field resolution
 	 * @return builder for resolver
 	 */
@@ -143,8 +149,14 @@ public class ExpressionResolver {
 			TableConfig config,
 			TableReferenceLookup tableCatalog,
 			FunctionLookup functionLookup,
+			DataTypeFactory typeFactory,
 			QueryOperation... inputs) {
-		return new ExpressionResolverBuilder(inputs, config, tableCatalog, functionLookup);
+		return new ExpressionResolverBuilder(
+			inputs,
+			config,
+			tableCatalog,
+			functionLookup,
+			typeFactory);
 	}
 
 	/**
@@ -269,6 +281,11 @@ public class ExpressionResolver {
 		}
 
 		@Override
+		public DataTypeFactory typeFactory() {
+			return typeFactory;
+		}
+
+		@Override
 		public PostResolverFactory postResolutionFactory() {
 			return postResolverFactory;
 		}
@@ -357,6 +374,7 @@ public class ExpressionResolver {
 		private final List<QueryOperation> queryOperations;
 		private final TableReferenceLookup tableCatalog;
 		private final FunctionLookup functionLookup;
+		private final DataTypeFactory typeFactory;
 		private List<OverWindow> logicalOverWindows = new ArrayList<>();
 		private List<LocalReferenceExpression> localReferences = new ArrayList<>();
 
@@ -364,11 +382,13 @@ public class ExpressionResolver {
 				QueryOperation[] queryOperations,
 				TableConfig config,
 				TableReferenceLookup tableCatalog,
-				FunctionLookup functionLookup) {
+				FunctionLookup functionLookup,
+				DataTypeFactory typeFactory) {
 			this.config = config;
 			this.queryOperations = Arrays.asList(queryOperations);
 			this.tableCatalog = tableCatalog;
 			this.functionLookup = functionLookup;
+			this.typeFactory = typeFactory;
 		}
 
 		public ExpressionResolverBuilder withOverWindows(List<OverWindow> windows) {
@@ -386,6 +406,7 @@ public class ExpressionResolver {
 				config,
 				tableCatalog,
 				functionLookup,
+				typeFactory,
 				new FieldReferenceLookup(queryOperations),
 				logicalOverWindows,
 				localReferences);

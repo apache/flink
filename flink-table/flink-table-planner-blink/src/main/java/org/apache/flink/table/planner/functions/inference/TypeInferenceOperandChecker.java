@@ -103,7 +103,7 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 
 	@Override
 	public String getAllowedSignatures(SqlOperator op, String opName) {
-		return TypeInferenceUtil.generateSignature(opName, definition, typeInference);
+		return TypeInferenceUtil.generateSignature(typeInference, opName, definition);
 	}
 
 	@Override

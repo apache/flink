@@ -26,6 +26,7 @@ import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -88,6 +89,7 @@ public final class OperationTreeBuilder {
 
 	private final TableConfig config;
 	private final FunctionLookup functionCatalog;
+	private final DataTypeFactory typeFactory;
 	private final TableReferenceLookup tableReferenceLookup;
 	private final LookupCallResolver lookupResolver;
 
@@ -104,6 +106,7 @@ public final class OperationTreeBuilder {
 	private OperationTreeBuilder(
 			TableConfig config,
 			FunctionLookup functionLookup,
+			DataTypeFactory typeFactory,
 			TableReferenceLookup tableReferenceLookup,
 			ProjectionOperationFactory projectionOperationFactory,
 			SortOperationFactory sortOperationFactory,
@@ -113,6 +116,7 @@ public final class OperationTreeBuilder {
 			JoinOperationFactory joinOperationFactory) {
 		this.config = config;
 		this.functionCatalog = functionLookup;
+		this.typeFactory = typeFactory;
 		this.tableReferenceLookup = tableReferenceLookup;
 		this.projectionOperationFactory = projectionOperationFactory;
 		this.sortOperationFactory = sortOperationFactory;
@@ -126,11 +130,13 @@ public final class OperationTreeBuilder {
 	public static OperationTreeBuilder create(
 			TableConfig config,
 			FunctionLookup functionCatalog,
+			DataTypeFactory typeFactory,
 			TableReferenceLookup tableReferenceLookup,
 			boolean isStreamingMode) {
 		return new OperationTreeBuilder(
 			config,
 			functionCatalog,
+			typeFactory,
 			tableReferenceLookup,
 			new ProjectionOperationFactory(),
 			new SortOperationFactory(isStreamingMode),
@@ -178,6 +184,7 @@ public final class OperationTreeBuilder {
 				config,
 				tableReferenceLookup,
 				functionCatalog,
+				typeFactory,
 				child)
 			.withOverWindows(overWindows)
 			.build();
@@ -246,6 +253,7 @@ public final class OperationTreeBuilder {
 				config,
 				tableReferenceLookup,
 				functionCatalog,
+				typeFactory,
 				child)
 			.withLocalReferences(
 				new LocalReferenceExpression(
@@ -296,6 +304,7 @@ public final class OperationTreeBuilder {
 				config,
 				tableReferenceLookup,
 				functionCatalog,
+				typeFactory,
 				child)
 			.withLocalReferences(
 				new LocalReferenceExpression(
@@ -343,6 +352,7 @@ public final class OperationTreeBuilder {
 				config,
 				tableReferenceLookup,
 				functionCatalog,
+				typeFactory,
 				left,
 				right)
 			.build();
@@ -376,6 +386,7 @@ public final class OperationTreeBuilder {
 			config,
 			tableReferenceLookup,
 			functionCatalog,
+			typeFactory,
 			tableOperation).build();
 
 		return resolveSingleExpression(expression, resolver);
@@ -545,11 +556,11 @@ public final class OperationTreeBuilder {
 	private static class ExtractAliasAndAggregate extends ApiExpressionDefaultVisitor<AggregateWithAlias> {
 
 		// need this flag to validate alias, i.e., the length of alias and function result type should be same.
-		private boolean isRowbasedAggregate = false;
-		private ExpressionResolver resolver = null;
+		private boolean isRowBasedAggregate;
+		private ExpressionResolver resolver;
 
-		public ExtractAliasAndAggregate(boolean isRowbasedAggregate, ExpressionResolver resolver) {
-			this.isRowbasedAggregate = isRowbasedAggregate;
+		public ExtractAliasAndAggregate(boolean isRowBasedAggregate, ExpressionResolver resolver) {
+			this.isRowBasedAggregate = isRowBasedAggregate;
 			this.resolver = resolver;
 		}
 
@@ -596,7 +607,7 @@ public final class OperationTreeBuilder {
 				} else {
 					ResolvedExpression resolvedExpression =
 						resolver.resolve(Collections.singletonList(unresolvedCall)).get(0);
-					validateAlias(aliases, resolvedExpression, isRowbasedAggregate);
+					validateAlias(aliases, resolvedExpression, isRowBasedAggregate);
 					fieldNames = aliases;
 				}
 				return Optional.of(new AggregateWithAlias(unresolvedCall, fieldNames));
@@ -681,6 +692,7 @@ public final class OperationTreeBuilder {
 			config,
 			tableReferenceLookup,
 			functionCatalog,
+			typeFactory,
 			child)
 			.withLocalReferences(
 				new LocalReferenceExpression(
@@ -781,6 +793,7 @@ public final class OperationTreeBuilder {
 				config,
 				tableReferenceLookup,
 				functionCatalog,
+				typeFactory,
 				child)
 			.build();
 	}

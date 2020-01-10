@@ -22,7 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
 
 /**
@@ -148,5 +151,10 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.TABLE;
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+		throw new TableException("Table functions are not updated to the new type system yet.");
 	}
 }

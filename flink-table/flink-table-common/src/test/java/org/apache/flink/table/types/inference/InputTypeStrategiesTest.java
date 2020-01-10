@@ -413,7 +413,7 @@ public class InputTypeStrategiesTest {
 	private String generateSignature() {
 		final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
 		functionDefinitionMock.functionKind = FunctionKind.SCALAR;
-		return TypeInferenceUtil.generateSignature("f", functionDefinitionMock, createTypeInference());
+		return TypeInferenceUtil.generateSignature(createTypeInference(), "f", functionDefinitionMock);
 	}
 
 	private TypeInferenceUtil.Result runTypeInference(List<DataType> actualArgumentTypes) {

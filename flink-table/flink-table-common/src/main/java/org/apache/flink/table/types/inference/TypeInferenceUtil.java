@@ -157,9 +157,9 @@ public final class TypeInferenceUtil {
 	 * Generates a signature of the given {@link FunctionDefinition}.
 	 */
 	public static String generateSignature(
+			TypeInference typeInference,
 			String name,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
+			FunctionDefinition definition) {
 		if (typeInference.getNamedArguments().isPresent() || typeInference.getTypedArguments().isPresent()) {
 			return formatNamedOrTypedArguments(name, typeInference);
 		}
@@ -180,9 +180,9 @@ public final class TypeInferenceUtil {
 			String.format(
 				"Invalid input arguments. Expected signatures are:\n%s",
 				generateSignature(
+					typeInference,
 					callContext.getName(),
-					callContext.getFunctionDefinition(),
-					typeInference)
+					callContext.getFunctionDefinition())
 			),
 			cause);
 	}
