@@ -26,13 +26,13 @@ LogicalProject(c=[$0], d=[$1])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
             :- LogicalProject(a=[$0], b=[$1], c=[$2])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9c0e1636b85ac954c6f6eac143be7b3d($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, d])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], correlate=[table(TableFunc0(c))], select=[a,b,c,d,e], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) d, INTEGER e)], joinType=[INNER], condition=[>($1, 20)])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9c0e1636b85ac954c6f6eac143be7b3d($2)], correlate=[table(TableFunc0(c))], select=[a,b,c,d,e], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) d, INTEGER e)], joinType=[INNER], condition=[>($1, 20)])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -47,13 +47,13 @@ LogicalProject(c=[$0], d=[$1])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
             :- LogicalProject(a=[$0], b=[$1], c=[$2])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9c0e1636b85ac954c6f6eac143be7b3d($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, d])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9ac48a5444b14d587749b42aef392f1d($2)], correlate=[table(TableFunc0(c))], select=[a,b,c,d,e], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) d, INTEGER e)], joinType=[INNER], condition=[>($1, 20)])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9c0e1636b85ac954c6f6eac143be7b3d($2)], correlate=[table(TableFunc0(c))], select=[a,b,c,d,e], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) d, INTEGER e)], joinType=[INNER], condition=[>($1, 20)])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -64,13 +64,13 @@ Calc(select=[c, d])
 LogicalProject(c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, s])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -81,13 +81,13 @@ Calc(select=[c, s])
 LogicalProject(c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2, _UTF-16LE'$')], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2, _UTF-16LE'$')], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, s])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,_UTF-16LE'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,_UTF-16LE'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -99,13 +99,13 @@ LogicalFilter(condition=[>($1, _UTF-16LE'')])
 +- LogicalProject(c=[$2], s=[$3])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, s], where=[>(s, _UTF-16LE'')])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -116,13 +116,13 @@ Calc(select=[c, s], where=[>(s, _UTF-16LE'')])
 LogicalProject(c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, s])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$8050927803993624f40152a838c98018($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$4f0c749afc756b8e787eefbe846d0b73($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

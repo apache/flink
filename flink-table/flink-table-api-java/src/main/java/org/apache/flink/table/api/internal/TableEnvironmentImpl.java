@@ -171,6 +171,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.operationTreeBuilder = OperationTreeBuilder.create(
 			tableConfig,
 			functionCatalog,
+			catalogManager.getDataTypeFactory(),
 			path -> {
 				try {
 					UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);

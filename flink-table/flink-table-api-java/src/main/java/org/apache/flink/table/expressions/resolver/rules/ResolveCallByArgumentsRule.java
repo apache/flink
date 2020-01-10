@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -170,8 +169,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		private Optional<TypeInference> getOptionalTypeInference(FunctionDefinition definition) {
 			if (definition instanceof BuiltInFunctionDefinition) {
 				final BuiltInFunctionDefinition builtInDefinition = (BuiltInFunctionDefinition) definition;
-				if (builtInDefinition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
-					return Optional.of(builtInDefinition.getTypeInference());
+				final TypeInference inference = builtInDefinition.getTypeInference(resolutionContext.typeFactory());
+				if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
+					return Optional.of(inference);
 				}
 			}
 			return Optional.empty();
@@ -187,7 +187,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			final Result inferenceResult = TypeInferenceUtil.runTypeInference(
 				inference,
 				new TableApiCallContext(
-					new UnsupportedDataTypeFactory(),
+					resolutionContext.typeFactory(),
 					name,
 					unresolvedCall.getFunctionDefinition(),
 					resolvedArgs),
@@ -274,29 +274,6 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	private static class UnsupportedDataTypeFactory implements DataTypeFactory {
-
-		@Override
-		public Optional<DataType> createDataType(String name) {
-			throw new TableException("Data type factory is not supported yet.");
-		}
-
-		@Override
-		public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
-			throw new TableException("Data type factory is not supported yet.");
-		}
-
-		@Override
-		public <T> DataType createDataType(Class<T> clazz) {
-			throw new TableException("Data type factory is not supported yet.");
-		}
-
-		@Override
-		public <T> DataType createRawDataType(Class<T> clazz) {
-			throw new TableException("Data type factory is not supported yet.");
-		}
-	}
 
 	private static class TableApiCallContext implements CallContext {
 

@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -171,5 +173,10 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.OTHER;
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory factory) {
+		throw new UnsupportedOperationException();
 	}
 }

@@ -92,6 +92,7 @@ abstract class TableEnvImpl(
   private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
     config,
     functionCatalog,
+    catalogManager.getDataTypeFactory,
     tableLookup,
     isStreamingMode)
 
