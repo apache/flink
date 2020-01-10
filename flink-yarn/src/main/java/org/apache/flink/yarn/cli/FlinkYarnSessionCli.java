@@ -30,7 +30,6 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -109,7 +108,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	// YARN-session related constants
 	private static final String YARN_PROPERTIES_FILE = ".yarn-properties-";
 	private static final String YARN_APPLICATION_ID_KEY = "applicationID";
-	private static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	private static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
 
 	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
@@ -499,21 +497,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	private Configuration applyYarnProperties(Configuration configuration) throws FlinkException {
 		final Configuration effectiveConfiguration = new Configuration(configuration);
 
-		// configure the default parallelism from YARN
-		String propParallelism = yarnPropertiesFile.getProperty(YARN_PROPERTIES_PARALLELISM);
-		if (propParallelism != null) { // maybe the property is not set
-			try {
-				int parallelism = Integer.parseInt(propParallelism);
-				effectiveConfiguration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
-
-				logAndSysout("YARN properties set default parallelism to " + parallelism);
-			}
-			catch (NumberFormatException e) {
-				throw new FlinkException("Error while parsing the YARN properties: " +
-					"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.", e);
-			}
-		}
-
 		String applicationId = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
 		if (applicationId != null) {
 			effectiveConfiguration.setString(YarnConfigOptions.APPLICATION_ID, applicationId);
@@ -573,7 +556,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 						writeYarnPropertiesFile(
 							yarnApplicationId,
-							clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
 							dynamicPropertiesEncoded);
 					} catch (Exception e) {
 						try {
@@ -718,16 +700,12 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private void writeYarnPropertiesFile(
 			ApplicationId yarnApplicationId,
-			int parallelism,
 			@Nullable String dynamicProperties) {
 		// file that we write into the conf/ dir containing the jobManager address and the dop.
 		final File yarnPropertiesFile = getYarnPropertiesLocation(yarnPropertiesFileLocation);
 
 		Properties yarnProps = new Properties();
 		yarnProps.setProperty(YARN_APPLICATION_ID_KEY, yarnApplicationId.toString());
-		if (parallelism > 0) {
-			yarnProps.setProperty(YARN_PROPERTIES_PARALLELISM, Integer.toString(parallelism));
-		}
 
 		// add dynamic properties
 		if (dynamicProperties != null) {

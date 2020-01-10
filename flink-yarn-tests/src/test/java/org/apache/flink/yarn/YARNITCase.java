@@ -98,7 +98,6 @@ public class YARNITCase extends YarnTestBase {
 				.setMasterMemoryMB(768)
 				.setTaskManagerMemoryMB(1024)
 				.setSlotsPerTaskManager(1)
-				.setNumberTaskManagers(1)
 				.createClusterSpecification();
 
 			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
