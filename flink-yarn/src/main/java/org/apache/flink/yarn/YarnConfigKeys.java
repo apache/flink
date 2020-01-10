@@ -27,12 +27,9 @@ public class YarnConfigKeys {
 	//  Environment variable names
 	// ------------------------------------------------------------------------
 
-	public static final String ENV_TM_MEMORY = "_CLIENT_TM_MEMORY";
-	public static final String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
 	public static final String ENV_APP_ID = "_APP_ID";
 	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
-	public static final String ENV_SLOTS = "_SLOTS";
 
 	public static final String ENV_FLINK_CLASSPATH = "_FLINK_CLASSPATH";
 
