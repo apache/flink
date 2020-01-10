@@ -136,6 +136,67 @@ abstract class TableEnvImpl(
       function)
   }
 
+  override def createTemporarySystemFunction(
+      name: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    val functionInstance = UserDefinedFunctionHelper.instantiateFunction(functionClass)
+    createTemporarySystemFunction(name, functionInstance)
+  }
+
+  override def createTemporarySystemFunction(
+      name: String,
+      functionInstance: UserDefinedFunction)
+    : Unit = {
+    functionCatalog.registerTemporarySystemFunction(name, functionInstance, false)
+  }
+
+  override def dropTemporarySystemFunction(name: String): Boolean = {
+    functionCatalog.dropTemporarySystemFunction(name, true)
+  }
+
+  override def createFunction(
+      path: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    createFunction(path, functionClass, ignoreIfExists = false)
+  }
+
+  override def createFunction(
+      path: String,
+      functionClass: Class[_ <: UserDefinedFunction],
+      ignoreIfExists: Boolean)
+    : Unit = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.registerCatalogFunction(unresolvedIdentifier, functionClass, ignoreIfExists)
+  }
+
+  override def dropFunction(path: String): Boolean = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.dropCatalogFunction(unresolvedIdentifier, true)
+  }
+
+  override def createTemporaryFunction(
+      path: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    val functionInstance = UserDefinedFunctionHelper.instantiateFunction(functionClass)
+    createTemporaryFunction(path, functionInstance)
+  }
+
+  override def createTemporaryFunction(
+      path: String,
+      functionInstance: UserDefinedFunction)
+    : Unit = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.registerTemporaryCatalogFunction(unresolvedIdentifier, functionInstance, false)
+  }
+
+  override def dropTemporaryFunction(path: String): Boolean = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.dropTemporaryCatalogFunction(unresolvedIdentifier, true)
+  }
+
   /**
     * Registers a [[TableFunction]] under a unique name. Replaces already existing
     * user-defined functions under this name.
@@ -144,7 +205,7 @@ abstract class TableEnvImpl(
       name: String,
       function: TableFunction[T])
     : Unit = {
-    val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
+    val resultTypeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfTableFunction(
         function,
         implicitly[TypeInformation[T]])
@@ -803,7 +864,7 @@ abstract class TableEnvImpl(
   private def dropSystemFunction(dropFunctionOperation: DropTempSystemFunctionOperation): Unit = {
     val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
     try {
-      functionCatalog.dropTempSystemFunction(
+      functionCatalog.dropTemporarySystemFunction(
         dropFunctionOperation.getFunctionName, dropFunctionOperation.isIfExists)
     } catch {
       case e: ValidationException =>

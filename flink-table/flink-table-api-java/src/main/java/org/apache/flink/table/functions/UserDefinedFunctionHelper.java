@@ -26,16 +26,26 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.InstantiationUtil;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
 
 /**
- * Utility methods for validation and extraction of types during function registration in a
- * {@link org.apache.flink.table.catalog.FunctionCatalog}.
+ * Utility methods for instantiating, validating and extracting types during function registration in
+ * a {@link FunctionCatalog}.
  */
 @Internal
-public class UserDefinedFunctionHelper {
+public final class UserDefinedFunctionHelper {
 
 	/**
 	 * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
@@ -147,27 +157,49 @@ public class UserDefinedFunctionHelper {
 	}
 
 	/**
-	 * Prepares a {@link UserDefinedFunction} for usage in the API.
+	 * Instantiates a {@link UserDefinedFunction} assuming a default constructor.
 	 */
-	public static void prepareFunction(TableConfig config, UserDefinedFunction function) {
-		if (function instanceof TableFunction) {
-			UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
+	public static UserDefinedFunction instantiateFunction(Class<? extends UserDefinedFunction> functionClass) {
+		validateClass(functionClass, true);
+		try {
+			return functionClass.newInstance();
+		} catch (Exception e) {
+			throw new ValidationException(
+				String.format("Cannot instantiate user-defined function class '%s'.", functionClass.getName()),
+				e);
 		}
-		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
-		UserDefinedFunctionHelper.cleanFunction(config, function);
 	}
 
 	/**
-	 * Checks if a user-defined function can be easily instantiated.
+	 * Prepares a {@link UserDefinedFunction} instance for usage in the API.
 	 */
-	private static void validateInstantiation(Class<?> clazz) {
-		if (!InstantiationUtil.isPublic(clazz)) {
-			throw new ValidationException(String.format("Function class %s is not public.", clazz.getCanonicalName()));
-		} else if (!InstantiationUtil.isProperClass(clazz)) {
-			throw new ValidationException(String.format(
-				"Function class %s is no proper class," +
-					" it is either abstract, an interface, or a primitive type.", clazz.getCanonicalName()));
+	public static void prepareInstance(TableConfig config, UserDefinedFunction function) {
+		validateClass(function.getClass(), false);
+		cleanFunction(config, function);
+	}
+
+	/**
+	 * Validates a {@link UserDefinedFunction} class for usage in the API.
+	 *
+	 * <p>Note: This is an initial validation to indicate common errors early. The concrete signature
+	 * validation happens in the code generation when the actual {@link DataType}s for arguments and result
+	 * are known.
+	 */
+	public static void validateClass(Class<? extends UserDefinedFunction> functionClass) {
+		validateClass(functionClass, true);
+	}
+
+	/**
+	 * Validates a {@link UserDefinedFunction} class for usage in the API.
+	 */
+	private static void validateClass(
+			Class<? extends UserDefinedFunction> functionClass,
+			boolean requiresDefaultConstructor) {
+		if (TableFunction.class.isAssignableFrom(functionClass)) {
+			validateNotSingleton(functionClass);
 		}
+		validateInstantiation(functionClass, requiresDefaultConstructor);
+		validateImplementationMethods(functionClass);
 	}
 
 	/**
@@ -175,11 +207,106 @@ public class UserDefinedFunctionHelper {
 	 * e.g., due to a shared collector.
 	 */
 	private static void validateNotSingleton(Class<?> clazz) {
-		// TODO it is not a good way to check singleton. Maybe improve it further.
 		if (Arrays.stream(clazz.getFields()).anyMatch(f -> f.getName().equals("MODULE$"))) {
 			throw new ValidationException(String.format(
 				"Function implemented by class %s is a Scala object. This is forbidden because of concurrency" +
-					" problems when using them.", clazz.getCanonicalName()));
+					" problems when using them.", clazz.getName()));
+		}
+	}
+
+	/**
+	 * Validates the implementation methods such as {@code eval()} or {@code accumulate()} depending
+	 * on the {@link UserDefinedFunction} subclass.
+	 *
+	 * <p>This method must be kept in sync with the code generation requirements and the individual
+	 * docs of each function.
+	 */
+	private static void validateImplementationMethods(Class<? extends UserDefinedFunction> functionClass) {
+		if (ScalarFunction.class.isAssignableFrom(functionClass)) {
+			validateImplementationMethod(functionClass, false, false, "eval");
+		} else if (TableFunction.class.isAssignableFrom(functionClass)) {
+			validateImplementationMethod(functionClass, true, false, "eval");
+		} else if (AggregateFunction.class.isAssignableFrom(functionClass)) {
+			validateImplementationMethod(functionClass, true, false, "accumulate");
+			validateImplementationMethod(functionClass, true, true, "retract");
+			validateImplementationMethod(functionClass, true, true, "merge");
+			validateImplementationMethod(functionClass, true, true, "resetAccumulator");
+		} else if (TableAggregateFunction.class.isAssignableFrom(functionClass)) {
+			validateImplementationMethod(functionClass, true, false, "accumulate");
+			validateImplementationMethod(functionClass, true, false, "emitValue", "emitUpdateWithRetract");
+			validateImplementationMethod(functionClass, true, true, "retract");
+		}
+	}
+
+	/**
+	 * Validates an implementation method such as {@code eval()} or {@code accumulate()}.
+	 */
+	private static void validateImplementationMethod(
+			Class<? extends UserDefinedFunction> clazz,
+			boolean rejectStatic,
+			boolean isOptional,
+			String... methodNameOptions) {
+		final Set<String> nameSet = new HashSet<>(Arrays.asList(methodNameOptions));
+		final List<Method> methods = getAllDeclaredMethods(clazz);
+		boolean found = false;
+		for (Method method : methods) {
+			if (!nameSet.contains(method.getName())) {
+				continue;
+			}
+			found = true;
+			final int modifier = method.getModifiers();
+			if (!Modifier.isPublic(modifier)) {
+				throw new ValidationException(
+					String.format(
+						"Method '%s' of function class '%s' is not public.",
+						method.getName(),
+						clazz.getName()));
+			}
+			if (Modifier.isAbstract(modifier)) {
+				throw new ValidationException(
+					String.format(
+						"Method '%s' of function class '%s' must not be abstract.",
+						method.getName(),
+						clazz.getName()));
+			}
+			if (rejectStatic && Modifier.isStatic(modifier)) {
+				throw new ValidationException(
+					String.format(
+						"Method '%s' of function class '%s' must not be static.",
+						method.getName(),
+						clazz.getName()));
+			}
+		}
+		if (!found && !isOptional) {
+			throw new ValidationException(
+				String.format(
+					"Function class '%s' does not implement a method named %s.",
+					clazz.getName(),
+					nameSet.stream()
+						.map(s -> "'" + s + "'")
+						.collect(Collectors.joining(" or "))));
+		}
+	}
+
+	/**
+	 * Checks if a user-defined function can be easily instantiated.
+	 */
+	private static void validateInstantiation(Class<?> clazz, boolean requiresDefaultConstructor) {
+		if (!InstantiationUtil.isPublic(clazz)) {
+			throw new ValidationException(
+				String.format(
+					"Function class '%s' is not public.",
+					clazz.getName()));
+		} else if (!InstantiationUtil.isProperClass(clazz)) {
+			throw new ValidationException(
+				String.format(
+					"Function class '%s' is not a proper class. It is either abstract, an interface, or a primitive type.",
+					clazz.getName()));
+		} else if (requiresDefaultConstructor && !InstantiationUtil.hasPublicNullaryConstructor(clazz)) {
+			throw new ValidationException(
+				String.format(
+					"Function class '%s' must have a public default constructor.",
+					clazz.getName()));
 		}
 	}
 
@@ -202,5 +329,6 @@ public class UserDefinedFunctionHelper {
 	}
 
 	private UserDefinedFunctionHelper() {
+		// no instantiation
 	}
 }
