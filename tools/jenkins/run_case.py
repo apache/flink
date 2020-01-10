@@ -202,7 +202,7 @@ def run_cases(scenario_file_name, flink_home, am_seserver_dddress, test_jar, res
         avg_qps = get_avg(total_qps)
         logger.info("The avg qps of %s's  is %s" % (scenario_name, avg_qps))
         logger.info("type(avg_qps):%s, result_file:%s" % (type(avg_qps), result_file))
-        result = open(result_file, "w")
+        result = open(result_file, "a")
         result.write("%s %s \n" % (scenario_name, avg_qps))
         result.close()
     end_server(flink_home)
