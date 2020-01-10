@@ -34,11 +34,9 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -784,15 +782,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		paths.add(remotePathJar);
 		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
-
-		// set the right configuration values for the TaskManager
-		configuration.setInteger(
-				TaskManagerOptions.NUM_TASK_SLOTS,
-				clusterSpecification.getSlotsPerTaskManager());
-
-		configuration.set(
-				TaskManagerOptions.TOTAL_PROCESS_MEMORY,
-				MemorySize.parse(clusterSpecification.getTaskManagerMemoryMB() + "m"));
 
 		// Upload the flink configuration
 		// write out configuration file
