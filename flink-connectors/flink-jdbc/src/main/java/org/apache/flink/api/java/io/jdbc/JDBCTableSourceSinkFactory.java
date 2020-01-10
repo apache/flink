@@ -130,8 +130,11 @@ public class JDBCTableSourceSinkFactory implements
 		TableSchema schema = TableSchemaUtils.getPhysicalSchema(
 			descriptorProperties.getTableSchema(SCHEMA));
 
+		JDBCOptions options = getJDBCOptions(descriptorProperties);
+		options.getDialect().validate(schema);
+
 		return JDBCTableSource.builder()
-			.setOptions(getJDBCOptions(descriptorProperties))
+			.setOptions(options)
 			.setReadOptions(getJDBCReadOptions(descriptorProperties))
 			.setLookupOptions(getJDBCLookupOptions(descriptorProperties))
 			.setSchema(schema)
@@ -144,8 +147,11 @@ public class JDBCTableSourceSinkFactory implements
 		TableSchema schema = TableSchemaUtils.getPhysicalSchema(
 			descriptorProperties.getTableSchema(SCHEMA));
 
+		JDBCOptions options = getJDBCOptions(descriptorProperties);
+		options.getDialect().validate(schema);
+
 		final JDBCUpsertTableSink.Builder builder = JDBCUpsertTableSink.builder()
-			.setOptions(getJDBCOptions(descriptorProperties))
+			.setOptions(options)
 			.setTableSchema(schema);
 
 		descriptorProperties.getOptionalInt(CONNECTOR_WRITE_FLUSH_MAX_ROWS).ifPresent(builder::setFlushMaxSize);

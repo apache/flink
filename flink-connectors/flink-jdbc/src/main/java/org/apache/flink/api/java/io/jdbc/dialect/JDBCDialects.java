@@ -18,10 +18,19 @@
 
 package org.apache.flink.api.java.io.jdbc.dialect;
 
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.TimestampType;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 
 /**
  * Default Jdbc dialects.
@@ -50,9 +59,32 @@ public final class JDBCDialects {
 
 		private static final long serialVersionUID = 1L;
 
+		private static final int MAX_DERBY_DECIMAL_PRECISION = 31;
+
+		private static final int MIN_DERBY_DECIMAL_PRECISION = 1;
+
 		@Override
 		public boolean canHandle(String url) {
 			return url.startsWith("jdbc:derby:");
+		}
+
+		@Override
+		public void validate(TableSchema schema) {
+			for (int i = 0; i < schema.getFieldCount(); i++) {
+				DataType dt = schema.getFieldDataType(i).get();
+				String fieldName = schema.getFieldName(i).get();
+				if (DECIMAL == dt.getLogicalType().getTypeRoot()) {
+					int precision = ((DecimalType) dt.getLogicalType()).getPrecision();
+					if (precision > MAX_DERBY_DECIMAL_PRECISION
+							|| precision < MIN_DERBY_DECIMAL_PRECISION) {
+						throw new ValidationException(
+								String.format("The precision of %s is out of the range [%d, %d].",
+										fieldName,
+										MIN_DERBY_DECIMAL_PRECISION,
+										MAX_DERBY_DECIMAL_PRECISION));
+					}
+				}
+			}
 		}
 
 		@Override
@@ -70,9 +102,31 @@ public final class JDBCDialects {
 
 		private static final long serialVersionUID = 1L;
 
+		private static final int MAX_MYSQL_TIMESTAMP_PRECISION = 6;
+
+		private static final int MIN_MYSQL_TIMESTAMP_PRECISION = 0;
+
 		@Override
 		public boolean canHandle(String url) {
 			return url.startsWith("jdbc:mysql:");
+		}
+
+		@Override
+		public void validate(TableSchema schema) {
+			for (int i = 0; i < schema.getFieldCount(); i++) {
+				DataType dt = schema.getFieldDataType(i).get();
+				String fieldName = schema.getFieldName(i).get();
+				if (TIMESTAMP_WITHOUT_TIME_ZONE == dt.getLogicalType().getTypeRoot()) {
+					int precision = ((TimestampType) dt.getLogicalType()).getPrecision();
+					if (precision > MAX_MYSQL_TIMESTAMP_PRECISION) {
+						throw new ValidationException(
+								String.format("The precision of %s is out of range [%d, %d].",
+										fieldName,
+										MIN_MYSQL_TIMESTAMP_PRECISION,
+										MAX_MYSQL_TIMESTAMP_PRECISION));
+					}
+				}
+			}
 		}
 
 		@Override
@@ -107,9 +161,31 @@ public final class JDBCDialects {
 
 		private static final long serialVersionUID = 1L;
 
+		private static final int MAX_POSTGRES_TIMESTAMP_PRECISION = 6;
+
+		private static final int MIN_POSTGRES_TIMESTAMP_PRECISION = 0;
+
 		@Override
 		public boolean canHandle(String url) {
 			return url.startsWith("jdbc:postgresql:");
+		}
+
+		@Override
+		public void validate(TableSchema schema) {
+			for (int i = 0; i < schema.getFieldCount(); i++) {
+				DataType dt = schema.getFieldDataType(i).get();
+				String fieldName = schema.getFieldName(i).get();
+				if (TIMESTAMP_WITHOUT_TIME_ZONE == dt.getLogicalType().getTypeRoot()) {
+					int precision = ((TimestampType) dt.getLogicalType()).getPrecision();
+					if (precision > MAX_POSTGRES_TIMESTAMP_PRECISION) {
+						throw new ValidationException(
+								String.format("The precision of %s is out of range [%d, %d].",
+										fieldName,
+										MIN_POSTGRES_TIMESTAMP_PRECISION,
+										MAX_POSTGRES_TIMESTAMP_PRECISION));
+					}
+				}
+			}
 		}
 
 		@Override

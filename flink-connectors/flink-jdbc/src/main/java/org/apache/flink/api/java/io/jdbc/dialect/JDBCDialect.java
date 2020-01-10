@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.io.jdbc.dialect;
 
+import org.apache.flink.table.api.TableSchema;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
@@ -34,6 +36,15 @@ public interface JDBCDialect extends Serializable {
 	 * @return True if the dialect can be applied on the given jdbc url.
 	 */
 	boolean canHandle(String url);
+
+	/**
+	 * Check if this dialect instance support a specific data type in table schema.
+	 *
+	 * @param schema the table schema
+	 */
+	default void validate(TableSchema schema) {
+		return;
+	}
 
 	/**
 	 * @return the default driver class name, if user not configure the driver class name,
