@@ -43,6 +43,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -432,12 +433,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			// so we check only in ticket cache scenario.
 			boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
 
-			UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-			if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
-					&& useTicketCache && !loginUser.hasKerberosCredentials()) {
-				LOG.error("Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials");
+			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(
+				UserGroupInformation.getCurrentUser(), useTicketCache);
+			if (!isCredentialsConfigured) {
 				throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
-						"does not have Kerberos credentials");
+					"does not have Kerberos credentials or delegation tokens!");
 			}
 		}
 
