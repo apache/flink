@@ -48,7 +48,7 @@ public class RocksDBMemoryControllerUtils {
 	}
 
 	/**
-	 * Calculate the actual calculated memory capacity of cache, which would be shared among rocksDB instance(s).
+	 * Calculate the actual memory capacity of cache, which would be shared among rocksDB instance(s).
 	 * We introduce this method because:
 	 * a) We cannot create a strict capacity limit cache util FLINK-15532 resolved.
 	 * b) Regardless of the memory usage of blocks pinned by RocksDB iterators,
@@ -73,8 +73,8 @@ public class RocksDBMemoryControllerUtils {
 	}
 
 	/**
-	 * Calculate the actual calculated memory capacity of write buffer manager, which would be shared among rocksDB instance(s).
-	 * The formula to use here could refer to {@link #calculateActualCacheCapacity(long, double)}.
+	 * Calculate the actual memory capacity of write buffer manager, which would be shared among rocksDB instance(s).
+	 * The formula to use here could refer to the doc of {@link #calculateActualCacheCapacity(long, double)}.
 	 *
 	 * @param totalMemorySize  Total off-heap memory size reserved for RocksDB instance(s).
 	 * @param writeBufferRatio The ratio of total memory size which would be reserved for write buffer manager and its over-capacity part.
