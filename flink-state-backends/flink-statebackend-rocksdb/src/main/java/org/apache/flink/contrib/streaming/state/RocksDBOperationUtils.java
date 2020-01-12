@@ -17,7 +17,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -28,15 +27,12 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
 
-import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-import org.rocksdb.LRUCache;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteBufferManager;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -192,7 +188,7 @@ public class RocksDBOperationUtils {
 		final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
 
 		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) ->
-			allocateRocksDBSharedResources(size, writeBufferRatio, highPriorityPoolRatio);
+			RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(size, writeBufferRatio, highPriorityPoolRatio);
 
 		try {
 			if (memoryConfig.isUsingFixedMemoryPerSlot()) {
@@ -210,50 +206,5 @@ public class RocksDBOperationUtils {
 		catch (Exception e) {
 			throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
 		}
-	}
-
-	@VisibleForTesting
-	static RocksDBSharedResources allocateRocksDBSharedResources(long memorySize, double writeBufferRatio, double highPriorityPoolRatio) {
-		long calculatedCacheCapacity = calculateActualCacheCapacity(memorySize, writeBufferRatio);
-		final Cache cache = createCache(calculatedCacheCapacity, highPriorityPoolRatio);
-		long writeBufferManagerCapacity = calculateWriteBufferManagerCapacity(memorySize, writeBufferRatio);
-		final WriteBufferManager wbm = new WriteBufferManager(writeBufferManagerCapacity, cache);
-		return new RocksDBSharedResources(cache, wbm);
-	}
-
-	/**
-	 * Calculate the actual calculated memory size of cache, which would be shared among rocksDB instance(s).
-	 * We introduce this method because:
-	 * a) We cannot create a strict capacity limit cache util FLINK-15532 resolved.
-	 * b) Regardless of the memory usage of blocks pinned by RocksDB iterators,
-	 * which is difficult to calculate and only happened when we iterator entries in RocksDBMapState, the overuse of memory is mainly occupied by at most half of the write buffer usage.
-	 * (see <a href="https://github.com/dataArtisans/frocksdb/blob/958f191d3f7276ae59b270f9db8390034d549ee0/include/rocksdb/write_buffer_manager.h#L51">the flush implementation of write buffer manager</a>).
-	 * Thus, we have four equations below:
-	 *   write_buffer_manager_memory = 1.5 * write_buffer_manager_capacity
-	 *   write_buffer_manager_memory = total_memory_size * write_buffer_ratio
-	 *   write_buffer_manager_memory + other_part = total_memory_size
-	 *   write_buffer_manager_capacity + other_part = cache_capacity
-	 * And we would deduce the formula:
-	 *   cache_capacity =  (3 - write_buffer_ratio) * total_memory_size / 3
-	 *   write_buffer_manager_capacity = 2 * total_memory_size * write_buffer_ratio / 3
-	 *
-	 * @param totalMemorySize  Total off-heap memory size reserved for RocksDB instance(s).
-	 * @param writeBufferRatio The ratio of memory size which could be reserved for write buffer manager to control the memory usage.
-	 * @return The actual calculated memory size.
-	 */
-	@VisibleForTesting
-	static long calculateActualCacheCapacity(long totalMemorySize, double writeBufferRatio) {
-		return (long) ((3 - writeBufferRatio) * totalMemorySize / 3);
-	}
-
-	@VisibleForTesting
-	static long calculateWriteBufferManagerCapacity(long totalMemorySize, double writeBufferRatio) {
-		return (long) (2 * totalMemorySize * writeBufferRatio / 3);
-	}
-
-	@VisibleForTesting
-	static Cache createCache(long cacheCapacity, double highPriorityPoolRatio) {
-		// TODO use strict capacity limit until FLINK-15532 resolved
-		return new LRUCache(cacheCapacity, -1, false, highPriorityPoolRatio);
 	}
 }

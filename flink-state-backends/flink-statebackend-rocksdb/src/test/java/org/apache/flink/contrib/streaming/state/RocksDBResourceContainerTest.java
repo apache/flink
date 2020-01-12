@@ -21,15 +21,10 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Before;
-import org.junit.Rule;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
@@ -42,32 +37,22 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyLong;
 
 /**
  * Tests to guard {@link RocksDBResourceContainer}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(RocksDBOperationUtils.class)
 public class RocksDBResourceContainerTest {
 
-	private static boolean rocksDBLoaded = false;
+	@ClassRule
+	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	@Before
-	public void ensureRocksDbNativeLibraryLoaded() throws IOException {
-		if (!rocksDBLoaded) {
-			NativeLibraryLoader.getInstance().loadLibrary(temporaryFolder.newFolder().getAbsolutePath());
-			rocksDBLoaded = true;
-		}
+	@BeforeClass
+	public static void ensureRocksDbNativeLibraryLoaded() throws IOException {
+		NativeLibraryLoader.getInstance().loadLibrary(TMP_FOLDER.newFolder().getAbsolutePath());
 	}
 
 	// ------------------------------------------------------------------------
@@ -160,34 +145,12 @@ public class RocksDBResourceContainerTest {
 		container.close();
 	}
 
-	@Test
-	public void testCreateSharedResourcesWithExpectedCapacity() throws Exception {
-		PowerMockito.spy(RocksDBOperationUtils.class);
-		final AtomicLong actualCacheCapacity = new AtomicLong(0L);
-		// the `createCache` wrapper is introduced due to PowerMockito cannot mock on native static method easily.
-		PowerMockito.when(RocksDBOperationUtils.createCache(anyLong(), anyDouble()))
-			.thenAnswer((Answer<LRUCache>) invocation -> {
-				Object[] arguments = invocation.getArguments();
-				actualCacheCapacity.set((long) arguments[0]);
-				return (LRUCache) invocation.callRealMethod();
-			});
-
-		long totalMemorySize = 2048L;
-		double writeBufferRatio = 0.5;
-		double highPriPoolRatio = 0.1;
-		createSharedResources(totalMemorySize, writeBufferRatio, highPriPoolRatio);
-		long expectedCacheCapacity = RocksDBOperationUtils.calculateActualCacheCapacity(totalMemorySize, writeBufferRatio);
-		assertThat(actualCacheCapacity.get(), is(expectedCacheCapacity));
-	}
-
 	private OpaqueMemoryResource<RocksDBSharedResources> getSharedResources() {
-		return createSharedResources(1024L, 0.5, 0.1);
-	}
-
-	private OpaqueMemoryResource<RocksDBSharedResources> createSharedResources(long totalMemorySize, double writeBufferRatio, double highPriPoolRatio) {
-		RocksDBSharedResources rocksDBSharedResources = RocksDBOperationUtils
-			.allocateRocksDBSharedResources(totalMemorySize, writeBufferRatio, highPriPoolRatio);
-		return new OpaqueMemoryResource<>(rocksDBSharedResources, totalMemorySize, rocksDBSharedResources::close);
+		final long cacheSize = 1024L, writeBufferSize = 512L;
+		final LRUCache cache = new LRUCache(cacheSize, -1, false, 0.1);
+		final WriteBufferManager wbm = new WriteBufferManager(writeBufferSize, cache);
+		RocksDBSharedResources rocksDBSharedResources = new RocksDBSharedResources(cache, wbm);
+		return new OpaqueMemoryResource<>(rocksDBSharedResources, cacheSize, rocksDBSharedResources::close);
 	}
 
 	private Cache getBlockCache(ColumnFamilyOptions columnOptions) {
