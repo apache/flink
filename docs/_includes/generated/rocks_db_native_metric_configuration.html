@@ -21,6 +21,24 @@
             <td>Monitor the number of background errors in RocksDB.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-capacity</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor block cache capacity.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-pinned-usage</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the memory size for the entries being pinned in block cache.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-usage</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the memory size for the entries residing in block cache.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.metrics.column-family-as-variable</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -67,6 +85,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Estimate the memory used for reading SST tables, excluding memory used in block cache (e.g.,filter and index blocks) in bytes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.is-write-stopped</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.mem-table-flush-pending</h5></td>

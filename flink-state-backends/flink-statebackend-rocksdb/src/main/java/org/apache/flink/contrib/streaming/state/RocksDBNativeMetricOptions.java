@@ -153,6 +153,30 @@ public class RocksDBNativeMetricOptions implements Serializable {
 		.defaultValue(false)
 		.withDescription("Monitor the current actual delayed write rate. 0 means no delay.");
 
+	public static final ConfigOption<Boolean> IS_WRITE_STOPPED = ConfigOptions
+		.key(RocksDBProperty.IsWriteStopped.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.");
+
+	public static final ConfigOption<Boolean> BLOCK_CACHE_CAPACITY = ConfigOptions
+		.key(RocksDBProperty.BlockCacheCapacity.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Monitor block cache capacity.");
+
+	public static final ConfigOption<Boolean> BLOCK_CACHE_USAGE = ConfigOptions
+		.key(RocksDBProperty.BlockCacheUsage.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Monitor the memory size for the entries residing in block cache.");
+
+	public static final ConfigOption<Boolean> BLOCK_CACHE_PINNED_USAGE = ConfigOptions
+		.key(RocksDBProperty.BlockCachePinnedUsage.getConfigKey())
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Monitor the memory size for the entries being pinned in block cache.");
+
 	public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE = ConfigOptions
 		.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
 		.defaultValue(false)
@@ -246,6 +270,22 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
 		if (config.getBoolean(MONITOR_ACTUAL_DELAYED_WRITE_RATE)) {
 			options.enableActualDelayedWriteRate();
+		}
+
+		if (config.getBoolean(IS_WRITE_STOPPED)) {
+			options.enableIsWriteStopped();
+		}
+
+		if (config.getBoolean(BLOCK_CACHE_CAPACITY)) {
+			options.enableBlockCacheCapacity();
+		}
+
+		if (config.getBoolean(BLOCK_CACHE_USAGE)) {
+			options.enableBlockCacheUsage();
+		}
+
+		if (config.getBoolean(BLOCK_CACHE_PINNED_USAGE)) {
+			options.enableBlockCachePinnedUsage();
 		}
 
 		options.setColumnFamilyAsVariable(config.getBoolean(COLUMN_FAMILY_AS_VARIABLE));
@@ -411,6 +451,34 @@ public class RocksDBNativeMetricOptions implements Serializable {
 	 */
 	public void enableActualDelayedWriteRate() {
 		this.properties.add(RocksDBProperty.ActualDelayedWriteRate.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns 1 if write has been stopped.
+	 */
+	public void enableIsWriteStopped() {
+		this.properties.add(RocksDBProperty.IsWriteStopped.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns block cache capacity.
+	 */
+	public void enableBlockCacheCapacity() {
+		this.properties.add(RocksDBProperty.BlockCacheCapacity.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns the memory size for the entries residing in block cache.
+	 */
+	public void enableBlockCacheUsage() {
+		this.properties.add(RocksDBProperty.BlockCacheUsage.getRocksDBProperty());
+	}
+
+	/**
+	 * Returns the memory size for the entries being pinned in block cache.
+	 */
+	public void enableBlockCachePinnedUsage() {
+		this.properties.add(RocksDBProperty.BlockCachePinnedUsage.getRocksDBProperty());
 	}
 
 	/**
