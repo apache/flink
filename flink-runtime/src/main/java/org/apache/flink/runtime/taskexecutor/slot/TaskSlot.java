@@ -71,10 +71,10 @@ public class TaskSlot implements AutoCloseable {
 	/** State of this slot. */
 	private TaskSlotState state;
 
-	/** Job id to which the slot has been allocated; null if not allocated. */
+	/** Job id to which the slot has been allocated. */
 	private final JobID jobId;
 
-	/** Allocation id of this slot; null if not allocated. */
+	/** Allocation id of this slot. */
 	private final AllocationID allocationId;
 
 	public TaskSlot(
