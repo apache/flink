@@ -29,7 +29,6 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
 import org.apache.flink.util.Preconditions.checkArgument
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.RelNode
@@ -39,9 +38,11 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, MapSqlType, SqlTypeName}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
-
 import java.nio.charset.Charset
 import java.util
+import java.util.Optional
+
+import org.apache.flink.table.catalog.{DataTypeLookup, UnresolvedIdentifier}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -54,6 +55,17 @@ import scala.collection.mutable
 class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImpl(typeSystem) {
 
   private val seenTypes = mutable.HashMap[LogicalType, RelDataType]()
+
+  def getDataTypeLookup: DataTypeLookup = new DataTypeLookup {
+    override def lookupDataType(name: String): Optional[DataType] =
+      throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
+
+    override def lookupDataType(identifier: UnresolvedIdentifier): Optional[DataType] =
+      throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
+
+    override def resolveRawDataType(clazz: Class[_]): DataType =
+      throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
+  }
 
   /**
     * Create a calcite field type in table schema from [[LogicalType]]. It use

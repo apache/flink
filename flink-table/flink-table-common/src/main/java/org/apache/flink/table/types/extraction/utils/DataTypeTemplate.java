@@ -27,11 +27,6 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
-import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.InputTypeStrategies;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
-import org.apache.flink.table.types.inference.TypeStrategies;
-import org.apache.flink.table.types.inference.TypeStrategy;
 
 import javax.annotation.Nullable;
 
@@ -43,8 +38,7 @@ import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.crea
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 
 /**
- * Internal representation of a {@link DataTypeHint} and template for creating a single {@link DataType}
- * or a {@link InputTypeStrategy} for groups of {@link DataType}s.
+ * Internal representation of a {@link DataTypeHint}.
  *
  * <p>All parameters of a template are optional. An empty annotation results in a template where all
  * members are {@code null}.
@@ -195,49 +189,6 @@ public final class DataTypeTemplate {
 			rightValueIfNotNull(defaultYearPrecision, otherTemplate.defaultYearPrecision),
 			rightValueIfNotNull(defaultSecondPrecision, otherTemplate.defaultSecondPrecision)
 		);
-	}
-
-	/**
-	 * Whether this template defines an explicit data type.
-	 */
-	public boolean hasDataTypeDefinition() {
-		return dataType != null;
-	}
-
-	/**
-	 * Whether this template defines a group of data types for an input argument.
-	 */
-	public boolean hasInputGroupDefinition() {
-		return inputGroup != null && inputGroup != InputGroup.UNKNOWN;
-	}
-
-	/**
-	 * Converts this template into an {@link ArgumentTypeStrategy}.
-	 */
-	public ArgumentTypeStrategy toArgumentTypeStrategy() {
-		// data type
-		if (hasDataTypeDefinition()) {
-			return InputTypeStrategies.explicit(dataType);
-		}
-		// input group
-		else if (hasInputGroupDefinition()) {
-			if (inputGroup == InputGroup.ANY) {
-				return InputTypeStrategies.ANY;
-			}
-		}
-		throw ExtractionUtils.extractionError(
-			"Data type hint does neither specify an explicit data type nor an input group.");
-	}
-
-	/**
-	 * Converts this template into a {@link TypeStrategy}.
-	 */
-	public TypeStrategy toTypeStrategy() {
-		if (hasDataTypeDefinition()) {
-			return TypeStrategies.explicit(dataType);
-		}
-		throw ExtractionUtils.extractionError(
-			"Data type hint does not specify an explicit data type.");
 	}
 
 	/**

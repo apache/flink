@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -42,6 +43,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -413,17 +415,48 @@ public class BootstrapToolsTest extends TestLogger {
 	}
 
 	@Test
-	public void testGetDynamicProperties() {
-		Configuration baseConfig = new Configuration();
+	public void testGetDynamicPropertiesAsString() {
+		final Configuration baseConfig = new Configuration();
 		baseConfig.setString("key.a", "a");
 		baseConfig.setString("key.b", "b1");
 
-		Configuration targetConfig = new Configuration();
+		final Configuration targetConfig = new Configuration();
 		targetConfig.setString("key.b", "b2");
 		targetConfig.setString("key.c", "c");
 
-		String dynamicProperties = BootstrapTools.getDynamicProperties(baseConfig, targetConfig);
-		assertEquals("-Dkey.b=b2 -Dkey.c=c", dynamicProperties);
+		final String dynamicProperties = BootstrapTools.getDynamicPropertiesAsString(baseConfig, targetConfig);
+		if (OperatingSystem.isWindows()) {
+			assertEquals("-Dkey.b=\"b2\" -Dkey.c=\"c\"", dynamicProperties);
+		} else {
+			assertEquals("-Dkey.b='b2' -Dkey.c='c'", dynamicProperties);
+		}
+	}
+
+	@Test
+	public void testEscapeDynamicPropertyValueWithSingleQuote() {
+		final String value1 = "#a,b&c^d*e@f(g!h";
+		assertEquals("'" + value1 + "'", BootstrapTools.escapeWithSingleQuote(value1));
+
+		final String value2 = "'foobar";
+		assertEquals("''\\''foobar'", BootstrapTools.escapeWithSingleQuote(value2));
+
+		final String value3 = "foo''bar";
+		assertEquals("'foo'\\'''\\''bar'", BootstrapTools.escapeWithSingleQuote(value3));
+
+		final String value4 = "'foo' 'bar'";
+		assertEquals("''\\''foo'\\'' '\\''bar'\\'''", BootstrapTools.escapeWithSingleQuote(value4));
+	}
+
+	@Test
+	public void testEscapeDynamicPropertyValueWithDoubleQuote() {
+		final String value1 = "#a,b&c^d*e@f(g!h";
+		assertEquals("\"#a,b&c\"^^\"d*e@f(g!h\"", BootstrapTools.escapeWithDoubleQuote(value1));
+
+		final String value2 = "foo\"bar'";
+		assertEquals("\"foo\\\"bar'\"", BootstrapTools.escapeWithDoubleQuote(value2));
+
+		final String value3 = "\"foo\" \"bar\"";
+		assertEquals("\"\\\"foo\\\" \\\"bar\\\"\"", BootstrapTools.escapeWithDoubleQuote(value3));
 	}
 
 	@Test
@@ -476,5 +509,28 @@ public class BootstrapToolsTest extends TestLogger {
 		final Configuration conf = new Configuration();
 		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
 		BootstrapTools.calculateHeapSize(4000, conf);
+	}
+
+	@Test
+	public void testGetEnvironmentVariables() {
+		Configuration testConf = new Configuration();
+		testConf.setString("containerized.master.env.LD_LIBRARY_PATH", "/usr/lib/native");
+
+		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+
+		Assert.assertEquals(1, res.size());
+		Map.Entry<String, String> entry = res.entrySet().iterator().next();
+		Assert.assertEquals("LD_LIBRARY_PATH", entry.getKey());
+		Assert.assertEquals("/usr/lib/native", entry.getValue());
+	}
+
+	@Test
+	public void testGetEnvironmentVariablesErroneous() {
+		Configuration testConf = new Configuration();
+		testConf.setString("containerized.master.env.", "/usr/lib/native");
+
+		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+
+		Assert.assertEquals(0, res.size());
 	}
 }

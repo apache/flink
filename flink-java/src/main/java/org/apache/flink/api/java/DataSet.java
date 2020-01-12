@@ -521,7 +521,7 @@ public abstract class DataSet<T> {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> minBy(int... fields)  {
-		if (!getType().isTupleType()) {
+		if (!getType().isTupleType() || !(getType() instanceof TupleTypeInfo)) {
 			throw new InvalidProgramException("DataSet#minBy(int...) only works on Tuple types.");
 		}
 
@@ -557,7 +557,7 @@ public abstract class DataSet<T> {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> maxBy(int... fields) {
-		if (!getType().isTupleType()) {
+		if (!getType().isTupleType() || !(getType() instanceof TupleTypeInfo)) {
 			throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.");
 		}
 

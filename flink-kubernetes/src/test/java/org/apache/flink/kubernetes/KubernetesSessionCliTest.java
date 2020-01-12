@@ -26,6 +26,7 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.cli.KubernetesSessionCli;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -122,7 +123,7 @@ public class KubernetesSessionCliTest {
 		final int slotsPerTaskManager = 30;
 
 		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, taskManagerMemory + "m");
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(taskManagerMemory + "m"));
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
 		final String[] args = {
@@ -153,7 +154,7 @@ public class KubernetesSessionCliTest {
 		final int jobManagerMemory = 1337;
 		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
 		final int taskManagerMemory = 7331;
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, taskManagerMemory + "m");
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(taskManagerMemory + "m"));
 		final int slotsPerTaskManager = 42;
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
@@ -257,7 +258,7 @@ public class KubernetesSessionCliTest {
 
 	private KubernetesSessionCli createFlinkKubernetesCustomCliWithTmTotalMemory(int totalMemory) {
 		Configuration configuration = new Configuration();
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalMemory + "m");
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(totalMemory + "m"));
 		return new KubernetesSessionCli(configuration);
 	}
 }

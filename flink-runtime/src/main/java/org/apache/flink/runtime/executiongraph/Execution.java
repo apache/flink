@@ -83,7 +83,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -119,9 +118,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * actions if it is not. Many actions are also idempotent (like canceling).
  */
 public class Execution implements AccessExecution, Archiveable<ArchivedExecution>, LogicalSlot.Payload {
-
-	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
@@ -163,17 +159,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile ExecutionState state = CREATED;
 
-	private volatile LogicalSlot assignedResource;
+	private LogicalSlot assignedResource;
 
-	private volatile Throwable failureCause;          // once assigned, never changes
+	private Throwable failureCause;          // once assigned, never changes
 
 	/** Information to restore the task on recovery, such as checkpoint id and task state snapshot. */
 	@Nullable
-	private volatile JobManagerTaskRestore taskRestore;
+	private JobManagerTaskRestore taskRestore;
 
 	/** This field holds the allocation id once it was assigned successfully. */
 	@Nullable
-	private volatile AllocationID assignedAllocationID;
+	private AllocationID assignedAllocationID;
 
 	// ------------------------ Accumulators & Metrics ------------------------
 
@@ -182,9 +178,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
-	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
+	private Map<String, Accumulator<?, ?>> userAccumulators;
 
-	private volatile IOMetrics ioMetrics;
+	private IOMetrics ioMetrics;
 
 	private Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor> producedPartitions;
 
@@ -1521,7 +1517,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			throw new IllegalStateException("Cannot leave terminal state " + currentState + " to transition to " + targetState + '.');
 		}
 
-		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
+		if (state == currentState) {
+			state = targetState;
 			markTimestamp(targetState);
 
 			if (error == null) {

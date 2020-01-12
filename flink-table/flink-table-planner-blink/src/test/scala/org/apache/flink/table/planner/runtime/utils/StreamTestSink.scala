@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow}
 import org.apache.flink.table.planner.utils.BaseRowTestUtil
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
@@ -250,9 +249,9 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
 
 final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   extends UpsertStreamTableSink[BaseRow] {
-  var fNames: Array[String] = _
-  var fTypes: Array[TypeInformation[_]] = _
-  var sink = new TestingUpsertSink(keys, tz)
+  private var fNames: Array[String] = _
+  private var fTypes: Array[TypeInformation[_]] = _
+  private var sink = new TestingUpsertSink(keys, tz)
   var expectedKeys: Option[Array[String]] = None
   var expectedIsAppendOnly: Option[Boolean] = None
 

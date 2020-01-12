@@ -25,6 +25,7 @@ source "$(dirname "$0")"/common_docker.sh
 MAX_RETRY_SECONDS=120
 IMAGE_BUILD_RETRIES=5
 NODENAME=${NODENAME:-`hostname -f`}
+export MESOS_AGENT_CPU=1
 
 echo "End-to-end directory $END_TO_END_DIR"
 
@@ -65,4 +66,16 @@ function build_image() {
         echo "ERROR: Could not build mesos image. Aborting..."
         exit 1
     fi
+}
+
+function wait_job_terminal_state_mesos {
+  local job=$1
+  local expected_terminal_state=$2
+  wait_job_terminal_state $1 $2 "mesos-appmaster"
+}
+
+function wait_num_of_occurence_in_logs_mesos() {
+    local text=$1
+    local number=$2
+    wait_num_of_occurence_in_logs $1 $2 "mesos-appmaster"
 }

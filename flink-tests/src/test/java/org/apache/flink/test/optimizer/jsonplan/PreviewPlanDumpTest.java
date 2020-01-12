@@ -107,7 +107,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 			.setArguments(args)
 			.build();
 
-		final Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, 1);
+		final Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, 1, true);
 
 		assertTrue(pipeline instanceof Plan);
 

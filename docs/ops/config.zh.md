@@ -68,6 +68,7 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/deployment_configuration.html %}
 {% include generated/savepoint_config_configuration.html %}
+{% include generated/execution_configuration.html %}
 
 ### JobManager
 
@@ -168,6 +169,10 @@ The configuration keys in this section are independent of the used resource mana
 #### Mesos TaskManager
 
 {% include generated/mesos_task_manager_configuration.html %}
+
+### Kubernetes
+
+{% include generated/kubernetes_config_configuration.html %}
 
 ### High Availability (HA)
 

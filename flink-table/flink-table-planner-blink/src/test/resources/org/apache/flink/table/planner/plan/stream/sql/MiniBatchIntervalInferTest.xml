@@ -501,6 +501,50 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTemporalTableFunctionJoinWithMiniBatch">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT r_a, COUNT(o_a)
+ FROM (
+   SELECT o.a as o_a, r.a as r_a
+   FROM Orders As o,
+   LATERAL TABLE (Rates(o.rowtime)) as r
+   WHERE o.b = r.b
+ )
+ GROUP BY r_a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
++- LogicalProject(r_a=[$5], o_a=[$0])
+   +- LogicalFilter(condition=[=($1, $6)])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
+         :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+         +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIME ATTRIBUTE(PROCTIME) proctime, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(count$0) AS EXPR$1])
++- Exchange(distribution=[hash[r_a]])
+   +- LocalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(o_a) AS count$0])
+      +- Calc(select=[a0 AS r_a, a AS o_a])
+         +- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, b0), =(b, b0))], select=[a, b, rowtime, a0, b0, rowtime0])
+            :- Exchange(distribution=[hash[b]])
+            :  +- Calc(select=[a, b, rowtime])
+            :     +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+            :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+            :           +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[b]])
+               +- Calc(select=[a, b, rowtime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                        +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWindowJoinWithMiniBatch">
     <Resource name="sql">
       <![CDATA[

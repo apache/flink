@@ -220,7 +220,7 @@ run sdist.
         scripts=scripts,
         url='https://flink.apache.org',
         license='https://www.apache.org/licenses/LICENSE-2.0',
-        author='Flink Developers',
+        author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.5',
         install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.15.0',

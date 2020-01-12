@@ -99,7 +99,8 @@ class StreamExecSink[T](
             // Now we pick shortest one to sink
             // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
             val tableKeys = {
-              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner) match {
+              val sinkFieldNames = upsertSink.getTableSchema.getFieldNames
+              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner, sinkFieldNames) match {
                 case Some(keys) => keys.sortBy(_.length).headOption
                 case None => None
               }

@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
@@ -82,6 +83,10 @@ public class KubernetesTestBase extends TestLogger {
 
 	protected static final String MOCK_SERVICE_IP = "192.168.0.1";
 
+	protected static final String FLINK_MASTER_ENV_KEY = "LD_LIBRARY_PATH";
+
+	protected static final String FLINK_MASTER_ENV_VALUE = "/usr/lib/native";
+
 	@Before
 	public void setUp() throws IOException {
 		FLINK_CONFIG.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
@@ -91,6 +96,9 @@ public class KubernetesTestBase extends TestLogger {
 		FLINK_CONFIG.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, "main-class");
 		FLINK_CONFIG.setString(BlobServerOptions.PORT, String.valueOf(Constants.BLOB_SERVER_PORT));
 		FLINK_CONFIG.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
+		FLINK_CONFIG.setString(
+			ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX + FLINK_MASTER_ENV_KEY,
+			FLINK_MASTER_ENV_VALUE);
 
 		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
 		BootstrapTools.writeConfiguration(new Configuration(), new File(flinkConfDir, "flink-conf.yaml"));

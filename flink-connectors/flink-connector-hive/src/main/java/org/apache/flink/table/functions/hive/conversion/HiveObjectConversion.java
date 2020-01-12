@@ -20,6 +20,8 @@ package org.apache.flink.table.functions.hive.conversion;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**
@@ -29,5 +31,5 @@ import java.io.Serializable;
 @Internal
 public interface HiveObjectConversion extends Serializable {
 
-	Object toHiveObject(Object o);
+	@Nullable Object toHiveObject(@Nullable Object o);
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.functions.hive.conversion;
 
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+
 /**
  * A HiveObjectConversion that converts Flink objects to Hive Writable objects.
  */
@@ -26,13 +28,15 @@ public class WritableHiveObjectConversion implements HiveObjectConversion {
 	private static final long serialVersionUID = 1L;
 
 	private final HiveObjectConversion flinkToJavaConversion;
+	private final HiveShim hiveShim;
 
-	WritableHiveObjectConversion(HiveObjectConversion flinkToJavaConversion) {
+	WritableHiveObjectConversion(HiveObjectConversion flinkToJavaConversion, HiveShim hiveShim) {
 		this.flinkToJavaConversion = flinkToJavaConversion;
+		this.hiveShim = hiveShim;
 	}
 
 	@Override
 	public Object toHiveObject(Object o) {
-		return HiveInspectors.hivePrimitiveToWritable(flinkToJavaConversion.toHiveObject(o));
+		return hiveShim.hivePrimitiveToWritable(flinkToJavaConversion.toHiveObject(o));
 	}
 }

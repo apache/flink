@@ -125,6 +125,14 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract List<KafkaServer> getBrokers();
 
+	public Properties getIdempotentProducerConfig() {
+		Properties props = new Properties();
+		props.put("enable.idempotence", "true");
+		props.put("acks", "all");
+		props.put("retries", "3");
+		return props;
+	}
+
 	// -- consumer / producer instances:
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(topics, new KafkaDeserializationSchemaWrapper<T>(deserializationSchema), props);

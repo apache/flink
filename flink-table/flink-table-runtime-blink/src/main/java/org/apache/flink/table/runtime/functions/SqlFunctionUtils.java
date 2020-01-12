@@ -1063,8 +1063,8 @@ public class SqlFunctionUtils {
 		return Base64.getEncoder().encodeToString(bytes);
 	}
 
-	public static byte[] fromBase64(BinaryString bs){
-		return Base64.getDecoder().decode(bs.getBytes());
+	public static BinaryString fromBase64(BinaryString bs) {
+		return BinaryString.fromBytes(Base64.getDecoder().decode(bs.getBytes()));
 	}
 
 	public static String uuid(){

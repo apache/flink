@@ -459,11 +459,12 @@ function wait_job_running {
 function wait_job_terminal_state {
   local job=$1
   local expected_terminal_state=$2
+  local log_file_name=${3:-standalonesession}
 
   echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
+    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*$log_file_name*.log | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else
@@ -632,12 +633,7 @@ function wait_oper_metric_num_in_records {
 function wait_num_of_occurence_in_logs {
     local text=$1
     local number=$2
-    local logs
-    if [ -z "$3" ]; then
-        logs="standalonesession"
-    else
-        logs="$3"
-    fi
+    local logs=${3:-standalonesession}
 
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 
@@ -748,7 +744,7 @@ function retry_times_with_backoff_and_cleanup() {
     local command="$3"
     local cleanup_command="$4"
 
-    for (( i = 0; i < ${retriesNumber}; i++ ))
+    for i in $(seq 1 ${retriesNumber})
     do
         if ${command}; then
             return 0

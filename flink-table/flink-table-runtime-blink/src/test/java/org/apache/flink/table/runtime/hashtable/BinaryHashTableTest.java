@@ -848,6 +848,22 @@ public class BinaryHashTableTest {
 		table.free();
 	}
 
+	@Test
+	public void testBinaryHashBucketAreaNotEnoughMem() throws IOException {
+		MemoryManager memManager = MemoryManagerBuilder.newBuilder().setMemorySize(35 * PAGE_SIZE).build();
+		BinaryHashTable table = newBinaryHashTable(
+				this.buildSideSerializer, this.probeSideSerializer,
+				new MyProjection(), new MyProjection(), memManager,
+				35 * PAGE_SIZE, ioManager);
+		BinaryHashBucketArea area = new BinaryHashBucketArea(table, 100, 1, false);
+		for (int i = 0; i < 100000; i++) {
+			area.insertToBucket(i, i, true);
+		}
+		area.freeMemory();
+		table.close();
+		Assert.assertEquals(35, table.getFreedMemory().size());
+	}
+
 	// ============================================================================================
 
 	/**
