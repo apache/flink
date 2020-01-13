@@ -171,14 +171,14 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * sanity check them.
 	 *
 	 * @param configuration configuration object
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
+	 * @param networkMemorySize the size of memory reserved for shuffle environment
 	 * @param localTaskManagerCommunication true, to skip initializing the network stack
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
 	 * @return NettyShuffleEnvironmentConfiguration
 	 */
 	public static NettyShuffleEnvironmentConfiguration fromConfiguration(
 		Configuration configuration,
-		MemorySize shuffleMemorySize,
+		MemorySize networkMemorySize,
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress) {
 
@@ -190,7 +190,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(
 			configuration,
-			shuffleMemorySize,
+			networkMemorySize,
 			pageSize);
 
 		int initialRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
@@ -250,21 +250,21 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * Calculates the number of network buffers based on configuration and jvm heap size.
 	 *
 	 * @param configuration configuration object
-	 * @param shuffleMemorySize the size of memory reserved for shuffle environment
+	 * @param networkMemorySize the size of memory reserved for shuffle environment
 	 * @param pageSize size of memory segment
 	 * @return the number of network buffers
 	 */
 	private static int calculateNumberOfNetworkBuffers(
 		Configuration configuration,
-		MemorySize shuffleMemorySize,
+		MemorySize networkMemorySize,
 		int pageSize) {
 
 		logIfIgnoringOldConfigs(configuration);
 
 		// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
-		long numberOfNetworkBuffersLong = shuffleMemorySize.getBytes() / pageSize;
+		long numberOfNetworkBuffersLong = networkMemorySize.getBytes() / pageSize;
 		if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
-			throw new IllegalArgumentException("The given number of memory bytes (" + shuffleMemorySize.getBytes()
+			throw new IllegalArgumentException("The given number of memory bytes (" + networkMemorySize.getBytes()
 				+ ") corresponds to more than MAX_INT pages.");
 		}
 

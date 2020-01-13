@@ -159,8 +159,8 @@ public class TaskManagerServicesConfiguration {
 		return taskExecutorResourceSpec;
 	}
 
-	public MemorySize getShuffleMemorySize() {
-		return taskExecutorResourceSpec.getShuffleMemSize();
+	public MemorySize getNetworkMemorySize() {
+		return taskExecutorResourceSpec.getNetworkMemSize();
 	}
 
 	public MemorySize getManagedMemorySize() {
