@@ -77,8 +77,8 @@ public class TaskExecutorResourceUtils {
 		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorResourceSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
 		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskHeapSize().getBytes() + "b");
 		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskOffHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.SHUFFLE_MEMORY_MIN.key(), taskExecutorResourceSpec.getShuffleMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.SHUFFLE_MEMORY_MAX.key(), taskExecutorResourceSpec.getShuffleMemSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.NETWORK_MEMORY_MIN.key(), taskExecutorResourceSpec.getNetworkMemSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorResourceSpec.getNetworkMemSize().getBytes() + "b");
 		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorResourceSpec.getManagedMemorySize().getBytes() + "b");
 		return assembleDynamicConfigsStr(configs);
 	}
@@ -111,7 +111,7 @@ public class TaskExecutorResourceUtils {
 			.setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize().divide(numberOfSlots))
 			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize().divide(numberOfSlots))
 			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize().divide(numberOfSlots))
-			.setShuffleMemory(taskExecutorResourceSpec.getShuffleMemSize().divide(numberOfSlots))
+			.setNetworkMemory(taskExecutorResourceSpec.getNetworkMemSize().divide(numberOfSlots))
 			.build();
 	}
 
@@ -121,7 +121,7 @@ public class TaskExecutorResourceUtils {
 			.setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize())
 			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize())
 			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize())
-			.setShuffleMemory(taskExecutorResourceSpec.getShuffleMemSize())
+			.setNetworkMemory(taskExecutorResourceSpec.getNetworkMemSize())
 			.build();
 	}
 
@@ -171,14 +171,14 @@ public class TaskExecutorResourceUtils {
 		final MemorySize frameworkOffHeapMemorySize = getFrameworkOffHeapMemorySize(config);
 		final MemorySize taskOffHeapMemorySize = getTaskOffHeapMemorySize(config);
 
-		final MemorySize shuffleMemorySize;
-		final MemorySize totalFlinkExcludeShuffleMemorySize =
+		final MemorySize networkMemorySize;
+		final MemorySize totalFlinkExcludeNetworkMemorySize =
 			frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize);
 
 		if (isTotalFlinkMemorySizeExplicitlyConfigured(config)) {
-			// derive shuffle memory from total flink memory, and check against shuffle min/max
+			// derive network memory from total flink memory, and check against network min/max
 			final MemorySize totalFlinkMemorySize = getTotalFlinkMemorySize(config);
-			if (totalFlinkExcludeShuffleMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
+			if (totalFlinkExcludeNetworkMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
 					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toString()
 					+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toString()
@@ -187,14 +187,14 @@ public class TaskExecutorResourceUtils {
 					+ ") and Managed Memory (" + managedMemorySize.toString()
 					+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
-			shuffleMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeShuffleMemorySize);
-			sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, shuffleMemorySize, totalFlinkMemorySize);
+			networkMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeNetworkMemorySize);
+			sanityCheckNetworkMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, networkMemorySize, totalFlinkMemorySize);
 		} else {
-			// derive shuffle memory from shuffle configs
-			if (isUsingLegacyShuffleConfigs(config)) {
-				shuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
+			// derive network memory from network configs
+			if (isUsingLegacyNetworkConfigs(config)) {
+				networkMemorySize = getNetworkMemorySizeWithLegacyConfig(config);
 			} else {
-				shuffleMemorySize = deriveShuffleMemoryWithInverseFraction(config, totalFlinkExcludeShuffleMemorySize);
+				networkMemorySize = deriveNetworkMemoryWithInverseFraction(config, totalFlinkExcludeNetworkMemorySize);
 			}
 		}
 
@@ -203,7 +203,7 @@ public class TaskExecutorResourceUtils {
 			frameworkOffHeapMemorySize,
 			taskHeapMemorySize,
 			taskOffHeapMemorySize,
-			shuffleMemorySize,
+			networkMemorySize,
 			managedMemorySize);
 		sanityCheckTotalFlinkMemory(config, flinkInternalMemory);
 
@@ -269,17 +269,17 @@ public class TaskExecutorResourceUtils {
 		final MemorySize taskOffHeapMemorySize = getTaskOffHeapMemorySize(config);
 
 		final MemorySize taskHeapMemorySize;
-		final MemorySize shuffleMemorySize;
+		final MemorySize networkMemorySize;
 		final MemorySize managedMemorySize;
 
 		if (isTaskHeapMemorySizeExplicitlyConfigured(config)) {
 			// task heap memory is configured,
-			// derive managed memory first, leave the remaining to shuffle memory and check against shuffle min/max
+			// derive managed memory first, leave the remaining to network memory and check against network min/max
 			taskHeapMemorySize = getTaskHeapMemorySize(config);
 			managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
-			final MemorySize totalFlinkExcludeShuffleMemorySize =
+			final MemorySize totalFlinkExcludeNetworkMemorySize =
 				frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize);
-			if (totalFlinkExcludeShuffleMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
+			if (totalFlinkExcludeNetworkMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
 					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toString()
 						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toString()
@@ -288,27 +288,27 @@ public class TaskExecutorResourceUtils {
 						+ ") and Managed Memory (" + managedMemorySize.toString()
 						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
-			shuffleMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeShuffleMemorySize);
-			sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, shuffleMemorySize, totalFlinkMemorySize);
+			networkMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeNetworkMemorySize);
+			sanityCheckNetworkMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, networkMemorySize, totalFlinkMemorySize);
 		} else {
 			// task heap memory is not configured
-			// derive managed memory and shuffle memory, leave the remaining to task heap memory
+			// derive managed memory and network memory, leave the remaining to task heap memory
 			managedMemorySize = deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
 
-			if (isUsingLegacyShuffleConfigs(config)) {
-				shuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
+			if (isUsingLegacyNetworkConfigs(config)) {
+				networkMemorySize = getNetworkMemorySizeWithLegacyConfig(config);
 			} else {
-				shuffleMemorySize = deriveShuffleMemoryWithFraction(config, totalFlinkMemorySize);
+				networkMemorySize = deriveNetworkMemoryWithFraction(config, totalFlinkMemorySize);
 			}
 			final MemorySize totalFlinkExcludeTaskHeapMemorySize =
-				frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize).add(shuffleMemorySize);
+				frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize).add(networkMemorySize);
 			if (totalFlinkExcludeTaskHeapMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
 					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toString()
 						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toString()
 						+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toString()
 						+ "), Managed Memory (" + managedMemorySize.toString()
-						+ ") and Shuffle Memory (" + shuffleMemorySize.toString()
+						+ ") and Network Memory (" + networkMemorySize.toString()
 						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
 			}
 			taskHeapMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeTaskHeapMemorySize);
@@ -319,7 +319,7 @@ public class TaskExecutorResourceUtils {
 			frameworkOffHeapMemorySize,
 			taskHeapMemorySize,
 			taskOffHeapMemorySize,
-			shuffleMemorySize,
+			networkMemorySize,
 			managedMemorySize);
 		sanityCheckTotalFlinkMemory(config, flinkInternalMemory);
 
@@ -334,12 +334,12 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	private static MemorySize deriveShuffleMemoryWithFraction(final Configuration config, final MemorySize base) {
-		return deriveWithFraction("shuffle memory", base, getShuffleMemoryRangeFraction(config));
+	private static MemorySize deriveNetworkMemoryWithFraction(final Configuration config, final MemorySize base) {
+		return deriveWithFraction("network memory", base, getNetworkMemoryRangeFraction(config));
 	}
 
-	private static MemorySize deriveShuffleMemoryWithInverseFraction(final Configuration config, final MemorySize base) {
-		return deriveWithInverseFraction("shuffle memory", base, getShuffleMemoryRangeFraction(config));
+	private static MemorySize deriveNetworkMemoryWithInverseFraction(final Configuration config, final MemorySize base) {
+		return deriveWithInverseFraction("network memory", base, getNetworkMemoryRangeFraction(config));
 	}
 
 	private static MemorySize deriveJvmOverheadWithFraction(final Configuration config, final MemorySize base) {
@@ -416,18 +416,18 @@ public class TaskExecutorResourceUtils {
 		return getRangeFraction(MemorySize.ZERO, MemorySize.MAX_VALUE, TaskManagerOptions.MANAGED_MEMORY_FRACTION, config);
 	}
 
-	private static MemorySize getShuffleMemorySizeWithLegacyConfig(final Configuration config) {
-		checkArgument(isUsingLegacyShuffleConfigs(config));
+	private static MemorySize getNetworkMemorySizeWithLegacyConfig(final Configuration config) {
+		checkArgument(isUsingLegacyNetworkConfigs(config));
 		@SuppressWarnings("deprecation")
 		final long numOfBuffers = config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
 		final long pageSize =  ConfigurationParserUtils.getPageSize(config);
 		return new MemorySize(numOfBuffers * pageSize);
 	}
 
-	private static RangeFraction getShuffleMemoryRangeFraction(final Configuration config) {
-		final MemorySize minSize = getMemorySizeFromConfig(config, TaskManagerOptions.SHUFFLE_MEMORY_MIN);
-		final MemorySize maxSize = getMemorySizeFromConfig(config, TaskManagerOptions.SHUFFLE_MEMORY_MAX);
-		return getRangeFraction(minSize, maxSize, TaskManagerOptions.SHUFFLE_MEMORY_FRACTION, config);
+	private static RangeFraction getNetworkMemoryRangeFraction(final Configuration config) {
+		final MemorySize minSize = getMemorySizeFromConfig(config, TaskManagerOptions.NETWORK_MEMORY_MIN);
+		final MemorySize maxSize = getMemorySizeFromConfig(config, TaskManagerOptions.NETWORK_MEMORY_MAX);
+		return getRangeFraction(minSize, maxSize, TaskManagerOptions.NETWORK_MEMORY_FRACTION, config);
 	}
 
 	private static MemorySize getJvmMetaspaceSize(final Configuration config) {
@@ -486,27 +486,27 @@ public class TaskExecutorResourceUtils {
 		return config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 	}
 
-	private static boolean isUsingLegacyShuffleConfigs(final Configuration config) {
+	private static boolean isUsingLegacyNetworkConfigs(final Configuration config) {
 		// use the legacy number-of-buffer config option only when it is explicitly configured and
 		// none of new config options is explicitly configured
 		@SuppressWarnings("deprecation")
 		final boolean legacyConfigured = config.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
-		return !config.contains(TaskManagerOptions.SHUFFLE_MEMORY_MIN) &&
-			!config.contains(TaskManagerOptions.SHUFFLE_MEMORY_MAX) &&
-			!config.contains(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION) &&
+		return !config.contains(TaskManagerOptions.NETWORK_MEMORY_MIN) &&
+			!config.contains(TaskManagerOptions.NETWORK_MEMORY_MAX) &&
+			!config.contains(TaskManagerOptions.NETWORK_MEMORY_FRACTION) &&
 			legacyConfigured;
 	}
 
-	private static boolean isShuffleMemoryFractionExplicitlyConfigured(final Configuration config) {
-		return config.contains(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION);
+	private static boolean isNetworkMemoryFractionExplicitlyConfigured(final Configuration config) {
+		return config.contains(TaskManagerOptions.NETWORK_MEMORY_FRACTION);
 	}
 
-	public static boolean isShuffleMemoryExplicitlyConfigured(final Configuration config) {
+	public static boolean isNetworkMemoryExplicitlyConfigured(final Configuration config) {
 		@SuppressWarnings("deprecation")
 		final boolean legacyConfigured = config.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
-		return config.contains(TaskManagerOptions.SHUFFLE_MEMORY_MAX) ||
-			config.contains(TaskManagerOptions.SHUFFLE_MEMORY_MIN) ||
-			config.contains(TaskManagerOptions.SHUFFLE_MEMORY_FRACTION) ||
+		return config.contains(TaskManagerOptions.NETWORK_MEMORY_MAX) ||
+			config.contains(TaskManagerOptions.NETWORK_MEMORY_MIN) ||
+			config.contains(TaskManagerOptions.NETWORK_MEMORY_FRACTION) ||
 			legacyConfigured;
 	}
 
@@ -530,7 +530,7 @@ public class TaskExecutorResourceUtils {
 						+ "), Framework Off-Heap Memory (" + flinkInternalMemory.frameworkOffHeap.toString()
 						+ "), Task Heap Memory (" + flinkInternalMemory.taskHeap.toString()
 						+ "), Task Off-Heap Memory (" + flinkInternalMemory.taskOffHeap.toString()
-						+ "), Shuffle Memory (" + flinkInternalMemory.shuffle.toString()
+						+ "), Network Memory (" + flinkInternalMemory.network.toString()
 						+ "), Managed Memory (" + flinkInternalMemory.managed.toString() + ").");
 			}
 		}
@@ -556,49 +556,49 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	private static void sanityCheckShuffleMemoryWithExplicitlySetTotalFlinkAndHeapMemory(
+	private static void sanityCheckNetworkMemoryWithExplicitlySetTotalFlinkAndHeapMemory(
 			final Configuration config,
-			final MemorySize derivedShuffleMemorySize,
+			final MemorySize derivedNetworkMemorySize,
 			final MemorySize totalFlinkMemorySize) {
 		try {
-			sanityCheckShuffleMemory(config, derivedShuffleMemorySize, totalFlinkMemorySize);
+			sanityCheckNetworkMemory(config, derivedNetworkMemorySize, totalFlinkMemorySize);
 		} catch (IllegalConfigurationException e) {
 			throw new IllegalConfigurationException(
 				"If Total Flink, Task Heap and (or) Managed Memory sizes are explicitly configured then " +
-					"the Shuffle Memory size is the rest of the Total Flink memory after subtracting all other " +
-					"configured types of memory, but the derived Shuffle Memory is inconsistent with its configuration.",
+					"the Network Memory size is the rest of the Total Flink memory after subtracting all other " +
+					"configured types of memory, but the derived Network Memory is inconsistent with its configuration.",
 				e);
 		}
 	}
 
-	private static void sanityCheckShuffleMemory(
+	private static void sanityCheckNetworkMemory(
 			final Configuration config,
-			final MemorySize derivedShuffleMemorySize,
+			final MemorySize derivedNetworkMemorySize,
 			final MemorySize totalFlinkMemorySize) {
-		if (isUsingLegacyShuffleConfigs(config)) {
-			final MemorySize configuredShuffleMemorySize = getShuffleMemorySizeWithLegacyConfig(config);
-			if (!configuredShuffleMemorySize.equals(derivedShuffleMemorySize)) {
+		if (isUsingLegacyNetworkConfigs(config)) {
+			final MemorySize configuredNetworkMemorySize = getNetworkMemorySizeWithLegacyConfig(config);
+			if (!configuredNetworkMemorySize.equals(derivedNetworkMemorySize)) {
 				throw new IllegalConfigurationException(
-					"Derived Shuffle Memory size (" + derivedShuffleMemorySize.toString()
-					+ ") does not match configured Shuffle Memory size (" + configuredShuffleMemorySize.toString() + ").");
+					"Derived Network Memory size (" + derivedNetworkMemorySize.toString()
+					+ ") does not match configured Network Memory size (" + configuredNetworkMemorySize.toString() + ").");
 			}
 		} else {
-			final RangeFraction shuffleRangeFraction = getShuffleMemoryRangeFraction(config);
-			if (derivedShuffleMemorySize.getBytes() > shuffleRangeFraction.maxSize.getBytes() ||
-				derivedShuffleMemorySize.getBytes() < shuffleRangeFraction.minSize.getBytes()) {
-				throw new IllegalConfigurationException("Derived Shuffle Memory size ("
-					+ derivedShuffleMemorySize.toString() + ") is not in configured Shuffle Memory range ["
-					+ shuffleRangeFraction.minSize.toString() + ", "
-					+ shuffleRangeFraction.maxSize.toString() + "].");
+			final RangeFraction networkRangeFraction = getNetworkMemoryRangeFraction(config);
+			if (derivedNetworkMemorySize.getBytes() > networkRangeFraction.maxSize.getBytes() ||
+				derivedNetworkMemorySize.getBytes() < networkRangeFraction.minSize.getBytes()) {
+				throw new IllegalConfigurationException("Derived Network Memory size ("
+					+ derivedNetworkMemorySize.toString() + ") is not in configured Network Memory range ["
+					+ networkRangeFraction.minSize.toString() + ", "
+					+ networkRangeFraction.maxSize.toString() + "].");
 			}
-			if (isShuffleMemoryFractionExplicitlyConfigured(config) &&
-				!derivedShuffleMemorySize.equals(totalFlinkMemorySize.multiply(shuffleRangeFraction.fraction))) {
+			if (isNetworkMemoryFractionExplicitlyConfigured(config) &&
+				!derivedNetworkMemorySize.equals(totalFlinkMemorySize.multiply(networkRangeFraction.fraction))) {
 				LOG.info(
-					"The derived Shuffle Memory size ({}) does not match " +
-						"the configured Shuffle Memory fraction ({}) from the configured Total Flink Memory size ({}). " +
-						"The derived Shuffle Memory size will be used.",
-					derivedShuffleMemorySize,
-					shuffleRangeFraction.fraction,
+					"The derived Network Memory size ({}) does not match " +
+						"the configured Network Memory fraction ({}) from the configured Total Flink Memory size ({}). " +
+						"The derived Network Memory size will be used.",
+					derivedNetworkMemorySize,
+					networkRangeFraction.fraction,
 					totalFlinkMemorySize);
 			}
 		}
@@ -642,7 +642,7 @@ public class TaskExecutorResourceUtils {
 			flinkInternalMemory.frameworkOffHeap,
 			flinkInternalMemory.taskHeap,
 			flinkInternalMemory.taskOffHeap,
-			flinkInternalMemory.shuffle,
+			flinkInternalMemory.network,
 			flinkInternalMemory.managed,
 			jvmMetaspaceAndOverhead.metaspace,
 			jvmMetaspaceAndOverhead.overhead);
@@ -667,7 +667,7 @@ public class TaskExecutorResourceUtils {
 		final MemorySize frameworkOffHeap;
 		final MemorySize taskHeap;
 		final MemorySize taskOffHeap;
-		final MemorySize shuffle;
+		final MemorySize network;
 		final MemorySize managed;
 
 		FlinkInternalMemory(
@@ -675,19 +675,19 @@ public class TaskExecutorResourceUtils {
 			final MemorySize frameworkOffHeap,
 			final MemorySize taskHeap,
 			final MemorySize taskOffHeap,
-			final MemorySize shuffle,
+			final MemorySize network,
 			final MemorySize managed) {
 
 			this.frameworkHeap = checkNotNull(frameworkHeap);
 			this.frameworkOffHeap = checkNotNull(frameworkOffHeap);
 			this.taskHeap = checkNotNull(taskHeap);
 			this.taskOffHeap = checkNotNull(taskOffHeap);
-			this.shuffle = checkNotNull(shuffle);
+			this.network = checkNotNull(network);
 			this.managed = checkNotNull(managed);
 		}
 
 		MemorySize getTotalFlinkMemorySize() {
-			return frameworkHeap.add(frameworkOffHeap).add(taskHeap).add(taskOffHeap).add(shuffle).add(managed);
+			return frameworkHeap.add(frameworkOffHeap).add(taskHeap).add(taskOffHeap).add(network).add(managed);
 		}
 	}
 

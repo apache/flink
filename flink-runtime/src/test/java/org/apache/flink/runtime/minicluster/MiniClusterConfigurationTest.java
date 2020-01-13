@@ -85,8 +85,8 @@ public class MiniClusterConfigurationTest extends TestLogger {
 		final Configuration actualConfiguration = miniClusterConfiguration.getConfiguration();
 		final Configuration expectedConfiguration = MiniClusterConfiguration.adjustTaskManagerMemoryConfigurations(new Configuration());
 
-		assertThat(actualConfiguration.get(TaskManagerOptions.SHUFFLE_MEMORY_MIN), is(MiniClusterConfiguration.DEFAULT_SHUFFLE_MEMORY_SIZE));
-		assertThat(actualConfiguration.get(TaskManagerOptions.SHUFFLE_MEMORY_MAX), is(MiniClusterConfiguration.DEFAULT_SHUFFLE_MEMORY_SIZE));
+		assertThat(actualConfiguration.get(TaskManagerOptions.NETWORK_MEMORY_MIN), is(MiniClusterConfiguration.DEFAULT_SHUFFLE_MEMORY_SIZE));
+		assertThat(actualConfiguration.get(TaskManagerOptions.NETWORK_MEMORY_MAX), is(MiniClusterConfiguration.DEFAULT_SHUFFLE_MEMORY_SIZE));
 		assertThat(actualConfiguration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE), is(MiniClusterConfiguration.DEFAULT_MANAGED_MEMORY_SIZE));
 	}
 }

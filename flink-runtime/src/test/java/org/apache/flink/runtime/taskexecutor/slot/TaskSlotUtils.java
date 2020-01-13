@@ -36,7 +36,7 @@ public enum TaskSlotUtils {
 		.setTaskHeapMemory(new MemorySize(100 * 1024))
 		.setTaskOffHeapMemory(MemorySize.ZERO)
 		.setManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
-		.setShuffleMemory(new MemorySize(100 * 1024))
+		.setNetworkMemory(new MemorySize(100 * 1024))
 		.build();
 
 	public static TaskSlotTable createTaskSlotTable(int numberOfSlots) {
