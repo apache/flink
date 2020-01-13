@@ -404,7 +404,7 @@ public class YarnResourceManagerTest extends TestLogger {
 					.setTaskHeapMemoryMB(1)
 					.setTaskOffHeapMemoryMB(1)
 					.setManagedMemoryMB(1)
-					.setShuffleMemoryMB(0)
+					.setNetworkMemoryMB(0)
 					.build();
 				final SlotReport slotReport = new SlotReport(
 					new SlotStatus(new SlotID(taskManagerResourceId, 1), resourceProfile));

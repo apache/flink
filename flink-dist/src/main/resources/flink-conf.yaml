@@ -186,9 +186,9 @@ jobmanager.execution.failover-strategy: region
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
 # of network buffers" error. The default min is 64MB, the default max is 1GB.
 # 
-# taskmanager.memory.shuffle.fraction: 0.1
-# taskmanager.memory.shuffle.min: 64mb
-# taskmanager.memory.shuffle.max: 1gb
+# taskmanager.memory.network.fraction: 0.1
+# taskmanager.memory.network.min: 64mb
+# taskmanager.memory.network.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration
