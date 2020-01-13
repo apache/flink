@@ -43,7 +43,7 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 	@Nullable
 	private MemorySize fixedMemoryPerSlot;
 
-	/** The maximum fraction of the shared cache consumed by the write buffers. Null if not set.*/
+	/** The maximum fraction of the total shared memory consumed by the write buffers. Null if not set.*/
 	@Nullable
 	private Double writeBufferRatio;
 
@@ -161,9 +161,15 @@ public final class RocksDBMemoryConfiguration implements Serializable {
 	 * Validates if the configured options are valid with respect to one another.
 	 */
 	public void validate() {
-		if (writeBufferRatio != null && highPriorityPoolRatio != null && writeBufferRatio + highPriorityPoolRatio > 1.0) {
+		// As FLINK-15512 introduce a new mechanism to calculate the cache capacity,
+		// the relationship of write_buffer_manager_capacity and cache_capacity has changed to:
+		// write_buffer_manager_capacity / cache_capacity = 2 * writeBufferRatio / (3 - writeBufferRatio)
+		// we should ensure the sum of write buffer manager capacity and high priority pool less than cache capacity.
+		// TODO change the formula once FLINK-15532 resolved.
+		if (writeBufferRatio != null && highPriorityPoolRatio != null
+			&& 2 * writeBufferRatio / (3 - writeBufferRatio) + highPriorityPoolRatio >= 1.0) {
 			throw new IllegalArgumentException(String.format(
-				"Invalid configuration: Sum of writeBufferRatio %s and highPriPoolRatio %s should be less than 1.0",
+				"Invalid configuration: writeBufferRatio %s with highPriPoolRatio %s",
 				writeBufferRatio, highPriorityPoolRatio));
 		}
 	}
