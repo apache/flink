@@ -66,11 +66,11 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 	private transient volatile Exception flushException;
 
 	JdbcBatchingOutputFormat(
-		JdbcConnectionOptions connectionOptions,
-		JdbcExecutionOptions executionOptions,
-		ExecutorCreator<JdbcExec> statementExecutorCreator,
-		RecordExtractor<In, JdbcIn> recordExtractor) {
-		super(connectionOptions);
+			JdbcConnectionProvider connectionProvider,
+			JdbcExecutionOptions executionOptions,
+			ExecutorCreator<JdbcExec> statementExecutorCreator,
+			RecordExtractor<In, JdbcIn> recordExtractor) {
+		super(connectionProvider);
 		this.executionOptions = executionOptions;
 		this.statementRunnerCreator = statementExecutorCreator;
 		this.jdbcRecordExtractor = recordExtractor;
@@ -280,7 +280,7 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 				// warn: don't close over builder fields
 				String sql = options.getDialect().getInsertIntoStatement(dml.getTableName(), dml.getFieldNames());
 				return new JdbcBatchingOutputFormat<>(
-						options,
+						new SimpleJdbcConnectionProvider(options),
 						JdbcExecutionOptions.builder().withBatchSize(flushMaxSize).withMaxRetries(maxRetryTimes).withBatchIntervalMs(flushIntervalMills).build(),
 						unused -> JdbcBatchStatementExecutor.simpleRow(sql, dml.getFieldTypes()),
 						tuple2 -> {
@@ -289,7 +289,7 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 						});
 			} else {
 				return new TableJdbcUpsertOutputFormat(
-						options,
+						new SimpleJdbcConnectionProvider(options),
 						dml,
 						JdbcExecutionOptions.builder().withBatchSize(flushMaxSize).withBatchIntervalMs(flushIntervalMills).build());
 			}

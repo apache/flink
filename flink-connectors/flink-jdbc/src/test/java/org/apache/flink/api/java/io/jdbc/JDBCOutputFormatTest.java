@@ -70,7 +70,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat.open(0, 1);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IOException.class)
 	public void testInvalidQuery() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -81,7 +81,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 	}
 
 	@Test(expected = NullPointerException.class)
-	public void testIncompleteConfiguration() throws IOException {
+	public void testIncompleteConfiguration() {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))

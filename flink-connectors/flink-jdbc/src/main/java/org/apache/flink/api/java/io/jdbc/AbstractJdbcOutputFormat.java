@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Flushable;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 
 abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implements Flushable {
@@ -37,13 +37,11 @@ abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implement
 	static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0;
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
-
-	private final JdbcConnectionOptions options;
-
 	protected transient Connection connection;
+	private final JdbcConnectionProvider connectionProvider;
 
-	public AbstractJdbcOutputFormat(JdbcConnectionOptions options) {
-		this.options = options;
+	public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
+		this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
 	}
 
 	@Override
@@ -54,23 +52,18 @@ abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implement
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			establishConnection();
-		} catch (SQLException | ClassNotFoundException e) {
+		} catch (Exception e) {
 			throw new IOException("unable to open JDBC writer", e);
 		}
+	}
+
+	protected void establishConnection() throws Exception {
+		connection = connectionProvider.getConnection();
 	}
 
 	@Override
 	public void close() {
 		closeDbConnection();
-	}
-
-	private void establishConnection() throws SQLException, ClassNotFoundException {
-		Class.forName(options.getDriverName());
-		if (options.username == null) {
-			connection = DriverManager.getConnection(options.url);
-		} else {
-			connection = DriverManager.getConnection(options.url, options.username, options.password);
-		}
 	}
 
 	private void closeDbConnection() {
