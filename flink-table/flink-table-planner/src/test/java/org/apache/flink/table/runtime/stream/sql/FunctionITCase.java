@@ -106,7 +106,7 @@ public class FunctionITCase extends AbstractTestBase {
 		} catch (Exception e){
 			assertEquals(e.getMessage(), "Could not execute CREATE CATALOG FUNCTION:" +
 				" (catalogFunction: [Optional[This is a user-defined function]], identifier:" +
-				" [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false])");
+				" [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false], isTemporary: [false])");
 		}
 	}
 
