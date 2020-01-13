@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TestEntry;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
 
@@ -39,13 +40,15 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormatTest.toRow;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.Mockito.doReturn;
 
 /**
  * Tests for the {@link JdbcBatchingOutputFormat}.
  */
-public class JdbcTableOutputFormatTest extends JDBCTestBase {
+public class JdbcTableOutputFormatTest extends JDBCDataTestBase {
 
 	private TableJdbcUpsertOutputFormat format;
 	private String[] fieldNames;
@@ -60,7 +63,7 @@ public class JdbcTableOutputFormatTest extends JDBCTestBase {
 	@Test
 	public void testJDBCOutputFormat() throws Exception {
 		JDBCOptions options = JDBCOptions.builder()
-				.setDBUrl(DB_URL)
+				.setDBUrl(getDbMetadata().getUrl())
 				.setTableName(OUTPUT_TABLE)
 				.build();
 		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
@@ -100,7 +103,7 @@ public class JdbcTableOutputFormatTest extends JDBCTestBase {
 	}
 
 	private void check(Row[] rows) throws SQLException {
-		check(rows, DB_URL, OUTPUT_TABLE, fieldNames);
+		check(rows, getDbMetadata().getUrl(), OUTPUT_TABLE, fieldNames);
 	}
 
 	static void check(Row[] rows, String url, String table, String[] fields) throws SQLException {
@@ -131,10 +134,10 @@ public class JdbcTableOutputFormatTest extends JDBCTestBase {
 			format.close();
 		}
 		format = null;
-		Class.forName(DRIVER_CLASS);
+		Class.forName(getDbMetadata().getDriverClass());
 		try (
-			Connection conn = DriverManager.getConnection(DB_URL);
-			Statement stat = conn.createStatement()) {
+				Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
+				Statement stat = conn.createStatement()) {
 			stat.execute("DELETE FROM " + OUTPUT_TABLE);
 
 			stat.close();

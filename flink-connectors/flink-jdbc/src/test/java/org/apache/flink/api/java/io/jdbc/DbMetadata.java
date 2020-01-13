@@ -17,29 +17,20 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.junit.After;
-import org.junit.Before;
+import javax.sql.XADataSource;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanUpDatabasesStatic;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanupData;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.initSchema;
+import java.io.Serializable;
 
 /**
- * Base class for JDBC test using DDL from {@link JdbcTestFixture}. It uses create tables before each test and drops afterwards.
+ * Describes a database: driver, schema and urls.
  */
-public abstract class JDBCTestBase {
+public interface DbMetadata extends Serializable {
 
-	@Before
-	public final void before() throws Exception {
-		initSchema(getDbMetadata());
-	}
+	String getInitUrl();
 
-	@After
-	public final void after() throws Exception {
-		cleanupData(getDbMetadata().getUrl());
-		cleanUpDatabasesStatic(getDbMetadata());
-	}
+	String getUrl();
 
-	protected abstract DbMetadata getDbMetadata();
+	XADataSource buildXaDataSource();
 
+	String getDriverClass();
 }

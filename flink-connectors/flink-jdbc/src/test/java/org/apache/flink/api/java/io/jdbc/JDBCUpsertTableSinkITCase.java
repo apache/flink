@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
 import static org.apache.flink.api.java.io.jdbc.JdbcTableOutputFormatTest.check;
 
 /**
@@ -55,9 +54,9 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
+		System.setProperty("derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
 
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
 			Statement stat = conn.createStatement()) {
@@ -79,7 +78,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 
 	@After
 	public void clearOutputTable() throws Exception {
-		Class.forName(DRIVER_CLASS);
+		Class.forName(JdbcTestFixture.DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
 			Statement stat = conn.createStatement()) {

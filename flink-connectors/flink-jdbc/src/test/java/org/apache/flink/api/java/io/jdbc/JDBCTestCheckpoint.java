@@ -17,29 +17,19 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.junit.After;
-import org.junit.Before;
-
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanUpDatabasesStatic;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanupData;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.initSchema;
-
 /**
- * Base class for JDBC test using DDL from {@link JdbcTestFixture}. It uses create tables before each test and drops afterwards.
+ * Holds id and indices of items in {@link JdbcTestFixture#TEST_DATA}.
  */
-public abstract class JDBCTestBase {
+public class JDBCTestCheckpoint {
+	public final long id;
+	public final int[] dataItemsIdx;
 
-	@Before
-	public final void before() throws Exception {
-		initSchema(getDbMetadata());
+	JDBCTestCheckpoint(long id, int... dataItemsIdx) {
+		this.id = id;
+		this.dataItemsIdx = dataItemsIdx;
 	}
 
-	@After
-	public final void after() throws Exception {
-		cleanupData(getDbMetadata().getUrl());
-		cleanUpDatabasesStatic(getDbMetadata());
+	public JDBCTestCheckpoint withCheckpointId(long id) {
+		return new JDBCTestCheckpoint(id, dataItemsIdx);
 	}
-
-	protected abstract DbMetadata getDbMetadata();
-
 }
