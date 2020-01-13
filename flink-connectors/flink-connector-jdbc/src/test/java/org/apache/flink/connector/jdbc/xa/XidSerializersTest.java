@@ -15,27 +15,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc;
+package org.apache.flink.connector.jdbc.xa;
 
-import javax.sql.XADataSource;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import java.io.Serializable;
+import javax.transaction.xa.Xid;
 
-/** Describes a database: driver, schema and urls. */
-public interface DbMetadata extends Serializable {
+/** XaSerializersTest. */
+public class XidSerializersTest extends SerializerTestBase<Xid> {
 
-    String getInitUrl();
+    @Override
+    protected TypeSerializer<Xid> createSerializer() {
+        return new XidSerializer();
+    }
 
-    String getUrl();
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-    XADataSource buildXaDataSource();
+    @Override
+    protected Class<Xid> getTypeClass() {
+        return Xid.class;
+    }
 
-    String getDriverClass();
-
-    default JdbcConnectionOptions toConnectionOptions() {
-        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                .withDriverName(getDriverClass())
-                .withUrl(getUrl())
-                .build();
+    @Override
+    protected Xid[] getTestData() {
+        return new Xid[] {XidImplTest.XID};
     }
 }

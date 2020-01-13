@@ -17,25 +17,17 @@
 
 package org.apache.flink.connector.jdbc;
 
-import javax.sql.XADataSource;
+/** Holds id and indices of items in {@link JdbcTestFixture#TEST_DATA}. */
+public class JdbcTestCheckpoint {
+    public final long id;
+    public final int[] dataItemsIdx;
 
-import java.io.Serializable;
+    JdbcTestCheckpoint(long id, int... dataItemsIdx) {
+        this.id = id;
+        this.dataItemsIdx = dataItemsIdx;
+    }
 
-/** Describes a database: driver, schema and urls. */
-public interface DbMetadata extends Serializable {
-
-    String getInitUrl();
-
-    String getUrl();
-
-    XADataSource buildXaDataSource();
-
-    String getDriverClass();
-
-    default JdbcConnectionOptions toConnectionOptions() {
-        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                .withDriverName(getDriverClass())
-                .withUrl(getUrl())
-                .build();
+    public JdbcTestCheckpoint withCheckpointId(long id) {
+        return new JdbcTestCheckpoint(id, dataItemsIdx);
     }
 }

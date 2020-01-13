@@ -44,6 +44,19 @@ import static org.junit.Assert.assertEquals;
 /** Smoke tests for the {@link JdbcSink} and the underlying classes. */
 public class JdbcITCase extends JdbcTestBase {
 
+    public static final JdbcStatementBuilder<TestEntry> TEST_ENTRY_JDBC_STATEMENT_BUILDER =
+            (ps, t) -> {
+                ps.setInt(1, t.id);
+                ps.setString(2, t.title);
+                ps.setString(3, t.author);
+                if (t.price == null) {
+                    ps.setNull(4, Types.DOUBLE);
+                } else {
+                    ps.setDouble(4, t.price);
+                }
+                ps.setInt(5, t.qty);
+            };
+
     @Test
     public void testInsert() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -53,17 +66,7 @@ public class JdbcITCase extends JdbcTestBase {
                 .addSink(
                         JdbcSink.sink(
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
-                                (ps, t) -> {
-                                    ps.setInt(1, t.id);
-                                    ps.setString(2, t.title);
-                                    ps.setString(3, t.author);
-                                    if (t.price == null) {
-                                        ps.setNull(4, Types.DOUBLE);
-                                    } else {
-                                        ps.setDouble(4, t.price);
-                                    }
-                                    ps.setInt(5, t.qty);
-                                },
+                                TEST_ENTRY_JDBC_STATEMENT_BUILDER,
                                 new JdbcConnectionOptionsBuilder()
                                         .withUrl(getDbMetadata().getUrl())
                                         .withDriverName(getDbMetadata().getDriverClass())
