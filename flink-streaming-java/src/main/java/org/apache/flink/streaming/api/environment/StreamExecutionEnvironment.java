@@ -207,6 +207,17 @@ public class StreamExecutionEnvironment {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+
+		// the parallelism of a job or an operator can only be specified at the following places:
+		//     i) at the operator level using the SingleOutputStreamOperator.setParallelism().
+		//     ii) programmatically by using the env.setParallelism() method, or
+		//     iii) in the configuration passed here
+		//
+		// if specified in multiple places, the priority order is the above.
+		//
+		// Given this, it is safe to overwrite the execution config default value here because all other ways assume
+		// that the env is already instantiated so they will overwrite the value passed here.
+		this.config.setParallelism(configuration.get(CoreOptions.DEFAULT_PARALLELISM));
 	}
 
 	protected Configuration getConfiguration() {
@@ -273,7 +284,6 @@ public class StreamExecutionEnvironment {
 	 * value.
 	 */
 	public int getParallelism() {
-		consolidateParallelismDefinitionsInConfiguration();
 		return config.getParallelism();
 	}
 
@@ -1730,8 +1740,6 @@ public class StreamExecutionEnvironment {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
-		consolidateParallelismDefinitionsInConfiguration();
-
 		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
 
@@ -1754,13 +1762,6 @@ public class StreamExecutionEnvironment {
 
 			// make javac happy, this code path will not be reached
 			return null;
-		}
-	}
-
-	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (config.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			final int parallelism = configuration.get(CoreOptions.DEFAULT_PARALLELISM);
-			this.setParallelism(parallelism);
 		}
 	}
 
