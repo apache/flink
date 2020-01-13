@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -54,7 +54,10 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadLogs(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, { responseType: 'text' });
+    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
   }
 
   /**
@@ -62,7 +65,10 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadStdout(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, { responseType: 'text' });
+    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
   }
 
   constructor(private httpClient: HttpClient) {}
