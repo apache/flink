@@ -17,29 +17,48 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.junit.After;
-import org.junit.Before;
+import org.apache.derby.jdbc.EmbeddedXADataSource;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanUpDatabasesStatic;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanupData;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.initSchema;
+import javax.sql.XADataSource;
 
 /**
- * Base class for JDBC test using DDL from {@link JdbcTestFixture}. It uses create tables before each test and drops afterwards.
+ * DerbyDbMetadata.
  */
-public abstract class JDBCTestBase {
+public class DerbyDbMetadata implements DbMetadata {
+	private final String dbName;
+	private final String dbInitUrl;
+	private final String url;
 
-	@Before
-	public final void before() throws Exception {
-		initSchema(getDbMetadata());
+	public DerbyDbMetadata(String schemaName) {
+		dbName = "memory:" + schemaName;
+		url = "jdbc:derby:" + dbName;
+		dbInitUrl = url + ";create=true";
 	}
 
-	@After
-	public final void after() throws Exception {
-		cleanupData(getDbMetadata().getUrl());
-		cleanUpDatabasesStatic(getDbMetadata());
+	public String getDbName() {
+		return dbName;
 	}
 
-	protected abstract DbMetadata getDbMetadata();
+	@Override
+	public String getInitUrl() {
+		return dbInitUrl;
+	}
+
+	@Override
+	public XADataSource buildXaDataSource() {
+		EmbeddedXADataSource ds = new EmbeddedXADataSource();
+		ds.setDatabaseName(dbName);
+		return ds;
+	}
+
+	@Override
+	public String getDriverClass() {
+		return "org.apache.derby.jdbc.EmbeddedDriver";
+	}
+
+	@Override
+	public String getUrl() {
+		return url;
+	}
 
 }

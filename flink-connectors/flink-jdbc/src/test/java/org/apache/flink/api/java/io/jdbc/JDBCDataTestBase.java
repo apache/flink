@@ -17,29 +17,21 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.junit.After;
 import org.junit.Before;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanUpDatabasesStatic;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.cleanupData;
-import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.initSchema;
+import java.sql.SQLException;
 
 /**
- * Base class for JDBC test using DDL from {@link JdbcTestFixture}. It uses create tables before each test and drops afterwards.
+ * Base class for JDBC test using data from {@link JdbcTestFixture}. It uses {@link DerbyDbMetadata} and inserts data before each test.
  */
-public abstract class JDBCTestBase {
-
+abstract class JDBCDataTestBase extends JDBCTestBase {
 	@Before
-	public final void before() throws Exception {
-		initSchema(getDbMetadata());
+	public void initData() throws SQLException {
+		JdbcTestFixture.initData(getDbMetadata());
 	}
 
-	@After
-	public final void after() throws Exception {
-		cleanupData(getDbMetadata().getUrl());
-		cleanUpDatabasesStatic(getDbMetadata());
+	@Override
+	protected DbMetadata getDbMetadata() {
+		return JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 	}
-
-	protected abstract DbMetadata getDbMetadata();
-
 }
