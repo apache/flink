@@ -104,9 +104,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(1)
-			.setTaskManagerMemoryMB(1)
-			.setNumberTaskManagers(1)
+			.setTaskManagerMemoryMB(1024)
 			.setSlotsPerTaskManager(Integer.MAX_VALUE)
 			.createClusterSpecification();
 
@@ -115,6 +113,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			fail("The deploy call should have failed.");
 		} catch (ClusterDeploymentException e) {
+			e.printStackTrace();
 			// we expect the cause to be an IllegalConfigurationException
 			if (!(e.getCause() instanceof IllegalConfigurationException)) {
 				throw e;
@@ -137,10 +136,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(1)
-			.setTaskManagerMemoryMB(1)
-			.setNumberTaskManagers(1)
-			.setSlotsPerTaskManager(1)
+			.setTaskManagerMemoryMB(1024)
 			.createClusterSpecification();
 
 		try {
