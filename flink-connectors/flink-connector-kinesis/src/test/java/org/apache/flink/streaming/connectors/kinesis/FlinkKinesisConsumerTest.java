@@ -1012,10 +1012,10 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
 		// verify exception propagation
+		Assert.assertNull(sourceThreadError.get());
 		throwOnCollect.set(true);
 		shard1.put(Long.toString(record2 + 1));
 
-		Assert.assertNull(sourceThreadError.get());
 		deadline  = Deadline.fromNow(Duration.ofSeconds(10));
 		while (deadline.hasTimeLeft() && sourceThreadError.get() == null) {
 			Thread.sleep(10);
