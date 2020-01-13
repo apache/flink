@@ -298,9 +298,8 @@ public class SqlToOperationConverter {
 
 			return new DropCatalogFunctionOperation(
 				identifier,
-				sqlDropFunction.isTemporary(),
-				sqlDropFunction.isSystemFunction(),
-				sqlDropFunction.getIfExists()
+				sqlDropFunction.getIfExists(),
+				sqlDropFunction.isTemporary()
 			);
 		}
 	}
