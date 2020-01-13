@@ -143,8 +143,8 @@ under the License.
 
 								<!-- shade dependencies internally used by Azure and never exposed downstream -->
 								<relocation>
-									<pattern>org.apache.httpcomponents</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.org.apache.httpcomponents</shadedPattern>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.fs.azure.shaded.org.apache.http</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>commons-logging</pattern>
