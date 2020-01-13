@@ -65,7 +65,7 @@ public final class ClusterSpecification {
 	 */
 	public static class ClusterSpecificationBuilder {
 		private int masterMemoryMB = 768;
-		private int taskManagerMemoryMB = 768;
+		private int taskManagerMemoryMB = 1024;
 		private int numberTaskManagers = 1;
 		private int slotsPerTaskManager = 1;
 
