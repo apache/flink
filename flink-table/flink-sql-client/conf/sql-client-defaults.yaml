@@ -96,7 +96,7 @@ catalogs: [] # empty list
 
 execution:
   # select the implementation responsible for planning table programs
-  # possible values are 'old' (used by default) or 'blink'
+  # possible values are 'blink' (used by default) or 'old'
   planner: blink
   # 'batch' or 'streaming' execution
   type: streaming
