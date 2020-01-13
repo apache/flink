@@ -53,17 +53,17 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	private transient int batchCount = 0;
 
 	/**
-	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionOptions, JdbcInsertOptions, JdbcExecutionOptions)}}.
+	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionProvider, JdbcInsertOptions, JdbcExecutionOptions)}}.
 	 */
 	@Deprecated
 	public JDBCOutputFormat(String username, String password, String drivername, String dbURL, String query, int batchInterval, int[] typesArray) {
-		this(new JdbcConnectionOptions(dbURL, drivername, username, password),
+		this(new SimpleJdbcConnectionProvider(new JdbcConnectionOptions(dbURL, drivername, username, password)),
 				new JdbcInsertOptions(query, typesArray),
 				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
 	}
 
-	public JDBCOutputFormat(JdbcConnectionOptions connectionOptions, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
-		super(connectionOptions);
+	public JDBCOutputFormat(JdbcConnectionProvider connectionProvider, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
+		super(connectionProvider);
 		this.insertOptions = insertOptions;
 		this.batchOptions = batchOptions;
 	}
@@ -81,7 +81,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		try {
 			upload = connection.prepareStatement(insertOptions.getQuery());
 		} catch (SQLException sqe) {
-			throw new IllegalArgumentException("open() failed.", sqe);
+			throw new IOException("open() failed.", sqe);
 		}
 	}
 
@@ -199,7 +199,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		 * @return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
-			return new JDBCOutputFormat(buildConnectionOptions(),
+			return new JDBCOutputFormat(new SimpleJdbcConnectionProvider(buildConnectionOptions()),
 					new JdbcInsertOptions(query, typesArray),
 					JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
 		}
