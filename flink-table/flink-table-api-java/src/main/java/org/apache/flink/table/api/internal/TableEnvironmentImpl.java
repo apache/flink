@@ -753,7 +753,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		String exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString());
 		try {
 			CatalogFunction function = createFunctionOperation.getCatalogFunction();
-			if (function.isTemporary()) {
+			if (createFunctionOperation.isTemporary()) {
 				boolean exist = functionCatalog.hasTemporaryCatalogFunction(
 					createFunctionOperation.getFunctionIdentifier());
 				if (!exist) {
@@ -787,7 +787,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		String exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString());
 		try {
 			CatalogFunction function = alterFunctionOperation.getCatalogFunction();
-			if (function.isTemporary()) {
+			if (alterFunctionOperation.isTemporary()) {
 				throw new ValidationException(
 					"Alter temporary catalog function is not supported");
 			} else {

@@ -704,7 +704,7 @@ abstract class TableEnvImpl(
     val exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString)
     try {
       val function = createFunctionOperation.getCatalogFunction
-      if (function.isTemporary) {
+      if (createFunctionOperation.isTemporary) {
         val exist = functionCatalog.hasTemporaryCatalogFunction(
           createFunctionOperation.getFunctionIdentifier);
         if (!exist) {
@@ -737,7 +737,7 @@ abstract class TableEnvImpl(
     val exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString)
     try {
       val function = alterFunctionOperation.getCatalogFunction
-      if (function.isTemporary) {
+      if (alterFunctionOperation.isTemporary) {
         throw new ValidationException("Alter temporary catalog function is not supported")
       } else {
         val catalog = getCatalogOrThrowException(

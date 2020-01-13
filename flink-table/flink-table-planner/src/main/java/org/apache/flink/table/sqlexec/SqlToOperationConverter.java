@@ -257,15 +257,15 @@ public class SqlToOperationConverter {
 			FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
 			CatalogFunction catalogFunction = new CatalogFunctionImpl(
 				sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
-				language,
-				sqlCreateFunction.isTemporary());
+				language);
 
 			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
 			return new CreateFunctionOperation(
 				identifier,
 				catalogFunction,
-				sqlCreateFunction.isIfNotExists()
+				sqlCreateFunction.isIfNotExists(),
+				sqlCreateFunction.isTemporary()
 			);
 		}
 	}
@@ -279,15 +279,15 @@ public class SqlToOperationConverter {
 		FunctionLanguage language = parseLanguage(sqlAlterFunction.getFunctionLanguage());
 		CatalogFunction catalogFunction = new CatalogFunctionImpl(
 			sqlAlterFunction.getFunctionClassName().getValueAs(String.class),
-			language,
-			sqlAlterFunction.isTemporary());
+			language);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 		return new AlterFunctionOperation(
 			identifier,
 			catalogFunction,
-			sqlAlterFunction.isIfExists()
+			sqlAlterFunction.isIfExists(),
+			sqlAlterFunction.isTemporary()
 		);
 	}
 
@@ -304,9 +304,8 @@ public class SqlToOperationConverter {
 
 			return new DropFunctionOperation(
 				identifier,
-				sqlDropFunction.isTemporary(),
-				sqlDropFunction.isSystemFunction(),
-				sqlDropFunction.getIfExists()
+				sqlDropFunction.getIfExists(),
+				sqlDropFunction.isTemporary()
 			);
 		}
 	}
