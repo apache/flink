@@ -15,27 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc;
-
-import javax.sql.XADataSource;
-
-import java.io.Serializable;
-
-/** Describes a database: driver, schema and urls. */
-public interface DbMetadata extends Serializable {
-
-    String getInitUrl();
-
-    String getUrl();
-
-    XADataSource buildXaDataSource();
-
-    String getDriverClass();
-
-    default JdbcConnectionOptions toConnectionOptions() {
-        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                .withDriverName(getDriverClass())
-                .withUrl(getUrl())
-                .build();
-    }
-}
+/**
+ * This package holds some workarounds for the H2 XA client, plus {@link
+ * org.apache.flink.connector.jdbc.xa.h2.H2DbMetadata}. Used only for testing.
+ */
+package org.apache.flink.connector.jdbc.xa.h2;

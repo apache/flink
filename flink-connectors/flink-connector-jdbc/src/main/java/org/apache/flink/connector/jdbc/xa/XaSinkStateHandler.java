@@ -15,27 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc;
+package org.apache.flink.connector.jdbc.xa;
 
-import javax.sql.XADataSource;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
 
 import java.io.Serializable;
 
-/** Describes a database: driver, schema and urls. */
-public interface DbMetadata extends Serializable {
+@PublicEvolving
+interface XaSinkStateHandler extends Serializable {
 
-    String getInitUrl();
+    JdbcXaSinkFunctionState load(FunctionInitializationContext context) throws Exception;
 
-    String getUrl();
-
-    XADataSource buildXaDataSource();
-
-    String getDriverClass();
-
-    default JdbcConnectionOptions toConnectionOptions() {
-        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                .withDriverName(getDriverClass())
-                .withUrl(getUrl())
-                .build();
-    }
+    void store(JdbcXaSinkFunctionState state) throws Exception;
 }
