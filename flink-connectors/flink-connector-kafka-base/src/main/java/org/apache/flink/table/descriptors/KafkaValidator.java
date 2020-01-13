@@ -52,7 +52,6 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_SPECIFIC_OFFSETS = "connector.specific-offsets";
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_PARTITION = "partition";
 	public static final String CONNECTOR_SPECIFIC_OFFSETS_OFFSET = "offset";
-	public static final String CONNECTOR_STARTUP_TIMESTAMP = "connector.startup-timestamp";
 	public static final String CONNECTOR_STARTUP_TIMESTAMP_MILLIS = "connector.startup-timestamp-millis";
 	public static final String CONNECTOR_PROPERTIES = "connector.properties";
 	public static final String CONNECTOR_PROPERTIES_ZOOKEEPER_CONNECT = "connector.properties.zookeeper.connect";
@@ -115,11 +114,9 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_TIMESTAMP,
 			key -> {
 				boolean hasStartupTimestampMillis = properties.containsKey(CONNECTOR_STARTUP_TIMESTAMP_MILLIS);
-				boolean hasStartupTimestamp = properties.containsKey(CONNECTOR_STARTUP_TIMESTAMP);
-				if (hasStartupTimestampMillis == hasStartupTimestamp) {
-					throw new ValidationException(String.format("One and only one of `%s` or `%s` should be provided.",
-						CONNECTOR_STARTUP_TIMESTAMP_MILLIS,
-						CONNECTOR_STARTUP_TIMESTAMP
+				if (!hasStartupTimestampMillis) {
+					throw new ValidationException(String.format("`%s` is required in timestamp startup mode but missing.",
+						CONNECTOR_STARTUP_TIMESTAMP_MILLIS
 					));
 				}
 				try {
@@ -128,14 +125,12 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 						false,
 						Arrays.asList(CONNECTOR_VERSION_VALUE_010, CONNECTOR_VERSION_VALUE_011, CONNECTOR_VERSION_VALUE_UNIVERSAL));
 				} catch (ValidationException e) {
-					throw new ValidationException("Starting from timestamp requires Kafka 0.10 above.");
+					throw new ValidationException("Timestamp startup mode requires Kafka 0.10 or above.");
 				}
 			});
 
 		startupModeValidation.put(CONNECTOR_STARTUP_TIMESTAMP_MILLIS,
 			key -> properties.validateLong(key, true, 0L, Long.MAX_VALUE));
-		startupModeValidation.put(CONNECTOR_STARTUP_TIMESTAMP,
-			key -> properties.validateLocalTimestamp(key, true, 0L, Long.MAX_VALUE));
 
 		properties.validateEnum(CONNECTOR_STARTUP_MODE, true, startupModeValidation);
 	}
