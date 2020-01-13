@@ -49,25 +49,22 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 
 	static final int DEFAULT_MAX_RETRY_TIMES = 3;
 
-	private final String tableName;
-	private final JDBCDialect dialect;
-	private final String[] fieldNames;
-	private final String[] keyFields;
-	private final int[] fieldTypes;
-
-	private final int flushMaxSize;
-	private final long flushIntervalMills;
-	private final int maxRetryTimes;
+	private final JdbcDmlOptions upsertOptions;
+	private final JdbcBatchOptions batchOptions;
 
 	private transient JDBCWriter jdbcWriter;
 	private transient int batchCount = 0;
 	private transient volatile boolean closed = false;
-	private transient boolean objectReuse;
 
 	private transient ScheduledExecutorService scheduler;
 	private transient ScheduledFuture scheduledFuture;
 	private transient volatile Exception flushException;
+	private transient boolean objectReuse;
 
+	/**
+	 * @deprecated use {@link #JdbcUpsertOutputFormat(JdbcConnectionOptions, JdbcDmlOptions, JdbcBatchOptions)}
+	 */
+	@Deprecated
 	public JdbcUpsertOutputFormat(
 			JDBCOptions options,
 			String[] fieldNames,
@@ -76,15 +73,16 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 			int flushMaxSize,
 			long flushIntervalMills,
 			int maxRetryTimes) {
-		super(options.getUsername(), options.getPassword(), options.getDriverName(), options.getDbURL());
-		this.tableName = options.getTableName();
-		this.dialect = options.getDialect();
-		this.fieldNames = fieldNames;
-		this.keyFields = keyFields;
-		this.fieldTypes = fieldTypes;
-		this.flushMaxSize = flushMaxSize;
-		this.flushIntervalMills = flushIntervalMills;
-		this.maxRetryTimes = maxRetryTimes;
+		this(
+				options,
+				JdbcDmlOptions.builder().withFieldNames(fieldNames).withKeyFields(keyFields).withFieldTypes(fieldTypes).withMaxRetries(maxRetryTimes).build(),
+				JdbcBatchOptions.builder().withSize(flushMaxSize).withIntervalMs(flushIntervalMills).build());
+	}
+
+	public JdbcUpsertOutputFormat(JdbcConnectionOptions connectionOptions, JdbcDmlOptions upsertOptions, JdbcBatchOptions batchOptions) {
+		super(connectionOptions);
+		this.upsertOptions = upsertOptions;
+		this.batchOptions = batchOptions;
 	}
 
 	/**
@@ -99,12 +97,13 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 		try {
 			establishConnection();
 			objectReuse = getRuntimeContext().getExecutionConfig().isObjectReuseEnabled();
-			if (keyFields == null || keyFields.length == 0) {
-				String insertSQL = dialect.getInsertIntoStatement(tableName, fieldNames);
-				jdbcWriter = new AppendOnlyWriter(insertSQL, fieldTypes);
+			JDBCDialect dialect = upsertOptions.getDialect();
+			if (upsertOptions.getKeyFields() == null || upsertOptions.getKeyFields().length == 0) {
+				String insertSQL = dialect.getInsertIntoStatement(upsertOptions.getTableName(), upsertOptions.getFieldNames());
+				jdbcWriter = new AppendOnlyWriter(insertSQL, upsertOptions.getFieldTypes());
 			} else {
 				jdbcWriter = UpsertWriter.create(
-					dialect, tableName, fieldNames, fieldTypes, keyFields);
+					dialect, upsertOptions.getTableName(), upsertOptions.getFieldNames(), upsertOptions.getFieldTypes(), upsertOptions.getKeyFields());
 			}
 			jdbcWriter.open(connection);
 		} catch (SQLException sqe) {
@@ -113,7 +112,7 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
 
-		if (flushIntervalMills != 0 && flushMaxSize != 1) {
+		if (batchOptions.getIntervalMs() != 0 && batchOptions.getSize() != 1) {
 			this.scheduler = Executors.newScheduledThreadPool(
 					1, new ExecutorThreadFactory("jdbc-upsert-output-format"));
 			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
@@ -127,7 +126,7 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 						flushException = e;
 					}
 				}
-			}, flushIntervalMills, flushIntervalMills, TimeUnit.MILLISECONDS);
+			}, batchOptions.getIntervalMs(), batchOptions.getIntervalMs(), TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -138,14 +137,14 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 	}
 
 	@Override
-	public synchronized void writeRecord(Tuple2<Boolean, Row> tuple2) throws IOException {
+	public synchronized void writeRecord(Tuple2<Boolean, Row> tuple2) {
 		checkFlushException();
 
 		try {
 			Tuple2<Boolean, Row> record = objectReuse ? new Tuple2<>(tuple2.f0, Row.copy(tuple2.f1)) : tuple2;
-			jdbcWriter.addRecord(record);
+			jdbcWriter.addRecord(tuple2);
 			batchCount++;
-			if (batchCount >= flushMaxSize) {
+			if (batchCount >= batchOptions.getSize()) {
 				flush();
 			}
 		} catch (Exception e) {
@@ -156,14 +155,14 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 	public synchronized void flush() throws Exception {
 		checkFlushException();
 
-		for (int i = 1; i <= maxRetryTimes; i++) {
+		for (int i = 1; i <= upsertOptions.getMaxRetries(); i++) {
 			try {
 				jdbcWriter.executeBatch();
 				batchCount = 0;
 				break;
 			} catch (SQLException e) {
 				LOG.error("JDBC executeBatch error, retry times = {}", i, e);
-				if (i >= maxRetryTimes) {
+				if (i >= upsertOptions.getMaxRetries()) {
 					throw e;
 				}
 				Thread.sleep(1000 * i);
@@ -289,7 +288,11 @@ class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Ro
 			checkNotNull(options, "No options supplied.");
 			checkNotNull(fieldNames, "No fieldNames supplied.");
 			return new JdbcUpsertOutputFormat(
-				options, fieldNames, keyFields, fieldTypes, flushMaxSize, flushIntervalMills, maxRetryTimes);
+				options,
+				JdbcDmlOptions.builder()
+					.withTableName(options.getTableName()).withDialect(options.getDialect())
+					.withFieldNames(fieldNames).withKeyFields(keyFields).withFieldTypes(fieldTypes).withMaxRetries(maxRetryTimes).build(),
+				JdbcBatchOptions.builder().withSize(flushMaxSize).withIntervalMs(flushIntervalMills).build());
 		}
 	}
 }

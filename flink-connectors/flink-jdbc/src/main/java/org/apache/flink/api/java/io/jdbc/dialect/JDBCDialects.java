@@ -32,7 +32,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Default Jdbc dialects.
+ * Default JDBC dialects.
  */
 public final class JDBCDialects {
 
@@ -152,7 +152,7 @@ public final class JDBCDialects {
 			return identifier;
 		}
 
-		@Override
+@Override
 		public String dialectName() {
 			return "derby";
 		}

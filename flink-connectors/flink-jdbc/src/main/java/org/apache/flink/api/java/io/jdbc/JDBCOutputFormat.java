@@ -43,19 +43,26 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
-	private final String query;
-	private final int batchInterval;
-	private final int[] typesArray;
+	final JdbcInsertOptions insertOptions;
+	private final JdbcBatchOptions batchOptions;
 
 	private PreparedStatement upload;
 	private int batchCount = 0;
 
-	public JDBCOutputFormat(String username, String password, String drivername,
-			String dbURL, String query, int batchInterval, int[] typesArray) {
-		super(username, password, drivername, dbURL);
-		this.query = query;
-		this.batchInterval = batchInterval;
-		this.typesArray = typesArray;
+	/**
+	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionOptions, JdbcInsertOptions, JdbcBatchOptions)}}.
+	 */
+	@Deprecated
+	public JDBCOutputFormat(String username, String password, String drivername, String dbURL, String query, int batchInterval, int[] typesArray) {
+		this(new JdbcConnectionOptions(dbURL, drivername, username, password),
+				new JdbcInsertOptions(query, typesArray),
+				JdbcBatchOptions.builder().withSize(batchInterval).build());
+	}
+
+	public JDBCOutputFormat(JdbcConnectionOptions connectionOptions, JdbcInsertOptions insertOptions, JdbcBatchOptions batchOptions) {
+		super(connectionOptions);
+		this.insertOptions = insertOptions;
+		this.batchOptions = batchOptions;
 	}
 
 	/**
@@ -69,7 +76,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			establishConnection();
-			upload = connection.prepareStatement(query);
+			upload = connection.prepareStatement(insertOptions.getQuery());
 		} catch (SQLException sqe) {
 			throw new IllegalArgumentException("open() failed.", sqe);
 		} catch (ClassNotFoundException cnfe) {
@@ -80,7 +87,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	@Override
 	public void writeRecord(Row row) throws IOException {
 		try {
-			setRecordToStatement(upload, typesArray, row);
+			setRecordToStatement(upload, insertOptions.getFieldTypes(), row);
 			upload.addBatch();
 		} catch (SQLException e) {
 			throw new RuntimeException("Preparation of JDBC statement failed.", e);
@@ -88,7 +95,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 		batchCount++;
 
-		if (batchCount >= batchInterval) {
+		if (batchCount >= batchOptions.getSize()) {
 			// execute batch
 			flush();
 		}
@@ -104,7 +111,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	}
 
 	int[] getTypesArray() {
-		return typesArray;
+		return insertOptions.getFieldTypes();
 	}
 
 	/**
@@ -130,6 +137,10 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	public static JDBCOutputFormatBuilder buildJDBCOutputFormat() {
 		return new JDBCOutputFormatBuilder();
+	}
+
+	public int[] getFieldTypes() {
+		return insertOptions.getFieldTypes();
 	}
 
 	/**
@@ -187,25 +198,20 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		 * @return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
+			return new JDBCOutputFormat(buildConnectionOptions(),
+					new JdbcInsertOptions(query, typesArray),
+					JdbcBatchOptions.builder().withSize(batchInterval).build());
+		}
+
+		public JdbcConnectionOptions buildConnectionOptions() {
 			if (this.username == null) {
 				LOG.info("Username was not supplied.");
 			}
 			if (this.password == null) {
 				LOG.info("Password was not supplied.");
 			}
-			if (this.dbURL == null) {
-				throw new IllegalArgumentException("No database URL supplied.");
-			}
-			if (this.query == null) {
-				throw new IllegalArgumentException("No query supplied.");
-			}
-			if (this.drivername == null) {
-				throw new IllegalArgumentException("No driver supplied.");
-			}
 
-			return new JDBCOutputFormat(
-					username, password, drivername, dbURL,
-					query, batchInterval, typesArray);
+			return new JdbcConnectionOptions(dbURL, drivername, username, password);
 		}
 	}
 
