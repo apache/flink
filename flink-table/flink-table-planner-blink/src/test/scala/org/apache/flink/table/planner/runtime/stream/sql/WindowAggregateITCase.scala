@@ -101,7 +101,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
   }
 
   @Test
-  def testDoubleTumbleWindow(): Unit = {
+  def testCascadingTumbleWindow(): Unit = {
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset

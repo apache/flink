@@ -55,20 +55,20 @@ class BatchLogicalWindowAggregateRule
 
   private[table] override def getTimeFieldReference(
       operand: RexNode,
-      windowExprIdx: Int,
+      timeAttributeIndex: Int,
       rowType: RelDataType): FieldReferenceExpression = {
     if (FlinkTypeFactory.isProctimeIndicatorType(operand.getType)) {
       throw new ValidationException("Window can not be defined over "
         + "a proctime attribute column for batch mode")
     }
 
-    val fieldName = rowType.getFieldList.get(windowExprIdx).getName
-    val fieldType = rowType.getFieldList.get(windowExprIdx).getType
+    val fieldName = rowType.getFieldList.get(timeAttributeIndex).getName
+    val fieldType = rowType.getFieldList.get(timeAttributeIndex).getType
     new FieldReferenceExpression(
       fieldName,
       fromLogicalTypeToDataType(toLogicalType(fieldType)),
       0,
-      windowExprIdx)
+      timeAttributeIndex)
   }
 
   def getOperandAsLong(call: RexCall, idx: Int): Long =
