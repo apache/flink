@@ -125,20 +125,28 @@ part_spec:
 ### Examples
 
 {% highlight sql %}
-
 -- Creates a partitioned table
 CREATE TABLE country_page_view (user STRING, cnt INT, date STRING, country STRING)
 PARTITIONED BY (date, country)
 WITH (...)
 
--- Appends rows into the partition (date='2019-8-30', country='China')
+-- Appends rows into the static partition (date='2019-8-30', country='China')
 INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
 
--- Overwrites the partition (date='2019-8-30', country='China') using rows in page_view_source
+-- Appends rows into partition (date, country), where date is static partition with value '2019-8-30',
+-- country is dynamic partition whose value is dynamic determined by each row.
 INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+  SELECT user, cnt, country FROM page_view_source;
+
+-- Overwrites rows into static partition (date='2019-8-30', country='China')
+INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
 
+-- Overwrites rows into partition (date, country), where date is static partition with value '2019-8-30',
+-- country is dynamic partition whose value is dynamic determined by each row.
+INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30')
+  SELECT user, cnt, country FROM page_view_source;
 {% endhighlight %}
 
 

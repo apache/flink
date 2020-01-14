@@ -125,22 +125,27 @@ part_spec:
 ### 示例
 
 {% highlight sql %}
-
 -- 创建一个分区表
 CREATE TABLE country_page_view (user STRING, cnt INT, date STRING, country STRING)
 PARTITIONED BY (date, country)
 WITH (...)
 
--- 追加行到该分区中 (date='2019-8-30', country='China')
+-- 追加行到该静态分区中 (date='2019-8-30', country='China')
 INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
 
--- 用 page_view_source 中的行，覆盖分区 (date='2019-8-30', country='China')
+-- 追加行到分区 (date, country) 中，其中 date 是静态分区 '2019-8-30'；country 是动态分区，其值由每一行动态决定
 INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+  SELECT user, cnt, country FROM page_view_source;
+
+-- 覆盖行到静态分区 (date='2019-8-30', country='China')
+INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
 
+-- 覆盖行到分区 (date, country) 中，其中 date 是静态分区 '2019-8-30'；country 是动态分区，其值由每一行动态决定
+INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30')
+  SELECT user, cnt, country FROM page_view_source;
 {% endhighlight %}
-
 
 ## 将值插入表中
 
