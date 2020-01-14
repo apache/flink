@@ -27,11 +27,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.framework.state.ConnectionStateListener;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -62,20 +60,14 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
 			OneShotLatch connectionLossLatch = new OneShotLatch();
 			OneShotLatch reconnectedLatch = new OneShotLatch();
 
-			ConnectionStateListener listener = (ignore, newState) -> {
-				if (newState == ConnectionState.LOST || newState == ConnectionState.SUSPENDED) {
-					connectionLossLatch.trigger();
-				}
-
-				if (newState == ConnectionState.RECONNECTED) {
-					reconnectedLatch.trigger();
-				}
-			};
+			TestingLastStateConnectionStateListener listener = new TestingLastStateConnectionStateListener(
+				connectionLossLatch,
+				reconnectedLatch);
 
 			ZooKeeperCheckpointIDCounter idCounter = new ZooKeeperCheckpointIDCounter(
 				client,
 				"/checkpoint-id-counter",
-				Collections.singleton(listener));
+				listener);
 			idCounter.start();
 
 			AtomicLong localCounter = new AtomicLong(1L);
@@ -96,6 +88,30 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
 				is(localCounter.getAndIncrement()));
 		} finally {
 			client.close();
+		}
+	}
+
+	private static final class TestingLastStateConnectionStateListener extends DefaultLastStateConnectionStateListener {
+
+		private final OneShotLatch connectionLossLatch;
+		private final OneShotLatch reconnectedLatch;
+
+		private TestingLastStateConnectionStateListener(OneShotLatch connectionLossLatch, OneShotLatch reconnectedLatch) {
+			this.connectionLossLatch = connectionLossLatch;
+			this.reconnectedLatch = reconnectedLatch;
+		}
+
+		@Override
+		public void stateChanged(CuratorFramework client, ConnectionState newState) {
+			super.stateChanged(client, newState);
+
+			if (newState == ConnectionState.LOST || newState == ConnectionState.SUSPENDED) {
+				connectionLossLatch.trigger();
+			}
+
+			if (newState == ConnectionState.RECONNECTED) {
+				reconnectedLatch.trigger();
+			}
 		}
 	}
 
