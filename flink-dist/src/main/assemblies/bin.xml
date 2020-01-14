@@ -52,6 +52,13 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- copy bash utils -->
+		<file>
+			<source>target/bash-java-utils.jar</source>
+			<outputDirectory>bin/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Table/SQL Uber JAR -->
 		<file>
 			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
