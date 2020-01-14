@@ -53,7 +53,7 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.shuffle.min=536346624</tt>.
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>.
 	 */
 	private final Option dynamicProperties = Option.builder("D")
 			.argName("property=value")
