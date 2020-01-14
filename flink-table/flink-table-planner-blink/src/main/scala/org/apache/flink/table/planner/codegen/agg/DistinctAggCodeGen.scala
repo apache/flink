@@ -382,6 +382,7 @@ class DistinctAggCodeGen(
     // the key expression of MapView
     if (fieldExprs.length > 1) {
       val keyTerm = newName(DISTINCT_KEY_TERM)
+      val outRowWriter = newName(DEFAULT_OUT_RECORD_WRITER_TERM)
       val valueType = RowType.of(
         fieldExprs.map(_.resultType): _*)
 
@@ -391,6 +392,7 @@ class DistinctAggCodeGen(
         valueType,
         classOf[BinaryRow],
         outRow = keyTerm,
+        outRowWriter = Some(outRowWriter),
         reusedOutRow = false)
     } else {
       val fieldExpr = fieldExprs.head
