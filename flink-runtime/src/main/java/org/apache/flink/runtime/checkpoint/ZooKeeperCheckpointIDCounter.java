@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
@@ -147,6 +148,11 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		}
 
 		sharedCount.setCount((int) newId);
+	}
+
+	@VisibleForTesting
+	ConnectionState getLastState() {
+		return connStateListener.lastState;
 	}
 
 	/**
