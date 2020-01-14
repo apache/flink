@@ -29,9 +29,9 @@ import java.util.HashSet;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link RestartAllStrategy}.
+ * Tests for {@link RestartAllFailoverStrategy}.
  */
-public class RestartAllStrategyTest extends TestLogger {
+public class RestartAllFailoverStrategyTest extends TestLogger {
 
 	@Test
 	public void testGetTasksNeedingRestart() {
@@ -46,7 +46,7 @@ public class RestartAllStrategyTest extends TestLogger {
 
 		final TestFailoverTopology topology = topologyBuilder.build();
 
-		final RestartAllStrategy strategy = new RestartAllStrategy(topology);
+		final RestartAllFailoverStrategy strategy = new RestartAllFailoverStrategy(topology);
 
 		assertEquals(
 			new HashSet<>(Arrays.asList(v1.getId(), v2.getId(), v3.getId())),

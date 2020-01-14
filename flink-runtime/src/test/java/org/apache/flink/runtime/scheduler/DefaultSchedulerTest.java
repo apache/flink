@@ -35,7 +35,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
@@ -736,7 +736,7 @@ public class DefaultSchedulerTest extends TestLogger {
 			NettyShuffleMaster.INSTANCE,
 			NoOpJobMasterPartitionTracker.INSTANCE,
 			schedulingStrategyFactory,
-			new RestartPipelinedRegionStrategy.Factory(),
+			new RestartPipelinedRegionFailoverStrategy.Factory(),
 			testRestartBackoffTimeStrategy,
 			testExecutionVertexOperations,
 			executionVertexVersioner,

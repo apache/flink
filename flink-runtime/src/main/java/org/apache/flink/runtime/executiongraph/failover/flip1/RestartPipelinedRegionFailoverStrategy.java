@@ -42,10 +42,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A failover strategy that proposes to restart involved regions when a vertex fails.
  * A region is defined by this strategy as tasks that communicate via pipelined data exchange.
  */
-public class RestartPipelinedRegionStrategy implements FailoverStrategy {
+public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy {
 
 	/** The log object used for debugging. */
-	private static final Logger LOG = LoggerFactory.getLogger(RestartPipelinedRegionStrategy.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RestartPipelinedRegionFailoverStrategy.class);
 
 	/** The topology containing info about all the vertices and result partitions. */
 	private final FailoverTopology<?, ?> topology;
@@ -66,7 +66,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	 * @param topology containing info about all the vertices and result partitions
 	 */
 	@VisibleForTesting
-	public RestartPipelinedRegionStrategy(FailoverTopology<?, ?> topology) {
+	public RestartPipelinedRegionFailoverStrategy(FailoverTopology<?, ?> topology) {
 		this(topology, resultPartitionID -> true);
 	}
 
@@ -76,7 +76,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	 * @param topology containing info about all the vertices and result partitions
 	 * @param resultPartitionAvailabilityChecker helps to query result partition availability
 	 */
-	public RestartPipelinedRegionStrategy(
+	public RestartPipelinedRegionFailoverStrategy(
 		FailoverTopology<?, ?> topology,
 		ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
@@ -262,7 +262,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	}
 
 	/**
-	 * The factory to instantiate {@link RestartPipelinedRegionStrategy}.
+	 * The factory to instantiate {@link RestartPipelinedRegionFailoverStrategy}.
 	 */
 	public static class Factory implements FailoverStrategy.Factory {
 
@@ -271,7 +271,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 				final FailoverTopology<?, ?> topology,
 				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
-			return new RestartPipelinedRegionStrategy(topology, resultPartitionAvailabilityChecker);
+			return new RestartPipelinedRegionFailoverStrategy(topology, resultPartitionAvailabilityChecker);
 		}
 	}
 }

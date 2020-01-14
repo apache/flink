@@ -29,7 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.executiongraph.SchedulingUtils;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -60,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * This failover strategy uses flip1.RestartPipelinedRegionStrategy to make task failover decisions.
+ * This failover strategy uses flip1.RestartPipelinedRegionFailoverStrategy to make task failover decisions.
  */
 public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
@@ -73,7 +73,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	private final ExecutionVertexVersioner executionVertexVersioner;
 
 	/** The underlying new generation region failover strategy. */
-	private RestartPipelinedRegionStrategy restartPipelinedRegionStrategy;
+	private RestartPipelinedRegionFailoverStrategy restartPipelinedRegionFailoverStrategy;
 
 	public AdaptedRestartPipelinedRegionStrategyNG(final ExecutionGraph executionGraph) {
 		this.executionGraph = checkNotNull(executionGraph);
@@ -96,7 +96,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
 		final ExecutionVertexID vertexID = getExecutionVertexID(taskExecution.getVertex());
 
-		final Set<ExecutionVertexID> tasksToRestart = restartPipelinedRegionStrategy.getTasksNeedingRestart(vertexID, cause);
+		final Set<ExecutionVertexID> tasksToRestart = restartPipelinedRegionFailoverStrategy.getTasksNeedingRestart(vertexID, cause);
 		restartTasks(tasksToRestart);
 	}
 
@@ -292,8 +292,8 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// build the underlying new generation failover strategy when the executionGraph vertices are all added,
 		// otherwise the failover topology will not be correctly built.
 		// currently it's safe to add it here, as this method is invoked only once in production code.
-		checkState(restartPipelinedRegionStrategy == null, "notifyNewVertices() must be called only once");
-		this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
+		checkState(restartPipelinedRegionFailoverStrategy == null, "notifyNewVertices() must be called only once");
+		this.restartPipelinedRegionFailoverStrategy = new RestartPipelinedRegionFailoverStrategy(
 			executionGraph.getFailoverTopology(),
 			executionGraph.getResultPartitionAvailabilityChecker());
 	}
