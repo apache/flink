@@ -708,8 +708,7 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			jobGraph,
 			haServices,
-			new TestingJobManagerSharedServicesBuilder().build(),
-			heartbeatServices);
+			new TestingJobManagerSharedServicesBuilder().build());
 
 		try {
 			// starting the JobMaster should have read the savepoint
@@ -770,8 +769,7 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			jobGraphWithNewOperator,
 			haServices,
-			new TestingJobManagerSharedServicesBuilder().build(),
-			heartbeatServices);
+			new TestingJobManagerSharedServicesBuilder().build());
 
 		try {
 			// starting the JobMaster should have read the savepoint
@@ -822,8 +820,7 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			jobGraph,
 			haServices,
-			new TestingJobManagerSharedServicesBuilder().build(),
-			heartbeatServices);
+			new TestingJobManagerSharedServicesBuilder().build());
 
 		try {
 			// starting the JobMaster should have read the savepoint
