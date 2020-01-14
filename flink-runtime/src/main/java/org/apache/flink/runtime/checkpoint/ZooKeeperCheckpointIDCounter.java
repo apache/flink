@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
@@ -26,15 +25,12 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.VersionedValue;
 import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.framework.state.ConnectionStateListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -66,12 +62,9 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	/** Curator recipe for shared counts. */
 	private final SharedCount sharedCount;
 
-	private final Collection<ConnectionStateListener> connectionStateListeners;
+	private final LastStateConnectionStateListener connectionStateListener;
 
 	private final Object startStopLock = new Object();
-
-	@Nullable
-	private volatile ConnectionState lastState;
 
 	@GuardedBy("startStopLock")
 	private boolean isStarted;
@@ -82,19 +75,11 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	 * @param client      Curator ZooKeeper client
 	 * @param counterPath ZooKeeper path for the counter. It's sufficient to have a path per-job.
 	 */
-	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath) {
+	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath, LastStateConnectionStateListener connectionStateListener) {
 		this.client = checkNotNull(client, "Curator client");
 		this.counterPath = checkNotNull(counterPath, "Counter path");
 		this.sharedCount = new SharedCount(client, counterPath, 1);
-
-		this.connectionStateListeners = new ArrayList<>();
-		this.connectionStateListeners.add((ignore, newState) -> lastState = newState);
-	}
-
-	@VisibleForTesting
-	ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath, Collection<ConnectionStateListener> listeners) {
-		this(client, counterPath);
-		this.connectionStateListeners.addAll(listeners);
+		this.connectionStateListener = connectionStateListener;
 	}
 
 	@Override
@@ -103,9 +88,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 			if (!isStarted) {
 				sharedCount.start();
 
-				for (ConnectionStateListener listener : connectionStateListeners) {
-					client.getConnectionStateListenable().addListener(listener);
-				}
+				client.getConnectionStateListenable().addListener(connectionStateListener);
 
 				isStarted = true;
 			}
@@ -119,9 +102,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 				LOG.info("Shutting down.");
 				sharedCount.close();
 
-				for (ConnectionStateListener listener : connectionStateListeners) {
-					client.getConnectionStateListenable().removeListener(listener);
-				}
+				client.getConnectionStateListenable().removeListener(connectionStateListener);
 
 				if (jobStatus.isGloballyTerminalState()) {
 					LOG.info("Removing {} from ZooKeeper", counterPath);
@@ -174,14 +155,12 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	private void checkConnectionState() {
-		final ConnectionState currentLastState = this.lastState;
+		final Optional<ConnectionState> optionalLastState = connectionStateListener.getLastState();
 
-		if (currentLastState == null) {
-			return;
-		}
-
-		if (currentLastState != ConnectionState.CONNECTED && currentLastState != ConnectionState.RECONNECTED) {
-			throw new IllegalStateException("Connection state: " + currentLastState);
-		}
+		optionalLastState.ifPresent(lastState -> {
+			if (lastState != ConnectionState.CONNECTED && lastState != ConnectionState.RECONNECTED) {
+				throw new IllegalStateException("Connection state: " + lastState);
+			}
+		});
 	}
 }
