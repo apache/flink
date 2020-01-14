@@ -28,11 +28,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A failover strategy that proposes to restart all vertices when a vertex fails.
  */
-public class RestartAllStrategy implements FailoverStrategy {
+public class RestartAllFailoverStrategy implements FailoverStrategy {
 
 	private final FailoverTopology<?, ?> topology;
 
-	public RestartAllStrategy(final FailoverTopology<?, ?> topology) {
+	public RestartAllFailoverStrategy(final FailoverTopology<?, ?> topology) {
 		this.topology = checkNotNull(topology);
 	}
 
@@ -51,7 +51,7 @@ public class RestartAllStrategy implements FailoverStrategy {
 	}
 
 	/**
-	 * The factory to instantiate {@link RestartAllStrategy}.
+	 * The factory to instantiate {@link RestartAllFailoverStrategy}.
 	 */
 	public static class Factory implements FailoverStrategy.Factory {
 
@@ -60,7 +60,7 @@ public class RestartAllStrategy implements FailoverStrategy {
 				final FailoverTopology<?, ?> topology,
 				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
-			return new RestartAllStrategy(topology);
+			return new RestartAllFailoverStrategy(topology);
 		}
 	}
 }
