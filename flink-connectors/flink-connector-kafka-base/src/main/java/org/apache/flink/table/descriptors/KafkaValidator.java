@@ -38,8 +38,6 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 public class KafkaValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_KAFKA = "kafka";
-	public static final String CONNECTOR_VERSION_VALUE_08 = "0.8";
-	public static final String CONNECTOR_VERSION_VALUE_09 = "0.9";
 	public static final String CONNECTOR_VERSION_VALUE_010 = "0.10";
 	public static final String CONNECTOR_VERSION_VALUE_011 = "0.11";
 	public static final String CONNECTOR_VERSION_VALUE_UNIVERSAL = "universal";

@@ -56,7 +56,7 @@ class TableSqlFunction(
     functionImpl: FlinkTableFunction,
     operandTypeInfer: Option[SqlOperandTypeChecker] = None)
   extends SqlUserDefinedTableFunction(
-    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
+    new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
     ReturnTypes.CURSOR,
     // type inference has the UNKNOWN operand types.
     createOperandTypeInference(displayName, udtf, typeFactory),

@@ -55,10 +55,11 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.ExceptionUtils;
@@ -132,7 +133,7 @@ public class ExecutionEnvironment {
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
-	private final ExecutorServiceLoader executorServiceLoader;
+	private final PipelineExecutorServiceLoader executorServiceLoader;
 
 	private final Configuration configuration;
 
@@ -142,7 +143,7 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
-	 * configure the {@link org.apache.flink.core.execution.Executor}.
+	 * configure the {@link PipelineExecutor}.
 	 */
 	@PublicEvolving
 	public ExecutionEnvironment(final Configuration configuration) {
@@ -151,14 +152,14 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 *
-	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * <p>In addition, this constructor allows specifying the {@link PipelineExecutorServiceLoader} and
 	 * user code {@link ClassLoader}.
 	 */
 	@PublicEvolving
 	public ExecutionEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
@@ -179,7 +180,7 @@ public class ExecutionEnvironment {
 	}
 
 	@Internal
-	public ExecutorServiceLoader getExecutorServiceLoader() {
+	public PipelineExecutorServiceLoader getExecutorServiceLoader() {
 		return executorServiceLoader;
 	}
 
@@ -897,7 +898,7 @@ public class ExecutionEnvironment {
 		consolidateParallelismDefinitionsInConfiguration();
 
 		final Plan plan = createProgramPlan(jobName);
-		final ExecutorFactory executorFactory =
+		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
 
 		checkNotNull(
@@ -993,7 +994,7 @@ public class ExecutionEnvironment {
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
-	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -1008,7 +1009,7 @@ public class ExecutionEnvironment {
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
-	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -1024,7 +1025,7 @@ public class ExecutionEnvironment {
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
-	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 *

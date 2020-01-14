@@ -69,6 +69,91 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
 public final class TypeInferenceUtil {
 
 	/**
+	 * Runs the entire type inference process.
+	 *
+	 * @param typeInference type inference of the current call
+	 * @param callContext call context of the current call
+	 * @param surroundingInfo information about the outer wrapping call of a current function call for
+	 *                        performing input type inference
+	 */
+	public static Result runTypeInference(
+			TypeInference typeInference,
+			CallContext callContext,
+			@Nullable SurroundingInfo surroundingInfo) {
+		try {
+			return runTypeInferenceInternal(typeInference, callContext, surroundingInfo);
+		} catch (ValidationException e) {
+			throw createInvalidCallException(callContext, e);
+		} catch (Throwable t) {
+			throw createUnexpectedException(callContext, t);
+		}
+	}
+
+	/**
+	 * Adapts the call's argument if necessary.
+	 *
+	 * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of default
+	 * values (*) where (*) is future work.
+	 */
+	public static AdaptedCallContext adaptArguments(
+			TypeInference typeInference,
+			CallContext callContext,
+			@Nullable DataType outputType) {
+		final List<DataType> actualTypes = callContext.getArgumentDataTypes();
+
+		typeInference.getTypedArguments()
+			.ifPresent((dataTypes) -> {
+				if (actualTypes.size() != dataTypes.size()) {
+					throw new ValidationException(
+						String.format(
+							"Invalid number of arguments. %d arguments expected after argument expansion but %d passed.",
+							dataTypes.size(),
+							actualTypes.size()));
+				}
+			});
+
+		final AdaptedCallContext adaptedCallContext = inferInputTypes(
+			typeInference,
+			callContext,
+			outputType);
+
+		// final check if the call is valid after casting
+		final List<DataType> expectedTypes = adaptedCallContext.getArgumentDataTypes();
+		for (int pos = 0; pos < actualTypes.size(); pos++) {
+			final DataType expectedType = expectedTypes.get(pos);
+			final DataType actualType = actualTypes.get(pos);
+			if (!supportsImplicitCast(actualType.getLogicalType(), expectedType.getLogicalType())) {
+				throw new ValidationException(
+					String.format(
+						"Invalid argument type at position %d. Data type %s expected but %s passed.",
+						pos,
+						expectedType,
+						actualType));
+			}
+		}
+
+		return adaptedCallContext;
+	}
+
+	/**
+	 * Infers an output type using the given {@link TypeStrategy}. It assumes that input arguments have
+	 * been adapted before if necessary.
+	 */
+	public static DataType inferOutputType(CallContext callContext, TypeStrategy outputTypeStrategy) {
+		final Optional<DataType> potentialOutputType = outputTypeStrategy.inferType(callContext);
+		if (!potentialOutputType.isPresent()) {
+			throw new ValidationException("Could not infer an output type for the given arguments.");
+		}
+		final DataType outputType = potentialOutputType.get();
+
+		if (isUnknown(outputType)) {
+			throw new ValidationException(
+				"Could not infer an output type for the given arguments. Untyped NULL received.");
+		}
+		return outputType;
+	}
+
+	/**
 	 * Generates a signature of the given {@link FunctionDefinition}.
 	 */
 	public static String generateSignature(
@@ -85,35 +170,50 @@ public final class TypeInferenceUtil {
 	}
 
 	/**
-	 * Runs the type inference process.
-	 *
-	 * @param typeInference type inference of the current call
-	 * @param callContext call context of the current call
-	 * @param surroundingInfo information about the outer wrapping call of a current function call for
-	 *                        performing input type inference
+	 * Returns an exception for invalid input arguments.
 	 */
-	public static Result runTypeInference(
+	public static ValidationException createInvalidInputException(
 			TypeInference typeInference,
 			CallContext callContext,
-			@Nullable SurroundingInfo surroundingInfo) {
-		try {
-			return runTypeInferenceInternal(typeInference, callContext, surroundingInfo);
-		} catch (ValidationException e) {
-			throw new ValidationException(
-				String.format(
-					"Invalid function call:\n%s(%s)",
+			ValidationException cause) {
+		return new ValidationException(
+			String.format(
+				"Invalid input arguments. Expected signatures are:\n%s",
+				generateSignature(
 					callContext.getName(),
-					callContext.getArgumentDataTypes().stream()
-						.map(DataType::toString)
-						.collect(Collectors.joining(", "))),
-				e);
-		} catch (Throwable t) {
-			throw new TableException(
-				String.format(
-					"Unexpected error in type inference logic of function '%s'. This is a bug.",
-					callContext.getName()),
-				t);
-		}
+					callContext.getFunctionDefinition(),
+					typeInference)
+			),
+			cause);
+	}
+
+	/**
+	 * Returns an exception for an invalid call to a function.
+	 */
+	public static ValidationException createInvalidCallException(
+			CallContext callContext,
+			ValidationException cause) {
+		return new ValidationException(
+			String.format(
+				"Invalid function call:\n%s(%s)",
+				callContext.getName(),
+				callContext.getArgumentDataTypes().stream()
+					.map(DataType::toString)
+					.collect(Collectors.joining(", "))),
+			cause);
+	}
+
+	/**
+	 * Returns an exception for an unexpected error during type inference.
+	 */
+	public static TableException createUnexpectedException(
+			CallContext callContext,
+			Throwable cause) {
+		return new TableException(
+			String.format(
+				"Unexpected error in type inference logic of function '%s'. This is a bug.",
+				callContext.getName()),
+			cause);
 	}
 
 	/**
@@ -214,7 +314,7 @@ public final class TypeInferenceUtil {
 				callContext.getArgumentDataTypes().size(),
 				true);
 		} catch (ValidationException e) {
-			throw getInvalidInputException(
+			throw createInvalidInputException(
 				typeInference,
 				callContext,
 				e);
@@ -222,36 +322,41 @@ public final class TypeInferenceUtil {
 
 		final AdaptedCallContext adaptedCallContext;
 		try {
+			// use information of surrounding call to determine output type of this call
+			final DataType outputType;
+			if (surroundingInfo != null) {
+				outputType = surroundingInfo.inferOutputType(callContext.getDataTypeLookup())
+					.orElse(null);
+			} else {
+				outputType = null;
+			}
+
 			adaptedCallContext = adaptArguments(
 				typeInference,
 				callContext,
-				surroundingInfo);
+				outputType);
 		} catch (ValidationException e) {
-			throw getInvalidInputException(
+			throw createInvalidInputException(
 				typeInference,
 				callContext,
 				e);
 		}
 
-		return inferTypes(
+		// infer output type first for better error message
+		// (logically an accumulator type should be inferred first)
+		final DataType outputType = inferOutputType(
 			adaptedCallContext,
-			typeInference.getAccumulatorTypeStrategy().orElse(null),
 			typeInference.getOutputTypeStrategy());
-	}
 
-	private static ValidationException getInvalidInputException(
-			TypeInference typeInference,
-			CallContext callContext,
-			ValidationException cause) {
-		return new ValidationException(
-			String.format(
-				"Invalid input arguments. Expected signatures are:\n%s",
-				generateSignature(
-					callContext.getName(),
-					callContext.getFunctionDefinition(),
-					typeInference)
-			),
-			cause);
+		final DataType accumulatorType = inferAccumulatorType(
+			adaptedCallContext,
+			outputType,
+			typeInference.getAccumulatorTypeStrategy().orElse(null));
+
+		return new Result(
+			adaptedCallContext.getArgumentDataTypes(),
+			accumulatorType,
+			outputType);
 	}
 
 	private static String formatNamedOrTypedArguments(String name, TypeInference typeInference) {
@@ -324,63 +429,10 @@ public final class TypeInferenceUtil {
 		return true;
 	}
 
-	/**
-	 * Adapts the call's argument if necessary.
-	 *
-	 * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of default
-	 * values (*) where (*) is future work.
-	 */
-	private static AdaptedCallContext adaptArguments(
-			TypeInference typeInference,
-			CallContext callContext,
-			@Nullable SurroundingInfo surroundingInfo) {
-		final List<DataType> actualTypes = callContext.getArgumentDataTypes();
-
-		typeInference.getTypedArguments()
-			.ifPresent((dataTypes) -> {
-				if (actualTypes.size() != dataTypes.size()) {
-					throw new ValidationException(
-						String.format(
-							"Invalid number of arguments. %d arguments expected after argument expansion but %d passed.",
-							dataTypes.size(),
-							actualTypes.size()));
-				}
-			});
-
-		final AdaptedCallContext adaptedCallContext = inferInputTypes(
-			typeInference,
-			callContext,
-			surroundingInfo);
-
-		// final check if the call is valid after casting
-		final List<DataType> expectedTypes = adaptedCallContext.getArgumentDataTypes();
-		for (int pos = 0; pos < actualTypes.size(); pos++) {
-			final DataType expectedType = expectedTypes.get(pos);
-			final DataType actualType = actualTypes.get(pos);
-			if (!supportsImplicitCast(actualType.getLogicalType(), expectedType.getLogicalType())) {
-				throw new ValidationException(
-					String.format(
-						"Invalid argument type at position %d. Data type %s expected but %s passed.",
-						pos,
-						expectedType,
-						actualType));
-			}
-		}
-
-		return adaptedCallContext;
-	}
-
 	private static AdaptedCallContext inferInputTypes(
 			TypeInference typeInference,
 			CallContext callContext,
-			@Nullable SurroundingInfo surroundingInfo) {
-		// use information of surrounding call to determine output type of this call
-		final DataType outputType;
-		if (surroundingInfo != null) {
-			outputType = surroundingInfo.inferOutputType(callContext.getDataTypeLookup()).orElse(null);
-		} else {
-			outputType = null;
-		}
+			@Nullable DataType outputType) {
 
 		final AdaptedCallContext adaptedCallContext = new AdaptedCallContext(callContext, outputType);
 
@@ -401,47 +453,31 @@ public final class TypeInferenceUtil {
 		return adaptedCallContext;
 	}
 
-	private static Result inferTypes(
-			AdaptedCallContext adaptedCallContext,
-			@Nullable TypeStrategy accumulatorTypeStrategy,
-			TypeStrategy outputTypeStrategy) {
-
-		// infer output type first for better error message
-		// (logically an accumulator type should be inferred first)
-		final Optional<DataType> potentialOutputType = outputTypeStrategy.inferType(adaptedCallContext);
-		if (!potentialOutputType.isPresent()) {
-			throw new ValidationException("Could not infer an output type for the given arguments.");
-		}
-		final DataType outputType = potentialOutputType.get();
-
-		if (isUnknown(outputType)) {
-			throw new ValidationException(
-				"Could not infer an output type for the given arguments. Untyped NULL received.");
+	private static @Nullable DataType inferAccumulatorType(
+			CallContext callContext,
+			DataType outputType,
+			@Nullable TypeStrategy accumulatorTypeStrategy) {
+		if (callContext.getFunctionDefinition().getKind() != FunctionKind.TABLE_AGGREGATE &&
+				callContext.getFunctionDefinition().getKind() != FunctionKind.AGGREGATE) {
+			return null;
 		}
 
-		if (adaptedCallContext.getFunctionDefinition().getKind() == FunctionKind.TABLE_AGGREGATE ||
-				adaptedCallContext.getFunctionDefinition().getKind() == FunctionKind.AGGREGATE) {
-			// an accumulator might be an internal feature of the planner, therefore it is not
-			// mandatory here; we assume the output type to be the accumulator type in this case
-			if (accumulatorTypeStrategy == null) {
-				return new Result(adaptedCallContext.getArgumentDataTypes(), outputType, outputType);
-			}
-			final Optional<DataType> potentialAccumulatorType = accumulatorTypeStrategy.inferType(adaptedCallContext);
-			if (!potentialAccumulatorType.isPresent()) {
-				throw new ValidationException("Could not infer an accumulator type for the given arguments.");
-			}
-			final DataType accumulatorType = potentialAccumulatorType.get();
-
-			if (isUnknown(accumulatorType)) {
-				throw new ValidationException(
-					"Could not infer an accumulator type for the given arguments. Untyped NULL received.");
-			}
-
-			return new Result(adaptedCallContext.getArgumentDataTypes(), potentialAccumulatorType.get(), outputType);
-
-		} else {
-			return new Result(adaptedCallContext.getArgumentDataTypes(), null, outputType);
+		// an accumulator might be an internal feature of the planner, therefore it is not
+		// mandatory here; we assume the output type to be the accumulator type in this case
+		if (accumulatorTypeStrategy == null) {
+			return outputType;
 		}
+		final Optional<DataType> potentialAccumulatorType = accumulatorTypeStrategy.inferType(callContext);
+		if (!potentialAccumulatorType.isPresent()) {
+			throw new ValidationException("Could not infer an accumulator type for the given arguments.");
+		}
+		final DataType accumulatorType = potentialAccumulatorType.get();
+
+		if (isUnknown(accumulatorType)) {
+			throw new ValidationException("Could not infer an accumulator type for the given arguments. Untyped NULL received.");
+		}
+
+		return accumulatorType;
 	}
 
 	private static boolean isUnknown(DataType dataType) {

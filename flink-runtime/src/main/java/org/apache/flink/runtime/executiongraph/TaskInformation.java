@@ -42,7 +42,7 @@ public class TaskInformation implements Serializable {
 	private final int numberOfSubtasks;
 
 	/** The maximum parallelism == number of key groups */
-	private final int maxNumberOfSubtaks;
+	private final int maxNumberOfSubtasks;
 
 	/** Class name of the invokable to run */
 	private final String invokableClassName;
@@ -54,13 +54,13 @@ public class TaskInformation implements Serializable {
 			JobVertexID jobVertexId,
 			String taskName,
 			int numberOfSubtasks,
-			int maxNumberOfSubtaks,
+			int maxNumberOfSubtasks,
 			String invokableClassName,
 			Configuration taskConfiguration) {
 		this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.numberOfSubtasks = Preconditions.checkNotNull(numberOfSubtasks);
-		this.maxNumberOfSubtaks = Preconditions.checkNotNull(maxNumberOfSubtaks);
+		this.maxNumberOfSubtasks = Preconditions.checkNotNull(maxNumberOfSubtasks);
 		this.invokableClassName = Preconditions.checkNotNull(invokableClassName);
 		this.taskConfiguration = Preconditions.checkNotNull(taskConfiguration);
 	}
@@ -77,8 +77,8 @@ public class TaskInformation implements Serializable {
 		return numberOfSubtasks;
 	}
 
-	public int getMaxNumberOfSubtaks() {
-		return maxNumberOfSubtaks;
+	public int getMaxNumberOfSubtasks() {
+		return maxNumberOfSubtasks;
 	}
 
 	public String getInvokableClassName() {

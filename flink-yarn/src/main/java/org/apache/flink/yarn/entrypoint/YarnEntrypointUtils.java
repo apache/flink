@@ -62,11 +62,6 @@ public class YarnEntrypointUtils {
 		configuration.setString(JobManagerOptions.ADDRESS, hostname);
 		configuration.setString(RestOptions.ADDRESS, hostname);
 
-		// TODO: Support port ranges for the AM
-//		final String portRange = configuration.getString(
-//			ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-//			ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
-
 		if (zooKeeperNamespace != null) {
 			configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zooKeeperNamespace);
 		}

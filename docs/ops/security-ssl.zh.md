@@ -50,12 +50,16 @@ Internal connectivity includes:
 
 All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication**, meaning both server
 and client side of each connection need to present the certificate to each other. The certificate acts effectively as a shared
-secret.
+secret when a dedicated CA is used to exclusively sign an internal cert.
 
-A common setup is to generate a dedicated certificate (may be self-signed) for a Flink deployment. The certificate for internal communication
+It is highly recommended to generate a dedicated certificate (self-signed) for a Flink deployment. The certificate for internal communication
 is not needed by any other party to interact with Flink, and can be simply added to the container images, or attached to the YARN deployment.
 
+An environment where operators are constrained to use firm wide Internal CA and can not generate self-signed certificate, specify the SHA1 certificate fingerprint to protect the cluster allowing only specific certificate to trusted by the cluster.
+
 *Note: Because internal connections are mutually authenticated with shared certificates, Flink can skip hostname verification. This makes container-based setups easier.*
+
+*IMPORTANT: Do not use certificate issued by public CA without pinning the fingerprint of the certificate.*
 
 ### External / REST Connectivity
 
@@ -113,6 +117,12 @@ security.ssl.internal.keystore-password: keystore_password
 security.ssl.internal.key-password: key_password
 security.ssl.internal.truststore: /path/to/file.truststore
 security.ssl.internal.truststore-password: truststore_password
+{% endhighlight %}
+
+When using certificate from public CA, Use certificate pinning to allow only specific internal certificate to establish the connectivity.
+
+{% highlight yaml %}
+security.ssl.internal.cert.fingerprint: 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
 {% endhighlight %}
 
 #### REST Endpoints (external connectivity)

@@ -77,7 +77,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       } else {
         val javaTerm = newName("javaResult")
         // it maybe a Internal class, so use resultClass is most safety.
-        val boxedResultClass = ExtractionUtils.boxPrimitive(resultClass).asInstanceOf[Class[_]]
+        val boxedResultClass = ExtractionUtils.primitiveToWrapper(resultClass)
         val javaTypeTerm = boxedResultClass.getCanonicalName
         val resultExternalTypeWithResultClass =
           if (LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(resultExternalType)
@@ -152,7 +152,7 @@ object ScalarFunctionCallGen {
       if (paramClass.isPrimitive && isInternalClass(signatureTypes(i))) {
         operandExpr
       } else {
-        val boxedParamClass = ExtractionUtils.boxPrimitive(paramClass).asInstanceOf[Class[_]]
+        val boxedParamClass = ExtractionUtils.primitiveToWrapper(paramClass)
         val signatureType =
           if (signatureTypes(i)
               .getLogicalType

@@ -459,6 +459,13 @@ object AkkaUtils {
                               SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD,
                               configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD))
 
+    val akkaSSLCertFingerprintString = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT)
+
+    val akkaSSLCertFingerprints = if ( akkaSSLCertFingerprintString != null ) {
+      akkaSSLCertFingerprintString.split(",").toList.mkString("[\"", "\",\"", "\"]")
+    } else  "[]"
+
     val akkaSSLProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL)
 
     val akkaSSLAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS)
@@ -566,6 +573,7 @@ object AkkaUtils {
          |      ssl {
          |
          |        enable-ssl = $akkaEnableSSL
+         |        ssl-engine-provider = org.apache.flink.runtime.akka.CustomSSLEngineProvider
          |        security {
          |          key-store = "$akkaSSLKeyStore"
          |          key-store-password = "$akkaSSLKeyStorePassword"
@@ -576,6 +584,7 @@ object AkkaUtils {
          |          enabled-algorithms = $akkaSSLAlgorithms
          |          random-number-generator = ""
          |          require-mutual-authentication = on
+         |          cert-fingerprints = $akkaSSLCertFingerprints
          |        }
          |      }
          |    }

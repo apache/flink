@@ -33,6 +33,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class BashJavaUtils {
 
+	private static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
+
 	public static void main(String[] args) throws Exception {
 		checkArgument(args.length > 0, "Command not specified.");
 
@@ -52,13 +54,13 @@ public class BashJavaUtils {
 	private static void getTmResourceDynamicConfigs(String[] args) throws Exception {
 		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
 		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
-		System.out.println(TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec));
+		System.out.println(EXECUTION_PREFIX + TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec));
 	}
 
 	private static void getTmResourceJvmParams(String[] args) throws Exception {
 		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
 		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
-		System.out.println(TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec));
+		System.out.println(EXECUTION_PREFIX + TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec));
 	}
 
 	private static Configuration getConfigurationForStandaloneTaskManagers(String[] args) throws Exception {
