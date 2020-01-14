@@ -93,17 +93,6 @@ public class JDBCTestBase {
 		BasicTypeInfo.DOUBLE_TYPE_INFO,
 		BasicTypeInfo.INT_TYPE_INFO);
 
-	public static final TableSchema TABLE_SCHEMA = TableSchema.builder().fields(
-				new String[]{"id", "title", "author", "price", "qty"},
-				new DataType[]{
-					DataTypes.INT(),
-					DataTypes.STRING(),
-					DataTypes.STRING(),
-					DataTypes.DOUBLE(),
-					DataTypes.INT()
-				})
-		.build();
-
 	public static String getCreateQuery(String tableName) {
 		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE ");
 		sqlQueryBuilder.append(tableName).append(" (");

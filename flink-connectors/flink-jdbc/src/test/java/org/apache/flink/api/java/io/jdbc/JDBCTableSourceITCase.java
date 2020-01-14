@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.StreamITCase;
@@ -33,26 +34,34 @@ import java.util.List;
 /**
  * IT case for {@link JDBCTableSource}.
  */
-
 public class JDBCTableSourceITCase extends JDBCTestBase {
+
+	final static StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+	final static EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+	final static StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, bsSettings);
+
+	final static String sql = "CREATE TABLE books (" +
+		" id int, " +
+		" title varchar, " +
+		" author varchar, " +
+		" price double, " +
+		" qty int " +
+		") with (" +
+		" 'connector.type' = 'jdbc', " +
+		" 'connector.url' = 'jdbc:derby:memory:ebookshop', " +
+		" 'connector.table' = 'books', " +
+		" 'connector.driver' = 'org.apache.derby.jdbc.EmbeddedDriver' " +
+		")";
+
+	static {
+		tEnv.sqlUpdate(sql);
+	}
 
 	@Test
 	public void testFieldsProjection() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 		StreamITCase.clear();
 
-		JDBCTableSource jdbcTableSource = JDBCTableSource.builder()
-			.setOptions(JDBCOptions.builder()
-				.setDBUrl(DB_URL)
-				.setTableName(INPUT_TABLE)
-				.build())
-			.setSchema(TABLE_SCHEMA)
-			.build();
-		tEnv.registerTableSource(INPUT_TABLE, jdbcTableSource);
-
 		Table result = tEnv.sqlQuery(SELECT_ID_BOOKS);
-
 		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<>());
 		env.execute();
@@ -74,21 +83,9 @@ public class JDBCTableSourceITCase extends JDBCTestBase {
 
 	@Test
 	public void testAllFieldsSelection() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 		StreamITCase.clear();
 
-		JDBCTableSource jdbcTableSource = JDBCTableSource.builder()
-			.setOptions(JDBCOptions.builder()
-				.setDBUrl(DB_URL)
-				.setTableName(INPUT_TABLE)
-				.build())
-			.setSchema(TABLE_SCHEMA)
-			.build();
-		tEnv.registerTableSource(INPUT_TABLE, jdbcTableSource);
-
 		Table result = tEnv.sqlQuery(SELECT_ALL_BOOKS);
-
 		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<>());
 		env.execute();
