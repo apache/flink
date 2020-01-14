@@ -26,6 +26,7 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.types.Row;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -53,7 +54,8 @@ public class JDBCTableSourceITCase extends JDBCTestBase {
 		" 'connector.driver' = 'org.apache.derby.jdbc.EmbeddedDriver' " +
 		")";
 
-	static {
+	@BeforeClass
+	public static void createTable() {
 		tEnv.sqlUpdate(TABLE_SOURCE_SQL);
 	}
 
