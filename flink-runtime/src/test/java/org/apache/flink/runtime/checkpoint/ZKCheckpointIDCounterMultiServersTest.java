@@ -18,20 +18,23 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.test.TestingCluster;
-import org.junit.AfterClass;
-import org.junit.Before;
+import org.apache.curator.framework.state.ConnectionStateListener;
+import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -39,70 +42,61 @@ import static org.junit.Assert.assertThat;
  */
 public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
 
-	private static final ZooKeeperTestEnvironment ZOOKEEPER = new ZooKeeperTestEnvironment(3);
-
-	@AfterClass
-	public static void tearDown() throws Exception {
-		ZOOKEEPER.shutdown();
-	}
-
-	@Before
-	public void cleanUp() throws Exception {
-		ZOOKEEPER.deleteAll();
-	}
+	@Rule
+	public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
 	/**
 	 * Tests that {@link ZooKeeperCheckpointIDCounter} can be recovered after a
 	 * connection loss exception from ZooKeeper ensemble.
 	 *
-	 * See also FLINK-14091.
+	 * <p>See also FLINK-14091.
 	 */
 	@Test
 	public void testRecoveredAfterConnectionLoss() throws Exception {
-		CuratorFramework client = ZOOKEEPER.getClient();
 
-		ZooKeeperCheckpointIDCounter idCounter = new ZooKeeperCheckpointIDCounter(client, "/checkpoint-id-counter");
-		idCounter.start();
+		final Configuration configuration = new Configuration();
+		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 
-		AtomicLong localCounter = new AtomicLong(1L);
+		try {
+			OneShotLatch connectionLossLatch = new OneShotLatch();
+			OneShotLatch reconnectedLatch = new OneShotLatch();
 
-		assertThat(
-			"ZooKeeperCheckpointIDCounter doesn't properly work.",
-			idCounter.getAndIncrement(),
-			is(localCounter.getAndIncrement()));
+			ConnectionStateListener listener = (ignore, newState) -> {
+				if (newState == ConnectionState.LOST || newState == ConnectionState.SUSPENDED) {
+					connectionLossLatch.trigger();
+				}
 
-		TestingCluster cluster = ZOOKEEPER.getZooKeeperCluster();
-		assertThat(cluster, is(notNullValue()));
+				if (newState == ConnectionState.RECONNECTED) {
+					reconnectedLatch.trigger();
+				}
+			};
 
-		// close the server this client connected to, which triggers a connection loss exception
-		cluster.restartServer(cluster.findConnectionInstance(client.getZookeeperClient().getZooKeeper()));
+			ZooKeeperCheckpointIDCounter idCounter = new ZooKeeperCheckpointIDCounter(
+				client,
+				"/checkpoint-id-counter",
+				Collections.singleton(listener));
+			idCounter.start();
 
-		// encountered connected loss, this prevents us from getting false positive
-		while (true) {
-			try {
-				idCounter.get();
-			} catch (IllegalStateException ignore) {
-				log.debug("Encountered connection loss.");
-				break;
-			}
+			AtomicLong localCounter = new AtomicLong(1L);
+
+			assertThat(
+				"ZooKeeperCheckpointIDCounter doesn't properly work.",
+				idCounter.getAndIncrement(),
+				is(localCounter.getAndIncrement()));
+
+			zooKeeperResource.restart();
+
+			connectionLossLatch.await();
+			reconnectedLatch.await();
+
+			assertThat(
+				"ZooKeeperCheckpointIDCounter doesn't properly work after reconnected.",
+				idCounter.getAndIncrement(),
+				is(localCounter.getAndIncrement()));
+		} finally {
+			client.close();
 		}
-
-		// recovered from connection loss
-		while (true) {
-			try {
-				long id = idCounter.get();
-				assertThat(id, is(localCounter.get()));
-				break;
-			} catch (IllegalStateException ignore) {
-				log.debug("During ZooKeeper client reconnecting...");
-			}
-		}
-
-		assertThat(idCounter.getLastState(), is(ConnectionState.RECONNECTED));
-		assertThat(
-			"ZooKeeperCheckpointIDCounter doesn't properly work after reconnected.",
-			idCounter.getAndIncrement(),
-			is(localCounter.getAndIncrement()));
 	}
 
 }
