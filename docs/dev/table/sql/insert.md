@@ -136,7 +136,7 @@ INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
 
 -- Appends rows into partition (date, country), where date is static partition with value '2019-8-30',
 -- country is dynamic partition whose value is dynamic determined by each row.
-INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+INSERT INTO country_page_view PARTITION (date='2019-8-30')
   SELECT user, cnt, country FROM page_view_source;
 
 -- Overwrites rows into static partition (date='2019-8-30', country='China')
