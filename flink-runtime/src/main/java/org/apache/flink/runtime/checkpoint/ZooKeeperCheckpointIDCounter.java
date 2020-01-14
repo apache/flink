@@ -30,6 +30,12 @@ import org.apache.curator.framework.state.ConnectionStateListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+
+import java.util.ArrayList;
+import java.util.Collection;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -60,12 +66,14 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	/** Curator recipe for shared counts */
 	private final SharedCount sharedCount;
 
-	/** Connection state listener to monitor the client connection */
-	private final SharedCountConnectionStateListener connStateListener =
-			new SharedCountConnectionStateListener();
+	private final Collection<ConnectionStateListener> connectionStateListeners;
 
 	private final Object startStopLock = new Object();
 
+	@Nullable
+	private volatile ConnectionState lastState;
+
+	@GuardedBy("startStopLock")
 	private boolean isStarted;
 
 	/**
@@ -78,6 +86,15 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		this.client = checkNotNull(client, "Curator client");
 		this.counterPath = checkNotNull(counterPath, "Counter path");
 		this.sharedCount = new SharedCount(client, counterPath, 1);
+
+		this.connectionStateListeners = new ArrayList<>();
+		this.connectionStateListeners.add((ignore, newState) -> lastState = newState);
+	}
+
+	@VisibleForTesting
+	ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath, Collection<ConnectionStateListener> listeners) {
+		this(client, counterPath);
+		this.connectionStateListeners.addAll(listeners);
 	}
 
 	@Override
@@ -85,7 +102,10 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		synchronized (startStopLock) {
 			if (!isStarted) {
 				sharedCount.start();
-				client.getConnectionStateListenable().addListener(connStateListener);
+
+				for (ConnectionStateListener listener : connectionStateListeners) {
+					client.getConnectionStateListenable().addListener(listener);
+				}
 
 				isStarted = true;
 			}
@@ -98,7 +118,10 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 			if (isStarted) {
 				LOG.info("Shutting down.");
 				sharedCount.close();
-				client.getConnectionStateListenable().removeListener(connStateListener);
+
+				for (ConnectionStateListener listener : connectionStateListeners) {
+					client.getConnectionStateListenable().removeListener(listener);
+				}
 
 				if (jobStatus.isGloballyTerminalState()) {
 					LOG.info("Removing {} from ZooKeeper", counterPath);
@@ -113,7 +136,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	@Override
 	public long getAndIncrement() throws Exception {
 		while (true) {
-			connStateListener.checkConnectionState();
+			checkConnectionState();
 
 			VersionedValue<Integer> current = sharedCount.getVersionedValue();
 			int newCount = current.getValue() + 1;
@@ -132,14 +155,14 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 
 	@Override
 	public long get() {
-		connStateListener.checkConnectionState();
+		checkConnectionState();
 
 		return sharedCount.getVersionedValue().getValue();
 	}
 
 	@Override
 	public void setCount(long newId) throws Exception {
-		connStateListener.checkConnectionState();
+		checkConnectionState();
 
 		if (newId > Integer.MAX_VALUE) {
 			throw new IllegalArgumentException("ZooKeeper checkpoint counter only supports " +
@@ -150,32 +173,15 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 		sharedCount.setCount((int) newId);
 	}
 
-	@VisibleForTesting
-	ConnectionState getLastState() {
-		return connStateListener.lastState;
-	}
+	private void checkConnectionState() {
+		final ConnectionState currentLastState = this.lastState;
 
-	/**
-	 * Connection state listener. In case of {@link ConnectionState#SUSPENDED} or {@link
-	 * ConnectionState#LOST} we are not guaranteed to read a current count from ZooKeeper.
-	 */
-	private static class SharedCountConnectionStateListener implements ConnectionStateListener {
-
-		private volatile ConnectionState lastState;
-
-		@Override
-		public void stateChanged(CuratorFramework client, ConnectionState newState) {
-			lastState = newState;
+		if (currentLastState == null) {
+			return;
 		}
 
-		private void checkConnectionState() {
-			if (lastState == null) {
-				return;
-			}
-
-			if (lastState != ConnectionState.CONNECTED && lastState != ConnectionState.RECONNECTED) {
-				throw new IllegalStateException("Connection state: " + lastState);
-			}
+		if (currentLastState != ConnectionState.CONNECTED && currentLastState != ConnectionState.RECONNECTED) {
+			throw new IllegalStateException("Connection state: " + currentLastState);
 		}
 	}
 }
