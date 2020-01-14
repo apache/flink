@@ -20,9 +20,6 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.types.DataType;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
