@@ -57,13 +57,13 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCheckpointIDCounter.class);
 
-	/** Curator ZooKeeper client */
+	/** Curator ZooKeeper client. */
 	private final CuratorFramework client;
 
-	/** Path of the shared count */
+	/** Path of the shared count. */
 	private final String counterPath;
 
-	/** Curator recipe for shared counts */
+	/** Curator recipe for shared counts. */
 	private final SharedCount sharedCount;
 
 	private final Collection<ConnectionStateListener> connectionStateListeners;
