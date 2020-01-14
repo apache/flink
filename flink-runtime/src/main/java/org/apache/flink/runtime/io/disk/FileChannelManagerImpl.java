@@ -32,10 +32,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The manager used for creating/deleting file channels based on config temp dirs.
@@ -52,15 +54,16 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	/** The number of the next path to use. */
 	private volatile int nextPath;
 
+	/** Prefix of the temporary directories to create */
 	private final String prefix;
 
+	/** Flag to signify that the file channel manager has been shut down already. */
+	private final AtomicBoolean isShutdown = new AtomicBoolean();
+
+	/** Shutdown hook to make sure that the directories are removed on exit. */
 	private final Thread shutdownHook;
 
 	public FileChannelManagerImpl(String[] tempDirs, String prefix) {
-		this(tempDirs, prefix, false);
-	}
-
-	public FileChannelManagerImpl(String[] tempDirs, String prefix, boolean deleteOnShutdown) {
 		checkNotNull(tempDirs, "The temporary directories must not be null.");
 		checkArgument(tempDirs.length > 0, "The temporary directories must not be empty.");
 
@@ -68,11 +71,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
 		this.nextPath = 0;
 		this.prefix = prefix;
 
-		if (deleteOnShutdown) {
-			shutdownHook = ShutdownHookUtil.addShutdownHook(this, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
-		} else {
-			shutdownHook = null;
-		}
+		shutdownHook = ShutdownHookUtil.addShutdownHook(this, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
 
 		// Creates directories after registering shutdown hook to ensure the directories can be
 		// removed if required.
@@ -99,17 +98,23 @@ public class FileChannelManagerImpl implements FileChannelManager {
 
 	@Override
 	public ID createChannel() {
+		checkState(!isShutdown.get(), "File channel manager has shut down.");
+
 		int num = getNextPathNum();
 		return new ID(paths[num], num, random);
 	}
 
 	@Override
 	public Enumerator createChannelEnumerator() {
+		checkState(!isShutdown.get(), "File channel manager has shut down.");
+
 		return new Enumerator(paths, random);
 	}
 
 	@Override
 	public File[] getPaths() {
+		checkState(!isShutdown.get(), "File channel manager has shut down.");
+
 		return Arrays.copyOf(paths, paths.length);
 	}
 
@@ -118,14 +123,17 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	 */
 	@Override
 	public void close() throws Exception {
+		// Marks shut down and exit if it already was shut down.
+		if (!isShutdown.compareAndSet(false, true)) {
+			return;
+		}
+
 		IOUtils.closeAll(Arrays.stream(paths)
 			.filter(File::exists)
 			.map(FileChannelManagerImpl::getFileCloser)
 			.collect(Collectors.toList()));
 
-		if (shutdownHook != null) {
-			ShutdownHookUtil.removeShutdownHook(shutdownHook, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
-		}
+		ShutdownHookUtil.removeShutdownHook(shutdownHook, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
 	}
 
 	private static AutoCloseable getFileCloser(File path) {

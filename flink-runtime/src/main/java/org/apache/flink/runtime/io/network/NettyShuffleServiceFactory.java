@@ -46,8 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
-	@VisibleForTesting
-	static final String DIR_NAME_PREFIX = "netty-shuffle";
+	private static final String DIR_NAME_PREFIX = "netty-shuffle";
 
 	@Override
 	public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
@@ -84,7 +83,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 
 		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
 
-		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX, true);
+		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
 
 		ConnectionManager connectionManager = nettyConfig != null ?
 			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig) :
