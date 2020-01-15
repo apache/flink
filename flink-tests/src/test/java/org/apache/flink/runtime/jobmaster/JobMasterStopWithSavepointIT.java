@@ -27,6 +27,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -55,6 +56,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -89,7 +91,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 	private static CountDownLatch numberOfRestarts;
 	private static AtomicLong syncSavepointId = new AtomicLong();
-	private static CountDownLatch checkpointsToWaitFor;
+	private static volatile CountDownLatch checkpointsToWaitFor;
 
 
 	private Path savepointDirectory;
@@ -199,7 +201,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 	@Test
 	public void testRestartCheckpointCoordinatorIfStopWithSavepointFails() throws Exception {
-		setUpJobGraph(ExceptionOnCallbackStreamTask.class, RestartStrategies.noRestart());
+		setUpJobGraph(CheckpointCountingTask.class, RestartStrategies.noRestart());
 
 		try {
 			Files.setPosixFilePermissions(savepointDirectory, Collections.emptySet());
@@ -211,14 +213,19 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 			stopWithSavepoint(true).get();
 			fail();
 		} catch (Exception e) {
-			assertThat(ExceptionUtils.findThrowable(e, CheckpointException.class).isPresent(), equalTo(true));
+			Optional<CheckpointException> checkpointExceptionOptional = ExceptionUtils.findThrowable(e, CheckpointException.class);
+			if (!checkpointExceptionOptional.isPresent()) {
+				throw e;
+			}
+			String exceptionMessage = checkpointExceptionOptional.get().getMessage();
+			assertTrue("Stop with savepoint failed because of another cause " + exceptionMessage, exceptionMessage.contains("Failed to trigger savepoint") && exceptionMessage.contains(CheckpointFailureReason.EXCEPTION.message()));
 		}
 
 		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
 		assertThat(jobStatus, equalTo(JobStatus.RUNNING));
 		// assert that checkpoints are continued to be triggered
 		checkpointsToWaitFor = new CountDownLatch(1);
-		assertThat(checkpointsToWaitFor.await(60L, TimeUnit.SECONDS), equalTo(true));
+		assertTrue(checkpointsToWaitFor.await(60L, TimeUnit.SECONDS));
 	}
 
 	private CompletableFuture<String> stopWithSavepoint(boolean terminate) {
@@ -382,6 +389,38 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		public void finishTask() throws Exception {
 			finishingLatch.await();
 			finishLatch.trigger();
+		}
+	}
+
+	/**
+	 * A {@link StreamTask} that simply calls {@link CountDownLatch#countDown()} when
+	 * invoking {@link #triggerCheckpointAsync}.
+	 */
+	public static class CheckpointCountingTask extends NoOpStreamTask {
+		private final transient OneShotLatch finishLatch;
+
+		public CheckpointCountingTask(final Environment environment) {
+			super(environment);
+			this.finishLatch = new OneShotLatch();
+		}
+
+		@Override
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+			invokeLatch.countDown();
+			finishLatch.await();
+			controller.allActionsCompleted();
+		}
+
+		@Override
+		protected void cancelTask() throws Exception {
+			super.cancelTask();
+			finishLatch.trigger();
+		}
+
+		@Override
+		public Future<Boolean> triggerCheckpointAsync(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions, final boolean advanceToEndOfEventTime) {
+			checkpointsToWaitFor.countDown();
+			return CompletableFuture.completedFuture(true);
 		}
 	}
 }
