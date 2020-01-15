@@ -24,9 +24,6 @@ JOB_OUTPUT_DIR=${TEST_DATA_DIR}/out/result
 LOG_DIR=${FLINK_DIR}/log
 
 function get_total_number_of_valid_lines {
-  # this method assumes that pending files contain valid data.
-  # That is because close() cannot move files to FINAL state but moves them to PENDING.
-  # Given this, the job of the test has bucket size = Long.MAX
   find ${TEST_DATA_DIR}/out -type f \( -iname "part-*" \) -exec cat {} + | sort -g | wc -l
 }
 
@@ -147,7 +144,7 @@ wait_job_terminal_state ${JOB_ID} "CANCELED"
 
 echo "Job $JOB_ID was cancelled, time to verify"
 
-# get all lines in pending or part files
+# get all lines in part files
 find ${TEST_DATA_DIR}/out -type f \( -iname "part-*" \) -exec cat {} + > ${TEST_DATA_DIR}/complete_result
 
 # for debugging purposes

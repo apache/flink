@@ -74,8 +74,8 @@ public class BucketingSinkTestProgram {
 				.setBucketer(new KeyBucketer())
 				.setBatchSize(Long.MAX_VALUE)
 				.setBatchRolloverInterval(Long.MAX_VALUE)
-				.setInactiveBucketCheckInterval(2000)
-				.setInactiveBucketThreshold(4000);
+				.setInactiveBucketCheckInterval(50)
+				.setInactiveBucketThreshold(1000);
 
 		// generate data, shuffle, perform stateful operation, sink
 		sEnv.addSource(new Generator(10, idlenessMs, 60))
