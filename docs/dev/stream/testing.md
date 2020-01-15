@@ -332,10 +332,11 @@ Many more examples for the usage of these test harnesses can be found in the Fli
 
 <span class="label label-info">Note</span> Be aware that `AbstractStreamOperatorTestHarness` and its derived classes are currently not part of the public API and can be subject to change.
 
-### Unit Testing ProcessFunction
+#### Unit Testing ProcessFunction
 
-The `ProcessFunction` is a widely used low-level and powerful stream processing operation, giving access to the basic building blocks of all (acyclic) streaming applications.
-Flink provides a test harness named `ProcessFunctionTestHarnesses` that can be used to test your `ProcessFunction`. Considering this example:
+Given its importance, in addition to the previous test harnesses that can be used directly to test a `ProcessFunction`, Flink provides a test harness factory named `ProcessFunctionTestHarnesses` that allows for easier test harness instantiation. Considering this example:
+
+<span class="label label-info">Note</span> Be aware that to use this test harness, you also need to introduce the dependencies mentioned in the last section.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -412,6 +413,8 @@ class PassThroughProcessFunctionTest extends FlatSpec with Matchers {
 {% endhighlight %}
 </div>
 </div>
+
+For more examples on how to use the `ProcessFunctionTestHarnesses` in order to test the different flavours of the `ProcessFunction`, e.g. `KeyedProcessFunction`, `KeyedCoProcessFunction`, `BroadcastProcessFunction`, etc, the user is encouraged to look at the `ProcessFunctionTestHarnessesTest`.
 
 ## Testing Flink Jobs
 
