@@ -297,7 +297,7 @@ Create Tables in the Catalog
 
 A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier. Each
 identifier consists of 3 parts: catalog name, database name and object name. If a catalog or database is not
-specified, the current default value will be used (see examples in the [Table identifier expanding](#table-identifier-expanding) section).
+specified, the current default value will be used (see examples in the [Table identifier expanding]({{ site.baseurl }}/dev/table/common.html#table-identifier-expanding) section).
 
 Tables can be either virtual (`VIEWS`) or regular (`TABLES`). `VIEWS` can be created from an
 existing `Table` object, usually the result of a Table API or SQL query. `TABLES` describe
@@ -433,9 +433,14 @@ tableEnvironment.sqlUpdate("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 
 ### Expanding Table identifiers
 
-Tables are always registered with a 3 part identifier consisting of catalog, database, and
-table name. The first two parts are optional and if they are not provided the set default values will
-be used. Identifiers follow SQL requirements which means that they can be escaped with a backtick character (`` ` ``).
+Tables are always registered with a 3-part identifier consisting of catalog, database, and table name.
+
+Users can set one catalog and one database inside it to be the “current catalog” and “current database”.
+With them, the first two parts in the 3-parts identifier mentioned above can be optional - if they are not provided,
+the current catalog and current database will be referred. Users can switch the current catalog and current database via
+table API or SQL.
+
+Identifiers follow SQL requirements which means that they can be escaped with a backtick character (`` ` ``).
 Additionally all SQL reserved keywords must be escaped.
 
 <div class="codetabs" markdown="1">
