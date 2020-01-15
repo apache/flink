@@ -19,9 +19,12 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -120,8 +123,33 @@ public class DistributedCacheDfsTest extends TestLogger {
 	}
 
 	@Test
-	public void testDistributeFileViaDFS() throws Exception {
+	public void testDistributedFileViaDFS() throws Exception {
+		getStreamExecutionEnvironment().execute("Distributed Cache Via Blob Test Program");
+	}
 
+	/**
+	 * All the Flink Standalone, Yarn, Mesos, Kubernetes sessions are using {@link RestClusterClient#submitJob(JobGraph)}
+	 * to submit a job to an existing session. This test will cover this cases.
+	 */
+	@Test(timeout = 30000)
+	public void testSubmittingJobViaRestClusterClient() throws Exception {
+		RestClusterClient<String> restClusterClient = new RestClusterClient<>(
+			MINI_CLUSTER_RESOURCE.getClientConfiguration(),
+			"testSubmittingJobViaRestClusterClient");
+
+		JobGraph jobGraph = getStreamExecutionEnvironment().getStreamGraph().getJobGraph();
+		JobResult jobResult = restClusterClient
+			.submitJob(jobGraph)
+			.thenCompose(restClusterClient::requestJobResult)
+			.get();
+
+		assertTrue(
+			jobResult.getSerializedThrowable().isPresent() ?
+				jobResult.getSerializedThrowable().get().getFullStringifiedStackTrace() : "Job failed.",
+			jobResult.isSuccess());
+	}
+
+	private StreamExecutionEnvironment getStreamExecutionEnvironment() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
@@ -131,8 +159,7 @@ public class DistributedCacheDfsTest extends TestLogger {
 		env.fromElements(1)
 			.map(new TestMapFunction())
 			.addSink(new DiscardingSink<>());
-
-		env.execute("Distributed Cache Via Blob Test Program");
+		return env;
 	}
 
 	private static class TestMapFunction extends RichMapFunction<Integer, String> {
