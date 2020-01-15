@@ -210,7 +210,6 @@ public class TaskExecutorResourceUtils {
 		// derive jvm metaspace and overhead
 
 		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, flinkInternalMemory.getTotalFlinkMemorySize());
-		sanityCheckTotalProcessMemory(config, flinkInternalMemory.getTotalFlinkMemorySize(), jvmMetaspaceAndOverhead);
 
 		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
@@ -224,7 +223,6 @@ public class TaskExecutorResourceUtils {
 		// derive jvm metaspace and overhead
 
 		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, totalFlinkMemorySize);
-		sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
 
 		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
@@ -256,9 +254,19 @@ public class TaskExecutorResourceUtils {
 			final Configuration config,
 			final MemorySize totalFlinkMemorySize) {
 		final MemorySize jvmMetaspaceSize = getJvmMetaspaceSize(config);
-		final MemorySize jvmOverheadSize = deriveJvmOverheadWithInverseFraction(config,
-			totalFlinkMemorySize.add(jvmMetaspaceSize));
-		return new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
+		final MemorySize totalFlinkAndJvmMetaspaceSize = totalFlinkMemorySize.add(jvmMetaspaceSize);
+		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead;
+		if (isTotalProcessMemorySizeExplicitlyConfigured(config)) {
+			final MemorySize totalProcessMemorySize = getTotalProcessMemorySize(config);
+			final MemorySize jvmOverheadSize = totalProcessMemorySize.subtract(totalFlinkAndJvmMetaspaceSize);
+			sanityCheckJvmOverhead(config, jvmOverheadSize, totalProcessMemorySize);
+			jvmMetaspaceAndOverhead = new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
+		} else {
+			final MemorySize jvmOverheadSize = deriveJvmOverheadWithInverseFraction(config, totalFlinkAndJvmMetaspaceSize);
+			jvmMetaspaceAndOverhead = new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
+			sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
+		}
+		return jvmMetaspaceAndOverhead;
 	}
 
 	private static FlinkInternalMemory deriveInternalMemoryFromTotalFlinkMemory(
@@ -510,6 +518,10 @@ public class TaskExecutorResourceUtils {
 			legacyConfigured;
 	}
 
+	private static boolean isJvmOverheadFractionExplicitlyConfigured(final Configuration config) {
+		return config.contains(TaskManagerOptions.JVM_OVERHEAD_FRACTION);
+	}
+
 	private static boolean isTotalFlinkMemorySizeExplicitlyConfigured(final Configuration config) {
 		return config.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY);
 	}
@@ -601,6 +613,30 @@ public class TaskExecutorResourceUtils {
 					shuffleRangeFraction.fraction,
 					totalFlinkMemorySize);
 			}
+		}
+	}
+
+	private static void sanityCheckJvmOverhead(
+			final Configuration config,
+			final MemorySize derivedJvmOverheadSize,
+			final MemorySize totalProcessMemorySize) {
+		final RangeFraction jvmOverheadRangeFraction = getJvmOverheadRangeFraction(config);
+		if (derivedJvmOverheadSize.getBytes() > jvmOverheadRangeFraction.maxSize.getBytes() ||
+			derivedJvmOverheadSize.getBytes() < jvmOverheadRangeFraction.minSize.getBytes()) {
+			throw new IllegalConfigurationException("Derived JVM Overhead size ("
+				+ derivedJvmOverheadSize.toString() + ") is not in configured JVM Overhead range ["
+				+ jvmOverheadRangeFraction.minSize.toString() + ", "
+				+ jvmOverheadRangeFraction.maxSize.toString() + "].");
+		}
+		if (isJvmOverheadFractionExplicitlyConfigured(config) &&
+			!derivedJvmOverheadSize.equals(totalProcessMemorySize.multiply(jvmOverheadRangeFraction.fraction))) {
+			LOG.info(
+				"The derived JVM Overhead size ({}) does not match " +
+					"the configured JVM Overhead fraction ({}) from the configured Total Process Memory size ({}). " +
+					"The derived JVM OVerhead size will be used.",
+				derivedJvmOverheadSize,
+				jvmOverheadRangeFraction.fraction,
+				totalProcessMemorySize);
 		}
 	}
 

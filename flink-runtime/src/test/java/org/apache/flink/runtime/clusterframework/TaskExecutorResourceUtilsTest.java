@@ -473,6 +473,33 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testConfigJvmOverheadDeriveFromProcessAndFlinkMemorySize() {
+		final Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1000m"));
+		conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("800m"));
+		conf.set(TaskManagerOptions.JVM_METASPACE, MemorySize.parse("100m"));
+		conf.set(TaskManagerOptions.JVM_OVERHEAD_MIN, MemorySize.parse("50m"));
+		conf.set(TaskManagerOptions.JVM_OVERHEAD_MAX, MemorySize.parse("200m"));
+		conf.set(TaskManagerOptions.JVM_OVERHEAD_FRACTION, 0.5f);
+
+		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
+		assertThat(taskExecutorResourceSpec.getJvmOverheadSize(), is(MemorySize.parse("100m")));
+	}
+
+	@Test
+	public void testConfigJvmOverheadDeriveFromProcessAndFlinkMemorySizeFailure() {
+		final Configuration conf = new Configuration();
+		conf.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1000m"));
+		conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("800m"));
+		conf.set(TaskManagerOptions.JVM_METASPACE, MemorySize.parse("100m"));
+		conf.set(TaskManagerOptions.JVM_OVERHEAD_MIN, MemorySize.parse("150m"));
+		conf.set(TaskManagerOptions.JVM_OVERHEAD_MAX, MemorySize.parse("200m"));
+		conf.set(TaskManagerOptions.JVM_OVERHEAD_FRACTION, 0.5f);
+
+		validateFail(conf);
+	}
+
+	@Test
 	public void testConfigTotalFlinkMemory() {
 		final MemorySize totalFlinkMemorySize = MemorySize.parse("1g");
 
