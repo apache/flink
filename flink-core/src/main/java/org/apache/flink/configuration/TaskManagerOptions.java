@@ -398,7 +398,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
 		key("taskmanager.memory.jvm-overhead.min")
 			.memoryType()
-			.defaultValue(MemorySize.parse("128m"))
+			.defaultValue(MemorySize.parse("192m"))
 			.withDescription("Min JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
 				+ " overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct"
 				+ " memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size"
