@@ -40,7 +40,7 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.jvm-overhead.min</h5></td>
-            <td style="word-wrap: break-word;">134217728 bytes</td>
+            <td style="word-wrap: break-word;">201326592 bytes</td>
             <td>MemorySize</td>
             <td>Min JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less/greater than the configured min/max size, the min/max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min/max size to the same value.</td>
         </tr>
