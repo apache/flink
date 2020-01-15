@@ -238,13 +238,15 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
 		long curRank = 0L;
 		boolean findsSortKey = false;
+		BaseRow toCollect = null;
+		BaseRow toDelete = null;
 		while (iterator.hasNext() && isInRankEnd(curRank)) {
 			Map.Entry<BaseRow, Long> entry = iterator.next();
 			BaseRow key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
 				curRank += entry.getValue();
 				if (isInRankRange(curRank)) {
-					collect(out, inputRow);
+					toCollect = inputRow;
 				}
 				findsSortKey = true;
 			} else if (findsSortKey) {
@@ -263,15 +265,20 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 						curRank = tmpRank;
 					} else {
 						int index = Long.valueOf(rankEnd - curRank).intValue();
-						BaseRow toDelete = inputs.get(index);
 						// delete retired message
-						delete(out, toDelete);
+						toDelete = inputs.get(index);
 						break;
 					}
 				}
 			} else {
 				curRank += entry.getValue();
 			}
+		}
+		if (toDelete != null) {
+			delete(out, toDelete);
+		}
+		if (toCollect != null) {
+			collect(out, inputRow);
 		}
 	}
 
@@ -374,10 +381,10 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			} else if (findsSortKey) {
 				long count = entry.getValue();
 				long tmpRank = curRank + count;
-				if (isInRankEnd(tmpRank)) {
+				if (tmpRank < rankEnd) {
 					curRank = tmpRank;
 				} else {
-					int index = Long.valueOf(rankEnd - curRank).intValue();
+					int index = Long.valueOf(rankEnd - curRank -1).intValue();
 					List<BaseRow> inputs = dataState.get(key);
 					BaseRow toAdd = inputs.get(index);
 					// send row which upgrades to TopN

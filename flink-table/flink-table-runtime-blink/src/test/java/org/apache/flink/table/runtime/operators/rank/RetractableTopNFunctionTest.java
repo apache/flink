@@ -184,7 +184,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 		expectedOutput.add(deleteRecord("fruit", 3L, 44));
 		expectedOutput.add(record("fruit", 5L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
@@ -201,7 +201,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 		expectedOutput.add(deleteRecord("book", 1L, 12));
 		expectedOutput.add(record("book", 1L, 10));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
 	}
 
@@ -254,7 +254,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 		expectedOutput.add(deleteRecord("fruit", 1L, 33));
 		expectedOutput.add(record("fruit", 1L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -301,14 +301,14 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(record("book", 1L, 12));
 		expectedOutput.add(record("book", 2L, 19));
-		expectedOutput.add(record("book", 4L, 11));
 		expectedOutput.add(deleteRecord("book", 2L, 19));
+		expectedOutput.add(record("book", 4L, 11));
 		expectedOutput.add(record("fruit", 4L, 33));
 		expectedOutput.add(record("fruit", 3L, 44));
-		expectedOutput.add(record("fruit", 5L, 22));
 		expectedOutput.add(deleteRecord("fruit", 3L, 44));
+		expectedOutput.add(record("fruit", 5L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test

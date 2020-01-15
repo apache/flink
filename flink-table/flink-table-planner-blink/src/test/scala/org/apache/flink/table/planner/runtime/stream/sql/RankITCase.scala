@@ -894,7 +894,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Ignore("Enable after UnaryUpdatableTopN is supported")
   @Test
   def testTopNWithGroupByAvgWithoutRowNumber(): Unit = {
     val data = List(
@@ -937,25 +936,37 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.execute("test")
 
     val expected = List(
-      "(true,book,1,100.0)",
-      "(true,book,3,110.0)",
-      "(true,book,4,120.0)",
-      "(true,book,1,150.0)",
-      "(true,book,1,166.66666666666666)",
-      "(true,book,2,300.0)",
-      "(false,book,3,110.0)",
-      "(true,book,2,350.0)",
-      "(true,book,4,310.0)",
-      "(true,book,1,225.0)",
-      "(true,fruit,5,100.0)")
+      "(true,book,1,100)",
+      "(true,book,3,110)",
+      "(true,book,4,120)",
+      "(false,book,1,100)",
+      "(true,book,1,150)",
+      "(false,book,1,150)",
+      "(true,book,1,166)",
+      "(false,book,3,110)",
+      "(true,book,2,300)",
+      "(false,book,2,300)",
+      "(true,book,3,110)",
+      "(false,book,3,110)",
+      "(true,book,2,350)",
+      "(false,book,4,120)",
+      "(true,book,3,110)",
+      "(false,book,3,110)",
+      "(true,book,4,310)",
+      "(false,book,1,166)",
+      "(true,book,3,110)",
+      "(false,book,3,110)",
+      "(true,book,1,225)",
+      "(true,fruit,5,100)"
+    )
 
     assertEquals(expected, sink.getRawResults)
 
     val updatedExpected = List(
-      "book,1,225.0",
-      "book,2,350.0",
-      "book,4,310.0",
-      "fruit,5,100.0")
+      "book,1,225",
+      "book,2,350",
+      "book,4,310",
+      "fruit,5,100")
 
     assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
   }
@@ -1309,51 +1320,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "fruit,3,44,1",
       "fruit,4,33,2")
     assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
-  }
-
-  @Test
-  def testRetractRank(): Unit = {
-    val data = List(
-      ("aaa", 97.0, 200.0),
-      ("bbb", 67.0, 200.0),
-      ("bbb", 162.0, 200.0)
-    )
-
-    val ds = failingDataSource(data).toTable(tEnv, 'guid, 'a, 'b)
-    tEnv.registerTable("T", ds)
-
-    val aggreagtedTable = tEnv.sqlQuery(
-      """
-        |select guid,
-        |    sum(a) as reached_score,
-        |    sum(b) as max_score,
-        |    sum(a) / sum(b) as score
-        |from T group by guid
-        |""".stripMargin
-    )
-
-    tEnv.registerTable("T2", aggreagtedTable)
-
-    val sql =
-      """
-        |SELECT guid, reached_score, max_score, score
-        |FROM (
-        |  SELECT *,
-        |      ROW_NUMBER() OVER (ORDER BY score DESC) as rank_num
-        |  FROM T2)
-        |WHERE rank_num <= 5
-      """.stripMargin
-
-    val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
-
-    val expected = List(
-      "(true,aaa,97.0,200.0,0.485)",
-       "(true,bbb,67.0,200.0,0.335)",
-      "(false,bbb,67.0,200.0,0.335)",
-      "(true,bbb,229.0,400.0,0.5725)")
-    assertEquals(expected, sink.getRawResults)
   }
 
 }
