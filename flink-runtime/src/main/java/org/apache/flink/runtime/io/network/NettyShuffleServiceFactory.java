@@ -50,7 +50,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 
 	@Override
 	public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
-		return NettyShuffleMaster.INSTANCE;
+		return new NettyShuffleMaster(configuration);
 	}
 
 	@Override

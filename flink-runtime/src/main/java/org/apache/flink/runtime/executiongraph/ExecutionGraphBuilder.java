@@ -231,6 +231,10 @@ public class ExecutionGraphBuilder {
 			log.debug("Successfully created execution graph from job graph {} ({}).", jobName, jobId);
 		}
 
+		// build resource requirements after all vertices and edges are added,
+		// which is necessary for calculating shuffle memory
+		executionGraph.buildResourceRequirements();
+
 		// configure the state checkpointing
 		JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 		if (snapshotSettings != null) {

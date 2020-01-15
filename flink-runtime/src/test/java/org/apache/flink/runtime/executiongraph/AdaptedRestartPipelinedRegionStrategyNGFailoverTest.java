@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -387,7 +387,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			jobGraph.getJobID(),
-			NettyShuffleMaster.INSTANCE,
+			ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 			ignored -> Optional.empty());
 
 		final ExecutionGraph eg = TestingExecutionGraphBuilder

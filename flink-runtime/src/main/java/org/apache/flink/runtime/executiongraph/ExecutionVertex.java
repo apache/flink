@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -226,8 +227,35 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.jobVertex.getMaxParallelism();
 	}
 
-	public ResourceProfile getResourceProfile() {
-		return this.jobVertex.getResourceProfile();
+	/**
+	 * Get this vertex's resource profile which also contains shuffle memory requirement calculated at runtime.
+	 *
+	 * @return resource profile which also contains shuffle memory requirements
+	 */
+	public ResourceProfile getFinalResourceProfile() {
+		return getExecutionGraph()
+			.getResourceRequirementsRetriever()
+			.getJobVertexResourceRequirement(getJobvertexId());
+	}
+
+	/**
+	 * Get resource profile of the physical slot to allocate a logical slot in for this vertex.
+	 * If the vertex is in a slot sharing group, the physical slot resource profile should be the
+	 * resource profile of the slot sharing group. Otherwise it should be the resource profile of
+	 * the vertex itself since the physical slot would be used by this vertex only in this case.
+	 * This resource profile also contains shuffle memory requirement calculated at runtime.
+	 *
+	 * @return resource profile of the physical slot to allocate a logical slot for the given vertex
+	 */
+	public ResourceProfile getPhysicalSlotResourceProfile() {
+		final SlotSharingGroup slotSharingGroup = getJobVertex().getSlotSharingGroup();
+		if (slotSharingGroup != null) {
+			return getExecutionGraph()
+				.getResourceRequirementsRetriever()
+				.getSlotSharingGroupResourceRequirement(slotSharingGroup.getSlotSharingGroupId());
+		} else {
+			return getFinalResourceProfile();
+		}
 	}
 
 	@Override

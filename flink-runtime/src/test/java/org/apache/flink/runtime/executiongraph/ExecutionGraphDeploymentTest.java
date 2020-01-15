@@ -58,7 +58,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -529,14 +529,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			.setFutureExecutor(executorService)
 			.setSlotProvider(slotProvider)
 			.setBlobWriter(blobWriter)
+			.setJobGraph(new JobGraph(v1, v2))
 			.build();
 
 		checkJobOffloaded(eg);
 
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		List<JobVertex> ordered = Arrays.asList(v1, v2);
-		eg.attachJobGraph(ordered);
 
 		// schedule, this triggers mock deployment
 		eg.scheduleForExecution();
@@ -800,7 +798,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			blobWriter,
 			timeout,
 			LoggerFactory.getLogger(getClass()),
-			NettyShuffleMaster.INSTANCE,
+			ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 			NoOpJobMasterPartitionTracker.INSTANCE);
 	}
 

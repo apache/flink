@@ -47,7 +47,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -206,7 +206,7 @@ public class LegacySchedulerBatchSchedulingTest extends TestLogger {
 			VoidBlobWriter.getInstance(),
 			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
 			slotRequestTimeout,
-			NettyShuffleMaster.INSTANCE,
+			ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 			NoOpJobMasterPartitionTracker.INSTANCE);
 
 		legacyScheduler.setMainThreadExecutor(mainThreadExecutor);

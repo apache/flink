@@ -38,8 +38,8 @@ import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTrack
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.slf4j.Logger;
@@ -69,7 +69,7 @@ public class TestingExecutionGraphBuilder {
 	private ClassLoader userClassLoader = ExecutionGraph.class.getClassLoader();
 	private BlobWriter blobWriter = VoidBlobWriter.getInstance();
 	private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
-	private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+	private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
 	private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
 	private Configuration jobMasterConfig = new Configuration();
 	private JobGraph jobGraph = new JobGraph();

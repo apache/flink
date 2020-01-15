@@ -49,7 +49,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -586,7 +586,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			VoidBlobWriter.getInstance(),
 			timeout,
 			log,
-			NettyShuffleMaster.INSTANCE,
+			ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 			NoOpJobMasterPartitionTracker.INSTANCE);
 	}
 

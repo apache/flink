@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 
@@ -192,7 +192,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			log,
-			NettyShuffleMaster.INSTANCE,
+			ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
 			partitionTracker);
 
 		executionGraph.start(mainThreadExecutor.getMainThreadExecutor());
