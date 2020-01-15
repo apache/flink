@@ -852,6 +852,7 @@ CREATE TABLE MyUserTable (
     .start_from_earliest()
     .start_from_latest()
     .start_from_specific_offsets(...)
+    .start_from_timestamp(...)
 
     # optional: output partitioning from Flink's partitions into Kafka's partitions
     .sink_partitioner_fixed()        # each Flink partition ends up in at-most one Kafka partition (default)
