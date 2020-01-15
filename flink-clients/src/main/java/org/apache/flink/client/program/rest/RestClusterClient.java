@@ -343,8 +343,17 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			}
 
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
-				artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
-				filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+				final Path artifactFilePath = new Path(artifacts.getValue().filePath);
+				try {
+					// Only local artifacts need to be uploaded.
+					if (!artifactFilePath.getFileSystem().isDistributedFS()) {
+						artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), artifactFilePath.getName()));
+						filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+					}
+				} catch (IOException e) {
+					throw new CompletionException(
+						new FlinkException("Failed to get the FileSystem of artifact " + artifactFilePath + ".", e));
+				}
 			}
 
 			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(
