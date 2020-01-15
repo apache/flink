@@ -1,6 +1,5 @@
 ---
 title: "Catalogs"
-is_beta: true
 nav-parent_id: tableapi
 nav-pos: 80
 ---
