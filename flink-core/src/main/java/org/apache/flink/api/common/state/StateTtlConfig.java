@@ -79,17 +79,6 @@ public class StateTtlConfig implements Serializable {
 
 	/**
 	 * This option configures time scale to use for ttl.
-	 *
-	 * @deprecated will be removed in a future version in favor of {@link TtlTimeCharacteristic}
-	 */
-	@Deprecated
-	public enum TimeCharacteristic {
-		/** Processing time, see also <code>TimeCharacteristic.ProcessingTime</code>. */
-		ProcessingTime
-	}
-
-	/**
-	 * This option configures time scale to use for ttl.
 	 */
 	public enum TtlTimeCharacteristic {
 		/** Processing time, see also <code>org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>. */
@@ -217,22 +206,6 @@ public class StateTtlConfig implements Serializable {
 		@Nonnull
 		public Builder neverReturnExpired() {
 			return setStateVisibility(StateVisibility.NeverReturnExpired);
-		}
-
-		/**
-		 * Sets the time characteristic.
-		 *
-		 * @param timeCharacteristic The time characteristic configures time scale to use for ttl.
-		 *
-		 * @deprecated will be removed in a future version in favor of {@link #setTtlTimeCharacteristic}
-		 */
-		@Deprecated
-		@Nonnull
-		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
-			checkArgument(timeCharacteristic.equals(TimeCharacteristic.ProcessingTime),
-				"Only support TimeCharacteristic.ProcessingTime, this function has replaced by setTtlTimeCharacteristic.");
-			setTtlTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
-			return this;
 		}
 
 		/**
