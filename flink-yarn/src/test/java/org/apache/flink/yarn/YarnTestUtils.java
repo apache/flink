@@ -32,8 +32,6 @@ import java.util.Arrays;
  */
 public class YarnTestUtils {
 
-	private static final int NUM_YARN_MAX_VCORES = 16;
-
 	static boolean isHadoopVersionGreaterThanOrEquals(final int major, final int minor) {
 		final String[] splitVersion = VersionInfo.getVersion().split("\\.");
 		final int[] versions = Arrays.stream(splitVersion).mapToInt(Integer::parseInt).toArray();
@@ -50,12 +48,16 @@ public class YarnTestUtils {
 			final YarnConfiguration yarnConfiguration,
 			final YarnClient yarnClient,
 			final boolean sharedYarnClient) {
-		final Configuration effectiveConfiguration = FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
-		return new YarnClusterDescriptor(effectiveConfiguration, yarnConfiguration, yarnClient, sharedYarnClient) {
-			@Override
-			protected int getNumYarnMaxVcores() {
-				return NUM_YARN_MAX_VCORES;
-			}
-		};
+		final Configuration effectiveConfiguration = configureLogFile(flinkConfiguration, flinkConfDir);
+		return new YarnClusterDescriptor(
+			effectiveConfiguration,
+			yarnConfiguration,
+			yarnClient,
+			YarnClientYarnClusterInformationRetriever.create(yarnClient),
+			sharedYarnClient);
+	}
+
+	public static Configuration configureLogFile(Configuration flinkConfiguration, String flinkConfDir) {
+		return FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
 	}
 }

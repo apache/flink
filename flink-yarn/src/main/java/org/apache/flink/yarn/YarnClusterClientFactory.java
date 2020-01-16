@@ -75,6 +75,7 @@ public class YarnClusterClientFactory extends AbstractContainerizedClusterClient
 				configuration,
 				yarnConfiguration,
 				yarnClient,
+				YarnClientYarnClusterInformationRetriever.create(yarnClient),
 				false);
 	}
 }
