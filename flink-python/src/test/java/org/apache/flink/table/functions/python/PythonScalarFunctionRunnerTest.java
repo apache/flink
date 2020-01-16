@@ -231,7 +231,6 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			new ProcessPythonEnvironmentManager(
 				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
 				new String[] {System.getProperty("java.io.tmpdir")},
-				null,
 				new HashMap<>());
 
 		return new PythonScalarFunctionRunner(
@@ -257,7 +256,6 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			new ProcessPythonEnvironmentManager(
 				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
 				new String[] {System.getProperty("java.io.tmpdir")},
-				null,
 				new HashMap<>());
 
 		return new PythonScalarFunctionRunnerTestHarness(

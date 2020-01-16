@@ -176,8 +176,19 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
 		jobBundleFactory = createJobBundleFactory(pipelineOptions);
-		stageBundleFactory = jobBundleFactory.forStage(createExecutableStage());
+		stageBundleFactory = createStageBundleFactory();
 		progressHandler = BundleProgressHandler.ignored();
+	}
+
+	/**
+	 * To make the error messages more user friendly, throws an exception with the boot logs.
+	 */
+	private StageBundleFactory createStageBundleFactory() throws Exception {
+		try {
+			return jobBundleFactory.forStage(createExecutableStage());
+		} catch (Throwable e) {
+			throw new RuntimeException(environmentManager.getBootLog(), e);
+		}
 	}
 
 	@Override
