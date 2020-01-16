@@ -42,9 +42,9 @@ jobmanager.rpc.port: 6123
 jobmanager.heap.size: 1024m
 
 
-# The total process memory size for the TaskExecutor.
+# The total process memory size for the TaskManager.
 #
-# Note this accounts for all memory usage within the TaskExecutor process, including JVM metaspace and other overhead.
+# Note this accounts for all memory usage within the TaskManager process, including JVM metaspace and other overhead.
 
 taskmanager.memory.process.size: 1568m
 
