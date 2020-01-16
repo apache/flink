@@ -16,18 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security;
+package org.apache.flink.runtime.security.contexts;
+
+import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import java.util.concurrent.Callable;
 
 /**
- * A security context that simply runs a Callable without performing a login action.
+ * Test security context factory class for service provider discovery.
  */
-class NoOpSecurityContext implements SecurityContext {
+public class TestSecurityContextFactory implements SecurityContextFactory {
 
 	@Override
-	public <T> T runSecured(Callable<T> securedCallable) throws Exception {
-		return securedCallable.call();
+	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
+		return true;
 	}
 
+	@Override
+	public SecurityContext createContext(SecurityConfiguration securityConfig) {
+		return new TestSecurityContext();
+	}
+
+	/**
+	 * Test security context class.
+	 */
+	public static class TestSecurityContext implements SecurityContext {
+
+		@Override
+		public <T> T runSecured(Callable<T> securedCallable) throws Exception {
+			return null;
+		}
+	}
 }
