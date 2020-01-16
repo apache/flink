@@ -104,7 +104,6 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 			new ProcessPythonEnvironmentManager(
 				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
 				new String[] {System.getProperty("java.io.tmpdir")},
-				null,
 				new HashMap<>());
 
 		return new BaseRowPythonScalarFunctionRunner(
