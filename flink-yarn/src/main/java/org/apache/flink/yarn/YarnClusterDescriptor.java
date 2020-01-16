@@ -527,7 +527,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		ClusterResourceDescription freeClusterResources) throws YarnDeploymentException {
 
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
-		int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
+		final int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
 
 		if (jobManagerMemoryMb < yarnMinAllocationMB || taskManagerMemoryMb < yarnMinAllocationMB) {
 			LOG.warn("The JobManager or TaskManager memory is below the smallest possible YARN Container size. "
@@ -539,9 +539,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// set the memory to minAllocationMB to do the next checks correctly
 		if (jobManagerMemoryMb < yarnMinAllocationMB) {
 			jobManagerMemoryMb =  yarnMinAllocationMB;
-		}
-		if (taskManagerMemoryMb < yarnMinAllocationMB) {
-			taskManagerMemoryMb =  yarnMinAllocationMB;
 		}
 
 		final String note = "Please check the 'yarn.scheduler.maximum-allocation-mb' and the 'yarn.nodemanager.resource.memory-mb' configuration values\n";
