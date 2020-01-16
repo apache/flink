@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security;
+package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.util.Preconditions;
 
@@ -29,11 +29,11 @@ import java.util.concurrent.Callable;
  * Hadoop security context which runs a Callable with the previously
  * initialized UGI and appropriate security credentials.
  */
-class HadoopSecurityContext implements SecurityContext {
+public class HadoopSecurityContext implements SecurityContext {
 
 	private final UserGroupInformation ugi;
 
-	HadoopSecurityContext(UserGroupInformation ugi) {
+	public HadoopSecurityContext(UserGroupInformation ugi) {
 		this.ugi = Preconditions.checkNotNull(ugi, "UGI passed cannot be null");
 	}
 
