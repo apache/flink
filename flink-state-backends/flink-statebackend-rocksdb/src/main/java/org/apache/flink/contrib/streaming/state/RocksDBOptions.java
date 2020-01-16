@@ -69,7 +69,7 @@ public class RocksDBOptions {
 	public static final ConfigOption<Boolean> TTL_COMPACT_FILTER_ENABLED = ConfigOptions
 		.key("state.backend.rocksdb.ttl.compaction.filter.enabled")
 		.defaultValue(true)
-		.withDescription("This determines if compaction filter to cleanup state with TTL is enabled for backend." +
+		.withDescription("This determines if compaction filter to cleanup state with TTL is enabled for backend. " +
 			"Note: User can still decide in state TTL configuration in state descriptor " +
 			"whether the filter is active for particular state or not.");
 	/**
