@@ -51,7 +51,6 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
  */
 public class TableFactoryService {
 
-	private static final ServiceLoader<TableFactory> defaultLoader = ServiceLoader.load(TableFactory.class);
 	private static final Logger LOG = LoggerFactory.getLogger(TableFactoryService.class);
 
 	/**
@@ -214,7 +213,10 @@ public class TableFactoryService {
 					.iterator()
 					.forEachRemaining(result::add);
 			} else {
-				defaultLoader.iterator().forEachRemaining(result::add);
+				ServiceLoader
+					.load(TableFactory.class, Thread.currentThread().getContextClassLoader())
+					.iterator()
+					.forEachRemaining(result::add);
 			}
 			return result;
 		} catch (ServiceConfigurationError e) {
