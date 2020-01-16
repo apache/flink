@@ -33,8 +33,6 @@ import org.codehaus.commons.nullanalysis.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -100,16 +98,13 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	@NotNull private final PythonDependencyInfo dependencyInfo;
 	@NotNull private final Map<String, String> systemEnv;
 	@NotNull private final String[] tmpDirectories;
-	@Nullable private final String logDirectory;
 
 	public ProcessPythonEnvironmentManager(
 		@NotNull PythonDependencyInfo dependencyInfo,
 		@NotNull String[] tmpDirectories,
-		@Nullable String logDirectory,
 		@NotNull Map<String, String> systemEnv) {
 		this.dependencyInfo = Objects.requireNonNull(dependencyInfo);
 		this.tmpDirectories = Objects.requireNonNull(tmpDirectories);
-		this.logDirectory = logDirectory;
 		this.systemEnv = Objects.requireNonNull(systemEnv);
 	}
 
@@ -193,10 +188,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
 		constructRequirementsDirectory(env);
 
-		// set FLINK_LOG_DIR if the log directory exists
-		if (!Strings.isNullOrEmpty(logDirectory)) {
-			env.put("FLINK_LOG_DIR", logDirectory);
-		}
+		// set BOOT_LOG_DIR.
+		env.put("BOOT_LOG_DIR", baseDirectory);
 
 		// set the path of python interpreter, it will be used to execute the udf worker.
 		if (dependencyInfo.getPythonExec().isPresent()) {
@@ -300,8 +293,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		}
 	}
 
-	@VisibleForTesting
-	String getBaseDirectory() {
+	public String getBaseDirectory() {
 		return baseDirectory;
 	}
 

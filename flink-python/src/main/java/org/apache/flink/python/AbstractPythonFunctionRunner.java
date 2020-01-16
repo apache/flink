@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.util.Preconditions;
 
@@ -48,6 +49,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.List;
 
 /**
@@ -176,8 +179,27 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
 		jobBundleFactory = createJobBundleFactory(pipelineOptions);
-		stageBundleFactory = jobBundleFactory.forStage(createExecutableStage());
+		stageBundleFactory = createStageBundleFactory();
 		progressHandler = BundleProgressHandler.ignored();
+	}
+
+	/**
+	 * To make the error messages more user friendly, read the boot logs from the temp log file and
+	 * throw an exception directly.
+	 */
+	private StageBundleFactory createStageBundleFactory() throws Exception {
+		try {
+			return jobBundleFactory.forStage(createExecutableStage());
+		} catch (Exception e) {
+			byte[] output =
+				Files.readAllBytes(
+					new File(((ProcessPythonEnvironmentManager) environmentManager).getBaseDirectory()
+						+ "/flink-python-udf-boot.log").toPath());
+			String msg =
+				String.format(
+					"Failed to start PythonFunctionRunner: %s", new String(output, Charset.defaultCharset()));
+			throw new RuntimeException(msg, e);
+		}
 	}
 
 	@Override

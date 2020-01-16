@@ -97,7 +97,7 @@ class PythonBootTests(PyFlinkTestCase):
         self.env = dict(os.environ)
         self.env["python"] = sys.executable
         self.env["FLINK_BOOT_TESTING"] = "1"
-        self.env["FLINK_LOG_DIR"] = os.path.join(self.env["FLINK_HOME"], "log")
+        self.env["BOOT_LOG_DIR"] = os.path.join(self.env["FLINK_HOME"], "log")
 
         self.tmp_dir = tempfile.mkdtemp(str(time.time()), dir=self.tempdir)
         # assume that this file is in flink-python source code directory.
