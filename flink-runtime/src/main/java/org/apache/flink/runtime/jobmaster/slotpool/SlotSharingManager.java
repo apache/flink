@@ -612,7 +612,9 @@ public class SlotSharingManager {
 				TaskSlot child = children.remove(childGroupId);
 
 				if (child != null) {
-					allTaskSlots.remove(child.getSlotRequestId());
+					if (child == allTaskSlots.get(child.getSlotRequestId())) {
+						allTaskSlots.remove(child.getSlotRequestId());
+					}
 
 					// Update the resources of this slot and the parents
 					releaseResource(child.getReservedResources());
