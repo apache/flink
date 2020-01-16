@@ -310,15 +310,12 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 	/**
 	 * A {@link StreamTask} which throws an exception in the {@code notifyCheckpointComplete()} for subtask 0.
 	 */
-	public static class ExceptionOnCallbackStreamTask extends NoOpStreamTask {
+	public static class ExceptionOnCallbackStreamTask extends CheckpointCountingTask {
 
 		private long synchronousSavepointId = Long.MIN_VALUE;
 
-		private final transient OneShotLatch finishLatch;
-
 		public ExceptionOnCallbackStreamTask(final Environment environment) {
 			super(environment);
-			this.finishLatch = new OneShotLatch();
 		}
 
 		@Override
@@ -327,15 +324,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 			if (taskIndex == 0) {
 				numberOfRestarts.countDown();
 			}
-			invokeLatch.countDown();
-			finishLatch.await();
-			controller.allActionsCompleted();
-		}
-
-		@Override
-		protected void cancelTask() throws Exception {
-			super.cancelTask();
-			finishLatch.trigger();
+			super.processInput(controller);
 		}
 
 		@Override
@@ -348,10 +337,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 				syncSavepointId.compareAndSet(-1, synchronousSavepointId);
 			}
 
-			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-			if (taskIndex == 0) {
-				checkpointsToWaitFor.countDown();
-			}
 			return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 
@@ -397,6 +382,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 	 * invoking {@link #triggerCheckpointAsync}.
 	 */
 	public static class CheckpointCountingTask extends NoOpStreamTask {
+
 		private final transient OneShotLatch finishLatch;
 
 		public CheckpointCountingTask(final Environment environment) {
@@ -419,7 +405,11 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
 		@Override
 		public Future<Boolean> triggerCheckpointAsync(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions, final boolean advanceToEndOfEventTime) {
-			checkpointsToWaitFor.countDown();
+			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+			if (taskIndex == 0) {
+				checkpointsToWaitFor.countDown();
+			}
+
 			return CompletableFuture.completedFuture(true);
 		}
 	}
