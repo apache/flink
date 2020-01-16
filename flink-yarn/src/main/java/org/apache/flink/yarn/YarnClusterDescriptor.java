@@ -131,6 +131,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 	private final YarnClient yarnClient;
 
+	private final YarnClusterInformationRetriever yarnClusterInformationRetriever;
+
 	/** True if the descriptor must not shut down the YarnClient. */
 	private final boolean sharedYarnClient;
 
@@ -157,10 +159,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			Configuration flinkConfiguration,
 			YarnConfiguration yarnConfiguration,
 			YarnClient yarnClient,
+			YarnClusterInformationRetriever yarnClusterInformationRetriever,
 			boolean sharedYarnClient) {
 
 		this.yarnConfiguration = Preconditions.checkNotNull(yarnConfiguration);
 		this.yarnClient = Preconditions.checkNotNull(yarnClient);
+		this.yarnClusterInformationRetriever = Preconditions.checkNotNull(yarnClusterInformationRetriever);
 		this.sharedYarnClient = sharedYarnClient;
 
 		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
@@ -265,7 +269,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.shipFiles.addAll(shipFiles);
 	}
 
-	private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws YarnDeploymentException {
+	private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws Exception {
 
 		if (clusterSpecification.getNumberTaskManagers() <= 0) {
 			throw new YarnDeploymentException("Taskmanager count must be positive");
@@ -278,7 +282,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 
 		// Check if we don't exceed YARN's maximum virtual cores.
-		final int numYarnMaxVcores = getNumYarnMaxVcores();
+		final int numYarnMaxVcores = yarnClusterInformationRetriever.getMaxVcores();
 
 		int configuredAmVcores = flinkConfiguration.getInteger(YarnConfigOptions.APP_MASTER_VCORES);
 		if (configuredAmVcores > numYarnMaxVcores) {
@@ -305,20 +309,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set. " +
 					"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
 					"configuration for accessing YARN.");
-		}
-	}
-
-	@VisibleForTesting
-	protected int getNumYarnMaxVcores() throws YarnDeploymentException {
-		// Fetch numYarnMaxVcores from all the RUNNING nodes via yarnClient
-		try {
-			return yarnClient.getNodeReports(NodeState.RUNNING)
-				.stream()
-				.mapToInt(report -> report.getCapability().getVirtualCores())
-				.max()
-				.orElse(0);
-		} catch (Exception e) {
-			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
 		}
 	}
 
