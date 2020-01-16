@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.dataproc.vector;
+package org.apache.flink.ml.operator.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -31,9 +31,17 @@ import org.apache.flink.ml.common.utils.TableUtil;
 import org.apache.flink.ml.params.dataproc.vector.VectorToColumnsParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Arrays;
 
 /**
- * This mapper maps vector to table columns.
+ * This mapper maps vector to table columns, and the table is created with the first
+ * colSize value of the vector.
+ * For sparse vector without given size, it will be treated as vector with infinite size.
+ * If the colSize is larger than the vector size, we'll throw exception;
+ * If the colSize is not larger than the vector size, we'll select the first
+ * colSize value of the vector.
  */
 public class VectorToColumnsMapper extends Mapper {
 	private int colSize;
@@ -44,18 +52,13 @@ public class VectorToColumnsMapper extends Mapper {
 		super(dataSchema, params);
 		String selectedColName = this.params.get(VectorToColumnsParams.SELECTED_COL);
 		idx = TableUtil.findColIndex(dataSchema.getFieldNames(), selectedColName);
-		if (idx < 0) {
-			throw new IllegalArgumentException("Can not find column: " + selectedColName);
-		}
+		Preconditions.checkArgument(idx >= 0, "Can not find column: " + selectedColName);
 		String[] outputColNames = this.params.get(VectorToColumnsParams.OUTPUT_COLS);
-		if (outputColNames == null) {
-			throw new IllegalArgumentException("VectorToTable: outputColNames must set.");
-		}
+		Preconditions.checkArgument(null != outputColNames,
+			"VectorToTable: outputColNames must set.");
 		this.colSize = outputColNames.length;
 		TypeInformation[] types = new TypeInformation[colSize];
-		for (int i = 0; i < colSize; ++i) {
-			types[i] = Types.DOUBLE;
-		}
+		Arrays.fill(types, Types.DOUBLE);
 		this.outputColsHelper = new OutputColsHelper(dataSchema, outputColNames, types,
 			this.params.get(VectorToColumnsParams.RESERVED_COLS));
 	}
@@ -73,6 +76,11 @@ public class VectorToColumnsMapper extends Mapper {
 
 		Vector vec = (Vector) obj;
 
+		int vectorSize = vec.size();
+		if (vectorSize >= 0 && colSize > vectorSize) {
+			throw new RuntimeException("colSize is larger than vector size! colSize: "
+				+ colSize + ", vectorSize: " + vectorSize);
+		}
 		if (vec instanceof SparseVector) {
 			for (int i = 0; i < colSize; ++i) {
 				result.setField(i, 0.0);
