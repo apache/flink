@@ -67,6 +67,8 @@ public class YarnClusterClientFactory extends AbstractContainerizedClusterClient
 	private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+		final YarnClusterInformationRetriever yarnClusterInformationRetriever =
+			new YarnClientClusterInformationRetriever(yarnClient);
 
 		yarnClient.init(yarnConfiguration);
 		yarnClient.start();
@@ -75,6 +77,7 @@ public class YarnClusterClientFactory extends AbstractContainerizedClusterClient
 				configuration,
 				yarnConfiguration,
 				yarnClient,
-				false);
+				false,
+				yarnClusterInformationRetriever);
 	}
 }

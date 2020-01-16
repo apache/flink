@@ -153,11 +153,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 	private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
+	private final YarnClusterInformationRetriever yarnClusterInformationRetriever;
+
 	public YarnClusterDescriptor(
 			Configuration flinkConfiguration,
 			YarnConfiguration yarnConfiguration,
 			YarnClient yarnClient,
-			boolean sharedYarnClient) {
+			boolean sharedYarnClient,
+			YarnClusterInformationRetriever yarnClusterInformationRetriever) {
 
 		this.yarnConfiguration = Preconditions.checkNotNull(yarnConfiguration);
 		this.yarnClient = Preconditions.checkNotNull(yarnClient);
@@ -176,6 +179,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// we want to ignore the default value at this point.
 		this.zookeeperNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, null);
+
+		this.yarnClusterInformationRetriever = yarnClusterInformationRetriever;
 	}
 
 	private Optional<List<File>> decodeDirsToShipToCluster(final Configuration configuration) {
@@ -281,11 +286,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// Fetch numYarnMaxVcores from all the RUNNING nodes via yarnClient
 		final int numYarnMaxVcores;
 		try {
-			numYarnMaxVcores = yarnClient.getNodeReports(NodeState.RUNNING)
-					.stream()
-					.mapToInt(report -> report.getCapability().getVirtualCores())
-					.max()
-					.orElse(0);
+			numYarnMaxVcores = yarnClusterInformationRetriever.numMaxVcores();
 		} catch (Exception e) {
 			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
 		}
