@@ -112,6 +112,8 @@ public class PluginLoader {
 	 * starting with a whitelist prefix.
 	 */
 	private static final class PluginClassLoader extends URLClassLoader {
+		private static final ClassLoader PLATFORM_OR_BOOTSTRAP_LOADER;
+
 		private final ClassLoader flinkClassLoader;
 
 		private final String[] allowedFlinkPackages;
@@ -119,7 +121,7 @@ public class PluginLoader {
 		private final String[] allowedResourcePrefixes;
 
 		PluginClassLoader(URL[] pluginResourceURLs, ClassLoader flinkClassLoader, String[] allowedFlinkPackages) {
-			super(pluginResourceURLs, null);
+			super(pluginResourceURLs, PLATFORM_OR_BOOTSTRAP_LOADER);
 			this.flinkClassLoader = flinkClassLoader;
 			this.allowedFlinkPackages = allowedFlinkPackages;
 			allowedResourcePrefixes = Arrays.stream(allowedFlinkPackages)
@@ -181,6 +183,21 @@ public class PluginLoader {
 
 		private boolean isAllowedFlinkResource(final String name) {
 			return Arrays.stream(allowedResourcePrefixes).anyMatch(name::startsWith);
+		}
+
+		static {
+			ClassLoader platformLoader = null;
+			try {
+				platformLoader = (ClassLoader) ClassLoader.class
+					.getMethod("getPlatformClassLoader")
+					.invoke(null);
+			} catch (NoSuchMethodException e) {
+				// on Java 8 this method does not exist, but using null indicates the bootstrap loader that we want
+				// to have
+			} catch (Exception e) {
+				throw new IllegalStateException("Cannot retrieve platform classloader on Java 9+", e);
+			}
+			PLATFORM_OR_BOOTSTRAP_LOADER = platformLoader;
 		}
 	}
 }
