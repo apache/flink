@@ -29,6 +29,7 @@ It can be used in a local setup as well as in a cluster setup.
 
 {% highlight bash %}
 $ python --version
+# the version printed here must be 3.5+
 {% endhighlight %}
 
 <span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.15.0. Run following command to confirm that it meets the requirements before run the Shell in local mode:

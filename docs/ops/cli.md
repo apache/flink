@@ -102,6 +102,7 @@ These examples about how to submit a job in CLI.
 
 {% highlight bash %}
 $ python --version
+# the version printed here must be 3.5+
 {% endhighlight %}
 
 -   Run Python Table program:

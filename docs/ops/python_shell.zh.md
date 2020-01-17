@@ -29,6 +29,7 @@ Flink附带了一个集成的交互式Python Shell。
 
 {% highlight bash %}
 $ python --version
+# the version printed here must be 3.5+
 {% endhighlight %}
 
 <span class="label label-info">注意</span> 在Python Shell中使用Python UDF依赖apache-beam 2.15.0。 在以本地模式执行之前，执行以下命令以确认环境满足需求：

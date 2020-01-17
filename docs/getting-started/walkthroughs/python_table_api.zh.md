@@ -34,6 +34,7 @@ under the License.
 
 {% highlight bash %}
 $ python --version
+# the version printed here must be 3.5+
 {% endhighlight %}
 
 ## 创建一个Python Table API项目

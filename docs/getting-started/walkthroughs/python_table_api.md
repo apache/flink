@@ -29,6 +29,7 @@ This walkthrough will quickly get you started building a pure Python Flink proje
 
 {% highlight bash %}
 $ python --version
+# the version printed here must be 3.5+
 {% endhighlight %}
 
 * This will be replaced by the TOC
