@@ -30,6 +30,11 @@ import java.util.Set;
  */
 public class PulsarOptions {
 
+	// option key prefix for different modules
+	public static final String PULSAR_CLIENT_OPTION_KEY_PREFIX = "pulsar.client.";
+	public static final String PULSAR_PRODUCER_OPTION_KEY_PREFIX = "pulsar.producer.";
+	public static final String PULSAR_READER_OPTION_KEY_PREFIX = "pulsar.reader.";
+
 	// topic options
 	public static final String TOPIC_SINGLE_OPTION_KEY = "topic";
 	public static final String TOPIC_MULTI_OPTION_KEY = "topics";

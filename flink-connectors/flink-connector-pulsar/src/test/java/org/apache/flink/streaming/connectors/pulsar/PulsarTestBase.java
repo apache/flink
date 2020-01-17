@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.jmx.JMXReporter;
-import org.apache.flink.streaming.connectors.pulsar.internal.PulsarMetadataReader;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -36,7 +35,7 @@ import java.util.UUID;
 
 public abstract class PulsarTestBase extends TestLogger {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(PulsarMetadataReader.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(PulsarTestBase.class);
 
     protected static PulsarService pulsarService;
 
