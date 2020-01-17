@@ -25,6 +25,18 @@ under the License.
 Flink附带了一个集成的交互式Python Shell。
 它既能够运行在本地启动的local模式，也能够运行在集群启动的cluster模式下。
 
+<span class="label label-info">注意</span> Python Shell会调用"python"命令。请执行以下命令以确认当前环境下的指令"python"指向Python 3.5及以上版本：
+
+{% highlight bash %}
+$ python --version
+{% endhighlight %}
+
+<span class="label label-info">注意</span> 在Python Shell中使用Python UDF依赖apache-beam 2.15.0。 在以本地模式执行之前，执行以下命令以确认环境满足需求：
+
+{% highlight bash %}
+$ python -m pip install apache-beam==2.15.0
+{% endhighlight %}
+
 为了使用Flink的Python Shell，你只需要在Flink的binary目录下执行:
 
 {% highlight bash %}

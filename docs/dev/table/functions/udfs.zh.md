@@ -178,6 +178,14 @@ There are many ways to define a Python scalar function besides extending the bas
 
 <span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
 
+<span class="label label-info">Note</span> By default PyFlink uses the command "python" to run the python udf workers. Before starting cluster, run following command to confirm that it meets the requirements:
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+$ python -m pip install apache-beam==2.15.0
+{% endhighlight %}
+
 {% highlight python %}
 # option 1: extending the base class `ScalarFunction`
 class Add(ScalarFunction):

@@ -25,6 +25,12 @@ under the License.
 
 This walkthrough will quickly get you started building a pure Python Flink project.
 
+<span class="label label-info">Note</span> Python 3.5 or higher is required to run PyFlink. Run following command to confirm that the command "python" in current environment points to Python 3.5+:
+
+{% highlight bash %}
+$ python --version
+{% endhighlight %}
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -34,7 +40,7 @@ You can begin by creating a Python project and installing the PyFlink package.
 PyFlink is available via PyPi and can be easily installed using `pip`.
 
 {% highlight bash %}
-$ pip install apache-flink
+$ python -m pip install apache-flink
 {% endhighlight %}
 
 You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).

@@ -25,6 +25,18 @@ under the License.
 Flink comes with an integrated interactive Python Shell.
 It can be used in a local setup as well as in a cluster setup.
 
+<span class="label label-info">Note</span> The Python Shell will run the command "python". Please run following command to confirm that the command "python" in current environment points to Python 3.5+:
+
+{% highlight bash %}
+$ python --version
+{% endhighlight %}
+
+<span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.15.0. Run following command to confirm that it meets the requirements before run the Shell in local mode:
+
+{% highlight bash %}
+$ python -m pip install apache-beam==2.15.0
+{% endhighlight %}
+
 To use the shell with an integrated Flink cluster just execute:
 
 {% highlight bash %}
