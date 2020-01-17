@@ -265,20 +265,27 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	public Pipeline createPipeline(String name, Configuration flinkConfig) {
+	public Pipeline createPipeline(String name) {
 		if (streamExecEnv != null) {
 			// special case for Blink planner to apply batch optimizations
 			// note: it also modifies the ExecutionConfig!
-			if (executor instanceof ExecutorBase) {
+			if (isBlinkPlanner(executor.getClass())) {
 				return ((ExecutorBase) executor).getStreamGraph(name);
 			}
 			return streamExecEnv.getStreamGraph(name);
 		} else {
-			final int parallelism = execEnv.getParallelism();
 			return execEnv.createProgramPlan(name);
 		}
 	}
 
+	private boolean isBlinkPlanner(Class<? extends Executor> executorClass) {
+		try {
+			return ExecutorBase.class.isAssignableFrom(executorClass);
+		} catch (NoClassDefFoundError ignore) {
+			// blink planner might not be on the class path
+			return false;
+		}
+	}
 
 	/** Returns a builder for this {@link ExecutionContext}. */
 	public static Builder builder(
@@ -679,19 +686,6 @@ public class ExecutionContext<ClusterID> {
 			throw new SqlExecutionException(
 				"Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
 					temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
-		}
-	}
-
-	private Pipeline createPipeline(String name) {
-		if (streamExecEnv != null) {
-			// special case for Blink planner to apply batch optimizations
-			// note: it also modifies the ExecutionConfig!
-			if (executor instanceof ExecutorBase) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
-			}
-			return streamExecEnv.getStreamGraph(name);
-		} else {
-			return execEnv.createProgramPlan(name);
 		}
 	}
 
