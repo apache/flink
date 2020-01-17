@@ -1391,11 +1391,11 @@ public class SqlDateTimeUtils {
 		return r;
 	}
 
-	public static String timestampToString(SqlTimestamp ts) {
+	public static String timestampToString(SqlTimestamp ts, int precision) {
 		LocalDateTime ldt = ts.toLocalDateTime();
 
 		String fraction = pad(9, (long) ldt.getNano());
-		while (fraction.endsWith("0")) {
+		while (fraction.length() > precision && fraction.endsWith("0")) {
 			fraction = fraction.substring(0, fraction.length() - 1);
 		}
 
@@ -1411,8 +1411,8 @@ public class SqlDateTimeUtils {
 		return ymdhms.toString();
 	}
 
-	public static String timestampToString(SqlTimestamp ts, TimeZone tz) {
-		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz));
+	public static String timestampToString(SqlTimestamp ts, TimeZone tz, int precision) {
+		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz), precision);
 	}
 
 	private static String pad(int length, long v) {

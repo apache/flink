@@ -2325,11 +2325,13 @@ object ScalarOperatorGens {
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
         // The interpreted string conforms to the definition of timestamp literal
         // SQL 2011 Part 2 Section 6.13 General Rules 11) d)
-        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm)"
+        val precision = fromType.asInstanceOf[TimestampType].getPrecision
+        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, $precision)"
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
         val zone = ctx.addReusableTimeZone()
-        s"$method($operandTerm, $zone)"
+        val precision = fromType.asInstanceOf[LocalZonedTimestampType].getPrecision
+        s"$method($operandTerm, $zone, $precision)"
     }
 
 }
