@@ -23,8 +23,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.DataType;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Defines an external {@link TableSink} to emit a streaming {@link Table} with insert, update,
@@ -73,12 +78,30 @@ public interface UpsertStreamTableSink<T> extends StreamTableSink<Tuple2<Boolean
 	void setIsAppendOnly(Boolean isAppendOnly);
 
 	/**
-	 * Returns the requested record type.
+	 * Returns the requested record data type.
 	 */
-	TypeInformation<T> getRecordType();
+	default DataType getRecordDataType() {
+		final TypeInformation<T> legacyType = getRecordType();
+		if (legacyType == null) {
+			throw new TableException("UpsertStreamTableSink does not implement a record data type.");
+		}
+		return fromLegacyInfoToDataType(legacyType);
+	}
+
+	/**
+	 * @deprecated This method will be removed in future versions as it uses the old type system. It
+	 *             is recommended to use {@link #getRecordDataType()} instead which uses the new type
+	 *             system based on {@link DataTypes}. Please make sure to use either the old or the new type
+	 *             system consistently to avoid unintended behavior. See the website documentation
+	 *             for more information.
+	 */
+	@Deprecated
+	default TypeInformation<T> getRecordType() {
+		return null;
+	}
 
 	@Override
 	default TypeInformation<Tuple2<Boolean, T>> getOutputType() {
-		return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
+		return new TupleTypeInfo<>(Types.BOOLEAN, fromDataTypeToLegacyInfo(getRecordDataType()));
 	}
 }

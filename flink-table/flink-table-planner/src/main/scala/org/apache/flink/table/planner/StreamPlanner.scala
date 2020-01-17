@@ -40,16 +40,16 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.JavaScalaConversionUtil
-
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-
 import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util
 import _root_.java.util.Objects
 import _root_.java.util.function.{Supplier => JSupplier}
+
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -301,8 +301,8 @@ class StreamPlanner(
       streamQueryConfig: StreamQueryConfig)
     : DataStreamSink[_]= {
     // retraction sink can always be used
-    val outputType = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[JTuple2[JBool, T]]]
+    val physicalRecordType = TypeConversions.fromDataTypeToLegacyInfo(sink.getRecordDataType)
+    val outputType = new TupleTypeInfo[JTuple2[JBool, T]](Types.BOOLEAN(), physicalRecordType)
     // translate the Table into a DataStream and provide the type that the TableSink expects.
     val result: DataStream[JTuple2[JBool, T]] =
       translateToType(
@@ -365,8 +365,8 @@ class StreamPlanner(
       case None if !isAppendOnlyTable => throw new TableException(
         "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
     }
-    val outputType = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[JTuple2[JBool, T]]]
+    val physicalRecordType = TypeConversions.fromDataTypeToLegacyInfo(sink.getRecordDataType)
+    val outputType = new TupleTypeInfo[JTuple2[JBool, T]](Types.BOOLEAN(), physicalRecordType)
     val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
     // translate the Table into a DataStream and provide the type that the TableSink expects.
     val result: DataStream[JTuple2[JBool, T]] =

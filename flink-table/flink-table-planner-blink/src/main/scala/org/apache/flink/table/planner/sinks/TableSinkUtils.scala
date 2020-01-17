@@ -162,12 +162,13 @@ object TableSinkUtils {
   def inferSinkPhysicalSchema(
       queryLogicalType: RowType,
       sink: TableSink[_]): TableSchema = {
-    val withChangeFlag = sink match {
-      case _: RetractStreamTableSink[_] | _: UpsertStreamTableSink[_] => true
-      case _: StreamTableSink[_] => false
-      case dsts: DataStreamTableSink[_] => dsts.withChangeFlag
+    val (consumedDataType, withChangeFlag) = sink match {
+      case retract: RetractStreamTableSink[_] => (retract.getRecordDataType, false)
+      case upsert: UpsertStreamTableSink[_] => (upsert.getRecordDataType, false)
+      case _: StreamTableSink[_] => (sink.getConsumedDataType, false)
+      case dsts: DataStreamTableSink[_] => (sink.getConsumedDataType, dsts.withChangeFlag)
     }
-    inferSinkPhysicalSchema(sink.getConsumedDataType, queryLogicalType, withChangeFlag)
+    inferSinkPhysicalSchema(consumedDataType, queryLogicalType, withChangeFlag)
   }
 
   /**

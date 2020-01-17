@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateColl
 import org.apache.flink.table.planner.sinks.TableSinkUtils
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sinks.{RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConverters._
@@ -49,14 +49,22 @@ object SinkCodeGenerator {
       withChangeFlag: Boolean,
       operatorName: String): (CodeGenOperatorFactory[OUT], TypeInformation[OUT]) = {
 
-    val physicalOutputType = TableSinkUtils.inferSinkPhysicalDataType(
-      sink.getConsumedDataType,
-      inputRowType,
-      withChangeFlag)
+    val (physicalOutputType, consumedClass) = sink match {
+      case retractSink: RetractStreamTableSink[_] =>
+        (retractSink.getRecordDataType, classOf[JTuple2[_, _]])
+      case upsertSink: UpsertStreamTableSink[_] =>
+        (upsertSink.getRecordDataType, classOf[JTuple2[_, _]])
+      case _ =>
+        val outputType =
+          TableSinkUtils.inferSinkPhysicalDataType(
+            sink.getConsumedDataType,
+            inputRowType,
+            withChangeFlag)
+        (outputType, sink.getConsumedDataType.getConversionClass)
+    }
 
     val outputTypeInfo = if (withChangeFlag) {
       val typeInfo = fromDataTypeToTypeInfo(physicalOutputType)
-      val consumedClass = sink.getConsumedDataType.getConversionClass
       if (consumedClass == classOf[(_, _)]) {
         createTuple2TypeInformation(Types.BOOLEAN, typeInfo)
       } else if (consumedClass == classOf[JTuple2[_, _]]) {
@@ -95,15 +103,14 @@ object SinkCodeGenerator {
         NO_CODE
     }
 
-    val consumedDataType = sink.getConsumedDataType
     val outTerm = genToExternal(ctx, physicalOutputType, afterIndexModify)
     val retractProcessCode = if (withChangeFlag) {
       val flagResultTerm =
         s"${classOf[BaseRowUtil].getCanonicalName}.isAccumulateMsg($afterIndexModify)"
       val resultTerm = CodeGenUtils.newName("result")
-      if (consumedDataType.getConversionClass == classOf[JTuple2[_, _]]) {
+      if (consumedClass == classOf[JTuple2[_, _]]) {
         // Java Tuple2
-        val tupleClass = consumedDataType.getConversionClass.getCanonicalName
+        val tupleClass = consumedClass.getCanonicalName
         s"""
            |$tupleClass $resultTerm = new $tupleClass();
            |$resultTerm.setField($flagResultTerm, 0);
@@ -112,8 +119,8 @@ object SinkCodeGenerator {
          """.stripMargin
       } else {
         // Scala Case Class
-        val tupleClass = consumedDataType.getConversionClass.getCanonicalName
-        val scalaTupleSerializer = fromDataTypeToTypeInfo(consumedDataType)
+        val tupleClass = consumedClass.getCanonicalName
+        val scalaTupleSerializer = fromDataTypeToTypeInfo(sink.getConsumedDataType)
           .createSerializer(new ExecutionConfig)
           .asInstanceOf[TupleSerializerBase[_]]
         val serializerTerm = ctx.addReusableObject(
