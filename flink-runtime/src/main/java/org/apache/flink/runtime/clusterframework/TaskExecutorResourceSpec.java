@@ -171,14 +171,14 @@ public class TaskExecutorResourceSpec implements Serializable {
 	public String toString() {
 		return "TaskExecutorResourceSpec {"
 			+ "cpuCores=" + cpuCores.getValue().doubleValue()
-			+ ", frameworkHeapSize=" + frameworkHeapSize.toString()
-			+ ", frameworkOffHeapSize=" + frameworkOffHeapMemorySize.toString()
-			+ ", taskHeapSize=" + taskHeapSize.toString()
-			+ ", taskOffHeapSize=" + taskOffHeapSize.toString()
-			+ ", networkMemSize=" + networkMemSize.toString()
-			+ ", managedMemorySize=" + managedMemorySize.toString()
-			+ ", jvmMetaspaceSize=" + jvmMetaspaceSize.toString()
-			+ ", jvmOverheadSize=" + jvmOverheadSize.toString()
+			+ ", frameworkHeapSize=" + frameworkHeapSize.toHumanReadableString()
+			+ ", frameworkOffHeapSize=" + frameworkOffHeapMemorySize.toHumanReadableString()
+			+ ", taskHeapSize=" + taskHeapSize.toHumanReadableString()
+			+ ", taskOffHeapSize=" + taskOffHeapSize.toHumanReadableString()
+			+ ", networkMemSize=" + networkMemSize.toHumanReadableString()
+			+ ", managedMemorySize=" + managedMemorySize.toHumanReadableString()
+			+ ", jvmMetaspaceSize=" + jvmMetaspaceSize.toHumanReadableString()
+			+ ", jvmOverheadSize=" + jvmOverheadSize.toHumanReadableString()
 			+ "}";
 	}
 }
