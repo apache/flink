@@ -71,7 +71,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val func = new CatalogFunctionImpl(
       classOf[JavaFunc0].getName)
     tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().createFunction(
-      new ObjectPath(tableEnv.getCurrentDatabase, "get"),
+      new ObjectPath(tableEnv.getCurrentDatabase, "myfunc"),
       func,
       true)
   }
@@ -109,7 +109,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |)
       """.stripMargin
     tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(s"insert into sinkT select ${funcPrefix}get(cast(1 as bigint))")
+    tableEnv.sqlUpdate(s"insert into sinkT select ${funcPrefix}myfunc(cast(1 as bigint))")
     tableEnv.execute("")
     assertEquals(Seq(toRow(2L)), TestCollectionTableFactory.RESULT.sorted)
   }
