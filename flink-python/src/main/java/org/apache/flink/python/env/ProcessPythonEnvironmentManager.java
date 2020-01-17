@@ -37,6 +37,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -293,8 +294,20 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		}
 	}
 
-	public String getBaseDirectory() {
+	@VisibleForTesting
+	String getBaseDirectory() {
 		return baseDirectory;
+	}
+
+	@Override
+	public String getBootLog() throws Exception {
+		File bootLogFile = new File(baseDirectory + File.separator + "flink-python-udf-boot.log");
+		String msg = "Failed to create stage bundle factory!";
+		if (bootLogFile.exists()) {
+			byte[] output = Files.readAllBytes(bootLogFile.toPath());
+			msg += String.format(" %s", new String(output, Charset.defaultCharset()));
+		}
+		return msg;
 	}
 
 	private static void appendToPythonPath(Map<String, String> env, List<String> pythonDependencies) {
