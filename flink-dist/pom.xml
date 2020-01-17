@@ -595,27 +595,27 @@ under the License.
 						<goals>
 							<goal>copy</goal>
 						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>javax.xml.bind</groupId>
+									<artifactId>jaxb-api</artifactId>
+									<version>${jaxb.api.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+								</artifactItem>
+								<artifactItem>
+									<groupId>javax.activation</groupId>
+									<artifactId>javax.activation-api</artifactId>
+									<version>${javax.activation.api.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<artifactItems>
-						<artifactItem>
-							<groupId>javax.xml.bind</groupId>
-							<artifactId>jaxb-api</artifactId>
-							<version>${jaxb.api.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-						</artifactItem>
-						<artifactItem>
-							<groupId>javax.activation</groupId>
-							<artifactId>javax.activation-api</artifactId>
-							<version>${javax.activation.api.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-						</artifactItem>
-					</artifactItems>
-					<outputDirectory>${project.build.directory}/temporary</outputDirectory>
-				</configuration>
 			</plugin>
 
 			<plugin>
