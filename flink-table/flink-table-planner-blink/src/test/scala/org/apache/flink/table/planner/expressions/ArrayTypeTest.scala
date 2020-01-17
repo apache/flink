@@ -90,9 +90,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "ARRAY[TIME '14:15:16', TIME '17:18:19']",
       "[14:15:16, 17:18:19]")
 
-    testAllApis(
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi(
       Array(localDateTime("1985-04-11 14:15:16"), localDateTime("2018-07-26 17:18:19")),
-      "array('1985-04-11 14:15:16'.toTimestamp, '2018-07-26 17:18:19'.toTimestamp)",
+      "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
+
+    testSqlApi(
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16', TIMESTAMP '2018-07-26 17:18:19']",
       "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
 

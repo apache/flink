@@ -248,13 +248,13 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func10('f6),
       "Func10(f6)",
       "Func10(f6)",
-      "1990-10-14 12:10:10")
+      "1990-10-14 12:10:10.000")
 
     testAllApis(
       Func26('f6),
       "Func26(f6)",
       "Func26(f6)",
-      "1990-10-14 12:10:10")
+      "1990-10-14 12:10:10.000")
   }
 
   @Test
@@ -265,20 +265,20 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func27('f17),
       "Func27(f17)",
       "Func27(f17)",
-      "1990-10-14 12:10:10")
+      "1990-10-14 12:10:10.000")
 
     // Func28 needs a Long parameter, pass a Instant
     testAllApis(
       Func28('f17),
       "Func28(f17)",
       "Func28(f17)",
-      "1990-10-14 12:10:10")
+      "1990-10-14 12:10:10.000")
 
     testAllApis(
       Func30('f17),
       "Func30(f17)",
       "Func30(f17)",
-      "1990-10-14 12:10:10"
+      "1990-10-14 12:10:10.000"
     )
 
     // Func29 declares return a Instant, but returns a Long actually
@@ -287,7 +287,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func29('f18),
       "Func29(f18)",
       "Func29(f18)",
-      "1970-01-01 08:00:00")
+      "1970-01-01 08:00:00.000")
   }
 
   @Test
@@ -298,14 +298,14 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func27('f17),
       "Func27(f17)",
       "Func27(f17)",
-      "1990-10-14 12:10:10")
+      "1990-10-14 12:10:10.000")
 
     // Func28 needs a Long parameter, pass a Instant
     testAllApis(
       Func28('f17),
       "Func28(f17)",
       "Func28(f17)",
-      "1990-10-14 12:10:10")
+      "1990-10-14 12:10:10.000")
 
     // Func29 declares return a Instant, but returns a Long actually
     // the framework helps convert Long to Instant
@@ -313,7 +313,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func29('f18),
       "Func29(f18)",
       "Func29(f18)",
-      "1969-12-31 16:00:00")
+      "1969-12-31 16:00:00.000")
   }
 
 

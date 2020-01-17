@@ -343,7 +343,7 @@ class CalcITCase extends BatchTestBase {
     tEnv.getConfig.setLocalTimeZone(pairs)
     checkResult(
       "SELECT CAST(a AS VARCHAR), b, CAST(b AS VARCHAR) FROM T",
-      Seq(row("1969-07-20 16:17:39", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39"))
+      Seq(row("1969-07-20 16:17:39.000", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39.000"))
     )
   }
 

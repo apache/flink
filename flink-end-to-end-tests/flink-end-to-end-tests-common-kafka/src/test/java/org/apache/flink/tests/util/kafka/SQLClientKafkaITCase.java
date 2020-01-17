@@ -42,7 +42,6 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,13 +49,10 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.apache.flink.util.StringUtils.byteToHexString;
 
 /**
  * End-to-end test for the kafka SQL connectors.
@@ -222,14 +218,12 @@ public class SQLClientKafkaITCase extends TestLogger {
 				String lines = new String(bytes, Charsets.UTF_8);
 				if (lines.split("\n").length == 4) {
 					success = true;
-					// Check the MD5SUM of the result file.
-					// Expected results:
-					//
-					// 2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.
-					// 2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.
-					// 2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.
-					// 2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding.
-					Assert.assertEquals("MD5 checksum mismatch", "9b06d1f8c8b8dd4ce3341786897c8993", getMd5Sum(bytes));
+					String expected =
+						"2018-03-12 08:00:00.000,Alice,This was a warning.,2,Success constant folding.\n" +
+						"2018-03-12 09:00:00.000,Bob,This was another warning.,1,Success constant folding.\n" +
+						"2018-03-12 09:00:00.000,Steve,This was another info.,2,Success constant folding.\n" +
+						"2018-03-12 09:00:00.000,Alice,This was a info.,1,Success constant folding.\n";
+					Assert.assertEquals(expected, lines);
 					break;
 				}
 			} else {
@@ -238,16 +232,5 @@ public class SQLClientKafkaITCase extends TestLogger {
 			Thread.sleep(duration);
 		}
 		Assert.assertTrue("Timeout(" + (maxRetries * duration) + " sec) to read the correct CSV results.", success);
-	}
-
-	private static String getMd5Sum(byte[] bytes) throws Exception {
-		MessageDigest md = MessageDigest.getInstance("MD5");
-		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes)) {
-			byte[] buf = new byte[1024];
-			for (int len = 0; (len = is.read(buf)) > 0; ) {
-				md.update(buf, 0, len);
-			}
-		}
-		return byteToHexString(md.digest());
 	}
 }
