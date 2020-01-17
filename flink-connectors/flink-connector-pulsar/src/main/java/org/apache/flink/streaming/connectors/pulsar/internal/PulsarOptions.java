@@ -19,10 +19,39 @@
 package org.apache.flink.streaming.connectors.pulsar.internal;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.shade.com.google.common.collect.ImmutableSet;
 
 import java.util.List;
+import java.util.Set;
 
+/**
+ * Multiple options keys to work with the Pulsar connector.
+ */
 public class PulsarOptions {
+
+	// topic options
+	public static final String TOPIC_SINGLE_OPTION_KEY = "topic";
+	public static final String TOPIC_MULTI_OPTION_KEY = "topics";
+	public static final String TOPIC_PATTERN_OPTION_KEY = "topicspattern";
+
+	public static final String PARTITION_SUFFIX = TopicName.PARTITIONED_TOPIC_SUFFIX;
+
+	public static final Set<String> TOPIC_OPTION_KEYS = ImmutableSet.of(
+		TOPIC_SINGLE_OPTION_KEY,
+		TOPIC_MULTI_OPTION_KEY,
+		TOPIC_PATTERN_OPTION_KEY);
+
+	public static final String SERVICE_URL_OPTION_KEY = "service-url";
+	public static final String ADMIN_URL_OPTION_KEY = "admin-url";
+	public static final String STARTUP_MODE_OPTION_KEY = "startup-mode";
+
+	public static final String PARTITION_DISCOVERY_INTERVAL_MS_OPTION_KEY = "partitiondiscoveryintervalmillis";
+	public static final String CLIENT_CACHE_SIZE_OPTION_KEY = "clientcachesize";
+	public static final String FLUSH_ON_CHECKPOINT_OPTION_KEY = "flushoncheckpoint";
+	public static final String FAIL_ON_WRITE_OPTION_KEY = "failonwrite";
+	public static final String POLL_TIMEOUT_MS_OPTION_KEY = "polltimeoutms";
+	public static final String FAIL_ON_DATA_LOSS_OPTION_KEY = "failondataloss";
 
 	public static final String TOPIC_ATTRIBUTE_NAME = "__topic";
 	public static final String KEY_ATTRIBUTE_NAME = "__key";
@@ -37,5 +66,5 @@ public class PulsarOptions {
 		PUBLISH_TIME_NAME,
 		EVENT_TIME_NAME);
 
-	public static final String DEFAULT_PARTITIONS = "tableDefaultPartitions";
+	public static final String DEFAULT_PARTITIONS = "table-default-partitions";
 }

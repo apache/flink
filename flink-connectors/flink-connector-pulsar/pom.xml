@@ -37,7 +37,9 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<pulsar.version>2.4.1</pulsar.version>
+		<pulsar.version>2.4.2</pulsar.version>
+		<streamnative-tests.version>2.4.2</streamnative-tests.version>
+		<testcontainers.version>1.10.6</testcontainers.version>
 	</properties>
 
 	<dependencies>
@@ -80,6 +82,13 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -138,6 +147,48 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>io.streamnative.tests</groupId>
+			<artifactId>framework-common</artifactId>
+			<version>${streamnative-tests.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>io.streamnative.tests</groupId>
+			<artifactId>framework-pulsar</artifactId>
+			<version>${streamnative-tests.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.pulsar</groupId>
+					<artifactId>pulsar-client-original</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.pulsar</groupId>
+					<artifactId>pulsar-client-admin-original</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>central</id>
+			<layout>default</layout>
+			<url>https://repo1.maven.org/maven2</url>
+		</repository>
+		<repository>
+			<id>bintray-streamnative-maven</id>
+			<name>bintray</name>
+			<url>https://dl.bintray.com/streamnative/maven</url>
+		</repository>
+	</repositories>
 
 </project>

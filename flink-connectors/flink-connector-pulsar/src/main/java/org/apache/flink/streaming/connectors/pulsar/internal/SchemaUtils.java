@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.connectors.pulsar.internal;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.AtomicDataType;
@@ -30,6 +28,8 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.BooleanSchema;
@@ -41,10 +41,15 @@ import org.apache.pulsar.client.impl.schema.FloatSchema;
 import org.apache.pulsar.client.impl.schema.IntSchema;
 import org.apache.pulsar.client.impl.schema.LongSchema;
 import org.apache.pulsar.client.impl.schema.ShortSchema;
+import org.apache.pulsar.client.impl.schema.TimeSchema;
 import org.apache.pulsar.client.impl.schema.TimestampSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.shade.com.google.common.collect.ImmutableList;
+import org.apache.pulsar.shade.com.google.common.collect.ImmutableSet;
 import org.apache.pulsar.shade.org.apache.avro.LogicalType;
 import org.apache.pulsar.shade.org.apache.avro.LogicalTypes;
 import org.apache.pulsar.shade.org.apache.avro.Schema;
@@ -58,12 +63,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.TOPIC_ATTRIBUTE_NAME;
+import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.EVENT_TIME_NAME;
 import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.KEY_ATTRIBUTE_NAME;
 import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.MESSAGE_ID_NAME;
 import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.PUBLISH_TIME_NAME;
-import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.EVENT_TIME_NAME;
+import static org.apache.flink.streaming.connectors.pulsar.internal.PulsarOptions.TOPIC_ATTRIBUTE_NAME;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
+
+/**
+ * Utility class that enables type conversions between Pulsar schema and Flink type system.
+ */
 public class SchemaUtils {
 
 	public static TableSchema toTableSchema(FieldsDataType schema) {
@@ -72,6 +82,91 @@ public class SchemaUtils {
 
 		return TableSchema.builder().fields(
 			rt.getFieldNames().toArray(new String[0]), fieldTypes.toArray(new DataType[0])).build();
+	}
+
+	public static void uploadPulsarSchema(PulsarAdmin admin, String topic, SchemaInfo schemaInfo) {
+		checkNotNull(schemaInfo);
+
+		SchemaInfo existingSchema;
+		try {
+			existingSchema = admin.schemas().getSchemaInfo(TopicName.get(topic).toString());
+		} catch (PulsarAdminException pae) {
+			if (pae.getStatusCode() == 404) {
+				existingSchema = null;
+			} else {
+				throw new RuntimeException(
+					String.format("Failed to get schema information for %s", TopicName.get(topic).toString()), pae);
+			}
+		} catch (Throwable e) {
+			throw new RuntimeException(
+				String.format("Failed to get schema information for %s", TopicName.get(topic).toString()), e);
+		}
+
+		if (existingSchema == null) {
+			PostSchemaPayload pl = new PostSchemaPayload();
+			pl.setType(schemaInfo.getType().name());
+			pl.setSchema(new String(schemaInfo.getSchema(), StandardCharsets.UTF_8));
+			pl.setProperties(schemaInfo.getProperties());
+
+			try {
+				admin.schemas().createSchema(TopicName.get(topic).toString(), pl);
+			} catch (PulsarAdminException pae) {
+				if (pae.getStatusCode() == 404) {
+					throw new RuntimeException(
+						String.format("Create schema for %s get 404", TopicName.get(topic).toString()), pae);
+				} else {
+					throw new RuntimeException(
+						String.format("Failed to create schema information for %s", TopicName.get(topic).toString()), pae);
+				}
+			} catch (Throwable e) {
+				throw new RuntimeException(
+					String.format("Failed to create schema information for %s", TopicName.get(topic).toString()), e);
+			}
+		} else if (!existingSchema.equals(schemaInfo) && !compatibleSchema(existingSchema, schemaInfo)) {
+			throw new RuntimeException("Writing to a topic which have incompatible schema");
+		}
+	}
+
+	public static boolean compatibleSchema(SchemaInfo s1, SchemaInfo s2) {
+		if (s1.getType() == SchemaType.NONE && s2.getType() == SchemaType.BYTES) {
+			return true;
+		} else return s1.getType() == SchemaType.BYTES && s2.getType() == SchemaType.NONE;
+	}
+
+	public static org.apache.pulsar.client.api.Schema<?> getPulsarSchema(SchemaInfo schemaInfo) {
+		switch (schemaInfo.getType()) {
+			case BOOLEAN:
+				return BooleanSchema.of();
+			case INT8:
+				return ByteSchema.of();
+			case INT16:
+				return ShortSchema.of();
+			case INT32:
+				return IntSchema.of();
+			case INT64:
+				return LongSchema.of();
+			case STRING:
+				return org.apache.pulsar.client.api.Schema.STRING;
+			case FLOAT:
+				return FloatSchema.of();
+			case DOUBLE:
+				return DoubleSchema.of();
+			case BYTES:
+			case NONE:
+				return BytesSchema.of();
+			case DATE:
+				return DateSchema.of();
+			case TIME:
+				return TimeSchema.of();
+			case TIMESTAMP:
+				return TimestampSchema.of();
+			case AVRO:
+			case JSON:
+				return GenericSchemaImpl.of(schemaInfo);
+			default:
+				throw new IllegalArgumentException("Retrieve schema instance from schema info for type " +
+					schemaInfo.getType() + " is not supported yet");
+		}
 	}
 
 	public static FieldsDataType pulsarSourceSchema(SchemaInfo si) throws IncompatibleSchemaException {
@@ -194,7 +289,7 @@ public class SchemaUtils {
 				Set<String> newRecordName = ImmutableSet.<String>builder()
 					.addAll(existingRecordNames).add(avroSchema.getFullName()).build();
 				List<DataTypes.Field> fields = new ArrayList<>();
-				for (Schema.Field f: avroSchema.getFields()) {
+				for (Schema.Field f : avroSchema.getFields()) {
 					DataType fieldType = avro2SqlType(f.schema(), newRecordName);
 					fields.add(DataTypes.FIELD(f.name(), fieldType));
 				}
@@ -248,17 +343,28 @@ public class SchemaUtils {
 		if (flinkType instanceof AtomicDataType) {
 			LogicalTypeRoot type = flinkType.getLogicalType().getTypeRoot();
 			switch (type) {
-				case BOOLEAN: return BooleanSchema.of();
-				case VARBINARY: return BytesSchema.of();
-				case DATE: return DateSchema.of();
-				case VARCHAR: return org.apache.pulsar.client.api.Schema.STRING;
-				case TIMESTAMP_WITHOUT_TIME_ZONE: return TimestampSchema.of();
-				case TINYINT: return ByteSchema.of();
-				case DOUBLE: return DoubleSchema.of();
-				case FLOAT: return FloatSchema.of();
-				case INTEGER: return IntSchema.of();
-				case BIGINT: return LongSchema.of();
-				case SMALLINT: return ShortSchema.of();
+				case BOOLEAN:
+					return BooleanSchema.of();
+				case VARBINARY:
+					return BytesSchema.of();
+				case DATE:
+					return DateSchema.of();
+				case VARCHAR:
+					return org.apache.pulsar.client.api.Schema.STRING;
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+					return TimestampSchema.of();
+				case TINYINT:
+					return ByteSchema.of();
+				case DOUBLE:
+					return DoubleSchema.of();
+				case FLOAT:
+					return FloatSchema.of();
+				case INTEGER:
+					return IntSchema.of();
+				case BIGINT:
+					return LongSchema.of();
+				case SMALLINT:
+					return ShortSchema.of();
 				default:
 					throw new IncompatibleSchemaException(String.format("%s is not supported by Pulsar yet", flinkType.toString()), null);
 			}
@@ -268,7 +374,7 @@ public class SchemaUtils {
 		throw new IncompatibleSchemaException(String.format("%s is not supported by Pulsar yet", flinkType.toString()), null);
 	}
 
-	private static GenericSchema<GenericRecord> avroSchema2PulsarSchema(Schema avroSchema) {
+	static GenericSchema<GenericRecord> avroSchema2PulsarSchema(Schema avroSchema) {
 		byte[] schemaBytes = avroSchema.toString().getBytes(StandardCharsets.UTF_8);
 		SchemaInfo si = new SchemaInfo();
 		si.setName("Avro");
@@ -332,7 +438,7 @@ public class SchemaUtils {
 					schema = avroType.addToSchema(SchemaBuilder.fixed(name).size(fixedSize));
 					break;
 				default:
-					throw new IncompatibleSchemaException(String.format("Unsupported type %s", flinkType.toString()),null);
+					throw new IncompatibleSchemaException(String.format("Unsupported type %s", flinkType.toString()), null);
 			}
 		} else if (flinkType instanceof CollectionDataType) {
 			if (type == LogicalTypeRoot.ARRAY) {
@@ -363,7 +469,7 @@ public class SchemaUtils {
 			}
 			schema = fieldsAssembler.endRecord();
 		} else {
-			throw new IncompatibleSchemaException(String.format("Unexpected type %s", flinkType.toString()),null);
+			throw new IncompatibleSchemaException(String.format("Unexpected type %s", flinkType.toString()), null);
 		}
 
 		if (nullable) {
@@ -371,6 +477,14 @@ public class SchemaUtils {
 		} else {
 			return schema;
 		}
+	}
+
+	public static SchemaInfo emptySchemaInfo() {
+		return SchemaInfo.builder()
+			.name("empty")
+			.type(SchemaType.NONE)
+			.schema(new byte[0])
+			.build();
 	}
 
 	private static Schema NULL_SCHEMA = Schema.create(Schema.Type.NULL);
@@ -394,6 +508,10 @@ public class SchemaUtils {
 	public static class IncompatibleSchemaException extends Exception {
 		public IncompatibleSchemaException(String message, Throwable e) {
 			super(message, e);
+		}
+
+		public IncompatibleSchemaException(String message) {
+			this(message, null);
 		}
 	}
 }

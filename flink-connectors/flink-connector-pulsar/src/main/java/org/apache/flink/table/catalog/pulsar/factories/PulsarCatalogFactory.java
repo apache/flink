@@ -33,8 +33,8 @@ import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogVal
 import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_PULSAR_VERSION;
 import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_SERVICE_URL;
 import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_ADMIN_URL;
-import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_STARTING_POS;
 import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_DEFAULT_PARTITIONS;
+import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_STARTUP_MODE;
 import static org.apache.flink.table.catalog.pulsar.descriptors.PulsarCatalogValidator.CATALOG_TYPE_VALUE_PULSAR;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
@@ -44,20 +44,16 @@ public class PulsarCatalogFactory implements CatalogFactory {
 
 	@Override
 	public Catalog createCatalog(String name, Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		DescriptorProperties dp = getValidateProperties(properties);
+		String defaultDB = dp.getOptionalString(CATALOG_DEFAULT_DATABASE).orElse("public/default");
+		String adminUrl = dp.getString(CATALOG_ADMIN_URL);
 
-		final String defaultDatabase =
-			descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE)
-				.orElse("public/default");
-
-		String adminUrl = descriptorProperties.getString(CATALOG_ADMIN_URL);
-
-		return new PulsarCatalog(adminUrl, name, descriptorProperties.asMap(), defaultDatabase);
+		return new PulsarCatalog(adminUrl, name, dp.asMap(), defaultDB);
 	}
 
 	@Override
 	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
+		HashMap<String, String> context = new HashMap<>();
 		context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_PULSAR);
 		context.put(CATALOG_PROPERTY_VERSION, "1");
 		return context;
@@ -65,20 +61,20 @@ public class PulsarCatalogFactory implements CatalogFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
-		properties.add(CATALOG_DEFAULT_DATABASE);
-		properties.add(CATALOG_PULSAR_VERSION);
-		properties.add(CATALOG_SERVICE_URL);
-		properties.add(CATALOG_ADMIN_URL);
-		properties.add(CATALOG_STARTING_POS);
-		properties.add(CATALOG_DEFAULT_PARTITIONS);
-		return properties;
+		List props = new ArrayList<String>();
+		props.add(CATALOG_DEFAULT_DATABASE);
+		props.add(CATALOG_PULSAR_VERSION);
+		props.add(CATALOG_SERVICE_URL);
+		props.add(CATALOG_ADMIN_URL);
+		props.add(CATALOG_STARTUP_MODE);
+		props.add(CATALOG_DEFAULT_PARTITIONS);
+		return props;
 	}
 
-	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-		new PulsarCatalogValidator().validate(descriptorProperties);
-		return descriptorProperties;
+	private DescriptorProperties getValidateProperties(Map<String, String> properties) {
+		DescriptorProperties dp = new DescriptorProperties();
+		dp.putProperties(properties);
+		new PulsarCatalogValidator().validate(dp);
+		return dp;
 	}
 }

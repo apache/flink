@@ -40,20 +40,21 @@ public class PulsarCatalogDescriptor extends CatalogDescriptor {
 		super(CATALOG_TYPE_VALUE_PULSAR, 1, "public/default");
 	}
 
-	public PulsarCatalogDescriptor pulsarVersion(String version) {
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(version));
-		this.pulsarVersion = version;
+	public PulsarCatalogDescriptor pulsarVersion(String pulsarVersion) {
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(pulsarVersion));
+		this.pulsarVersion = pulsarVersion;
+
 		return this;
 	}
 
 	@Override
 	protected Map<String, String> toCatalogProperties() {
-		final DescriptorProperties properties = new DescriptorProperties();
+		DescriptorProperties props = new DescriptorProperties();
 
 		if (pulsarVersion != null) {
-			properties.putString(CATALOG_PULSAR_VERSION, pulsarVersion);
+			props.putString(CATALOG_PULSAR_VERSION, pulsarVersion);
 		}
 
-		return properties.asMap();
+		return props.asMap();
 	}
 }

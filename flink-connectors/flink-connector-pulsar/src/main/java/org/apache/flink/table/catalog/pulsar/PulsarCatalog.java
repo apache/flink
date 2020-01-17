@@ -45,8 +45,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.factories.TableFactory;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
@@ -55,7 +53,6 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class PulsarCatalog extends AbstractCatalog {
 
@@ -66,20 +63,20 @@ public class PulsarCatalog extends AbstractCatalog {
 
 	private PulsarMetadataReader metadataReader;
 
-	public PulsarCatalog(String adminUrl, String catalogName, Map<String, String> properties, String defaultDatabase) {
+	public PulsarCatalog(String adminUrl, String catalogName, Map<String, String> props, String defaultDatabase) {
 		super(catalogName, defaultDatabase);
 
 		this.adminUrl = adminUrl;
-		this.properties = properties;
+		this.properties = new HashMap<>();
 
-		LOG.info("Created PulsarCatalog '{}'", catalogName);
+		LOG.info("Created Pulsar Catalog {}", catalogName);
 	}
 
 	@Override
 	public void open() throws CatalogException {
 		if (metadataReader == null) {
 			try {
-				metadataReader = new PulsarMetadataReader(adminUrl);
+				metadataReader = new PulsarMetadataReader(adminUrl, "", new HashMap<>(), -1, -1);
 			} catch (PulsarClientException e) {
 				throw new CatalogException("Failed to create Pulsar admin using " + adminUrl, e);
 			}
@@ -93,12 +90,6 @@ public class PulsarCatalog extends AbstractCatalog {
 			metadataReader = null;
 			LOG.info("Close connection to Pulsar");
 		}
-	}
-
-	@Override
-	public Optional<TableFactory> getTableFactory() {
-		// TODO
-		return Optional.empty();
 	}
 
 	@Override
@@ -121,7 +112,7 @@ public class PulsarCatalog extends AbstractCatalog {
 		try {
 			return metadataReader.namespaceExists(databaseName);
 		} catch (PulsarAdminException e) {
-			throw new CatalogException(String.format("Failed to check existence of databases %s", databaseName), e);
+			return false;
 		}
 	}
 
@@ -214,6 +205,7 @@ public class PulsarCatalog extends AbstractCatalog {
 
 		try {
 			metadataReader.createTopic(tablePath, defaultNumPartitions, table);
+			metadataReader.putSchema(tablePath, table);
 		} catch (PulsarAdminException e) {
 			if (e.getStatusCode() == 409) {
 				throw new TableAlreadyExistException(getName(), tablePath, e);
