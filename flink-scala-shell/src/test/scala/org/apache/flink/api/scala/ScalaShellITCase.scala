@@ -43,10 +43,10 @@ class ScalaShellITCase extends TestLogger {
   @Rule
   def temporaryFolder = _temporaryFolder
 
-  @Before
-  def initClassLoder(): Unit = {
+  @After
+  def resetClassLoder(): Unit = {
     // The Scala interpreter changes current class loader to ScalaClassLoader in every execution
-    // refer to [[ILoop.process()]]. So, we need reset it to get right class loader for every Test.
+    // refer to [[ILoop.process()]]. So, we need reset it to original class loader after every Test.
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
   }
 
@@ -465,12 +465,6 @@ object ScalaShellITCase {
 
   @ClassRule
   def clusterResource = _clusterResource
-
-  @AfterClass
-  def afterAll(): Unit = {
-    // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
-    Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
-  }
 
   /**
    * Run the input using a Scala Shell and return the output of the shell.
