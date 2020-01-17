@@ -43,6 +43,13 @@ class ScalaShellITCase extends TestLogger {
   @Rule
   def temporaryFolder = _temporaryFolder
 
+  @Before
+  def initClassLoder(): Unit = {
+    // The Scala interpreter changes current class loader to ScalaClassLoader in every execution
+    // refer to [[ILoop.process()]]. So, we need reset it to get right class loader for every Test.
+    Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
+  }
+
   /** Prevent re-creation of environment */
   @Test
   def testPreventRecreationBatch(): Unit = {
