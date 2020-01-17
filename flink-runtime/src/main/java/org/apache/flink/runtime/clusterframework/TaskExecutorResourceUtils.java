@@ -180,12 +180,12 @@ public class TaskExecutorResourceUtils {
 			final MemorySize totalFlinkMemorySize = getTotalFlinkMemorySize(config);
 			if (totalFlinkExcludeNetworkMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
-					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toString()
-					+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toString()
-					+ "), Task Heap Memory (" + taskHeapMemorySize.toString()
-					+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toString()
-					+ ") and Managed Memory (" + managedMemorySize.toString()
-					+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
+					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toHumanReadableString()
+					+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toHumanReadableString()
+					+ "), Task Heap Memory (" + taskHeapMemorySize.toHumanReadableString()
+					+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toHumanReadableString()
+					+ ") and Managed Memory (" + managedMemorySize.toHumanReadableString()
+					+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toHumanReadableString() + ").");
 			}
 			networkMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeNetworkMemorySize);
 			sanityCheckNetworkMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, networkMemorySize, totalFlinkMemorySize);
@@ -237,9 +237,9 @@ public class TaskExecutorResourceUtils {
 
 		if (jvmMetaspaceAndOverhead.getTotalJvmMetaspaceAndOverheadSize().getBytes() > totalProcessMemorySize.getBytes()) {
 			throw new IllegalConfigurationException(
-				"Sum of configured JVM Metaspace (" + jvmMetaspaceAndOverhead.metaspace.toString()
-				+ ") and JVM Overhead (" + jvmMetaspaceAndOverhead.overhead.toString()
-				+ ") exceed configured Total Process Memory (" + totalProcessMemorySize.toString() + ").");
+				"Sum of configured JVM Metaspace (" + jvmMetaspaceAndOverhead.metaspace.toHumanReadableString()
+				+ ") and JVM Overhead (" + jvmMetaspaceAndOverhead.overhead.toHumanReadableString()
+				+ ") exceed configured Total Process Memory (" + totalProcessMemorySize.toHumanReadableString() + ").");
 		}
 		final MemorySize totalFlinkMemorySize = totalProcessMemorySize.subtract(jvmMetaspaceAndOverhead.getTotalJvmMetaspaceAndOverheadSize());
 
@@ -289,12 +289,12 @@ public class TaskExecutorResourceUtils {
 				frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize);
 			if (totalFlinkExcludeNetworkMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
-					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toString()
-						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toString()
-						+ "), Task Heap Memory (" + taskHeapMemorySize.toString()
-						+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toString()
-						+ ") and Managed Memory (" + managedMemorySize.toString()
-						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
+					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toHumanReadableString()
+						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toHumanReadableString()
+						+ "), Task Heap Memory (" + taskHeapMemorySize.toHumanReadableString()
+						+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toHumanReadableString()
+						+ ") and Managed Memory (" + managedMemorySize.toHumanReadableString()
+						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toHumanReadableString() + ").");
 			}
 			networkMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeNetworkMemorySize);
 			sanityCheckNetworkMemoryWithExplicitlySetTotalFlinkAndHeapMemory(config, networkMemorySize, totalFlinkMemorySize);
@@ -312,12 +312,12 @@ public class TaskExecutorResourceUtils {
 				frameworkHeapMemorySize.add(frameworkOffHeapMemorySize).add(taskOffHeapMemorySize).add(managedMemorySize).add(networkMemorySize);
 			if (totalFlinkExcludeTaskHeapMemorySize.getBytes() > totalFlinkMemorySize.getBytes()) {
 				throw new IllegalConfigurationException(
-					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toString()
-						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toString()
-						+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toString()
-						+ "), Managed Memory (" + managedMemorySize.toString()
-						+ ") and Network Memory (" + networkMemorySize.toString()
-						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toString() + ").");
+					"Sum of configured Framework Heap Memory (" + frameworkHeapMemorySize.toHumanReadableString()
+						+ "), Framework Off-Heap Memory (" + frameworkOffHeapMemorySize.toHumanReadableString()
+						+ "), Task Off-Heap Memory (" + taskOffHeapMemorySize.toHumanReadableString()
+						+ "), Managed Memory (" + managedMemorySize.toHumanReadableString()
+						+ ") and Network Memory (" + networkMemorySize.toHumanReadableString()
+						+ ") exceed configured Total Flink Memory (" + totalFlinkMemorySize.toHumanReadableString() + ").");
 			}
 			taskHeapMemorySize = totalFlinkMemorySize.subtract(totalFlinkExcludeTaskHeapMemorySize);
 		}
@@ -362,8 +362,8 @@ public class TaskExecutorResourceUtils {
 			final String memoryDescription,
 			final MemorySize base,
 			final RangeFraction rangeFraction) {
-		final long relative = (long) (rangeFraction.fraction * base.getBytes());
-		return new MemorySize(capToMinMax(memoryDescription, relative, rangeFraction));
+		final MemorySize relative = base.multiply(rangeFraction.fraction);
+		return capToMinMax(memoryDescription, relative, rangeFraction);
 	}
 
 	private static MemorySize deriveWithInverseFraction(
@@ -371,31 +371,31 @@ public class TaskExecutorResourceUtils {
 			final MemorySize base,
 			final RangeFraction rangeFraction) {
 		checkArgument(rangeFraction.fraction < 1);
-		final long relative = (long) (rangeFraction.fraction / (1 - rangeFraction.fraction) * base.getBytes());
-		return new MemorySize(capToMinMax(memoryDescription, relative, rangeFraction));
+		final MemorySize relative = base.multiply(rangeFraction.fraction / (1 - rangeFraction.fraction));
+		return capToMinMax(memoryDescription, relative, rangeFraction);
 	}
 
-	private static long capToMinMax(
+	private static MemorySize capToMinMax(
 			final String memoryDescription,
-			final long relative,
+			final MemorySize relative,
 			final RangeFraction rangeFraction) {
-		long size = relative;
+		long size = relative.getBytes();
 		if (size > rangeFraction.maxSize.getBytes()) {
 			LOG.info(
-				"The derived from fraction {} ({}b) is greater than its max value {}, max value will be used instead",
+				"The derived from fraction {} ({}) is greater than its max value {}, max value will be used instead",
 				memoryDescription,
-				relative,
-				rangeFraction.maxSize);
+				relative.toHumanReadableString(),
+				rangeFraction.maxSize.toHumanReadableString());
 			size = rangeFraction.maxSize.getBytes();
 		} else if (size < rangeFraction.minSize.getBytes()) {
 			LOG.info(
-				"The derived from fraction {} ({}b) is less than its min value {}, max value will be used instead",
+				"The derived from fraction {} ({}) is less than its min value {}, max value will be used instead",
 				memoryDescription,
-				relative,
-				rangeFraction.minSize);
+				relative.toHumanReadableString(),
+				rangeFraction.minSize.toHumanReadableString());
 			size = rangeFraction.minSize.getBytes();
 		}
-		return size;
+		return new MemorySize(size);
 	}
 
 	private static MemorySize getFrameworkHeapMemorySize(final Configuration config) {
@@ -462,8 +462,8 @@ public class TaskExecutorResourceUtils {
 					"Inconsistently configured %s (%s) and its min (%s), max (%s) value",
 					fractionOption,
 					fraction,
-					minSize,
-					maxSize),
+					minSize.toHumanReadableString(),
+					maxSize.toHumanReadableString()),
 				e);
 		}
 	}
@@ -535,15 +535,15 @@ public class TaskExecutorResourceUtils {
 			final MemorySize configuredTotalFlinkMemorySize = getTotalFlinkMemorySize(config);
 			if (!configuredTotalFlinkMemorySize.equals(flinkInternalMemory.getTotalFlinkMemorySize())) {
 				throw new IllegalConfigurationException(
-					"Configured/Derived Flink internal memory sizes (total " + flinkInternalMemory.getTotalFlinkMemorySize().toString()
-						+ ") do not add up to the configured Total Flink Memory size (" + configuredTotalFlinkMemorySize.toString()
+					"Configured/Derived Flink internal memory sizes (total " + flinkInternalMemory.getTotalFlinkMemorySize().toHumanReadableString()
+						+ ") do not add up to the configured Total Flink Memory size (" + configuredTotalFlinkMemorySize.toHumanReadableString()
 						+ "). Configured/Derived Flink internal memory sizes are: "
-						+ "Framework Heap Memory (" + flinkInternalMemory.frameworkHeap.toString()
-						+ "), Framework Off-Heap Memory (" + flinkInternalMemory.frameworkOffHeap.toString()
-						+ "), Task Heap Memory (" + flinkInternalMemory.taskHeap.toString()
-						+ "), Task Off-Heap Memory (" + flinkInternalMemory.taskOffHeap.toString()
-						+ "), Network Memory (" + flinkInternalMemory.network.toString()
-						+ "), Managed Memory (" + flinkInternalMemory.managed.toString() + ").");
+						+ "Framework Heap Memory (" + flinkInternalMemory.frameworkHeap.toHumanReadableString()
+						+ "), Framework Off-Heap Memory (" + flinkInternalMemory.frameworkOffHeap.toHumanReadableString()
+						+ "), Task Heap Memory (" + flinkInternalMemory.taskHeap.toHumanReadableString()
+						+ "), Task Off-Heap Memory (" + flinkInternalMemory.taskOffHeap.toHumanReadableString()
+						+ "), Network Memory (" + flinkInternalMemory.network.toHumanReadableString()
+						+ "), Managed Memory (" + flinkInternalMemory.managed.toHumanReadableString() + ").");
 			}
 		}
 	}
@@ -558,12 +558,12 @@ public class TaskExecutorResourceUtils {
 			final MemorySize configuredTotalProcessMemorySize = getTotalProcessMemorySize(config);
 			if (!configuredTotalProcessMemorySize.equals(derivedTotalProcessMemorySize)) {
 				throw new IllegalConfigurationException(
-					"Configured/Derived memory sizes (total " + derivedTotalProcessMemorySize.toString()
-						+ ") do not add up to the configured Total Process Memory size (" + configuredTotalProcessMemorySize.toString()
+					"Configured/Derived memory sizes (total " + derivedTotalProcessMemorySize.toHumanReadableString()
+						+ ") do not add up to the configured Total Process Memory size (" + configuredTotalProcessMemorySize.toHumanReadableString()
 						+ "). Configured/Derived memory sizes are: "
-						+ "Total Flink Memory (" + totalFlinkMemory.toString()
-						+ "), JVM Metaspace (" + jvmMetaspaceAndOverhead.metaspace.toString()
-						+ "), JVM Overhead (" + jvmMetaspaceAndOverhead.overhead.toString() + ").");
+						+ "Total Flink Memory (" + totalFlinkMemory.toHumanReadableString()
+						+ "), JVM Metaspace (" + jvmMetaspaceAndOverhead.metaspace.toHumanReadableString()
+						+ "), JVM Overhead (" + jvmMetaspaceAndOverhead.overhead.toHumanReadableString() + ").");
 			}
 		}
 	}
@@ -591,17 +591,17 @@ public class TaskExecutorResourceUtils {
 			final MemorySize configuredNetworkMemorySize = getNetworkMemorySizeWithLegacyConfig(config);
 			if (!configuredNetworkMemorySize.equals(derivedNetworkMemorySize)) {
 				throw new IllegalConfigurationException(
-					"Derived Network Memory size (" + derivedNetworkMemorySize.toString()
-					+ ") does not match configured Network Memory size (" + configuredNetworkMemorySize.toString() + ").");
+					"Derived Network Memory size (" + derivedNetworkMemorySize.toHumanReadableString()
+					+ ") does not match configured Network Memory size (" + configuredNetworkMemorySize.toHumanReadableString() + ").");
 			}
 		} else {
 			final RangeFraction networkRangeFraction = getNetworkMemoryRangeFraction(config);
 			if (derivedNetworkMemorySize.getBytes() > networkRangeFraction.maxSize.getBytes() ||
 				derivedNetworkMemorySize.getBytes() < networkRangeFraction.minSize.getBytes()) {
 				throw new IllegalConfigurationException("Derived Network Memory size ("
-					+ derivedNetworkMemorySize.toString() + ") is not in configured Network Memory range ["
-					+ networkRangeFraction.minSize.toString() + ", "
-					+ networkRangeFraction.maxSize.toString() + "].");
+					+ derivedNetworkMemorySize.toHumanReadableString() + ") is not in configured Network Memory range ["
+					+ networkRangeFraction.minSize.toHumanReadableString() + ", "
+					+ networkRangeFraction.maxSize.toHumanReadableString() + "].");
 			}
 			if (isNetworkMemoryFractionExplicitlyConfigured(config) &&
 				!derivedNetworkMemorySize.equals(totalFlinkMemorySize.multiply(networkRangeFraction.fraction))) {
@@ -609,9 +609,9 @@ public class TaskExecutorResourceUtils {
 					"The derived Network Memory size ({}) does not match " +
 						"the configured Network Memory fraction ({}) from the configured Total Flink Memory size ({}). " +
 						"The derived Network Memory size will be used.",
-					derivedNetworkMemorySize,
+					derivedNetworkMemorySize.toHumanReadableString(),
 					networkRangeFraction.fraction,
-					totalFlinkMemorySize);
+					totalFlinkMemorySize.toHumanReadableString());
 			}
 		}
 	}
@@ -624,9 +624,9 @@ public class TaskExecutorResourceUtils {
 		if (derivedJvmOverheadSize.getBytes() > jvmOverheadRangeFraction.maxSize.getBytes() ||
 			derivedJvmOverheadSize.getBytes() < jvmOverheadRangeFraction.minSize.getBytes()) {
 			throw new IllegalConfigurationException("Derived JVM Overhead size ("
-				+ derivedJvmOverheadSize.toString() + ") is not in configured JVM Overhead range ["
-				+ jvmOverheadRangeFraction.minSize.toString() + ", "
-				+ jvmOverheadRangeFraction.maxSize.toString() + "].");
+				+ derivedJvmOverheadSize.toHumanReadableString() + ") is not in configured JVM Overhead range ["
+				+ jvmOverheadRangeFraction.minSize.toHumanReadableString() + ", "
+				+ jvmOverheadRangeFraction.maxSize.toHumanReadableString() + "].");
 		}
 		if (isJvmOverheadFractionExplicitlyConfigured(config) &&
 			!derivedJvmOverheadSize.equals(totalProcessMemorySize.multiply(jvmOverheadRangeFraction.fraction))) {
@@ -634,9 +634,9 @@ public class TaskExecutorResourceUtils {
 				"The derived JVM Overhead size ({}) does not match " +
 					"the configured JVM Overhead fraction ({}) from the configured Total Process Memory size ({}). " +
 					"The derived JVM OVerhead size will be used.",
-				derivedJvmOverheadSize,
+				derivedJvmOverheadSize.toHumanReadableString(),
 				jvmOverheadRangeFraction.fraction,
-				totalProcessMemorySize);
+				totalProcessMemorySize.toHumanReadableString());
 		}
 	}
 
@@ -755,7 +755,7 @@ public class TaskExecutorResourceUtils {
 			LOG.info(
 				"'{}' is not specified, use the configured deprecated task manager heap value ({}) for it.",
 				configOption.key(),
-				legacyHeapSize);
+				legacyHeapSize.toHumanReadableString());
 
 			return copiedConfig;
 		}).orElse(configuration);
