@@ -642,7 +642,7 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!--Build uber jar-->
+			<!-- Build uber jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -698,7 +698,7 @@ under the License.
 						<id>shade-flink</id>
 						<phase>none</phase>
 					</execution>
-					<!--Build BashJavaUtils jar-->
+					<!-- Build BashJavaUtils jar -->
 					<execution>
 						<id>bash-utils</id>
 						<phase>package</phase>

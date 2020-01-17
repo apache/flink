@@ -276,7 +276,7 @@ public class EnvironmentInformation {
 
 			String javaHome = System.getenv("JAVA_HOME");
 
-			String inheritedLogs = System.getenv("INHERITED_LOGS");
+			String inheritedLogs = System.getenv("FLINK_INHERITED_LOGS");
 
 			long maxHeapMegabytes = getMaxJvmHeapMemory() >>> 20;
 

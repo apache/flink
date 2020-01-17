@@ -67,8 +67,8 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     fi
     ARGS+=("--configDir" "${FLINK_CONF_DIR}" ${dynamic_configs[@]})
 
-    export INHERITED_LOGS="
-$INHERITED_LOGS
+    export FLINK_INHERITED_LOGS="
+$FLINK_INHERITED_LOGS
 
 TM_RESOURCES_JVM_PARAMS extraction logs:
 $jvm_params_output

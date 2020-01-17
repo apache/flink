@@ -650,5 +650,5 @@ extractExecutionParams() {
         exit 1
     fi
 
-    echo ${execution_config} | sed "s/$EXECUTION_PREFIX//g"
+    echo ${execution_config} | sed "s/$EXECUTION_PREFIX//"
 }
