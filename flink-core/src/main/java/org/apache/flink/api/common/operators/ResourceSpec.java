@@ -284,9 +284,9 @@ public final class ResourceSpec implements Serializable {
 		}
 		return "ResourceSpec{" +
 			"cpuCores=" + cpuCores.getValue() +
-			", taskHeapMemory=" + taskHeapMemory +
-			", taskOffHeapMemory=" + taskOffHeapMemory +
-			", managedMemory=" + managedMemory + extResources +
+			", taskHeapMemory=" + taskHeapMemory.toHumanReadableString() +
+			", taskOffHeapMemory=" + taskOffHeapMemory.toHumanReadableString() +
+			", managedMemory=" + managedMemory.toHumanReadableString() + extResources +
 			'}';
 	}
 

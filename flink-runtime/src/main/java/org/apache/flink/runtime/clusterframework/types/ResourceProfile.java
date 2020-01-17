@@ -394,10 +394,10 @@ public class ResourceProfile implements Serializable {
 		}
 		return "ResourceProfile{" +
 			"cpuCores=" + cpuCores.getValue() +
-			", taskHeapMemory=" + taskHeapMemory +
-			", taskOffHeapMemory=" + taskOffHeapMemory +
-			", managedMemory=" + managedMemory +
-			", networkMemory=" + networkMemory + resources +
+			", taskHeapMemory=" + taskHeapMemory.toHumanReadableString() +
+			", taskOffHeapMemory=" + taskOffHeapMemory.toHumanReadableString() +
+			", managedMemory=" + managedMemory.toHumanReadableString() +
+			", networkMemory=" + networkMemory.toHumanReadableString() + resources +
 			'}';
 	}
 
