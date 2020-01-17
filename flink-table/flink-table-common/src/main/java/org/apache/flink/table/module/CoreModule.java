@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 
 /**
  * Module of default core metadata in Flink.
+ *
+ * <p>NOTE: {@link BuiltInFunctionDefinitions} is not ready now,
  */
 public class CoreModule implements Module {
 	public static final CoreModule INSTANCE = new CoreModule();

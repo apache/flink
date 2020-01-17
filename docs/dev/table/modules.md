@@ -36,10 +36,6 @@ functions as Flink built-in functions.
 
 ## Module Types
 
-### CoreModule
-
-`CoreModule` contains all of Flink's system (built-in) functions and is loaded by default.
-
 ### HiveModule
 
 The `HiveModule` provides Hive built-in functions as Flink's system functions to SQL and Table API users.
@@ -89,10 +85,6 @@ The following types are supported out of the box.
   </thead>
   <tbody>
     <tr>
-        <td class="text-center">CoreModule</td>
-        <td class="text-center">core</td>
-    </tr>
-    <tr>
         <td class="text-center">HiveModule</td>
         <td class="text-center">hive</td>
     </tr>
@@ -101,8 +93,6 @@ The following types are supported out of the box.
 
 {% highlight yaml %}
 modules:
-   - name: core
-     type: core
    - name: myhive
      type: hive
      hive-version: 1.2.1

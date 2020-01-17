@@ -50,34 +50,31 @@ The two dimensions give Flink users 4 categories of functions:
 3. Temporary catalog functions
 4. Catalog functions
 
-Note that system functions always precede catalog's, and temporary functions always precede persistent on their own dimension
-in function resolution order explained below.
-
-Referencing Functions
+## Referencing Functions
 ---------------------
 
 There are two ways users can reference a function in Flink - referencing function precisely or ambiguously.
 
-## Precise Function Reference
+### Precise Function Reference
 
 Precise function reference empowers users to use catalog functions specifically, and across catalog and across database, 
 e.g. `select mycatalog.mydb.myfunc(x) from mytable` and `select mydb.myfunc(x) from mytable`.
 
 This is only supported starting from Flink 1.10.
 
-## Ambiguous Function Reference
+### Ambiguous Function Reference
 
 In ambiguous function reference, users just specify the function's name in SQL query, e.g. `select myfunc(x) from mytable`.
 
 
-Function Resolution Order
+## Function Resolution Order
 -------------------------
 
 The resolution order only matters when there are functions of different types but the same name, 
 e.g. when there’re three functions all named “myfunc” but are of temporary catalog, catalog, and system function respectively. 
 If there’s no function name collision, functions will just be resolved to the sole one.
 
-## Precise Function Reference
+### Precise Function Reference
 
 Because system functions don’t have namespaces, a precise function reference in Flink must be pointing to either a temporary catalog 
 function or a catalog function.
@@ -87,11 +84,13 @@ The resolution order is:
 1. Temporary catalog function
 2. Catalog function
 
-## Ambiguous Function Reference
+### Ambiguous Function Reference
 
 The resolution order is:
 
 1. Temporary system function
-2. System function
-3. Temporary catalog function, in the current catalog and current database of the session
-4. Catalog function, in the current catalog and current database of the session
+2. Temporary catalog function, in the current catalog and current database of the session
+3. Catalog function, in the current catalog and current database of the session
+4. System function
+
+We are trying to put the order of system function in the second place in later versions.
