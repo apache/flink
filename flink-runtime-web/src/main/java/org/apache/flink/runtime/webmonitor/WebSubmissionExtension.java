@@ -61,7 +61,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			Executor executor,
 			Time timeout) throws Exception {
 
-		webSubmissionHandlers = new ArrayList<>(5);
+		webSubmissionHandlers = new ArrayList<>();
 
 		final JarUploadHandler jarUploadHandler = new JarUploadHandler(
 			leaderRetriever,
