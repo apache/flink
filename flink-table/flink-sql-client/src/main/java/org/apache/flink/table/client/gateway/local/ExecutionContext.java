@@ -129,7 +129,6 @@ public class ExecutionContext<ClusterID> {
 	private final ClusterID clusterId;
 	private final ClusterSpecification clusterSpec;
 
-	private EnvironmentSettings settings;
 	private TableEnvironment tableEnv;
 	private ExecutionEnvironment execEnv;
 	private StreamExecutionEnvironment streamExecEnv;
@@ -413,7 +412,7 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	private void initializeTableEnvironment(@Nullable SessionState sessionState) {
-		this.settings = environment.getExecution().getEnvironmentSettings();
+		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 		final boolean noInheritedState = sessionState == null;
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
@@ -492,7 +491,8 @@ public class ExecutionContext<ClusterID> {
 			final Map<String, String> plannerProperties = settings.toPlannerProperties();
 			PlannerFactory plannerFactory = ComponentFactoryService.find(
 					PlannerFactory.class, plannerProperties);
-			this.isBlinkPlanner = plannerFactory.optionalContext().get(EnvironmentSettings.CLASS_NAME).contains("Blink");
+			this.isBlinkPlanner = plannerFactory.optionalContext()
+					.get(EnvironmentSettings.CLASS_NAME).contains("Blink");
 			if (this.isBlinkPlanner) {
 				checkState(executor instanceof ExecutorBase);
 			} else {
