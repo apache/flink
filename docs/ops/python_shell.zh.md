@@ -25,7 +25,7 @@ under the License.
 Flink附带了一个集成的交互式Python Shell。
 它既能够运行在本地启动的local模式，也能够运行在集群启动的cluster模式下。
 
-<span class="label label-info">注意</span> Python Shell会调用"python"命令。请执行以下命令以确认当前环境下的指令"python"指向Python 3.5及以上版本：
+<span class="label label-info">注意</span> Python Shell会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
 
 {% highlight bash %}
 $ python --version

@@ -25,7 +25,7 @@ under the License.
 Flink comes with an integrated interactive Python Shell.
 It can be used in a local setup as well as in a cluster setup.
 
-<span class="label label-info">Note</span> The Python Shell will run the command "python". Please run following command to confirm that the command "python" in current environment points to Python 3.5+:
+<span class="label label-info">Note</span> The Python Shell will run the command “python”. Please run following command to confirm that the command “python” in current environment points to Python 3.5+:
 
 {% highlight bash %}
 $ python --version

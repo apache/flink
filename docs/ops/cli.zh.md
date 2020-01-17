@@ -98,7 +98,7 @@ available.
 
 <div data-lang="python" markdown="1">
 
-<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用"python"命令。请执行以下命令以确认当前环境下的指令"python"指向Python 3.5及以上版本：
+<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
 
 {% highlight bash %}
 $ python --version

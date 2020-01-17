@@ -30,7 +30,7 @@ under the License.
 
 <span class="label label-info">注意</span> PyFlink的运行需要Python 3.5及以上版本。
 
-执行以下命令以确认当前环境下的指令"python"指向Python 3.5及以上版本：
+执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
 
 {% highlight bash %}
 $ python --version
