@@ -32,13 +32,6 @@ under the License.
 		<suppress files="org[\\/]apache[\\/]beam[\\/]vendor[\\/]grpc[\\/]v1p21p0[\\/]io[\\/]netty[\\/]buffer.*.java" checks="[a-zA-Z0-9]*"/>
 		<suppress files="org[\\/]apache[\\/]beam[\\/]runners[\\/]fnexecution[\\/]environment.*.java" checks="[a-zA-Z0-9]*"/>
 
-		<!-- Python streaming API follows python naming conventions -->
-		<suppress
-			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]api[\\/].*.java"
-			checks="MethodNameCheck|ParameterName"/>
-		<suppress
-			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]connectors[\\/].*.java"
-		checks="MethodNameCheck|ParameterName"/>
 	    <!-- Have to use guava directly -->
 	    <suppress
 			files="OverConvertRule.java|CustomizedConvertRule.java"
