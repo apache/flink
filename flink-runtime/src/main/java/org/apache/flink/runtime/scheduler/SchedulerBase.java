@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -286,24 +287,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	/**
-	 * @deprecated Direct access to the execution graph by scheduler implementations is discouraged
-	 * because currently the execution graph has various features and responsibilities that a
-	 * scheduler should not be concerned about. The following specialized abstractions to the
-	 * execution graph and accessors should be preferred over direct access:
-	 * <ul>
-	 *     <li>{@link #getSchedulingTopology()}
-	 *     <li>{@link #getInputsLocationsRetriever()}
-	 *     <li>{@link #getExecutionVertex(ExecutionVertexID)}
-	 *     <li>{@link #getExecutionVertexId(ExecutionAttemptID)}
-	 *     <li>{@link #getExecutionVertexIdOrThrow(ExecutionAttemptID)}
-	 * </ul>
-	 */
-	@Deprecated
-	protected ExecutionGraph getExecutionGraph() {
-		return executionGraph;
-	}
-
-	/**
 	 * Tries to restore the given {@link ExecutionGraph} from the provided {@link SavepointRestoreSettings}.
 	 *
 	 * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
@@ -374,7 +357,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected void setGlobalFailureCause(@Nullable final Throwable cause) {
 		if (cause != null) {
-			getExecutionGraph().initFailureCause(cause);
+			executionGraph.initFailureCause(cause);
 		}
 	}
 
@@ -392,7 +375,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	protected final ResultPartitionAvailabilityChecker getResultPartitionAvailabilityChecker() {
-		return getExecutionGraph().getResultPartitionAvailabilityChecker();
+		return executionGraph.getResultPartitionAvailabilityChecker();
 	}
 
 	protected final InputsLocationsRetriever getInputsLocationsRetriever() {
@@ -437,6 +420,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected void transitionExecutionGraphState(final JobStatus current, final JobStatus newState) {
 		executionGraph.transitionState(current, newState);
+	}
+
+	@VisibleForTesting
+	CheckpointCoordinator getCheckpointCoordinator() {
+		return executionGraph.getCheckpointCoordinator();
 	}
 
 	// ------------------------------------------------------------------------
@@ -977,7 +965,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private Map<OperatorID, OperatorCoordinator> createCoordinatorMap() {
 		Map<OperatorID, OperatorCoordinator> coordinatorMap = new HashMap<>();
-		for (ExecutionJobVertex vertex : getExecutionGraph().getAllVertices().values()) {
+		for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
 			for (Map.Entry<OperatorID, OperatorCoordinator> entry : vertex.getOperatorCoordinatorMap().entrySet()) {
 				coordinatorMap.put(entry.getKey(), entry.getValue());
 			}

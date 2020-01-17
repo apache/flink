@@ -247,7 +247,7 @@ public class SchedulerTestingUtils {
 
 	@SuppressWarnings("deprecation")
 	public static CheckpointCoordinator getCheckpointCoordinator(SchedulerBase scheduler) {
-		return scheduler.getExecutionGraph().getCheckpointCoordinator();
+		return scheduler.getCheckpointCoordinator();
 	}
 
 	// ------------------------------------------------------------------------
