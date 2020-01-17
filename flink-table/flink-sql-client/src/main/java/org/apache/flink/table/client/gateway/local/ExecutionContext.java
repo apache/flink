@@ -496,7 +496,7 @@ public class ExecutionContext<ClusterID> {
 			if (this.isBlinkPlanner) {
 				checkState(executor instanceof ExecutorBase);
 			} else {
-				checkState(executor == null || executor instanceof StreamExecutor);
+				checkState(executor instanceof StreamExecutor);
 			}
 			final Planner planner = plannerFactory.create(
 					plannerProperties, executor, config, functionCatalog, catalogManager);
