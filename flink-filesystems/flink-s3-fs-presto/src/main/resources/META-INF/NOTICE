@@ -48,6 +48,12 @@ See bundled license files for details.
 
 - org.hdrhistogram:HdrHistogram:2.1.9
 
+This project bundles the following dependencies under the CDDL 1.1 license.
+See bundled license files for details.
+
+- javax.activation:javax.activation-api:1.2.0
+- javax.xml.bind:jaxb-api:2.3.1
+
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
 See bundled license files for details.
 
