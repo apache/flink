@@ -29,7 +29,9 @@ import java.util.stream.Collectors;
 /**
  * Module of default core metadata in Flink.
  *
- * <p>NOTE: {@link BuiltInFunctionDefinitions} is not ready now,
+ * <p>NOTE: This class is not exposed to the user temporarily, {@link BuiltInFunctionDefinitions}
+ * is not ready now, there are still many functions in the planner, which will lead to the
+ * incomplete core module, so the function resolution order is unclear.
  */
 public class CoreModule implements Module {
 	public static final CoreModule INSTANCE = new CoreModule();
