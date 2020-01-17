@@ -55,7 +55,7 @@ public class MesosTaskManagerParameters {
 		TaskManagerOptions.NUM_TASK_SLOTS;
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
-		key("mesos.resourcemanager.tasks.mem")
+		key("taskmanager.memory.total-process.size")
 		.defaultValue(1024)
 		.withDescription("Memory to assign to the Mesos workers in MB.");
 
