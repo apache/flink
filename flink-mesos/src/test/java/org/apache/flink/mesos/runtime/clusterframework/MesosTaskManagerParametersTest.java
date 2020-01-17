@@ -34,7 +34,6 @@ import java.util.List;
 
 import scala.Option;
 
-import static org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters.MESOS_RM_TASKS_MEMORY_MB;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -251,6 +250,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	public void testConfigNoCpuCores() {
 		Configuration conf = new Configuration();
 		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+		conf.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(conf);
 		assertThat(mesosTaskManagerParameters.cpus(), is(3.0));
 	}
@@ -258,27 +258,6 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	@Test
 	public void testUnifiedTotalProcessMemoryConfiguration() {
 		assertTotalProcessMemory(MesosTaskManagerParameters.create(getConfiguration()));
-	}
-
-	@Test
-	public void testLegacyMesosSpecificTotalProcessMemoryConfiguration() {
-		Configuration config = new Configuration();
-		config.setInteger(MESOS_RM_TASKS_MEMORY_MB, TOTAL_PROCESS_MEMORY_MB);
-		assertTotalProcessMemory(MesosTaskManagerParameters.create(config));
-	}
-
-	@Test
-	public void testUnifiedAndLegacyMesosSpecificTotalProcessMemoryConfigMatchIsOk() {
-		Configuration config = getConfiguration();
-		config.setInteger(MESOS_RM_TASKS_MEMORY_MB, TOTAL_PROCESS_MEMORY_MB);
-		assertTotalProcessMemory(MesosTaskManagerParameters.create(config));
-	}
-
-	@Test(expected = IllegalConfigurationException.class)
-	public void testUnifiedAndLegacyMesosSpecificTotalProcessMemoryConfigDifferFails() {
-		Configuration config = getConfiguration();
-		config.setInteger(MESOS_RM_TASKS_MEMORY_MB, TOTAL_PROCESS_MEMORY_MB / 2);
-		assertTotalProcessMemory(MesosTaskManagerParameters.create(config));
 	}
 
 	private void assertTotalProcessMemory(MesosTaskManagerParameters mesosTaskManagerParameters) {
