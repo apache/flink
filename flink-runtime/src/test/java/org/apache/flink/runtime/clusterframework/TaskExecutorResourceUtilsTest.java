@@ -241,9 +241,9 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 	private static Configuration setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(
 			final int networkMemorySizeToDeriveMb) {
 		final Configuration conf = new Configuration();
-		conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse(TOTAL_FLINK_MEM_SIZE.getMebiBytes() + "m"));
-		conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse(TASK_HEAP_SIZE.getMebiBytes() + "m"));
-		conf.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse(MANAGED_MEM_SIZE.getMebiBytes() + "m"));
+		conf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_MEM_SIZE);
+		conf.set(TaskManagerOptions.TASK_HEAP_MEMORY, TASK_HEAP_SIZE);
+		conf.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MANAGED_MEM_SIZE);
 
 		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(conf);
 		final int derivedNetworkMemorySizeMb = taskExecutorResourceSpec.getNetworkMemSize().getMebiBytes();
