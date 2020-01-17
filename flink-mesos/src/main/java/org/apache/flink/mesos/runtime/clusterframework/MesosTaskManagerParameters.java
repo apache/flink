@@ -21,7 +21,6 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -56,17 +55,6 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
 		TaskManagerOptions.NUM_TASK_SLOTS;
-
-	/**
-	 * Total task executor container memory in megabytes to allocate.
-	 *
-	 * @deprecated set explicitly {@link TaskManagerOptions#TOTAL_PROCESS_MEMORY} instead
-	 */
-	@Deprecated
-	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
-		key("mesos.resourcemanager.tasks.mem")
-		.defaultValue(1024)
-		.withDescription("Memory to assign to the Mesos workers in MB.");
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_DISK_MB =
 		key("mesos.resourcemanager.tasks.disk")
@@ -411,11 +399,9 @@ public class MesosTaskManagerParameters {
 
 	private static ContaineredTaskManagerParameters createContaineredTaskManagerParameters(final Configuration flinkConfig) {
 		double cpus = getCpuCores(flinkConfig);
-		MemorySize totalProcessMemory = getTotalProcessMemory(flinkConfig);
 		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils
 			.newProcessSpecBuilder(flinkConfig)
 			.withCpuCores(cpus)
-			.withTotalProcessMemory(totalProcessMemory)
 			.build();
 
 		return ContaineredTaskManagerParameters.create(
@@ -426,29 +412,6 @@ public class MesosTaskManagerParameters {
 
 	private static double getCpuCores(final Configuration configuration) {
 		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(configuration, MESOS_RM_TASKS_CPUS);
-	}
-
-	private static MemorySize getTotalProcessMemory(final Configuration configuration) {
-		MemorySize legacyTotalProcessMemory = MemorySize.ofMebiBytes(configuration.getInteger(MESOS_RM_TASKS_MEMORY_MB));
-		MemorySize unifiedTotalProcessMemory = configuration.get(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-
-		if (configuration.contains(MESOS_RM_TASKS_MEMORY_MB) &&
-			configuration.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) &&
-			!legacyTotalProcessMemory.equals(unifiedTotalProcessMemory)) {
-
-			throw new IllegalConfigurationException(String.format(
-				"Inconsistent worker memory configuration: both legacy Mesos specific and the newer unified options " +
-					"are configured but they differ - %s: %d Mb (%d bytes), %s: %d Mb (%d bytes)",
-				MESOS_RM_TASKS_MEMORY_MB.key(),
-				legacyTotalProcessMemory.getMebiBytes(),
-				legacyTotalProcessMemory.getBytes(),
-				TaskManagerOptions.TOTAL_PROCESS_MEMORY.key(),
-				unifiedTotalProcessMemory.getMebiBytes(),
-				unifiedTotalProcessMemory.getBytes()));
-		}
-
-		return configuration.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY) ?
-			unifiedTotalProcessMemory : legacyTotalProcessMemory;
 	}
 
 	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {

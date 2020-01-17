@@ -134,7 +134,7 @@ but they still have the same semantics for the job manager process. See also [ho
 The previous options which were responsible for the total memory used by Flink are `taskmanager.heap.size` or `taskmanager.heap.mb`.
 Despite their naming, they included not only JVM heap but also other off-heap memory components. The options have been deprecated.
 
-The Mesos integration also had a separate option with the same semantics: `mesos.resourcemanager.tasks.mem` which has also been deprecated.
+The Mesos integration also had a separate option with the same semantics: `mesos.resourcemanager.tasks.mem` which has also been removed.
 
 If the mentioned legacy options are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
