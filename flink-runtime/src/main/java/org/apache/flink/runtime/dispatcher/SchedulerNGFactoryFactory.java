@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 
@@ -34,10 +33,7 @@ public final class SchedulerNGFactoryFactory {
 
 	private SchedulerNGFactoryFactory() {}
 
-	public static SchedulerNGFactory createSchedulerNGFactory(
-			final Configuration configuration,
-			final RestartStrategyFactory restartStrategyFactory) {
-
+	public static SchedulerNGFactory createSchedulerNGFactory(final Configuration configuration) {
 		final String schedulerName = configuration.getString(JobManagerOptions.SCHEDULER);
 		switch (schedulerName) {
 			case SCHEDULER_TYPE_NG:
