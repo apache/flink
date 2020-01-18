@@ -567,12 +567,6 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-camel_${scala.binary.version}</artifactId>
-				<version>${akka.version}</version>
-			</dependency>
-
-			<dependency>
 				<groupId>org.scala-lang.modules</groupId>
 				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 				<version>1.1.1</version>
@@ -770,7 +764,7 @@ under the License.
 								<configuration>
 									<name>maven.test.skip</name>
 									<value>${project.artifactId}</value>
-									<regex>(flink-connector-kafka-0.9.*)|(flink-scala-shell.*)</regex>
+									<regex>(flink-scala-shell.*)</regex>
 									<replacement>true</replacement>
 									<failIfNoMatch>false</failIfNoMatch>
 								</configuration>

@@ -55,10 +55,11 @@ import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -163,7 +164,7 @@ public class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
-	private final ExecutorServiceLoader executorServiceLoader;
+	private final PipelineExecutorServiceLoader executorServiceLoader;
 
 	private final Configuration configuration;
 
@@ -184,7 +185,7 @@ public class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(final Configuration configuration) {
@@ -193,19 +194,30 @@ public class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 *
-	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * <p>In addition, this constructor allows specifying the {@link PipelineExecutorServiceLoader} and
 	 * user code {@link ClassLoader}.
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+
+		// the parallelism of a job or an operator can only be specified at the following places:
+		//     i) at the operator level using the SingleOutputStreamOperator.setParallelism().
+		//     ii) programmatically by using the env.setParallelism() method, or
+		//     iii) in the configuration passed here
+		//
+		// if specified in multiple places, the priority order is the above.
+		//
+		// Given this, it is safe to overwrite the execution config default value here because all other ways assume
+		// that the env is already instantiated so they will overwrite the value passed here.
+		this.config.setParallelism(configuration.get(CoreOptions.DEFAULT_PARALLELISM));
 	}
 
 	protected Configuration getConfiguration() {
@@ -1728,9 +1740,7 @@ public class StreamExecutionEnvironment {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
-		consolidateParallelismDefinitionsInConfiguration();
-
-		final ExecutorFactory executorFactory =
+		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
 
 		checkNotNull(
@@ -1752,12 +1762,6 @@ public class StreamExecutionEnvironment {
 
 			// make javac happy, this code path will not be reached
 			return null;
-		}
-	}
-
-	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
 		}
 	}
 

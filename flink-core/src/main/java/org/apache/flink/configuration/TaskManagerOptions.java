@@ -270,7 +270,7 @@ public class TaskManagerOptions {
 		.noDefaultValue()
 		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
 			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
-			+ " Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Shuffle Memory.");
+			+ " Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network Memory.");
 
 	/**
 	 * Framework Heap Memory size for TaskExecutors.
@@ -303,7 +303,7 @@ public class TaskManagerOptions {
 			.noDefaultValue()
 			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
 				+ " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
-				+ " Task Off-Heap Memory, Managed Memory and Shuffle Memory.");
+				+ " Task Off-Heap Memory, Managed Memory and Network Memory.");
 
 	/**
 	 * Task Off-Heap Memory size for TaskExecutors.
@@ -342,45 +342,45 @@ public class TaskManagerOptions {
 				+ " explicitly specified.");
 
 	/**
-	 * Min Shuffle Memory size for TaskExecutors.
+	 * Min Network Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<MemorySize> SHUFFLE_MEMORY_MIN =
-		key("taskmanager.memory.shuffle.min")
+	public static final ConfigOption<MemorySize> NETWORK_MEMORY_MIN =
+		key("taskmanager.memory.network.min")
 			.memoryType()
 			.defaultValue(MemorySize.parse("64m"))
 			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key())
-			.withDescription("Min Shuffle Memory size for TaskExecutors. Shuffle Memory is off-heap memory reserved for"
-				+ " ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to make up the configured"
+			.withDescription("Min Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for"
+				+ " ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured"
 				+ " fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max"
-				+ " size, the min/max size will be used. The exact size of Shuffle Memory can be explicitly specified by"
+				+ " size, the min/max size will be used. The exact size of Network Memory can be explicitly specified by"
 				+ " setting the min/max to the same value.");
 
 	/**
-	 * Max Shuffle Memory size for TaskExecutors.
+	 * Max Network Memory size for TaskExecutors.
 	 */
-	public static final ConfigOption<MemorySize> SHUFFLE_MEMORY_MAX =
-		key("taskmanager.memory.shuffle.max")
+	public static final ConfigOption<MemorySize> NETWORK_MEMORY_MAX =
+		key("taskmanager.memory.network.max")
 			.memoryType()
 			.defaultValue(MemorySize.parse("1g"))
 			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
-			.withDescription("Max Shuffle Memory size for TaskExecutors. Shuffle Memory is off-heap memory reserved for"
-				+ " ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to make up the configured"
+			.withDescription("Max Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for"
+				+ " ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured"
 				+ " fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max"
-				+ " size, the min/max size will be used. The exact size of Shuffle Memory can be explicitly specified by"
+				+ " size, the min/max size will be used. The exact size of Network Memory can be explicitly specified by"
 				+ " setting the min/max to the same value.");
 
 	/**
-	 * Fraction of Total Flink Memory to be used as Shuffle Memory.
+	 * Fraction of Total Flink Memory to be used as Network Memory.
 	 */
-	public static final ConfigOption<Float> SHUFFLE_MEMORY_FRACTION =
-		key("taskmanager.memory.shuffle.fraction")
+	public static final ConfigOption<Float> NETWORK_MEMORY_FRACTION =
+		key("taskmanager.memory.network.fraction")
 			.floatType()
 			.defaultValue(0.1f)
 			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key())
-			.withDescription("Fraction of Total Flink Memory to be used as Shuffle Memory. Shuffle Memory is off-heap"
-				+ " memory reserved for ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to"
+			.withDescription("Fraction of Total Flink Memory to be used as Network Memory. Network Memory is off-heap"
+				+ " memory reserved for ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to"
 				+ " make up the configured fraction of the Total Flink Memory. If the derived size is less/greater than"
-				+ " the configured min/max size, the min/max size will be used. The exact size of Shuffle Memory can be"
+				+ " the configured min/max size, the min/max size will be used. The exact size of Network Memory can be"
 				+ " explicitly specified by setting the min/max size to the same value.");
 
 	/**
@@ -389,7 +389,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_METASPACE =
 		key("taskmanager.memory.jvm-metaspace.size")
 			.memoryType()
-			.defaultValue(MemorySize.parse("128m"))
+			.defaultValue(MemorySize.parse("96m"))
 			.withDescription("JVM Metaspace Size for the TaskExecutors.");
 
 	/**
@@ -398,7 +398,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_OVERHEAD_MIN =
 		key("taskmanager.memory.jvm-overhead.min")
 			.memoryType()
-			.defaultValue(MemorySize.parse("128m"))
+			.defaultValue(MemorySize.parse("192m"))
 			.withDescription("Min JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
 				+ " overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct"
 				+ " memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size"

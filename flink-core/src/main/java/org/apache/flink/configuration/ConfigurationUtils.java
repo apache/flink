@@ -180,8 +180,8 @@ public class ConfigurationUtils {
 		checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
 		checkConfigContains(configs, TaskManagerOptions.TASK_HEAP_MEMORY.key());
 		checkConfigContains(configs, TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key());
-		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
-		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MIN.key());
+		checkConfigContains(configs, TaskManagerOptions.NETWORK_MEMORY_MAX.key());
+		checkConfigContains(configs, TaskManagerOptions.NETWORK_MEMORY_MIN.key());
 		checkConfigContains(configs, TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
 
 		return configs;

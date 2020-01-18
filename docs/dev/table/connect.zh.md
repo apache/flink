@@ -44,8 +44,6 @@ The following tables list all available connectors and formats. Their mutual com
 | :---------------- | :------------------ | :--------------------------- | :----------------------|
 | Filesystem        |                     | Built-in                     | Built-in               |
 | Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.8                 | `flink-connector-kafka-0.8`  | Not available          |
-| Apache Kafka      | 0.9                 | `flink-connector-kafka-0.9`  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
@@ -781,11 +779,14 @@ CREATE TABLE MyUserTable (
   'connector.properties.bootstrap.servers' = 'localhost:9092',
   -- required for Kafka source, optional for Kafka sink, specify consumer group
   'connector.properties.group.id' = 'testGroup',
-  -- optional: valid modes are "earliest-offset", "latest-offset", "group-offsets", or "specific-offsets"
+  -- optional: valid modes are "earliest-offset", "latest-offset", "group-offsets", "specific-offsets" or "timestamp"
   'connector.startup-mode' = 'earliest-offset',
 
   -- optional: used in case of startup mode with specific offsets
   'connector.specific-offsets' = 'partition:0,offset:42;partition:1,offset:300',
+
+  -- optional: used in case of startup mode with timestamp
+  'connector.startup-timestamp-millis' = '1578538374471',
 
   'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions
                                          -- into Kafka's partitions valid are "fixed"
@@ -821,6 +822,7 @@ CREATE TABLE MyUserTable (
     .startFromEarliest()
     .startFromLatest()
     .startFromSpecificOffsets(...)
+    .startFromTimestamp(...)
 
     // optional: output partitioning from Flink's partitions into Kafka's partitions
     .sinkPartitionerFixed()         // each Flink partition ends up in at-most one Kafka partition (default)
@@ -850,6 +852,7 @@ CREATE TABLE MyUserTable (
     .start_from_earliest()
     .start_from_latest()
     .start_from_specific_offsets(...)
+    .startFromTimestamp(...)
 
     # optional: output partitioning from Flink's partitions into Kafka's partitions
     .sink_partitioner_fixed()        # each Flink partition ends up in at-most one Kafka partition (default)
@@ -876,8 +879,10 @@ connector:
     group.id: testGroup                # optional: required in Kafka consumer, specify consumer group
 
   startup-mode: ...                                               # optional: valid modes are "earliest-offset", "latest-offset",
-                                                                  # "group-offsets", or "specific-offsets"
+                                                                  # "group-offsets", "specific-offsets" or "timestamp"
   specific-offsets: partition:0,offset:42;partition:1,offset:300  # optional: used in case of startup mode with specific offsets
+  startup-timestamp-millis: 1578538374471                         # optional: used in case of startup mode with timestamp
+
 
   sink-partitioner: ...    # optional: output partitioning from Flink's partitions into Kafka's partitions
                            # valid are "fixed" (each Flink partition ends up in at most one Kafka partition),

@@ -29,7 +29,6 @@ SCRIPT=$1
 CMD=${@:2}
 
 source ${HERE}/setup_docker.sh
-source ${HERE}/setup_kubernetes.sh
 
 ARTIFACTS_DIR="${HERE}/artifacts"
 
@@ -47,6 +46,7 @@ COMMIT_HASH=$(git rev-parse HEAD)
 echo "Testing branch ${BRANCH} from remote ${REMOTE}. Commit hash: ${COMMIT_HASH}"
 
 e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
+e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
 MVN_COMPILE="mvn ${MVN_COMMON_OPTIONS} ${MVN_COMPILE_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} clean install -pl ${e2e_modules},flink-dist -am"
 
 eval "${MVN_COMPILE}"

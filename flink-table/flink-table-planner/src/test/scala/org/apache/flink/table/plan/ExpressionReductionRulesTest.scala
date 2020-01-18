@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.configuration.PipelineOptions
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func1, RichFunc1}
@@ -28,9 +27,8 @@ import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
-import scala.collection.JavaConverters._
 
 class ExpressionReductionRulesTest extends TableTestBase {
 
@@ -469,19 +467,20 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-  // TODO this NPE is caused by Calcite, it shall pass when [CALCITE-1860] is fixed
-  @Ignore
+  @Test
   def testReduceDeterministicUDF(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    // if isDeterministic = true, will cause a Calcite NPE, which will be fixed in [CALCITE-1860]
     val result = table
       .select('a, 'b, 'c, DeterministicNullFunc() as 'd)
       .where("d.isNull")
       .select('a, 'b, 'c)
 
-    val expected: String = streamTableNode(table)
+    val expected: String = unaryNode("DataStreamCalc",
+      streamTableNode(table),
+      term("select", "a", "b", "c"),
+      term("where", s"IS NULL(null:VARCHAR(65536))")
+    )
 
     util.verifyTable(result, expected)
   }

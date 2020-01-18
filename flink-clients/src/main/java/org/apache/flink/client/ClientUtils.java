@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -117,7 +117,7 @@ public enum ClientUtils {
 	}
 
 	public static void executeProgram(
-			ExecutorServiceLoader executorServiceLoader,
+			PipelineExecutorServiceLoader executorServiceLoader,
 			Configuration configuration,
 			PackagedProgram program) throws ProgramInvocationException {
 		checkNotNull(executorServiceLoader);

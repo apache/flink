@@ -841,6 +841,26 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromSpecificOffset(int(partition), int(specific_offset))
         return self
 
+    def start_from_timestamp(self, timestamp):
+        """
+        Specifies the consumer to start reading partitions from a specified timestamp.
+        The specified timestamp must be before the current timestamp.
+        This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+
+        The consumer will look up the earliest offset whose timestamp is greater than or equal
+        to the specific timestamp from Kafka. If there's no such offset, the consumer will use the
+        latest offset to read data from kafka.
+
+        This method does not affect where partitions are read from when the consumer is restored
+        from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+        savepoint, only the offsets in the restored state will be used.
+
+        :param timestamp timestamp for the startup offsets, as milliseconds from epoch.
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.startFromTimestamp(int(timestamp))
+        return self
+
     def sink_partitioner_fixed(self):
         """
         Configures how to partition records from Flink's partitions into Kafka's partitions.

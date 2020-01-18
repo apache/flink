@@ -118,6 +118,8 @@ public class CoreOptions {
 	 * Plugin-specific option of {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}. Plugins use this parent first list
 	 * instead of the global version.
 	 */
+	@Documentation.ExcludeFromDocumentation("Plugin classloader list is considered an implementation detail. " +
+		"Configuration only included in case to mitigate unintended side-effects of this young feature.")
 	public static final ConfigOption<String> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
 		.key("plugin.classloader.parent-first-patterns.default")
 		.stringType()
@@ -128,6 +130,8 @@ public class CoreOptions {
 			" against the fully qualified class name. This setting should generally not be modified. To add another " +
 			" pattern we recommend to use \"plugin.classloader.parent-first-patterns.additional\" instead.");
 
+	@Documentation.ExcludeFromDocumentation("Plugin classloader list is considered an implementation detail. " +
+		"Configuration only included in case to mitigate unintended side-effects of this young feature.")
 	public static final ConfigOption<String> PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL = ConfigOptions
 		.key("plugin.classloader.parent-first-patterns.additional")
 		.stringType()

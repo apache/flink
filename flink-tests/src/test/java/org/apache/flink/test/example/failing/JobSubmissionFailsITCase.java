@@ -72,7 +72,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
 
 		// to accommodate for 10 netty arenas (NUM_SLOTS / NUM_TM) x 16Mb (NettyBufferPool.ARENA_SIZE)
-		config.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("256m"));
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("256m"));
 
 		return config;
 	}

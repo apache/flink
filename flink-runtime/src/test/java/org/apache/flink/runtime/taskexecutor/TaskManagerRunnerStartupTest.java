@@ -123,8 +123,8 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
-		cfg.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("100m"));
-		cfg.set(TaskManagerOptions.SHUFFLE_MEMORY_MAX, MemorySize.parse("10m"));
+		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
+		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
 		startTaskManager(
 			cfg,
 			rpcService,

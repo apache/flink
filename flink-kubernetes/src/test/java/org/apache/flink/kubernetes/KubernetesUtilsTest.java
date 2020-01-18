@@ -73,7 +73,7 @@ public class KubernetesUtilsTest extends TestLogger {
 		new MemorySize(0), // frameworkOffHeapSize
 		new MemorySize(111), // taskHeapSize
 		new MemorySize(0), // taskOffHeapSize
-		new MemorySize(222), // shuffleMemSize
+		new MemorySize(222), // networkMemSize
 		new MemorySize(0), // managedMemorySize
 		new MemorySize(333), // jvmMetaspaceSize
 		new MemorySize(0)); // jvmOverheadSize

@@ -202,7 +202,7 @@ CREATE TABLE Orders (
 
 表属性用于创建 table source/sink ，一般用于寻找和创建底层的连接器。
 
-表达式 `key1=val1` 的键和值必须为字符串文本常量。请参考 [连接外部系统]({ site.baseurl }}/zh/dev/table/connect.html) 了解不同连接器所支持的属性。
+表达式 `key1=val1` 的键和值必须为字符串文本常量。请参考 [连接外部系统]({{ site.baseurl }}/zh/dev/table/connect.html) 了解不同连接器所支持的属性。
 
 **注意：** 表名可以为以下三种格式 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`。使用`catalog_name.db_name.table_name` 的表将会与名为 "catalog_name" 的 catalog 和名为 "db_name" 的数据库一起注册到 metastore 中。使用 `db_name.table_name` 的表将会被注册到当前执行的 table environment 中的 catalog 且数据库会被命名为 "db_name"；对于 `table_name`, 数据表将会被注册到当前正在运行的catalog和数据库中。
 

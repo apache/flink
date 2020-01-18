@@ -3,7 +3,6 @@ title: "Hive Integration"
 nav-id: hive_tableapi
 nav-parent_id: tableapi
 nav-pos: 100
-is_beta: true
 nav-show_overview: true
 ---
 <!--
@@ -308,11 +307,17 @@ and [HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html) through t
 If the `hive-conf/hive-site.xml` file is stored in remote storage system, users should download 
 the hive configuration file to their local environment first. 
 
+Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
+Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
+
 Take Hive version 2.3.4 for example:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
 {% highlight java %}
+
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
@@ -328,6 +333,9 @@ tableEnv.useCatalog("myhive");
 </div>
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
+
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
