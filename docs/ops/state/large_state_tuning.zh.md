@@ -140,7 +140,7 @@ by default. To enable this feature, users can instantiate a `RocksDBStateBackend
 
 **RocksDB Timers**
 
-For RocksDB, a user can chose whether timers are stored on the heap (default) or inside RocksDB. Heap-based timers can have a better performance for smaller numbers of
+For RocksDB, a user can chose whether timers are stored on the heap or inside RocksDB (default). Heap-based timers can have a better performance for smaller numbers of
 timers, while storing timers inside RocksDB offers higher scalability as the number of timers in RocksDB can exceed the available main memory (spilling to disk).
 
 When using RockDB as state backend, the type of timer storage can be selected through Flink's configuration via option key `state.backend.rocksdb.timer-service.factory`.
