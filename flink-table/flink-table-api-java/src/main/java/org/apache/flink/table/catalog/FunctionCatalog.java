@@ -39,6 +39,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
+import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.Preconditions;
 
@@ -364,14 +365,22 @@ public class FunctionCatalog implements FunctionLookup {
 		}
 
 		Optional<FunctionDefinition> candidate = moduleManager.getFunctionDefinition(normalizedName);
-		ObjectIdentifier oi = ObjectIdentifier.of(
-			catalogManager.getCurrentCatalog(),
-			catalogManager.getCurrentDatabase(),
-			funcName);
 
 		return candidate.map(fd ->
 			Optional.of(new Result(FunctionIdentifier.of(funcName), fd)
-		)).orElseGet(() -> resolvePreciseFunctionReference(oi));
+		)).orElseGet(() -> {
+			Optional<Result> precise = resolvePreciseFunctionReference(ObjectIdentifier.of(
+					catalogManager.getCurrentCatalog(),
+					catalogManager.getCurrentDatabase(),
+					funcName));
+			if (precise.isPresent()) {
+				return precise;
+			} else {
+				// last, fallback to core module for table api.
+				return CoreModule.INSTANCE.getFunctionDefinition(funcName)
+						.map(fd -> new Result(FunctionIdentifier.of(funcName), fd));
+			}
+		});
 	}
 
 	@Override
