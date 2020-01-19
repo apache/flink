@@ -134,6 +134,16 @@ object TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="python" markdown="1">
+<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
+
+<span class="label label-info">Note</span> By default PyFlink uses the command “python” to run the python udf workers. Before starting cluster, run following command to confirm that it meets the requirements:
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+$ python -m pip install apache-beam==2.15.0
+{% endhighlight %}
+
 It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.
 
 The following example shows how to define your own Java and Python hash code functions, register them in the TableEnvironment, and call them in a query. Note that you can configure your scalar function via a constructor before it is registered:
@@ -175,16 +185,6 @@ table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigin
 {% endhighlight %}
 
 There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
-
-<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
-
-<span class="label label-info">Note</span> By default PyFlink uses the command “python” to run the python udf workers. Before starting cluster, run following command to confirm that it meets the requirements:
-
-{% highlight bash %}
-$ python --version
-# the version printed here must be 3.5+
-$ python -m pip install apache-beam==2.15.0
-{% endhighlight %}
 
 {% highlight python %}
 # option 1: extending the base class `ScalarFunction`
