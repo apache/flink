@@ -31,6 +31,7 @@ import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
@@ -130,6 +131,11 @@ public class JDBCTableSource implements
 	@Override
 	public TableSchema getTableSchema() {
 		return schema;
+	}
+
+	@Override
+	public String explainSource() {
+		return TableConnectorUtils.generateRuntimeName(getClass(), returnType.getFieldNames());
 	}
 
 	public static Builder builder() {
