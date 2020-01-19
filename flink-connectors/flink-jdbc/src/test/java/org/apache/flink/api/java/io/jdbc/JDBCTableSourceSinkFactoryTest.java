@@ -30,10 +30,12 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -167,7 +169,7 @@ public class JDBCTableSourceSinkFactoryTest {
 	}
 
 	@Test
-	public void testJDBCWithFilter() {
+	public void testJDBCFieldsProjection() {
 		Map<String, String> properties = getBasicProperties();
 		properties.put("connector.driver", "org.apache.derby.jdbc.EmbeddedDriver");
 		properties.put("connector.username", "user");
@@ -182,6 +184,12 @@ public class JDBCTableSourceSinkFactoryTest {
 		assertEquals(projectedFields.get("aaa"), DataTypes.INT());
 		assertNull(projectedFields.get("bbb"));
 		assertEquals(projectedFields.get("ccc"), DataTypes.DOUBLE());
+
+		// test jdbc table source description
+		List<String> fieldNames = ((RowType) actual.getProducedDataType().getLogicalType()).getFieldNames();
+		String expectedSourceDescription = actual.getClass().getSimpleName()
+			+ "(" + String.join(", ", fieldNames.stream().toArray(String[]::new)) + ")";
+		assertEquals(expectedSourceDescription, actual.explainSource());
 	}
 
 	@Test
