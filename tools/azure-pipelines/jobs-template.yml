@@ -98,10 +98,6 @@ jobs:
         module: kafka/gelly
       tests:
         module: tests
-      legacy_scheduler_core:
-        module: legacy_scheduler_core
-      legacy_scheduler_tests:
-        module: legacy_scheduler_tests
       misc:
         module: misc
   steps:
