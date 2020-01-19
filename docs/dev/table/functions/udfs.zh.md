@@ -205,7 +205,7 @@ add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIG
 def partial_add(i, j, k):
   return i + j + k
 
-add = udf(functools.partial(partial_add, j=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
+add = udf(functools.partial(partial_add, k=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
           DataTypes.BIGINT())
 
 # register the Python function
@@ -226,7 +226,7 @@ If the python scalar function depends on third-party dependencies, you can speci
 
   <tbody>
     <tr>
-      <td><strong>add_python_file</strong></td>
+      <td><strong>add_python_file(file_path)</strong></td>
       <td>
         <p>Adds python file dependencies which could be python files, python packages or local directories. They will be added to the PYTHONPATH of the python UDF worker.</p>
 {% highlight python %}
@@ -235,7 +235,7 @@ table_env.add_python_file(file_path)
       </td>
     </tr>
     <tr>
-      <td><strong>set_python_requirements</strong></td>
+      <td><strong>set_python_requirements(requirements_file_path, requirements_cache_dir=None)</strong></td>
       <td>
         <p>Specifies a requirements.txt file which defines the third-party dependencies. These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the python UDF worker. For the dependencies which could not be accessed in the cluster, a directory which contains the installation packages of these dependencies could be specified using the parameter "requirements_cached_dir". It will be uploaded to the cluster to support offline installation.</p>
 {% highlight python %}
@@ -250,7 +250,7 @@ table_env.set_python_requirements("requirements.txt", "cached_dir")
       </td>
     </tr>
     <tr>
-      <td><strong>add_python_archive</strong></td>
+      <td><strong>add_python_archive(archive_path, target_dir=None)</strong></td>
       <td>
         <p>Adds a python archive file dependency. The file will be extracted to the working directory of python UDF worker. If the parameter "target_dir" is specified, the archive file will be extracted to a directory named "target_dir". Otherwise, the archive file will be extracted to a directory with the same name of the archive file.</p>
 {% highlight python %}
@@ -272,7 +272,7 @@ def my_udf():
       </td>
     </tr>
     <tr>
-      <td><strong>set_python_executable</strong></td>
+      <td><strong>set_python_executable(python_exec)</strong></td>
       <td>
         <p>Sets the path of the python interpreter which is used to execute the python udf workers, e.g., "/usr/local/bin/python3".</p>
 {% highlight python %}
