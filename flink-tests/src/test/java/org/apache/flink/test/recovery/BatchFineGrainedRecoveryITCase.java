@@ -54,7 +54,6 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
@@ -65,7 +64,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,7 +120,6 @@ import static org.junit.Assert.assertThat;
  *   lost results.
  * </ul>
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchFineGrainedRecoveryITCase.class);
 
