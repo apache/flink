@@ -37,7 +37,7 @@ public interface DynamicResult<C> extends Result<C> {
 	boolean isMaterialized();
 
 	/**
-	 * Starts the table program using the given deployer and monitors it's execution.
+	 * Starts retrieve the result using the given jobClient and monitors it's execution.
 	 */
 	void startRetrieval(JobClient jobClient);
 
