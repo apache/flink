@@ -1,7 +1,7 @@
 ---
 title: "Python API Tutorial"
 nav-title: Python API
-nav-parent_id: walkthroughs
+nav-parent_id: apitutorials
 nav-pos: 10
 ---
 <!--
