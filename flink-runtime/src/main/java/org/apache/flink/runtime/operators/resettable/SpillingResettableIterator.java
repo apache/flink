@@ -58,9 +58,9 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T> {
 	
 	protected final TypeSerializer<T> serializer;
 	
-	private int elementCount;
+	private long elementCount;
 	
-	private int currentElementNum;
+	private long currentElementNum;
 	
 	protected final SpillingBuffer buffer;
 	
@@ -144,7 +144,7 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T> {
 					} catch (IOException e) {
 						throw new RuntimeException("SpillingIterator: Error writing element to buffer.", e);
 					}
-					this.elementCount++;
+					incrementElementCount();
 					return true;
 				} else {
 					return false;
@@ -187,6 +187,14 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T> {
 			return Collections.emptyList();
 		} else {
 			return memory;
+		}
+	}
+
+	private void incrementElementCount() {
+		if (this.elementCount == Long.MAX_VALUE) {
+			throw new RuntimeException("The amount of elements can't exceed Long.MAX_VALUE.");
+		} else {
+			this.elementCount++;
 		}
 	}
 }
