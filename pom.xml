@@ -155,8 +155,6 @@ under the License.
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
 		<japicmp.referenceVersion>1.10.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<test.scheduler.type></test.scheduler.type>
-		<test.groups></test.groups>
 	</properties>
 
 	<dependencies>
@@ -822,19 +820,6 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
-		<profile>
-			<id>legacy-scheduler</id>
-			<properties>
-				<test.scheduler.type>legacy</test.scheduler.type>
-				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler</test.groups>
-			</properties>
-			<activation>
-				<property>
-					<name>legacy-scheduler</name>
-				</property>
-			</activation>
-		</profile>
-
 		<profile>
 			<id>scala-2.11</id>
 			<properties>
@@ -1543,14 +1528,12 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.22.1</version>
 				<configuration>
-					<groups>${test.groups}</groups>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
-						<jobmanager.scheduler>${test.scheduler.type}</jobmanager.scheduler>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
