@@ -160,8 +160,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		}
 
 		List<String> expected = Arrays.asList(
-			"2019-12-12 00:00:05,2019-12-12 00:00:04.004,3,50.00",
-			"2019-12-12 00:00:10,2019-12-12 00:00:06.006,2,5.33");
+			"2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00",
+			"2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33");
 
 		assertEquals(expected, TestingSinkFunction.rows);
 
