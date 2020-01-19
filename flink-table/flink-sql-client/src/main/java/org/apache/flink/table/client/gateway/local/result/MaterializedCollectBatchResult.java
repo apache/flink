@@ -22,11 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.CollectBatchTableSink;
-import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
@@ -34,6 +34,7 @@ import org.apache.flink.util.AbstractID;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -76,10 +77,9 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public void startRetrieval(ProgramDeployer deployer) {
-		deployer
-				.deploy()
-				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
+	public void startRetrieval(JobClient jobClient) {
+		CompletableFuture.completedFuture(jobClient)
+				.thenCompose(client -> client.getJobExecutionResult(classLoader))
 				.thenAccept(new ResultRetrievalHandler())
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
