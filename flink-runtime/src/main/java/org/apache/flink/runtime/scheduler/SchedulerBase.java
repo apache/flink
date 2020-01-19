@@ -297,7 +297,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	 *     <li>{@link #getExecutionVertexId(ExecutionAttemptID)}
 	 *     <li>{@link #getExecutionVertexIdOrThrow(ExecutionAttemptID)}
 	 * </ul>
-	 * Currently, only {@link LegacyScheduler} requires direct access to the execution graph.
 	 */
 	@Deprecated
 	protected ExecutionGraph getExecutionGraph() {
