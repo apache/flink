@@ -41,7 +41,7 @@ public class SchedulerNGFactoryFactoryTest extends TestLogger {
 	private static final NoRestartStrategy.NoRestartStrategyFactory TEST_RESTART_STRATEGY_FACTORY = new NoRestartStrategy.NoRestartStrategyFactory();
 
 	@Test
-	public void createLegacySchedulerFactoryByDefault() {
+	public void createDefaultSchedulerFactoryByDefault() {
 		final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(new Configuration());
 		assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
 	}

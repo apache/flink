@@ -321,7 +321,6 @@ public class JobManagerOptions {
 			.withDescription(Description.builder()
 				.text("Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
 				.list(
-					text("'legacy': legacy scheduler"),
 					text("'ng': new generation scheduler"))
 				.build());
 	/**
