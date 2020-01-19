@@ -388,6 +388,26 @@ object ScalarOperatorGens {
     else if (isComparable(left.resultType) && canEqual) {
       generateComparison(ctx, "==", left, right)
     }
+    // generic types of same type
+    else if (isRaw(left.resultType) && canEqual) {
+      val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
+      val genericSer = ctx.addReusableTypeSerializer(left.resultType)
+      val ser = s"$genericSer.getInnerSerializer()"
+      val resultType = new BooleanType()
+      val code = s"""
+         |${left.code}
+         |${right.code}
+         |boolean $nullTerm = ${left.nullTerm} || ${right.nullTerm};
+         |boolean $resultTerm = ${primitiveDefaultValue(resultType)};
+         |if (!$nullTerm) {
+         |  ${left.resultTerm}.ensureMaterialized($ser);
+         |  ${right.resultTerm}.ensureMaterialized($ser);
+         |  $resultTerm =
+         |    ${left.resultTerm}.getBinarySection().equals(${right.resultTerm}.getBinarySection());
+         |}
+         |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, code, resultType)
+    }
     // support date/time/timestamp equalTo string.
     // for performance, we cast literal string to literal time.
     else if (isTimePoint(left.resultType) && isCharacterString(right.resultType)) {
