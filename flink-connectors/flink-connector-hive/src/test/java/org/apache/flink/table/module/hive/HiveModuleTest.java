@@ -22,17 +22,25 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.client.HiveShimV120;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V1_2_0;
@@ -129,5 +137,14 @@ public class HiveModuleTest {
 		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select negative(5.1)"));
 
 		assertEquals("[-5.1]", results.toString());
+	}
+
+	@Test
+	public void testBlackList() {
+		HiveModule hiveModule = new HiveModule(HiveShimLoader.getHiveVersion());
+		assertFalse(hiveModule.listFunctions().removeAll(HiveShimV120.BUILT_IN_FUNC_BLACKLIST));
+		for (String banned : HiveShimV120.BUILT_IN_FUNC_BLACKLIST) {
+			assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());
+		}
 	}
 }
