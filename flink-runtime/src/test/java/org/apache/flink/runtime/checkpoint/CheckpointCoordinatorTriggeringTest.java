@@ -20,15 +20,14 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -56,13 +55,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
 	private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
 
-	private CheckpointFailureManager failureManager;
-
 	@Before
 	public void setUp() throws Exception {
-		failureManager = new CheckpointFailureManager(
-			0,
-			NoOpFailJobCall.INSTANCE);
 		manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
@@ -107,28 +101,21 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				}
 			}).when(execution).triggerCheckpoint(anyLong(), anyLong(), any(CheckpointOptions.class));
 
-			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
-				10,        // periodic interval is 10 ms
-				200000,    // timeout is very long (200 s)
-				0,
-				Integer.MAX_VALUE,
-				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-				true,
-				false,
-				0);
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				chkConfig,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex },
-				new ExecutionVertex[] { commitVertex },
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2),
-				new MemoryStateBackend(),
-				Executors.directExecutor(),
-				manuallyTriggeredScheduledExecutor,
-				SharedStateRegistry.DEFAULT_FACTORY,
-				failureManager);
+			CheckpointCoordinatorConfiguration chkConfig =
+				new CheckpointCoordinatorConfigurationBuilder()
+					.setCheckpointInterval(10) // periodic interval is 10 ms
+					.setCheckpointTimeout(200000) // timeout is very long (200 s)
+					.build();
+			CheckpointCoordinator coord =
+				new CheckpointCoordinatorBuilder()
+					.setJobId(jid)
+					.setCheckpointCoordinatorConfiguration(chkConfig)
+					.setTasksToTrigger(new ExecutionVertex[] { triggerVertex })
+					.setTasksToWaitFor(new ExecutionVertex[] { ackVertex })
+					.setTasksToCommitTo(new ExecutionVertex[] { commitVertex })
+					.setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+					.setTimer(manuallyTriggeredScheduledExecutor)
+					.build();
 
 			coord.startCheckpointScheduler();
 
@@ -191,28 +178,21 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 		final long delay = 50;
 		final long checkpointInterval = 12;
 
-		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
-			checkpointInterval,           // periodic interval is 12 ms
-			200_000,     // timeout is very long (200 s)
-			delay,       // 50 ms delay between checkpoints
-			1,
-			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true,
-			false,
-			0);
-		final CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
-			chkConfig,
-			new ExecutionVertex[] { vertex },
-			new ExecutionVertex[] { vertex },
-			new ExecutionVertex[] { vertex },
-			new StandaloneCheckpointIDCounter(),
-			new StandaloneCompletedCheckpointStore(2),
-			new MemoryStateBackend(),
-			Executors.directExecutor(),
-			manuallyTriggeredScheduledExecutor,
-			SharedStateRegistry.DEFAULT_FACTORY,
-			failureManager);
+		CheckpointCoordinatorConfiguration chkConfig =
+			new CheckpointCoordinatorConfigurationBuilder()
+				.setCheckpointInterval(checkpointInterval) // periodic interval is 12 ms
+				.setCheckpointTimeout(200_000) // timeout is very long (200 s)
+				.setMinPauseBetweenCheckpoints(delay) // 50 ms delay between checkpoints
+				.setMaxConcurrentCheckpoints(1)
+				.build();
+		final CheckpointCoordinator coord =
+			new CheckpointCoordinatorBuilder()
+				.setJobId(jid)
+				.setCheckpointCoordinatorConfiguration(chkConfig)
+				.setTasks(new ExecutionVertex[] { vertex })
+				.setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+				.setTimer(manuallyTriggeredScheduledExecutor)
+				.build();
 
 		try {
 			coord.startCheckpointScheduler();
@@ -254,33 +234,11 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
 	@Test
 	public void testStopPeriodicScheduler() throws Exception {
-		// create some mock Execution vertices that receive the checkpoint trigger messages
-		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
-			600000,
-			600000,
-			0,
-			Integer.MAX_VALUE,
-			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true,
-			false,
-			0);
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			new JobID(),
-			chkConfig,
-			new ExecutionVertex[] { vertex1 },
-			new ExecutionVertex[] { vertex1 },
-			new ExecutionVertex[] { vertex1 },
-			new StandaloneCheckpointIDCounter(),
-			new StandaloneCompletedCheckpointStore(1),
-			new MemoryStateBackend(),
-			Executors.directExecutor(),
-			manuallyTriggeredScheduledExecutor,
-			SharedStateRegistry.DEFAULT_FACTORY,
-			failureManager);
+		CheckpointCoordinator coord =
+			new CheckpointCoordinatorBuilder()
+				.setTimer(manuallyTriggeredScheduledExecutor)
+				.build();
 
 		// Periodic
 		try {
