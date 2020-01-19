@@ -77,7 +77,7 @@ stages:
   - name: compile
   - name: test
   - name: E2E
-    if: type = in (pull_request, push)
+    if: type in (pull_request, push)
   - name: cleanup
 
 jdk: "openjdk8"
@@ -136,258 +136,258 @@ jobs:
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: cleanup
     # hadoop 2.4.1 profile
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: compile
       script: ./tools/travis_controller.sh compile
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: compile - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: test
       script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: core - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: libraries - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh blink_planner
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: blink_planner - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh connectors
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: connectors - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh kafka/gelly
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: kafka/gelly - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: tests - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: misc - hadoop 2.4.1
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: cleanup - hadoop 2.4.1
     # scala 2.12 profile
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: compile
       script: ./tools/travis_controller.sh compile
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: compile - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: test
       script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: core - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: libraries - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh blink_planner
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: blink_planner - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh connectors
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: connectors - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh kafka/gelly
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: kafka/gelly - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: tests - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: misc - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: cleanup - scala 2.12
     # JDK11 profile
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       stage: compile
       script: ./tools/travis_controller.sh compile
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: compile - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       stage: test
       script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: core - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh python
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: python - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: libraries - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh blink_planner
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: blink_planner - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh connectors
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: connectors - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh kafka/gelly
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: kafka/gelly - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: tests - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: misc
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       jdk: "openjdk11"
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: cleanup - jdk 11
     # Documentation 404 check
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: test
       script: ./tools/travis/docs.sh
       language: ruby
       rvm: 2.4.0
       name: Documentation links check
     # E2E profiles - Hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: test
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container - hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - hadoop 2.8
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - hadoop 2.8
       # E2E profiles - Scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - scala 2.12
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - scala 2.12
       # E2E profiles - Hadoop-free
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc_hadoopfree.sh
       name: e2e - misc
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh without-hadoop
       name: e2e - container
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds
     # E2E profiles - Java 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       stage: test
       jdk: "openjdk11"
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - jdk11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - jdk11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - jdk 11
-    - if: type = in (pull_request, push)
+    - if: type in (pull_request, push)
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - jdk 11
