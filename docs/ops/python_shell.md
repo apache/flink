@@ -27,14 +27,14 @@ It can be used in a local setup as well as in a cluster setup.
 See the [local setup page](../getting-started/tutorials/local_setup.html) for more information about how to setup a local Flink.
 You can also [build a local setup from source](../flinkDev/building.html).
 
-<span class="label label-info">Note</span> The Python Shell will run the command “python”. Please run following command to confirm that the command “python” in current environment points to Python 3.5+:
+<span class="label label-info">Note</span> The Python Shell will run the command “python”. Please run the following command to confirm that the command “python” in current environment points to Python 3.5+:
 
 {% highlight bash %}
 $ python --version
 # the version printed here must be 3.5+
 {% endhighlight %}
 
-<span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.15.0. Run following command to confirm that it meets the requirements before run the Shell in local mode:
+<span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.15.0. Run the following command to confirm that it meets the requirements before run the Shell in local mode:
 
 {% highlight bash %}
 $ python -m pip install apache-beam==2.15.0

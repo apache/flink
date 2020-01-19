@@ -136,7 +136,7 @@ object TimestampModifier extends ScalarFunction {
 <div data-lang="python" markdown="1">
 <span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
 
-<span class="label label-info">Note</span> By default PyFlink uses the command “python” to run the python udf workers. Before starting cluster, run following command to confirm that it meets the requirements:
+<span class="label label-info">Note</span> By default PyFlink uses the command “python” to run the python udf workers. Before starting cluster, run the following command to confirm that it meets the requirements:
 
 {% highlight bash %}
 $ python --version
