@@ -57,17 +57,27 @@ public class HiveModuleTest {
 	@Test
 	public void testNumberOfBuiltinFunctions() {
 		String hiveVersion = HiveShimLoader.getHiveVersion();
+		HiveModule hiveModule = new HiveModule(hiveVersion);
 
-		if (hiveVersion.equals(HIVE_VERSION_V1_2_0)) {
-			assertEquals(232, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-		} else if (hiveVersion.equals(HIVE_VERSION_V2_0_0)) {
-			assertEquals(243, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-		} else if (hiveVersion.equals(HIVE_VERSION_V2_1_1) || hiveVersion.equals(HIVE_VERSION_V2_2_0)) {
-			assertEquals(253, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-		} else if (hiveVersion.equals(HIVE_VERSION_V2_3_4)) {
-			assertEquals(287, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
-		} else if (hiveVersion.equals(HIVE_VERSION_V3_1_1)) {
-			assertEquals(306, new HiveModule(HiveShimLoader.getHiveVersion()).listFunctions().size());
+		switch (hiveVersion) {
+			case HIVE_VERSION_V1_2_0:
+				assertEquals(232, hiveModule.listFunctions().size());
+				break;
+			case HIVE_VERSION_V2_0_0:
+				assertEquals(236, hiveModule.listFunctions().size());
+				break;
+			case HIVE_VERSION_V2_1_1:
+				assertEquals(246, hiveModule.listFunctions().size());
+				break;
+			case HIVE_VERSION_V2_2_0:
+				assertEquals(262, hiveModule.listFunctions().size());
+				break;
+			case HIVE_VERSION_V2_3_4:
+				assertEquals(280, hiveModule.listFunctions().size());
+				break;
+			case HIVE_VERSION_V3_1_1:
+				assertEquals(299, hiveModule.listFunctions().size());
+				break;
 		}
 	}
 
@@ -129,5 +139,14 @@ public class HiveModuleTest {
 		List<Row> results = TableUtils.collectToList(tEnv.sqlQuery("select negative(5.1)"));
 
 		assertEquals("[-5.1]", results.toString());
+	}
+
+	@Test
+	public void testBlackList() {
+		HiveModule hiveModule = new HiveModule(HiveShimLoader.getHiveVersion());
+		assertFalse(hiveModule.listFunctions().removeAll(HiveModule.BUILT_IN_FUNC_BLACKLIST));
+		for (String banned : HiveModule.BUILT_IN_FUNC_BLACKLIST) {
+			assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());
+		}
 	}
 }
