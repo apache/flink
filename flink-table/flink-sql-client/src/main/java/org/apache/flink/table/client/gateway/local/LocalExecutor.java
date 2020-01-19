@@ -79,7 +79,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -645,10 +644,6 @@ public class LocalExecutor implements Executor {
 			});
 		}
 
-		// store the result with a unique id
-		final String resultId = UUID.randomUUID().toString();
-		resultStore.storeResult(resultId, result);
-
 		// create a copy so that we can change settings without affecting the original config
 		Configuration configuration = new Configuration(context.getFlinkConfig());
 		// for queries we wait for the job result, so run in attached mode
@@ -660,11 +655,23 @@ public class LocalExecutor implements Executor {
 		final ProgramDeployer deployer = new ProgramDeployer(
 				configuration, jobName, pipeline);
 
+		JobClient jobClient;
+		// blocking deployment
+		try {
+			jobClient = deployer.deploy().get();
+		} catch (Exception e) {
+			throw new SqlExecutionException("Error while submitting job.", e);
+		}
+
+		String jobId = jobClient.getJobID().toString();
+		// store the result under the JobID
+		resultStore.storeResult(jobId, result);
+
 		// start result retrieval
-		result.startRetrieval(deployer);
+		result.startRetrieval(jobClient);
 
 		return new ResultDescriptor(
-				resultId,
+				jobId,
 				removeTimeAttributes(table.getSchema()),
 				result.isMaterialized());
 	}
