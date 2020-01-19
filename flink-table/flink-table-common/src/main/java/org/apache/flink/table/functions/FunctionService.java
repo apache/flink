@@ -95,8 +95,9 @@ public class FunctionService {
 				classLoader);
 
 		if (!UserDefinedFunction.class.isAssignableFrom(tuple2.f0)) {
-			throw new ValidationException(
-					String.format("Instantiated class '%s' is not a user-defined function.", tuple2.f0.getName()));
+			throw new ValidationException(String.format(
+					"Instantiated class '%s' is not a user-defined function.",
+					tuple2.f0.getName()));
 		}
 		return (UserDefinedFunction) tuple2.f1;
 	}
@@ -110,7 +111,7 @@ public class FunctionService {
 	 * @param <T> type fo the generated instance
 	 * @return an instance of the class
 	 */
-	private static <T> Tuple2<Class<T>, T> generateInstance(
+	private static <T> T generateInstance(
 			String keyPrefix,
 			DescriptorProperties descriptorProperties,
 			ClassLoader classLoader) {
@@ -123,7 +124,8 @@ public class FunctionService {
 			instanceClass = (Class<T>) Class.forName(instanceClassName, true, classLoader);
 		} catch (Exception e) {
 			// only log the cause to have clean error messages
-			String msg = String.format("Could not find class '%s' for creating an instance.", instanceClassName);
+			String msg = String.format(
+					"Could not find class '%s' for creating an instance.", instanceClassName);
 			LOG.error(msg, e);
 			throw new ValidationException(msg);
 		}
@@ -133,29 +135,33 @@ public class FunctionService {
 		List<Map<String, String>> constructorProps = descriptorProperties
 				.getVariableIndexedProperties(constructorPrefix, new ArrayList<>());
 
-		ArrayList<Tuple2<Class, Object>> parameterList = new ArrayList<>();
+		ArrayList<Object> parameterList = new ArrayList<>();
 		for (int i = 0; i < constructorProps.size(); i++) {
 			String constructorKey = constructorPrefix + "." + i + ".";
 			// nested class instance
 			if (constructorProps.get(i).containsKey(ClassInstanceValidator.CLASS)) {
-				//noinspection unchecked
-				parameterList.add((Tuple2) generateInstance(
+				parameterList.add(generateInstance(
 						constructorKey,
 						descriptorProperties,
 						classLoader));
 			}
 			// literal value
 			else {
-				Object literalValue = LiteralValueValidator.getValue(constructorKey, descriptorProperties);
-				parameterList.add(new Tuple2<>(literalValue.getClass(), literalValue));
+				Object literalValue = LiteralValueValidator.getValue(
+						constructorKey, descriptorProperties);
+				parameterList.add(literalValue);
 			}
 		}
 
-		String parameterNames = parameterList.stream().map(t -> t.f0.getName()).reduce((s1, s2) -> s1 + ", " + s2).orElse("");
+		String parameterNames = parameterList.stream()
+				.map(t -> t.getClass().getName())
+				.reduce((s1, s2) -> s1 + ", " + s2)
+				.orElse("");
 
 		Constructor<T> constructor;
 		try {
-			constructor = instanceClass.getConstructor(parameterList.stream().map(t -> t.f0).toArray(Class[]::new));
+			constructor = instanceClass.getConstructor(
+					parameterList.stream().map(Object::getClass).toArray(Class[]::new));
 		} catch (Exception e) {
 			// only log the cause to have clean error messages
 			String msg = String.format(
@@ -166,9 +172,8 @@ public class FunctionService {
 			throw new ValidationException(msg);
 		}
 
-		T instance;
 		try {
-			instance = constructor.newInstance(parameterList.stream().map(t -> t.f1).toArray(Object[]::new));
+			return constructor.newInstance(parameterList.toArray());
 		} catch (Exception e) {
 			// only log the cause to have clean error messages
 			String msg = String.format(
@@ -178,7 +183,5 @@ public class FunctionService {
 			LOG.error(msg, e);
 			throw new ValidationException(msg);
 		}
-
-		return new Tuple2<>(instanceClass, instance);
 	}
 }

@@ -66,7 +66,6 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
-import org.apache.flink.table.executor.StreamExecutor;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -136,8 +135,6 @@ public class ExecutionContext<ClusterID> {
 
 	// Members that should be reused in the same session.
 	private SessionState sessionState;
-
-	private boolean isBlinkPlanner;
 
 	private ExecutionContext(
 			Environment environment,
@@ -268,11 +265,11 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	public Pipeline createPipeline(String name, Configuration flinkConfig) {
+	public Pipeline createPipeline(String name) {
 		if (streamExecEnv != null) {
 			// special case for Blink planner to apply batch optimizations
 			// note: it also modifies the ExecutionConfig!
-			if (isBlinkPlanner) {
+			if (isBlinkPlanner(executor.getClass())) {
 				return ((ExecutorBase) executor).getStreamGraph(name);
 			}
 			return streamExecEnv.getStreamGraph(name);
@@ -281,6 +278,14 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
+	private boolean isBlinkPlanner(Class<? extends Executor> executorClass) {
+		try {
+			return ExecutorBase.class.isAssignableFrom(executorClass);
+		} catch (NoClassDefFoundError ignore) {
+			// blink planner might not be on the class path
+			return false;
+		}
+	}
 
 	/** Returns a builder for this {@link ExecutionContext}. */
 	public static Builder builder(
@@ -392,6 +397,30 @@ public class ExecutionContext<ClusterID> {
 		throw new SqlExecutionException("Unsupported execution type for sinks.");
 	}
 
+	private static TableEnvironment createStreamTableEnvironment(
+			StreamExecutionEnvironment env,
+			EnvironmentSettings settings,
+			TableConfig config,
+			Executor executor,
+			CatalogManager catalogManager,
+			ModuleManager moduleManager,
+			FunctionCatalog functionCatalog) {
+
+		final Map<String, String> plannerProperties = settings.toPlannerProperties();
+		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
+			.create(plannerProperties, executor, config, functionCatalog, catalogManager);
+
+		return new StreamTableEnvironmentImpl(
+			catalogManager,
+			moduleManager,
+			functionCatalog,
+			config,
+			env,
+			planner,
+			executor,
+			settings.isStreamingMode());
+	}
+
 	private static Executor lookupExecutor(
 			Map<String, String> executorProperties,
 			StreamExecutionEnvironment executionEnvironment) {
@@ -487,29 +516,14 @@ public class ExecutionContext<ClusterID> {
 
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
 			executor = lookupExecutor(executorProperties, streamExecEnv);
-
-			final Map<String, String> plannerProperties = settings.toPlannerProperties();
-			PlannerFactory plannerFactory = ComponentFactoryService.find(
-					PlannerFactory.class, plannerProperties);
-			this.isBlinkPlanner = plannerFactory.optionalContext()
-					.get(EnvironmentSettings.CLASS_NAME).contains("Blink");
-			if (this.isBlinkPlanner) {
-				checkState(executor instanceof ExecutorBase);
-			} else {
-				checkState(executor instanceof StreamExecutor);
-			}
-			final Planner planner = plannerFactory.create(
-					plannerProperties, executor, config, functionCatalog, catalogManager);
-
-			tableEnv = new StreamTableEnvironmentImpl(
+			tableEnv = createStreamTableEnvironment(
+					streamExecEnv,
+					settings,
+					config,
+					executor,
 					catalogManager,
 					moduleManager,
-					functionCatalog,
-					config,
-					streamExecEnv,
-					planner,
-					executor,
-					settings.isStreamingMode());
+					functionCatalog);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
 			execEnv = createExecutionEnvironment();
