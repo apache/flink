@@ -36,6 +36,8 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
@@ -45,9 +47,13 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpecBuilder;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
+import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
+import static org.apache.flink.kubernetes.utils.Constants.POD_IP_FIELD_PATH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -138,13 +144,21 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 				new ContainerPortBuilder().withContainerPort(flinkConfig.getInteger(RestOptions.PORT)).build(),
 				new ContainerPortBuilder().withContainerPort(flinkConfig.getInteger(JobManagerOptions.PORT)).build(),
 				new ContainerPortBuilder().withContainerPort(blobServerPort).build()))
-			.withEnv(
-				BootstrapTools.getEnvironmentVariables(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfig)
-					.entrySet()
-					.stream()
-					.map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
-					.collect(Collectors.toList()))
+			.withEnv(buildEnvForContainer(flinkConfig))
 			.withVolumeMounts(KubernetesUtils.getConfigMapVolumeMount(flinkConfDirInPod, hasLogback, hasLog4j))
 			.build();
+	}
+
+	private List<EnvVar> buildEnvForContainer(Configuration flinkConfig) {
+		List<EnvVar> envList =
+			BootstrapTools.getEnvironmentVariables(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfig)
+			.entrySet()
+			.stream()
+			.map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null)).collect(Collectors.toList());
+		envList.add(new EnvVarBuilder()
+			.withName(ENV_FLINK_POD_IP_ADDRESS)
+			.withValueFrom(new EnvVarSourceBuilder().withNewFieldRef(API_VERSION, POD_IP_FIELD_PATH).build())
+			.build());
+		return envList;
 	}
 }

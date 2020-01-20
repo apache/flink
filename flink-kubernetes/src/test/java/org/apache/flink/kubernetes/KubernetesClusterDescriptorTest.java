@@ -31,6 +31,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -38,8 +39,11 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link KubernetesClusterDescriptor}.
@@ -92,6 +96,25 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 		FLINK_CONFIG.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
 
 		final ClusterClient<String> clusterClient = deploySessionCluster();
+
+		final KubernetesClient kubeClient = server.getClient();
+		final Container jmContainer = kubeClient
+			.apps()
+			.deployments()
+			.list()
+			.getItems()
+			.get(0)
+			.getSpec()
+			.getTemplate()
+			.getSpec()
+			.getContainers()
+			.get(0);
+		assertTrue(
+			"Environment " + ENV_FLINK_POD_IP_ADDRESS + " should be set.",
+			jmContainer.getEnv().stream()
+				.map(EnvVar::getName)
+				.collect(Collectors.toList())
+				.contains(ENV_FLINK_POD_IP_ADDRESS));
 
 		clusterClient.close();
 	}
