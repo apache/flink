@@ -27,7 +27,7 @@
 # wait_minute: interval time of two elections of qps,default value is 10s
 #
 
-
+import argparse
 import sys
 import time
 import re
@@ -213,21 +213,24 @@ def usage():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        logger.error("The param's number must be larger than 4")
-        usage()
-        sys.exit(1)
-    am_seserver_dddress = sys.argv[1]
-    scenario_file = sys.argv[2]
-    flink_home = sys.argv[3]
-    test_jar = sys.argv[4]
-    result_file = sys.argv[5]
-    inter_nums = 2
-    if len(sys.argv) > 6:
-        inter_nums = int(sys.argv[6])
-    wait_minute = 10
-    if len(sys.argv) > 7:
-        wait_minute = int(sys.argv[7])
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('am_seserver_dddress', help='the master machine of cluster')
+    parser.add_argument('scenario_file', help='all scenarios in this file')
+    parser.add_argument('flink_home',help='the path of flink')
+    parser.add_argument('test_jar', help='test jar')
+    parser.add_argument('result_file', help='the result of file')
+
+    parser.add_argument('--inter_nums', required=False, default=2, help='the nums of test job runs')
+    parser.add_argument('--wait_minute', required=False, default=10, help='interval of two collections of metrics')
+    args = parser.parse_args()
+    am_seserver_dddress = args.am_seserver_dddress
+    scenario_file = args.scenario_file
+    flink_home = args.flink_home
+    test_jar = args.test_jar
+    result_file = args.result_file
+    inter_nums = args.inter_nums
+    wait_minute = args.wait_minute
+
     print("scenario_file:%s, flink_home:%s, am_seserver_dddress:%s, test_jar:%s, result_file :%s,inter_nums:%s,  "
           "wait_minute:%s" % (scenario_file, flink_home, am_seserver_dddress, test_jar,
                               result_file, inter_nums, wait_minute))

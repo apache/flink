@@ -21,11 +21,13 @@
 # This file will be used in the task's config of jenkins,like this:
 # python3 run.py ${WORKSPACE} slave_file dest_path result_file am_seserver_dddress inter_nums wait_minute
 
-import sys
+import argparse
+
 from logger import logger
 from init_env import init_env
 from run_case import run_cases
 from utils import run_command
+
 
 
 def usage():
@@ -34,24 +36,24 @@ def usage():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        logger.error("The param's number must be larger than 5")
-        usage()
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('flink_code_path',help='the path of flink code path downloaded')
+    parser.add_argument('slaves_file', help='the slave\'s ips of the cluster')
+    parser.add_argument('dest_path', help='flink install path')
+    parser.add_argument('result_file', help='the result file')
+    parser.add_argument('am_seserver_dddress', help='the master machine of cluster')
+    parser.add_argument('--inter_nums', required=False, default=2, help='the nums of test job runs')
+    parser.add_argument('--wait_minute', required=False, default=10, help='interval of two collections of metrics')
+    args = parser.parse_args()
+    flink_code_path = args.flink_code_path
+    slaves_file = args.slaves_file
+    dest_path = args.dest_path
+    result_file = args.result_file
+    am_seserver_dddress = args.am_seserver_dddress
+    inter_nums = args.inter_nums
+    wait_minute = args.wait_minute
 
-    flink_code_path = sys.argv[1]
-    slave_file = sys.argv[2]
-    dest_path = sys.argv[3]
-    result_file = sys.argv[4]
-    am_seserver_dddress = sys.argv[5]
-    inter_nums = 2
-    if len(sys.argv) > 6:
-        inter_nums = int(sys.argv[6])
-    wait_minute = 10
-    if len(sys.argv) > 7:
-        wait_minute = int(sys.argv[7])
-
-    status, flink_home = init_env(flink_code_path, slave_file, dest_path, am_seserver_dddress)
+    status, flink_home = init_env(flink_code_path, slaves_file, dest_path, am_seserver_dddress)
     if status:
         module = "flink-end-to-end-perf-tests/flink-basic-operations"
         status, output = run_command(

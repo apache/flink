@@ -23,6 +23,7 @@
 # environment are ready in the cluster
 #
 
+import argparse
 import sys
 from logger import logger
 from utils import run_command
@@ -110,13 +111,15 @@ def usage():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        logger.error("The param's number must be larger than 4")
-        usage()
-        sys.exit(1)
-    flink_code_path = sys.argv[1]
-    slaves_file = sys.argv[2]
-    dest_path = sys.argv[3]
-    am_seserver_dddress = sys.argv[4]
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('flink_code_path',help='the path of flink code path downloaded')
+    parser.add_argument('slaves_file', help='the slave\'s ips of the cluster')
+    parser.add_argument('dest_path', help='flink install path')
+    parser.add_argument('am_seserver_dddress', help='the master machine of cluster')
+    args = parser.parse_args()
+    flink_code_path = args.flink_code_path
+    slaves_file = args.slave_file
+    dest_path = args.dest_path
+    am_seserver_dddress = args.am_seserver_dddress
 
     init_env(flink_code_path, slaves_file, dest_path, am_seserver_dddress)
