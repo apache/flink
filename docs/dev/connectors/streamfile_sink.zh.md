@@ -28,7 +28,7 @@ under the License.
 
 这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中。
 
-Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建并写入一个新的桶，从而得到流数据在特定时间间隔内接收记录所对应的文件。
+Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 
 桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。
 
@@ -122,11 +122,15 @@ input.addSink(sink)
 批量编码 Sink 的创建与行编码 Sink 相似，不过在这里我们不是指定编码器  `Encoder` 而是指定 [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html) 。
 `BulkWriter` 定义了如何添加、刷新元素，以及如何批量编码。
 
-Flink 有两个内置的 BulkWriter Factory ：
+Flink 有三个内置的 BulkWriter Factory ：
 
  - [ParquetWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetWriterFactory.html)
  - [SequenceFileWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.html)
  - [CompressWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/compress/CompressWriterFactory.html)
+
+<div class="alert alert-info">
+     <b>重要:</b> 批量编码模式仅支持 OnCheckpointRollingPolicy 策略, 在每次 checkpoint 的时候切割文件。
+</div>
 
 #### Parquet 格式
 
@@ -278,13 +282,12 @@ Flink 有两个内置的滚动策略：
  2. **Pending** ：当处于 In-progress 状态的文件关闭（closed）了，就变为 Pending 状态
  3. **Finished** ：在成功的 Checkpoint 后，Pending 状态将变为 Finished 状态
 
-处于 Finished 状态的文件以后不会被修改，可以被下游系统安全地读取。Finished 状态的文件只能通过它们的命名来区分。
+处于 Finished 状态的文件不会再被修改，可以被下游系统安全地读取。
 
-文件命名方案：
- - **In-progress / Pending**：`part-subtaskIndex-partFileIndex.inprogress.uid`
- - **Finished** ：`part-subtaskIndex-partFileIndex`
-
-对于任何给定的 Subtask ，部分文件（part file）的索引按创建顺序严格递增。但是，这些索引并不总是连续的。当作业重启时，所有 Subtask 部分文件（part file）索引的值将是 `max part index + 1` 。
+<div class="alert alert-info">
+     <b>重要:</b> 部分文件的索引在每个 subtask 内部是严格递增的（按文件创建顺序）。但是索引并不总是连续的。当 Job 重启后，所有部分文件的索引从 `max part index + 1` 开始，
+     这里的 `max part index` 是所有 subtask 中索引的最大值。
+</div>
 
 对于每个活动的桶，Writer 在任何时候都只有一个处于 In-progress 状态的部分文件（part file），但是可能有几个 Penging 和 Finished 状态的部分文件（part file）。
 
@@ -334,8 +337,8 @@ Flink 有两个内置的滚动策略：
 已经完成的文件和进行中的文件仅能通过文件名格式进行区分。
 
 默认情况下，文件命名格式如下所示：
- - ** In-progress / Pending: ** `part-<subtaskIndex>-<partFileIndex>.inprogress.uid`
- - ** FINISHED: ** `part-<subtaskIndex>-<partFileIndex>`
+ - **In-progress / Pending:** `part-<subtaskIndex>-<partFileIndex>.inprogress.uid`
+ - **FINISHED:** `part-<subtaskIndex>-<partFileIndex>`
 
 Flink 允许用户通过 `OutputFileConfig` 指定部分文件名的前缀和后缀。
 举例来说，前缀设置为 "prefix" 以及后缀设置为 ".ext" 之后，Sink 创建的文件名如下所示：
@@ -397,10 +400,10 @@ val sink = StreamingFileSink
 这样做的原因是如果部分文件的生命周期跨多个检查点，当 `StreamingFileSink` 从之前的检查点进行恢复时会调用文件系统的 `truncate()` 方法清理 in-progress 文件中未提交的数据。
 Hadoop 2.7 之前的版本不支持这个方法，因此 Flink 会报异常。
 
-<span class="label label-danger">重要提示 2</span>: 鉴于 Flink 的 sink 以及 UDFS 通常不会区分作业的正常结束（比如有限流）和异常终止，因此正常结束作业的最后一批 in-progress 文件不会被转换到 "完成" 状态。
+<span class="label label-danger">重要提示 2</span>: 鉴于 Flink 的 sink 以及 UDF 通常不会区分作业的正常结束（比如有限流）和异常终止，因此正常结束作业的最后一批 in-progress 文件不会被转换到 "完成" 状态。
 
-<span class="label label-danger">重要提示 3</span>: Flink 以及 `StreamingFileSink` 不会覆盖已经提交的数据。因此如果尝试从一个包含 in-progress 文件的旧 checkpoint/savepoint 恢复，且
-这些 in-progress 文件会被接下来的成功 checkpoint 提交，Flink 会因为无法找到 in-progress 文件而抛异常。
+<span class="label label-danger">重要提示 3</span>: Flink 以及 `StreamingFileSink` 不会覆盖已经提交的数据。因此如果尝试从一个包含 in-progress 文件的旧 checkpoint/savepoint 恢复，
+且这些 in-progress 文件会被接下来的成功 checkpoint 提交，Flink 会因为无法找到 in-progress 文件而抛异常，从而恢复失败。
 
 ###  S3 特有的注意事项
 
