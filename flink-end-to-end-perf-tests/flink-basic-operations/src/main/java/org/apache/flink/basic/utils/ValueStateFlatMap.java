@@ -28,22 +28,22 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
- * ValueStateFlatMap.
+ * Function that concatenates elements by the concatenation of all preceding elements.
  */
 public class ValueStateFlatMap extends RichFlatMapFunction<Tuple2<String, String>, Tuple2<String, String>> {
-	private transient ValueState<String> sumValues;
+	private transient ValueState<String> contactValues;
 
 	@Override
 	public void flatMap(Tuple2<String, String> value, Collector<Tuple2<String, String>> collector) throws Exception {
-		String sumValue = sumValues.value() + value.f1;
-		sumValues.update(sumValue);
-		collector.collect(new Tuple2<>(value.f0, sumValue));
+		String contactValue = contactValues.value() + value.f1;
+		contactValues.update(contactValue);
+		collector.collect(new Tuple2<>(value.f0, contactValue));
 	}
 
 	@Override
 	public void open(Configuration config) {
-		ValueStateDescriptor<String> descriptor =
+		final ValueStateDescriptor<String> descriptor =
 			new ValueStateDescriptor<>("sumValues", TypeInformation.of(new TypeHint<String>() {}), "");
-		sumValues = getRuntimeContext().getState(descriptor);
+		contactValues = getRuntimeContext().getState(descriptor);
 	}
 }

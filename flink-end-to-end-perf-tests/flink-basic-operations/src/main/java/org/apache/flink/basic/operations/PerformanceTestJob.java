@@ -28,6 +28,9 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.basic.utils.FromElements;
 import org.apache.flink.basic.utils.ValueStateFlatMap;
 import org.apache.flink.basic.utils.WordCountData;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -70,6 +73,96 @@ public class PerformanceTestJob {
 	private static String recordSize1KB = new String(size1KB);
 	private static String recordValue;
 
+	private enum CHECKPOINTMODE{
+		ATLEASEONCE("atleastonce"),
+		EXACTLYONCE("exactlyonce");
+
+		private String name;
+		private CHECKPOINTMODE(String name){
+			this.name = name;
+		}
+
+		public String getName(){
+			return this.name;
+		}
+	}
+
+	private enum STATEBACKEND{
+		ROCKSDB("rocksdb"),
+		HEAP("heap");
+
+		private String name;
+		private STATEBACKEND(String name){
+			this.name = name;
+		}
+
+		public String getName(){
+			return this.name;
+		}
+	}
+
+	private enum EXECUTIONMODE{
+		PIPELINED("pipelined"),
+		BATCH("batch");
+
+		private String name;
+		private EXECUTIONMODE(String name){
+			this.name = name;
+		}
+
+		public String getName(){
+			return this.name;
+		}
+	}
+
+	private enum SCHEDULEMODE{
+		EAGER("eager"),
+		LAZY_FROM_SOURCES("lazyfromsources");
+
+		private String name;
+		private SCHEDULEMODE(String name){
+			this.name = name;
+		}
+
+		public String getName(){
+			return this.name;
+		}
+	}
+
+	private static final ConfigOption<String> JOBNAME = ConfigOptions.key("jobName")
+		.defaultValue("PerformanceTestJob").withDescription("the name of test job");
+
+	private static final ConfigOption<Integer>  PARALLELISM = ConfigOptions.key("parallelism")
+		.defaultValue(1).withDescription("the parallelism of test job");
+	private static final ConfigOption<String>  OUTPUTPATH = ConfigOptions.key("outputPath")
+		.defaultValue("").withDescription("the output path of sink");
+	private static final ConfigOption<String>  CHECKPOINT_MODE = ConfigOptions.key("checkPointMode")
+		.defaultValue(CHECKPOINTMODE.ATLEASEONCE.toString()).withDescription("checkpointMode");
+	private static final ConfigOption<Integer>  CHECKPOINT_TIMEOUT = ConfigOptions.key("checkPointTimeout")
+		.defaultValue(60 * 15).withDescription("");
+	private static final ConfigOption<Long>  MAX_COUNT = ConfigOptions.key("maxCount")
+		.defaultValue(Long.MAX_VALUE).withDescription("the record num");
+	private static final ConfigOption<Integer>  SEED = ConfigOptions.key("seed")
+		.defaultValue(0).withDescription("seed of random to generate source data");
+	private static final ConfigOption<Integer>  SLEEP_NUM = ConfigOptions.key("sleepNum")
+		.defaultValue(0).withDescription("the interval of two records");
+	private static final ConfigOption<String>  STREAM_PARTITIONER = ConfigOptions.key("streamPartitioner")
+		.defaultValue("keyby").withDescription("");
+	private static final ConfigOption<String>  SCHEDULE_MODE = ConfigOptions.key("scheduleMode")
+		.defaultValue("EAGER").withDescription("");
+	private static final ConfigOption<String>  EXECUTION_MODE = ConfigOptions.key("executionMode")
+		.defaultValue("PIPELINED").withDescription("");
+	private static final ConfigOption<Long>  CHECKPOINT_INTERVAL = ConfigOptions.key("checkpointInterval")
+		.defaultValue(0L).withDescription("");
+	private static final ConfigOption<String>  CHECKPOINT_PATH = ConfigOptions.key("checkpointPath")
+		.defaultValue("").withDescription("");
+	private static final ConfigOption<String>  STATE_BACKEND = ConfigOptions.key("stateBackend")
+		.defaultValue("heap").withDescription("");
+	private static final ConfigOption<Integer>  RECORD_SIZE = ConfigOptions.key("recordSize")
+		.defaultValue(1024).withDescription("record size");
+	private static final ConfigOption<String>  TOPOLOGY_NAME = ConfigOptions.key("topologyName")
+		.defaultValue("oneInput").withDescription("The topology type ,only support oneInput or TwoInputs");
+
 	protected DataStream<Tuple2<String, String>> generateGraph(
 			String sourceName,
 			StreamExecutionEnvironment env,
@@ -89,7 +182,7 @@ public class PerformanceTestJob {
 		}
 
 		DataStream<String> sourceNode = FromElements.fromElements(env, maxCount, sleepNum,
-			WordCountData.getWords(recordValue.length(), true, seed)).setParallelism(parallism).name(sourceName);
+			WordCountData.getWords(recordValue.length(), seed)).setParallelism(parallism).name(sourceName);
 
 		DataStream<Tuple2<String, String>> flapNode =
 			sourceNode
@@ -145,23 +238,24 @@ public class PerformanceTestJob {
 	public static void main(String[] args) throws Exception {
 
 		ParameterTool paramTools = ParameterTool.fromArgs(args);
-		String jobName = paramTools.get("jobName", "Basic PerformanceTestJob");
-		int parallelism = paramTools.getInt("parallelism", 1);
-		String outputPath = paramTools.get("outputPath", "");
-		String checkPointMode = paramTools.get("checkPointMode", "AtLeastOnce").toLowerCase();
-		int checkPointTimeout = paramTools.getInt("checkPointTimeout", 60 * 15);
-		long maxCount = paramTools.getLong("maxCount", Long.MAX_VALUE);
-		int seed = paramTools.getInt("seed", 0);
-		int sleepNum = paramTools.getInt("sleepNum", 0);
-		String streamPartitioner = paramTools.get("streamPartitioner", "KeyBy").toLowerCase();
-		String scheduleMode = paramTools.get("scheduleMode", "EAGER").toLowerCase();
-		String executionMode = paramTools.get("executionMode", "PIPELINED").toLowerCase();
-		long checkpointInterval = paramTools.getLong("checkpointInterval", 0L);
-		String checkpointPath = paramTools.get("checkpointPath", "/");
-		String stateBackend = paramTools.get("stateBackend", "heap").toLowerCase();
-		long checkpointTimeout = paramTools.getLong("checkpointTimeout", 15 * 1000L);
-		int recordSize = paramTools.getInt("recordSize", 1024);
-		String topologyName = paramTools.get("topologyName", "oneInput").toLowerCase();
+		Configuration config = paramTools.getConfiguration();
+		String jobName = config.get(JOBNAME);
+		int parallelism = config.get(PARALLELISM);
+		String outputPath = config.get(OUTPUTPATH);
+		String checkPointMode = config.get(CHECKPOINT_MODE).toLowerCase();
+		int checkPointTimeout = config.get(CHECKPOINT_TIMEOUT);
+		long maxCount = config.get(MAX_COUNT);
+		int seed = config.get(SEED);
+		int sleepNum = config.get(SLEEP_NUM);
+		String streamPartitioner = config.get(STREAM_PARTITIONER).toLowerCase();
+		String scheduleMode = config.get(SCHEDULE_MODE).toLowerCase();
+		String executionMode = config.get(EXECUTION_MODE).toLowerCase();
+		long checkpointInterval = config.get(CHECKPOINT_INTERVAL);
+		String checkpointPath = config.get(CHECKPOINT_PATH);
+		String stateBackend = config.get(STATE_BACKEND).toLowerCase();
+		long checkpointTimeout = config.get(CHECKPOINT_TIMEOUT);
+		int recordSize = config.get(RECORD_SIZE);
+		String topologyName = config.get(TOPOLOGY_NAME);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getCheckpointConfig().setCheckpointTimeout(checkPointTimeout);
@@ -190,12 +284,12 @@ public class PerformanceTestJob {
 			}
 		}
 		if (checkpointInterval > 0) {
-			if ("atleastonce".equals(checkPointMode)) {
+			if (CHECKPOINTMODE.ATLEASEONCE.getName().equals(checkPointMode)) {
 				env.enableCheckpointing(checkpointInterval, CheckpointingMode.AT_LEAST_ONCE);
 			} else {
 				env.enableCheckpointing(checkpointInterval, CheckpointingMode.EXACTLY_ONCE);
 			}
-			if ("rocksdb".equals(stateBackend)) {
+			if (STATEBACKEND.ROCKSDB.getName().equals(stateBackend)) {
 				RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath, true);
 				env.setStateBackend(rocksDbBackend);
 			} else {
@@ -205,14 +299,14 @@ public class PerformanceTestJob {
 			env.getCheckpointConfig().setCheckpointTimeout(checkpointTimeout);
 		}
 
-		if ("pipelined".equals(executionMode)) {
+		if (EXECUTIONMODE.PIPELINED.getName().equals(executionMode)) {
 			env.getConfig().setExecutionMode(ExecutionMode.PIPELINED);
 		} else {
 			env.getConfig().setExecutionMode(ExecutionMode.BATCH);
 		}
 
 		StreamGraph streamGraph = env.getStreamGraph();
-		if ("eager".equals(scheduleMode)) {
+		if (SCHEDULEMODE.EAGER.getName().equals(scheduleMode)) {
 			streamGraph.getJobGraph().setScheduleMode(ScheduleMode.EAGER);
 		} else {
 			streamGraph.getJobGraph().setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);

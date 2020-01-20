@@ -44,17 +44,16 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
 /**
- * Provides the default data sets used for the WordCount example program. The default data sets are used, if no
- * parameters are given to the program.
+ * Provides the default data sets used for the WordCount example program.
  */
 public class FromElements {
 
@@ -70,7 +69,6 @@ public class FromElements {
 			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName() + "; please specify the TypeInformation manually via StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
 		}
 		Collection<OUT> dataCollection = Arrays.asList(data);
-		FromElementsRichFunction.checkCollection(dataCollection, typeInfo.getTypeClass());
 		try {
 			SourceFunction<OUT> function =
 				new FromElementsRichFunction<>(typeInfo.createSerializer(env.getConfig()),
@@ -99,9 +97,7 @@ public class FromElements {
 		private static final long serialVersionUID = 1L;
 		private final TypeSerializer<T> serializer;
 		private final byte[] elementsSerialized;
-		private volatile long numElementsEmitted;
-		private volatile long numElementsToSkip;
-		private long recordCount = 0L;
+		private volatile long numElements;
 		private long maxCount = 0L;
 		private int sleepNum = 0;
 		private transient ListState<Long> operateState;
@@ -142,32 +138,14 @@ public class FromElements {
 				"The " + getClass().getSimpleName() + " has already been initialized.");
 			this.operateState = context.getOperatorStateStore().getOperatorState(
 				new ListStateDescriptor<>("from-elements-state", LongSerializer.INSTANCE));
-			if (context.isRestored()) {
-				List<Long> retrievedStates = new ArrayList<>();
-				for (Long entry : this.operateState.get()) {
-					retrievedStates.add(entry);
-				}
-				this.numElementsToSkip = retrievedStates.get(0);
-			}
+			this.numElements = Iterables.getFirst(this.operateState.get(), 0L);
 		}
 
 		@Override
 		public void run(SourceContext<T> ctx) throws Exception {
 			ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
 			final DataInputView input = new DataInputViewStreamWrapper(bais);
-			// if we are restored from a checkpoint and need to skip elements, skip them
-			long toSkip = numElementsToSkip;
-			if (toSkip > 0) {
-				try {
-					while (toSkip > 0) {
-						serializer.deserialize(input);
-						toSkip--;
-					}
-				} catch (Exception e) {
-					throw new IOException("Failed to deserialize an element from the source. If you are using user-defined serialization (Value and Writable types), check the serialization functions.\nSerializer is " + serializer);
-				}
-				this.numElementsEmitted = this.numElementsToSkip;
-			}
+			long recordCount = 0L;
 			while (isRunning && recordCount < maxCount) {
 				recordCount++;
 				T next;
@@ -182,7 +160,7 @@ public class FromElements {
 				}
 				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(next);
-					numElementsEmitted++;
+					this.numElements++;
 					sourceTpsMetrics.markEvent();
 				}
 			}
@@ -198,31 +176,7 @@ public class FromElements {
 			Preconditions.checkState(this.operateState != null,
 				"The " + getClass().getSimpleName() + " has not been properly initialized.");
 			this.operateState.clear();
-			if (this.numElementsEmitted != 0L) {
-				this.operateState.add(1L);
-			} else {
-				this.operateState.add(0L);
-			}
-		}
-
-		/**
-		 * Verifies that all elements in the collection are non-null, and are of the given class, or a subclass
-		 * thereof.
-		 *
-		 * @param elements The collection to check.
-		 * @param viewedAs The class to which the elements must be assignable to.
-		 * @param <OUT>    The generic type of the collection to be checked.
-		 */
-		public static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {
-			for (OUT elem : elements) {
-				if (elem == null) {
-					throw new IllegalArgumentException("The collection contains a null element");
-				}
-				if (!viewedAs.isAssignableFrom(elem.getClass())) {
-					throw new IllegalArgumentException(
-						"The elements in the collection are not all subclasses of " + viewedAs.getCanonicalName());
-				}
-			}
+			this.operateState.add(1L);
 		}
 	}
 
