@@ -51,7 +51,7 @@ class ExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'createCollectionsEnvironment', 'readFile', 'readFileOfPrimitives',
                 'generateSequence', 'areExplicitEnvironmentsAllowed', 'createInput',
                 'getUserCodeClassLoader', 'getExecutorServiceLoader', 'getConfiguration',
-                'executeAsync', 'registerJobListener', 'clearJobListeners'}
+                'executeAsync', 'registerJobListener', 'clearJobListeners', 'configure'}
 
 
 if __name__ == '__main__':
