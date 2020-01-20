@@ -147,6 +147,20 @@ public class PerformanceTestJob {
 		}
 	}
 
+	private enum TOPOLOGYNAME{
+		ONEINPUT("ONEINPUT"),
+		TWOINPUTS("TWOINPUTS");
+
+		private String name;
+		private TOPOLOGYNAME(String name){
+			this.name = name;
+		}
+
+		public String getName(){
+			return this.name;
+		}
+	}
+
 	private static final ConfigOption<String> JOBNAME = ConfigOptions.key("jobName")
 		.defaultValue("PerformanceTestJob").withDescription("the name of test job");
 
@@ -212,7 +226,6 @@ public class PerformanceTestJob {
 				.flatMap(new ValueStateFlatMap());
 
 		DataStream<Tuple2<String, String>> outputNode = null;
-
 		if (STREAMPARTITIONER.FORWARD.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.forward();
 		} else if (STREAMPARTITIONER.RESCALE.getName().equals(streamPartitioner)) {
@@ -257,23 +270,22 @@ public class PerformanceTestJob {
 
 		ParameterTool paramTools = ParameterTool.fromArgs(args);
 		Configuration config = paramTools.getConfiguration();
-		String jobName = config.get(JOBNAME);
-		int parallelism = config.get(PARALLELISM);
-		String outputPath = config.get(OUTPUTPATH);
-		String checkPointMode = config.get(CHECKPOINT_MODE).toUpperCase();
-		int checkPointTimeout = config.get(CHECKPOINT_TIMEOUT);
-		long maxCount = config.get(MAX_COUNT);
-		int seed = config.get(SEED);
-		int sleepNum = config.get(SLEEP_NUM);
-		String streamPartitioner = config.get(STREAM_PARTITIONER).toUpperCase();
-		String scheduleMode = config.get(SCHEDULE_MODE).toUpperCase();
-		String executionMode = config.get(EXECUTION_MODE).toUpperCase();
-		long checkpointInterval = config.get(CHECKPOINT_INTERVAL);
-		String checkpointPath = config.get(CHECKPOINT_PATH);
-		String stateBackend = config.get(STATE_BACKEND).toUpperCase();
-		long checkpointTimeout = config.get(CHECKPOINT_TIMEOUT);
-		int recordSize = config.get(RECORD_SIZE);
-		String topologyName = config.get(TOPOLOGY_NAME);
+		String jobName = config.getString(JOBNAME);
+		int parallelism = config.getInteger(PARALLELISM);
+		String outputPath = config.getString(OUTPUTPATH);
+		String checkPointMode = config.getString(CHECKPOINT_MODE).toUpperCase();
+		int checkPointTimeout = config.getInteger(CHECKPOINT_TIMEOUT);
+		long maxCount = config.getLong(MAX_COUNT);
+		int seed = config.getInteger(SEED);
+		int sleepNum = config.getInteger(SLEEP_NUM);
+		String streamPartitioner = config.getString(STREAM_PARTITIONER).toUpperCase();
+		String scheduleMode = config.getString(SCHEDULE_MODE).toUpperCase();
+		String executionMode = config.getString(EXECUTION_MODE).toUpperCase();
+		long checkpointInterval = config.getLong(CHECKPOINT_INTERVAL);
+		String checkpointPath = config.getString(CHECKPOINT_PATH);
+		String stateBackend = config.getString(STATE_BACKEND).toUpperCase();
+		int recordSize = config.getInteger(RECORD_SIZE);
+		String topologyName = config.getString(TOPOLOGY_NAME).toUpperCase();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getCheckpointConfig().setCheckpointTimeout(checkPointTimeout);
@@ -282,7 +294,7 @@ public class PerformanceTestJob {
 		env.setMaxParallelism(30720);
 
 		PerformanceTestJob testJob = new PerformanceTestJob();
-		if ("oneinput".equals(topologyName)){
+		if (TOPOLOGYNAME.ONEINPUT.getName().equals(topologyName)){
 			DataStream<Tuple2<String, String>> output = null;
 			output = testJob.generateGraph("oneInput", env, recordSize, maxCount, sleepNum, seed, parallelism,
 				streamPartitioner,
@@ -290,7 +302,7 @@ public class PerformanceTestJob {
 			if (!"".equals(outputPath)){
 				output.writeAsText(outputPath + "/output", WriteMode.OVERWRITE).name("output").setParallelism(parallelism);
 			}
-		} else if ("twoinputs".equals(topologyName)){
+		} else if (TOPOLOGYNAME.TWOINPUTS.getName().equals(topologyName)){
 			DataStream<Tuple3<String, String, String>> output = null;
 			DataStream<Tuple2<String, String>> output1 = testJob.generateGraph("twoInputs1", env, recordSize, maxCount,
 				sleepNum, seed, parallelism, streamPartitioner, outputPath);
@@ -314,7 +326,7 @@ public class PerformanceTestJob {
 				FsStateBackend fsStateBackend = new FsStateBackend(new Path(checkpointPath));
 				env.setStateBackend(fsStateBackend);
 			}
-			env.getCheckpointConfig().setCheckpointTimeout(checkpointTimeout);
+			env.getCheckpointConfig().setCheckpointTimeout(checkPointTimeout);
 		}
 
 		if (EXECUTIONMODE.PIPELINED.getName().equals(executionMode)) {
