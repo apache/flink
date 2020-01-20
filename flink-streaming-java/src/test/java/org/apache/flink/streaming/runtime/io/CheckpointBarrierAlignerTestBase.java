@@ -85,10 +85,6 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		return createBarrierBuffer(numberOfChannels, sequence, null);
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(InputGate gate) throws IOException {
-		return createBarrierBuffer(gate, null);
-	}
-
 	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException;
 
 	abstract void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence);
