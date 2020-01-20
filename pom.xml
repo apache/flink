@@ -1321,6 +1321,9 @@ under the License.
 						<exclude>flink-core/src/test/resources/serialized-kryo-serializer-1.3</exclude>
 						<exclude>flink-core/src/test/resources/type-without-avro-serialized-using-kryo</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/flink-1.4-serializer-java-serialized</exclude>
+						<!-- snapshot and test-data for subclass of TypeSerializerUpgradeTestBase -->
+						<exclude>**/src/test/resources/**/test-data</exclude>
+						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
 
 						<exclude>flink-end-to-end-tests/flink-state-evolution-test/src/main/java/org/apache/flink/avro/generated/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
