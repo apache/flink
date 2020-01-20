@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
@@ -39,9 +38,6 @@ import org.apache.thrift.TException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,14 +46,6 @@ import java.util.stream.Collectors;
  * Shim for Hive version 1.2.0.
  */
 public class HiveShimV120 extends HiveShimV111 {
-
-	// a set of functions that shouldn't be overridden by HiveModule
-	@VisibleForTesting
-	public static final Set<String> BUILT_IN_FUNC_BLACKLIST = Collections.unmodifiableSet(new HashSet<>(
-			Arrays.asList("dense_rank", "first_value", "lag", "last_value", "lead", "rank", "row_number",
-					"hop", "hop_end", "hop_proctime", "hop_rowtime", "hop_start",
-					"session", "session_end", "session_proctime", "session_rowtime", "session_start",
-					"tumble", "tumble_end", "tumble_proctime", "tumble_rowtime", "tumble_start")));
 
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
@@ -149,7 +137,6 @@ public class HiveShimV120 extends HiveShimV111 {
 			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
 			// getFunctionNames is a static method
 			Set<String> names = (Set<String>) method.invoke(null);
-			names.removeAll(BUILT_IN_FUNC_BLACKLIST);
 
 			return names.stream()
 				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
@@ -172,7 +159,7 @@ public class HiveShimV120 extends HiveShimV111 {
 
 	private Optional<FunctionInfo> getFunctionInfo(String name) {
 		try {
-			return BUILT_IN_FUNC_BLACKLIST.contains(name) ? Optional.empty() : Optional.of(FunctionRegistry.getFunctionInfo(name));
+			return Optional.of(FunctionRegistry.getFunctionInfo(name));
 		} catch (SemanticException e) {
 			throw new FlinkHiveException(
 				String.format("Failed getting function info for %s", name), e);

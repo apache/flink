@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.client.HiveShimV120;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
@@ -145,8 +144,8 @@ public class HiveModuleTest {
 	@Test
 	public void testBlackList() {
 		HiveModule hiveModule = new HiveModule(HiveShimLoader.getHiveVersion());
-		assertFalse(hiveModule.listFunctions().removeAll(HiveShimV120.BUILT_IN_FUNC_BLACKLIST));
-		for (String banned : HiveShimV120.BUILT_IN_FUNC_BLACKLIST) {
+		assertFalse(hiveModule.listFunctions().removeAll(HiveModule.BUILT_IN_FUNC_BLACKLIST));
+		for (String banned : HiveModule.BUILT_IN_FUNC_BLACKLIST) {
 			assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());
 		}
 	}
