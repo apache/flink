@@ -28,9 +28,9 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
 /**
- * Tests the failover region building logic of the {@link RestartPipelinedRegionStrategy}.
+ * Tests the failover region building logic of the {@link RestartPipelinedRegionFailoverStrategy}.
  */
-public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
+public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogger {
 
 	/**
 	 * Tests that validates that a graph with single unconnected vertices works correctly.
@@ -53,7 +53,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
 		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
@@ -91,7 +91,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
 		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
@@ -140,7 +140,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
 		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
@@ -188,7 +188,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
 		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
@@ -237,7 +237,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
 		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
@@ -283,7 +283,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
 		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
@@ -332,7 +332,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
 		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
@@ -386,7 +386,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
 		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
@@ -432,7 +432,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
 		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
@@ -474,7 +474,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 		topologyBuilder.setContainsCoLocationConstraints(true);
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
 		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
@@ -510,7 +510,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 		topologyBuilder.setContainsCoLocationConstraints(true);
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
 		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());

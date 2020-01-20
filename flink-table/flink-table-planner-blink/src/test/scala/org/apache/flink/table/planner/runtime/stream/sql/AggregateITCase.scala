@@ -544,7 +544,7 @@ class AggregateITCase(
   }
 
   @Test
-  def testConcatAggWithNullData(): Unit = {
+  def testListAggWithNullData(): Unit = {
     val dataWithNull = List(
       (1, 1, null),
       (2, 1, null),
@@ -568,7 +568,7 @@ class AggregateITCase(
   }
 
   @Test
-  def testConcatAggWithoutDelimiterTreatNull(): Unit = {
+  def testListAggWithoutDelimiterTreatNull(): Unit = {
     val dataWithNull = List(
       (1, 1, null),
       (2, 1, null),
@@ -591,6 +591,28 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+  @Test
+  def testListAggWithDistinct(): Unit = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+    data.+=((6, 3L, "A"))
+    data.+=((7, 4L, "EF"))
+    data.+=((1, 1L, "A"))
+    data.+=((8, 4L, "EF"))
+    data.+=((8, 4L, null))
+    val sqlQuery = "SELECT b, LISTAGG(DISTINCT c, '#') FROM MyTable GROUP BY b"
+    tEnv.registerTable("MyTable",
+      failingDataSource(data).toTable(tEnv).as('a, 'b, 'c))
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List("1,A", "2,B", "3,C#A", "4,EF")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 
   @Test
   def testUnboundedGroupByCollect(): Unit = {
@@ -1013,7 +1035,7 @@ class AggregateITCase(
 
   /** Test LISTAGG **/
   @Test
-  def testConcatAgg(): Unit = {
+  def testListAgg(): Unit = {
     tEnv.registerFunction("listagg_retract", new ListAggWithRetractAggFunction)
     tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
     val sqlQuery =

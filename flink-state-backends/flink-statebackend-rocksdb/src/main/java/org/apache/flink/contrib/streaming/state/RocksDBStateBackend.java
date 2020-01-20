@@ -736,19 +736,38 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/**
 	 * Gets whether incremental checkpoints are enabled for this state backend.
+	 *
+	 * @deprecated enabled by default and will be removed in the future.
 	 */
+	@Deprecated
 	public boolean isTtlCompactionFilterEnabled() {
 		return enableTtlCompactionFilter.getOrDefault(TTL_COMPACT_FILTER_ENABLED.defaultValue());
 	}
 
 	/**
-	 * Enable compaction filter to cleanup state with TTL is enabled.
+	 * Enable compaction filter to cleanup state with TTL.
 	 *
 	 * <p>Note: User can still decide in state TTL configuration in state descriptor
 	 * whether the filter is active for particular state or not.
+	 *
+	 * @deprecated enabled by default and will be removed in the future.
 	 */
+	@Deprecated
 	public void enableTtlCompactionFilter() {
 		enableTtlCompactionFilter = TernaryBoolean.TRUE;
+	}
+
+	/**
+	 * Disable compaction filter to cleanup state with TTL.
+	 *
+	 * <p>Note: This is an advanced option and the method should only be used
+	 * when experiencing serious performance degradations during compaction in RocksDB.
+	 *
+	 * @deprecated enabled by default and will be removed in the future.
+	 */
+	@Deprecated
+	public void disableTtlCompactionFilter() {
+		enableTtlCompactionFilter = TernaryBoolean.FALSE;
 	}
 
 	// ------------------------------------------------------------------------

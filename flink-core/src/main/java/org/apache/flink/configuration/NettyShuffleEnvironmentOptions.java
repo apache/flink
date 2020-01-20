@@ -91,8 +91,8 @@ public class NettyShuffleEnvironmentOptions {
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#SHUFFLE_MEMORY_FRACTION}, {@link TaskManagerOptions#SHUFFLE_MEMORY_MIN},
-	 * and {@link TaskManagerOptions#SHUFFLE_MEMORY_MAX} instead
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION}, {@link TaskManagerOptions#NETWORK_MEMORY_MIN},
+	 * and {@link TaskManagerOptions#NETWORK_MEMORY_MAX} instead
 	 */
 	@Deprecated
 	public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
@@ -102,7 +102,7 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Fraction of JVM memory to use for network buffers.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#SHUFFLE_MEMORY_FRACTION} instead
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION} instead
 	 */
 	@Deprecated
 	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
@@ -117,7 +117,7 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Minimum memory size for network buffers.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#SHUFFLE_MEMORY_MIN} instead
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_MIN} instead
 	 */
 	@Deprecated
 	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
@@ -128,7 +128,7 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Maximum memory size for network buffers.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#SHUFFLE_MEMORY_MAX} instead
+	 * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_MAX} instead
 	 */
 	@Deprecated
 	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =

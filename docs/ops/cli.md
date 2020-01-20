@@ -98,6 +98,13 @@ These examples about how to submit a job in CLI.
 
 <div data-lang="python" markdown="1">
 
+<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command “python”. Please run the following command to confirm that the command “python” in current environment points to Python 3.5+:
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+{% endhighlight %}
+
 -   Run Python Table program:
 
         ./bin/flink run -py examples/python/table/batch/word_count.py

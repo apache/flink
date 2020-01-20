@@ -28,9 +28,18 @@ under the License.
 
 在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
+<span class="label label-info">注意</span> PyFlink的运行需要Python 3.5及以上版本。
+
+执行以下命令以确认当前环境下的指令“python”指向Python 3.5及以上版本：
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+{% endhighlight %}
+
 ## 创建一个Python Table API项目
 
-首先，使用您最熟悉的IDE创建一个Python项目。之后执行命令`pip install apache-flink`从PyPI下载安装PyFlink包。
+首先，使用您最熟悉的IDE创建一个Python项目。之后执行命令`python -m pip install apache-flink`从PyPI下载安装PyFlink包。
 如果您想从源码安装，请参考[构建PyFlink]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink)了解详细信息。
 
 ## 编写一个Flink Python Table API程序
@@ -143,4 +152,4 @@ $ python WordCount.py
 可以参考[作业提交示例]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples)。
 
 上述教程介绍了如何编写并运行一个Flink Python Table API程序，如果想了解Flink Python Table API
-的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}zh/api/python)。
+的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}/api/python)。

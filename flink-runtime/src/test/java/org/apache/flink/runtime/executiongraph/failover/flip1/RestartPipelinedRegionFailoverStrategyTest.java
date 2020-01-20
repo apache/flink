@@ -37,9 +37,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests the failure handling logic of the {@link RestartPipelinedRegionStrategy}.
+ * Tests the failure handling logic of the {@link RestartPipelinedRegionFailoverStrategy}.
  */
-public class RestartPipelinedRegionStrategyTest extends TestLogger {
+public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 
 	/**
 	 * Tests for scenes that a task fails for its own error, in which case the
@@ -76,7 +76,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		// when v1 fails, {v1,v4,v5} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
@@ -156,7 +156,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		// when v4 fails to consume data from v1, {v1,v4,v5} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
@@ -252,7 +252,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 		TestFailoverTopology topology = topologyBuilder.build();
 
 		TestResultPartitionAvailabilityChecker availabilityChecker = new TestResultPartitionAvailabilityChecker();
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology, availabilityChecker);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology, availabilityChecker);
 
 		IntermediateResultPartitionID rp1ID = v1.getProducedResults().iterator().next().getId();
 		IntermediateResultPartitionID rp2ID = v2.getProducedResults().iterator().next().getId();
@@ -372,7 +372,7 @@ public class RestartPipelinedRegionStrategyTest extends TestLogger {
 
 		TestFailoverTopology topology = topologyBuilder.build();
 
-		RestartPipelinedRegionStrategy strategy = new RestartPipelinedRegionStrategy(topology);
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
 		// when v3 fails due to internal error, {v3,v4,v5,v6} should be restarted
 		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();

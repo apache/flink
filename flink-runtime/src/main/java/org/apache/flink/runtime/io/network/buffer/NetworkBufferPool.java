@@ -505,8 +505,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 						"You can increase this number by setting the configuration keys '%s', '%s', and '%s'",
 				totalNumberOfMemorySegments,
 				memorySegmentSize,
-				TaskManagerOptions.SHUFFLE_MEMORY_FRACTION.key(),
-				TaskManagerOptions.SHUFFLE_MEMORY_MIN.key(),
-				TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
+				TaskManagerOptions.NETWORK_MEMORY_FRACTION.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MIN.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MAX.key());
 	}
 }

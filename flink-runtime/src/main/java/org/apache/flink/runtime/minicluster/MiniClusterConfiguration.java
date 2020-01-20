@@ -99,10 +99,10 @@ public class MiniClusterConfiguration {
 			toBeModifiedConfiguration.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("100m"));
 		}
 
-		if (!TaskExecutorResourceUtils.isShuffleMemoryExplicitlyConfigured(toBeModifiedConfiguration)) {
-			toBeModifiedConfiguration.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, DEFAULT_SHUFFLE_MEMORY_SIZE);
-			toBeModifiedConfiguration.set(TaskManagerOptions.SHUFFLE_MEMORY_MAX, DEFAULT_SHUFFLE_MEMORY_SIZE);
-			LOG.info("Shuffle memory is not explicitly configured, use {} for local execution.", DEFAULT_SHUFFLE_MEMORY_SIZE);
+		if (!TaskExecutorResourceUtils.isNetworkMemoryExplicitlyConfigured(toBeModifiedConfiguration)) {
+			toBeModifiedConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, DEFAULT_SHUFFLE_MEMORY_SIZE);
+			toBeModifiedConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, DEFAULT_SHUFFLE_MEMORY_SIZE);
+			LOG.info("Network memory is not explicitly configured, use {} for local execution.", DEFAULT_SHUFFLE_MEMORY_SIZE);
 		}
 
 		if (!TaskExecutorResourceUtils.isManagedMemorySizeExplicitlyConfigured(toBeModifiedConfiguration)) {
