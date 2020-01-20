@@ -45,6 +45,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpecBuilder;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -130,7 +131,7 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 		return new ContainerBuilder()
 			.withName(CONTAINER_NAME)
 			.withCommand(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH))
-			.withArgs(Arrays.asList("/bin/bash", "-c", startCommand))
+			.withArgs(Collections.singletonList(startCommand))
 			.withImage(flinkConfig.getString(KubernetesConfigOptions.CONTAINER_IMAGE))
 			.withImagePullPolicy(flinkConfig.getString(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY))
 			.withResources(requirements)

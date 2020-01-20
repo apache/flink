@@ -32,4 +32,4 @@ export FLINK_CLASSPATH
 
 echo "Start command : $*"
 
-exec "$@"
+eval "$@"
