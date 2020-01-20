@@ -144,6 +144,8 @@ $ python --version
 $ python -m pip install apache-beam==2.15.0
 {% endhighlight %}
 
+<span class="label label-info">Note</span> Currently, Python UDF is supported in Blink planner both under streaming and batch mode while is only supported under streaming mode in old planner.
+
 It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.
 
 The following example shows how to define your own Java and Python hash code functions, register them in the TableEnvironment, and call them in a query. Note that you can configure your scalar function via a constructor before it is registered:

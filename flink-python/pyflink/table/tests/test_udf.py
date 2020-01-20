@@ -19,7 +19,8 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase
+    PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
+    PyFlinkBatchTableTestCase
 
 
 class UserDefinedFunctionTests(object):
@@ -476,6 +477,17 @@ def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                                             PyFlinkStreamTableTestCase):
     pass
+
+
+class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
+
+    def test_invalid_register_udf(self):
+        self.assertRaises(
+            Exception,
+            lambda: self.t_env.register_function(
+                "add_one",
+                udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+        )
 
 
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
