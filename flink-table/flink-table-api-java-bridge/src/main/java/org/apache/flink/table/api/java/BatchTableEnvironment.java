@@ -389,14 +389,27 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 */
 	static BatchTableEnvironment create(ExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
 		try {
-			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl");
-			Constructor con = clazz.getConstructor(ExecutionEnvironment.class, TableConfig.class, CatalogManager.class, ModuleManager.class);
-			String defaultCatalog = "default_catalog";
-			CatalogManager catalogManager = new CatalogManager(
-				defaultCatalog,
-				new GenericInMemoryCatalog(defaultCatalog, "default_database")
-			);
+			// temporary solution until FLINK-15635 is fixed
+			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
 			ModuleManager moduleManager = new ModuleManager();
+
+			String defaultCatalog = "default_catalog";
+			CatalogManager catalogManager = CatalogManager.newBuilder()
+				.classLoader(classLoader)
+				.config(tableConfig.getConfiguration())
+				.defaultCatalog(
+					defaultCatalog,
+					new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+				.executionConfig(executionEnvironment.getConfig())
+				.build();
+
+			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl");
+			Constructor<?> con = clazz.getConstructor(
+				ExecutionEnvironment.class,
+				TableConfig.class,
+				CatalogManager.class,
+				ModuleManager.class);
 			return (BatchTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager);
 		} catch (Throwable t) {
 			throw new TableException("Create BatchTableEnvironment failed.", t);

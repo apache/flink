@@ -349,23 +349,30 @@ object BatchTableEnvironment {
   def create(executionEnvironment: ExecutionEnvironment, tableConfig: TableConfig)
   : BatchTableEnvironment = {
     try {
+      // temporary solution until FLINK-15635 is fixed
+      val classLoader = Thread.currentThread.getContextClassLoader
+
+      val moduleManager = new ModuleManager
+
+      val defaultCatalog = "default_catalog"
+      val catalogManager = CatalogManager.newBuilder
+        .classLoader(classLoader)
+        .config(tableConfig.getConfiguration)
+        .defaultCatalog(
+          defaultCatalog,
+          new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+        .executionConfig(executionEnvironment.getConfig)
+        .build
+
       val clazz = Class
         .forName("org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl")
-      val const = clazz
+      val con = clazz
         .getConstructor(
           classOf[ExecutionEnvironment],
           classOf[TableConfig],
           classOf[CatalogManager],
           classOf[ModuleManager])
-      val builtInCatalog = "default_catalog"
-      val catalogManager = new CatalogManager(
-        "default_catalog",
-        new GenericInMemoryCatalog(
-          builtInCatalog,
-          "default_database")
-      )
-      val moduleManager = new ModuleManager
-      const.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager)
+      con.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager)
         .asInstanceOf[BatchTableEnvironment]
     } catch {
       case t: Throwable => throw new TableException("Create BatchTableEnvironment failed.", t)

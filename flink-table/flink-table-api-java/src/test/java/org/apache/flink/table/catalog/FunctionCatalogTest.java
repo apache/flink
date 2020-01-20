@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -63,7 +64,10 @@ public class FunctionCatalogTest {
 		moduleManager = new ModuleManager();
 		functionCatalog = new FunctionCatalog(
 			TableConfig.getDefault(),
-			new CatalogManager(testCatalogName, catalog), moduleManager);
+			CatalogManagerMocks.preparedCatalogManager()
+				.defaultCatalog(testCatalogName, catalog)
+				.build(),
+			moduleManager);
 	}
 
 	@Test
