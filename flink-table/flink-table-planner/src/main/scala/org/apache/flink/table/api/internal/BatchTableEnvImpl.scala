@@ -300,6 +300,9 @@ abstract class BatchTableEnvImpl(
 
     logicalPlan match {
       case node: DataSetRel =>
+        execEnv.configure(
+          config.getConfiguration,
+          Thread.currentThread().getContextClassLoader)
         val plan = node.translateToPlan(this, new BatchQueryConfig)
         val conversion =
           getConversionMapper(
