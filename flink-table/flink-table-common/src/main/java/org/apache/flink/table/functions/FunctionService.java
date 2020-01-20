@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.ClassInstanceValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -89,17 +88,17 @@ public class FunctionService {
 		}
 
 		// instantiate
-		Tuple2<Class<Object>, Object> tuple2 = generateInstance(
+		Object instance = generateInstance(
 				HierarchyDescriptorValidator.EMPTY_PREFIX,
 				properties,
 				classLoader);
 
-		if (!UserDefinedFunction.class.isAssignableFrom(tuple2.f0)) {
+		if (!UserDefinedFunction.class.isAssignableFrom(instance.getClass())) {
 			throw new ValidationException(String.format(
 					"Instantiated class '%s' is not a user-defined function.",
-					tuple2.f0.getName()));
+					instance.getClass().getName()));
 		}
-		return (UserDefinedFunction) tuple2.f1;
+		return (UserDefinedFunction) instance;
 	}
 
 	/**
