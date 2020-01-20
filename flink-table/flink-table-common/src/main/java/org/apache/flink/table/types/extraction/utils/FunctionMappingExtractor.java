@@ -21,7 +21,7 @@ package org.apache.flink.table.types.extraction.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -60,7 +60,7 @@ import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findRe
 @Internal
 public final class FunctionMappingExtractor {
 
-	private final DataTypeLookup lookup;
+	private final DataTypeFactory typeFactory;
 
 	private final Class<? extends UserDefinedFunction> function;
 
@@ -75,14 +75,14 @@ public final class FunctionMappingExtractor {
 	private final MethodVerification verification;
 
 	public FunctionMappingExtractor(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<? extends UserDefinedFunction> function,
 			String methodName,
 			SignatureExtraction signatureExtraction,
 			@Nullable ResultExtraction accumulatorExtraction,
 			ResultExtraction outputExtraction,
 			MethodVerification verification) {
-		this.lookup = lookup;
+		this.typeFactory = typeFactory;
 		this.function = function;
 		this.methodName = methodName;
 		this.signatureExtraction = signatureExtraction;
@@ -139,7 +139,7 @@ public final class FunctionMappingExtractor {
 			ResultExtraction resultExtraction,
 			Function<FunctionTemplate, FunctionResultTemplate> accessor,
 			MethodVerification verification) {
-		final Set<FunctionTemplate> global = extractGlobalFunctionTemplates(lookup, function);
+		final Set<FunctionTemplate> global = extractGlobalFunctionTemplates(typeFactory, function);
 		final Set<FunctionResultTemplate> globalResultOnly = findResultOnlyTemplates(global, accessor);
 
 		// for each method find a signature that maps to results
@@ -184,7 +184,7 @@ public final class FunctionMappingExtractor {
 			ResultExtraction resultExtraction,
 			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
 		final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod = new HashMap<>();
-		final Set<FunctionTemplate> local = extractLocalFunctionTemplates(lookup, method);
+		final Set<FunctionTemplate> local = extractLocalFunctionTemplates(typeFactory, method);
 
 		final Set<FunctionResultTemplate> localResultOnly = findResultOnlyTemplates(
 			local,
@@ -311,7 +311,7 @@ public final class FunctionMappingExtractor {
 	public static SignatureExtraction createParameterSignatureExtraction(int offset) {
 		return (extractor, method) -> {
 			final List<FunctionArgumentTemplate> parameterTypes = extractArgumentTemplates(
-				extractor.lookup,
+				extractor.typeFactory,
 				extractor.function,
 				method,
 				offset);
@@ -323,13 +323,13 @@ public final class FunctionMappingExtractor {
 	}
 
 	private static List<FunctionArgumentTemplate> extractArgumentTemplates(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<? extends UserDefinedFunction> function,
 			Method method,
 			int offset) {
 		return IntStream.range(offset, method.getParameterCount())
 			.mapToObj(i -> {
-				final DataType type = DataTypeExtractor.extractFromMethodParameter(lookup, function, method, i);
+				final DataType type = DataTypeExtractor.extractFromMethodParameter(typeFactory, function, method, i);
 				// unwrap from ARRAY data type in case of varargs
 				if (method.isVarArgs() && i == method.getParameterCount() - 1 && type instanceof CollectionDataType) {
 					return ((CollectionDataType) type).getElementDataType();
@@ -357,7 +357,7 @@ public final class FunctionMappingExtractor {
 	public static ResultExtraction createReturnTypeResultExtraction() {
 		return (extractor, method) -> {
 			final DataType dataType = DataTypeExtractor.extractFromMethodOutput(
-				extractor.lookup,
+				extractor.typeFactory,
 				extractor.function,
 				method);
 			return FunctionResultTemplate.of(dataType);
@@ -370,7 +370,7 @@ public final class FunctionMappingExtractor {
 	public static ResultExtraction createGenericResultExtraction(Class<? extends UserDefinedFunction> baseClass, int genericPos) {
 		return (extractor, method) -> {
 			final DataType dataType = DataTypeExtractor.extractFromGeneric(
-				extractor.lookup,
+				extractor.typeFactory,
 				baseClass,
 				genericPos,
 				extractor.function);

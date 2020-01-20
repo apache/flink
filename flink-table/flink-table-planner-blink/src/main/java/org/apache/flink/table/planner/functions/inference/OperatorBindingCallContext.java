@@ -46,7 +46,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 			FunctionDefinition definition,
 			SqlOperatorBinding binding) {
 		super(
-			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeLookup(),
+			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeFactory(),
 			definition,
 			binding.getOperator().getNameAsId().toString());
 

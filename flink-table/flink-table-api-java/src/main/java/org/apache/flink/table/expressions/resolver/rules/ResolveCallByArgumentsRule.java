@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
@@ -187,7 +187,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			final Result inferenceResult = TypeInferenceUtil.runTypeInference(
 				inference,
 				new TableApiCallContext(
-					new UnsupportedDataTypeLookup(),
+					new UnsupportedDataTypeFactory(),
 					name,
 					unresolvedCall.getFunctionDefinition(),
 					resolvedArgs),
@@ -275,27 +275,32 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static class UnsupportedDataTypeLookup implements DataTypeLookup {
+	private static class UnsupportedDataTypeFactory implements DataTypeFactory {
 
 		@Override
-		public Optional<DataType> lookupDataType(String name) {
-			throw new TableException("Data type lookup is not supported yet.");
+		public Optional<DataType> createDataType(String name) {
+			throw new TableException("Data type factory is not supported yet.");
 		}
 
 		@Override
-		public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
-			throw new TableException("Data type lookup is not supported yet.");
+		public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
+			throw new TableException("Data type factory is not supported yet.");
 		}
 
 		@Override
-		public DataType resolveRawDataType(Class<?> clazz) {
-			throw new TableException("Data type lookup is not supported yet.");
+		public <T> DataType createDataType(Class<T> clazz) {
+			throw new TableException("Data type factory is not supported yet.");
+		}
+
+		@Override
+		public <T> DataType createRawDataType(Class<T> clazz) {
+			throw new TableException("Data type factory is not supported yet.");
 		}
 	}
 
 	private static class TableApiCallContext implements CallContext {
 
-		private final DataTypeLookup lookup;
+		private final DataTypeFactory typeFactory;
 
 		private final String name;
 
@@ -304,19 +309,19 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		private final List<ResolvedExpression> resolvedArgs;
 
 		public TableApiCallContext(
-				DataTypeLookup lookup,
+				DataTypeFactory typeFactory,
 				String name,
 				FunctionDefinition definition,
 				List<ResolvedExpression> resolvedArgs) {
-			this.lookup = lookup;
+			this.typeFactory = typeFactory;
 			this.name = name;
 			this.definition = definition;
 			this.resolvedArgs = resolvedArgs;
 		}
 
 		@Override
-		public DataTypeLookup getDataTypeLookup() {
-			return lookup;
+		public DataTypeFactory getDataTypeFactory() {
+			return typeFactory;
 		}
 
 		@Override

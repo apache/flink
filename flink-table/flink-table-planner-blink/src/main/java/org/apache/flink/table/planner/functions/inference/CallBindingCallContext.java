@@ -56,7 +56,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 			SqlCallBinding binding,
 			@Nullable RelDataType outputType) {
 		super(
-			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeLookup(),
+			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeFactory(),
 			definition,
 			binding.getOperator().getNameAsId().toString());
 
