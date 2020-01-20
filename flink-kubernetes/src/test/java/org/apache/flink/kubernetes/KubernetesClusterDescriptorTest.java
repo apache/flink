@@ -18,14 +18,17 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Service;
@@ -43,23 +46,12 @@ import static org.junit.Assert.assertEquals;
  */
 public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
+	private final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+		.createClusterSpecification();
+
 	@Test
 	public void testDeploySessionCluster() throws Exception {
-		final FlinkKubeClient flinkKubeClient = getFabric8FlinkKubeClient();
-		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(FLINK_CONFIG, flinkKubeClient);
-
-		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(1234)
-			.setTaskManagerMemoryMB(1222)
-			.setSlotsPerTaskManager(1)
-			.createClusterSpecification();
-
-		final ClusterClient<String> clusterClient =
-				descriptor.deploySessionCluster(clusterSpecification).getClusterClient();
-
-		assertEquals(CLUSTER_ID, clusterClient.getClusterId());
-		assertEquals(String.format("http://%s:8081", MOCK_SERVICE_IP), clusterClient.getWebInterfaceURL());
-
+		final ClusterClient<String> clusterClient = deploySessionCluster();
 		// Check updated flink config options
 		assertEquals(String.valueOf(Constants.BLOB_SERVER_PORT), FLINK_CONFIG.getString(BlobServerOptions.PORT));
 		assertEquals(String.valueOf(Constants.TASK_MANAGER_RPC_PORT), FLINK_CONFIG.getString(TaskManagerOptions.RPC_PORT));
@@ -96,6 +88,15 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 	}
 
 	@Test
+	public void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
+		FLINK_CONFIG.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
+
+		final ClusterClient<String> clusterClient = deploySessionCluster();
+
+		clusterClient.close();
+	}
+
+	@Test
 	public void testKillCluster() throws Exception {
 		final FlinkKubeClient flinkKubeClient = getFabric8FlinkKubeClient();
 		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(FLINK_CONFIG, flinkKubeClient);
@@ -118,4 +119,18 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 			services.get(0).getMetadata().getOwnerReferences().get(0).getUid());
 	}
 
+	private ClusterClient<String> deploySessionCluster() throws ClusterDeploymentException {
+		final FlinkKubeClient flinkKubeClient = getFabric8FlinkKubeClient();
+		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(FLINK_CONFIG, flinkKubeClient);
+
+		final ClusterClient<String> clusterClient = descriptor
+			.deploySessionCluster(clusterSpecification)
+			.getClusterClient();
+
+		assertEquals(CLUSTER_ID, clusterClient.getClusterId());
+		// Both HA and non-HA mode, the web interface should always be the Kubernetes exposed service address.
+		assertEquals(String.format("http://%s:8081", MOCK_SERVICE_IP), clusterClient.getWebInterfaceURL());
+
+		return clusterClient;
+	}
 }
