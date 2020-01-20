@@ -195,7 +195,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 	@Ignore
 	@Test
 	public void generateTestSetupFiles() throws Exception {
-		Files.createDirectory(getSerializerSnapshotFilePath().getParent());
+		Files.createDirectories(getSerializerSnapshotFilePath().getParent());
 
 		try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(testSpecification.setup.setupClassloader)) {
 			TypeSerializer<PreviousElementT> priorSerializer = testSpecification.setup.createPriorSerializer();
