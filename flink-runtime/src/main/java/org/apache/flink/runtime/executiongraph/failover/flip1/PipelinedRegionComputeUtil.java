@@ -29,9 +29,11 @@ import org.apache.flink.runtime.topology.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -59,27 +61,6 @@ public final class PipelinedRegionComputeUtil {
 			.collect(Collectors.toSet());
 	}
 
-	protected static <V> V getRegion(Map<V, V> vertexToRegion, V vertex) {
-		V region = vertexToRegion.get(vertex);
-		if (region == null) {
-			vertexToRegion.put(vertex, vertex);
-			return vertex;
-		}
-		if (region == vertex) {
-			return vertex;
-		}
-		region = getRegion(vertexToRegion, region);
-		vertexToRegion.put(vertex, region);
-		return region;
-	}
-
-	protected static <V> V mergeRegion(Map<V, V> vertexToRegion, V region1,  V region2) {
-		region1 = getRegion(vertexToRegion, region1);
-		region2 = getRegion(vertexToRegion, region2);
-		vertexToRegion.put(region2, region1);
-		return region1;
-	}
-
 	public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> computePipelinedRegions(
 			final Topology<?, ?, V, R> topology) {
 
@@ -88,33 +69,19 @@ public final class PipelinedRegionComputeUtil {
 		if (topology.containsCoLocationConstraints()) {
 			return uniqueRegions(buildOneRegionForAllVertices(topology));
 		}
-
-		final Map<V, V> vertexUnionSet = new IdentityHashMap<>();
-		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
-
+		DisjointSet<V> sets = new DisjointSet<V>(topology.getVertices());
 		// iterate all the vertices which are topologically sorted
 		for (V vertex : topology.getVertices()) {
-			if (vertexUnionSet.get(vertex) == null) {
-				vertexUnionSet.put(vertex, vertex);
-			}
+			int set = sets.getSet(vertex);
 			for (R consumedResult : vertex.getConsumedResults()) {
 				if (consumedResult.getResultType().isPipelined()) {
 					final V producerVertex = consumedResult.getProducer();
-					mergeRegion(vertexUnionSet, producerVertex, vertex);
+					int set2 = sets.getSet(producerVertex);
+					set = sets.mergeSet(set, set2);
 				}
 			}
 		}
-
-		for(V vertex : topology.getVertices()) {
-			V region = getRegion(vertexUnionSet, vertex);
-			Set<V> set = vertexToRegion.get(region);
-			if (set == null) {
-				set = new HashSet<>(1);
-				vertexToRegion.put(region, set);
-			}
-			set.add(vertex);
-		}
-		return uniqueRegions(vertexToRegion);
+		return sets.toSets();
 	}
 
 	private static <V extends Vertex<?, ?, V, ?>> Map<V, Set<V>> buildOneRegionForAllVertices(
