@@ -20,7 +20,7 @@ package org.apache.flink.table.types.extraction.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.FunctionHint;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 
 import javax.annotation.Nullable;
@@ -45,26 +45,26 @@ final class TemplateUtils {
 	 * Retrieve global templates from function class.
 	 */
 	static Set<FunctionTemplate> extractGlobalFunctionTemplates(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			Class<? extends UserDefinedFunction> function) {
-		return asFunctionTemplates(lookup, collectAnnotationsOfClass(FunctionHint.class, function));
+		return asFunctionTemplates(typeFactory, collectAnnotationsOfClass(FunctionHint.class, function));
 	}
 
 	/**
 	 * Retrieve local templates from function method.
 	 */
-	static Set<FunctionTemplate> extractLocalFunctionTemplates(DataTypeLookup lookup, Method method) {
-		return asFunctionTemplates(lookup, collectAnnotationsOfMethod(FunctionHint.class, method));
+	static Set<FunctionTemplate> extractLocalFunctionTemplates(DataTypeFactory typeFactory, Method method) {
+		return asFunctionTemplates(typeFactory, collectAnnotationsOfMethod(FunctionHint.class, method));
 	}
 
 	/**
 	 * Converts {@link FunctionHint}s to {@link FunctionTemplate}.
 	 */
-	static Set<FunctionTemplate> asFunctionTemplates(DataTypeLookup lookup, Set<FunctionHint> hints) {
+	static Set<FunctionTemplate> asFunctionTemplates(DataTypeFactory typeFactory, Set<FunctionHint> hints) {
 		return hints.stream()
 			.map(hint -> {
 				try {
-					return FunctionTemplate.fromAnnotation(lookup, hint);
+					return FunctionTemplate.fromAnnotation(typeFactory, hint);
 				} catch (Throwable t) {
 					throw extractionError(t, "Error in function hint annotation.");
 				}

@@ -179,7 +179,9 @@ public final class TypeInference {
 		}
 
 		public TypeInference build() {
-			return new TypeInference(namedArguments, typedArguments,
+			return new TypeInference(
+				namedArguments,
+				typedArguments,
 				inputTypeStrategy,
 				accumulatorTypeStrategy,
 				Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null."));

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference.utils;
 
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
@@ -29,26 +29,26 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 
 /**
- * {@link DataTypeLookup} mock for testing purposes.
+ * {@link DataTypeFactory} mock for testing purposes.
  */
-public class DataTypeLookupMock implements DataTypeLookup {
+public class DataTypeFactoryMock implements DataTypeFactory {
 
 	public Optional<DataType> dataType = Optional.empty();
 
 	public Optional<Class<?>> expectedClass = Optional.empty();
 
 	@Override
-	public Optional<DataType> lookupDataType(String name) {
+	public Optional<DataType> createDataType(String name) {
 		return Optional.of(TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name)));
 	}
 
 	@Override
-	public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
+	public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
 		return dataType;
 	}
 
 	@Override
-	public DataType resolveRawDataType(Class<?> clazz) {
+	public <T> DataType createRawDataType(Class<T> clazz) {
 		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
 		return dataType.orElseThrow(IllegalStateException::new);
 	}

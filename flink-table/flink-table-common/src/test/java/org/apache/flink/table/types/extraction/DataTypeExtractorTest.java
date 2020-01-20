@@ -26,13 +26,13 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeHintMock;
 import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
-import org.apache.flink.table.types.inference.utils.DataTypeLookupMock;
+import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
@@ -397,16 +397,16 @@ public class DataTypeExtractorTest {
 	 */
 	static class TestSpec {
 
-		private final Function<DataTypeLookup, DataType> extractor;
+		private final Function<DataTypeFactory, DataType> extractor;
 
-		private DataTypeLookupMock lookup;
+		private DataTypeFactoryMock typeFactory;
 
 		private @Nullable DataType expectedDataType;
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(Function<DataTypeLookup, DataType> extractor) {
-			this.lookup = new DataTypeLookupMock();
+		private TestSpec(Function<DataTypeFactory, DataType> extractor) {
+			this.typeFactory = new DataTypeFactoryMock();
 			this.extractor = extractor;
 		}
 
@@ -441,8 +441,8 @@ public class DataTypeExtractorTest {
 		}
 
 		TestSpec lookupExpects(Class<?> lookupClass) {
-			lookup.dataType = Optional.of(DataTypes.RAW(new GenericTypeInfo<>(lookupClass)));
-			lookup.expectedClass = Optional.of(lookupClass);
+			typeFactory.dataType = Optional.of(DataTypes.RAW(new GenericTypeInfo<>(lookupClass)));
+			typeFactory.expectedClass = Optional.of(lookupClass);
 			return this;
 		}
 
@@ -458,7 +458,7 @@ public class DataTypeExtractorTest {
 	}
 
 	static void runExtraction(TestSpec testSpec) {
-		final DataType dataType = testSpec.extractor.apply(testSpec.lookup);
+		final DataType dataType = testSpec.extractor.apply(testSpec.typeFactory);
 		if (testSpec.expectedDataType != null) {
 			assertThat(dataType, equalTo(testSpec.expectedDataType));
 		}

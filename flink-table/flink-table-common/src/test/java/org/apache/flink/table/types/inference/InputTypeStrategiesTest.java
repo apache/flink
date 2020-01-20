@@ -23,7 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
-import org.apache.flink.table.types.inference.utils.DataTypeLookupMock;
+import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 
 import org.junit.Rule;
@@ -421,7 +421,7 @@ public class InputTypeStrategiesTest {
 		functionDefinitionMock.functionKind = FunctionKind.SCALAR;
 
 		final CallContextMock callContextMock = new CallContextMock();
-		callContextMock.lookup = new DataTypeLookupMock();
+		callContextMock.typeFactory = new DataTypeFactoryMock();
 		callContextMock.functionDefinition = functionDefinitionMock;
 		callContextMock.argumentDataTypes = actualArgumentTypes;
 		callContextMock.argumentLiterals = IntStream.range(0, actualArgumentTypes.size())
