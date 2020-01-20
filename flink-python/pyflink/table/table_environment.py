@@ -744,7 +744,7 @@ class TableEnvironment(object):
         :type function: pyflink.table.udf.UserDefinedFunctionWrapper
         """
         if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
-            raise Exception("Python UDF is not supported for Flink Planner under batch mode!")
+            raise Exception("Python UDF is not supported in old planner under batch mode!")
         self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
                                                            self.get_config()._j_table_config))
 
