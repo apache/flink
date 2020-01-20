@@ -260,12 +260,13 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					}
 				} else {
 					long count = entry.getValue();
-					long tmpRank = curRank + count;
-					if (isInRankEnd(tmpRank)) {
-						curRank = tmpRank;
+					// gets the rank of last record with same sortKey
+					long rankOfLastRecord = curRank + count;
+					// deletes the record if there is a record recently downgrades to Top-(N+1)
+					if (isInRankEnd(rankOfLastRecord)) {
+						curRank = rankOfLastRecord;
 					} else {
 						int index = Long.valueOf(rankEnd - curRank).intValue();
-						// delete retired message
 						toDelete = inputs.get(index);
 						break;
 					}
@@ -380,14 +381,15 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				}
 			} else if (findsSortKey) {
 				long count = entry.getValue();
-				long tmpRank = curRank + count;
-				if (tmpRank < rankEnd) {
-					curRank = tmpRank;
+				// gets the rank of last record with same sortKey
+				long rankOfLastRecord = curRank + count;
+				// sends the record if there is a record recently upgrades to Top-N
+				if (rankOfLastRecord < rankEnd) {
+					curRank = rankOfLastRecord;
 				} else {
-					int index = Long.valueOf(rankEnd - curRank -1).intValue();
+					int index = Long.valueOf(rankEnd - curRank - 1).intValue();
 					List<BaseRow> inputs = dataState.get(key);
 					BaseRow toAdd = inputs.get(index);
-					// send row which upgrades to TopN
 					collect(out, toAdd);
 					break;
 				}
