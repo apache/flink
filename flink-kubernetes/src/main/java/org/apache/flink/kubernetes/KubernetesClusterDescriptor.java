@@ -27,6 +27,7 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -39,7 +40,10 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -91,7 +95,13 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			}
 
 			try {
-				return new RestClusterClient<>(configuration, clusterId);
+				// Flink client will always use Kubernetes service to contact with jobmanager. So we have a pre-configured web
+				// monitor address. Using StandaloneClientHAServices to create RestClusterClient is reasonable.
+				return new RestClusterClient<>(
+					configuration,
+					clusterId,
+					new StandaloneClientHAServices(HighAvailabilityServicesUtils.getWebMonitorAddress(
+						configuration, HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION)));
 			} catch (Exception e) {
 				client.handleException(e);
 				throw new RuntimeException(new ClusterRetrieveException("Could not create the RestClusterClient.", e));
