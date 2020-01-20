@@ -18,10 +18,15 @@
 
 package org.apache.flink.table.planner.codegen
 
+import java.lang.{Integer => JInt, Long => JLong}
+import java.util.Collections
+
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
+import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.dataformat.{GenericRow, SqlTimestamp}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
@@ -30,14 +35,9 @@ import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
-
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.flink.table.utils.CatalogManagerMocks
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
-
-import java.lang.{Integer => JInt, Long => JLong}
-import java.util.Collections
 
 /**
   * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].
@@ -46,8 +46,7 @@ class WatermarkGeneratorCodeGenTest {
 
   // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
   val config = new TableConfig
-  val catalog = new GenericInMemoryCatalog("MockCatalog", "default")
-  val catalogManager = new CatalogManager("builtin", catalog)
+  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
   val plannerContext = new PlannerContext(
     config,
@@ -101,7 +100,10 @@ class WatermarkGeneratorCodeGenTest {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
     functionCatalog.registerTempCatalogScalarFunction(
-      ObjectIdentifier.of("builtin", "default", "myFunc"),
+      ObjectIdentifier.of(
+        CatalogManagerMocks.DEFAULT_CATALOG,
+        CatalogManagerMocks.DEFAULT_DATABASE,
+        "myFunc"),
       new JavaFunc5
     )
     val generator = generateWatermarkGenerator("myFunc(ts, `offset`)")

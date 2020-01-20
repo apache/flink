@@ -57,6 +57,7 @@ import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
@@ -83,8 +84,9 @@ public class SqlToOperationConverterTest {
 	private final TableConfig tableConfig = new TableConfig();
 	private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog",
 		"default");
-	private final CatalogManager catalogManager =
-		new CatalogManager("builtin", catalog);
+	private final CatalogManager catalogManager = CatalogManagerMocks.preparedCatalogManager()
+		.defaultCatalog("builtin", catalog)
+		.build();
 	private final ModuleManager moduleManager = new ModuleManager();
 	private final FunctionCatalog functionCatalog = new FunctionCatalog(
 		tableConfig,

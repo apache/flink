@@ -26,9 +26,9 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExecutorMock;
 import org.apache.flink.table.utils.PlannerMock;
 import org.apache.flink.types.Row;
@@ -91,7 +91,7 @@ public class StreamTableEnvironmentImplTest {
 			StreamExecutionEnvironment env,
 			DataStreamSource<Integer> elements) {
 		TableConfig config = new TableConfig();
-		CatalogManager catalogManager = new CatalogManager("cat", new GenericInMemoryCatalog("cat", "db"));
+		CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 		ModuleManager moduleManager = new ModuleManager();
 		return new StreamTableEnvironmentImpl(
 			catalogManager,

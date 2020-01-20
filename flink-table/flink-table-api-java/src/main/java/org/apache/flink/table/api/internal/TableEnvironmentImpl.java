@@ -190,13 +190,23 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	public static TableEnvironmentImpl create(EnvironmentSettings settings) {
 
+		// temporary solution until FLINK-15635 is fixed
+		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
 		TableConfig tableConfig = new TableConfig();
 
-		CatalogManager catalogManager = new CatalogManager(
-			settings.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
-
 		ModuleManager moduleManager = new ModuleManager();
+
+		CatalogManager catalogManager = CatalogManager.newBuilder()
+			.classLoader(classLoader)
+			.config(tableConfig.getConfiguration())
+			.defaultCatalog(
+				settings.getBuiltInCatalogName(),
+				new GenericInMemoryCatalog(
+					settings.getBuiltInCatalogName(),
+					settings.getBuiltInDatabaseName()))
+			.build();
+
 		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
 		Map<String, String> executorProperties = settings.toExecutorProperties();
@@ -205,7 +215,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		Map<String, String> plannerProperties = settings.toPlannerProperties();
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
+			.create(
+				plannerProperties,
+				executor,
+				tableConfig,
+				functionCatalog,
+				catalogManager);
 
 		return new TableEnvironmentImpl(
 			catalogManager,
