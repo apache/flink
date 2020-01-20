@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -47,11 +46,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
 	}
 
 	@Override
