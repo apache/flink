@@ -123,7 +123,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	 */
 	@Override
 	public void close() throws Exception {
-		// Marks shut down and exit if it already was shut down.
+		// Marks shut down and exit if it has already shut down.
 		if (!isShutdown.compareAndSet(false, true)) {
 			return;
 		}

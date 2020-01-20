@@ -23,6 +23,8 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -32,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.time.Duration;
 
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -42,7 +43,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Tests the logic of {@link FileChannelManagerImpl}.
  */
-public class FileChannelManagerImplTest {
+public class FileChannelManagerImplTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(FileChannelManagerImplTest.class);
 
 	private static final String DIR_NAME_PREFIX = "manager-test";
@@ -73,18 +74,12 @@ public class FileChannelManagerImplTest {
 		File fileChannelDir = temporaryFolder.newFolder();
 		File signalDir = temporaryFolder.newFolder();
 
-		FileChannelManagerTestProcess fileChannelManagerTestProcess = null;
-
-		String javaCommand = getJavaCommandPath();
-		if (javaCommand == null) {
-			fail("Could not find java executable.");
-		}
+		FileChannelManagerTestProcess fileChannelManagerTestProcess = new FileChannelManagerTestProcess(
+			callerHasHook,
+			fileChannelDir.getAbsolutePath(),
+			FilenameUtils.concat(signalDir.getAbsolutePath(), COULD_KILL_SIGNAL_FILE));
 
 		try {
-			fileChannelManagerTestProcess = new FileChannelManagerTestProcess(
-					callerHasHook,
-					fileChannelDir.getAbsolutePath(),
-					FilenameUtils.concat(signalDir.getAbsolutePath(), COULD_KILL_SIGNAL_FILE));
 			fileChannelManagerTestProcess.startProcess();
 
 			// Waits till netty shuffle environment has created the tmp directories.
@@ -119,9 +114,7 @@ public class FileChannelManagerImplTest {
 					fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX),
 					is(false));
 		} finally {
-			if (fileChannelManagerTestProcess != null) {
-				fileChannelManagerTestProcess.destroy();
-			}
+			fileChannelManagerTestProcess.destroy();
 		}
 	}
 
@@ -138,7 +131,7 @@ public class FileChannelManagerImplTest {
 		private final String tmpDirectories;
 		private final String couldKillSignalFilePath;
 
-		public FileChannelManagerTestProcess(boolean callerHasHook, String tmpDirectories, String couldKillSignalFilePath) throws Exception {
+		FileChannelManagerTestProcess(boolean callerHasHook, String tmpDirectories, String couldKillSignalFilePath) throws Exception {
 			this.callerHasHook = callerHasHook;
 			this.tmpDirectories = tmpDirectories;
 			this.couldKillSignalFilePath = couldKillSignalFilePath;
@@ -177,10 +170,12 @@ public class FileChannelManagerImplTest {
 			FileChannelManager manager = new FileChannelManagerImpl(new String[]{tmpDirectory}, DIR_NAME_PREFIX);
 
 			if (callerHasHook) {
+				// Verifies the case that both FileChannelManager and its upper component
+				// have registered shutdown hooks, like in IOManager.
 				ShutdownHookUtil.addShutdownHook(() -> manager.close(), "Caller", LOG);
 			}
 
-			// Single main process what we can be killed.
+			// Singles main process what we can be killed.
 			new File(couldKillSignalFilePath).createNewFile();
 
 			// Waits till get killed. If we have not killed in time, make sure we exit finally.
