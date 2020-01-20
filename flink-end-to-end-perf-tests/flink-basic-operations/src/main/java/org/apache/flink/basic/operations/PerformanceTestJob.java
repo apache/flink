@@ -73,9 +73,27 @@ public class PerformanceTestJob {
 	private static String recordSize1KB = new String(size1KB);
 	private static String recordValue;
 
+	private enum  STREAMPARTITIONER{
+		FORWARD("FORWARD"),
+		RESCALE("RESCALE"),
+		REBALANCE("REBALANCE"),
+		SHUFFLE("SHUFFLE"),
+		KEYBY("KEYBY"),
+		BROADCAST("BROADCAST");
+
+		private String name;
+		private STREAMPARTITIONER(String name){
+			this.name = name;
+		}
+
+		public String getName(){
+			return this.name;
+		}
+	}
+
 	private enum CHECKPOINTMODE{
-		ATLEASEONCE("atleastonce"),
-		EXACTLYONCE("exactlyonce");
+		ATLEASEONCE("ATLEASEONCE"),
+		EXACTLYONCE("EXACTLYONCE");
 
 		private String name;
 		private CHECKPOINTMODE(String name){
@@ -88,8 +106,8 @@ public class PerformanceTestJob {
 	}
 
 	private enum STATEBACKEND{
-		ROCKSDB("rocksdb"),
-		HEAP("heap");
+		ROCKSDB("ROCKSDB"),
+		HEAP("HEAP");
 
 		private String name;
 		private STATEBACKEND(String name){
@@ -102,8 +120,8 @@ public class PerformanceTestJob {
 	}
 
 	private enum EXECUTIONMODE{
-		PIPELINED("pipelined"),
-		BATCH("batch");
+		PIPELINED("PIPELINED"),
+		BATCH("BATCH");
 
 		private String name;
 		private EXECUTIONMODE(String name){
@@ -116,8 +134,8 @@ public class PerformanceTestJob {
 	}
 
 	private enum SCHEDULEMODE{
-		EAGER("eager"),
-		LAZY_FROM_SOURCES("lazyfromsources");
+		EAGER("EAGER"),
+		LAZY_FROM_SOURCES("LAZY_FROM_SOURCES");
 
 		private String name;
 		private SCHEDULEMODE(String name){
@@ -195,17 +213,17 @@ public class PerformanceTestJob {
 
 		DataStream<Tuple2<String, String>> outputNode = null;
 
-		if ("forward".equals(streamPartitioner)) {
+		if (STREAMPARTITIONER.FORWARD.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.forward();
-		} else if ("rescale".equals(streamPartitioner)) {
+		} else if (STREAMPARTITIONER.RESCALE.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.rescale();
-		} else if ("rebalance".equals(streamPartitioner)) {
+		} else if (STREAMPARTITIONER.REBALANCE.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.rebalance();
-		} else if ("shuffle".equals(streamPartitioner)) {
+		} else if (STREAMPARTITIONER.SHUFFLE.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.shuffle();
-		} else if ("keyby".equals(streamPartitioner)) {
+		} else if (STREAMPARTITIONER.KEYBY.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.keyBy(0);
-		} else if ("broadcast".equals(streamPartitioner)) {
+		} else if (STREAMPARTITIONER.BROADCAST.getName().equals(streamPartitioner)) {
 			outputNode = flapNode.broadcast();
 		} else {
 			throw new IllegalArgumentException("Argument streamPartitioner is illegal!");
@@ -242,17 +260,17 @@ public class PerformanceTestJob {
 		String jobName = config.get(JOBNAME);
 		int parallelism = config.get(PARALLELISM);
 		String outputPath = config.get(OUTPUTPATH);
-		String checkPointMode = config.get(CHECKPOINT_MODE).toLowerCase();
+		String checkPointMode = config.get(CHECKPOINT_MODE).toUpperCase();
 		int checkPointTimeout = config.get(CHECKPOINT_TIMEOUT);
 		long maxCount = config.get(MAX_COUNT);
 		int seed = config.get(SEED);
 		int sleepNum = config.get(SLEEP_NUM);
-		String streamPartitioner = config.get(STREAM_PARTITIONER).toLowerCase();
-		String scheduleMode = config.get(SCHEDULE_MODE).toLowerCase();
-		String executionMode = config.get(EXECUTION_MODE).toLowerCase();
+		String streamPartitioner = config.get(STREAM_PARTITIONER).toUpperCase();
+		String scheduleMode = config.get(SCHEDULE_MODE).toUpperCase();
+		String executionMode = config.get(EXECUTION_MODE).toUpperCase();
 		long checkpointInterval = config.get(CHECKPOINT_INTERVAL);
 		String checkpointPath = config.get(CHECKPOINT_PATH);
-		String stateBackend = config.get(STATE_BACKEND).toLowerCase();
+		String stateBackend = config.get(STATE_BACKEND).toUpperCase();
 		long checkpointTimeout = config.get(CHECKPOINT_TIMEOUT);
 		int recordSize = config.get(RECORD_SIZE);
 		String topologyName = config.get(TOPOLOGY_NAME);
