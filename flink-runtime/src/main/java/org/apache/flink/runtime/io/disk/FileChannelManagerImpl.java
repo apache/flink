@@ -58,7 +58,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	private final String prefix;
 
 	/**
-	 *  Flag to signify that the file channel manager has been shut down already. The flag
+	 *  Flag to signal that the file channel manager has been shutdown already. The flag
 	 *  should support concurrent access for cases like multiple shutdown hooks.
 	 */
 	private final AtomicBoolean isShutdown = new AtomicBoolean();
@@ -101,7 +101,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
 
 	@Override
 	public ID createChannel() {
-		checkState(!isShutdown.get(), "File channel manager has shut down.");
+		checkState(!isShutdown.get(), "File channel manager has shutdown.");
 
 		int num = getNextPathNum();
 		return new ID(paths[num], num, random);
@@ -109,14 +109,14 @@ public class FileChannelManagerImpl implements FileChannelManager {
 
 	@Override
 	public Enumerator createChannelEnumerator() {
-		checkState(!isShutdown.get(), "File channel manager has shut down.");
+		checkState(!isShutdown.get(), "File channel manager has shutdown.");
 
 		return new Enumerator(paths, random);
 	}
 
 	@Override
 	public File[] getPaths() {
-		checkState(!isShutdown.get(), "File channel manager has shut down.");
+		checkState(!isShutdown.get(), "File channel manager has shutdown.");
 
 		return Arrays.copyOf(paths, paths.length);
 	}
@@ -126,7 +126,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	 */
 	@Override
 	public void close() throws Exception {
-		// Marks shut down and exit if it has already shut down.
+		// Marks shutdown and exits if it has already shutdown.
 		if (!isShutdown.compareAndSet(false, true)) {
 			return;
 		}

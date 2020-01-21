@@ -49,7 +49,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 	/**
 	 * Marker file indicating the test process is ready to be killed. We could not simply kill the process
 	 * after FileChannelManager has created temporary files since we also need to ensure the caller has
-	 * also registered the shutdown hook if callerHasHook is true.
+	 * also registered the shutdown hook if <tt>callerHasHook</tt> is true.
 	 */
 	private static final String SIGNAL_FILE_FOR_KILLING = "could-kill";
 
@@ -99,14 +99,16 @@ public class FileChannelManagerImplTest extends TestLogger {
 				Thread.sleep(100);
 			}
 
-			assertFalse("The file channel manager test process does not terminate in time, its output is: \n"
-						+ fileChannelManagerTestProcess.getProcessOutput(),
-					fileChannelManagerTestProcess.isAlive());
+			assertFalse(
+				"The file channel manager test process does not terminate in time, its output is: \n" +
+					fileChannelManagerTestProcess.getProcessOutput(),
+				fileChannelManagerTestProcess.isAlive());
 
 			// Checks if the directories are cleared.
-			assertFalse("The file channel manager test process does not remove the tmp shuffle directories after termination, " +
-							"its output is \n" + fileChannelManagerTestProcess.getProcessOutput(),
-					fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX));
+			assertFalse(
+				"The file channel manager test process does not remove the tmp shuffle directories after termination, " +
+					"its output is \n" + fileChannelManagerTestProcess.getProcessOutput(),
+				fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX));
 		} finally {
 			fileChannelManagerTestProcess.destroy();
 		}
@@ -123,12 +125,12 @@ public class FileChannelManagerImplTest extends TestLogger {
 	private static class FileChannelManagerTestProcess extends TestJvmProcess {
 		private final boolean callerHasHook;
 		private final String tmpDirectories;
-		private final String couldKillSignalFilePath;
+		private final String signalFilePath;
 
-		FileChannelManagerTestProcess(boolean callerHasHook, String tmpDirectories, String couldKillSignalFilePath) throws Exception {
+		FileChannelManagerTestProcess(boolean callerHasHook, String tmpDirectories, String signalFilePath) throws Exception {
 			this.callerHasHook = callerHasHook;
 			this.tmpDirectories = tmpDirectories;
-			this.couldKillSignalFilePath = couldKillSignalFilePath;
+			this.signalFilePath = signalFilePath;
 		}
 
 		@Override
@@ -141,7 +143,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 			return new String[]{
 					Boolean.toString(callerHasHook),
 					tmpDirectories,
-					couldKillSignalFilePath
+					signalFilePath
 			};
 		}
 
@@ -172,8 +174,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 			// Signals the main process to execute the kill action.
 			new File(couldKillSignalFilePath).createNewFile();
 
-			// Waits till get killed. If we have not killed in time, make sure we exit finally.
-			// Meanwhile, the test will fail due to process not terminated in time.
+			// Blocks the process to wait to be killed.
 			Thread.sleep(3 * TEST_TIMEOUT.toMillis());
 		}
 	}
