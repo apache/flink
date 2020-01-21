@@ -143,7 +143,7 @@ public class DistributedCacheDfsTest extends TestLogger {
 
 		final JobResult jobResult = restClusterClient
 			.submitJob(jobGraph)
-			.thenCompose(restClusterClient::requestJobResult)
+			.thenCompose(jobSubmissionResult -> restClusterClient.requestJobResult(jobSubmissionResult.getJobID()))
 			.get();
 
 		final String messageInCaseOfFailure = jobResult.getSerializedThrowable().isPresent() ?
