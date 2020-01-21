@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -31,7 +32,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBa
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{GenericAggregateFunction, StreamingWithAggTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
@@ -1208,4 +1209,18 @@ class AggregateITCase(
     assertEquals(expected, sink.getRetractResults)
   }
 
+  @Test
+  def testGenericTypesWithoutStateClean(): Unit = {
+    // because we don't provide a way to disable state cleanup.
+    // TODO verify all tests with state cleanup closed.
+    tEnv.getConfig.setIdleStateRetentionTime(Time.days(0), Time.days(0))
+    val t = failingDataSource(Seq(1, 2, 3)).toTable(tEnv, 'a)
+    val results = t
+        .select(new GenericAggregateFunction()('a))
+        .toRetractStream[Row]
+
+    val sink = new TestingRetractSink
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+  }
 }
