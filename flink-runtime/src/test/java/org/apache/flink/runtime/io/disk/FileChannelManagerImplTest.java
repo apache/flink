@@ -34,10 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.time.Duration;
 
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -48,7 +46,12 @@ public class FileChannelManagerImplTest extends TestLogger {
 
 	private static final String DIR_NAME_PREFIX = "manager-test";
 
-	private static final String COULD_KILL_SIGNAL_FILE = "could-kill";
+	/**
+	 * Marker file indicating the test process is ready to be killed. We could not simply kill the process
+	 * after FileChannelManager has created temporary files since we also need to ensure the caller has
+	 * also registered the shutdown hook if callerHasHook is true.
+	 */
+	private static final String SIGNAL_FILE_FOR_KILLING = "could-kill";
 
 	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10);
 
@@ -72,47 +75,38 @@ public class FileChannelManagerImplTest extends TestLogger {
 				|| OperatingSystem.isMac());
 
 		File fileChannelDir = temporaryFolder.newFolder();
+
 		File signalDir = temporaryFolder.newFolder();
+		File signalFile = new File(FilenameUtils.concat(signalDir.getAbsolutePath(), SIGNAL_FILE_FOR_KILLING));
 
 		FileChannelManagerTestProcess fileChannelManagerTestProcess = new FileChannelManagerTestProcess(
 			callerHasHook,
 			fileChannelDir.getAbsolutePath(),
-			FilenameUtils.concat(signalDir.getAbsolutePath(), COULD_KILL_SIGNAL_FILE));
+			signalFile.getAbsolutePath());
 
 		try {
 			fileChannelManagerTestProcess.startProcess();
 
-			// Waits till netty shuffle environment has created the tmp directories.
-			Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
-
-			while (!fileOrDirExists(signalDir, COULD_KILL_SIGNAL_FILE) && deadline.hasTimeLeft()) {
-				Thread.sleep(100);
-			}
-
-			if (!fileOrDirExists(signalDir, COULD_KILL_SIGNAL_FILE) ||
-					!fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX)) {
-				fail("The file channel manager test process does not create target directories in time, " +
-						"its output is: \n" + fileChannelManagerTestProcess.getProcessOutput());
-			}
+			// Waits till the process has created temporary files and registered the corresponding shutdown hooks.
+			TestJvmProcess.waitForMarkerFile(signalFile, TEST_TIMEOUT.toMillis());
 
 			Process kill = Runtime.getRuntime().exec("kill " + fileChannelManagerTestProcess.getProcessId());
 			kill.waitFor();
 			assertEquals("Failed to send SIG_TERM to process", 0, kill.exitValue());
 
-			deadline = Deadline.now().plus(TEST_TIMEOUT);
+			Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 			while (fileChannelManagerTestProcess.isAlive() && deadline.hasTimeLeft()) {
 				Thread.sleep(100);
 			}
 
-			if (fileChannelManagerTestProcess.isAlive()) {
-				fail("The file channel manager test process does not terminate in time, its output is: \n" + fileChannelManagerTestProcess.getProcessOutput());
-			}
+			assertFalse("The file channel manager test process does not terminate in time, its output is: \n"
+						+ fileChannelManagerTestProcess.getProcessOutput(),
+					fileChannelManagerTestProcess.isAlive());
 
 			// Checks if the directories are cleared.
-			assertThat("The file channel manager test process does not remove the tmp shuffle directories after termination, " +
+			assertFalse("The file channel manager test process does not remove the tmp shuffle directories after termination, " +
 							"its output is \n" + fileChannelManagerTestProcess.getProcessOutput(),
-					fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX),
-					is(false));
+					fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX));
 		} finally {
 			fileChannelManagerTestProcess.destroy();
 		}
@@ -175,13 +169,12 @@ public class FileChannelManagerImplTest extends TestLogger {
 				ShutdownHookUtil.addShutdownHook(() -> manager.close(), "Caller", LOG);
 			}
 
-			// Singles main process what we can be killed.
+			// Signals the main process to execute the kill action.
 			new File(couldKillSignalFilePath).createNewFile();
 
 			// Waits till get killed. If we have not killed in time, make sure we exit finally.
 			// Meanwhile, the test will fail due to process not terminated in time.
-			Thread.sleep(5 * TEST_TIMEOUT.toMillis());
-			System.exit(1);
+			Thread.sleep(3 * TEST_TIMEOUT.toMillis());
 		}
 	}
 }

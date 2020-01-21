@@ -54,10 +54,13 @@ public class FileChannelManagerImpl implements FileChannelManager {
 	/** The number of the next path to use. */
 	private volatile int nextPath;
 
-	/** Prefix of the temporary directories to create */
+	/** Prefix of the temporary directories to create. */
 	private final String prefix;
 
-	/** Flag to signify that the file channel manager has been shut down already. */
+	/**
+	 *  Flag to signify that the file channel manager has been shut down already. The flag
+	 *  should support concurrent access for cases like multiple shutdown hooks.
+	 */
 	private final AtomicBoolean isShutdown = new AtomicBoolean();
 
 	/** Shutdown hook to make sure that the directories are removed on exit. */
