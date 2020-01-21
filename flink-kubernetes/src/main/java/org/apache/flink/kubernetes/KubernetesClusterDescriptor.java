@@ -158,25 +158,23 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		flinkConfig.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entryPoint);
 
 		// Rpc, blob, rest, taskManagerRpc ports need to be exposed, so update them to fixed values.
-		if (KubernetesUtils.parsePort(flinkConfig, BlobServerOptions.PORT) == 0) {
-			flinkConfig.setString(BlobServerOptions.PORT, String.valueOf(Constants.BLOB_SERVER_PORT));
-			LOG.warn(
-				"Kubernetes service requires a fixed port. Configuration {} will be set to {}",
-				BlobServerOptions.PORT.key(),
-				Constants.BLOB_SERVER_PORT);
-		}
-
-		if (KubernetesUtils.parsePort(flinkConfig, TaskManagerOptions.RPC_PORT) == 0) {
-			flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
-			LOG.warn(
-				"Kubernetes service requires a fixed port. Configuration {} will be set to {}",
-				TaskManagerOptions.RPC_PORT.key(),
-				Constants.TASK_MANAGER_RPC_PORT);
-		}
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, BlobServerOptions.PORT, Constants.BLOB_SERVER_PORT);
+		KubernetesUtils.checkAndUpdatePortConfigOption(
+			flinkConfig,
+			TaskManagerOptions.RPC_PORT,
+			Constants.TASK_MANAGER_RPC_PORT);
 
 		// Set jobmanager address to namespaced service name
 		final String nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
 		flinkConfig.setString(JobManagerOptions.ADDRESS, clusterId + "." + nameSpace);
+
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+			flinkConfig.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
+			KubernetesUtils.checkAndUpdatePortConfigOption(
+				flinkConfig,
+				HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,
+				flinkConfig.get(JobManagerOptions.PORT));
+		}
 
 		try {
 			final KubernetesService internalSvc = client.createInternalService(clusterId).get();

@@ -36,6 +36,8 @@ import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -62,6 +64,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class KubernetesUtils {
 
+	private static final Logger LOG = LoggerFactory.getLogger(KubernetesUtils.class);
+
 	/**
 	 * Read file content to string.
 	 *
@@ -83,6 +87,25 @@ public class KubernetesUtils {
 			return content.toString();
 		}
 		throw new FileNotFoundException("File " + filePath + " not exists.");
+	}
+
+	/**
+	 * Check whether the port config option is a fixed port. If not, the fallback port will be set to configuration.
+	 * @param flinkConfig flink configuration
+	 * @param port config option need to be checked
+	 * @param fallbackPort the fallback port that will be set to the configuration
+	 */
+	public static void checkAndUpdatePortConfigOption(
+			Configuration flinkConfig,
+			ConfigOption<String> port,
+			int fallbackPort) {
+		if (KubernetesUtils.parsePort(flinkConfig, port) == 0) {
+			flinkConfig.setString(port, String.valueOf(fallbackPort));
+			LOG.info(
+				"Kubernetes deployment requires a fixed port. Configuration {} will be set to {}",
+				port.key(),
+				fallbackPort);
+		}
 	}
 
 	/**
