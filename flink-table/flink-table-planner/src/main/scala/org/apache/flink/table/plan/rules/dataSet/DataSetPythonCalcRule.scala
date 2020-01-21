@@ -22,23 +22,23 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
+import org.apache.flink.table.plan.nodes.dataset.DataSetPythonCalc
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 
 import scala.collection.JavaConverters._
 
-class DataSetCalcRule
+class DataSetPythonCalcRule
   extends ConverterRule(
     classOf[FlinkLogicalCalc],
     FlinkConventions.LOGICAL,
     FlinkConventions.DATASET,
-    "DataSetCalcRule") {
+    "DataSetPythonCalcRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsPythonCall)
+    program.getExprList.asScala.exists(containsPythonCall)
   }
 
   def convert(rel: RelNode): RelNode = {
@@ -46,16 +46,16 @@ class DataSetCalcRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
     val convInput: RelNode = RelOptRule.convert(calc.getInput, FlinkConventions.DATASET)
 
-    new DataSetCalc(
+    new DataSetPythonCalc(
       rel.getCluster,
       traitSet,
       convInput,
       rel.getRowType,
       calc.getProgram,
-      "DataSetCalcRule")
+      "DataSetPythonCalcRule")
   }
 }
 
-object DataSetCalcRule {
-  val INSTANCE: RelOptRule = new DataSetCalcRule
+object DataSetPythonCalcRule {
+  val INSTANCE: RelOptRule = new DataSetPythonCalcRule
 }

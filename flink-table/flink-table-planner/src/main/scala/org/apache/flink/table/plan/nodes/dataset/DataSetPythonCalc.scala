@@ -16,98 +16,85 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.datastream
+package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex._
+import org.apache.flink.api.common.functions.RichFlatMapFunction
+import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.BatchQueryConfig
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.plan.nodes.CommonPythonCalc
-import org.apache.flink.table.plan.nodes.datastream.DataStreamPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.plan.nodes.dataset.DataSetPythonCalc.PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 
 /**
-  * RelNode for Python ScalarFunctions.
+  * Flink RelNode for Python ScalarFunctions.
   */
-class DataStreamPythonCalc(
+class DataSetPythonCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    inputSchema: RowSchema,
-    schema: RowSchema,
+    rowRelDataType: RelDataType,
     calcProgram: RexProgram,
     ruleDescription: String)
-  extends DataStreamCalcBase(
+  extends DataSetCalcBase(
     cluster,
     traitSet,
     input,
-    inputSchema,
-    schema,
+    rowRelDataType,
     calcProgram,
     ruleDescription)
-  with CommonPythonCalc {
+    with CommonPythonCalc {
+
+  private lazy val inputSchema = new RowSchema(input.getRowType)
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
-    new DataStreamPythonCalc(
-      cluster,
-      traitSet,
-      child,
-      inputSchema,
-      schema,
-      program,
-      ruleDescription)
+    new DataSetPythonCalc(cluster, traitSet, child, getRowType, program, ruleDescription)
   }
 
   override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
-    val inputDataStream =
-      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
-    val inputParallelism = inputDataStream.getParallelism
+      tableEnv: BatchTableEnvImpl,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
-    val pythonOperatorResultTypeInfo = new RowTypeInfo(
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+
+    val flatMapFunctionResultTypeInfo = new RowTypeInfo(
       getForwardFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
         getPythonRexCalls(calcProgram).map(node => FlinkTypeFactory.toTypeInfo(node.getType)): _*)
 
-    // construct the Python operator
-    val pythonOperatorInputRowType = TypeConversions.fromLegacyInfoToDataType(
+    // construct the Python ScalarFunction flatMap function
+    val flatMapFunctionInputRowType = TypeConversions.fromLegacyInfoToDataType(
       inputSchema.typeInfo).getLogicalType.asInstanceOf[RowType]
-    val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
-      pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
-    val pythonOperator = getPythonScalarFunctionOperator(
-      planner.getConfig.getConfiguration,
-      pythonOperatorInputRowType,
-      pythonOperatorOutputRowType,
+    val flatMapFunctionOutputRowType = TypeConversions.fromLegacyInfoToDataType(
+      flatMapFunctionResultTypeInfo).getLogicalType.asInstanceOf[RowType]
+    val flatMapFunction = getPythonScalarFunctionFlatMap(
+      tableEnv.getConfig.getConfiguration,
+      flatMapFunctionInputRowType,
+      flatMapFunctionOutputRowType,
       calcProgram)
 
-    inputDataStream
-      .transform(
-        calcOpName(calcProgram, getExpressionString),
-        CRowTypeInfo(pythonOperatorResultTypeInfo),
-        pythonOperator)
-      // keep parallelism to ensure order of accumulate and retract messages
-      .setParallelism(inputParallelism)
+    inputDS.flatMap(flatMapFunction).name(calcOpName(calcProgram, getExpressionString))
   }
 
-  private[flink] def getPythonScalarFunctionOperator(
-      config: Configuration,
-      inputRowType: RowType,
-      outputRowType: RowType,
-      calcProgram: RexProgram) = {
-    val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
+  private[flink] def getPythonScalarFunctionFlatMap(
+    config: Configuration,
+    inputRowType: RowType,
+    outputRowType: RowType,
+    calcProgram: RexProgram) = {
+    val clazz = loadClass(PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME)
     val ctor = clazz.getConstructor(
       classOf[Configuration],
       classOf[Array[PythonFunctionInfo]],
@@ -124,11 +111,11 @@ class DataStreamPythonCalc(
       outputRowType,
       udfInputOffsets,
       getForwardFields(calcProgram))
-      .asInstanceOf[OneInputStreamOperator[CRow, CRow]]
+      .asInstanceOf[RichFlatMapFunction[Row, Row]]
   }
 }
 
-object DataStreamPythonCalc {
-  val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.PythonScalarFunctionOperator"
+object DataSetPythonCalc {
+  val PYTHON_SCALAR_FUNCTION_FLAT_MAP_NAME =
+    "org.apache.flink.table.runtime.functions.python.PythonScalarFunctionFlatMap"
 }

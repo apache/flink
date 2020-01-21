@@ -481,13 +481,18 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 
 class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
 
-    def test_invalid_register_udf(self):
-        self.assertRaises(
-            Exception,
-            lambda: self.t_env.register_function(
-                "add_one",
-                udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        )
+    def test_chaining_scalar_function(self):
+        self.t_env.register_function(
+            "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+        self.t_env.register_function(
+            "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+        self.t_env.register_function("add", add)
+
+        t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])\
+            .select("add(add_one(a), subtract_one(b)), c, 1")
+
+        result = self.collect(t)
+        self.assertEqual(result, ["3,1,1", "7,2,1", "4,3,1"])
 
 
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
