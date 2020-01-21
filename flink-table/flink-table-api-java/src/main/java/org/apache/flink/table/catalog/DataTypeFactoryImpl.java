@@ -25,8 +25,11 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDuplicator;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import javax.annotation.Nullable;
@@ -34,7 +37,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasNestedRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
@@ -42,6 +45,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  */
 @Internal
 final class DataTypeFactoryImpl implements DataTypeFactory {
+
+	private final LogicalTypeResolver resolver = new LogicalTypeResolver();
 
 	private final ClassLoader classLoader;
 
@@ -58,10 +63,8 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 	@Override
 	public Optional<DataType> createDataType(String name) {
 		final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
-		if (hasNestedRoot(parsedType, LogicalTypeRoot.UNRESOLVED)) {
-			throw new TableException("User-defined types are not supported yet.");
-		}
-		return Optional.of(fromLogicalToDataType(parsedType));
+		final LogicalType resolvedType = parsedType.accept(resolver);
+		return Optional.of(fromLogicalToDataType(resolvedType));
 	}
 
 	@Override
@@ -69,7 +72,13 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 		if (!identifier.getDatabaseName().isPresent()) {
 			return createDataType(identifier.getObjectName());
 		}
-		throw new TableException("User-defined types are not supported yet.");
+		final LogicalType resolvedType = resolveType(identifier);
+		return Optional.of(fromLogicalToDataType(resolvedType));
+	}
+
+	@Override
+	public <T> DataType createDataType(Class<T> clazz) {
+		return DataTypeExtractor.extractFromType(this, clazz);
 	}
 
 	@Override
@@ -111,5 +120,25 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
 			return newExecutionConfig;
 		};
+	}
+
+	/**
+	 * Resolves all {@link UnresolvedUserDefinedType}s.
+	 */
+	private class LogicalTypeResolver extends LogicalTypeDuplicator {
+
+		@Override
+		protected LogicalType defaultMethod(LogicalType logicalType) {
+			if (hasRoot(logicalType, LogicalTypeRoot.UNRESOLVED)) {
+				final UnresolvedUserDefinedType unresolvedType = (UnresolvedUserDefinedType) logicalType;
+				return resolveType(unresolvedType.getUnresolvedIdentifier()).copy(unresolvedType.isNullable());
+			}
+			return logicalType;
+		}
+	}
+
+	private LogicalType resolveType(UnresolvedIdentifier identifier) {
+		assert identifier != null;
+		throw new TableException("User-defined types are not supported yet.");
 	}
 }

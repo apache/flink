@@ -24,7 +24,6 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
 
@@ -91,20 +90,19 @@ public interface DataTypeFactory {
 	 *     // enrich the extraction by specifying defaults
 	 *     public @DataTypeHint(defaultSecondPrecision = 3) Log log;
 	 *   }
+	 *   createDataType(User.class)
 	 * }
 	 * </pre>
 	 */
-	default <T> DataType createDataType(Class<T> clazz) {
-		return DataTypeExtractor.extractFromType(this, clazz);
-	}
+	<T> DataType createDataType(Class<T> clazz);
 
 	/**
-	 * Creates a RAW type for the given class. This type is a black box within the table ecosystem
-	 * and is only deserialized at the edges.
+	 * Creates a RAW type for the given class in cases where no serializer is known and a generic serializer
+	 * should be used. The factory will create {@link DataTypes#RAW(Class, TypeSerializer)} with Flink's
+	 * default RAW serializer that is automatically configured.
 	 *
-	 * <p>The factory will create {@link DataTypes#RAW(Class, TypeSerializer)} in cases where no serializer
-	 * is known and a generic serializer should be used. Flink's default RAW serializer is automatically
-	 * configured.
+	 * <p>Note: This type is a black box within the table ecosystem and is only deserialized at the edges
+	 * of the API.
 	 */
 	<T> DataType createRawDataType(Class<T> clazz);
 }

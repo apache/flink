@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference.utils;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -45,6 +46,11 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 	@Override
 	public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
 		return dataType;
+	}
+
+	@Override
+	public <T> DataType createDataType(Class<T> clazz) {
+		return DataTypeExtractor.extractFromType(this, clazz);
 	}
 
 	@Override

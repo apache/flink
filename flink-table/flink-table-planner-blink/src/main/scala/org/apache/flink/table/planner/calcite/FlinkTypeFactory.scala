@@ -62,6 +62,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     override def createDataType(identifier: UnresolvedIdentifier): Optional[DataType] =
       throw new TableException("Data type creation is not supported yet.")
 
+    override def createDataType[T](clazz: Class[T]): DataType =
+      throw new TableException("Data type creation is not supported yet.")
+
     override def createRawDataType[T](clazz: Class[T]): DataType =
       throw new TableException("Data type creation is not supported yet.")
   }

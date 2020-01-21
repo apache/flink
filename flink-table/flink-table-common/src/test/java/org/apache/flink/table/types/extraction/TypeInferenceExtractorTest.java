@@ -23,8 +23,6 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -36,8 +34,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
-import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
 import org.hamcrest.Matcher;
@@ -451,24 +448,6 @@ public class TypeInferenceExtractorTest {
 		TestSpec expectErrorMessage(String expectedErrorMessage) {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
-		}
-	}
-
-	private static class DataTypeFactoryMock implements DataTypeFactory {
-
-		@Override
-		public Optional<DataType> createDataType(String name) {
-			return Optional.of(TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name)));
-		}
-
-		@Override
-		public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
-			return Optional.empty();
-		}
-
-		@Override
-		public <T> DataType createRawDataType(Class<T> clazz) {
-			return null;
 		}
 	}
 
