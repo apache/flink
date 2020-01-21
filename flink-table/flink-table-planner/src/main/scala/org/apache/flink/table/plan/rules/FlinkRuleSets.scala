@@ -196,6 +196,7 @@ object FlinkRuleSets {
     DataSetAggregateRule.INSTANCE,
     DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
+    DataSetPythonCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetSingleRowJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
