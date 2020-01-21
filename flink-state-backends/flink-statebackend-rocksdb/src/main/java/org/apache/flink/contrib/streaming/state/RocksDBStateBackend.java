@@ -274,8 +274,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 		this.numberOfTransferThreads = UNDEFINED_NUMBER_OF_TRANSFER_THREADS;
-		// for now, we use still the heap-based implementation as default
-		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
+		// use RocksDB-based implementation as default from FLINK-15637
+		this.priorityQueueStateType = PriorityQueueStateType.ROCKSDB;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 		this.memoryConfiguration = new RocksDBMemoryConfiguration();
