@@ -75,13 +75,9 @@ public final class CatalogManager {
 	private final DataTypeFactory typeFactory;
 
 	private CatalogManager(
-			ClassLoader classLoader,
-			ReadableConfig config,
 			String defaultCatalogName,
 			Catalog defaultCatalog,
-			@Nullable ExecutionConfig executionConfig) {
-		checkNotNull(classLoader, "Class loader cannot be null");
-		checkNotNull(config, "Config cannot be null");
+			DataTypeFactory typeFactory) {
 		checkArgument(
 			!StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
 			"Default catalog name cannot be null or empty");
@@ -96,7 +92,7 @@ public final class CatalogManager {
 		// right now the default catalog is always the built-in one
 		builtInCatalogName = defaultCatalogName;
 
-		typeFactory = new DataTypeFactoryImpl(classLoader, config, executionConfig);
+		this.typeFactory = typeFactory;
 	}
 
 	public static Builder newBuilder() {
@@ -140,12 +136,12 @@ public final class CatalogManager {
 		}
 
 		public CatalogManager build() {
+			checkNotNull(classLoader, "Class loader cannot be null");
+			checkNotNull(config, "Config cannot be null");
 			return new CatalogManager(
-				classLoader,
-				config,
 				defaultCatalogName,
 				defaultCatalog,
-				executionConfig);
+				new DataTypeFactoryImpl(classLoader, config, executionConfig));
 		}
 	}
 
