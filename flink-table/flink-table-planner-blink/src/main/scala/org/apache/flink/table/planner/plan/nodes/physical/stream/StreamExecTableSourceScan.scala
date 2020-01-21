@@ -112,7 +112,7 @@ class StreamExecTableSourceScan(
     if (inputTransform.getOutputType !=
         TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of data type $producedDataType that does not match with the " +
+        s"returned a DataStream of data type $inputDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
