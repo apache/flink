@@ -191,7 +191,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 			.setJobID(jobID)
 			.setJobVertexID(jobVertexID)
 			.setTaskName("test")
-			.setMemorySize(1024L * 1024L)
+			.setManagedMemorySize(1024L * 1024L)
 			.setInputSplitProvider(new MockInputSplitProvider())
 			.setBufferSize(1024 * 1024)
 			.setTaskStateManager(new TestTaskStateManager(localRecoveryConfig))

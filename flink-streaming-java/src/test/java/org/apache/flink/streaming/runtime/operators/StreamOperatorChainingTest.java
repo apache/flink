@@ -151,7 +151,7 @@ public class StreamOperatorChainingTest {
 	private MockEnvironment createMockEnvironment(String taskName) {
 		return new MockEnvironmentBuilder()
 			.setTaskName(taskName)
-			.setMemorySize(3 * 1024 * 1024)
+			.setManagedMemorySize(3 * 1024 * 1024)
 			.setInputSplitProvider(new MockInputSplitProvider())
 			.setBufferSize(1024)
 			.build();
