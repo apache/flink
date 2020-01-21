@@ -45,26 +45,26 @@ import java.util.function.Function;
  * This class tests `accumulate` method without order argument.
  */
 @RunWith(Parameterized.class)
-public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase<T, GenericRow> {
+public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase {
 
 	@Parameterized.Parameter
-	public AggFunctionTestSpec<T, GenericRow> aggFunctionTestSpec;
+	public AggFunctionTestSpec aggFunctionTestSpec;
 
 	private static final int DECIMAL_PRECISION = 20;
 	private static final int DECIMAL_SCALE = 6;
 
 	@Override
-	protected List<List<T>> getInputValueSets() {
+	protected List<List> getInputValueSets() {
 		return aggFunctionTestSpec.inputValueSets;
 	}
 
 	@Override
-	protected List<T> getExpectedResults() {
+	protected List getExpectedResults() {
 		return aggFunctionTestSpec.expectedResults;
 	}
 
 	@Override
-	protected AggregateFunction<T, GenericRow> getAggregator() {
+	protected AggregateFunction getAggregator() {
 		return aggFunctionTestSpec.aggregator;
 	}
 
@@ -79,7 +79,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for ByteLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new ByteLastValueAggFunction(),
 						numberInputValueSets(Byte::valueOf),
 						numberExpectedResults(Byte::valueOf)
@@ -87,7 +87,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for ShortLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new ShortLastValueAggFunction(),
 						numberInputValueSets(Short::valueOf),
 						numberExpectedResults(Short::valueOf)
@@ -95,7 +95,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for IntLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new IntLastValueAggFunction(),
 						numberInputValueSets(Integer::valueOf),
 						numberExpectedResults(Integer::valueOf)
@@ -103,7 +103,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for LongLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new LongLastValueAggFunction(),
 						numberInputValueSets(Long::valueOf),
 						numberExpectedResults(Long::valueOf)
@@ -111,7 +111,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for FloatLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new FloatLastValueAggFunction(),
 						numberInputValueSets(Float::valueOf),
 						numberExpectedResults(Float::valueOf)
@@ -119,7 +119,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for DoubleLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DoubleLastValueAggFunction(),
 						numberInputValueSets(Double::valueOf),
 						numberExpectedResults(Double::valueOf)
@@ -127,7 +127,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for BooleanLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new BooleanLastValueAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -170,7 +170,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for DecimalLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DecimalLastValueAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
 						Arrays.asList(
 								Arrays.asList(
@@ -205,7 +205,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 				/**
 				 * Test for StringLastValueAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new StringLastValueAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -242,7 +242,7 @@ public class LastValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase
 		);
 	}
 
-	private static <N> List<List<N>> numberInputValueSets(Function<String, N> strToValueFun) {
+	private static List<List> numberInputValueSets(Function<String, Object> strToValueFun) {
 		return Arrays.asList(
 				Arrays.asList(
 						strToValueFun.apply("1"),

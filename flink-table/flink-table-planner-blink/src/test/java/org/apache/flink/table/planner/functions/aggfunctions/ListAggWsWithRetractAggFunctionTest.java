@@ -35,11 +35,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test case for built-in ListAggWs with retraction aggregate function.
  */
-public class ListAggWsWithRetractAggFunctionTest
-	extends AggFunctionTestBase<BinaryString, ListAggWsWithRetractAccumulator> {
+public class ListAggWsWithRetractAggFunctionTest extends AggFunctionTestBase {
 
 	@Override
-	protected List<List<BinaryString>> getInputValueSets() {
+	protected List<List> getInputValueSets() {
 		return Arrays.asList(
 				Arrays.asList(
 						BinaryString.fromString("a"), BinaryString.fromString("\n"),
@@ -118,7 +117,7 @@ public class ListAggWsWithRetractAggFunctionTest
 	}
 
 	@Override
-	protected ListAggWsWithRetractAccumulator accumulateValues(List<BinaryString> values)
+	protected ListAggWsWithRetractAccumulator accumulateValues(List values)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		AggregateFunction<BinaryString, ListAggWsWithRetractAccumulator> aggregator = getAggregator();
 		ListAggWsWithRetractAccumulator accumulator = getAggregator().createAccumulator();
@@ -126,29 +125,29 @@ public class ListAggWsWithRetractAggFunctionTest
 		Preconditions.checkArgument(values.size() % 2 == 0,
 				"number of values must be an integer multiple of 2.");
 		for (int i = 0; i < values.size(); i += 2) {
-			BinaryString value = values.get(i + 1);
-			BinaryString delimiter = values.get(i);
+			Object value = values.get(i + 1);
+			Object delimiter = values.get(i);
 			accumulateFunc.invoke(aggregator, accumulator, delimiter, value);
 		}
 		return accumulator;
 	}
 
 	@Override
-	protected void retractValues(ListAggWsWithRetractAccumulator accumulator, List<BinaryString> values)
+	protected void retractValues(Object accumulator, List values)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		AggregateFunction<BinaryString, ListAggWsWithRetractAccumulator> aggregator = getAggregator();
 		Method retractFunc = getRetractFunc();
 		Preconditions.checkArgument(values.size() % 2 == 0,
 				"number of values must be an integer multiple of 2.");
 		for (int i = 0; i < values.size(); i += 2) {
-			BinaryString value = values.get(i + 1);
-			BinaryString delimiter = values.get(i);
+			Object value = values.get(i + 1);
+			Object delimiter = values.get(i);
 			retractFunc.invoke(aggregator, accumulator, delimiter, value);
 		}
 	}
 
 	@Override
-	protected Tuple2<List<BinaryString>, List<BinaryString>> splitValues(List<BinaryString> values) {
+	protected Tuple2<List, List> splitValues(List values) {
 		Preconditions.checkArgument(values.size() % 2 == 0,
 				"number of values must be an integer multiple of 2.");
 		int index = values.size() / 2;

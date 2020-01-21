@@ -29,11 +29,10 @@ import java.util.List;
 /**
  * Test case for built-in LISTAGG with retraction aggregate function.
  */
-public class ListAggWithRetractAggFunctionTest
-	extends AggFunctionTestBase<BinaryString, ListAggWithRetractAccumulator> {
+public class ListAggWithRetractAggFunctionTest extends AggFunctionTestBase {
 
 	@Override
-	protected List<List<BinaryString>> getInputValueSets() {
+	protected List<List> getInputValueSets() {
 		return Arrays.asList(
 				Arrays.asList(
 						BinaryString.fromString("a"),

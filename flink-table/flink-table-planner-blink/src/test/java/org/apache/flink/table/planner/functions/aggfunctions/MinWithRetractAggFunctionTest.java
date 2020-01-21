@@ -51,21 +51,21 @@ import java.util.function.Function;
  * Test case for built-in Min with retraction aggregate function.
  */
 @RunWith(Parameterized.class)
-public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, MinWithRetractAccumulator<T>> {
+public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase {
 
 	@Parameterized.Parameter
-	public AggFunctionTestSpec<T, MinWithRetractAccumulator<T>> aggFunctionTestSpec;
+	public AggFunctionTestSpec aggFunctionTestSpec;
 
 	private static final int DECIMAL_PRECISION = 20;
 	private static final int DECIMAL_SCALE = 6;
 
 	@Override
-	protected List<List<T>> getInputValueSets() {
+	protected List<List> getInputValueSets() {
 		return aggFunctionTestSpec.inputValueSets;
 	}
 
 	@Override
-	protected List<T> getExpectedResults() {
+	protected List getExpectedResults() {
 		return aggFunctionTestSpec.expectedResults;
 	}
 
@@ -90,7 +90,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for ByteMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new ByteMinWithRetractAggFunction(),
 						numberInputValueSets((byte) (Byte.MIN_VALUE + 1), (byte) (Byte.MAX_VALUE - 1), Byte::valueOf),
 						numberExpectedResults((byte) (Byte.MIN_VALUE + 1), Byte::valueOf)
@@ -98,7 +98,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for ShortMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new ShortMinWithRetractAggFunction(),
 						numberInputValueSets(
 								(short) (Short.MIN_VALUE + 1), (short) (Short.MAX_VALUE - 1), Short::valueOf),
@@ -107,7 +107,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for IntMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new IntMinWithRetractAggFunction(),
 						numberInputValueSets(Integer.MIN_VALUE + 1, Integer.MAX_VALUE - 1, Integer::valueOf),
 						numberExpectedResults(Integer.MIN_VALUE + 1, Integer::valueOf)
@@ -115,7 +115,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for LongMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new LongMinWithRetractAggFunction(),
 						numberInputValueSets(Long.MIN_VALUE + 1L, Long.MAX_VALUE - 1L, Long::valueOf),
 						numberExpectedResults(Long.MIN_VALUE + 1L, Long::valueOf)
@@ -123,7 +123,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for FloatMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new FloatMinWithRetractAggFunction(),
 						numberInputValueSets((-Float.MAX_VALUE / 2), (Float.MAX_VALUE / 2), Float::valueOf),
 						numberExpectedResults((-Float.MAX_VALUE / 2), Float::valueOf)
@@ -131,7 +131,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for DoubleMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DoubleMinWithRetractAggFunction(),
 						numberInputValueSets((-Double.MAX_VALUE / 2), (Double.MAX_VALUE / 2), Double::valueOf),
 						numberExpectedResults((-Double.MAX_VALUE / 2), Double::valueOf)
@@ -139,7 +139,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for BooleanMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new BooleanMinWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -182,7 +182,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for DecimalMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DecimalMinWithRetractAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
 						Arrays.asList(
 								Arrays.asList(
@@ -217,7 +217,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for StringMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new StringMinWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -253,7 +253,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for TimestampMinWithRetractAggFunction with millisecond's precision.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new TimestampMinWithRetractAggFunction(3),
 						Arrays.asList(
 								Arrays.asList(
@@ -284,7 +284,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for TimestampMinWithRetractAggFunction with nanosecond's precision.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new TimestampMinWithRetractAggFunction(9),
 						Arrays.asList(
 								Arrays.asList(
@@ -318,7 +318,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for DateMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DateMinWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -349,7 +349,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 				/**
 				 * Test for TimeMinWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new TimeMinWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -380,7 +380,7 @@ public class MinWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, Min
 		);
 	}
 
-	private static <N> List<List<N>> numberInputValueSets(N minValue, N maxValue, Function<String, N> strToValueFun) {
+	private static List<List> numberInputValueSets(Object minValue, Object maxValue, Function<String, Object> strToValueFun) {
 		return Arrays.asList(
 				Arrays.asList(
 						strToValueFun.apply("1"),

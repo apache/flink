@@ -46,26 +46,26 @@ import java.util.function.Function;
  * This class tests `accumulate` method without order argument.
  */
 @RunWith(Parameterized.class)
-public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase<T, GenericRow> {
+public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase {
 
 	@Parameterized.Parameter
-	public AggFunctionTestSpec<T, GenericRow> aggFunctionTestSpec;
+	public AggFunctionTestSpec aggFunctionTestSpec;
 
 	private static final int DECIMAL_PRECISION = 20;
 	private static final int DECIMAL_SCALE = 6;
 
 	@Override
-	protected List<List<T>> getInputValueSets() {
+	protected List<List> getInputValueSets() {
 		return aggFunctionTestSpec.inputValueSets;
 	}
 
 	@Override
-	protected List<T> getExpectedResults() {
+	protected List getExpectedResults() {
 		return aggFunctionTestSpec.expectedResults;
 	}
 
 	@Override
-	protected AggregateFunction<T, GenericRow> getAggregator() {
+	protected AggregateFunction getAggregator() {
 		return aggFunctionTestSpec.aggregator;
 	}
 
@@ -85,7 +85,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for ByteFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new ByteFirstValueWithRetractAggFunction(),
 						numberInputValueSets(Byte::valueOf),
 						numberExpectedResults(Byte::valueOf)
@@ -93,7 +93,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for ShortFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new ShortFirstValueWithRetractAggFunction(),
 						numberInputValueSets(Short::valueOf),
 						numberExpectedResults(Short::valueOf)
@@ -101,7 +101,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for IntFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new IntFirstValueWithRetractAggFunction(),
 						numberInputValueSets(Integer::valueOf),
 						numberExpectedResults(Integer::valueOf)
@@ -109,7 +109,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for LongFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new LongFirstValueWithRetractAggFunction(),
 						numberInputValueSets(Long::valueOf),
 						numberExpectedResults(Long::valueOf)
@@ -117,7 +117,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for FloatFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new FloatFirstValueWithRetractAggFunction(),
 						numberInputValueSets(Float::valueOf),
 						numberExpectedResults(Float::valueOf)
@@ -125,7 +125,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for DoubleFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DoubleFirstValueWithRetractAggFunction(),
 						numberInputValueSets(Double::valueOf),
 						numberExpectedResults(Double::valueOf)
@@ -133,7 +133,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for BooleanFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new BooleanFirstValueWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -175,7 +175,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for DecimalFirstValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new DecimalFirstValueWithRetractAggFunction(
 								DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
 						Arrays.asList(
@@ -211,7 +211,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 				/**
 				 * Test for StringLastValueWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec<>(
+				new AggFunctionTestSpec(
 						new StringFirstValueWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -248,7 +248,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest<T> extends AggFunc
 		);
 	}
 
-	private static <N> List<List<N>> numberInputValueSets(Function<String, N> strToValueFun) {
+	private static List<List> numberInputValueSets(Function<String, Object> strToValueFun) {
 		return Arrays.asList(
 				Arrays.asList(
 						strToValueFun.apply("1"),
