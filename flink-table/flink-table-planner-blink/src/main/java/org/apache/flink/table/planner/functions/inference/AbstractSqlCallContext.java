@@ -38,24 +38,24 @@ import java.time.Period;
 @Internal
 public abstract class AbstractSqlCallContext implements CallContext {
 
-	private final DataTypeFactory typeFactory;
+	private final DataTypeFactory dataTypeFactory;
 
 	private final FunctionDefinition definition;
 
 	private final String name;
 
 	protected AbstractSqlCallContext(
-			DataTypeFactory typeFactory,
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			String name) {
-		this.typeFactory = typeFactory;
+		this.dataTypeFactory = dataTypeFactory;
 		this.definition = definition;
 		this.name = name;
 	}
 
 	@Override
 	public DataTypeFactory getDataTypeFactory() {
-		return typeFactory;
+		return dataTypeFactory;
 	}
 
 	@Override

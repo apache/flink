@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -52,11 +53,12 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 	private final @Nullable DataType outputType;
 
 	public CallBindingCallContext(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			SqlCallBinding binding,
 			@Nullable RelDataType outputType) {
 		super(
-			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeFactory(),
+			dataTypeFactory,
 			definition,
 			binding.getOperator().getNameAsId().toString());
 

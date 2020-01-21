@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.bridging;
 
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -61,21 +62,24 @@ final class BridgingUtils {
 	}
 
 	static SqlReturnTypeInference createSqlReturnTypeInference(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
-		return new TypeInferenceReturnInference(definition, typeInference);
+		return new TypeInferenceReturnInference(dataTypeFactory, definition, typeInference);
 	}
 
 	static SqlOperandTypeInference createSqlOperandTypeInference(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
-		return new TypeInferenceOperandInference(definition, typeInference);
+		return new TypeInferenceOperandInference(dataTypeFactory, definition, typeInference);
 	}
 
 	static SqlOperandTypeChecker createSqlOperandTypeChecker(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
-		return new TypeInferenceOperandChecker(definition, typeInference);
+		return new TypeInferenceOperandChecker(dataTypeFactory, definition, typeInference);
 	}
 
 	static @Nullable List<RelDataType> createParamTypes(
