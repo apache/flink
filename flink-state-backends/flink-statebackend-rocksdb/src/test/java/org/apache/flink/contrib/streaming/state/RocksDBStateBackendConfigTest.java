@@ -153,24 +153,24 @@ public class RocksDBStateBackendConfigTest {
 
 		// Fix the default
 		Assert.assertEquals(
-			RocksDBStateBackend.PriorityQueueStateType.HEAP.toString(),
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString(),
 			RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
 
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
 
 		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
-		Assert.assertEquals(HeapPriorityQueueSetFactory.class, keyedBackend.getPriorityQueueFactory().getClass());
+		Assert.assertEquals(RocksDBPriorityQueueSetFactory.class, keyedBackend.getPriorityQueueFactory().getClass());
 		keyedBackend.dispose();
 
 		Configuration conf = new Configuration();
 		conf.setString(
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+			RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
 
 		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
 		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 		Assert.assertEquals(
-			RocksDBPriorityQueueSetFactory.class,
+			HeapPriorityQueueSetFactory.class,
 			keyedBackend.getPriorityQueueFactory().getClass());
 		keyedBackend.dispose();
 	}

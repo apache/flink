@@ -34,14 +34,13 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.After;
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -76,20 +75,16 @@ public abstract class CheckpointBarrierAlignerTestBase {
 	protected CheckpointedInputGate createBarrierBuffer(
 		int numberOfChannels,
 		BufferOrEvent[] sequence,
-		@Nullable AbstractInvokable toNotify) throws IOException {
+		AbstractInvokable toNotify) throws IOException {
 		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
 		return createBarrierBuffer(gate, toNotify);
 	}
 
 	protected CheckpointedInputGate createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
-		return createBarrierBuffer(numberOfChannels, sequence, null);
+		return createBarrierBuffer(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(InputGate gate) throws IOException {
-		return createBarrierBuffer(gate, null);
-	}
-
-	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException;
+	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) throws IOException;
 
 	abstract void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence);
 

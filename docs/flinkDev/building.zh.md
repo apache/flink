@@ -62,7 +62,7 @@ mvn clean install -DskipTests -Dfast
 之后，进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
 
 {% highlight bash %}
-cd flink-python; python3 setup.py sdist bdist_wheel
+cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
 
 <span class="label label-info">注意事项</span> 构建PyFlink需要Python3.5及以上的版本.
@@ -70,7 +70,7 @@ cd flink-python; python3 setup.py sdist bdist_wheel
 构建好的源码发布包和wheel包位于`./flink-python/dist/`目录下。它们均可使用pip安装,比如:
 
 {% highlight bash %}
-pip install dist/*.tar.gz
+python -m pip install dist/*.tar.gz
 {% endhighlight %}
 
 ## Dependency Shading

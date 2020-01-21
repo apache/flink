@@ -25,6 +25,13 @@ under the License.
 
 This walkthrough will quickly get you started building a pure Python Flink project.
 
+<span class="label label-info">Note</span> Python 3.5 or higher is required to run PyFlink. Run the following command to confirm that the command “python” in current environment points to Python 3.5+:
+
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+{% endhighlight %}
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -34,7 +41,7 @@ You can begin by creating a Python project and installing the PyFlink package.
 PyFlink is available via PyPi and can be easily installed using `pip`.
 
 {% highlight bash %}
-$ pip install apache-flink
+$ python -m pip install apache-flink
 {% endhighlight %}
 
 You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).
@@ -58,7 +65,6 @@ The the table environment created, you can declare source and sink tables.
 {% highlight python %}
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
@@ -110,7 +116,6 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
@@ -135,8 +140,13 @@ t_env.execute("tutorial_job")
 {% endhighlight %}
 
 ## Executing a Flink Python Table API Program
+Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
 
-You can run this example in your IDE or on the command line:
+{% highlight bash %}
+$ echo "flink\npyflink\nflink" > /tmp/input
+{% endhighlight %}
+
+Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):
 
 {% highlight bash %}
 $ python WordCount.py
@@ -146,6 +156,14 @@ The command builds and runs the Python Table API program in a local mini cluster
 You can also submit the Python Table API program to a remote cluster, you can refer
 [Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples)
 for more details.
+
+Finally, you can see the execution result on the command line:
+
+{% highlight bash %}
+$ cat /tmp/output
+flink	2
+pyflink	1
+{% endhighlight %}
 
 This should get you started with writing your own Flink Python Table API programs.
 To learn more about the Python Table API, you can refer
