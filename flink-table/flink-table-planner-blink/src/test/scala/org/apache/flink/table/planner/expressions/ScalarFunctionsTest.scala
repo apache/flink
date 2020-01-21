@@ -4159,4 +4159,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "IS_ALPHA(f33)",
       "false")
   }
+
+  @Test
+  def testRawTypeEquality(): Unit = {
+    testSqlApi(
+      "f55=f56",
+      "false")
+
+    testSqlApi(
+      "f55=f57",
+      "true")
+  }
 }
