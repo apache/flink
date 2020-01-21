@@ -124,8 +124,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 
-	private static final int NUM_STOP_CALL_TRIES = 3;
-
 	// --------------------------------------------------------------------------------------------
 
 	/** The executor which is used to execute futures. */
