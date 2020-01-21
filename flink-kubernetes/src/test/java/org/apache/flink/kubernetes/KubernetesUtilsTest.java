@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -236,6 +237,26 @@ public class KubernetesUtilsTest extends TestLogger {
 				e.getMessage(),
 				containsString(testingPort.key() + " should not be null."));
 		}
+	}
+
+	@Test
+	public void testCheckWithDynamicPort() {
+		testCheckAndUpdatePortConfigOption("0", "6123", "6123");
+	}
+
+	@Test
+	public void testCheckWithFixedPort() {
+		testCheckAndUpdatePortConfigOption("6123", "16123", "6123");
+	}
+
+	private void testCheckAndUpdatePortConfigOption(String port, String fallbackPort, String expectedPort) {
+		final Configuration cfg = new Configuration();
+		cfg.setString(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE, port);
+		KubernetesUtils.checkAndUpdatePortConfigOption(
+			cfg,
+			HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,
+			Integer.valueOf(fallbackPort));
+		assertEquals(expectedPort, cfg.get(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE));
 	}
 
 	private String getJobManagerExpectedCommand(String jvmAllOpts, String logging, String mainClassArgs) {
