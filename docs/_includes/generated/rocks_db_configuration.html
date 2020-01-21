@@ -34,9 +34,9 @@
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.memory.managed</h5></td>
-            <td style="word-wrap: break-word;">false</td>
+            <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>If set, the RocksDB state backend will automatically configure itself to use the managed memory budget of the task slot, and divide the memory over write buffers, indexes, block caches, etc. That way, the state backend will not exceed the available memory, but use as much memory as it can.</td>
+            <td>If set, the RocksDB state backend will automatically configure itself to use the managed memory budget of the task slot, and divide the memory over write buffers, indexes, block caches, etc. That way, the three major uses of memory of RocksDB will be capped.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.memory.write-buffer-ratio</h5></td>

@@ -26,7 +26,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -92,7 +92,7 @@ public abstract class StateBackendTestContext {
 			stateHandles = new ArrayList<>(1);
 			stateHandles.add(snapshot);
 		}
-		Environment env = new DummyEnvironment();
+		Environment env = MockEnvironment.builder().setMemorySize(3 * 1024 * 1024).build();
 		try {
 			disposeKeyedStateBackend();
 			keyedStateBackend = stateBackend.createKeyedStateBackend(

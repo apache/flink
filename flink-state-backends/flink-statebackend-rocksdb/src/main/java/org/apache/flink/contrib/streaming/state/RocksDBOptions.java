@@ -96,11 +96,10 @@ public class RocksDBOptions {
 	public static final ConfigOption<Boolean> USE_MANAGED_MEMORY = ConfigOptions
 		.key("state.backend.rocksdb.memory.managed")
 		.booleanType()
-		.defaultValue(false)
+		.defaultValue(true)
 		.withDescription("If set, the RocksDB state backend will automatically configure itself to use the " +
 			"managed memory budget of the task slot, and divide the memory over write buffers, indexes, " +
-			"block caches, etc. That way, the state backend will not exceed the available memory, but use as much " +
-			"memory as it can.");
+			"block caches, etc. That way, the three major uses of memory of RocksDB will be capped.");
 
 	public static final ConfigOption<MemorySize> FIX_PER_SLOT_MEMORY_SIZE = ConfigOptions
 		.key("state.backend.rocksdb.memory.fixed-per-slot")
