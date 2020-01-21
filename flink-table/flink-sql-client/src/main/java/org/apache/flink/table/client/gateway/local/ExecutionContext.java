@@ -31,6 +31,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -151,9 +152,13 @@ public class ExecutionContext<ClusterID> {
 		this.flinkConfig = flinkConfig;
 
 		// create class loader
-		classLoader = FlinkUserCodeClassLoaders.parentFirst(
-				dependencies.toArray(new URL[dependencies.size()]),
-				this.getClass().getClassLoader());
+		final String[] parentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(flinkConfig);
+		final String classloaderResolverOrder = flinkConfig.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+		classLoader = FlinkUserCodeClassLoaders.create(
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classloaderResolverOrder),
+			dependencies.toArray(new URL[dependencies.size()]),
+			this.getClass().getClassLoader(),
+			parentFirstLoaderPatterns);
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
