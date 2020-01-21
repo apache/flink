@@ -257,20 +257,25 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.process.size")
 			.memoryType()
 			.noDefaultValue()
-			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
-				+ " TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On"
-				+ " containerized setups, this should be set to the container memory.");
+			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a "
+				+ "TaskExecutor consumes, consisting of Total Flink Memory (configured with "
+				+ "'taskmanager.memory.flink.size'), JVM Metaspace, and JVM Overhead. On "
+				+ "containerized setups, this should be set to the container memory."
+			);
 
 	/**
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_FLINK_MEMORY =
 		key("taskmanager.memory.flink.size")
-		.memoryType()
-		.noDefaultValue()
-		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
-			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
-			+ " Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network Memory.");
+			.memoryType()
+			.noDefaultValue()
+			.withDescription(String.format("Total Flink Memory size for the TaskExecutors. This includes all the "
+					+ "memory that a TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of "
+					+ "Framework Heap Memory, Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Network "
+					+ "Memory. See also '%s' for total process memory size configuration.",
+				TOTAL_PROCESS_MEMORY.key()));
 
 	/**
 	 * Framework Heap Memory size for TaskExecutors.
