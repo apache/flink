@@ -65,7 +65,6 @@ The the table environment created, you can declare source and sink tables.
 {% highlight python %}
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \
