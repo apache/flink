@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -31,6 +33,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.util.IOUtils;
 
 public class MockEnvironmentBuilder {
 	private String taskName = "mock-task";
@@ -49,6 +52,7 @@ public class MockEnvironmentBuilder {
 	private JobVertexID jobVertexID = new JobVertexID();
 	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+	private IOManager ioManager = new IOManagerAsync();
 
 	public MockEnvironmentBuilder setTaskName(String taskName) {
 		this.taskName = taskName;
@@ -125,6 +129,13 @@ public class MockEnvironmentBuilder {
 		return this;
 	}
 
+	public MockEnvironmentBuilder setIOManager(IOManager ioManager) {
+		// close previous io-manager.
+		IOUtils.closeQuietly(this.ioManager);
+		this.ioManager = ioManager;
+		return this;
+	}
+
 	public MockEnvironment build() {
 		return new MockEnvironment(
 			jobID,
@@ -135,6 +146,7 @@ public class MockEnvironmentBuilder {
 			bufferSize,
 			taskConfiguration,
 			executionConfig,
+			ioManager,
 			taskStateManager,
 			aggregateManager,
 			maxParallelism,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.query;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -72,6 +73,11 @@ public class TaskKvStateRegistry {
 		for (KvStateInfo kvState : registeredKvStates) {
 			registry.unregisterKvState(jobId, jobVertexId, kvState.keyGroupRange, kvState.registrationName, kvState.kvStateId);
 		}
+	}
+
+	@VisibleForTesting
+	public KvStateRegistry getRegistry() {
+		return registry;
 	}
 
 	/**

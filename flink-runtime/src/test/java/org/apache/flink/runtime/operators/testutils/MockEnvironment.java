@@ -128,6 +128,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		int bufferSize,
 		Configuration taskConfiguration,
 		ExecutionConfig executionConfig,
+		IOManager ioManager,
 		TaskStateManager taskStateManager,
 		GlobalAggregateManager aggregateManager,
 		int maxParallelism,
@@ -147,7 +148,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 
 		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, memorySize).build();
-		this.ioManager = new IOManagerAsync();
+		this.ioManager = ioManager;
 		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
 		this.executionConfig = executionConfig;

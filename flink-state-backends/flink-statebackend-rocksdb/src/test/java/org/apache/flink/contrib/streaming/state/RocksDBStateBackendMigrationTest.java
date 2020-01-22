@@ -60,4 +60,9 @@ public class RocksDBStateBackendMigrationTest extends StateBackendMigrationTestB
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
+
+	@Override
+	protected long getManagedMemorySize() {
+		return 32 * 1024 * 1024;
+	}
 }

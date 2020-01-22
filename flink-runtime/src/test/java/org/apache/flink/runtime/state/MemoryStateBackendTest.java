@@ -48,6 +48,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	}
 
 	@Override
+	protected long getManagedMemorySize() {
+		return 0;
+	}
+
+	@Override
 	protected boolean isSerializerPresenceRequiredOnRestore() {
 		return true;
 	}
