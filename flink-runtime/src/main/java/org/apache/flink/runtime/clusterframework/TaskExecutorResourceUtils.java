@@ -389,7 +389,7 @@ public class TaskExecutorResourceUtils {
 			size = rangeFraction.maxSize.getBytes();
 		} else if (size < rangeFraction.minSize.getBytes()) {
 			LOG.info(
-				"The derived from fraction {} ({}) is less than its min value {}, max value will be used instead",
+				"The derived from fraction {} ({}) is less than its min value {}, min value will be used instead",
 				memoryDescription,
 				relative.toHumanReadableString(),
 				rangeFraction.minSize.toHumanReadableString());
