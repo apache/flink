@@ -33,6 +33,11 @@ import javax.annotation.Nonnull;
 public class KubernetesSessionClusterExecutorFactory implements PipelineExecutorFactory {
 
 	@Override
+	public String getName() {
+		return KubernetesSessionClusterExecutor.NAME;
+	}
+
+	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
 		return configuration.get(DeploymentOptions.TARGET)
 				.equalsIgnoreCase(KubernetesSessionClusterExecutor.NAME);

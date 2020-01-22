@@ -68,6 +68,7 @@ import javax.annotation.Nonnull;
 import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
@@ -356,6 +357,12 @@ public class ClientTest extends TestLogger {
 		@Override
 		public PipelineExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
 			return new PipelineExecutorFactory() {
+
+				@Override
+				public String getName() {
+					return "my-name";
+				}
+
 				@Override
 				public boolean isCompatibleWith(@Nonnull Configuration configuration) {
 					return TEST_EXECUTOR_NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
@@ -376,6 +383,11 @@ public class ClientTest extends TestLogger {
 					};
 				}
 			};
+		}
+
+		@Override
+		public Stream<String> getExecutorNames() {
+			throw new UnsupportedOperationException("not implemented");
 		}
 	}
 }
