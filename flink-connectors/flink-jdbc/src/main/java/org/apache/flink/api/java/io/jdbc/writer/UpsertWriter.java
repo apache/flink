@@ -198,6 +198,8 @@ public abstract class UpsertWriter implements JDBCWriter {
 		private transient PreparedStatement insertStatement;
 		private transient PreparedStatement updateStatement;
 
+		private final int[] fieldsAndPkTypes;
+
 		private UpsertWriterUsingInsertUpdateStatement(
 			int[] fieldTypes,
 			int[] pkFields,
@@ -211,6 +213,8 @@ public abstract class UpsertWriter implements JDBCWriter {
 			this.existSQL = existSQL;
 			this.insertSQL = insertSQL;
 			this.updateSQL = updateSQL;
+
+			this.fieldsAndPkTypes = concatArray(fieldTypes, pkTypes);
 		}
 
 		@Override
@@ -229,7 +233,7 @@ public abstract class UpsertWriter implements JDBCWriter {
 			resultSet.close();
 			if (exist) {
 				// do update
-				setRecordToStatement(updateStatement, fieldTypes, row);
+				setRecordToStatement(updateStatement, fieldsAndPkTypes, Row.join(row, pk));
 				updateStatement.addBatch();
 			} else {
 				// do insert
@@ -260,5 +264,17 @@ public abstract class UpsertWriter implements JDBCWriter {
 				updateStatement = null;
 			}
 		}
+
+		private int[] concatArray(int[] left, int[] right) {
+			if (left == null){
+				return null;
+			}
+
+			int[] result = new int[left.length + right.length];
+			System.arraycopy(left, 0, result, 0, left.length);
+			System.arraycopy(right, 0, result, left.length, right.length);
+			return result;
+		}
+
 	}
 }

@@ -34,6 +34,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,23 +51,35 @@ public class JDBCUpsertOutputFormatTest extends JDBCTestBase {
 	private JDBCUpsertOutputFormat format;
 	private String[] fieldNames;
 	private String[] keyFields;
+	private int[] fieldTypes;
 
 	@Before
 	public void setup() {
 		fieldNames = new String[]{"id", "title", "author", "price", "qty"};
+		fieldTypes = new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER};
 		keyFields = new String[]{"id"};
 	}
 
 	@Test
 	public void testJDBCOutputFormat() throws Exception {
+		testJDBCOutputFormat(null);
+	}
+
+	@Test
+	public void testJDBCOutputFormatWithFiledTypes() throws Exception {
+		testJDBCOutputFormat(fieldTypes);
+	}
+
+	private void testJDBCOutputFormat(int[] fieldSqlTypes) throws Exception {
 		format = JDBCUpsertOutputFormat.builder()
-				.setOptions(JDBCOptions.builder()
-						.setDBUrl(DB_URL)
-						.setTableName(OUTPUT_TABLE)
-						.build())
-				.setFieldNames(fieldNames)
-				.setKeyFields(keyFields)
-				.build();
+			.setOptions(JDBCOptions.builder()
+				.setDBUrl(DB_URL)
+				.setTableName(OUTPUT_TABLE)
+				.build())
+			.setFieldNames(fieldNames)
+			.setKeyFields(keyFields)
+			.setFieldTypes(fieldSqlTypes)
+			.build();
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);
 		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
 		doReturn(config).when(context).getExecutionConfig();
