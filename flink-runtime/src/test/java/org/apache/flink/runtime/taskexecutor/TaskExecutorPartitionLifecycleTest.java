@@ -72,6 +72,7 @@ import org.apache.flink.util.function.TriConsumer;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -101,9 +102,9 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	private static final Time timeout = Time.seconds(10L);
 
-	private static final TestingRpcService RPC = new TestingRpcService();
+	private static TestingRpcService RPC;
 
-	private static final MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	private static MetricRegistryImpl metricRegistry;
 
 	private String metricQueryServiceAddress;
 
@@ -126,6 +127,12 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	@After
 	public void shutdown() {
 		RPC.clearGateways();
+	}
+
+	@BeforeClass
+	public static void setupClass() {
+		RPC = new TestingRpcService();
+		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 	}
 
 	@AfterClass
