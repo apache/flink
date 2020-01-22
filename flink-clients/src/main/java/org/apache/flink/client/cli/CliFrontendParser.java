@@ -44,7 +44,7 @@ public class CliFrontendParser {
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
 	static final Option CLASS_OPTION = new Option("c", "class", true,
-			"Class with the program entry point (\"main()\" method or \"getPlan()\" method). Only needed if the " +
+			"Class with the program entry point (\"main()\" method). Only needed if the " +
 			"JAR file does not specify the class in its manifest.");
 
 	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
