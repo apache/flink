@@ -97,7 +97,7 @@ trait CommonPythonCalc {
       .toArray
   }
 
-  private [flink] def getForwardFields(calcProgram: RexProgram): Array[Int] = {
+  private[flink] def getForwardedFields(calcProgram: RexProgram): Array[Int] = {
     calcProgram.getProjectList
       .map(calcProgram.expandLocalRef)
       .collect { case inputRef: RexInputRef => inputRef.getIndex }

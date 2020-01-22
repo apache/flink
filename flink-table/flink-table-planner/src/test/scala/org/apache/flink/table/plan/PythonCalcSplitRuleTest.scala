@@ -266,26 +266,4 @@ class PythonCalcSplitRuleTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
-
-  @Test
-  def testSplitRuleForBatch(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
-    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
-
-    val resultTable = table
-      .select("pyFunc1(a, b) + 1")
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetPythonCalc",
-        batchTableNode(table),
-        term("select", "pyFunc1(a, b) AS f0")
-      ),
-      term("select", "+(f0, 1) AS _c0")
-    )
-
-    util.verifyTable(resultTable, expected)
-  }
 }

@@ -72,7 +72,7 @@ class DataSetPythonCalc(
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
 
     val flatMapFunctionResultTypeInfo = new RowTypeInfo(
-      getForwardFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
+      getForwardedFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
         getPythonRexCalls(calcProgram).map(node => FlinkTypeFactory.toTypeInfo(node.getType)): _*)
 
     // construct the Python ScalarFunction flatMap function
@@ -110,7 +110,7 @@ class DataSetPythonCalc(
       inputRowType,
       outputRowType,
       udfInputOffsets,
-      getForwardFields(calcProgram))
+      getForwardedFields(calcProgram))
       .asInstanceOf[RichFlatMapFunction[Row, Row]]
   }
 }

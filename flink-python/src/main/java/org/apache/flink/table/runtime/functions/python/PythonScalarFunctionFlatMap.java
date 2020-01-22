@@ -64,7 +64,7 @@ public final class PythonScalarFunctionFlatMap
 
 	private static final long serialVersionUID = 1L;
 
-	protected static final Logger LOG = LoggerFactory.getLogger(PythonScalarFunctionFlatMap.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PythonScalarFunctionFlatMap.class);
 
 	/**
 	 * The type serializer for the forwarded fields.
@@ -74,48 +74,48 @@ public final class PythonScalarFunctionFlatMap
 	/**
 	 * The Python {@link ScalarFunction}s to be executed.
 	 */
-	protected final PythonFunctionInfo[] scalarFunctions;
+	private final PythonFunctionInfo[] scalarFunctions;
 
 	/**
 	 * The input logical type.
 	 */
-	protected final RowType inputType;
+	private final RowType inputType;
 
 	/**
 	 * The output logical type.
 	 */
-	protected final RowType outputType;
+	private final RowType outputType;
 
 	/**
 	 * The offsets of udf inputs.
 	 */
-	protected final int[] udfInputOffsets;
+	private final int[] udfInputOffsets;
 
 	/**
 	 * The offset of the fields which should be forwarded.
 	 */
-	protected final int[] forwardedFields;
+	private final int[] forwardedFields;
 
 	/**
 	 * The udf input logical type.
 	 */
-	protected transient RowType udfInputType;
+	private transient RowType udfInputType;
 
 	/**
 	 * The udf output logical type.
 	 */
-	protected transient RowType udfOutputType;
+	private transient RowType udfOutputType;
 
 	/**
 	 * The queue holding the input elements for which the execution results have not been received.
 	 */
-	protected transient LinkedBlockingQueue<Row> forwardedInputQueue;
+	private transient LinkedBlockingQueue<Row> forwardedInputQueue;
 
 	/**
 	 * The queue holding the user-defined function execution results. The execution results are in
 	 * the same order as the input elements.
 	 */
-	protected transient LinkedBlockingQueue<Row> udfResultQueue;
+	private transient LinkedBlockingQueue<Row> udfResultQueue;
 
 	/**
 	 * The python config.
@@ -202,7 +202,6 @@ public final class PythonScalarFunctionFlatMap
 
 		this.pythonFunctionRunner = createPythonFunctionRunner();
 		this.pythonFunctionRunner.open();
-		this.resultCollector = null;
 	}
 
 	@Override
@@ -226,7 +225,7 @@ public final class PythonScalarFunctionFlatMap
 	}
 
 	/**
-	 * Checks whether to invoke finishBundle by elements count. Called in processElement.
+	 * Checks whether to invoke finishBundle by elements count. Called in flatMap.
 	 */
 	private void checkInvokeFinishBundleByCount() throws Exception {
 		elementCount++;

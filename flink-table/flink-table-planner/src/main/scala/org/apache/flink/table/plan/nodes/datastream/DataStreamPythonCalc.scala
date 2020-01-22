@@ -79,7 +79,7 @@ class DataStreamPythonCalc(
     val inputParallelism = inputDataStream.getParallelism
 
     val pythonOperatorResultTypeInfo = new RowTypeInfo(
-      getForwardFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
+      getForwardedFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
         getPythonRexCalls(calcProgram).map(node => FlinkTypeFactory.toTypeInfo(node.getType)): _*)
 
     // construct the Python operator
@@ -123,7 +123,7 @@ class DataStreamPythonCalc(
       inputRowType,
       outputRowType,
       udfInputOffsets,
-      getForwardFields(calcProgram))
+      getForwardedFields(calcProgram))
       .asInstanceOf[OneInputStreamOperator[CRow, CRow]]
   }
 }
