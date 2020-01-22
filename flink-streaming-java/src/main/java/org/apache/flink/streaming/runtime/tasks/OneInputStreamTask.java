@@ -90,6 +90,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
 			TaskIOMetricGroup taskIOMetricGroup = getEnvironment().getMetricGroup().getIOMetricGroup();
 			taskIOMetricGroup.gauge("checkpointAlignmentTime", inputGate::getAlignmentDurationNanos);
+			taskIOMetricGroup.gauge("checkpointStartDelayNanos", inputGate::getCheckpointStartDelayNanos);
 
 			DataOutput<IN> output = createDataOutput();
 			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
