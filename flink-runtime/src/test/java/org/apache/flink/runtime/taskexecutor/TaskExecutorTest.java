@@ -1046,6 +1046,12 @@ public class TaskExecutorTest extends TestLogger {
 		final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture = new CompletableFuture<>();
 		resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
 
+		final OneShotLatch taskExecutorIsRegistered = new OneShotLatch();
+		resourceManagerGateway.setSendSlotReportFunction(ignored -> {
+			taskExecutorIsRegistered.trigger();
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		});
+
 		final AllocationID allocationId1 = new AllocationID();
 		final AllocationID allocationId2 = new AllocationID();
 
@@ -1066,8 +1072,6 @@ public class TaskExecutorTest extends TestLogger {
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			})
 			.build();
-
-		jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
 		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
@@ -1091,19 +1095,26 @@ public class TaskExecutorTest extends TestLogger {
 
 			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
-			taskSlotTable.allocateSlot(0, jobId, allocationId1, Time.milliseconds(10000L));
-			taskSlotTable.allocateSlot(1, jobId, allocationId2, Time.milliseconds(10000L));
+			// wait until registered at the RM
+			taskExecutorIsRegistered.await();
+
+			// request 2 slots for the given allocation ids
+			requestSlots(
+				tmGateway,
+				Arrays.asList(allocationId1, allocationId2),
+				resourceManagerGateway.getFencingToken(),
+				jobMasterGateway.getAddress());
+
+			// notify job leader to start slot offering
+			jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+			// wait until slots have been offered
+			offerSlotsLatch.await();
 
 			final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder
 				.newBuilder(jobId, NoOpInvokable.class)
 				.setAllocationId(allocationId1)
 				.build();
-
-			// we have to add the job after the TaskExecutor, because otherwise the service has not
-			// been properly started. This will also offer the slots to the job master
-			jobLeaderService.addJob(jobId, jobMasterGateway.getAddress());
-
-			offerSlotsLatch.await();
 
 			// submit the task without having acknowledge the offered slots
 			tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).get();
@@ -1111,17 +1122,31 @@ public class TaskExecutorTest extends TestLogger {
 			// acknowledge the offered slots
 			offerResultFuture.complete(Collections.singleton(offer1));
 
+			// check that the rejected slot will be made available again
 			final Tuple3<InstanceID, SlotID, AllocationID> instanceIDSlotIDAllocationIDTuple3 = availableSlotFuture.get();
-			assertThat(instanceIDSlotIDAllocationIDTuple3.f1, equalTo(new SlotID(taskManagerLocation.getResourceID(), 1)));
-
-			assertTrue(taskSlotTable.tryMarkSlotActive(jobId, allocationId1));
-			assertFalse(taskSlotTable.tryMarkSlotActive(jobId, allocationId2));
-			assertTrue(taskSlotTable.isSlotFree(1));
+			assertThat(instanceIDSlotIDAllocationIDTuple3.f2, equalTo(allocationId2));
 
 			// wait for the task completion
 			taskInTerminalState.await();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+		}
+	}
+
+	private void requestSlots(TaskExecutorGateway tmGateway, Iterable<? extends AllocationID> allocationIds, ResourceManagerId resourceManagerId, String jobMasterGatewayAddress) {
+		int slotIndex = 0;
+		for (AllocationID allocationId : allocationIds) {
+			final SlotID slotId1 = new SlotID(taskManagerLocation.getResourceID(), slotIndex);
+			tmGateway.requestSlot(
+				slotId1,
+				jobId,
+				allocationId,
+				ResourceProfile.UNKNOWN,
+				jobMasterGatewayAddress,
+				resourceManagerId,
+				Time.seconds(10L)).join();
+
+			slotIndex++;
 		}
 	}
 
