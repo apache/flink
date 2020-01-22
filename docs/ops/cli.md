@@ -438,8 +438,10 @@ Action "run" compiles and runs a program.
                            https://ci.apache.org/projects/flink/flink-docs-stabl
                            e/ops/config.html
      -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, e.g. "local". This is equivalent to the
-                           "execution.target" config option.
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -488,8 +490,10 @@ Action "list" lists running and scheduled programs.
                            https://ci.apache.org/projects/flink/flink-docs-stabl
                            e/ops/config.html
      -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, e.g. "local". This is equivalent to the
-                           "execution.target" config option.
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -528,8 +532,10 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                            https://ci.apache.org/projects/flink/flink-docs-stabl
                            e/ops/config.html
      -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, e.g. "local". This is equivalent to the
-                           "execution.target" config option.
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -569,8 +575,10 @@ Action "cancel" cancels a running program.
                            https://ci.apache.org/projects/flink/flink-docs-stabl
                            e/ops/config.html
      -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, e.g. "local". This is equivalent to the
-                           "execution.target" config option.
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -604,8 +612,10 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
                            https://ci.apache.org/projects/flink/flink-docs-stabl
                            e/ops/config.html
      -e,--executor <arg>   The name of the executor to be used for executing the
-                           given job, e.g. "local". This is equivalent to the
-                           "execution.target" config option.
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
