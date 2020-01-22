@@ -238,6 +238,14 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	}
 
 	/**
+	 * @return the time that elapsed, in nanoseconds, between the creation of the latest checkpoint
+	 * and the time when it's first {@link CheckpointBarrier} was received by this {@link InputGate}.
+	 */
+	public long getCheckpointStartDelayNanos() {
+		return barrierHandler.getCheckpointStartDelayNanos();
+	}
+
+	/**
 	 * @return number of underlying input channels.
 	 */
 	public int getNumberOfInputChannels() {
