@@ -127,7 +127,7 @@ public class ExecutorCLI implements CustomCommandLine {
 	}
 
 	private static String getExecutorFactoryNames() {
-		return DefaultExecutorServiceLoader.INSTANCE.getExecutors()
+		return DefaultExecutorServiceLoader.INSTANCE.getExecutorNames()
 				.map(name -> String.format("\"%s\"", name))
 				.collect(Collectors.joining(", "));
 	}

@@ -386,7 +386,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		@Override
-		public Stream<String> getExecutors() {
+		public Stream<String> getExecutorNames() {
 			throw new UnsupportedOperationException("not implemented");
 		}
 	}

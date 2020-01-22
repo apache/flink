@@ -44,5 +44,5 @@ public interface PipelineExecutorServiceLoader {
 	/**
 	 * Loads and returns a stream of the names of all available executors.
 	 */
-	Stream<String> getExecutors();
+	Stream<String> getExecutorNames();
 }

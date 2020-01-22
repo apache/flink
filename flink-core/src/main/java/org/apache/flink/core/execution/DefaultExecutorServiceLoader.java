@@ -85,7 +85,7 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
 	}
 
 	@Override
-	public Stream<String> getExecutors() {
+	public Stream<String> getExecutorNames() {
 		return StreamSupport.stream(defaultLoader.spliterator(), false)
 				.map(PipelineExecutorFactory::getName);
 	}
