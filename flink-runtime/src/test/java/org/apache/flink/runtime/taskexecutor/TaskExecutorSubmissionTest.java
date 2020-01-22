@@ -213,7 +213,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
@@ -263,7 +263,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(2)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
@@ -319,7 +319,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
@@ -386,7 +386,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
@@ -437,7 +437,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
@@ -470,7 +470,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
@@ -524,7 +524,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
@@ -584,7 +584,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			TestingAbstractInvokables.TestInvokableRecordCancel.resetGotCanceledFuture();
 

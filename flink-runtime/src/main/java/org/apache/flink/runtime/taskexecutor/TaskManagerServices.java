@@ -34,6 +34,7 @@ import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -65,7 +66,7 @@ public class TaskManagerServices {
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 	private final KvStateService kvStateService;
 	private final BroadcastVariableManager broadcastVariableManager;
-	private final TaskSlotTable taskSlotTable;
+	private final TaskSlotTable<Task> taskSlotTable;
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
@@ -78,7 +79,7 @@ public class TaskManagerServices {
 		ShuffleEnvironment<?, ?> shuffleEnvironment,
 		KvStateService kvStateService,
 		BroadcastVariableManager broadcastVariableManager,
-		TaskSlotTable taskSlotTable,
+		TaskSlotTable<Task> taskSlotTable,
 		JobManagerTable jobManagerTable,
 		JobLeaderService jobLeaderService,
 		TaskExecutorLocalStateStoresManager taskManagerStateStore,
@@ -125,7 +126,7 @@ public class TaskManagerServices {
 		return broadcastVariableManager;
 	}
 
-	public TaskSlotTable getTaskSlotTable() {
+	public TaskSlotTable<Task> getTaskSlotTable() {
 		return taskSlotTable;
 	}
 
@@ -241,7 +242,7 @@ public class TaskManagerServices {
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final TaskSlotTable taskSlotTable = createTaskSlotTable(
+		final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
 			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
@@ -278,7 +279,7 @@ public class TaskManagerServices {
 			taskEventDispatcher);
 	}
 
-	private static TaskSlotTable createTaskSlotTable(
+	private static TaskSlotTable<Task> createTaskSlotTable(
 			final int numberOfSlots,
 			final TaskExecutorResourceSpec taskExecutorResourceSpec,
 			final long timerServiceShutdownTimeout,
@@ -286,7 +287,7 @@ public class TaskManagerServices {
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
-		return new TaskSlotTable(
+		return new TaskSlotTable<>(
 			numberOfSlots,
 			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
 			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
