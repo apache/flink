@@ -29,6 +29,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -83,8 +85,9 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
 	}
 
 	@Override
-	public Iterator<PipelineExecutorFactory> getExecutorFactories() {
-		return defaultLoader.iterator();
+	public Stream<String> getExecutors() {
+		return StreamSupport.stream(defaultLoader.spliterator(), false)
+				.map(PipelineExecutorFactory::getName);
 	}
 
 	private DefaultExecutorServiceLoader() {

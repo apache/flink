@@ -21,7 +21,7 @@ package org.apache.flink.core.execution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
-import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  * An interface to be implemented by the entity responsible for finding the correct {@link PipelineExecutor} to
@@ -42,8 +42,7 @@ public interface PipelineExecutorServiceLoader {
 	PipelineExecutorFactory getExecutorFactory(final Configuration configuration) throws Exception;
 
 	/**
-	 * Loads and returns an iterator over all available {@link PipelineExecutorFactory
-	 * PipelineExecutorFactories}.
+	 * Loads and returns a stream of the names of all available executors.
 	 */
-	Iterator<PipelineExecutorFactory> getExecutorFactories();
+	Stream<String> getExecutors();
 }

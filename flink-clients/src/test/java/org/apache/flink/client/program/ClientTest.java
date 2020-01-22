@@ -67,8 +67,8 @@ import javax.annotation.Nonnull;
 
 import java.net.URL;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
@@ -386,7 +386,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		@Override
-		public Iterator<PipelineExecutorFactory> getExecutorFactories() {
+		public Stream<String> getExecutors() {
 			throw new UnsupportedOperationException("not implemented");
 		}
 	}

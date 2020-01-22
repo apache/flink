@@ -45,9 +45,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.is;
@@ -163,7 +163,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		}
 
 		@Override
-		public Iterator<PipelineExecutorFactory> getExecutorFactories() {
+		public Stream<String> getExecutors() {
 			throw new UnsupportedOperationException("not implemented");
 		}
 	}
