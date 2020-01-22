@@ -45,7 +45,7 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutorCLI.class);
 
-	private static final String ID = "Executor-CLI";
+	private static final String ID = "executor";
 
 	private final Option executorOption = new Option("e", "executor", true,
 			"The name of the executor to be used for executing the given job, e.g. \"local\"." +
@@ -59,7 +59,9 @@ public class ExecutorCLI implements CustomCommandLine {
 			.argName("property=value")
 			.numberOfArgs(2)
 			.valueSeparator('=')
-			.desc("use value for given property")
+			.desc("Generic configuration options for execution/deployment and for the configured " +
+					"executor. The available options can be found at " +
+					"https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
 			.build();
 
 	private final Configuration baseConfiguration;
