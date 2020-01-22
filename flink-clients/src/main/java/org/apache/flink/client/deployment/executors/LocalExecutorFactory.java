@@ -31,6 +31,11 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 public class LocalExecutorFactory implements PipelineExecutorFactory {
 
 	@Override
+	public String getName() {
+		return LocalExecutor.NAME;
+	}
+
+	@Override
 	public boolean isCompatibleWith(final Configuration configuration) {
 		return LocalExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}

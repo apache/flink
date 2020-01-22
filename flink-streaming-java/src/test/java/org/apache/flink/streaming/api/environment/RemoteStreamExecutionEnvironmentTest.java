@@ -45,6 +45,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -133,6 +134,12 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		@Override
 		public PipelineExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
 			return new PipelineExecutorFactory() {
+
+				@Override
+				public String getName() {
+					return "my-name";
+				}
+
 				@Override
 				public boolean isCompatibleWith(@Nonnull Configuration configuration) {
 					return true;
@@ -153,6 +160,11 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 					};
 				}
 			};
+		}
+
+		@Override
+		public Iterator<PipelineExecutorFactory> getExecutorFactories() {
+			throw new UnsupportedOperationException("not implemented");
 		}
 	}
 

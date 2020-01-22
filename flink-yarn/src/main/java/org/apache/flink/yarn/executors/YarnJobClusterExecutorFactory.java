@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.executors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -31,6 +32,11 @@ import javax.annotation.Nonnull;
  */
 @Internal
 public class YarnJobClusterExecutorFactory implements PipelineExecutorFactory {
+
+	@Override
+	public String getName() {
+		return YarnJobClusterExecutor.NAME;
+	}
 
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {

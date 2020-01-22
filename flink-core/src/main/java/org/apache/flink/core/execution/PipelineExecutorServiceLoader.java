@@ -21,6 +21,8 @@ package org.apache.flink.core.execution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
+import java.util.Iterator;
+
 /**
  * An interface to be implemented by the entity responsible for finding the correct {@link PipelineExecutor} to
  * execute a given {@link org.apache.flink.api.dag.Pipeline}.
@@ -38,4 +40,10 @@ public interface PipelineExecutorServiceLoader {
 	 * 			loading the registered factories.
 	 */
 	PipelineExecutorFactory getExecutorFactory(final Configuration configuration) throws Exception;
+
+	/**
+	 * Loads and returns an iterator over all available {@link PipelineExecutorFactory
+	 * PipelineExecutorFactories}.
+	 */
+	Iterator<PipelineExecutorFactory> getExecutorFactories();
 }

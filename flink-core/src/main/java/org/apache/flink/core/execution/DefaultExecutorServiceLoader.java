@@ -82,6 +82,11 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
 		return compatibleFactories.isEmpty() ? null : compatibleFactories.get(0);
 	}
 
+	@Override
+	public Iterator<PipelineExecutorFactory> getExecutorFactories() {
+		return defaultLoader.iterator();
+	}
+
 	private DefaultExecutorServiceLoader() {
 		// make sure nobody instantiates us explicitly.
 	}
