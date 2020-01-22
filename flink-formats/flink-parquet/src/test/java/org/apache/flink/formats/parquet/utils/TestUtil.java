@@ -230,7 +230,7 @@ public class TestUtil {
 		return mockContext;
 	}
 
-	private static Schema getTestSchema(String schemaName) {
+	public static Schema getTestSchema(String schemaName) {
 		try {
 			InputStream inputStream = TestUtil.class.getClassLoader()
 				.getResourceAsStream("avro/" + schemaName);
