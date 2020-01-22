@@ -204,6 +204,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param configuration a configuration to read the values from
    * @param classLoader   a class loader to use when loading classes
    */
+  @PublicEvolving
   def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
     javaEnv.configure(configuration, classLoader)
   }
