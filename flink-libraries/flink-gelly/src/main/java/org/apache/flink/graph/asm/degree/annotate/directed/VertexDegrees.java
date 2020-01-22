@@ -193,15 +193,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 
 				byte bitmask = edge.f1.getValue();
 
-				degree++;
-
 				if (bitmask == EdgeOrder.FORWARD.getBitmask()) {
 					outDegree++;
+					degree++;
 				} else if (bitmask == EdgeOrder.REVERSE.getBitmask()) {
 					inDegree++;
+					degree++;
 				} else {
 					outDegree++;
 					inDegree++;
+					degree++;
+					degree++;
 				}
 			}
 
