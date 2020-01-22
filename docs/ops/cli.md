@@ -293,9 +293,9 @@ Action "run" compiles and runs a program.
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
      -c,--class <classname>               Class with the program entry point
-                                          ("main()" method or "getPlan()" method).
-                                          Only needed if the JAR file does not
-                                          specify the class in its manifest.
+                                          ("main()" method). Only needed if the
+                                          JAR file does not specify the class in
+                                          its manifest.
      -C,--classpath <url>                 Adds a URL to each user code
                                           classloader  on all nodes in the
                                           cluster. The paths must specify a
@@ -384,7 +384,7 @@ Action "run" compiles and runs a program.
                                           if the optional parameter exists
                                           (e.g.: --pyRequirements
                                           file:///tmp/requirements.txt#file:///t
-                                          mp/cached_dir).                                                                          
+                                          mp/cached_dir).
      -q,--sysoutLogging                   If present, suppress logging output to
                                           standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
@@ -403,11 +403,6 @@ Action "run" compiles and runs a program.
                                           connect to a different JobManager than
                                           the one specified in the
                                           configuration.
-     -sae,--shutdownOnAttachedExit        If the job is submitted in attached
-                                          mode, perform a best-effort cluster
-                                          shutdown when the CLI is terminated
-                                          abruptly, e.g., in response to a user
-                                          interrupt, such as typing Ctrl + C.
      -yat,--yarnapplicationType <arg>     Set a custom application type for the
                                           application on YARN
      -yD <property=value>                 use value for given property
@@ -417,8 +412,10 @@ Action "run" compiles and runs a program.
      -yh,--yarnhelp                       Help for the Yarn session CLI.
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
-     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container
-                                          with optional unit (default: MB)
+     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container with
+                                          optional unit (default: MB)
+     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for the YARN
+                                          application
      -ynm,--yarnname <arg>                Set a custom name for the application
                                           on YARN
      -yq,--yarnquery                      Display available YARN resources
@@ -426,16 +423,19 @@ Action "run" compiles and runs a program.
      -yqu,--yarnqueue <arg>               Specify YARN queue.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
      -yt,--yarnship <arg>                 Ship files in the specified directory
-                                          (t for transfer), multiple options are 
-                                          supported.
-     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container
-                                          with optional unit (default: MB)
+                                          (t for transfer)
+     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container with
+                                          optional unit (default: MB)
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
                                           sub-paths for high availability mode
-     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for 
-                                          the YARN application 
      -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
                                           sub-paths for high availability mode
+
+  Options for executor mode:
+     -D <property=value>   use value for given property
+     -e,--executor <arg>   The name of the executor to be used for executing the
+                           given job, e.g. "local". This is equivalent to the
+                           "execution.target" config option.
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -451,10 +451,10 @@ Action "info" shows the optimized execution plan of the program (JSON).
 
   Syntax: info [OPTIONS] <jar-file> <arguments>
   "info" action options:
-     -c,--class <classname>           Class with the program entry point ("main()"
-                                      method or "getPlan()" method). Only needed
-                                      if the JAR file does not specify the class
-                                      in its manifest.
+     -c,--class <classname>           Class with the program entry point
+                                      ("main()" method). Only needed if the JAR
+                                      file does not specify the class in its
+                                      manifest.
      -p,--parallelism <parallelism>   The parallelism with which to run the
                                       program. Optional flag to override the
                                       default value specified in the
@@ -465,6 +465,7 @@ Action "list" lists running and scheduled programs.
 
   Syntax: list [OPTIONS]
   "list" action options:
+     -a,--all         Show all programs and their JobIDs
      -r,--running     Show only running programs and their JobIDs
      -s,--scheduled   Show only scheduled programs and their JobIDs
   Options for yarn-cluster mode:
@@ -475,6 +476,12 @@ Action "list" lists running and scheduled programs.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
+
+  Options for executor mode:
+     -D <property=value>   use value for given property
+     -e,--executor <arg>   The name of the executor to be used for executing the
+                           given job, e.g. "local". This is equivalent to the
+                           "execution.target" config option.
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -505,6 +512,12 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
+
+  Options for executor mode:
+     -D <property=value>   use value for given property
+     -e,--executor <arg>   The name of the executor to be used for executing the
+                           given job, e.g. "local". This is equivalent to the
+                           "execution.target" config option.
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
@@ -537,6 +550,12 @@ Action "cancel" cancels a running program.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
+  Options for executor mode:
+     -D <property=value>   use value for given property
+     -e,--executor <arg>   The name of the executor to be used for executing the
+                           given job, e.g. "local". This is equivalent to the
+                           "execution.target" config option.
+
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
@@ -561,6 +580,12 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
+
+  Options for executor mode:
+     -D <property=value>   use value for given property
+     -e,--executor <arg>   The name of the executor to be used for executing the
+                           given job, e.g. "local". This is equivalent to the
+                           "execution.target" config option.
 
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
