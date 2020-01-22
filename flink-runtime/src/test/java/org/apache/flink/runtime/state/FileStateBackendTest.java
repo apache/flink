@@ -56,11 +56,6 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	}
 
 	@Override
-	protected long getManagedMemorySize() {
-		return 0;
-	}
-
-	@Override
 	protected boolean isSerializerPresenceRequiredOnRestore() {
 		return true;
 	}

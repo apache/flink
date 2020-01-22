@@ -142,11 +142,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Override
-	protected long getManagedMemorySize() {
-		return 32 * 1024 * 1024;
-	}
-
-	@Override
 	protected boolean isSerializerPresenceRequiredOnRestore() {
 		return false;
 	}

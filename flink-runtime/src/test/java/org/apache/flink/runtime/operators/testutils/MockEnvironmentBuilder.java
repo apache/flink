@@ -33,11 +33,10 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.util.IOUtils;
 
-public class MockEnvironmentBuilder {
+	public class MockEnvironmentBuilder {
 	private String taskName = "mock-task";
-	private long memorySize = 1024 * MemoryManager.DEFAULT_PAGE_SIZE;
+	private long managedMemorySize = 1024 * MemoryManager.DEFAULT_PAGE_SIZE;
 	private MockInputSplitProvider inputSplitProvider = null;
 	private int bufferSize = 16;
 	private TaskStateManager taskStateManager = new TestTaskStateManager();
@@ -52,15 +51,15 @@ public class MockEnvironmentBuilder {
 	private JobVertexID jobVertexID = new JobVertexID();
 	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
-	private IOManager ioManager = new IOManagerAsync();
+	private IOManager ioManager;
 
 	public MockEnvironmentBuilder setTaskName(String taskName) {
 		this.taskName = taskName;
 		return this;
 	}
 
-	public MockEnvironmentBuilder setMemorySize(long memorySize) {
-		this.memorySize = memorySize;
+	public MockEnvironmentBuilder setManagedMemorySize(long managedMemorySize) {
+		this.managedMemorySize = managedMemorySize;
 		return this;
 	}
 
@@ -130,18 +129,19 @@ public class MockEnvironmentBuilder {
 	}
 
 	public MockEnvironmentBuilder setIOManager(IOManager ioManager) {
-		// close previous io-manager.
-		IOUtils.closeQuietly(this.ioManager);
 		this.ioManager = ioManager;
 		return this;
 	}
 
 	public MockEnvironment build() {
+		if (ioManager == null) {
+			ioManager = new IOManagerAsync();
+		}
 		return new MockEnvironment(
 			jobID,
 			jobVertexID,
 			taskName,
-			memorySize,
+			managedMemorySize,
 			inputSplitProvider,
 			bufferSize,
 			taskConfiguration,

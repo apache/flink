@@ -856,7 +856,7 @@ public class StreamTaskTest extends TestLogger {
 		try (MockEnvironment mockEnvironment =
 				new MockEnvironmentBuilder()
 					.setTaskName("Test Task")
-					.setMemorySize(32L * 1024L)
+					.setManagedMemorySize(32L * 1024L)
 					.setInputSplitProvider(new MockInputSplitProvider())
 					.setBufferSize(1)
 					.setTaskConfiguration(taskConfiguration)

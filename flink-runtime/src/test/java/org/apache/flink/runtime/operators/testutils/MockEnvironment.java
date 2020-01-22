@@ -31,7 +31,6 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -101,7 +100,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	private final TaskKvStateRegistry kvStateRegistry;
+	private final TaskKvStateRegistry taskKvStateRegistry;
+
+	private final KvStateRegistry kvStateRegistry;
 
 	private final int bufferSize;
 
@@ -123,7 +124,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		JobID jobID,
 		JobVertexID jobVertexID,
 		String taskName,
-		long memorySize,
+		long offHeapMemorySize,
 		MockInputSplitProvider inputSplitProvider,
 		int bufferSize,
 		Configuration taskConfiguration,
@@ -147,7 +148,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.inputs = new LinkedList<InputGate>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 
-		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, memorySize).build();
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, offHeapMemorySize).build();
 		this.ioManager = ioManager;
 		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
@@ -157,8 +158,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 
-		KvStateRegistry registry = new KvStateRegistry();
-		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
+		this.kvStateRegistry = new KvStateRegistry();
+		this.taskKvStateRegistry = kvStateRegistry.createTaskRegistry(jobID, getJobVertexId());
 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
@@ -244,6 +245,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		return taskInfo;
 	}
 
+	public KvStateRegistry getKvStateRegistry() {
+		return kvStateRegistry;
+	}
+
 	@Override
 	public ClassLoader getUserClassLoader() {
 		return userCodeClassLoader;
@@ -313,7 +318,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public TaskKvStateRegistry getTaskKvStateRegistry() {
-		return kvStateRegistry;
+		return taskKvStateRegistry;
 	}
 
 	@Override
