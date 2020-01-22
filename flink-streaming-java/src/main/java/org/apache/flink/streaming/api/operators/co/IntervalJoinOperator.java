@@ -361,14 +361,24 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 */
 	@Internal
 	@VisibleForTesting
-	static class BufferEntry<T> {
+	public static class BufferEntry<T> {
 
 		private final T element;
 		private final boolean hasBeenJoined;
 
-		BufferEntry(T element, boolean hasBeenJoined) {
+		public BufferEntry(T element, boolean hasBeenJoined) {
 			this.element = element;
 			this.hasBeenJoined = hasBeenJoined;
+		}
+
+		@VisibleForTesting
+		public T getElement() {
+			return element;
+		}
+
+		@VisibleForTesting
+		public boolean hasBeenJoined() {
+			return hasBeenJoined;
 		}
 	}
 
@@ -377,13 +387,13 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 */
 	@Internal
 	@VisibleForTesting
-	static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
+	public static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
 
 		private static final long serialVersionUID = -20197698803836236L;
 
 		private final TypeSerializer<T> elementSerializer;
 
-		BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
+		public BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
 			this.elementSerializer = Preconditions.checkNotNull(elementSerializer);
 		}
 
