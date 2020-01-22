@@ -22,7 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -30,6 +34,7 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -48,8 +53,11 @@ public class ExecutorCLI implements CustomCommandLine {
 	private static final String ID = "executor";
 
 	private final Option executorOption = new Option("e", "executor", true,
-			"The name of the executor to be used for executing the given job, e.g. \"local\"." +
-					" This is equivalent to the \"" + DeploymentOptions.TARGET.key() + "\" config option.");
+			"The name of the executor to be used for executing the given job, which is equivalent " +
+					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
+					"currently available executors are: " +
+					Joiner.on(", ").join(getExecutorFactoryNames()) +
+					".");
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -121,5 +129,21 @@ public class ExecutorCLI implements CustomCommandLine {
 						effectiveConfiguration.setString(key, "true");
 					}
 				});
+	}
+
+	private static Iterator<String> getExecutorFactoryNames() {
+		final Iterator<PipelineExecutorFactory> executorFactories =
+				DefaultExecutorServiceLoader.INSTANCE.getExecutorFactories();
+		return new Iterator<String>() {
+			@Override
+			public boolean hasNext() {
+				return executorFactories.hasNext();
+			}
+
+			@Override
+			public String next() {
+				return executorFactories.next().getName();
+			}
+		};
 	}
 }
