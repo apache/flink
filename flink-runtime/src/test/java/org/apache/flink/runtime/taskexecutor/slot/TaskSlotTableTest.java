@@ -56,7 +56,7 @@ public class TaskSlotTableTest extends TestLogger {
 	 */
 	@Test
 	public void testTryMarkSlotActive() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(3);
+		final TaskSlotTable<?> taskSlotTable = TaskSlotUtils.createTaskSlotTable(3);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());
@@ -94,7 +94,7 @@ public class TaskSlotTableTest extends TestLogger {
 	 */
 	@Test
 	public void testRedundantSlotAllocation() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());
@@ -108,7 +108,7 @@ public class TaskSlotTableTest extends TestLogger {
 			assertThat(taskSlotTable.isAllocated(0, jobId, allocationId), is(true));
 			assertThat(taskSlotTable.isSlotFree(1), is(true));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(0));
 			assertThat(allocatedSlots.hasNext(), is(false));
 		} finally {
@@ -118,7 +118,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 	@Test
 	public void testFreeSlot() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());
@@ -132,7 +132,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.freeSlot(allocationId2), is(1));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(0));
 			assertThat(allocatedSlots.hasNext(), is(false));
 			assertThat(taskSlotTable.isAllocated(1, jobId, allocationId1), is(false));
@@ -145,7 +145,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 	@Test
 	public void testSlotAllocationWithDynamicSlotId() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());
@@ -155,7 +155,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, SLOT_TIMEOUT), is(true));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(-1));
 			assertThat(allocatedSlots.hasNext(), is(false));
 			assertThat(taskSlotTable.isAllocated(-1, jobId, allocationId), is(true));
@@ -166,7 +166,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 	@Test
 	public void testSlotAllocationWithResourceProfile() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());
@@ -178,8 +178,8 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, resourceProfile, SLOT_TIMEOUT), is(true));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
-			TaskSlot allocatedSlot = allocatedSlots.next();
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			TaskSlot<TaskSlotPayload> allocatedSlot = allocatedSlots.next();
 			assertThat(allocatedSlot.getIndex(), is(-1));
 			assertThat(allocatedSlot.getResourceProfile(), is(resourceProfile));
 			assertThat(allocatedSlots.hasNext(), is(false));
@@ -190,7 +190,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 	@Test
 	public void testSlotAllocationWithResourceProfileFailure() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());
@@ -202,7 +202,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, resourceProfile, SLOT_TIMEOUT), is(false));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.hasNext(), is(false));
 		} finally {
 			taskSlotTable.stop();
@@ -211,7 +211,7 @@ public class TaskSlotTableTest extends TestLogger {
 
 	@Test
 	public void testGenerateSlotReport() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(3);
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(3);
 
 		try {
 			taskSlotTable.start(new TestingSlotActionsBuilder().build());

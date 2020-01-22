@@ -70,6 +70,7 @@ import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
@@ -123,7 +124,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable, TaskActions, PartitionProducerStateProvider, CheckpointListener, BackPressureSampleableTask {
+public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionProducerStateProvider, CheckpointListener, BackPressureSampleableTask {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -402,6 +403,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	//  Accessors
 	// ------------------------------------------------------------------------
 
+	@Override
 	public JobID getJobID() {
 		return jobId;
 	}
@@ -410,10 +412,12 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return vertexId;
 	}
 
+	@Override
 	public ExecutionAttemptID getExecutionId() {
 		return executionId;
 	}
 
+	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
 	}
@@ -442,6 +446,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return executingThread;
 	}
 
+	@Override
 	public CompletableFuture<ExecutionState> getTerminationFuture() {
 		return terminationFuture;
 	}
