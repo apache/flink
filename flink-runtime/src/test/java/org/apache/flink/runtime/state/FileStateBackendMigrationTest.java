@@ -31,9 +31,4 @@ public class FileStateBackendMigrationTest extends StateBackendMigrationTestBase
 		File checkpointPath = tempFolder.newFolder();
 		return new FsStateBackend(checkpointPath.toURI(), false);
 	}
-
-	@Override
-	protected long getManagedMemorySize() {
-		return 0;
-	}
 }

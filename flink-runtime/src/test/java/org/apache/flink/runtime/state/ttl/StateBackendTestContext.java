@@ -93,7 +93,7 @@ public abstract class StateBackendTestContext {
 			stateHandles = new ArrayList<>(1);
 			stateHandles.add(snapshot);
 		}
-		env = MockEnvironment.builder().setMemorySize(8 * 1024 * 1024).build();
+		env = MockEnvironment.builder().build();
 		try {
 			disposeKeyedStateBackend();
 			keyedStateBackend = stateBackend.createKeyedStateBackend(

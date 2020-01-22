@@ -74,14 +74,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 	protected abstract B getStateBackend() throws Exception;
 
-	protected abstract long getManagedMemorySize();
-
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void before() {
-		env = MockEnvironment.builder().setMemorySize(getManagedMemorySize()).build();
+		env = MockEnvironment.builder().build();
 	}
 
 	@After

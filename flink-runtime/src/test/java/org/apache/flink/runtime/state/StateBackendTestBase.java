@@ -159,8 +159,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	protected abstract B getStateBackend() throws Exception;
 
-	protected abstract long getManagedMemorySize();
-
 	protected abstract boolean isSerializerPresenceRequiredOnRestore();
 
 	protected CheckpointStreamFactory createStreamFactory() throws Exception {
@@ -3476,7 +3474,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	 */
 	@Test
 	public void testQueryableStateRegistration() throws Exception {
-		KvStateRegistry registry = env.getTaskKvStateRegistry().getRegistry();
+		KvStateRegistry registry = env.getKvStateRegistry();
 
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
@@ -4439,6 +4437,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	private MockEnvironment buildMockEnv() {
-		return MockEnvironment.builder().setMemorySize(getManagedMemorySize()).build();
+		return MockEnvironment.builder().build();
 	}
 }
