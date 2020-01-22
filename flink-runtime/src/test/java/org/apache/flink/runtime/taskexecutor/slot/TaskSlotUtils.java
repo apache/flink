@@ -39,22 +39,22 @@ public enum TaskSlotUtils {
 		.setNetworkMemory(new MemorySize(100 * 1024))
 		.build();
 
-	public static TaskSlotTable createTaskSlotTable(int numberOfSlots) {
+	public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(int numberOfSlots) {
 		return createTaskSlotTable(
 			numberOfSlots,
 			createDefaultTimerService(DEFAULT_SLOT_TIMEOUT));
 	}
 
-	public static TaskSlotTable createTaskSlotTable(int numberOfSlots, Time timeout) {
+	public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(int numberOfSlots, Time timeout) {
 		return createTaskSlotTable(
 			numberOfSlots,
 			createDefaultTimerService(timeout.toMilliseconds()));
 	}
 
-	private static TaskSlotTable createTaskSlotTable(
+	private static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(
 			int numberOfSlots,
 			TimerService<AllocationID> timerService) {
-		return new TaskSlotTable(
+		return new TaskSlotTable<>(
 			numberOfSlots,
 			createTotalResourceProfile(numberOfSlots),
 			DEFAULT_RESOURCE_PROFILE,

@@ -94,7 +94,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	private final TestingHighAvailabilityServices haServices;
 	private final TemporaryFolder temporaryFolder;
-	private final TaskSlotTable taskSlotTable;
+	private final TaskSlotTable<Task> taskSlotTable;
 	private final JobMasterId jobMasterId;
 
 	private TestingTaskExecutor taskExecutor;
@@ -122,7 +122,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		if (slotSize > 0) {
 			this.taskSlotTable = TaskSlotUtils.createTaskSlotTable(slotSize);
 		} else {
-			this.taskSlotTable = mock(TaskSlotTable.class);
+			//noinspection unchecked
+			this.taskSlotTable = (TaskSlotTable<Task>) mock(TaskSlotTable.class);
 			when(taskSlotTable.tryMarkSlotActive(eq(jobId), any())).thenReturn(true);
 			when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
 		}
@@ -178,7 +179,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		return taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 	}
 
-	public TaskSlotTable getTaskSlotTable() {
+	public TaskSlotTable<Task> getTaskSlotTable() {
 		return taskSlotTable;
 	}
 

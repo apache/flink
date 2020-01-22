@@ -64,6 +64,7 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -291,7 +292,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				Collections.emptyList(),
 				0);
 
-		final TaskSlotTable taskSlotTable = createTaskSlotTable();
+		final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable();
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -455,7 +456,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			TaskManagerRunner.createBackPressureSampleService(configuration, RPC.getScheduledExecutor()));
 	}
 
-	private static TaskSlotTable createTaskSlotTable() {
+	private static TaskSlotTable<Task> createTaskSlotTable() {
 		return TaskSlotUtils.createTaskSlotTable(1, timeout);
 
 	}
