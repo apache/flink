@@ -174,8 +174,6 @@ run_test "ConnectedComponents iterations with high parallelism end-to-end test" 
 
 run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-scripts/test_table_shaded_dependencies.sh"
 
-run_test "RocksDB memory control end-to-end test" "$END_TO_END_DIR/test-scripts/test_rocksdb_state_memory_control.sh" "skip_check_exceptions"
-
 ################################################################################
 # Sticky Scheduling
 ################################################################################

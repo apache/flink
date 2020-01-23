@@ -42,12 +42,17 @@ import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.TIME_WINDOW_OPER;
 
 /**
- *
+ * The test program for a job that simply accumulates data in various states.
+ * This is used to stress the RocksDB memory and check that the cache/write buffer management work
+ * properly, limiting the overall memory footprint of RocksDB.
  */
 public class RocksDBStateMemoryControlTestProgram {
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
+		final boolean useValueState = pt.getBoolean("useValueState", false);
+		final boolean useListState = pt.getBoolean("useListState", false);
+		final boolean useMapState = pt.getBoolean("useMapState", false);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -58,9 +63,10 @@ public class RocksDBStateMemoryControlTestProgram {
 			.uid(EVENT_SOURCE.getUid())
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey);
-		keyedStream.map(new ValueStateMapper(pt)).returns(Event.class).name("ValueStateMapper").uid("ValueStateMapper");
-		keyedStream.map(new ListStateMapper(pt)).returns(Event.class).name("ListStateMapper").uid("ListStateMapper");
-		keyedStream.map(new MapStateMapper(pt)).returns(Event.class).name("MapStateMapper").uid("MapStateMapper");
+
+		keyedStream.map(new ValueStateMapper(useValueState)).name("ValueStateMapper").uid("ValueStateMapper");
+		keyedStream.map(new ListStateMapper(useListState)).name("ListStateMapper").uid("ListStateMapper");
+		keyedStream.map(new MapStateMapper(useMapState)).name("MapStateMapper").uid("MapStateMapper");
 
 		boolean useWindow = pt.getBoolean("useWindow", false);
 		if (useWindow) {
@@ -84,12 +90,12 @@ public class RocksDBStateMemoryControlTestProgram {
 
 		private static final long serialVersionUID = 1L;
 
-		private ValueState<String> valueState;
+		private transient ValueState<String> valueState;
 
-		private boolean useValueState = false;
+		private final boolean useValueState;
 
-		ValueStateMapper(ParameterTool parameterTool) {
-			this.useValueState = parameterTool.getBoolean("useValueState", false);
+		ValueStateMapper(boolean useValueState) {
+			this.useValueState = useValueState;
 		}
 
 		@Override
@@ -119,12 +125,12 @@ public class RocksDBStateMemoryControlTestProgram {
 
 		private static final long serialVersionUID = 1L;
 
-		private ListState<String> listState;
+		private transient ListState<String> listState;
 
-		private boolean useListState = false;
+		private final boolean useListState;
 
-		ListStateMapper(ParameterTool parameterTool) {
-			this.useListState = parameterTool.getBoolean("useListState", false);
+		ListStateMapper(boolean useListState) {
+			this.useListState = useListState;
 		}
 
 		@Override
@@ -149,12 +155,12 @@ public class RocksDBStateMemoryControlTestProgram {
 
 		private static final long serialVersionUID = 1L;
 
-		private MapState<Long, String> mapState;
+		private transient MapState<Long, String> mapState;
 
-		private boolean useMapState = false;
+		private final boolean useMapState;
 
-		MapStateMapper(ParameterTool parameterTool) {
-			this.useMapState = parameterTool.getBoolean("useMapState", false);
+		MapStateMapper(boolean useMapState) {
+			this.useMapState = useMapState;
 		}
 
 		@Override

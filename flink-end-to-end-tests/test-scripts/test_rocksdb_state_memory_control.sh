@@ -28,23 +28,33 @@ PARALLELISM=2
 CHECKPOINT_DIR="$TEST_DATA_DIR/test_rocksdb_state_memory_control-dir"
 mkdir -p $CHECKPOINT_DIR
 CHECKPOINT_DIR_URI="file://$CHECKPOINT_DIR"
-# 161061276 + 4 * 8 * 1024 * 1024 = 194615708 bytes
-EXPECTED_MAX_MEMORY_USAGE=194615708
 
+# The managed memory is fixed at 300m which gives an allowed cache size of about 157,000,000b,
+# via the compensation logic for RocksDBs memory exceeding the cache.
+#
+# Due to RocksDB's lenient (non-strict) memory accounting, we add num-states * arena-size MBs in extra tolerance
+# (because in corner cases, especially with slow I/O, cache footprint can temporarily rise)
+# which brings this to about 190,000,000 bytes, rounded up to 200,000,000 for a safety/stability margin.
+#
+# With unrestricted memory use, this test would use more than 400m of RocksDB memory, so we are
+# well below this limit, thus testing that the memory limiting is actually active.
+EXPECTED_MAX_MEMORY_USAGE=200000000
+
+set_config_key "taskmanager.numberOfTaskSlots" "$PARALLELISM"
 set_config_key "taskmanager.memory.process.size" "1024m"
+set_config_key "taskmanager.memory.managed.size" "300m"
 set_config_key "state.backend.rocksdb.memory.managed" "true"
+set_config_key "state.backend.rocksdb.memory.write-buffer-ratio" "0.8"
 set_config_key "state.backend.rocksdb.metrics.size-all-mem-tables" "true"
 set_config_key "state.backend.rocksdb.metrics.cur-size-active-mem-table" "true"
 set_config_key "state.backend.rocksdb.metrics.num-immutable-mem-table" "true"
-set_config_key "state.backend.rocksdb.memory.`write`-buffer-ratio" "0.8"
 set_config_key "state.backend.rocksdb.metrics.block-cache-usage" "true"
 set_config_key "state.backend.rocksdb.metrics.estimate-table-readers-mem" "true"
-set_config_key "taskmanager.numberOfTaskSlots" "$PARALLELISM"
 set_config_key "metrics.fetcher.update-interval" "1000"
 setup_flink_slf4j_metric_reporter
 start_cluster
 
-echo "Running rocksdb state backend memory control test"
+echo "Running RocksDB state backend memory control test"
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-rocksdb-state-memory-control-test/target/RocksDBStateMemoryControlTestProgram.jar
 
@@ -80,11 +90,13 @@ function find_max_block_cache_usage() {
 function memory_under_limit() {
     local MAX_BLOCK_CACHE_USAGE=$1
     local EXPECTED_MAX_MEMORY_USAGE=$2
+
+    echo "[INFO] Current block cache usage for RocksDB instance in slot was $MAX_BLOCK_CACHE_USAGE"
+
     if [ "$MAX_BLOCK_CACHE_USAGE" -gt "$EXPECTED_MAX_MEMORY_USAGE" ]; then
-      echo "[ERROR] Current block cache uaage $MAX_BLOCK_CACHE_USAGE larger than expected memory limit $EXPECTED_MAX_MEMORY_USAGE"
+      echo "[ERROR] Current block cache usage $MAX_BLOCK_CACHE_USAGE larger than expected memory limit $EXPECTED_MAX_MEMORY_USAGE"
       exit 1
     fi
-
 }
 
 JOB_CMD=`buildBaseJobCmd `
