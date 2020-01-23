@@ -79,7 +79,9 @@ public class JobManagerOptions {
 	/**
 	 * JVM heap size for the JobManager with memory size.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	@Documentation.SectionOption(
+		sections = {Documentation.SectionOption.SECTION_COMMON},
+		position = Documentation.SectionOption.POSITION_MEMORY)
 	public static final ConfigOption<String> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.size")
 		.defaultValue("1024m")

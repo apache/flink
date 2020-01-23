@@ -27,7 +27,7 @@ import org.apache.flink.configuration.ConfigOptions;
  */
 public class TestCommonOptions {
 
-	@Documentation.CommonOption
+	@Documentation.SectionOption(sections = {Documentation.SectionOption.SECTION_COMMON})
 	public static final ConfigOption<Integer> COMMON_OPTION = ConfigOptions
 		.key("first.option.a")
 		.defaultValue(2)
@@ -38,7 +38,9 @@ public class TestCommonOptions {
 		.noDefaultValue()
 		.withDescription("This is the description for the generic option.");
 
-	@Documentation.CommonOption(position = 2)
+	@Documentation.SectionOption(
+		sections = {Documentation.SectionOption.SECTION_COMMON},
+		position = 2)
 	public static final ConfigOption<Integer> COMMON_POSITIONED_OPTION = ConfigOptions
 		.key("third.option.a")
 		.defaultValue(3)

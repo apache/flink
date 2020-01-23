@@ -445,7 +445,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    </tbody>\n" +
 			"</table>\n";
 
-		String output = FileUtils.readFile(Paths.get(outputDirectory, ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME).toFile(), StandardCharsets.UTF_8.name());
+		String output = FileUtils.readFile(Paths.get(outputDirectory, ConfigOptionsDocGenerator.getSectionFileName("common")).toFile(), StandardCharsets.UTF_8.name());
 
 		assertEquals(expected, output);
 	}
