@@ -30,8 +30,8 @@
         <th></th>
         <th><strong>End to End Duration</strong></th>
         <th><strong>State Size</strong></th>
-        <th><strong>Checkpoint Duration (Sync)</strong></th>
-        <th><strong>Checkpoint Duration (Async)</strong></th>
+        <th><strong>Sync Duration</strong></th>
+        <th><strong>Async Duration</strong></th>
         <th><strong>Alignment Buffered</strong></th>
         <th><strong>Alignment Duration</strong></th>
       </tr>
@@ -79,13 +79,13 @@
     <thead (nzSortChange)="sort($event)" nzSingleSort>
       <tr>
         <th><strong>ID</strong></th>
-        <th nzSortKey="ack_timestamp" nzShowSort><strong>Acknowledgement Time</strong></th>
-        <th nzSortKey="end_to_end_duration" nzShowSort><strong>E2E Duration</strong></th>
+        <th nzSortKey="ack_timestamp" nzShowSort><strong>Acknowledged</strong></th>
+        <th nzSortKey="end_to_end_duration" nzShowSort><strong>End to End Duration</strong></th>
         <th nzSortKey="state_size" nzShowSort><strong>State Size</strong></th>
-        <th nzSortKey="checkpoint.sync" nzShowSort><strong>Checkpoint Duration (Sync)</strong></th>
-        <th nzSortKey="checkpoint.async" nzShowSort><strong>Checkpoint Duration (Async)</strong></th>
-        <th nzSortKey="alignment.buffered" nzShowSort><strong>Align Buffered</strong></th>
-        <th nzSortKey="alignment.duration" nzShowSort><strong>Align Duration</strong></th>
+        <th nzSortKey="checkpoint.sync" nzShowSort><strong>Sync Duration</strong></th>
+        <th nzSortKey="checkpoint.async" nzShowSort><strong>Async Duration</strong></th>
+        <th nzSortKey="alignment.buffered" nzShowSort><strong>Alignment Buffered</strong></th>
+        <th nzSortKey="alignment.duration" nzShowSort><strong>Alignment Duration</strong></th>
       </tr>
     </thead>
     <tbody>
