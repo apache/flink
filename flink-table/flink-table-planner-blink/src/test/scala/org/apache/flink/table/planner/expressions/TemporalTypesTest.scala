@@ -781,12 +781,24 @@ class TemporalTypesTest extends ExpressionTestBase {
     //testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:10:31' TO HOUR)", "2018-03-20 07:00:00.000")
   }
 
-  private def timestampTz(str: String) = {
-    s"CAST(TIMESTAMP '$str' AS TIMESTAMP WITH LOCAL TIME ZONE)"
+  private def timestampTz(str: String): String = {
+    val precision = extractPrecision(str)
+    timestampTz(str, precision)
   }
 
-  private def timestampTz(str: String, precision: Int) = {
+  private def timestampTz(str: String, precision: Int): String = {
     s"CAST(TIMESTAMP '$str' AS TIMESTAMP($precision) WITH LOCAL TIME ZONE)"
+  }
+
+  // According to SQL standard, the length of second fraction is
+  // the precision of the Timestamp literal
+  private def extractPrecision(str: String): Int = {
+    val dot = str.indexOf('.')
+    if (dot == -1) {
+      0
+    } else {
+      str.substring(dot + 1).length
+    }
   }
 
 
@@ -794,8 +806,8 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTemporalShanghai(): Unit = {
     config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
-    testSqlApi(timestampTz("2018-03-14 19:01:02.123"), "2018-03-14 19:01:02.123000")
-    testSqlApi(timestampTz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010000")
+    testSqlApi(timestampTz("2018-03-14 19:01:02.123"), "2018-03-14 19:01:02.123")
+    testSqlApi(timestampTz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010")
 
     testSqlApi(
       timestampTz("2018-03-14 19:00:00.010") + " > " + "f25",
@@ -852,35 +864,35 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO YEAR)", "2019-01-01 00:00:00")
 
     testSqlApi(s"FLOOR(${timestampTz("2018-03-20 06:44:31")} TO HOUR)",
-      "2018-03-20 06:00:00.000000")
+      "2018-03-20 06:00:00")
     testSqlApi(s"FLOOR(${timestampTz("2018-03-20 06:44:31")} TO DAY)",
-      "2018-03-20 00:00:00.000000")
+      "2018-03-20 00:00:00")
     testSqlApi(s"FLOOR(${timestampTz("2018-03-20 00:00:00")} TO DAY)",
-      "2018-03-20 00:00:00.000000")
+      "2018-03-20 00:00:00")
     testSqlApi(s"FLOOR(${timestampTz("2018-04-01 06:44:31")} TO MONTH)",
-      "2018-04-01 00:00:00.000000")
+      "2018-04-01 00:00:00")
     testSqlApi(s"FLOOR(${timestampTz("2018-01-01 06:44:31")} TO MONTH)",
-      "2018-01-01 00:00:00.000000")
+      "2018-01-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-20 06:44:31")} TO HOUR)",
-      "2018-03-20 07:00:00.000000")
+      "2018-03-20 07:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-20 06:00:00")} TO HOUR)",
-      "2018-03-20 06:00:00.000000")
+      "2018-03-20 06:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-20 06:44:31")} TO DAY)",
-      "2018-03-21 00:00:00.000000")
+      "2018-03-21 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-1 00:00:00")} TO DAY)",
-      "2018-03-01 00:00:00.000000")
+      "2018-03-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-31 00:00:01")} TO DAY)",
-      "2018-04-01 00:00:00.000000")
+      "2018-04-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-01 21:00:01")} TO MONTH)",
-      "2018-03-01 00:00:00.000000")
+      "2018-03-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-03-01 00:00:00")} TO MONTH)",
-      "2018-03-01 00:00:00.000000")
+      "2018-03-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-12-02 00:00:00")} TO MONTH)",
-      "2019-01-01 00:00:00.000000")
+      "2019-01-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-01-01 21:00:01")} TO YEAR)",
-      "2018-01-01 00:00:00.000000")
+      "2018-01-01 00:00:00")
     testSqlApi(s"CEIL(${timestampTz("2018-01-02 21:00:01")} TO YEAR)",
-      "2019-01-01 00:00:00.000000")
+      "2019-01-01 00:00:00")
 
     // others
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
@@ -933,10 +945,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     val t2 = timestampTz("2018-03-20 06:00:00")
     // 1521502831000,  2018-03-19 23:40:31 UTC,  2018-03-20 06:10:31 +06:30
     testSqlApi(s"EXTRACT(HOUR FROM $t1)", "6")
-    testSqlApi(s"FLOOR($t1 TO HOUR)", "2018-03-20 06:00:00.000000")
-    testSqlApi(s"FLOOR($t2 TO HOUR)", "2018-03-20 06:00:00.000000")
-    testSqlApi(s"CEIL($t2 TO HOUR)", "2018-03-20 06:00:00.000000")
-    testSqlApi(s"CEIL($t1 TO HOUR)", "2018-03-20 07:00:00.000000")
+    testSqlApi(s"FLOOR($t1 TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi(s"FLOOR($t2 TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi(s"CEIL($t2 TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi(s"CEIL($t1 TO HOUR)", "2018-03-20 07:00:00")
   }
 
   @Test

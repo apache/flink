@@ -85,6 +85,8 @@ class MapTypeTest extends MapTypeTestBase {
       "MAP[DATE '1985-04-11', TIME '14:15:16', DATE '2018-07-26', TIME '17:18:19']",
       "{1985-04-11=14:15:16, 2018-07-26=17:18:19}")
 
+    // There is no such thing in Table API which align to Timestamp literal in SQL
+    // toTimestamp is a shortcut of casting.
     testTableApi(
       map(valueLiteral(gLocalTime("14:15:16")), valueLiteral(localDateTime("1985-04-11 14:15:16")),
         valueLiteral(gLocalTime("17:18:19")), valueLiteral(localDateTime("2018-07-26 17:18:19"))),

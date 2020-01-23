@@ -90,6 +90,8 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "ARRAY[TIME '14:15:16', TIME '17:18:19']",
       "[14:15:16, 17:18:19]")
 
+    // There is no such thing in Table API which align to Timestamp literal in SQL
+    // toTimestamp is a shortcut of casting.
     testTableApi(
       Array(localDateTime("1985-04-11 14:15:16"), localDateTime("2018-07-26 17:18:19")),
       "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
