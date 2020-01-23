@@ -559,6 +559,11 @@ public class ElasticsearchSinkBaseTest {
 		public void configureBulkProcessorBackoff(BulkProcessor.Builder builder, @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
 			// no need for this in the test cases here
 		}
+
+		@Override
+		public void verifyClientConnection(Client client) {
+			// no need for this in the test cases here
+		}
 	}
 
 	private static class SimpleSinkFunction<String> implements ElasticsearchSinkFunction<String> {
