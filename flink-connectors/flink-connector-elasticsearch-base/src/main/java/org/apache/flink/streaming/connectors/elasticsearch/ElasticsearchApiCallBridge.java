@@ -81,9 +81,8 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
 
 	/**
-	 * <p>Verify the client connection by making a test request/ping to the Elasticsearch cluster.
-	 * 
-	 * 
+	 * Verify the client connection by making a test request/ping to the Elasticsearch cluster.
+	 *
 	 * <p>Called by {@link ElasticsearchSinkBase#open(org.apache.flink.configuration.Configuration)} after creating the client. This makes sure the underlying
 	 * client is closed if the connection is not successful and preventing thread leak.
 	 *
