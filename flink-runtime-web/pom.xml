@@ -214,6 +214,25 @@ under the License.
 							<finalName>${test.ParameterProgramNoManifest.name}</finalName>
 						</configuration>
 					</execution>
+					<execution>
+						<!-- Used for JarHandler tests -->
+						<id>test-output-program-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>org/apache/flink/runtime/webmonitor/handlers/utils/OutputTestProgram.java</include>
+							</includes>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.runtime.webmonitor.handlers.utils.OutputTestProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>output-test-program</finalName>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
