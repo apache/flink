@@ -177,6 +177,7 @@ public class TaskStateStats implements Serializable {
 		private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
 		private MinMaxAvgStats alignmentBuffered = new MinMaxAvgStats();
 		private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
+		private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
 
 		void updateSummary(SubtaskStateStats subtaskStats) {
 			stateSize.add(subtaskStats.getStateSize());
@@ -185,6 +186,7 @@ public class TaskStateStats implements Serializable {
 			asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
 			alignmentBuffered.add(subtaskStats.getAlignmentBuffered());
 			alignmentDuration.add(subtaskStats.getAlignmentDuration());
+			checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
 		}
 
 		public MinMaxAvgStats getStateSizeStats() {
@@ -211,6 +213,9 @@ public class TaskStateStats implements Serializable {
 			return alignmentDuration;
 		}
 
+		public MinMaxAvgStats getCheckpointStartDelayStats() {
+			return checkpointStartDelay;
+		}
 	}
 
 }
