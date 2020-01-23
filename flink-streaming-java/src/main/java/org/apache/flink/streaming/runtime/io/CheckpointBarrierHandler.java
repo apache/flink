@@ -85,7 +85,8 @@ public abstract class CheckpointBarrierHandler {
 
 		CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
 			.setBytesBufferedInAlignment(bufferedBytes)
-			.setAlignmentDurationNanos(alignmentDurationNanos);
+			.setAlignmentDurationNanos(alignmentDurationNanos)
+			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 
 		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
 			checkpointMetaData,

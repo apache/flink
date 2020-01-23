@@ -156,7 +156,8 @@ public class TaskCheckpointStatisticDetailsHandler
 				Math.max(0L, ackTSStats.getMaximum() - triggerTimestamp),
 				Math.max(0L, ackTSStats.getAverage() - triggerTimestamp)),
 			checkpointDuration,
-			checkpointAlignment);
+			checkpointAlignment,
+			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getCheckpointStartDelayStats()));
 	}
 
 	private static List<SubtaskCheckpointStatistics> createSubtaskCheckpointStatistics(SubtaskStateStats[] subtaskStateStats, long triggerTimestamp) {
@@ -178,7 +179,8 @@ public class TaskCheckpointStatisticDetailsHandler
 						subtask.getAsyncCheckpointDuration()),
 					new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(
 						subtask.getAlignmentBuffered(),
-						subtask.getAlignmentDuration())
+						subtask.getAlignmentDuration()),
+					subtask.getCheckpointStartDelay()
 				));
 			}
 		}

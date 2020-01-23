@@ -413,6 +413,7 @@ public class PendingCheckpoint {
 			if (statsCallback != null) {
 				// Do this in millis because the web frontend works with them
 				long alignmentDurationMillis = metrics.getAlignmentDurationNanos() / 1_000_000;
+				long checkpointStartDelayMillis = metrics.getCheckpointStartDelayNanos() / 1_000_000;
 
 				SubtaskStateStats subtaskStateStats = new SubtaskStateStats(
 					subtaskIndex,
@@ -421,7 +422,8 @@ public class PendingCheckpoint {
 					metrics.getSyncDurationMillis(),
 					metrics.getAsyncDurationMillis(),
 					metrics.getBytesBufferedInAlignment(),
-					alignmentDurationMillis);
+					alignmentDurationMillis,
+					checkpointStartDelayMillis);
 
 				statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
 			}
