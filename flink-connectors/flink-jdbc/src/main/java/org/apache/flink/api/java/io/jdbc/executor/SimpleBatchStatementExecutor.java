@@ -18,29 +18,26 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
-import org.apache.flink.types.Row;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
-
-class SimpleBatchStatementExecutor implements JdbcBatchStatementExecutor<Row> {
+class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
 	private final String sql;
-	private final int[] paramTypes;
+	private final ParameterSetter<V> parameterSetter;
+	private final Function<T, V> valueTransformer;
 
 	private transient PreparedStatement st;
-	private List<Row> batch;
-	private final boolean objectReuse;
+	private transient List<V> batch;
 
-	SimpleBatchStatementExecutor(String sql, int[] paramTypes, boolean objectReuse) {
+	SimpleBatchStatementExecutor(String sql, ParameterSetter<V> parameterSetter, Function<T, V> valueTransformer) {
 		this.sql = sql;
-		this.paramTypes = paramTypes;
-		this.objectReuse = objectReuse;
+		this.parameterSetter = parameterSetter;
+		this.valueTransformer = valueTransformer;
 	}
 
 	@Override
@@ -50,15 +47,15 @@ class SimpleBatchStatementExecutor implements JdbcBatchStatementExecutor<Row> {
 	}
 
 	@Override
-	public void process(Row record) {
-		batch.add(objectReuse ? Row.copy(record) : record);
+	public void process(T record) {
+		batch.add(valueTransformer.apply(record));
 	}
 
 	@Override
 	public void executeBatch() throws SQLException {
 		if (!batch.isEmpty()) {
-			for (Row r : batch) {
-				setRecordToStatement(st, paramTypes, r);
+			for (V r : batch) {
+				parameterSetter.accept(st, r);
 				st.addBatch();
 			}
 			st.executeBatch();

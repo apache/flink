@@ -25,7 +25,10 @@ import org.apache.flink.types.Row;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.function.Function;
 
+import static org.apache.flink.api.java.io.jdbc.JDBCUtils.getPrimaryKey;
+import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -51,7 +54,7 @@ public interface JdbcBatchStatementExecutor<T> {
 	 */
 	void close() throws SQLException;
 
-	static JdbcBatchStatementExecutor<Row> upsert(
+	static JdbcBatchStatementExecutor<Row> upsertRow(
 			JDBCDialect dialect,
 			String tableName,
 			String[] fieldNames,
@@ -66,22 +69,39 @@ public interface JdbcBatchStatementExecutor<T> {
 
 		return dialect
 				.getUpsertStatement(tableName, fieldNames, keyFields)
-				.map(sql -> keyed(pkFields, pkTypes, sql, objectReuse))
+				.map(sql -> keyedRow(pkFields, fieldTypes, sql))
 				.orElseGet(() ->
-						new InsertOrUpdateJdbcExecutor(
-								fieldTypes, pkFields, pkTypes,
+						new InsertOrUpdateJdbcExecutor<>(
 								dialect.getRowExistsStatement(tableName, keyFields),
 								dialect.getInsertIntoStatement(tableName, fieldNames),
 								dialect.getUpdateStatement(tableName, fieldNames, keyFields),
-								objectReuse));
+								ParameterSetter.forRow(pkTypes),
+								ParameterSetter.forRow(fieldTypes),
+								ParameterSetter.forRow(fieldTypes),
+								rowKeyExtractor(pkFields),
+								objectReuse ? Row::copy : Function.identity()));
 	}
 
-	static JdbcBatchStatementExecutor<Row> keyed(int[] pkFields, int[] pkTypes, String sql, boolean objectReuse) {
-		return new KeyedBatchStatementExecutor(pkFields, pkTypes, sql, objectReuse);
+	static Function<Row, Row> rowKeyExtractor(int[] pkFields) {
+		return row -> getPrimaryKey(row, pkFields);
 	}
 
-	static JdbcBatchStatementExecutor<Row> simple(String sql, int[] fieldTypes, boolean objectReuse) {
-		return new SimpleBatchStatementExecutor(sql, fieldTypes, objectReuse);
+	static JdbcBatchStatementExecutor<Row> keyedRow(int[] pkFields, int[] pkTypes, String sql) {
+		return keyed(sql,
+				rowKeyExtractor(pkFields),
+				(st, record) -> setRecordToStatement(st, pkTypes, rowKeyExtractor(pkFields).apply(record)));
+	}
+
+	static <T, K> JdbcBatchStatementExecutor<T> keyed(String sql, Function<T, K> keyExtractor, ParameterSetter<K> parameterSetter) {
+		return new KeyedBatchStatementExecutor<>(sql, keyExtractor, parameterSetter);
+	}
+
+	static JdbcBatchStatementExecutor<Row> simpleRow(String sql, int[] fieldTypes, boolean objectReuse) {
+		return simple(sql, ParameterSetter.forRow(fieldTypes), objectReuse ? Row::copy : Function.identity());
+	}
+
+	static <T, V> JdbcBatchStatementExecutor<T> simple(String sql, ParameterSetter<V> paramSetter, Function<T, V> valueTransformer) {
+		return new SimpleBatchStatementExecutor<>(sql, paramSetter, valueTransformer);
 	}
 
 }

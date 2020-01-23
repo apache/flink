@@ -17,8 +17,6 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
-import org.apache.flink.types.Row;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -26,76 +24,81 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
-
-final class InsertOrUpdateJdbcExecutor implements JdbcBatchStatementExecutor<Row> {
+final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {
 
 	private final String existSQL;
 	private final String insertSQL;
 	private final String updateSQL;
-	private final int[] pkTypes;
-	private final int[] pkFields;
-	private final boolean objectReuse;
+
+	private final ParameterSetter<K> existSetter;
+	private final ParameterSetter<V> insertSetter;
+	private final ParameterSetter<V> updateSetter;
+
+	private final Function<R, K> keyExtractor;
+	private final Function<R, V> valueMapper;
 
 	private transient PreparedStatement existStatement;
 	private transient PreparedStatement insertStatement;
 	private transient PreparedStatement updateStatement;
-	private transient Map<Row, Row> keyToRows = new HashMap<>();
-	private final int[] fieldTypes;
+	private transient Map<K, V> batch = new HashMap<>();
 
-	InsertOrUpdateJdbcExecutor(
-			int[] fieldTypes,
-			int[] pkFields, int[] pkTypes,
-			String existSQL,
-			String insertSQL,
-			String updateSQL, boolean objectReuse) {
-		this.pkFields = pkFields;
+	InsertOrUpdateJdbcExecutor(String existSQL,
+								String insertSQL,
+								String updateSQL,
+								ParameterSetter<K> existSetter,
+								ParameterSetter<V> insertSetter,
+								ParameterSetter<V> updateSetter,
+								Function<R, K> keyExtractor,
+								Function<R, V> valueExtractor) {
 		this.existSQL = existSQL;
 		this.insertSQL = insertSQL;
 		this.updateSQL = updateSQL;
-		this.fieldTypes = fieldTypes;
-		this.pkTypes = pkTypes;
-		this.objectReuse = objectReuse;
+		this.existSetter = existSetter;
+		this.insertSetter = insertSetter;
+		this.updateSetter = updateSetter;
+		this.keyExtractor = keyExtractor;
+		this.valueMapper = valueExtractor;
 	}
 
 	@Override
 	public void open(Connection connection) throws SQLException {
-		keyToRows = new HashMap<>();
+		batch = new HashMap<>();
 		existStatement = connection.prepareStatement(existSQL);
 		insertStatement = connection.prepareStatement(insertSQL);
 		updateStatement = connection.prepareStatement(updateSQL);
 	}
 
 	@Override
-	public void process(Row record) {
-		keyToRows.put(KeyedBatchStatementExecutor.getPrimaryKey(record, pkFields), objectReuse ? Row.copy(record) : record);
+	public void process(R record) {
+		batch.put(keyExtractor.apply(record), valueMapper.apply(record));
 	}
 
 	@Override
 	public void executeBatch() throws SQLException {
-		if (keyToRows.size() > 0) {
-			for (Map.Entry<Row, Row> entry : keyToRows.entrySet()) {
+		if (!batch.isEmpty()) {
+			for (Map.Entry<K, V> entry : batch.entrySet()) {
 				processOneRowInBatch(entry.getKey(), entry.getValue());
 			}
 			updateStatement.executeBatch();
 			insertStatement.executeBatch();
-			keyToRows.clear();
+			batch.clear();
 		}
 	}
 
-	private void processOneRowInBatch(Row pk, Row row) throws SQLException {
+	private void processOneRowInBatch(K pk, V row) throws SQLException {
 		if (exist(pk)) {
-			setRecordToStatement(updateStatement, fieldTypes, row);
+			updateSetter.accept(updateStatement, row);
 			updateStatement.addBatch();
 		} else {
-			setRecordToStatement(insertStatement, fieldTypes, row);
+			insertSetter.accept(insertStatement, row);
 			insertStatement.addBatch();
 		}
 	}
 
-	private boolean exist(Row pk) throws SQLException {
-		setRecordToStatement(existStatement, pkTypes, pk);
+	private boolean exist(K pk) throws SQLException {
+		existSetter.accept(existStatement, pk);
 		try (ResultSet resultSet = existStatement.executeQuery()) {
 			return resultSet.next();
 		}
