@@ -49,7 +49,21 @@ abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> {
 	public void configure(Configuration parameters) {
 	}
 
-	protected void establishConnection() throws SQLException, ClassNotFoundException {
+	@Override
+	public void open(int taskNumber, int numTasks) throws IOException {
+		try {
+			establishConnection();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new IOException("unable to open JDBC writer", e);
+		}
+	}
+
+	@Override
+	public void close() {
+		closeDbConnection();
+	}
+
+	private void establishConnection() throws SQLException, ClassNotFoundException {
 		Class.forName(options.getDriverName());
 		if (options.username == null) {
 			connection = DriverManager.getConnection(options.url);
@@ -58,7 +72,7 @@ abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> {
 		}
 	}
 
-	protected void closeDbConnection() throws IOException {
+	private void closeDbConnection() {
 		if (connection != null) {
 			try {
 				connection.close();

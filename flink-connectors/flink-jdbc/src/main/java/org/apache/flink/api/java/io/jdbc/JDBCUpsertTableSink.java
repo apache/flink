@@ -38,8 +38,8 @@ import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
+import static org.apache.flink.api.java.io.jdbc.JdbcBatchingOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 import static org.apache.flink.api.java.io.jdbc.JdbcTypeUtil.normalizeTableSchema;
-import static org.apache.flink.api.java.io.jdbc.JdbcUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -69,7 +69,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		this.maxRetryTime = maxRetryTime;
 	}
 
-	private JdbcUpsertOutputFormat newFormat() {
+	private JdbcBatchingOutputFormat newFormat() {
 		if (!isAppendOnly && (keyFields == null || keyFields.length == 0)) {
 			throw new UnsupportedOperationException("JDBCUpsertTableSink can not support ");
 		}
@@ -78,7 +78,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		int[] jdbcSqlTypes = Arrays.stream(schema.getFieldTypes())
 				.mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 
-		return JdbcUpsertOutputFormat.builder()
+		return JdbcBatchingOutputFormat.builder()
 			.setOptions(options)
 			.setFieldNames(schema.getFieldNames())
 			.setFlushMaxSize(flushMaxSize)

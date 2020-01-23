@@ -42,7 +42,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCTestBase.DRIVER_CLASS;
-import static org.apache.flink.api.java.io.jdbc.JdbcUpsertOutputFormatTest.check;
+import static org.apache.flink.api.java.io.jdbc.JdbcTableOutputFormatTest.check;
 
 /**
  * IT case for {@link JDBCUpsertTableSink}.

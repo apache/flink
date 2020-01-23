@@ -43,11 +43,11 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.Mockito.doReturn;
 
 /**
- * Tests for the {@link JdbcUpsertOutputFormat}.
+ * Tests for the {@link JdbcBatchingOutputFormat}.
  */
-public class JdbcUpsertOutputFormatTest extends JDBCTestBase {
+public class JdbcTableOutputFormatTest extends JDBCTestBase {
 
-	private JdbcUpsertOutputFormat format;
+	private TableJdbcOutputFormat format;
 	private String[] fieldNames;
 	private String[] keyFields;
 
@@ -59,14 +59,14 @@ public class JdbcUpsertOutputFormatTest extends JDBCTestBase {
 
 	@Test
 	public void testJDBCOutputFormat() throws Exception {
-		format = JdbcUpsertOutputFormat.builder()
-				.setOptions(JDBCOptions.builder()
-						.setDBUrl(DB_URL)
-						.setTableName(OUTPUT_TABLE)
-						.build())
-				.setFieldNames(fieldNames)
-				.setKeyFields(keyFields)
+		JDBCOptions options = JDBCOptions.builder()
+				.setDBUrl(DB_URL)
+				.setTableName(OUTPUT_TABLE)
 				.build();
+		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
+				.withTableName(options.getTableName()).withDialect(options.getDialect().getName())
+				.withFieldNames(fieldNames).withKeyFields(keyFields).build();
+		format = new TableJdbcOutputFormat(options, dmlOptions, JdbcBatchOptions.defaults());
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);
 		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
 		doReturn(config).when(context).getExecutionConfig();
