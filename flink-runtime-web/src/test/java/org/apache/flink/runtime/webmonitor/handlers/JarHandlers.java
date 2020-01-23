@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * TODO: Add javadoc.
+ * Test setup for all jar-submission related handlers.
  */
 public class JarHandlers {
 
