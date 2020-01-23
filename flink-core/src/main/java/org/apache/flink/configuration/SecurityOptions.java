@@ -106,7 +106,9 @@ public class SecurityOptions {
 	/**
 	 * Enable SSL for internal communication (akka rpc, netty data transport, blob server).
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
+	@Documentation.SectionOption(
+		sections = {Documentation.SectionOption.SECTION_COMMON},
+		position = Documentation.SectionOption.POSITION_SECURITY)
 	public static final ConfigOption<Boolean> SSL_INTERNAL_ENABLED =
 			key("security.ssl.internal.enabled")
 			.defaultValue(false)
@@ -117,7 +119,9 @@ public class SecurityOptions {
 	/**
 	 * Enable SSL for external REST endpoints.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
+	@Documentation.SectionOption(
+		sections = {Documentation.SectionOption.SECTION_COMMON},
+		position = Documentation.SectionOption.POSITION_SECURITY)
 	public static final ConfigOption<Boolean> SSL_REST_ENABLED =
 			key("security.ssl.rest.enabled")
 			.defaultValue(false)

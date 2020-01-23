@@ -66,7 +66,7 @@ public class ConfigOptionsDocsCompletenessITCase {
 	public void testCommonSectionCompleteness() throws IOException, ClassNotFoundException {
 		Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedCommonOptions();
 		Map<String, List<ExistingOption>> existingOptions = findExistingOptions(
-			optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null);
+			optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.SectionOption.class) != null);
 
 		assertExistingOptionsAreWellDefined(existingOptions);
 

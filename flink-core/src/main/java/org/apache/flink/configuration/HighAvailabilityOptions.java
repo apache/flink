@@ -45,7 +45,9 @@ public class HighAvailabilityOptions {
 	 * To enable high-availability, set this mode to "ZOOKEEPER".
 	 * Can also be set to FQN of HighAvailability factory class.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
+	@Documentation.SectionOption(
+		sections = {Documentation.SectionOption.SECTION_COMMON},
+		position = Documentation.SectionOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_MODE =
 			key("high-availability")
 			.defaultValue("NONE")
@@ -67,7 +69,9 @@ public class HighAvailabilityOptions {
 	/**
 	 * File system path (URI) where Flink persists metadata in high-availability setups.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
+	@Documentation.SectionOption(
+		sections = {Documentation.SectionOption.SECTION_COMMON},
+		position = Documentation.SectionOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_STORAGE_PATH =
 			key("high-availability.storageDir")
 			.noDefaultValue()
