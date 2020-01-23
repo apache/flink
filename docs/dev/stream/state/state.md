@@ -431,7 +431,7 @@ The storage backend keeps a lazy global iterator for this state over all its ent
 Every time incremental cleanup is triggered, the iterator is advanced.
 The traversed state entries are checked and expired ones are cleaned up.
 
-This feature can be activated in `StateTtlConfig`:
+This feature can be configured in `StateTtlConfig`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -455,9 +455,9 @@ val ttlConfig = StateTtlConfig
 </div>
 
 This strategy has two parameters. The first one is number of checked state entries per each cleanup triggering.
-If enabled, it is always triggered per each state access.
+It is always triggered per each state access.
 The second parameter defines whether to trigger cleanup additionally per each record processing.
-If you enable the default background cleanup then this strategy will be activated for heap backend with 5 checked entries and without cleanup per record processing.
+The default background cleanup for heap backend checks 5 entries without cleanup per record processing.
 
 **Notes:**
 - If no access happens to the state or no records are processed, expired state will persist.
@@ -471,15 +471,12 @@ e.g. after restart from savepoint.
 
 ##### Cleanup during RocksDB compaction
 
-If RocksDB state backend is used, another cleanup strategy is to activate Flink specific compaction filter.
+If the RocksDB state backend is used, a Flink specific compaction filter will be called for the background cleanup.
 RocksDB periodically runs asynchronous compactions to merge state updates and reduce storage.
 Flink compaction filter checks expiration timestamp of state entries with TTL
 and excludes expired values. 
 
-This feature is disabled by default. It has to be firstly activated for the RocksDB backend
-by setting Flink configuration option `state.backend.rocksdb.ttl.compaction.filter.enabled`
-or by calling `RocksDBStateBackend::enableTtlCompactionFilter` if a custom RocksDB state backend is created for a job.
-Then any state with TTL can be configured to use the filter:
+This feature can be configured in `StateTtlConfig`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -511,7 +508,7 @@ You can change it and pass a custom value to
 `StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries)` method. 
 Updating the timestamp more often can improve cleanup speed 
 but it decreases compaction performance because it uses JNI call from native code.
-If you enable the default background cleanup then this strategy will be activated for RocksDB backend and the current timestamp will be queried each time 1000 entries have been processed.
+The default background cleanup for RocksDB backend queries the current timestamp each time 1000 entries have been processed.
 
 You can activate debug logs from the native code of RocksDB filter 
 by activating debug level for `FlinkCompactionFilter`:
