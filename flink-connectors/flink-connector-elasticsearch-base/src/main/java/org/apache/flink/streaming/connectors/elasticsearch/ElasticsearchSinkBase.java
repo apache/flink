@@ -297,6 +297,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
+		callBridge.verifyClientConnection(client);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 		failureRequestIndexer = new BufferingNoOpRequestIndexer();

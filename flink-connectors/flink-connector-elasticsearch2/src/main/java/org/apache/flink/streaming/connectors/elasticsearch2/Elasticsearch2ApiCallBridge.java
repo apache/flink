@@ -71,19 +71,6 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge<T
 			transportClient.addTransportAddress(address);
 		}
 
-		// verify that we actually are connected to a cluster
-		if (transportClient.connectedNodes().isEmpty()) {
-
-			// close the transportClient here
-			IOUtils.closeQuietly(transportClient);
-
-			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch TransportClient with connected nodes {}", transportClient.connectedNodes());
-		}
-
 		return transportClient;
 	}
 
@@ -125,5 +112,20 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge<T
 		}
 
 		builder.setBackoffPolicy(backoffPolicy);
+	}
+
+	@Override
+	public void verifyClientConnection(TransportClient client) {
+		// verify that we actually are connected to a cluster
+		if (client.connectedNodes().isEmpty()) {
+			// close the transportClient here
+			IOUtils.closeQuietly(client);
+
+			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
+		}
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Elasticsearch TransportClient is connected to nodes {}", client.connectedNodes());
+		}
 	}
 }
