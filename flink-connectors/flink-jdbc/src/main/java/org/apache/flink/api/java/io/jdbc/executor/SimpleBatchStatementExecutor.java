@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.io.jdbc.writer;
+package org.apache.flink.api.java.io.jdbc.executor;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
 
 import java.sql.Connection;
@@ -28,55 +27,53 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Just append record to jdbc, can not receive retract/delete message.
- */
-public class AppendOnlyWriter implements JDBCWriter {
+class SimpleBatchStatementExecutor implements JdbcBatchStatementExecutor<Row> {
 
-	private static final long serialVersionUID = 1L;
+	private final String sql;
+	private final int[] paramTypes;
 
-	private final String insertSQL;
-	private final int[] fieldTypes;
+	private transient PreparedStatement st;
+	private List<Row> batch;
+	private final boolean objectReuse;
 
-	private transient List<Row> cachedRows;
-	private transient PreparedStatement statement;
-
-	public AppendOnlyWriter(String insertSQL, int[] fieldTypes) {
-		this.insertSQL = insertSQL;
-		this.fieldTypes = fieldTypes;
+	SimpleBatchStatementExecutor(String sql, int[] paramTypes, boolean objectReuse) {
+		this.sql = sql;
+		this.paramTypes = paramTypes;
+		this.objectReuse = objectReuse;
 	}
 
 	@Override
 	public void open(Connection connection) throws SQLException {
-		this.cachedRows = new ArrayList<>();
-		this.statement = connection.prepareStatement(insertSQL);
+		this.batch = new ArrayList<>();
+		this.st = connection.prepareStatement(sql);
 	}
 
 	@Override
-	public void addRecord(Tuple2<Boolean, Row> record) {
-		checkArgument(record.f0, "Append mode can not receive retract/delete message.");
-		cachedRows.add(record.f1);
+	public void process(Row record) {
+		batch.add(objectReuse ? Row.copy(record) : record);
 	}
 
 	@Override
 	public void executeBatch() throws SQLException {
-		if (cachedRows.size() > 0) {
-			for (Row row : cachedRows) {
-				setRecordToStatement(statement, fieldTypes, row);
-				statement.addBatch();
+		if (!batch.isEmpty()) {
+			for (Row r : batch) {
+				setRecordToStatement(st, paramTypes, r);
+				st.addBatch();
 			}
-			statement.executeBatch();
-			cachedRows.clear();
+			st.executeBatch();
+			batch.clear();
 		}
 	}
 
 	@Override
 	public void close() throws SQLException {
-		if (statement != null) {
-			statement.close();
-			statement = null;
+		if (st != null) {
+			st.close();
+			st = null;
+		}
+		if (batch != null) {
+			batch.clear();
 		}
 	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.api.java.io.jdbc;
 import java.io.Serializable;
 import java.util.Objects;
 
-import static org.apache.flink.api.java.io.jdbc.JdbcUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
+import static org.apache.flink.api.java.io.jdbc.JdbcBatchingOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 
 /**
  * Options for the JDBC lookup.

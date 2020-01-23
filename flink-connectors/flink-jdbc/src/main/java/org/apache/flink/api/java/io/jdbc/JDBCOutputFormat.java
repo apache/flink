@@ -46,8 +46,8 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	final JdbcInsertOptions insertOptions;
 	private final JdbcBatchOptions batchOptions;
 
-	private PreparedStatement upload;
-	private int batchCount = 0;
+	private transient PreparedStatement upload;
+	private transient int batchCount = 0;
 
 	/**
 	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionOptions, JdbcInsertOptions, JdbcBatchOptions)}}.
@@ -74,18 +74,16 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	 */
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
+		super.open(taskNumber, numTasks);
 		try {
-			establishConnection();
 			upload = connection.prepareStatement(insertOptions.getQuery());
 		} catch (SQLException sqe) {
 			throw new IllegalArgumentException("open() failed.", sqe);
-		} catch (ClassNotFoundException cnfe) {
-			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
 	}
 
 	@Override
-	public void writeRecord(Row row) throws IOException {
+	public void writeRecord(Row row) {
 		try {
 			setRecordToStatement(upload, insertOptions.getFieldTypes(), row);
 			upload.addBatch();
@@ -117,10 +115,9 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	/**
 	 * Executes prepared statement and closes all resources of this instance.
 	 *
-	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		if (upload != null) {
 			flush();
 			try {
@@ -132,7 +129,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 			}
 		}
 
-		closeDbConnection();
+		super.close();
 	}
 
 	public static JDBCOutputFormatBuilder buildJDBCOutputFormat() {

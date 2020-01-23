@@ -28,9 +28,9 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.types.Row;
 
 class JdbcUpsertSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>> implements CheckpointedFunction {
-	private final JdbcUpsertOutputFormat outputFormat;
+	private final JdbcBatchingOutputFormat outputFormat;
 
-	JdbcUpsertSinkFunction(JdbcUpsertOutputFormat outputFormat) {
+	JdbcUpsertSinkFunction(JdbcBatchingOutputFormat outputFormat) {
 		this.outputFormat = outputFormat;
 	}
 

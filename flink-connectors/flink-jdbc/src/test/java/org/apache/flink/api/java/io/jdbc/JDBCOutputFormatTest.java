@@ -50,7 +50,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat = null;
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IOException.class)
 	public void testInvalidDriver() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername("org.apache.derby.jdbc.idontexist")
@@ -60,7 +60,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat.open(0, 1);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IOException.class)
 	public void testInvalidURL() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
