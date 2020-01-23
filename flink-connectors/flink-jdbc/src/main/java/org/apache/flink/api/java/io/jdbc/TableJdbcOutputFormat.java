@@ -54,13 +54,12 @@ class TableJdbcOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row
 		int[] pkTypes = dmlOptions.getFieldTypes() == null ? null :
 				Arrays.stream(pkFields).map(f -> dmlOptions.getFieldTypes()[f]).toArray();
 		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames());
-		boolean objectReuseEnabled = getRuntimeContext().getExecutionConfig().isObjectReuseEnabled();
-		return JdbcBatchStatementExecutor.keyed(pkFields, pkTypes, deleteSql, objectReuseEnabled);
+		return JdbcBatchStatementExecutor.keyedRow(pkFields, pkTypes, deleteSql);
 	}
 
 	@Override
 	JdbcBatchStatementExecutor<Row> createStatementRunner(JDBCDialect dialect) {
-		return JdbcBatchStatementExecutor.upsert(
+		return JdbcBatchStatementExecutor.upsertRow(
 				dialect, dmlOptions.getTableName(), dmlOptions.getFieldNames(), dmlOptions.getFieldTypes(), dmlOptions.getKeyFields(),
 				getRuntimeContext().getExecutionConfig().isObjectReuseEnabled());
 	}

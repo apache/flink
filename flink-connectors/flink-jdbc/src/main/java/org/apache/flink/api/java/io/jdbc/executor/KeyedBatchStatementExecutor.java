@@ -18,59 +18,51 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
-import org.apache.flink.types.Row;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Function;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
+class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T> {
 
-/**
- * Upsert writer to deal with upsert, delete message.
- */
-class KeyedBatchStatementExecutor implements JdbcBatchStatementExecutor<Row> {
-
-	private final int[] pkTypes;
-	private final int[] pkFields;
 	private final String sql;
-	private final boolean objectReuse;
+	private final ParameterSetter<K> parameterSetter;
+	private final Function<T, K> keyExtractor;
 
-	private transient Map<Row, Row> keyToRows = new HashMap<>();
+	private transient Set<K> batch = new HashSet<>();
 	private transient PreparedStatement st;
 
-	KeyedBatchStatementExecutor(int[] pkFields, int[] pkTypes, String sql, boolean objectReuse) {
-		this.pkFields = pkFields;
-		this.pkTypes = pkTypes;
+	/**
+	 * Keep in mind object reuse: if it's on then key extractor may be required to return new object.
+	 */
+	KeyedBatchStatementExecutor(String sql, Function<T, K> keyExtractor, ParameterSetter<K> parameterSetter) {
+		this.parameterSetter = parameterSetter;
+		this.keyExtractor = keyExtractor;
 		this.sql = sql;
-		this.objectReuse = objectReuse;
 	}
 
 	@Override
 	public void open(Connection connection) throws SQLException {
-		keyToRows = new HashMap<>();
+		batch = new HashSet<>();
 		st = connection.prepareStatement(sql);
 	}
 
 	@Override
-	public void process(Row record) {
-		// we don't need perform a deep copy, because jdbc field are immutable object.
-		Row row = objectReuse ? Row.copy(record) : record;
-		// add records to buffer
-		keyToRows.put(getPrimaryKey(row), row);
+	public void process(T record) {
+		batch.add(keyExtractor.apply(record));
 	}
 
 	@Override
 	public void executeBatch() throws SQLException {
-		if (keyToRows.size() > 0) {
-			for (Map.Entry<Row, Row> entry : keyToRows.entrySet()) {
-				setRecordToStatement(st, pkTypes, entry.getKey());
+		if (!batch.isEmpty()) {
+			for (K entry : batch) {
+				parameterSetter.accept(st, entry);
 				st.addBatch();
 			}
 			st.executeBatch();
-			keyToRows.clear();
+			batch.clear();
 		}
 	}
 
@@ -82,16 +74,4 @@ class KeyedBatchStatementExecutor implements JdbcBatchStatementExecutor<Row> {
 		}
 	}
 
-	private Row getPrimaryKey(Row row) {
-		int[] pkFields = this.pkFields;
-		return getPrimaryKey(row, pkFields);
-	}
-
-	static Row getPrimaryKey(Row row, int[] pkFields) {
-		Row pkRow = new Row(pkFields.length);
-		for (int i = 0; i < pkFields.length; i++) {
-			pkRow.setField(i, row.getField(pkFields[i]));
-		}
-		return pkRow;
-	}
 }
