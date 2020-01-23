@@ -1,0 +1,287 @@
+---
+title: "Release Notes - Flink 1.10"
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+
+These release notes discuss important aspects, such as configuration, behavior,
+or dependencies, that changed between Flink 1.9 and Flink 1.10. Please read
+these notes carefully if you are planning to upgrade your Flink version to 1.10.
+
+* This will be replaced by the TOC
+{:toc}
+
+
+### Clusters & Deployment
+#### FileSystems should be loaded via Plugin Architecture ([FLINK-11956](https://issues.apache.org/jira/browse/FLINK-11956))
+In the s3-hadoop and s3-presto filesystems, classes from external
+dependencies, such as the AWS SDK, are no longer relocated. In the past, class
+relocation turned out to be problematic in combination with custom
+implementations of the `AWSCredentialsProvider` interface. As a consequence of
+removing class relocation, s3-hadoop and s3-presto filesystems can only be
+used as [plugins]({{ site.baseurl }}/ops/filesystems/#pluggable-file-systems).
+Other filesystems are strongly recommended to be only used as plugins.
+
+#### Flink Client respects Classloading Policy ([FLINK-13749](https://issues.apache.org/jira/browse/FLINK-13749))
+The Flink client now also respects the configured classloading policy, i.e.,
+`parent-first` or `child-first` classloading. Previously, only cluster
+components such as the job manager or task manager supported this setting.
+This does mean that users might get different behaviour in their programs, in
+which case they should configure the classloading policy explicitly to use
+`parent-first` classloading, which was the previous (hard-coded) behaviour.
+
+#### Enable spreading out Tasks evenly across all TaskManagers ([FLINK-12122](https://issues.apache.org/jira/browse/FLINK-12122))
+When [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)
+was rolled out with Flink 1.5.0, we changed how slots are allocated
+from TaskManagers (TMs). Instead of evenly allocating the slots from all
+registered TMs, we had the tendency to exhaust a TM before using another one.
+To use a scheduling strategy that is more similar to the pre-FLIP-6
+behaviour, where Flink tries to spread out the workload across all available
+TMs, one can set `cluster.evenly-spread-out-slots: true` in the
+`flink-conf.yaml`.
+
+#### Directory Structure Change for highly available Artifacts ([FLINK-13633](https://issues.apache.org/jira/browse/FLINK-13633))
+All highly available artifacts stored by Flink will now be stored under
+`HA_STORAGE_DIR/HA_CLUSTER_ID` with `HA_STORAGE_DIR` configured by
+`high-availability.storageDir` and `HA_CLUSTER_ID` configured by
+`high-availability.cluster-id`.
+
+#### Resources and JARs shipped via --yarnship will be ordered in the Classpath ([FLINK-13127](https://issues.apache.org/jira/browse/FLINK-13127))
+When using the `--yarnship` command line option, resource directories and jar
+files will be added to the classpath in lexicographical order with resources
+directories appearing first.
+
+#### Removal of --yn/--yarncontainer Command Line Options ([FLINK-12362](https://issues.apache.org/jira/browse/FLINK-12362))
+The Flink CLI no longer supports the deprecated command line options
+`-yn/--yarncontainer`, which were used to specify the number of containers to
+start on YARN. This option has been deprecated since the introduction of
+[FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077).
+All Flink users are advised to remove this command line option.
+
+#### Mesos Integration will reject expired Offers faster ([FLINK-14029](https://issues.apache.org/jira/browse/FLINK-14029))
+Flink's Mesos integration now rejects all expired offers instead of only 4.
+This improves the situation where Fenzo holds on to a lot of expired offers
+without giving them back to the Mesos resource manager.
+
+#### Scheduler Rearchitecture ([FLINK-14651](https://issues.apache.org/jira/browse/FLINK-14651))
+Flink's scheduler was refactored with the goal of making scheduling strategies
+customizable in the future. Users that experience issues related to scheduling
+can fallback to the legacy scheduler by setting `jobmanager.scheduler: legacy`
+in their `flink-conf.yaml`.
+
+
+### Memory Management
+#### Fine Grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
+<!-- wip -->
+#### FLIP-49
+<!-- wip -->
+
+
+### Table API & SQL
+#### Rename of ANY Type to RAW Type ([FLINK-14904](https://issues.apache.org/jira/browse/FLINK-14904))
+The identifier `raw` is a reserved keyword now and be must be escaped with
+backticks when used as a SQL field or function name.
+
+#### Rename of Table Connector Properties ([FLINK-14649](https://issues.apache.org/jira/browse/FLINK-14649))
+Some indexed properties for table connectors have been flattened and renamed
+for a better user experience when writing DDL statements. This affects the
+Kafka Connector properties `connector.properties` and
+`connector.specific-offsets`. Furthermore, the Elasticsearch Connector
+property `connector.hosts` is affected. The aforementioned, old properties are
+deprecated and will be removed in future versions. Please consult the [Table
+Connectors documentation]({{ site.baseurl }}/dev/table/connect.html#table-connectors)
+for the new property names.
+
+#### Methods for interacting with temporary Tables & Views ([FLINK-14490](https://issues.apache.org/jira/browse/FLINK-14490))
+Methods `registerTable()`/`registerDataStream()`/`registerDataSet()` become
+deprecated in favor of `createTemporaryView()`, which better adheres to the
+corresponding SQL term.
+
+The `scan()` method becomes deprecated in favor of the `from()` method.
+
+Methods `registerTableSource()`/`registerTableSink()` become deprecated in favor of
+`ConnectTableDescriptor#createTemporaryTable()`. That method expects only a
+set of string properties as a description of a TableSource or TableSinks
+instead of an instance of a class in case of the deprecated methods. This in
+return makes it possible to reliably store those definitions in catalogs.
+
+Method `insertInto(String path, String... pathContinued)` has been removed in
+favor of in `insertInto(String path)`.
+
+All the newly introduced methods accept a String identifier which will be
+parsed into a 3-part identifier. The parser supports quoting the identifier.
+It also requires escaping any reserved SQL keywords.
+
+#### Removal of ExternalCatalog API ([FLINK-13697](https://issues.apache.org/jira/browse/FLINK-13697))
+The deprecated `ExternalCatalog` API has been dropped. This includes:
+
+* `ExternalCatalog` (and all dependent classes, e.g., `ExternalTable`)
+* `SchematicDescriptor`, `MetadataDescriptor`, `StatisticsDescriptor`
+
+Users are advised to use the [new Catalog API]({{ site.baseurl }}/dev/table/catalogs.html#catalog-api).
+
+
+### Configuration
+#### Introduction of Type Information for ConfigOptions ([FLINK-14493](https://issues.apache.org/jira/browse/FLINK-14493))
+Getters of `org.apache.flink.configuration.Configuration` throw
+`IllegalArgumentException` now if the configured value cannot be parsed into
+the required type. In previous Flink releases the default value was returned
+in such cases.
+
+#### Increase of default Restart Delay ([FLINK-13884](https://issues.apache.org/jira/browse/FLINK-13884))
+The default restart delay for all shipped restart strategies, i.e., `fixed-delay`
+and `failure-rate`, has been raised to 1 s (from originally 0 s).
+
+#### Simplification of Cluster-Level Restart Strategy Configuration ([FLINK-13921](https://issues.apache.org/jira/browse/FLINK-13921))
+Previously, if the user had set `restart-strategy.fixed-delay.attempts` or
+`restart-strategy.fixed-delay.delay` but had not configured the option
+`restart-strategy`, the cluster-level restart strategy would have been
+`fixed-delay`. Now the cluster-level restart strategy is only determined by
+the config option `restart-strategy` and whether checkpointing is enabled. See
+[_"Task Failure Recovery"_]({{ site.baseurl }}/dev/task_failure_recovery.html)
+for details.
+
+#### Disable memory-mapped BoundedBlockingSubpartition by default ([FLINK-14952](https://issues.apache.org/jira/browse/FLINK-14952))
+The config option `taskmanager.network.bounded-blocking-subpartition-type` has
+been renamed to `taskmanager.network.blocking-shuffle.type`. Moreover, the
+default value of the aforementioned config option has been changed from `auto`
+to `file`. The reason is that TaskManagers running on cluster managers, such
+as YARN, could easily exceed the memory budget of their container when
+memory-mapping large result subpartitions.
+
+#### Removal of non-credit-based Network Flow Control ([FLINK-14516](https://issues.apache.org/jira/browse/FLINK-14516))
+The non-credit-based network flow control code was removed alongside of the
+configuration option `taskmanager.network.credit-model`. Credit-based flow
+control is now the only option.
+
+#### Removal of HighAvailabilityOptions#HA_JOB_DELAY ([FLINK-13885](https://issues.apache.org/jira/browse/FLINK-13885))
+The configuration option `high-availability.job.delay` has been removed
+since it is no longer used.
+
+
+### State
+#### Enable Background Cleanup of State with TTL by default ([FLINK-14898](https://issues.apache.org/jira/browse/FLINK-14898))
+[Background cleanup of expired state with TTL]({{ site.baseurl }}/dev/stream/state/state.html#cleanup-of-expired-state)
+is activated by default now for all state backends shipped with Flink.
+Note that the RocksDB state backend implements background cleanup by employing
+a compaction filter. This has the caveat that even if a Flink job does not
+store state with TTL, a minor performance penalty during compaction incurs.
+Users that experience noticeable performance degradation during RocksDB
+compaction can disable the TTL compaction filter by setting the config option
+`state.backend.rocksdb.ttl.compaction.filter.enabled` to `false`.
+
+#### Deprecation of StateTtlConfig#Builder#cleanupInBackground() ([FLINK-15606](https://issues.apache.org/jira/browse/FLINK-15606))
+`StateTtlConfig#Builder#cleanupInBackground()` is deprecated now because the
+background cleanup of state with TTL is already enabled by default.
+
+#### Timers are stored in RocksDB by default when using RocksDBStateBackend ([FLINK-15637](https://issues.apache.org/jira/browse/FLINK-15637))
+The default timer store has been changed from Heap to RocksDB for the RocksDB
+state backend to support asynchronous snapshots for timer state and better
+scalability, with less than 5% performance cost. Users that find the
+performance decline critical, can set
+`state.backend.rocksdb.timer-service.factory` to `HEAP` in `flink-conf.yaml`
+to restore the old behavior.
+
+#### Removal of StateTtlConfig#TimeCharacteristic ([FLINK-15605](https://issues.apache.org/jira/browse/FLINK-15605))
+`StateTtlConfig#TimeCharacteristic` has been removed in favor of
+`StateTtlConfig#TtlTimeCharacteristic`.
+
+#### RocksDB Upgrade ([FLINK-14483](https://issues.apache.org/jira/browse/FLINK-14483))
+We have again released our own RocksDB build (FRocksDB) which is based on
+RocksDB version 5.17.2 with several feature backports for the [Write Buffer
+Manager](https://github.com/facebook/rocksdb/wiki/Write-Buffer-Manager) to
+enable limiting RocksDB's memory usage. The decision to release our own
+RocksDB build was made because later RocksDB versions suffer from a
+[performance regression under certain
+workloads](https://github.com/facebook/rocksdb/issues/5774).
+
+#### Improved RocksDB Savepoint Recovery ([FLINK-12785](https://issues.apache.org/jira/browse/FLINK-12785))
+In previous Flink releases users may encounter an `OutOfMemoryError` when
+restoring from a RocksDB savepoint containing large KV pairs. For that reason
+we introduced a configurable memory limit in the `RocksDBWriteBatchWrapper`
+with a default value of 2 MB. RocksDB's WriteBatch will flush before the
+consumed memory limit is reached. If needed, the limit can be tuned via the
+`state.backend.rocksdb.write-batch-size` config option in `flink-conf.yaml`.
+
+
+### PyFlink
+#### Python 2 Support dropped ([FLINK-14469](https://issues.apache.org/jira/browse/FLINK-14469))
+Beginning from this release, PyFlink does not support Python 2. This is because [Python 2 has
+reached end of life on January 1,
+2020](https://www.python.org/doc/sunset-python-2/), and several third-party
+projects that PyFlink depends on are also dropping Python 2 support.
+
+
+### Monitoring
+#### InfluxdbReporter skips Inf and NaN ([FLINK-12147](https://issues.apache.org/jira/browse/FLINK-12147))
+The `InfluxdbReporter` now silently skips values that are unsupported by
+InfluxDB, such as `Double.POSITIVE_INFINITY`, `Double.NEGATIVE_INFINITY`,
+`Double.NaN`, etc.
+
+
+### Connectors
+#### Kinesis Connector License Change ([FLINK-12847](https://issues.apache.org/jira/browse/FLINK-12847))
+flink-connector-kinesis is now licensed under the Apache License, Version 2.0,
+and its artifacts will be deployed to Maven central as part of the Flink
+releases. Users no longer need to build the  Kinesis connector from source themselves.
+
+
+### Miscellaneous Interface Changes
+#### ExecutionConfig#getGlobalJobParameters() cannot return null anymore ([FLINK-9787](https://issues.apache.org/jira/browse/FLINK-9787))
+`ExecutionConfig#getGlobalJobParameters` has been changed to never return
+`null`. Conversely,
+`ExecutionConfig#setGlobalJobParameters(GlobalJobParameters)` will not accept
+`null` values anymore.
+
+#### Change of contract in MasterTriggerRestoreHook interface ([FLINK-14344](https://issues.apache.org/jira/browse/FLINK-14344))
+Implementations of `MasterTriggerRestoreHook#triggerCheckpoint(long, long,
+Executor)` must be non-blocking now. Any blocking operation should be executed
+asynchronously, e.g., using the given executor.
+
+#### Client-/ and Server-Side Separation of HA Services ([FLINK-13750](https://issues.apache.org/jira/browse/FLINK-13750))
+The `HighAvailabilityServices` have been split up into client-side
+`ClientHighAvailabilityServices` and cluster-side `HighAvailabilityServices`.
+When implementing custom high availability services, users should follow this
+separation by overriding the factory method
+`HighAvailabilityServicesFactory#createClientHAServices(Configuration)`.
+Moreover, `HighAvailabilityServices#getWebMonitorLeaderRetriever()` should no
+longer be implemented since it has been deprecated.
+
+#### Deprecation of HighAvailabilityServices#getWebMonitorLeaderElectionService() ([FLINK-13977](https://issues.apache.org/jira/browse/FLINK-13977))
+Implementations of `HighAvailabilityServices` should implement
+`HighAvailabilityServices#getClusterRestEndpointLeaderElectionService()` instead
+of `HighAvailabilityServices#getWebMonitorLeaderElectionService()`.
+
+#### Interface Change in LeaderElectionService ([FLINK-14287](https://issues.apache.org/jira/browse/FLINK-14287))
+`LeaderElectionService#confirmLeadership(UUID, String)` now takes an
+additional second argument, which is the address under which the leader will be
+reachable. All custom `LeaderElectionService` implementations will need to be
+updated accordingly.
+
+#### Deprecation of Checkpoint Lock ([FLINK-14857](https://issues.apache.org/jira/browse/FLINK-14857))
+The method
+`org.apache.flink.streaming.runtime.tasks.StreamTask#getCheckpointLock()` is
+deprecated now. Users should use `MailboxExecutor` to run actions that require
+synchronization with the task's thread (e.g. collecting output produced by an
+external thread). The methods `MailboxExecutor#yield()` or
+`MailboxExecutor#tryYield()` can be used for actions that need to give up
+control to other actions temporarily, e.g., if the current operator is
+blocked. The `MailboxExecutor` can be accessed by using
+`YieldingOperatorFactory` (see `AsyncWaitOperator` for an example usage).
