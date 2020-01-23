@@ -40,8 +40,32 @@ The command line can be used to
 
 A prerequisite to using the command line interface is that the Flink
 master (JobManager) has been started (via
-`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
+`<flink-home>/bin/start-cluster.sh`) or that another deployment target such as YARN or Kubernetes is
 available.
+
+### Deployment targets
+
+Flink has the concept of executors for defining available deployment targets. You can see the
+available executors in the output of `bin/flink --help`, for example:
+
+```
+Options for executor mode:
+   -D <property=value>   Generic configuration options for
+                         execution/deployment and for the configured executor.
+                         The available options can be found at
+                         https://ci.apache.org/projects/flink/flink-docs-stabl
+                         e/ops/config.html
+   -e,--executor <arg>   The name of the executor to be used for executing the
+                         given job, which is equivalent to the
+                         "execution.target" config option. The currently
+                         available executors are: "remote", "local",
+                         "kubernetes-session", "yarn-per-job", "yarn-session".
+```
+
+When running one of the `bin/flink` actions, the executor is specified using the `--executor`
+option.                  
+
+
 
 * This will be replaced by the TOC
 {:toc}
