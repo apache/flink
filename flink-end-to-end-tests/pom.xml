@@ -63,6 +63,7 @@ under the License.
 		<module>flink-sql-client-test</module>
 		<module>flink-streaming-file-sink-test</module>
 		<module>flink-state-evolution-test</module>
+		<module>flink-rocksdb-state-memory-control-test</module>
 		<module>flink-end-to-end-tests-common</module>
 		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
