@@ -41,21 +41,32 @@ public final class Documentation {
 	}
 
 	/**
-	 * Annotation used on config option fields to include them in the "Common Options" section.
+	 * Annotation used on config option fields to include them in specific sections. Sections are groups of options
+	 * that are aggregated across option classes, with each group being placed into a dedicated file.
 	 *
-	 * <p>The {@link CommonOption#position()} argument controls the position in the generated table, with lower values
+	 * <p>The {@link SectionOption#position()} argument controls the position in the generated table, with lower values
 	 * being placed at the top. Fields with the same position are sorted alphabetically by key.
 	 */
 	@Target(ElementType.FIELD)
 	@Retention(RetentionPolicy.RUNTIME)
 	@Internal
-	public @interface CommonOption {
+	public @interface SectionOption {
 		int POSITION_MEMORY = 10;
 		int POSITION_PARALLELISM_SLOTS = 20;
 		int POSITION_FAULT_TOLERANCE = 30;
 		int POSITION_HIGH_AVAILABILITY = 40;
 		int POSITION_SECURITY = 50;
 
+		String SECTION_COMMON = "common";
+
+		/**
+		 * The sections in the config docs where this option should be included.
+		 */
+		String[] sections() default {};
+
+		/**
+		 * The relative position of the option in its section.
+		 */
 		int position() default Integer.MAX_VALUE;
 	}
 
