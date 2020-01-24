@@ -38,8 +38,10 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.slf4j:slf4j-log4j12</include>
-				<include>log4j:log4j</include>
+				<include>org.apache.logging.log4j:log4j-api</include>
+				<include>org.apache.logging.log4j:log4j-core</include>
+				<include>org.apache.logging.log4j:log4j-slf4j-impl</include>
+				<include>org.apache.logging.log4j:log4j-1.2-api</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>

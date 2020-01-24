@@ -1581,6 +1581,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 			if (hasLog4j) {
 				logging += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
+				logging += " -Dlog4j.configurationFile=file:" + CONFIG_FILE_LOG4J_NAME;
 			}
 		}
 

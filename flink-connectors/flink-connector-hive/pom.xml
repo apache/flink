@@ -514,6 +514,10 @@ under the License.
 					<artifactId>jms</artifactId>
 					<groupId>javax.jms</groupId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -606,6 +610,10 @@ under the License.
 					<artifactId>hbase-hadoop-compat</artifactId>
 					<groupId>org.apache.hbase</groupId>
 				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -655,6 +663,12 @@ under the License.
 			<artifactId>hive-webhcat-java-client</artifactId>
 			<version>${hive.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->

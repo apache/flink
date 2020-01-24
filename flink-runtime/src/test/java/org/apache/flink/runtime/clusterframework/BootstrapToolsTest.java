@@ -171,7 +171,8 @@ public class BootstrapToolsTest extends TestLogger {
 		final String logback =
 			"-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
 		final String log4j =
-			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
+			"-Dlog4j.configuration=file:./conf/log4j.properties" +
+				" -Dlog4j.configurationFile=file:./conf/log4j.properties" ; // if set
 		final String mainClass =
 			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
 		final String dynamicConfigs = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();

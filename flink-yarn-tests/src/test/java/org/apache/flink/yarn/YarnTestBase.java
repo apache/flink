@@ -49,7 +49,6 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
-import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -90,6 +89,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -796,7 +796,7 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) throws IOException {
-		runWithArgs(args, terminateAfterString, failOnStrings, type, returnCode, false);
+		runWithArgs(args, terminateAfterString, failOnStrings, type, returnCode, Collections::emptyList);
 	}
 
 	/**
@@ -806,9 +806,9 @@ public abstract class YarnTestBase extends TestLogger {
 	 * @param failOnPatterns The runner is searching stdout and stderr for the pattern (regexp) specified here. If one appears, the test has failed
 	 * @param type Set the type of the runner
 	 * @param expectedReturnValue Expected return code from the runner.
-	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
+	 * @param logMessageSupplier Supplier for log messages
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, boolean checkLogForTerminateString) throws IOException {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, Supplier<Collection<String>> logMessageSupplier) throws IOException {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -858,14 +858,12 @@ public abstract class YarnTestBase extends TestLogger {
 					}
 				}
 			}
-			// check output for the expected terminateAfterString.
-			if (checkLogForTerminateString) {
-				LoggingEvent matchedEvent = UtilsTest.getEventContainingString(terminateAfterString);
-				if (matchedEvent != null) {
-					testPassedFromLog4j = true;
-					LOG.info("Found expected output in logging event {}", matchedEvent);
-				}
 
+			for (String logMessage : logMessageSupplier.get()) {
+				if (logMessage.contains(terminateAfterString)) {
+					testPassedFromLog4j = true;
+					LOG.info("Found expected output in logging event {}", logMessage);
+				}
 			}
 
 			if (outContentString.contains(terminateAfterString) || errContentString.contains(terminateAfterString) || testPassedFromLog4j) {
