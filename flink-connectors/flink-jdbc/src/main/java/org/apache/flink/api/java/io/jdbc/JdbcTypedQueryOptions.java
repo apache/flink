@@ -30,7 +30,7 @@ abstract class JdbcTypedQueryOptions implements Serializable {
 		this.fieldTypes = fieldTypes;
 	}
 
-	int[] getFieldTypes() {
+	public int[] getFieldTypes() {
 		return fieldTypes;
 	}
 

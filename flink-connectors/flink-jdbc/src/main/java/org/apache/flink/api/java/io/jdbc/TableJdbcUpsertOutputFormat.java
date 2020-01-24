@@ -17,7 +17,6 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
 import org.apache.flink.api.java.io.jdbc.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
@@ -28,14 +27,20 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.function.Function;
 
-class TableJdbcOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
-	private static final Logger LOG = LoggerFactory.getLogger(TableJdbcOutputFormat.class);
+class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
+	private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
 
 	private JdbcBatchStatementExecutor<Row> deleteExecutor;
 
-	TableJdbcOutputFormat(JdbcConnectionOptions connectionOptions, JdbcDmlOptions dmlOptions, JdbcBatchOptions batchOptions) {
-		super(connectionOptions, dmlOptions, batchOptions);
+	TableJdbcUpsertOutputFormat(JdbcConnectionOptions connectionOptions, JdbcDmlOptions dmlOptions, JdbcBatchOptions batchOptions) {
+		super(connectionOptions, dmlOptions, batchOptions, ctx -> JdbcBatchStatementExecutor.upsertRow(dmlOptions, ctx), new Function<Tuple2<Boolean, Row>, Row>() {
+			@Override
+			public Row apply(Tuple2<Boolean, Row> record) {
+				return record.f1;
+			}
+		});
 	}
 
 	@Override
@@ -58,24 +63,12 @@ class TableJdbcOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row
 	}
 
 	@Override
-	JdbcBatchStatementExecutor<Row> createStatementRunner(JDBCDialect dialect) {
-		return JdbcBatchStatementExecutor.upsertRow(
-				dialect, dmlOptions.getTableName(), dmlOptions.getFieldNames(), dmlOptions.getFieldTypes(), dmlOptions.getKeyFields(),
-				getRuntimeContext().getExecutionConfig().isObjectReuseEnabled());
-	}
-
-	@Override
 	void doWriteRecord(Tuple2<Boolean, Row> record) throws SQLException {
 		if (record.f0) {
 			super.doWriteRecord(record);
 		} else {
-			deleteExecutor.process(extractJdbcRecord(record));
+			deleteExecutor.process(jdbcRecordExtractor.apply(record));
 		}
-	}
-
-	@Override
-	Row extractJdbcRecord(Tuple2<Boolean, Row> record) {
-		return record.f1;
 	}
 
 	@Override

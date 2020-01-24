@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.io.jdbc.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -69,7 +70,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		this.maxRetryTime = maxRetryTime;
 	}
 
-	private JdbcBatchingOutputFormat newFormat() {
+	private JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> newFormat() {
 		if (!isAppendOnly && (keyFields == null || keyFields.length == 0)) {
 			throw new UnsupportedOperationException("JDBCUpsertTableSink can not support ");
 		}
@@ -92,7 +93,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
 		return dataStream
-				.addSink(new JdbcUpsertSinkFunction(newFormat()))
+				.addSink(new GenericJdbcSinkFunction<>(newFormat()))
 				.setParallelism(dataStream.getParallelism())
 				.name(TableConnectorUtils.generateRuntimeName(this.getClass(), schema.getFieldNames()));
 	}

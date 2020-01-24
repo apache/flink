@@ -24,12 +24,13 @@ import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Flushable;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> {
+abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implements Flushable {
 
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
@@ -82,5 +83,9 @@ abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> {
 				connection = null;
 			}
 		}
+	}
+
+	@Override
+	public void flush() throws IOException {
 	}
 }

@@ -19,6 +19,8 @@
 package org.apache.flink.api.java.io.jdbc.executor;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.io.jdbc.JdbcDmlOptions;
 import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
 import org.apache.flink.types.Row;
 
@@ -54,32 +56,26 @@ public interface JdbcBatchStatementExecutor<T> {
 	 */
 	void close() throws SQLException;
 
-	static JdbcBatchStatementExecutor<Row> upsertRow(
-			JDBCDialect dialect,
-			String tableName,
-			String[] fieldNames,
-			int[] fieldTypes,
-			String[] keyFields,
-			boolean objectReuse) {
+	static JdbcBatchStatementExecutor<Row> upsertRow(JdbcDmlOptions opt, RuntimeContext ctx) {
+		checkNotNull(opt.getKeyFields());
+		JDBCDialect dialect = opt.getDialectName().getInstance(opt);
 
-		checkNotNull(keyFields);
-
-		int[] pkFields = Arrays.stream(keyFields).mapToInt(Arrays.asList(fieldNames)::indexOf).toArray();
-		int[] pkTypes = fieldTypes == null ? null : Arrays.stream(pkFields).map(f -> fieldTypes[f]).toArray();
+		int[] pkFields = Arrays.stream(opt.getKeyFields()).mapToInt(Arrays.asList(opt.getFieldNames())::indexOf).toArray();
+		int[] pkTypes = opt.getFieldTypes() == null ? null : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
 
 		return dialect
-				.getUpsertStatement(tableName, fieldNames, keyFields)
-				.map(sql -> keyedRow(pkFields, fieldTypes, sql))
+				.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields())
+				.map(sql -> keyedRow(pkFields, opt.getFieldTypes(), sql))
 				.orElseGet(() ->
 						new InsertOrUpdateJdbcExecutor<>(
-								dialect.getRowExistsStatement(tableName, keyFields),
-								dialect.getInsertIntoStatement(tableName, fieldNames),
-								dialect.getUpdateStatement(tableName, fieldNames, keyFields),
+								dialect.getRowExistsStatement(opt.getTableName(), opt.getKeyFields()),
+								dialect.getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
+								dialect.getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields()),
 								ParameterSetter.forRow(pkTypes),
-								ParameterSetter.forRow(fieldTypes),
-								ParameterSetter.forRow(fieldTypes),
+								ParameterSetter.forRow(opt.getFieldTypes()),
+								ParameterSetter.forRow(opt.getFieldTypes()),
 								rowKeyExtractor(pkFields),
-								objectReuse ? Row::copy : Function.identity()));
+								ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity()));
 	}
 
 	static Function<Row, Row> rowKeyExtractor(int[] pkFields) {
