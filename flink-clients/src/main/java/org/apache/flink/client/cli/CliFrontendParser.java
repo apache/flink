@@ -57,6 +57,10 @@ public class CliFrontendParser {
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 			"specified in the configuration.");
 
+	/**
+	 * @deprecated This has no effect anymore, we're keeping it to not break existing bash scripts.
+	 */
+	@Deprecated
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
 			"suppress logging output to standard out.");
 
@@ -258,7 +262,6 @@ public class CliFrontendParser {
 		options.addOption(CLASS_OPTION);
 		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
-		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(PY_OPTION);

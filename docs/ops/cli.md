@@ -409,8 +409,6 @@ Action "run" compiles and runs a program.
                                           (e.g.: --pyRequirements
                                           file:///tmp/requirements.txt#file:///t
                                           mp/cached_dir).
-     -q,--sysoutLogging                   If present, suppress logging output to
-                                          standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
                                           from (for example
                                           hdfs:///flink/savepoint-1537).
