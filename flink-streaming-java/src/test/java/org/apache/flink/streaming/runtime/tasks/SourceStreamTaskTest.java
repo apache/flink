@@ -312,7 +312,8 @@ public class SourceStreamTaskTest {
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
-			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+			if (!ExceptionUtils.findThrowable(t, InterruptedException.class).isPresent() &&
+				!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
 				throw t;
 			}
 		}
@@ -406,7 +407,7 @@ public class SourceStreamTaskTest {
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Exception e) {
-			if (!(e.getCause() instanceof InterruptedException)) {
+			if (!ExceptionUtils.findThrowable(e, InterruptedException.class).isPresent()) {
 				throw e;
 			}
 		}
