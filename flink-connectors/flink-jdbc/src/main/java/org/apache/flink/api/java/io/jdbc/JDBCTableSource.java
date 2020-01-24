@@ -37,7 +37,7 @@ import org.apache.flink.types.Row;
 import java.util.Arrays;
 import java.util.Objects;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
+import static org.apache.flink.api.java.io.jdbc.JdbcTypeUtil.normalizeTableSchema;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

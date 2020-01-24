@@ -26,14 +26,14 @@ import org.junit.Test;
 
 import java.sql.Types;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.typeInformationToSqlType;
+import static org.apache.flink.api.java.io.jdbc.JdbcTypeUtil.typeInformationToSqlType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
  * Testing the type conversions from Flink to SQL types.
  */
-public class JDBCTypeUtilTest {
+public class JdbcTypeUtilTest {
 
 	@Test
 	public void testTypeConversions() {

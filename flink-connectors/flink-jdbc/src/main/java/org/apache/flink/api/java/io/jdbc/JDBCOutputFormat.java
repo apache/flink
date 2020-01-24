@@ -37,7 +37,7 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
  * @see Row
  * @see DriverManager
  */
-public class JDBCOutputFormat extends AbstractJDBCOutputFormat<Row> {
+public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -99,8 +99,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		this.cacheMaxSize = lookupOptions.getCacheMaxSize();
 		this.cacheExpireMs = lookupOptions.getCacheExpireMs();
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
-		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
-		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
+		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
+		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 		this.query = options.getDialect().getSelectFromStatement(
 				options.getTableName(), fieldNames, keyNames);
 	}

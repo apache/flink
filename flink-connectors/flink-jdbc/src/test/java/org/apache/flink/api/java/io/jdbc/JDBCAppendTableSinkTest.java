@@ -71,9 +71,9 @@ public class JDBCAppendTableSinkTest {
 				.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
 				.getStreamNode(sinkId)
 				.getOperator();
-		assertTrue(planSink.getUserFunction() instanceof JDBCSinkFunction);
+		assertTrue(planSink.getUserFunction() instanceof JdbcSinkFunction);
 
-		JDBCSinkFunction sinkFunction = (JDBCSinkFunction) planSink.getUserFunction();
+		JdbcSinkFunction sinkFunction = (JdbcSinkFunction) planSink.getUserFunction();
 		assertSame(sink.getOutputFormat(), sinkFunction.outputFormat);
 	}
 
