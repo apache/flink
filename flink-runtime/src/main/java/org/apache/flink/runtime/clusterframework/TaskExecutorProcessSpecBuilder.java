@@ -26,35 +26,35 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Builder for {@link TaskExecutorResourceSpec}.
+ * Builder for {@link TaskExecutorProcessSpec}.
  */
-public class TaskExecutorResourceSpecBuilder {
+public class TaskExecutorProcessSpecBuilder {
 
 	private final Configuration configuration;
 
-	private TaskExecutorResourceSpecBuilder(final Configuration configuration) {
+	private TaskExecutorProcessSpecBuilder(final Configuration configuration) {
 		this.configuration = new Configuration(checkNotNull(configuration));
 	}
 
-	static TaskExecutorResourceSpecBuilder newBuilder(final Configuration configuration) {
-		return new TaskExecutorResourceSpecBuilder(configuration);
+	static TaskExecutorProcessSpecBuilder newBuilder(final Configuration configuration) {
+		return new TaskExecutorProcessSpecBuilder(configuration);
 	}
 
-	public TaskExecutorResourceSpecBuilder withCpuCores(double cpuCores) {
+	public TaskExecutorProcessSpecBuilder withCpuCores(double cpuCores) {
 		return withCpuCores(new CPUResource(cpuCores));
 	}
 
-	public TaskExecutorResourceSpecBuilder withCpuCores(CPUResource cpuCores) {
+	public TaskExecutorProcessSpecBuilder withCpuCores(CPUResource cpuCores) {
 		configuration.setDouble(TaskManagerOptions.CPU_CORES, cpuCores.getValue().doubleValue());
 		return this;
 	}
 
-	public TaskExecutorResourceSpecBuilder withTotalProcessMemory(MemorySize totalProcessMemory) {
+	public TaskExecutorProcessSpecBuilder withTotalProcessMemory(MemorySize totalProcessMemory) {
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory);
 		return this;
 	}
 
-	public TaskExecutorResourceSpec build() {
-		return TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+	public TaskExecutorProcessSpec build() {
+		return TaskExecutorProcessUtils.processSpecFromConfig(configuration);
 	}
 }

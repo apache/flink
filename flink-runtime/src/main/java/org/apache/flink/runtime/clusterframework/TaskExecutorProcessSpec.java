@@ -24,7 +24,7 @@ import org.apache.flink.configuration.MemorySize;
 import java.io.Serializable;
 
 /**
- * Describe the specifics of different resource dimensions of the TaskExecutor.
+ * Describe the specifics of different resource dimensions of the TaskExecutor process.
  *
  * <p>A TaskExecutor's memory consists of the following components.
  * <ul>
@@ -73,7 +73,7 @@ import java.io.Serializable;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class TaskExecutorResourceSpec implements Serializable {
+public class TaskExecutorProcessSpec implements Serializable {
 
 	private final CPUResource cpuCores;
 
@@ -93,7 +93,7 @@ public class TaskExecutorResourceSpec implements Serializable {
 
 	private final MemorySize jvmOverheadSize;
 
-	public TaskExecutorResourceSpec(
+	public TaskExecutorProcessSpec(
 		CPUResource cpuCores,
 		MemorySize frameworkHeapSize,
 		MemorySize frameworkOffHeapSize,
@@ -169,7 +169,7 @@ public class TaskExecutorResourceSpec implements Serializable {
 
 	@Override
 	public String toString() {
-		return "TaskExecutorResourceSpec {"
+		return "TaskExecutorProcessSpec {"
 			+ "cpuCores=" + cpuCores.getValue().doubleValue()
 			+ ", frameworkHeapSize=" + frameworkHeapSize.toHumanReadableString()
 			+ ", frameworkOffHeapSize=" + frameworkOffHeapMemorySize.toHumanReadableString()

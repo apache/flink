@@ -149,7 +149,7 @@ public class BootstrapToolsTest extends TestLogger {
 	@Test
 	public void testGetTaskManagerShellCommand() {
 		final Configuration cfg = new Configuration();
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = new TaskExecutorProcessSpec(
 			new CPUResource(1.0),
 			new MemorySize(0), // frameworkHeapSize
 			new MemorySize(0), // frameworkOffHeapSize
@@ -160,7 +160,7 @@ public class BootstrapToolsTest extends TestLogger {
 			new MemorySize(333), // jvmMetaspaceSize
 			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(taskExecutorResourceSpec, 4, new HashMap<String, String>());
+			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, 4, new HashMap<String, String>());
 
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";
@@ -174,7 +174,7 @@ public class BootstrapToolsTest extends TestLogger {
 			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
 		final String mainClass =
 			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-		final String dynamicConfigs = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
+		final String dynamicConfigs = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();
 		final String basicArgs = "--configDir ./conf";
 		final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
 		final String args = dynamicConfigs + " " + basicArgs + " " + mainArgs;

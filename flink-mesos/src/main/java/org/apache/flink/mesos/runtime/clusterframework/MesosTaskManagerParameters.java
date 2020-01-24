@@ -25,8 +25,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -215,7 +215,7 @@ public class MesosTaskManagerParameters {
 	 * Get the CPU units to use for the TaskManager process.
 	 */
 	public double cpus() {
-		return containeredParameters.getTaskExecutorResourceSpec().getCpuCores().getValue().doubleValue();
+		return containeredParameters.getTaskExecutorProcessSpec().getCpuCores().getValue().doubleValue();
 	}
 
 	/**
@@ -411,21 +411,21 @@ public class MesosTaskManagerParameters {
 	private static ContaineredTaskManagerParameters createContaineredTaskManagerParameters(final Configuration flinkConfig) {
 		double cpus = getCpuCores(flinkConfig);
 		MemorySize totalProcessMemory = getTotalProcessMemory(flinkConfig);
-		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils
-			.newResourceSpecBuilder(flinkConfig)
+		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils
+			.newProcessSpecBuilder(flinkConfig)
 			.withCpuCores(cpus)
 			.withTotalProcessMemory(totalProcessMemory)
 			.build();
 
 		return ContaineredTaskManagerParameters.create(
 			flinkConfig,
-			taskExecutorResourceSpec,
+			taskExecutorProcessSpec,
 			flinkConfig.getInteger(MESOS_RM_TASKS_SLOTS));
 	}
 
 	private static double getCpuCores(final Configuration configuration) {
 		double fallback = configuration.getDouble(MESOS_RM_TASKS_CPUS);
-		return TaskExecutorResourceUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
+		return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
 	}
 
 	private static MemorySize getTotalProcessMemory(final Configuration configuration) {

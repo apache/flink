@@ -27,7 +27,7 @@ import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -441,7 +441,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 		return new TestingTaskExecutor(
 			RPC,
-			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfig(configuration)),
+			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorProcessUtils.processSpecFromConfig(configuration)),
 			haServices,
 			taskManagerServices,
 			new HeartbeatServices(10_000L, 30_000L),

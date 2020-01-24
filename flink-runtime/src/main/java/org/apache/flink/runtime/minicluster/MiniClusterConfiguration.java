@@ -27,7 +27,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -93,19 +93,19 @@ public class MiniClusterConfiguration {
 
 	@VisibleForTesting
 	static Configuration adjustTaskManagerMemoryConfigurations(final Configuration toBeModifiedConfiguration) {
-		if (!TaskExecutorResourceUtils.isTaskExecutorResourceExplicitlyConfigured(toBeModifiedConfiguration)) {
+		if (!TaskExecutorProcessUtils.isTaskExecutorProcessResourceExplicitlyConfigured(toBeModifiedConfiguration)) {
 			// This does not affect the JVM heap size for local execution,
 			// we simply set it to pass the sanity checks in memory calculations
 			toBeModifiedConfiguration.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("100m"));
 		}
 
-		if (!TaskExecutorResourceUtils.isNetworkMemoryExplicitlyConfigured(toBeModifiedConfiguration)) {
+		if (!TaskExecutorProcessUtils.isNetworkMemoryExplicitlyConfigured(toBeModifiedConfiguration)) {
 			toBeModifiedConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, DEFAULT_SHUFFLE_MEMORY_SIZE);
 			toBeModifiedConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, DEFAULT_SHUFFLE_MEMORY_SIZE);
 			LOG.info("Network memory is not explicitly configured, use {} for local execution.", DEFAULT_SHUFFLE_MEMORY_SIZE);
 		}
 
-		if (!TaskExecutorResourceUtils.isManagedMemorySizeExplicitlyConfigured(toBeModifiedConfiguration)) {
+		if (!TaskExecutorProcessUtils.isManagedMemorySizeExplicitlyConfigured(toBeModifiedConfiguration)) {
 			toBeModifiedConfiguration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
 			LOG.info("Managed memory is not explicitly configured, use {} for local execution.", DEFAULT_MANAGED_MEMORY_SIZE);
 		}
