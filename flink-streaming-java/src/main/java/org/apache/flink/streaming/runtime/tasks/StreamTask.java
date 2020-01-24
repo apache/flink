@@ -87,7 +87,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -483,23 +482,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void runMailboxLoop() throws Exception {
-		try {
-			mailboxProcessor.runMailboxLoop();
-		}
-		catch (Exception e) {
-			Optional<InterruptedException> interruption = ExceptionUtils.findThrowable(e, InterruptedException.class);
-			if (interruption.isPresent()) {
-				if (!canceled) {
-					Thread.currentThread().interrupt();
-					throw interruption.get();
-				}
-			} else if (canceled) {
-				LOG.warn("Error while canceling task.", e);
-			}
-			else {
-				throw e;
-			}
-		}
+		mailboxProcessor.runMailboxLoop();
 	}
 
 	private void afterInvoke() throws Exception {
