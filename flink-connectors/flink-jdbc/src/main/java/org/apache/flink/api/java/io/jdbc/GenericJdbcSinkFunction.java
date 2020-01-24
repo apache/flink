@@ -19,18 +19,18 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.types.Row;
 
-class JdbcUpsertSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>> implements CheckpointedFunction {
-	private final JdbcBatchingOutputFormat outputFormat;
+import java.io.IOException;
 
-	JdbcUpsertSinkFunction(JdbcBatchingOutputFormat outputFormat) {
+class GenericJdbcSinkFunction<T> extends RichSinkFunction<T> implements CheckpointedFunction {
+	private final AbstractJdbcOutputFormat<T > outputFormat;
+
+	GenericJdbcSinkFunction(AbstractJdbcOutputFormat<T > outputFormat) {
 		this.outputFormat = outputFormat;
 	}
 
@@ -43,12 +43,12 @@ class JdbcUpsertSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>> impl
 	}
 
 	@Override
-	public void invoke(Tuple2<Boolean, Row> value, Context context) throws Exception {
+	public void invoke(T value, Context context) throws IOException {
 		outputFormat.writeRecord(value);
 	}
 
 	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
+	public void initializeState(FunctionInitializationContext context) {
 	}
 
 	@Override
@@ -57,7 +57,7 @@ class JdbcUpsertSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>> impl
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		outputFormat.close();
 	}
 }

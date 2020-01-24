@@ -26,6 +26,10 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.types.Row;
 
+/**
+ * @deprecated use {@link GenericJdbcSinkFunction}
+ */
+@Deprecated
 class JdbcSinkFunction extends RichSinkFunction<Row> implements CheckpointedFunction {
 	final JDBCOutputFormat outputFormat;
 

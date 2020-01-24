@@ -37,6 +37,10 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
  * @see Row
  * @see DriverManager
  */
+/**
+ * @deprecated use {@link JdbcBatchingOutputFormat}
+ */
+@Deprecated
 public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	private static final long serialVersionUID = 1L;
@@ -99,7 +103,8 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		}
 	}
 
-	void flush() {
+	@Override
+	public void flush() {
 		try {
 			upload.executeBatch();
 			batchCount = 0;
