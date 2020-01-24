@@ -280,7 +280,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	private void assertTotalProcessMemory(MesosTaskManagerParameters mesosTaskManagerParameters) {
 		assertThat(
-			mesosTaskManagerParameters.containeredParameters().getTaskExecutorResourceSpec().getTotalProcessMemorySize(),
+			mesosTaskManagerParameters.containeredParameters().getTaskExecutorProcessSpec().getTotalProcessMemorySize(),
 			is(TOTAL_PROCESS_MEMORY_SIZE));
 	}
 

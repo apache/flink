@@ -43,21 +43,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Utility class for TaskExecutor memory configurations.
  *
- * <p>See {@link TaskExecutorResourceSpec} for details about memory components of TaskExecutor and their relationships.
+ * <p>See {@link TaskExecutorProcessSpec} for details about memory components of TaskExecutor and their relationships.
  */
-public class TaskExecutorResourceUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorResourceUtils.class);
+public class TaskExecutorProcessUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorProcessUtils.class);
 
-	private TaskExecutorResourceUtils() {}
+	private TaskExecutorProcessUtils() {}
 
 	// ------------------------------------------------------------------------
 	//  Generating JVM Parameters
 	// ------------------------------------------------------------------------
 
-	public static String generateJvmParametersStr(final TaskExecutorResourceSpec taskExecutorResourceSpec) {
-		final MemorySize jvmHeapSize = taskExecutorResourceSpec.getJvmHeapMemorySize();
-		final MemorySize jvmDirectSize = taskExecutorResourceSpec.getJvmDirectMemorySize();
-		final MemorySize jvmMetaspaceSize = taskExecutorResourceSpec.getJvmMetaspaceSize();
+	public static String generateJvmParametersStr(final TaskExecutorProcessSpec taskExecutorProcessSpec) {
+		final MemorySize jvmHeapSize = taskExecutorProcessSpec.getJvmHeapMemorySize();
+		final MemorySize jvmDirectSize = taskExecutorProcessSpec.getJvmDirectMemorySize();
+		final MemorySize jvmMetaspaceSize = taskExecutorProcessSpec.getJvmMetaspaceSize();
 
 		return "-Xmx" + jvmHeapSize.getBytes()
 			+ " -Xms" + jvmHeapSize.getBytes()
@@ -69,17 +69,17 @@ public class TaskExecutorResourceUtils {
 	//  Generating Dynamic Config Options
 	// ------------------------------------------------------------------------
 
-	public static String generateDynamicConfigsStr(final TaskExecutorResourceSpec taskExecutorResourceSpec) {
+	public static String generateDynamicConfigsStr(final TaskExecutorProcessSpec taskExecutorProcessSpec) {
 		final Map<String, String> configs = new HashMap<>();
 		configs.put(TaskManagerOptions.CPU_CORES.key(),
-			String.valueOf(taskExecutorResourceSpec.getCpuCores().getValue().doubleValue()));
-		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getFrameworkHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorResourceSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
-		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorResourceSpec.getTaskOffHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.NETWORK_MEMORY_MIN.key(), taskExecutorResourceSpec.getNetworkMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorResourceSpec.getNetworkMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorResourceSpec.getManagedMemorySize().getBytes() + "b");
+			String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue().doubleValue()));
+		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkHeapSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
+		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskHeapSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskOffHeapSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.NETWORK_MEMORY_MIN.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
+		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorProcessSpec.getManagedMemorySize().getBytes() + "b");
 		return assembleDynamicConfigsStr(configs);
 	}
 
@@ -96,32 +96,32 @@ public class TaskExecutorResourceUtils {
 	// ------------------------------------------------------------------------
 
 	public static List<ResourceProfile> createDefaultWorkerSlotProfiles(
-			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			TaskExecutorProcessSpec taskExecutorProcessSpec,
 			int numberOfSlots) {
 		final ResourceProfile resourceProfile =
-			generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots);
+			generateDefaultSlotResourceProfile(taskExecutorProcessSpec, numberOfSlots);
 		return Collections.nCopies(numberOfSlots, resourceProfile);
 	}
 
 	public static ResourceProfile generateDefaultSlotResourceProfile(
-			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			TaskExecutorProcessSpec taskExecutorProcessSpec,
 			int numberOfSlots) {
 		return ResourceProfile.newBuilder()
-			.setCpuCores(taskExecutorResourceSpec.getCpuCores().divide(numberOfSlots))
-			.setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize().divide(numberOfSlots))
-			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize().divide(numberOfSlots))
-			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize().divide(numberOfSlots))
-			.setNetworkMemory(taskExecutorResourceSpec.getNetworkMemSize().divide(numberOfSlots))
+			.setCpuCores(taskExecutorProcessSpec.getCpuCores().divide(numberOfSlots))
+			.setTaskHeapMemory(taskExecutorProcessSpec.getTaskHeapSize().divide(numberOfSlots))
+			.setTaskOffHeapMemory(taskExecutorProcessSpec.getTaskOffHeapSize().divide(numberOfSlots))
+			.setManagedMemory(taskExecutorProcessSpec.getManagedMemorySize().divide(numberOfSlots))
+			.setNetworkMemory(taskExecutorProcessSpec.getNetworkMemSize().divide(numberOfSlots))
 			.build();
 	}
 
-	public static ResourceProfile generateTotalAvailableResourceProfile(TaskExecutorResourceSpec taskExecutorResourceSpec) {
+	public static ResourceProfile generateTotalAvailableResourceProfile(TaskExecutorProcessSpec taskExecutorProcessSpec) {
 		return ResourceProfile.newBuilder()
-			.setCpuCores(taskExecutorResourceSpec.getCpuCores())
-			.setTaskHeapMemory(taskExecutorResourceSpec.getTaskHeapSize())
-			.setTaskOffHeapMemory(taskExecutorResourceSpec.getTaskOffHeapSize())
-			.setManagedMemory(taskExecutorResourceSpec.getManagedMemorySize())
-			.setNetworkMemory(taskExecutorResourceSpec.getNetworkMemSize())
+			.setCpuCores(taskExecutorProcessSpec.getCpuCores())
+			.setTaskHeapMemory(taskExecutorProcessSpec.getTaskHeapSize())
+			.setTaskOffHeapMemory(taskExecutorProcessSpec.getTaskOffHeapSize())
+			.setManagedMemory(taskExecutorProcessSpec.getManagedMemorySize())
+			.setNetworkMemory(taskExecutorProcessSpec.getNetworkMemSize())
 			.build();
 	}
 
@@ -129,22 +129,22 @@ public class TaskExecutorResourceUtils {
 	//  Memory Configuration Calculations
 	// ------------------------------------------------------------------------
 
-	public static TaskExecutorResourceSpecBuilder newResourceSpecBuilder(final Configuration config) {
-		return TaskExecutorResourceSpecBuilder.newBuilder(config);
+	public static TaskExecutorProcessSpecBuilder newProcessSpecBuilder(final Configuration config) {
+		return TaskExecutorProcessSpecBuilder.newBuilder(config);
 	}
 
-	public static TaskExecutorResourceSpec resourceSpecFromConfig(final Configuration config) {
+	public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
 		if (isTaskHeapMemorySizeExplicitlyConfigured(config) && isManagedMemorySizeExplicitlyConfigured(config)) {
 			// both task heap memory and managed memory are configured, use these to derive total flink memory
-			return deriveResourceSpecWithExplicitTaskAndManagedMemory(config);
+			return deriveProcessSpecWithExplicitTaskAndManagedMemory(config);
 		} else if (isTotalFlinkMemorySizeExplicitlyConfigured(config)) {
 			// either of task heap memory and managed memory is not configured, total flink memory is configured,
 			// derive from total flink memory
-			return deriveResourceSpecWithTotalFlinkMemory(config);
+			return deriveProcessSpecWithTotalFlinkMemory(config);
 		} else if (isTotalProcessMemorySizeExplicitlyConfigured(config)) {
 			// total flink memory is not configured, total process memory is configured,
 			// derive from total process memory
-			return deriveResourceSpecWithTotalProcessMemory(config);
+			return deriveProcessSpecWithTotalProcessMemory(config);
 		} else {
 			throw new IllegalConfigurationException(String.format("Either Task Heap Memory size (%s) and Managed Memory size (%s), or Total Flink"
 				+ " Memory size (%s), or Total Process Memory size (%s) need to be configured explicitly.",
@@ -155,13 +155,13 @@ public class TaskExecutorResourceUtils {
 		}
 	}
 
-	public static boolean isTaskExecutorResourceExplicitlyConfigured(final Configuration config) {
+	public static boolean isTaskExecutorProcessResourceExplicitlyConfigured(final Configuration config) {
 		return (isTaskHeapMemorySizeExplicitlyConfigured(config) && isManagedMemorySizeExplicitlyConfigured(config))
 			|| isTotalFlinkMemorySizeExplicitlyConfigured(config)
 			|| isTotalProcessMemorySizeExplicitlyConfigured(config);
 	}
 
-	private static TaskExecutorResourceSpec deriveResourceSpecWithExplicitTaskAndManagedMemory(final Configuration config) {
+	private static TaskExecutorProcessSpec deriveProcessSpecWithExplicitTaskAndManagedMemory(final Configuration config) {
 		// derive flink internal memory from explicitly configure task heap memory size and managed memory size
 
 		final MemorySize taskHeapMemorySize = getTaskHeapMemorySize(config);
@@ -211,10 +211,10 @@ public class TaskExecutorResourceUtils {
 
 		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, flinkInternalMemory.getTotalFlinkMemorySize());
 
-		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return createTaskExecutorProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
-	private static TaskExecutorResourceSpec deriveResourceSpecWithTotalFlinkMemory(final Configuration config) {
+	private static TaskExecutorProcessSpec deriveProcessSpecWithTotalFlinkMemory(final Configuration config) {
 		// derive flink internal memory from explicitly configured total flink memory
 
 		final MemorySize totalFlinkMemorySize = getTotalFlinkMemorySize(config);
@@ -224,10 +224,10 @@ public class TaskExecutorResourceUtils {
 
 		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(config, totalFlinkMemorySize);
 
-		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return createTaskExecutorProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
-	private static TaskExecutorResourceSpec deriveResourceSpecWithTotalProcessMemory(final Configuration config) {
+	private static TaskExecutorProcessSpec deriveProcessSpecWithTotalProcessMemory(final Configuration config) {
 		// derive total flink memory from explicitly configured total process memory size
 
 		final MemorySize totalProcessMemorySize = getTotalProcessMemorySize(config);
@@ -247,7 +247,7 @@ public class TaskExecutorResourceUtils {
 
 		final FlinkInternalMemory flinkInternalMemory = deriveInternalMemoryFromTotalFlinkMemory(config, totalFlinkMemorySize);
 
-		return createTaskExecutorResourceSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
+		return createTaskExecutorProcessSpec(config, flinkInternalMemory, jvmMetaspaceAndOverhead);
 	}
 
 	private static JvmMetaspaceAndOverhead deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
@@ -668,11 +668,11 @@ public class TaskExecutorResourceUtils {
 		return new CPUResource(cpuCores);
 	}
 
-	private static TaskExecutorResourceSpec createTaskExecutorResourceSpec(
+	private static TaskExecutorProcessSpec createTaskExecutorProcessSpec(
 			final Configuration config,
 			final FlinkInternalMemory flinkInternalMemory,
 			final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
-		return new TaskExecutorResourceSpec(
+		return new TaskExecutorProcessSpec(
 			getCpuCores(config),
 			flinkInternalMemory.frameworkHeap,
 			flinkInternalMemory.frameworkOffHeap,

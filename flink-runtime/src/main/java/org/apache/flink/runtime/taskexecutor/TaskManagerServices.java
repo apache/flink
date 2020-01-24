@@ -21,8 +21,8 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -245,7 +245,7 @@ public class TaskManagerServices {
 
 		final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
-			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
+			taskManagerServicesConfiguration.getTaskExecutorProcessSpec(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
 			taskManagerServicesConfiguration.getPageSize());
 
@@ -282,7 +282,7 @@ public class TaskManagerServices {
 
 	private static TaskSlotTable<Task> createTaskSlotTable(
 			final int numberOfSlots,
-			final TaskExecutorResourceSpec taskExecutorResourceSpec,
+			final TaskExecutorProcessSpec taskExecutorProcessSpec,
 			final long timerServiceShutdownTimeout,
 			final int pageSize) {
 		final TimerService<AllocationID> timerService = new TimerService<>(
@@ -290,8 +290,8 @@ public class TaskManagerServices {
 			timerServiceShutdownTimeout);
 		return new TaskSlotTableImpl<>(
 			numberOfSlots,
-			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
-			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
+			TaskExecutorProcessUtils.generateTotalAvailableResourceProfile(taskExecutorProcessSpec),
+			TaskExecutorProcessUtils.generateDefaultSlotResourceProfile(taskExecutorProcessSpec, numberOfSlots),
 			pageSize,
 			timerService);
 	}

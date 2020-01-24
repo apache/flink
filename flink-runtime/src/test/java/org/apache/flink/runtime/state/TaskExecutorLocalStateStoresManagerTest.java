@@ -23,8 +23,8 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -209,7 +209,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
 			Configuration config) throws IOException {
 		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.ofMebiBytes(TOTAL_FLINK_MEMORY_MB));
-		TaskExecutorResourceSpec spec = TaskExecutorResourceUtils.resourceSpecFromConfig(config);
+		TaskExecutorProcessSpec spec = TaskExecutorProcessUtils.processSpecFromConfig(config);
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,
 			ResourceID.generate(),

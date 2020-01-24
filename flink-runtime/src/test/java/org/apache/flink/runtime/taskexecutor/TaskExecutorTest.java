@@ -31,8 +31,8 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -180,7 +180,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	public static final HeartbeatServices HEARTBEAT_SERVICES = new HeartbeatServices(1000L, 1000L);
 
-	private static final TaskExecutorResourceSpec TM_RESOURCE_SPEC = new TaskExecutorResourceSpec(
+	private static final TaskExecutorProcessSpec TM_RESOURCE_SPEC = new TaskExecutorProcessSpec(
 		new CPUResource(1.0),
 		MemorySize.parse("1m"),
 		MemorySize.parse("2m"),
@@ -1409,7 +1409,7 @@ public class TaskExecutorTest extends TestLogger {
 			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
 
 			assertThat(registeredDefaultSlotResourceProfileFuture.get(),
-				equalTo(TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(TM_RESOURCE_SPEC, numberOfSlots)));
+				equalTo(TaskExecutorProcessUtils.generateDefaultSlotResourceProfile(TM_RESOURCE_SPEC, numberOfSlots)));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}

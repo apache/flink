@@ -27,8 +27,8 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
@@ -89,7 +89,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			final int slotsPerTaskManager = 3;
 			configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-			final TaskExecutorResourceSpec tmResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+			final TaskExecutorProcessSpec tmResourceSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
 			final int masterMemory = 64;
 			final int taskManagerMemory = tmResourceSpec.getTotalProcessMemorySize().getMebiBytes();
 
