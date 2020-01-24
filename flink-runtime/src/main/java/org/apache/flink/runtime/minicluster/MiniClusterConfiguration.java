@@ -47,7 +47,7 @@ public class MiniClusterConfiguration {
 
 	static final String SCHEDULER_TYPE_KEY = JobManagerOptions.SCHEDULER.key();
 	static final MemorySize DEFAULT_SHUFFLE_MEMORY_SIZE = MemorySize.parse("64m");
-	static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("16m");
+	static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("128m");
 
 	private final UnmodifiableConfiguration configuration;
 
