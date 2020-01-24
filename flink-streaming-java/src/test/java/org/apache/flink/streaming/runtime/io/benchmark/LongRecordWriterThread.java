@@ -20,39 +20,49 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.types.LongValue;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Wrapping thread around {@link RecordWriter} that sends a fixed number of <tt>LongValue(0)</tt>
  * records.
  */
+@ThreadSafe
 public class LongRecordWriterThread extends CheckedThread {
 	private final RecordWriter<LongValue> recordWriter;
 	private final boolean broadcastMode;
 
-	/**
-	 * Future to wait on a definition of the number of records to send.
-	 */
-	private CompletableFuture<Long> recordsToSend = new CompletableFuture<>();
+	private final MailboxProcessor mailboxProcessor;
+	private final MailboxExecutor mailboxExecutor;
 
-	private volatile boolean running = true;
+	private long currentRecordIteration = 0;
+	private long recordIterationLimit = -1;
+
+	@Nullable
+	private MailboxDefaultAction.Suspension suspension;
 
 	public LongRecordWriterThread(
 			RecordWriter<LongValue> recordWriter,
 			boolean broadcastMode) {
-		this.recordWriter = checkNotNull(recordWriter);
 		this.broadcastMode = broadcastMode;
+
+		mailboxProcessor = new MailboxProcessor(
+			this::defaultAction,
+			new TaskMailboxImpl(this),
+			StreamTaskActionExecutor.IMMEDIATE);
+		mailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
+		this.recordWriter = recordWriter;
 	}
 
-	public synchronized void shutdown() {
-		running = false;
-		recordsToSend.complete(0L);
+	public void shutdown() {
+		mailboxProcessor.allActionsCompleted();
 	}
 
 	/**
@@ -63,35 +73,48 @@ public class LongRecordWriterThread extends CheckedThread {
 	 * @param records
 	 * 		number of records to send
 	 */
-	public synchronized void setRecordsToSend(long records) {
-		checkState(!recordsToSend.isDone());
-		recordsToSend.complete(records);
+	public void setRecordsToSend(long records) {
+		mailboxExecutor.execute(() -> resumeAndSetRecordsToSend(records), "resumeAndSetRecordsToSend");
 	}
 
-	private synchronized CompletableFuture<Long> getRecordsToSend() {
-		return recordsToSend;
+	private void resumeAndSetRecordsToSend(long records) {
+		recordIterationLimit = records;
+		currentRecordIteration = 1;
+
+		if (suspension != null) {
+			suspension.resume();
+		}
 	}
 
-	private synchronized void finishSendingRecords() {
-		recordsToSend = new CompletableFuture<>();
+	private void defaultAction(MailboxDefaultAction.Controller controller) {
+		try {
+			if (recordIterationLimit < 0) {
+				waitForRecordsToSend(controller);
+			}
+			sendRecords(controller);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
 	public void go() throws Exception {
 		try {
-			while (running) {
-				sendRecords(getRecordsToSend().get());
-			}
+			mailboxProcessor.runMailboxLoop();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			throw e;
 		}
 		finally {
 			recordWriter.close();
 		}
 	}
 
-	private void sendRecords(long records) throws IOException, InterruptedException {
+	private void sendRecords(MailboxDefaultAction.Controller controller) throws Exception {
 		LongValue value = new LongValue(0);
 
-		for (int i = 1; i < records; i++) {
+		if (currentRecordIteration++ < recordIterationLimit) {
 			if (broadcastMode) {
 				recordWriter.broadcastEmit(value);
 			}
@@ -99,10 +122,16 @@ public class LongRecordWriterThread extends CheckedThread {
 				recordWriter.emit(value);
 			}
 		}
-		value.setValue(records);
-		recordWriter.broadcastEmit(value);
-		recordWriter.flushAll();
+		else {
+			value.setValue(recordIterationLimit);
+			recordWriter.broadcastEmit(value);
+			recordWriter.flushAll();
 
-		finishSendingRecords();
+			waitForRecordsToSend(controller);
+		}
+	}
+
+	private void waitForRecordsToSend(MailboxDefaultAction.Controller controller) {
+		suspension = controller.suspendDefaultAction();
 	}
 }
