@@ -22,12 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -196,11 +193,10 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	@Nonnull
 	private TestingTaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, String metricQueryServiceAddress, Configuration configuration) {
 		final Configuration copiedConf = new Configuration(configuration);
-		copiedConf.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorProcessUtils.processSpecFromConfig(copiedConf)),
+			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf)),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,
