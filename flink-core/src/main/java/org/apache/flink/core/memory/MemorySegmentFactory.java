@@ -95,7 +95,7 @@ public final class MemorySegmentFactory {
 	 */
 	public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
 		ByteBuffer memory = ByteBuffer.allocateDirect(size);
-		return new HybridMemorySegment(memory, owner, null);
+		return new HybridMemorySegment(memory, owner);
 	}
 
 	/**
@@ -112,7 +112,8 @@ public final class MemorySegmentFactory {
 	public static MemorySegment allocateOffHeapUnsafeMemory(int size, Object owner) {
 		long address = MemoryUtils.allocateUnsafe(size);
 		ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
-		return new HybridMemorySegment(offHeapBuffer, owner, MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address));
+		MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address);
+		return new HybridMemorySegment(offHeapBuffer, owner);
 	}
 
 	/**
@@ -126,7 +127,7 @@ public final class MemorySegmentFactory {
 	 * @return A new memory segment representing the given off-heap memory.
 	 */
 	public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
-		return new HybridMemorySegment(memory, null, null);
+		return new HybridMemorySegment(memory, null);
 	}
 
 }
