@@ -426,6 +426,8 @@ public class BootstrapTools {
 			if (hasLog4j) {
 				logging += " -Dlog4j.configuration=file:" + configDirectory +
 					"/log4j.properties";
+				logging += " -Dlog4j.configurationFile=file:" + configDirectory +
+					"/log4j.properties";
 			}
 		}
 

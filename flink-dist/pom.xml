@@ -159,14 +159,27 @@ under the License.
 			it easier for users to swap logging frameworks -->
 
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<!-- API bridge between log4j 1 and 2; included for convenience -->
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-1.2-api</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
@@ -671,8 +684,8 @@ under the License.
 							</filters>
 							<artifactSet>
 								<excludes>
-									<exclude>org.slf4j:slf4j-log4j12</exclude>
-									<exclude>log4j:log4j</exclude>
+									<!-- log4j 2 is bundled separately from the flink-dist jar -->
+									<exclude>org.apache.logging.log4j:*</exclude>
 								</excludes>
 							</artifactSet>
 							<transformers>
@@ -730,15 +743,14 @@ under the License.
 							</filters>
 							<artifactSet>
 								<includes>
-									<include>org.slf4j:slf4j-log4j12</include>
-									<include>log4j:log4j</include>
+									<exclude>org.apache.logging.log4j:*</exclude>
 									<include>org.apache.flink:*</include>
 								</includes>
 							</artifactSet>
 							<transformers>
-								<!-- Include a log4j configuration that always prints to stdout -->
+								<!-- Include a log4j2 configuration that always prints to stdout -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
-									<resource>log4j.properties</resource>
+									<resource>log4j2.properties</resource>
 									<file>src/main/resources/log4j-bash-utils.properties</file>
 								</transformer>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">

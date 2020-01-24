@@ -102,13 +102,13 @@ under the License.
 			 to avoid process kills due to container limits on TravisCI -->
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
-		<log4j.configuration>log4j-test.properties</log4j.configuration>
+		<log4j.configuration>log4j2-test.properties</log4j.configuration>
 		<flink.shaded.version>10.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
 		<slf4j.version>1.7.15</slf4j.version>
-		<log4j.version>1.2.17</log4j.version>
+		<log4j.version>2.12.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -230,16 +230,27 @@ under the License.
 		<!-- tests will have log4j as the default logging framework available -->
 
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<type>jar</type>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<type>jar</type>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<!-- API bridge between log4j 1 and 2 -->
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-1.2-api</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -299,12 +310,32 @@ under the License.
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-hadoop-2</artifactId>
 				<version>${hadoop.version}-${flink.shaded.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-hadoop-2-uber</artifactId>
 				<version>${hadoop.version}-${flink.shaded.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
@@ -321,14 +352,27 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-log4j12</artifactId>
-				<version>${slf4j.version}</version>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-slf4j-impl</artifactId>
+				<version>${log4j.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>log4j</groupId>
-				<artifactId>log4j</artifactId>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-api</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-core</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
+
+			<dependency>
+				<!-- API bridge between log4j 1 and 2 -->
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-1.2-api</artifactId>
 				<version>${log4j.version}</version>
 			</dependency>
 
@@ -690,6 +734,14 @@ under the License.
 				<artifactId>flink-test-utils-junit</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<!-- log4j2 has an optional dependency on disruptor which may affect other dependencies (like hive)
+					pin the version here to make this behavior explicit -->
+				<groupId>com.lmax</groupId>
+				<artifactId>disruptor</artifactId>
+				<version>3.4.2</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -1499,6 +1551,22 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>forbid-log4j-1</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>log4j:log4j</exclude>
+										<exclude>org.slf4j:slf4j-log4j12</exclude>
+									</excludes>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<id>dependency-convergence</id>
 						<!-- disabled by default as it interacts badly with shade-plugin -->
 						<phase>none</phase>
@@ -1536,7 +1604,9 @@ under the License.
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>log4j.properties</exclude>
+										<exclude>log4j2.properties</exclude>
 										<exclude>log4j-test.properties</exclude>
+										<exclude>log4j2-test.properties</exclude>
 									</excludes>
 								</filter>
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
