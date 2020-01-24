@@ -20,7 +20,10 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.streaming.runtime.io.OutputFlusher;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
@@ -44,6 +47,9 @@ public class LongRecordWriterThread extends CheckedThread {
 	private final MailboxProcessor mailboxProcessor;
 	private final MailboxExecutor mailboxExecutor;
 
+	@Nullable
+	private final OutputFlusher outputFlusher;
+
 	private long currentRecordIteration = -1;
 	private long recordIterationLimit = -1;
 
@@ -51,7 +57,9 @@ public class LongRecordWriterThread extends CheckedThread {
 	private MailboxDefaultAction.Suspension suspension;
 
 	public LongRecordWriterThread(
-			RecordWriter<LongValue> recordWriter,
+			RecordWriterBuilder<LongValue> recordWriterBuilder,
+			ResultPartitionWriter resultPartitionWriter,
+			int flushTimeout,
 			boolean broadcastMode) {
 		this.broadcastMode = broadcastMode;
 
@@ -60,10 +68,24 @@ public class LongRecordWriterThread extends CheckedThread {
 			new TaskMailboxImpl(this),
 			StreamTaskActionExecutor.IMMEDIATE);
 		mailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
-		this.recordWriter = recordWriter;
+		recordWriter = recordWriterBuilder.build(resultPartitionWriter);
+
+		if (flushTimeout > 0) {
+			outputFlusher = new OutputFlusher(
+				recordWriter,
+				"OutputFlusher",
+				flushTimeout,
+				mailboxExecutor);
+		}
+		else {
+			outputFlusher = null;
+		}
 	}
 
 	public void shutdown() {
+		if (outputFlusher != null) {
+			outputFlusher.terminate();
+		}
 		mailboxProcessor.allActionsCompleted();
 	}
 

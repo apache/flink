@@ -52,6 +52,7 @@ import org.junit.runners.Parameterized;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -154,10 +155,9 @@ public class ShuffleCompressionITCase {
 		public void invoke() throws Exception {
 			ResultPartitionWriter resultPartitionWriter = getEnvironment().getWriter(0);
 			RecordWriterBuilder<LongValue> recordWriterBuilder = new RecordWriterBuilder<>();
-			if (getEnvironment().getExecutionConfig().getExecutionMode() == ExecutionMode.PIPELINED) {
-				// enable output flush for pipeline mode
-				recordWriterBuilder.setTimeout(100);
-			}
+			checkState(
+				getEnvironment().getExecutionConfig().getExecutionMode() != ExecutionMode.PIPELINED,
+				"PIPELINED mode would require testing with OutputFlusher for a proper coverage");
 			if (useBroadcastPartitioner) {
 				recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
 			}

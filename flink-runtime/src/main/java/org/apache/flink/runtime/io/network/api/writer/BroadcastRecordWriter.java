@@ -52,11 +52,8 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 
 	private BufferConsumer randomTriggeredConsumer;
 
-	BroadcastRecordWriter(
-			ResultPartitionWriter writer,
-			long timeout,
-			String taskName) {
-		super(writer, timeout, taskName);
+	BroadcastRecordWriter(ResultPartitionWriter writer, boolean flushAlways) {
+		super(writer, flushAlways);
 	}
 
 	@Override

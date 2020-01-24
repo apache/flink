@@ -27,30 +27,23 @@ public class RecordWriterBuilder<T extends IOReadableWritable> {
 
 	private ChannelSelector<T> selector = new RoundRobinChannelSelector<>();
 
-	private long timeout = -1;
-
-	private String taskName = "test";
+	private boolean flushAlways;
 
 	public RecordWriterBuilder<T> setChannelSelector(ChannelSelector<T> selector) {
 		this.selector = selector;
 		return this;
 	}
 
-	public RecordWriterBuilder<T> setTimeout(long timeout) {
-		this.timeout = timeout;
-		return this;
-	}
-
-	public RecordWriterBuilder<T> setTaskName(String taskName) {
-		this.taskName = taskName;
+	public RecordWriterBuilder<T> setFlushAlways(boolean flushAlways) {
+		this.flushAlways = flushAlways;
 		return this;
 	}
 
 	public RecordWriter<T> build(ResultPartitionWriter writer) {
 		if (selector.isBroadcast()) {
-			return new BroadcastRecordWriter<>(writer, timeout, taskName);
+			return new BroadcastRecordWriter(writer, flushAlways);
 		} else {
-			return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
+			return new ChannelSelectorRecordWriter<>(writer, selector, flushAlways);
 		}
 	}
 }

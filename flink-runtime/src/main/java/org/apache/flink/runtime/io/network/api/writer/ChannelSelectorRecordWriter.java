@@ -45,9 +45,8 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 	ChannelSelectorRecordWriter(
 			ResultPartitionWriter writer,
 			ChannelSelector<T> channelSelector,
-			long timeout,
-			String taskName) {
-		super(writer, timeout, taskName);
+			boolean flushAlways) {
+		super(writer, flushAlways);
 
 		this.channelSelector = checkNotNull(channelSelector);
 		this.channelSelector.setup(numberOfChannels);
@@ -71,8 +70,6 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 	 */
 	@Override
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
-		checkErroneous();
-
 		serializer.serializeRecord(record);
 
 		boolean pruneAfterCopying = false;

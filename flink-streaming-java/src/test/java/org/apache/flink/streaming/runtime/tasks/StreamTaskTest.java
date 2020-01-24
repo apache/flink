@@ -106,6 +106,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.MockIndexedInputGate;
+import org.apache.flink.streaming.runtime.io.OutputFlusher;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -1210,9 +1211,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		assertTrue(
-			RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is still running",
+			OutputFlusher.OUTPUT_FLUSH_THREAD_NAME + " thread is still running",
 			Thread.getAllStackTraces().keySet().stream()
-				.noneMatch(thread -> thread.getName().startsWith(RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME)));
+				.noneMatch(thread -> thread.getName().startsWith(OutputFlusher.OUTPUT_FLUSH_THREAD_NAME)));
 	}
 
 	@Test
