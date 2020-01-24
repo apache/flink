@@ -24,8 +24,8 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
@@ -186,9 +186,9 @@ public class KubernetesUtils {
 			boolean hasLog4j,
 			String mainClass,
 			@Nullable String mainArgs) {
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = tmParams.getTaskExecutorResourceSpec();
-		final String jvmMemOpts = TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec);
-		String args = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec);
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = tmParams.getTaskExecutorProcessSpec();
+		final String jvmMemOpts = TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec);
+		String args = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec);
 		if (mainArgs != null) {
 			args += " " + mainArgs;
 		}

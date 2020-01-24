@@ -29,8 +29,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
@@ -68,7 +68,7 @@ public class KubernetesUtilsTest extends TestLogger {
 	private static final int jobManagerMem = 768;
 	private static final String jmJvmMem = "-Xms168m -Xmx168m";
 
-	private static final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+	private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC = new TaskExecutorProcessSpec(
 		new CPUResource(1.0),
 		new MemorySize(0), // frameworkHeapSize
 		new MemorySize(0), // frameworkOffHeapSize
@@ -81,7 +81,7 @@ public class KubernetesUtilsTest extends TestLogger {
 
 	private static final String tmJvmMem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
 	private static final String tmMemDynamicProperties =
-		TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
+		TaskExecutorProcessUtils.generateDynamicConfigsStr(TASK_EXECUTOR_PROCESS_SPEC).trim();
 
 	@Test
 	public void testGetJobManagerStartCommand() {
@@ -297,7 +297,7 @@ public class KubernetesUtilsTest extends TestLogger {
 			String mainClassArgs) {
 
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(taskExecutorResourceSpec, 4, new HashMap<>());
+			new ContaineredTaskManagerParameters(TASK_EXECUTOR_PROCESS_SPEC, 4, new HashMap<>());
 
 		return KubernetesUtils.getTaskManagerStartCommand(
 			cfg,

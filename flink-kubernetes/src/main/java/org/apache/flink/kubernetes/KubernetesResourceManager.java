@@ -119,12 +119,12 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			fatalErrorHandler,
 			resourceManagerMetricGroup);
 		this.clusterId = flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID);
-		this.defaultCpus = taskExecutorResourceSpec.getCpuCores().getValue().doubleValue();
+		this.defaultCpus = taskExecutorProcessSpec.getCpuCores().getValue().doubleValue();
 
 		this.kubeClient = createFlinkKubeClient();
 
 		this.taskManagerParameters =
-			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorResourceSpec, numSlotsPerTaskManager);
+			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec, numSlotsPerTaskManager);
 
 		this.taskManagerStartCommand = getTaskManagerStartCommand();
 	}
@@ -269,7 +269,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			defaultCpus,
 			env);
 
-		log.info("TaskManager {} will be started with {}.", podName, taskExecutorResourceSpec);
+		log.info("TaskManager {} will be started with {}.", podName, taskExecutorProcessSpec);
 		kubeClient.createTaskManagerPod(parameter);
 	}
 

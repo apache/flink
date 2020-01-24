@@ -27,7 +27,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -200,7 +200,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConf)),
+			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorProcessUtils.processSpecFromConfig(copiedConf)),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,

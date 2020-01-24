@@ -27,8 +27,8 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
@@ -196,7 +196,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public static TaskManagerConfiguration fromConfiguration(
 			Configuration configuration,
-			TaskExecutorResourceSpec taskExecutorResourceSpec) {
+			TaskExecutorProcessSpec taskExecutorProcessSpec) {
 		int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		if (numberSlots == -1) {
@@ -279,8 +279,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		return new TaskManagerConfiguration(
 			numberSlots,
-			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberSlots),
-			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
+			TaskExecutorProcessUtils.generateDefaultSlotResourceProfile(taskExecutorProcessSpec, numberSlots),
+			TaskExecutorProcessUtils.generateTotalAvailableResourceProfile(taskExecutorProcessSpec),
 			tmpDirPaths,
 			timeout,
 			finiteRegistrationDuration,
