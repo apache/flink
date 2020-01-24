@@ -41,11 +41,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An upsert OutputFormat for JDBC.
  */
-public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Boolean, Row>> {
+class JdbcUpsertOutputFormat extends AbstractJdbcOutputFormat<Tuple2<Boolean, Row>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(JDBCUpsertOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JdbcUpsertOutputFormat.class);
 
 	static final int DEFAULT_MAX_RETRY_TIMES = 3;
 
@@ -68,7 +68,7 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 	private transient ScheduledFuture scheduledFuture;
 	private transient volatile Exception flushException;
 
-	public JDBCUpsertOutputFormat(
+	public JdbcUpsertOutputFormat(
 			JDBCOptions options,
 			String[] fieldNames,
 			String[] keyFields,
@@ -117,7 +117,7 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 			this.scheduler = Executors.newScheduledThreadPool(
 					1, new ExecutorThreadFactory("jdbc-upsert-output-format"));
 			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
-				synchronized (JDBCUpsertOutputFormat.this) {
+				synchronized (JdbcUpsertOutputFormat.this) {
 					if (closed) {
 						return;
 					}
@@ -212,7 +212,7 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 	}
 
 	/**
-	 * Builder for a {@link JDBCUpsertOutputFormat}.
+	 * Builder for a {@link JdbcUpsertOutputFormat}.
 	 */
 	public static class Builder {
 		private JDBCOptions options;
@@ -285,10 +285,10 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		 *
 		 * @return Configured JDBCUpsertOutputFormat
 		 */
-		public JDBCUpsertOutputFormat build() {
+		public JdbcUpsertOutputFormat build() {
 			checkNotNull(options, "No options supplied.");
 			checkNotNull(fieldNames, "No fieldNames supplied.");
-			return new JDBCUpsertOutputFormat(
+			return new JdbcUpsertOutputFormat(
 				options, fieldNames, keyFields, fieldTypes, flushMaxSize, flushIntervalMills, maxRetryTimes);
 		}
 	}

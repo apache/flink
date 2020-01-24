@@ -43,11 +43,11 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.Mockito.doReturn;
 
 /**
- * Tests for the {@link JDBCUpsertOutputFormat}.
+ * Tests for the {@link JdbcUpsertOutputFormat}.
  */
-public class JDBCUpsertOutputFormatTest extends JDBCTestBase {
+public class JdbcUpsertOutputFormatTest extends JDBCTestBase {
 
-	private JDBCUpsertOutputFormat format;
+	private JdbcUpsertOutputFormat format;
 	private String[] fieldNames;
 	private String[] keyFields;
 
@@ -59,7 +59,7 @@ public class JDBCUpsertOutputFormatTest extends JDBCTestBase {
 
 	@Test
 	public void testJDBCOutputFormat() throws Exception {
-		format = JDBCUpsertOutputFormat.builder()
+		format = JdbcUpsertOutputFormat.builder()
 				.setOptions(JDBCOptions.builder()
 						.setDBUrl(DB_URL)
 						.setTableName(OUTPUT_TABLE)

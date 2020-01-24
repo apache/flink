@@ -30,19 +30,13 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-/**
- * OutputFormat to write Rows into a JDBC database.
- *
- * @see Row
- * @see DriverManager
- */
-public abstract class AbstractJDBCOutputFormat<T> extends RichOutputFormat<T> {
+abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
 	static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractJDBCOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
 
 	private final String username;
 	private final String password;
@@ -51,7 +45,7 @@ public abstract class AbstractJDBCOutputFormat<T> extends RichOutputFormat<T> {
 
 	protected transient Connection connection;
 
-	public AbstractJDBCOutputFormat(String username, String password, String drivername, String dbURL) {
+	public AbstractJdbcOutputFormat(String username, String password, String drivername, String dbURL) {
 		this.username = username;
 		this.password = password;
 		this.drivername = drivername;

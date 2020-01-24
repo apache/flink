@@ -36,10 +36,10 @@ import org.apache.flink.types.Row;
 import java.util.Arrays;
 import java.util.Objects;
 
-import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
-import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
-import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
-import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
+import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
+import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
+import static org.apache.flink.api.java.io.jdbc.JdbcTypeUtil.normalizeTableSchema;
+import static org.apache.flink.api.java.io.jdbc.JdbcUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -57,11 +57,11 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 	private boolean isAppendOnly;
 
 	private JDBCUpsertTableSink(
-		TableSchema schema,
-		JDBCOptions options,
-		int flushMaxSize,
-		long flushIntervalMills,
-		int maxRetryTime) {
+			TableSchema schema,
+			JDBCOptions options,
+			int flushMaxSize,
+			long flushIntervalMills,
+			int maxRetryTime) {
 		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 		this.options = options;
 		this.flushMaxSize = flushMaxSize;
@@ -69,16 +69,16 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		this.maxRetryTime = maxRetryTime;
 	}
 
-	private JDBCUpsertOutputFormat newFormat() {
+	private JdbcUpsertOutputFormat newFormat() {
 		if (!isAppendOnly && (keyFields == null || keyFields.length == 0)) {
 			throw new UnsupportedOperationException("JDBCUpsertTableSink can not support ");
 		}
 
 		// sql types
 		int[] jdbcSqlTypes = Arrays.stream(schema.getFieldTypes())
-				.mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
+				.mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 
-		return JDBCUpsertOutputFormat.builder()
+		return JdbcUpsertOutputFormat.builder()
 			.setOptions(options)
 			.setFieldNames(schema.getFieldNames())
 			.setFlushMaxSize(flushMaxSize)
@@ -92,7 +92,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
 		return dataStream
-				.addSink(new JDBCUpsertSinkFunction(newFormat()))
+				.addSink(new JdbcUpsertSinkFunction(newFormat()))
 				.setParallelism(dataStream.getParallelism())
 				.name(TableConnectorUtils.generateRuntimeName(this.getClass(), schema.getFieldNames()));
 	}
