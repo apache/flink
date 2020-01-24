@@ -88,9 +88,99 @@ in their `flink-conf.yaml`.
 
 
 ### Memory Management
+#### New Task Executor Memory Model ([FLINK-13980](https://issues.apache.org/jira/browse/FLINK-13980))
+With
+[FLIP-49](https://cwiki.apache.org/confluence/display/FLINK/FLIP-49%3A+Unified+Memory+Configuration+for+TaskExecutors),
+a new memory model has been introduced for the task executor. New configuration
+options have been introduced to control the memory consumption of the task
+executor process. This affects all types of deployments: standalone, YARN,
+Mesos, and the new active Kubernetes integration. The memory model of the job
+manager process has not been changed yet but it is planned to be updated as
+well.
+
+If you try to reuse your previous Flink configuration without any adjustments,
+the new memory model can result in differently computed memory parameters for
+the JVM and, thus, performance changes.
+
+Please check the user documentation <!-- TODO: insert link --> for more details.
+
+##### Deprecation and breaking changes
+The following options have been removed and have no effect anymore:
+
+<table class="table">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 30%">Deprecated/removed config option</th>
+      <th class="text-left">Note</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>taskmanager.memory.fraction</td>
+      <td>
+        Check also the description of the new option
+        <code class="highlighter-rouge">taskmanager.memory.managed.fraction</code>
+        but it has different semantics and the value of the deprecated option
+        usually has to be adjusted
+      </td>
+    </tr>
+    <tr>
+      <td>taskmanager.memory.off-heap</td>
+      <td>On-heap managed memory is no longer supported</td>
+    </tr>
+    <tr>
+      <td>taskmanager.memory.preallocate</td>
+      <td>Pre-allocation is no longer supported, and managed memory is always allocated lazily</td>
+    </tr>
+  </tbody>
+</table>
+
+
+The following options, if used, are interpreted as other new options in order to
+maintain backwards compatibility where it makes sense:
+
+<table class="table">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 30%">Deprecated config option</th>
+      <th class="text-left">Interpreted as</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>taskmanager.heap.size</td>
+      <td>
+        <ul>
+          <li>taskmanager.memory.flink.size for standalone deployment</li>
+          <li>taskmanager.memory.process.size for containerized deployments</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>taskmanager.memory.size</td>
+      <td>taskmanager.memory.managed.size</td>
+    </tr>
+    <tr>
+      <td>taskmanager.network.memory.min</td>
+      <td>taskmanager.memory.network.min</td>
+    </tr>
+    <tr>
+      <td>taskmanager.network.memory.max</td>
+      <td>taskmanager.memory.network.max</td>
+    </tr>
+    <tr>
+      <td>taskmanager.network.memory.fraction</td>
+      <td>taskmanager.memory.network.fraction</td>
+    </tr>
+  </tbody>
+</table>
+
+
+The container cut-off configuration options, `containerized.heap-cutoff-ratio`
+and `containerized.heap-cutoff-min`, have no effect for task executor processes
+anymore but they still have the same semantics for the JobManager process.
+
 #### Fine Grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
-<!-- wip -->
-#### FLIP-49
 <!-- wip -->
 
 
