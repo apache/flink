@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.deployment;
+package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;

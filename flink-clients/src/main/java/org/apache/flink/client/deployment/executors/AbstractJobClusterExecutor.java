@@ -16,36 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.deployment;
+package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
+import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An abstract {@link PipelineExecutor} used to execute {@link Pipeline pipelines} on an existing (session) cluster.
+ * An abstract {@link PipelineExecutor} used to execute {@link Pipeline pipelines} on dedicated (per-job) clusters.
  *
  * @param <ClusterID> the type of the id of the cluster.
  * @param <ClientFactory> the type of the {@link ClusterClientFactory} used to create/retrieve a client to the target cluster.
  */
 @Internal
-public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>> implements PipelineExecutor {
+public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>> implements PipelineExecutor {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractJobClusterExecutor.class);
 
 	private final ClientFactory clusterClientFactory;
 
-	public AbstractSessionClusterExecutor(@Nonnull final ClientFactory clusterClientFactory) {
+	public AbstractJobClusterExecutor(@Nonnull final ClientFactory clusterClientFactory) {
 		this.clusterClientFactory = checkNotNull(clusterClientFactory);
 	}
 
@@ -54,17 +62,16 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
 
 		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
-			final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
-			checkState(clusterID != null);
+			final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
 
-			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor.retrieve(clusterID);
-			ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
-			return clusterClient
-					.submitJob(jobGraph)
-					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
-							clusterClientProvider,
-							jobID))
-					.whenComplete((ignored1, ignored2) -> clusterClient.close());
+			final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(configuration);
+
+			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor
+					.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode());
+			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
+
+			return CompletableFuture.completedFuture(
+					new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID()));
 		}
 	}
 }
