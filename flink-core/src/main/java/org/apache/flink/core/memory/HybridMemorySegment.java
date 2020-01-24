@@ -57,10 +57,6 @@ public final class HybridMemorySegment extends MemorySegment {
 	@Nullable
 	private final ByteBuffer offHeapBuffer;
 
-	/** The cleaner is called to free the underlying native memory. */
-	@Nullable
-	private final Runnable cleaner;
-
 	/**
 	  * Creates a new memory segment that represents the memory backing the given direct byte buffer.
 	  * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
@@ -70,13 +66,11 @@ public final class HybridMemorySegment extends MemorySegment {
 	  *
 	  * @param buffer The byte buffer whose memory is represented by this memory segment.
 	  * @param owner The owner references by this memory segment.
-	  * @param cleaner optional action to run upon freeing the segment.
 	  * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
 	  */
-	HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
+	HybridMemorySegment(@Nonnull ByteBuffer buffer, @Nullable Object owner) {
 		super(checkBufferAndGetAddress(buffer), buffer.capacity(), owner);
 		this.offHeapBuffer = buffer;
-		this.cleaner = cleaner;
 	}
 
 	/**
@@ -90,7 +84,6 @@ public final class HybridMemorySegment extends MemorySegment {
 	HybridMemorySegment(byte[] buffer, Object owner) {
 		super(buffer, owner);
 		this.offHeapBuffer = null;
-		this.cleaner = null;
 	}
 
 	// -------------------------------------------------------------------------
@@ -130,14 +123,6 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		else {
 			throw new IllegalStateException("segment has been freed");
-		}
-	}
-
-	@Override
-	public void free() {
-		super.free();
-		if (cleaner != null) {
-			cleaner.run();
 		}
 	}
 
