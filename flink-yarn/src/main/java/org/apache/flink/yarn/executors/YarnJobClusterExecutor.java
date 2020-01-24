@@ -19,7 +19,7 @@
 package org.apache.flink.yarn.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractJobClusterExecutor;
+import org.apache.flink.client.deployment.executors.AbstractJobClusterExecutor;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.yarn.YarnClusterClientFactory;
 
