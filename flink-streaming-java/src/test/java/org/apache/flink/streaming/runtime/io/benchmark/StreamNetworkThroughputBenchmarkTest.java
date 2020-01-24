@@ -42,6 +42,9 @@ public class StreamNetworkThroughputBenchmarkTest {
 		StreamNetworkThroughputBenchmark benchmark = createBenchmark();
 		benchmark.setUp(1, 1, 100);
 		try {
+			// check multiple iterations of one benchmark
+			benchmark.executeBenchmark(1_000);
+			benchmark.executeBenchmark(1_000);
 			benchmark.executeBenchmark(1_000);
 		}
 		finally {
