@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.concurrent.RejectedExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -80,8 +81,10 @@ public class OutputFlusher extends Thread {
 					}
 				}
 
-				recordWriter.flushAll();
+				mailboxExecutor.execute(recordWriter::flushAll, "OutputFlusher");
 			}
+		} catch (RejectedExecutionException ex) {
+			// ignore
 		} catch (Throwable t) {
 			LOG.error("An exception happened while flushing the outputs", t);
 			mailboxExecutor.execute(
