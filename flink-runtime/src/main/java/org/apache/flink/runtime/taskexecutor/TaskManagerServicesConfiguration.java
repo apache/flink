@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -70,7 +69,7 @@ public class TaskManagerServicesConfiguration {
 
 	private Optional<Time> systemResourceMetricsProbingInterval;
 
-	private final TaskExecutorProcessSpec taskExecutorProcessSpec;
+	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
 	public TaskManagerServicesConfiguration(
 			Configuration configuration,
@@ -83,7 +82,7 @@ public class TaskManagerServicesConfiguration {
 			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
 			int pageSize,
-			TaskExecutorProcessSpec taskExecutorProcessSpec,
+			TaskExecutorResourceSpec taskExecutorResourceSpec,
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 			Optional<Time> systemResourceMetricsProbingInterval) {
@@ -100,7 +99,7 @@ public class TaskManagerServicesConfiguration {
 
 		this.pageSize = pageSize;
 
-		this.taskExecutorProcessSpec = taskExecutorProcessSpec;
+		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -155,16 +154,16 @@ public class TaskManagerServicesConfiguration {
 		return pageSize;
 	}
 
-	public TaskExecutorProcessSpec getTaskExecutorProcessSpec() {
-		return taskExecutorProcessSpec;
+	public TaskExecutorResourceSpec getTaskExecutorResourceSpec() {
+		return taskExecutorResourceSpec;
 	}
 
 	public MemorySize getNetworkMemorySize() {
-		return taskExecutorProcessSpec.getNetworkMemSize();
+		return taskExecutorResourceSpec.getNetworkMemSize();
 	}
 
 	public MemorySize getManagedMemorySize() {
-		return taskExecutorProcessSpec.getManagedMemorySize();
+		return taskExecutorResourceSpec.getManagedMemorySize();
 	}
 
 	long getTimerServiceShutdownTimeout() {
@@ -200,7 +199,7 @@ public class TaskManagerServicesConfiguration {
 			ResourceID resourceID,
 			InetAddress remoteAddress,
 			boolean localCommunicationOnly,
-			TaskExecutorProcessSpec taskExecutorProcessSpec) {
+			TaskExecutorResourceSpec taskExecutorResourceSpec) {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -227,7 +226,7 @@ public class TaskManagerServicesConfiguration {
 			queryableStateConfig,
 			ConfigurationParserUtils.getSlot(configuration),
 			ConfigurationParserUtils.getPageSize(configuration),
-			taskExecutorProcessSpec,
+			taskExecutorResourceSpec,
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
 			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
