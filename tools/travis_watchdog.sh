@@ -43,6 +43,13 @@ MAX_NO_OUTPUT=${1:-300}
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
 
+# Maximum times to retry uploading artifacts file to transfer.sh
+TRANSFER_UPLOAD_MAX_RETRIES=10
+
+# The delay between two retries to upload artifacts file to transfer.sh. The default exponential
+# backoff algorithm should be too long for the last several retries.
+TRANSFER_UPLOAD_RETRY_DELAY=15
+
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 PYTHON_TEST="./flink-python/dev/lint-python.sh"
@@ -133,7 +140,7 @@ upload_artifacts_s3() {
 
 	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
-	curl --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
+	curl --retry ${TRANSFER_UPLOAD_MAX_RETRIES} --retry-delay ${TRANSFER_UPLOAD_RETRY_DELAY} --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
 }
 
 print_stacktraces () {
