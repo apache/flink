@@ -25,10 +25,12 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Test suite for {@link TaskExecutorResourceUtils}. */
 public class TaskExecutorResourceUtilsTest extends TestLogger {
