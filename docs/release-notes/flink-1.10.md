@@ -252,9 +252,9 @@ for details.
 The config option `taskmanager.network.bounded-blocking-subpartition-type` has
 been renamed to `taskmanager.network.blocking-shuffle.type`. Moreover, the
 default value of the aforementioned config option has been changed from `auto`
-to `file`. The reason is that TaskManagers running on cluster managers, such
-as YARN, could easily exceed the memory budget of their container when
-memory-mapping large result subpartitions.
+to `file`. The reason is that TaskManagers running on YARN with `auto`, could
+easily exceed the memory budget of their container, due to incorrectly accounted
+memory-mapped files memory usage.
 
 #### Removal of non-credit-based Network Flow Control ([FLINK-14516](https://issues.apache.org/jira/browse/FLINK-14516))
 The non-credit-based network flow control code was removed alongside of the
