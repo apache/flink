@@ -187,7 +187,7 @@ anymore but they still have the same semantics for the JobManager process.
 
 ### Table API & SQL
 #### Rename of ANY Type to RAW Type ([FLINK-14904](https://issues.apache.org/jira/browse/FLINK-14904))
-The identifier `raw` is a reserved keyword now and be must be escaped with
+The identifier `raw` is a reserved keyword now and must be escaped with
 backticks when used as a SQL field or function name.
 
 #### Rename of Table Connector Properties ([FLINK-14649](https://issues.apache.org/jira/browse/FLINK-14649))
@@ -201,17 +201,18 @@ Connectors documentation]({{ site.baseurl }}/dev/table/connect.html#table-connec
 for the new property names.
 
 #### Methods for interacting with temporary Tables & Views ([FLINK-14490](https://issues.apache.org/jira/browse/FLINK-14490))
-Methods `registerTable()`/`registerDataStream()`/`registerDataSet()` become
+Methods `registerTable()`/`registerDataStream()`/`registerDataSet()` have been
 deprecated in favor of `createTemporaryView()`, which better adheres to the
 corresponding SQL term.
 
-The `scan()` method becomes deprecated in favor of the `from()` method.
+The `scan()` method has been deprecated in favor of the `from()` method.
 
-Methods `registerTableSource()`/`registerTableSink()` become deprecated in favor of
-`ConnectTableDescriptor#createTemporaryTable()`. That method expects only a
-set of string properties as a description of a TableSource or TableSinks
-instead of an instance of a class in case of the deprecated methods. This in
-return makes it possible to reliably store those definitions in catalogs.
+Methods `registerTableSource()`/`registerTableSink()` become deprecated in favor
+of `ConnectTableDescriptor#createTemporaryTable()`. The `ConnectTableDescriptor`
+approach expects only a set of string properties as a description of a
+TableSource or TableSink instead of an instance of a class in case of the
+deprecated methods. This in return makes it possible to reliably store those
+definitions in catalogs.
 
 Method `insertInto(String path, String... pathContinued)` has been removed in
 favor of in `insertInto(String path)`.
