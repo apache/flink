@@ -332,7 +332,7 @@ InfluxDB, such as `Double.POSITIVE_INFINITY`, `Double.NEGATIVE_INFINITY`,
 #### Kinesis Connector License Change ([FLINK-12847](https://issues.apache.org/jira/browse/FLINK-12847))
 flink-connector-kinesis is now licensed under the Apache License, Version 2.0,
 and its artifacts will be deployed to Maven central as part of the Flink
-releases. Users no longer need to build the  Kinesis connector from source themselves.
+releases. Users no longer need to build the Kinesis connector from source themselves.
 
 
 ### Miscellaneous Interface Changes
