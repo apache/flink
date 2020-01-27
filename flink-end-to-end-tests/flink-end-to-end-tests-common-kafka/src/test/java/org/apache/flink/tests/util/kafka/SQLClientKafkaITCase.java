@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.tests.util.categories.Hadoop;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
@@ -58,7 +59,7 @@ import java.util.Map;
  * End-to-end test for the kafka SQL connectors.
  */
 @RunWith(Parameterized.class)
-@Category(value = {TravisGroup1.class, FailsOnJava11.class})
+@Category(value = {TravisGroup1.class, FailsOnJava11.class, Hadoop.class})
 public class SQLClientKafkaITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SQLClientKafkaITCase.class);
