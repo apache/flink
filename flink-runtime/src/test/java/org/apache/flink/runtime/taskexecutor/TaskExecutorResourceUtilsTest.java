@@ -78,8 +78,9 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 		//noinspection unchecked
 		TaskExecutorResourceUtils.CONFIG_OPTIONS
 			.stream()
-			.filter(option -> option.equals(TaskManagerOptions.CPU_CORES))
-			.filter(option -> option.equals(optionToNotSet))
+			.filter(option -> !option.equals(TaskManagerOptions.CPU_CORES))
+			.filter(ConfigOption::hasDefaultValue)
+			.filter(option -> !option.equals(optionToNotSet))
 			.forEach(option -> configuration.set((ConfigOption<MemorySize>) option, MemorySize.ofMebiBytes(1)));
 
 		return configuration;

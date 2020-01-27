@@ -85,6 +85,12 @@ public class TaskExecutorResourceUtils {
 		checkTaskExecutorNetworkConfigSet(config);
 	}
 
+	private static void checkConfigOptionIsSet(Configuration config, ConfigOption<?> option) {
+		if (!config.contains(option) && !option.hasDefaultValue()) {
+			throw new IllegalConfigurationException("Configuration option %s is not set", option);
+		}
+	}
+
 	private static void checkTaskExecutorNetworkConfigSet(ReadableConfig config) {
 		if (!config.get(TaskManagerOptions.NETWORK_MEMORY_MIN).equals(config.get(TaskManagerOptions.NETWORK_MEMORY_MAX))) {
 			throw new IllegalConfigurationException(
@@ -92,12 +98,6 @@ public class TaskExecutorResourceUtils {
 					"the network memory has to be fixed after task executor has started",
 				config.get(TaskManagerOptions.NETWORK_MEMORY_MIN),
 				config.get(TaskManagerOptions.NETWORK_MEMORY_MAX));
-		}
-	}
-
-	private static void checkConfigOptionIsSet(Configuration config, ConfigOption<?> option) {
-		if (!config.contains(option)) {
-			throw new IllegalConfigurationException("Configuration option %s is not set", option);
 		}
 	}
 
