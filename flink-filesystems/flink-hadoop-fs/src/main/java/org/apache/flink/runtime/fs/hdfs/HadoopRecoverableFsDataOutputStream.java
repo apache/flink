@@ -35,13 +35,11 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
-import org.apache.hadoop.util.VersionInfo;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -55,7 +53,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 	private static final long LEASE_TIMEOUT = 100_000L;
 
-	private static Method truncateHandle;
+	private final Method truncateHandle;
 
 	private final FileSystem fs;
 
@@ -70,7 +68,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 			Path targetFile,
 			Path tempFile) throws IOException {
 
-		ensureTruncateInitialized();
+		truncateHandle = findTrunacteMethod(fs);
 
 		this.fs = checkNotNull(fs);
 		this.targetFile = checkNotNull(targetFile);
@@ -82,13 +80,13 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 			FileSystem fs,
 			HadoopFsRecoverable recoverable) throws IOException {
 
-		ensureTruncateInitialized();
+		truncateHandle = findTrunacteMethod(fs);
 
 		this.fs = checkNotNull(fs);
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
-		safelyTruncateFile(fs, tempFile, recoverable);
+		safelyTruncateFile(fs, tempFile, recoverable, truncateHandle);
 
 		out = fs.append(tempFile);
 
@@ -154,16 +152,15 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	private static void safelyTruncateFile(
 			final FileSystem fileSystem,
 			final Path path,
-			final HadoopFsRecoverable recoverable) throws IOException {
-
-		ensureTruncateInitialized();
+			final HadoopFsRecoverable recoverable,
+			final Method truncateHandle) throws IOException {
 
 		waitUntilLeaseIsRevoked(fileSystem, path);
 
 		// truncate back and append
 		boolean truncated;
 		try {
-			truncated = truncate(fileSystem, path, recoverable.offset());
+			truncated = truncate(fileSystem, path, recoverable.offset(), truncateHandle);
 		} catch (Exception e) {
 			throw new IOException("Problem while truncating file: " + path, e);
 		}
@@ -175,44 +172,38 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		}
 	}
 
-	private static void ensureTruncateInitialized() throws FlinkRuntimeException {
-		if (HadoopUtils.isMinHadoopVersion(2, 7) && truncateHandle == null) {
-			Method truncateMethod;
-			try {
-				truncateMethod = FileSystem.class.getMethod("truncate", Path.class, long.class);
-			}
-			catch (NoSuchMethodException e) {
-				throw new FlinkRuntimeException("Could not find a public truncate method on the Hadoop File System.");
-			}
-
-			if (!Modifier.isPublic(truncateMethod.getModifiers())) {
-				throw new FlinkRuntimeException("Could not find a public truncate method on the Hadoop File System.");
-			}
-
-			truncateHandle = truncateMethod;
+	private static Method findTrunacteMethod(FileSystem fs) throws FlinkRuntimeException {
+		Method truncateMethod;
+		try {
+			truncateMethod = fs.getClass().getMethod("truncate", Path.class, long.class);
 		}
+		catch (NoSuchMethodException e) {
+			throw new FlinkRuntimeException("Could not find a public truncate method on the Hadoop File System.");
+		}
+
+		return truncateMethod;
 	}
 
-	private static boolean truncate(final FileSystem hadoopFs, final Path file, final long length) throws IOException {
-		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
-			throw new IllegalStateException("Truncation is not available in hadoop version < 2.7 , You are on Hadoop " + VersionInfo.getVersion());
+	private static boolean truncate(
+			final FileSystem hadoopFs,
+			final Path file,
+			final long length,
+			final Method truncateHandle) throws IOException {
+		if (truncateHandle == null) {
+			throw new IllegalStateException("Truncation is not available in hadoop version < 2.7 , the filesystem " +
+				"uses hadoop " + HadoopUtils.getHadoopVersion(hadoopFs.getClass().getClassLoader()));
 		}
 
-		if (truncateHandle != null) {
-			try {
-				return (Boolean) truncateHandle.invoke(hadoopFs, file, length);
-			}
-			catch (InvocationTargetException e) {
-				ExceptionUtils.rethrowIOException(e.getTargetException());
-			}
-			catch (Throwable t) {
-				throw new IOException(
-						"Truncation of file failed because of access/linking problems with Hadoop's truncate call. " +
-								"This is most likely a dependency conflict or class loading problem.");
-			}
+		try {
+			return (Boolean) truncateHandle.invoke(hadoopFs, file, length);
 		}
-		else {
-			throw new IllegalStateException("Truncation handle has not been initialized");
+		catch (InvocationTargetException e) {
+			ExceptionUtils.rethrowIOException(e.getTargetException());
+		}
+		catch (Throwable t) {
+			throw new IOException(
+					"Truncation of file failed because of access/linking problems with Hadoop's truncate call. " +
+							"This is most likely a dependency conflict or class loading problem.", t);
 		}
 		return false;
 	}
@@ -230,10 +221,12 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 		private final FileSystem fs;
 		private final HadoopFsRecoverable recoverable;
+		private final Method truncateHandle;
 
 		HadoopFsCommitter(FileSystem fs, HadoopFsRecoverable recoverable) {
 			this.fs = checkNotNull(fs);
 			this.recoverable = checkNotNull(recoverable);
+			this.truncateHandle = findTrunacteMethod(fs);
 		}
 
 		@Override
@@ -285,7 +278,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 				if (srcStatus.getLen() > expectedLength) {
 					// can happen if we go from persist to recovering for commit directly
 					// truncate the trailing junk away
-					safelyTruncateFile(fs, src, recoverable);
+					safelyTruncateFile(fs, src, recoverable, truncateHandle);
 				}
 
 				// rename to final location (if it exists, overwrite it)

@@ -64,7 +64,7 @@ public class HadoopRecoverableWriterOldHadoopWithNoTruncateSupportTest {
 
 	@BeforeClass
 	public static void testHadoopVersion() {
-		Assume.assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 7));
+		Assume.assumeTrue(HadoopUtils.isMaxHadoopVersion(HadoopRecoverableWriter.class.getClassLoader(), 2, 7));
 	}
 
 	@BeforeClass
