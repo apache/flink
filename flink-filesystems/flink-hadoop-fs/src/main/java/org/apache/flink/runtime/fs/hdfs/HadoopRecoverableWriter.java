@@ -64,7 +64,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 
 		// Part of functionality depends on specific versions. We check these schemes and versions eagerly for
 		// better error messages.
-		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
+		if (!HadoopUtils.isMinHadoopVersion(fs.getClass().getClassLoader(), 2, 7)) {
 			LOG.warn("WARNING: You are running on hadoop version " + VersionInfo.getVersion() + "." +
 					" If your RollingPolicy does not roll on every checkpoint/savepoint, the StreamingFileSink will throw an exception upon recovery.");
 		}

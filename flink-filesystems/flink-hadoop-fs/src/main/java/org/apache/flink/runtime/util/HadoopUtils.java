@@ -129,8 +129,8 @@ public class HadoopUtils {
 	/**
 	 * Checks if the Hadoop dependency is at least the given version.
 	 */
-	public static boolean isMinHadoopVersion(int major, int minor) throws FlinkRuntimeException {
-		final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
+	public static boolean isMinHadoopVersion(ClassLoader classLoader, int major, int minor) throws FlinkRuntimeException {
+		final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion(classLoader);
 		int maj = hadoopVersion.f0;
 		int min = hadoopVersion.f1;
 
@@ -140,16 +140,16 @@ public class HadoopUtils {
 	/**
 	 * Checks if the Hadoop dependency is at most the given version.
 	 */
-	public static boolean isMaxHadoopVersion(int major, int minor) throws FlinkRuntimeException {
-		final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
+	public static boolean isMaxHadoopVersion(ClassLoader classLoader, int major, int minor) throws FlinkRuntimeException {
+		final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion(classLoader);
 		int maj = hadoopVersion.f0;
 		int min = hadoopVersion.f1;
 
 		return maj < major || (maj == major && min < minor);
 	}
 
-	private static Tuple2<Integer, Integer> getMajorMinorBundledHadoopVersion() {
-		String versionString = VersionInfo.getVersion();
+	private static Tuple2<Integer, Integer> getMajorMinorBundledHadoopVersion(ClassLoader classLoader) {
+		String versionString = getHadoopVersion(classLoader);
 		String[] versionParts = versionString.split("\\.");
 
 		if (versionParts.length < 2) {
@@ -160,6 +160,14 @@ public class HadoopUtils {
 		int maj = Integer.parseInt(versionParts[0]);
 		int min = Integer.parseInt(versionParts[1]);
 		return Tuple2.of(maj, min);
+	}
+
+	public static String getHadoopVersion(final ClassLoader classLoader) {
+		try {
+			return (String) classLoader.loadClass(VersionInfo.class.getName()).getMethod("getVersion").invoke(null);
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Cannot find version of Hadoop", e);
+		}
 	}
 
 	/**

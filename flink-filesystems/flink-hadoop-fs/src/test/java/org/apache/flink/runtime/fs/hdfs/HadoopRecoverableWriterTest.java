@@ -51,7 +51,7 @@ public class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
 	@BeforeClass
 	public static void testHadoopVersion() {
-		Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+		Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(HadoopRecoverableWriter.class.getClassLoader(), 2, 7));
 	}
 
 	@BeforeClass
