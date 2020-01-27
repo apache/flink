@@ -39,7 +39,6 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeThat;
 
@@ -74,7 +73,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
 	public interface UpgradeVerifier<UpgradedElementT> {
 		TypeSerializer<UpgradedElementT> createUpgradedSerializer();
-		UpgradedElementT expectedTestData();
+		Matcher<UpgradedElementT> testDataMatcher();
 		Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>> schemaCompatibilityMatcher();
 	}
 
@@ -139,9 +138,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 		}
 
 		@Override
-		public UpgradedElementT expectedTestData() {
+		public Matcher<UpgradedElementT> testDataMatcher() {
 			try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(verifierClassloader)) {
-				return delegateVerifier.expectedTestData();
+				return delegateVerifier.testDataMatcher();
 			} catch (IOException e) {
 				throw new RuntimeException("Error creating expected test data via ClassLoaderSafeUpgradeVerifier.", e);
 			}
@@ -232,7 +231,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			assertSerializerIsValid(
 				restoredSerializer,
 				dataUnderTest(),
-				testSpecification.verifier.expectedTestData());
+				testSpecification.verifier.testDataMatcher());
 		}
 	}
 
@@ -269,10 +268,10 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 				dataUnderTest(),
 				restoreSerializer,
 				upgradedSerializer,
-				testSpecification.verifier.expectedTestData());
+				testSpecification.verifier.testDataMatcher());
 
 			// .. and then assert that the upgraded serializer is valid with the migrated data
-			assertSerializerIsValid(upgradedSerializer, migratedData, testSpecification.verifier.expectedTestData());
+			assertSerializerIsValid(upgradedSerializer, migratedData, testSpecification.verifier.testDataMatcher());
 		}
 	}
 
@@ -293,7 +292,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			assertSerializerIsValid(
 				reconfiguredUpgradedSerializer,
 				dataUnderTest(),
-				testSpecification.verifier.expectedTestData());
+				testSpecification.verifier.testDataMatcher());
 		}
 	}
 
@@ -313,7 +312,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			assertSerializerIsValid(
 				upgradedSerializer,
 				dataUnderTest(),
-				testSpecification.verifier.expectedTestData());
+				testSpecification.verifier.testDataMatcher());
 		}
 	}
 
@@ -332,12 +331,12 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 	private static <T> void assertSerializerIsValid(
 			TypeSerializer<T> serializer,
 			DataInputView dataInput,
-			T expectedData) throws Exception {
+			Matcher<T> testDataMatcher) throws Exception {
 
-		DataInputView serializedData = readAndThenWriteData(dataInput, serializer, serializer, expectedData);
+		DataInputView serializedData = readAndThenWriteData(dataInput, serializer, serializer, testDataMatcher);
 		TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
 		TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
-		readAndThenWriteData(serializedData, restoreSerializer, restoreSerializer, expectedData);
+		readAndThenWriteData(serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
 	}
 
 	// ------------------------------------------------------------------------------
@@ -447,10 +446,10 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			DataInputView originalDataInput,
 			TypeSerializer<T> readSerializer,
 			TypeSerializer<T> writeSerializer,
-			T sanityCheckData) throws IOException {
+			Matcher<T> testDataMatcher) throws IOException {
 
 		T data = readSerializer.deserialize(originalDataInput);
-		assertEquals(sanityCheckData, data);
+		assertThat(data, testDataMatcher);
 
 		DataOutputSerializer out = new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
 		writeSerializer.serialize(data, out);
