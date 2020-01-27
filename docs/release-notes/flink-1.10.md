@@ -286,10 +286,9 @@ background cleanup of state with TTL is already enabled by default.
 #### Timers are stored in RocksDB by default when using RocksDBStateBackend ([FLINK-15637](https://issues.apache.org/jira/browse/FLINK-15637))
 The default timer store has been changed from Heap to RocksDB for the RocksDB
 state backend to support asynchronous snapshots for timer state and better
-scalability, with less than 5% performance cost. Users that find the
-performance decline critical, can set
-`state.backend.rocksdb.timer-service.factory` to `HEAP` in `flink-conf.yaml`
-to restore the old behavior.
+scalability, with less than 5% performance cost. Users that find the performance
+decline critical can set `state.backend.rocksdb.timer-service.factory` to `HEAP`
+in `flink-conf.yaml` to restore the old behavior.
 
 #### Removal of StateTtlConfig#TimeCharacteristic ([FLINK-15605](https://issues.apache.org/jira/browse/FLINK-15605))
 `StateTtlConfig#TimeCharacteristic` has been removed in favor of
