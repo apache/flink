@@ -49,14 +49,14 @@ which case they should configure the classloading policy explicitly to use
 `parent-first` classloading, which was the previous (hard-coded) behaviour.
 
 #### Enable spreading out Tasks evenly across all TaskManagers ([FLINK-12122](https://issues.apache.org/jira/browse/FLINK-12122))
-When [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)
-was rolled out with Flink 1.5.0, we changed how slots are allocated
-from TaskManagers (TMs). Instead of evenly allocating the slots from all
-registered TMs, we had the tendency to exhaust a TM before using another one.
-To use a scheduling strategy that is more similar to the pre-FLIP-6
-behaviour, where Flink tries to spread out the workload across all available
-TMs, one can set `cluster.evenly-spread-out-slots: true` in the
-`flink-conf.yaml`.
+When
+[FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)
+was rolled out with Flink 1.5.0, we changed how slots are allocated from
+TaskManagers (TMs). Instead of evenly allocating the slots from all registered
+TMs, we had the tendency to exhaust a TM before using another one. To use a
+scheduling strategy that is more similar to the pre-FLIP-6 behaviour, where
+Flink tries to spread out the workload across all currently available TMs, one
+can set `cluster.evenly-spread-out-slots: true` in the `flink-conf.yaml`.
 
 #### Directory Structure Change for highly available Artifacts ([FLINK-13633](https://issues.apache.org/jira/browse/FLINK-13633))
 All highly available artifacts stored by Flink will now be stored under
