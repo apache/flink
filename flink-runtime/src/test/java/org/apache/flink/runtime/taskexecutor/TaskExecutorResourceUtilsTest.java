@@ -32,29 +32,28 @@ import static org.junit.Assert.*;
 
 /** Test suite for {@link TaskExecutorResourceUtils}. */
 public class TaskExecutorResourceUtilsTest extends TestLogger {
+	private static final double CPU_CORES = 1.0;
+	private static final MemorySize TASK_HEAP = MemorySize.ofMebiBytes(1);
+	private static final MemorySize TASK_OFF_HEAP = MemorySize.ofMebiBytes(2);
+	private static final MemorySize NETWORK = MemorySize.ofMebiBytes(3);
+	private static final MemorySize MANAGED = MemorySize.ofMebiBytes(4);
+
 	@Test
 	public void testResourceSpecFromConfig() {
-		double cpuCores = 1.0;
-		MemorySize taskHeap = MemorySize.ofMebiBytes(1);
-		MemorySize taskOffHeap = MemorySize.ofMebiBytes(2);
-		MemorySize network = MemorySize.ofMebiBytes(3);
-		MemorySize managed = MemorySize.ofMebiBytes(4);
+		TaskExecutorResourceSpec resourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(createValidConfig());
+		assertThat(resourceSpec.getCpuCores(), is(new CPUResource(CPU_CORES)));
+		assertThat(resourceSpec.getTaskHeapSize(), is(TASK_HEAP));
+		assertThat(resourceSpec.getTaskOffHeapSize(), is(TASK_OFF_HEAP));
+		assertThat(resourceSpec.getNetworkMemSize(), is(NETWORK));
+		assertThat(resourceSpec.getManagedMemorySize(), is(MANAGED));
+	}
 
-		Configuration configuration = new Configuration();
-		configuration.set(TaskManagerOptions.CPU_CORES, cpuCores);
-		configuration.set(TaskManagerOptions.TASK_HEAP_MEMORY, taskHeap);
-		configuration.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, taskOffHeap);
-		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, network);
-		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, network);
-		configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, managed);
-
-		TaskExecutorResourceSpec resourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
-
-		assertThat(resourceSpec.getCpuCores(), is(new CPUResource(cpuCores)));
-		assertThat(resourceSpec.getTaskHeapSize(), is(taskHeap));
-		assertThat(resourceSpec.getTaskOffHeapSize(), is(taskOffHeap));
-		assertThat(resourceSpec.getNetworkMemSize(), is(network));
-		assertThat(resourceSpec.getManagedMemorySize(), is(managed));
+	@Test(expected = IllegalConfigurationException.class)
+	public void testResourceSpecFromConfigFailsIfNetworkSizeIsNotFixed() {
+		Configuration configuration = createValidConfig();
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(1));
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(2));
+		TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 	}
 
 	@Test
@@ -67,23 +66,6 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 				// expected
 			}
 		});
-	}
-
-	private static Configuration setAllRequiredOptionsExceptOne(ConfigOption<?> optionToNotSet) {
-		Configuration configuration = new Configuration();
-		if (!TaskManagerOptions.CPU_CORES.equals(optionToNotSet)) {
-			configuration.set(TaskManagerOptions.CPU_CORES, 1.0);
-		}
-
-		//noinspection unchecked
-		TaskExecutorResourceUtils.CONFIG_OPTIONS
-			.stream()
-			.filter(option -> !option.equals(TaskManagerOptions.CPU_CORES))
-			.filter(ConfigOption::hasDefaultValue)
-			.filter(option -> !option.equals(optionToNotSet))
-			.forEach(option -> configuration.set((ConfigOption<MemorySize>) option, MemorySize.ofMebiBytes(1)));
-
-		return configuration;
 	}
 
 	@Test
@@ -115,5 +97,38 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
 
 		assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN), is(networkMemorySize));
 		assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX), is(networkMemorySize));
+	}
+
+	private static Configuration createValidConfig() {
+		Configuration configuration = new Configuration();
+		configuration.set(TaskManagerOptions.CPU_CORES, CPU_CORES);
+		configuration.set(TaskManagerOptions.TASK_HEAP_MEMORY, TASK_HEAP);
+		configuration.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, TASK_OFF_HEAP);
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, NETWORK);
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, NETWORK);
+		configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MANAGED);
+		return configuration;
+	}
+
+	private static Configuration setAllRequiredOptionsExceptOne(ConfigOption<?> optionToNotSet) {
+		Configuration configuration = new Configuration();
+		if (!TaskManagerOptions.CPU_CORES.equals(optionToNotSet)) {
+			configuration.set(TaskManagerOptions.CPU_CORES, 1.0);
+		}
+
+		// skip network to exclude min/max mismatch config failure
+		MemorySize network = MemorySize.ofMebiBytes(3);
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, network);
+		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, network);
+
+		//noinspection unchecked
+		TaskExecutorResourceUtils.CONFIG_OPTIONS
+			.stream()
+			.filter(option -> !option.equals(TaskManagerOptions.CPU_CORES))
+			.filter(ConfigOption::hasDefaultValue)
+			.filter(option -> !option.equals(optionToNotSet))
+			.forEach(option -> configuration.set((ConfigOption<MemorySize>) option, MemorySize.ofMebiBytes(1)));
+
+		return configuration;
 	}
 }

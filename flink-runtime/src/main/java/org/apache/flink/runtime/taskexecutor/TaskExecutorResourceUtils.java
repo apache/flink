@@ -87,7 +87,7 @@ public class TaskExecutorResourceUtils {
 
 	private static void checkConfigOptionIsSet(Configuration config, ConfigOption<?> option) {
 		if (!config.contains(option) && !option.hasDefaultValue()) {
-			throw new IllegalConfigurationException("Configuration option %s is not set", option);
+			throw new IllegalConfigurationException("The required configuration option %s is not set", option);
 		}
 	}
 
@@ -95,7 +95,7 @@ public class TaskExecutorResourceUtils {
 		if (!config.get(TaskManagerOptions.NETWORK_MEMORY_MIN).equals(config.get(TaskManagerOptions.NETWORK_MEMORY_MAX))) {
 			throw new IllegalConfigurationException(
 				"The network memory min (%s) and max (%s) mismatch, " +
-					"the network memory has to be fixed after task executor has started",
+					"the network memory has to be resolved and set to a fixed value before task executor starts",
 				config.get(TaskManagerOptions.NETWORK_MEMORY_MIN),
 				config.get(TaskManagerOptions.NETWORK_MEMORY_MAX));
 		}

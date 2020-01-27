@@ -22,7 +22,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 
 /**
- * Specification of resources for {@link org.apache.flink.runtime.taskexecutor.TaskExecutor}.
+ * Specification of resources to use in running {@link org.apache.flink.runtime.taskexecutor.TaskExecutor}.
  */
 public class TaskExecutorResourceSpec {
 	private final CPUResource cpuCores;
