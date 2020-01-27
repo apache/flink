@@ -274,7 +274,7 @@ since it is no longer used.
 is activated by default now for all state backends shipped with Flink.
 Note that the RocksDB state backend implements background cleanup by employing
 a compaction filter. This has the caveat that even if a Flink job does not
-store state with TTL, a minor performance penalty during compaction incurs.
+store state with TTL, a minor performance penalty during compaction is incurred.
 Users that experience noticeable performance degradation during RocksDB
 compaction can disable the TTL compaction filter by setting the config option
 `state.backend.rocksdb.ttl.compaction.filter.enabled` to `false`.
