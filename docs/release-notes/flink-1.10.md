@@ -33,11 +33,12 @@ these notes carefully if you are planning to upgrade your Flink version to 1.10.
 #### FileSystems should be loaded via Plugin Architecture ([FLINK-11956](https://issues.apache.org/jira/browse/FLINK-11956))
 In the s3-hadoop and s3-presto filesystems, classes from external
 dependencies, such as the AWS SDK, are no longer relocated. In the past, class
-relocation turned out to be problematic in combination with custom
+relocations turned out to be problematic in combination with custom
 implementations of the `AWSCredentialsProvider` interface. As a consequence of
-removing class relocation, s3-hadoop and s3-presto filesystems can only be
+removing class relocations, s3-hadoop and s3-presto filesystems can only be
 used as [plugins]({{ site.baseurl }}/ops/filesystems/#pluggable-file-systems).
-Other filesystems are strongly recommended to be only used as plugins.
+Other filesystems are strongly recommended to be only used as plugins as we will
+continue to remove relocations.
 
 #### Flink Client respects Classloading Policy ([FLINK-13749](https://issues.apache.org/jira/browse/FLINK-13749))
 The Flink client now also respects the configured classloading policy, i.e.,
