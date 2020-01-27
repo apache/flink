@@ -280,7 +280,7 @@ compaction can disable the TTL compaction filter by setting the config option
 `state.backend.rocksdb.ttl.compaction.filter.enabled` to `false`.
 
 #### Deprecation of StateTtlConfig#Builder#cleanupInBackground() ([FLINK-15606](https://issues.apache.org/jira/browse/FLINK-15606))
-`StateTtlConfig#Builder#cleanupInBackground()` is deprecated now because the
+`StateTtlConfig#Builder#cleanupInBackground()` has been deprecated because the
 background cleanup of state with TTL is already enabled by default.
 
 #### Timers are stored in RocksDB by default when using RocksDBStateBackend ([FLINK-15637](https://issues.apache.org/jira/browse/FLINK-15637))
