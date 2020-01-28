@@ -103,8 +103,6 @@ If you try to reuse your previous Flink configuration without any adjustments,
 the new memory model can result in differently computed memory parameters for
 the JVM and, thus, performance changes.
 
-Please check the user documentation <!-- TODO: insert link --> for more details.
-
 ##### Deprecation and breaking changes
 The following options have been removed and have no effect anymore:
 
