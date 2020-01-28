@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="280 101 412 415" width="412" height="415">
+  <defs>
+    <font-face font-family="Helvetica Neue" font-size="16" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.9958" descent="-212.99744" font-weight="400">
+      <font-face-src>
+        <font-face-name name="HelveticaNeue"/>
+      </font-face-src>
+    </font-face>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.12.1 
+    <dc:date>2020-01-28 04:08:49 +0000</dc:date>
+  </metadata>
+  <g id="TE_Memory" stroke="none" stroke-opacity="1" fill="none" fill-opacity="1" stroke-dasharray="none">
+    <title>TE Memory</title>
+    <g id="TE_Memory: 图层 1">
+      <title>图层 1</title>
+      <g id="Graphic_13">
+        <rect x="280.875" y="101.5" width="282.25" height="414" fill="white"/>
+        <rect x="280.875" y="101.5" width="282.25" height="414" stroke="gray" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(285.875 106.5)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="75.669" y="15">Process Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_2">
+        <rect x="292.75" y="134" width="257" height="285.5" fill="#ccc"/>
+        <rect x="292.75" y="134" width="257" height="285.5" stroke="gray" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(297.75 139)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="75.188" y="15">Flink Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_4">
+        <rect x="305.25" y="291.5268" width="233.5" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(310.25 299.31622)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="28.886" y="15">Task Off-Heap Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_7">
+        <rect x="305.25" y="168.44637" width="233.5" height="34.026815" fill="#80ffff"/>
+        <text transform="translate(310.25 176.23578)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="18.702" y="15">Framework Heap Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_8">
+        <rect x="305.25" y="250.5" width="233.5" height="34.026815" fill="#80ffff"/>
+        <text transform="translate(310.25 258.2894)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="42.694" y="15">Task Heap Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_9">
+        <rect x="293.25" y="428" width="255.5" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(298.25 435.7894)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="64.806" y="15">JVM Metaspace</tspan>
+        </text>
+      </g>
+      <g id="Graphic_11">
+        <rect x="305.25" y="333.55363" width="232.5" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(310.25 341.34304)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="49.618" y="15">Network Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_12">
+        <rect x="294.25" y="471.0268" width="255.5" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(299.25 478.8162)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="69.694" y="15">JVM Overhead</tspan>
+        </text>
+      </g>
+      <g id="Graphic_15">
+        <rect x="600.5" y="471.0268" width="91" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(605.5 478.8162)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="7.58" y="15">Off-Heap</tspan>
+        </text>
+      </g>
+      <g id="Graphic_16">
+        <rect x="600.5" y="428" width="91" height="34.026815" fill="#80ffff"/>
+        <text transform="translate(605.5 435.7894)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="7.748" y="15">On-Heap</tspan>
+        </text>
+      </g>
+      <g id="Graphic_17">
+        <rect x="305.25" y="209.47319" width="233.5" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(310.25 217.2626)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="4.894" y="15">Framework Off-Heap Memory</tspan>
+        </text>
+      </g>
+      <g id="Graphic_18">
+        <rect x="304.75" y="376.0134" width="232.5" height="34.026815" fill="#ffff80"/>
+        <text transform="translate(309.75 383.8028)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="46.042" y="15">Managed Memory</tspan>
+        </text>
+      </g>
+    </g>
+  </g>
+</svg>
