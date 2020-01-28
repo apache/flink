@@ -181,8 +181,13 @@ The container cut-off configuration options, `containerized.heap-cutoff-ratio`
 and `containerized.heap-cutoff-min`, have no effect for task executor processes
 anymore but they still have the same semantics for the JobManager process.
 
-#### Fine Grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
-<!-- wip -->
+#### Fine-grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
+Config options `table.exec.resource.external-buffer-memory`,
+`table.exec.resource.hash-agg.memory`, `table.exec.resource.hash-join.memory`,
+and `table.exec.resource.sort.memory` have been deprecated. Beginning from Flink
+1.10, these config options are interpreted as weight hints instead of absolute
+memory requirements. Flink choses sensible default weight hints which should
+not be adjustment by users.
 
 
 ### Table API & SQL
