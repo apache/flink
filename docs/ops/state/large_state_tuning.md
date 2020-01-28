@@ -172,19 +172,20 @@ There existed two ways to pass options factory to RocksDB in Flink:
 
     {% highlight java %}
 
-    public class MyOptionsFactory implements ConfigurableOptionsFactory {
+    public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
         private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
         private long blockCacheSize = DEFAULT_SIZE;
 
         @Override
-        public DBOptions createDBOptions(DBOptions currentOptions) {
+        public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
             return currentOptions.setIncreaseParallelism(4)
                    .setUseFsync(false);
         }
 
         @Override
-        public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+        public ColumnFamilyOptions createColumnOptions(
+            ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
             return currentOptions.setTableFormatConfig(
                 new BlockBasedTableConfig()
                     .setBlockCacheSize(blockCacheSize)
@@ -214,15 +215,16 @@ allocating more memory than configured.
 
 RocksDB allocates native memory outside of the JVM, which could lead the process to exceed the total memory budget.
 This can be especially problematic in containerized environments such as Kubernetes that kill processes who exceed their memory budgets.
-Flink can limit total memory usage of RocksDB instance(s) per slot by leveraging shareable [cache](https://github.com/facebook/rocksdb/wiki/Block-Cache)
-and [write buffer manager](https://github.com/facebook/rocksdb/wiki/Write-Buffer-Manager) among all instances in a single slot.
+Flink limit total memory usage of RocksDB instance(s) per slot by leveraging shareable [cache](https://github.com/facebook/rocksdb/wiki/Block-Cache)
+and [write buffer manager](https://github.com/facebook/rocksdb/wiki/Write-Buffer-Manager) among all instances in a single slot by default.
 The shared cache will place an upper limit on the [three components](https://github.com/facebook/rocksdb/wiki/Memory-usage-in-RocksDB) that use the majority of memory
 when RocksDB is deployed as a state backend: block cache, index and bloom filters, and MemTables.
-There exist two ways to enable this feature:
-  -  Turn `state.backend.rocksdb.memory.managed` as true. If so, RocksDB state backend will use the managed memory budget of the task slot to set the capacity of that shared cache object.
-  This operation is recommend to take with the configuration to managed memory per task manager.
-  -  Configure the memory size of `state.backend.rocksdb.memory.fixed-per-slot` to set the fixed total amount of memory per slot.
+This feature is enabled by default and could be controlled by two ways:
+  -  Integrate with managed memory of task manager: turn `state.backend.rocksdb.memory.managed` as true. If so, RocksDB state backend will use the managed memory budget of the task slot to set the capacity of that shared cache object.
+  This operation is enabled by default, which means Flink would always choose to integrate RocksDB memory usage with the managed memory first.
+  -  Not integrated with managed memory: configure the memory size of `state.backend.rocksdb.memory.fixed-per-slot` to set the fixed total amount of memory per slot.
   This option will override `state.backend.rocksdb.memory.managed` option when configured and ignore calculated managed memory per slot from task manager.
+  User could also configure `taskmanager.memory.task.off-heap.size` to set additional quota in off-heap memory, which should be equal to `taskmanager.numberOfTaskSlots` * ``state.backend.rocksdb.memory.fixed-per-slot``, to fit in Flink's memory model.
 
 Flink also provides two parameters to tune the memory fraction of MemTable and index & filters:
   - `state.backend.rocksdb.memory.write-buffer-ratio`, by default `0.5`. If RocksDB memory bounded feature is turned on, 50% of memory size would be used by write buffer manager by default.
@@ -233,6 +235,46 @@ Flink also provides two parameters to tune the memory fraction of MemTable and i
   more details could refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
 
 <span class="label label-info">Note</span> The shared `cahe` and `write buffer manager` will override customized settings of block cache and write buffer via `PredefinedOptions` and `OptionsFactory`.
+
+#### Tune performance when bounding RocksDB memory usage.
+
+There might existed performance regression compared with previous no-memory-limit case if you have too many states per slot.
+If you observed this behavior and not running jobs in containerized environment or does not care about the over-limit memory usage.
+The easiest way to wipe out the performance regression is to disable memory bound for RocksDB, e.g. turn `state.backend.rocksdb.memory.managed` as false.
+Otherwise you need to increase the upper memory for RocksDB:
+  - Increase the managed memory size of `taskmanager.memory.managed.size` or the fraction via `taskmanager.memory.managed.fraction`.
+  - Increase the memory size of `state.backend.rocksdb.memory.fixed-per-slot`, which is not integrated with managed memory of task manager, as well as increasing `taskmanager.memory.task.off-heap.size` accordingly.
+
+Apart from increasing total memory, you could also tune some options:
+  - Decrease the arena block size, which is 1/8 of write-buffer size by default. This targets to decrease the possibility of turning mutable mem-table as immutable when write buffer manager reserve memory at the granularity of arena block.
+  Increase the max background flush threads for each DB instance. This targets to flush immutable mem-tables as fast as possible to not block or stall writes.
+  User could use options factory below to tune:
+
+      {% highlight java %}
+  
+      public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
+  
+          @Override
+          public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+              // increase the max background flush threads when we have many states in one operator,
+              // which means we would have many column families in one DB instance.
+              return currentOptions.setMaxBackgroundFlushes(4);
+          }
+  
+          @Override
+          public ColumnFamilyOptions createColumnOptions(
+              ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+              // decrease the arena block size, which is 1/8 of write-buffer size.
+              // if we did not change the write-buffer size, this default value is 8MB, decrease it to 1MB. 
+              return currentOptions.setArenaBlockSize(1024 * 1024);
+          }
+  
+          @Override
+          public OptionsFactory configure(Configuration configuration) {
+              return this;
+          }
+      }
+      {% endhighlight %}
 
 ## Capacity Planning
 
