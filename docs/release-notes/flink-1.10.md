@@ -260,8 +260,8 @@ memory-mapped files memory usage.
 
 #### Removal of non-credit-based Network Flow Control ([FLINK-14516](https://issues.apache.org/jira/browse/FLINK-14516))
 The non-credit-based network flow control code was removed alongside of the
-configuration option `taskmanager.network.credit-model`. Credit-based flow
-control is now the only option.
+configuration option `taskmanager.network.credit-model`. Flink will now always
+use credit-based flow control.
 
 #### Removal of HighAvailabilityOptions#HA_JOB_DELAY ([FLINK-13885](https://issues.apache.org/jira/browse/FLINK-13885))
 The configuration option `high-availability.job.delay` has been removed
