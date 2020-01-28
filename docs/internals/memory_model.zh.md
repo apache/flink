@@ -23,7 +23,7 @@ under the License.
 -->
 
 This document describes the memory model of Flink [TaskExecutor]({{ site.baseurl }}/concepts/glossary.html#taskexecutor).
-Guidelines on how to configure memory usages with this model can be found in [configuration guidelines]({{ site.baseurl }}/ops/memory-config/config_guide.html).
+Guidelines on how to configure memory usages with this model can be found in [configuration guidelines]({{ site.baseurl }}/ops/memory-config/config_guide.html) and [migration guidelines]({{ site.baseurl }}/ops/memory-config/migration_guide.html).
 
 * Replaced by the TOC
 {:toc}

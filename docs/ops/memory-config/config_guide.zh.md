@@ -25,6 +25,7 @@ under the License.
 
 This document gives guidelines on how to configure memory usages of Flink [TaskExecutors]({{ site.baseurl }}/concepts/glossary.html#taskexecutor).
 Please refer to [TaskExecutors memory model]({{ site.baseurl }}/internals/memory_model.html) for basic concepts and corresponding configuration options.
+Guidelines on how to migrate memory configurations from a previous version (Flink 1.9 and below) could be found in [migration guidelines]({{ site.baseurl }}/ops/memory-config/migration_guide.html).
 
 * toc
 {:toc}
