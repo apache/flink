@@ -107,6 +107,10 @@ Sub-Task 是负责处理数据流 [Partition](#partition) 的 [Task](#task)。"S
 
 Task 是 [Physical Graph](#physical-graph) 的节点。它是基本的工作单元，由 Flink 的 runtime 来执行。Task 正好封装了一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 的 *parallel instance*。 
 
+#### TaskExecutor
+
+见 [Flink TaskManager](#flink-taskmanager)。
+
 #### Flink TaskManager
 
 TaskManager 是 [Flink Cluster](#flink-cluster) 的工作进程。[Task](#task) 被调度到 TaskManager 上执行。TaskManager 相互通信，只为在后续的 Task 之间交换数据。

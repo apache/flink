@@ -150,6 +150,10 @@ Node of a [Physical Graph](#physical-graph). A task is the basic unit of work, w
 Flink's runtime. Tasks encapsulate exactly one parallel instance of an
 [Operator](#operator) or [Operator Chain](#operator-chain).
 
+#### TaskExecutor
+
+see [Flink TaskManager](#flink-taskmanager)
+
 #### Flink TaskManager
 
 TaskManagers are the worker processes of a [Flink Cluster](#flink-cluster). [Tasks](#task) are
