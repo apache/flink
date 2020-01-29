@@ -385,7 +385,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			CompletableFuture<JobStatus> jobStatusFuture =
 				clusterClient.getJobStatus(closableJobGraph.getJobId());
 
-			while (deadline.hasTimeLeft() && !jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).equals(JobStatus.RUNNING)) {
+			while (deadline.hasTimeLeft() && !jobStatusFuture.get(deadline.timeLeftIfAny().toMillis(), TimeUnit.MILLISECONDS).equals(JobStatus.RUNNING)) {
 				Thread.sleep(50);
 				jobStatusFuture =
 					clusterClient.getJobStatus(closableJobGraph.getJobId());
@@ -658,7 +658,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+					String value = future.get(deadline.timeLeftIfAny().toMillis()
+						, TimeUnit.MILLISECONDS).get();
 
 					//assertEquals("Key mismatch", key, value.f0.intValue());
 					if (expected.equals(value)) {
@@ -730,7 +731,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+					Tuple2<Integer, Long> value = future
+						.get(deadline.timeLeftIfAny().toMillis(),
+							TimeUnit.MILLISECONDS).get();
 
 					assertEquals("Key mismatch", key, value.f0.intValue());
 					if (expected == value.f1) {
@@ -823,7 +826,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							executor);
 
 					Tuple2<Integer, Long> value =
-						future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
+						future.get(deadline.timeLeftIfAny().toMillis(),
+							TimeUnit.MILLISECONDS).get(key);
 
 					if (value != null && value.f0 != null && expected == value.f1) {
 						assertEquals("Key mismatch", key, value.f0.intValue());
@@ -912,7 +916,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					Iterable<Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+					Iterable<Long> value = future
+						.get(deadline.timeLeftIfAny().toMillis(),
+							TimeUnit.MILLISECONDS).get();
 
 					Set<Long> res = new HashSet<>();
 					for (Long v: value) {
@@ -995,7 +1001,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+					String value = future
+						.get(deadline.timeLeftIfAny().toMillis(),
+							TimeUnit.MILLISECONDS).get();
 
 					if (Long.parseLong(value) == numElements * (numElements + 1L) / 2L) {
 						success = true;
@@ -1349,7 +1357,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						false,
 						executor);
 
-				Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).value();
+				Tuple2<Integer, Long> value = future
+					.get(deadline.timeLeftIfAny().toMillis(),
+						TimeUnit.MILLISECONDS).value();
 
 				assertEquals("Key mismatch", key, value.f0.intValue());
 				if (expected == value.f1) {

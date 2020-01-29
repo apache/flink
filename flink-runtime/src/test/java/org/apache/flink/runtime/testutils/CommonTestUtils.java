@@ -117,7 +117,8 @@ public class CommonTestUtils {
 
 	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout, long retryIntervalMillis) throws Exception {
 		while (timeout.hasTimeLeft() && !condition.get()) {
-			final long timeLeft = Math.max(0, timeout.timeLeft().toMillis());
+			final long timeLeft =
+				Math.max(0, timeout.timeLeftIfAny().toMillis());
 			Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
 		}
 

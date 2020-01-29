@@ -32,6 +32,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -216,10 +217,13 @@ public class SystemProcessingTimeService implements TimerService {
 		do {
 			try {
 				// wait for a reasonable time for all pending timer threads to finish
-				shutdownComplete = shutdownAndAwaitPending(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				shutdownComplete =
+					shutdownAndAwaitPending(deadline.timeLeftIfAny().toMillis(), TimeUnit.MILLISECONDS);
 			} catch (InterruptedException iex) {
 				receivedInterrupt = true;
 				LOG.trace("Intercepted attempt to interrupt timer service shutdown.", iex);
+			} catch (TimeoutException e) {
+				break;
 			}
 		} while (deadline.hasTimeLeft() && !shutdownComplete);
 

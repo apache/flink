@@ -191,7 +191,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 			while (deadline.hasTimeLeft() && numberSeenLeaders < num) {
 				LOG.debug("Wait for new leader #{}.", numberSeenLeaders);
-				String address = listener.waitForNewLeader(deadline.timeLeft().toMillis());
+				String address = listener
+					.waitForNewLeader(deadline.timeLeftIfAny().toMillis());
 
 				Matcher m = regex.matcher(address);
 
