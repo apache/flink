@@ -305,8 +305,12 @@ public final class DataTypeExtractor {
 			DataTypeTemplate template,
 			List<Type> typeHierarchy,
 			Type type) {
+		// byte arrays have higher priority than regular arrays
+		if (type == byte[].class) {
+			return DataTypes.BYTES();
+		}
 		// for T[]
-		if (type instanceof GenericArrayType) {
+		else if (type instanceof GenericArrayType) {
 			final GenericArrayType genericArray = (GenericArrayType) type;
 			return DataTypes.ARRAY(
 				extractDataTypeOrRaw(template, typeHierarchy, genericArray.getGenericComponentType()));

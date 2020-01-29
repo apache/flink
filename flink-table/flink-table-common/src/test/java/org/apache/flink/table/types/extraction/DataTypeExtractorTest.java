@@ -77,10 +77,15 @@ public class DataTypeExtractorTest {
 	@Parameters
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
-			// simple extraction
+			// simple extraction of INT
 			TestSpec
 				.forType(Integer.class)
 				.expectDataType(DataTypes.INT()),
+
+			// simple extraction of BYTES
+			TestSpec
+				.forType(byte[].class)
+				.expectDataType(DataTypes.BYTES()),
 
 			// extraction from hint conversion class
 			TestSpec

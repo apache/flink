@@ -19,10 +19,12 @@
 package org.apache.flink.table.types.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.types.Row;
 
@@ -34,6 +36,9 @@ import java.util.Optional;
 /**
  * Class-based data type extractor that supports extraction of clearly identifiable data types for
  * input and output conversion.
+ *
+ * <p>Note: In most of the cases, {@link DataTypeExtractor} is more useful as it also considers structured
+ * types and type variables possibly annotated with {@link DataTypeHint}.
  */
 @Internal
 public final class ClassDataTypeConverter {
