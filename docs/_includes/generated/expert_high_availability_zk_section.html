@@ -9,30 +9,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>high-availability</h5></td>
-            <td style="word-wrap: break-word;">"NONE"</td>
-            <td>String</td>
-            <td>Defines high-availability mode used for the cluster execution. To enable high-availability, set this mode to "ZOOKEEPER" or specify FQN of factory class.</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.cluster-id</h5></td>
-            <td style="word-wrap: break-word;">"/default"</td>
-            <td>String</td>
-            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.jobmanager.port</h5></td>
-            <td style="word-wrap: break-word;">"0"</td>
-            <td>String</td>
-            <td>Optional port (range) used by the job manager in high-availability mode.</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.storageDir</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>File system path (URI) where Flink persists metadata in high-availability setups.</td>
-        </tr>
-        <tr>
             <td><h5>high-availability.zookeeper.client.acl</h5></td>
             <td style="word-wrap: break-word;">"open"</td>
             <td>String</td>
@@ -99,22 +75,10 @@
             <td>The ZooKeeper root path for persisting the Mesos worker information.</td>
         </tr>
         <tr>
-            <td><h5>high-availability.zookeeper.path.root</h5></td>
-            <td style="word-wrap: break-word;">"/flink"</td>
-            <td>String</td>
-            <td>The root path under which Flink stores its entries in ZooKeeper.</td>
-        </tr>
-        <tr>
             <td><h5>high-availability.zookeeper.path.running-registry</h5></td>
             <td style="word-wrap: break-word;">"/running_job_registry/"</td>
             <td>String</td>
             <td></td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.zookeeper.quorum</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The ZooKeeper quorum to use, when running Flink in a high-availability mode with ZooKeeper.</td>
         </tr>
     </tbody>
 </table>
