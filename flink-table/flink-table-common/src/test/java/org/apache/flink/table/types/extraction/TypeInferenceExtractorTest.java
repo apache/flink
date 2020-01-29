@@ -312,7 +312,17 @@ public class TypeInferenceExtractorTest {
 			// named arguments with overloaded function
 			TestSpec
 				.forScalarFunction(NamedArgumentsScalarFunction.class)
-				.expectNamedArguments("n")
+				.expectNamedArguments("n"),
+
+			// scalar function that takes an input
+			TestSpec
+				.forScalarFunction(InputGroupScalarFunction.class)
+				.expectNamedArguments("o")
+				.expectOutputMapping(
+					InputTypeStrategies.sequence(
+						new String[]{"o"},
+						new ArgumentTypeStrategy[]{InputTypeStrategies.ANY}),
+					TypeStrategies.explicit(DataTypes.STRING()))
 		);
 	}
 
@@ -705,6 +715,12 @@ public class TypeInferenceExtractorTest {
 
 		public Integer eval(@DataTypeHint("DECIMAL(10, 2)") Object n) {
 			return null;
+		}
+	}
+
+	private static class InputGroupScalarFunction extends ScalarFunction {
+		public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+			return o.toString();
 		}
 	}
 }

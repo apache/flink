@@ -465,6 +465,33 @@ public final class ExtractionUtils {
 		return currentClass == classCount;
 	}
 
+	/**
+	 * Creates a method signature string like {@code int eval(Integer, String)}.
+	 */
+	public static String createMethodSignatureString(
+			String methodName,
+			Class<?>[] parameters,
+			@Nullable Class<?> returnType) {
+		final StringBuilder builder = new StringBuilder();
+		if (returnType != null) {
+			builder.append(returnType.getName()).append(" ");
+		}
+		builder
+			.append(methodName)
+			.append(
+				Stream.of(parameters)
+					.map(parameter -> {
+						// in case we don't know the parameter at this location (i.e. for accumulators)
+						if (parameter == null) {
+							return "_";
+						} else {
+							return parameter.getName();
+						}
+					})
+					.collect(Collectors.joining(", ", "(", ")")));
+		return builder.toString();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Parameter Extraction Utilities
 	// --------------------------------------------------------------------------------------------

@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -31,6 +32,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectMethods;
+import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createMethodSignatureString;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isAssignable;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isMethodInvokable;
@@ -329,15 +332,24 @@ public final class FunctionMappingExtractor {
 			int offset) {
 		return IntStream.range(offset, method.getParameterCount())
 			.mapToObj(i -> {
+				// check for input group before start extracting a data type
+				final Parameter parameter = method.getParameters()[i];
+				final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
+				if (hint != null) {
+					final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
+					if (template.inputGroup != null) {
+						return FunctionArgumentTemplate.of(template.inputGroup);
+					}
+				}
+				// extract a concrete data type
 				final DataType type = DataTypeExtractor.extractFromMethodParameter(typeFactory, function, method, i);
 				// unwrap from ARRAY data type in case of varargs
 				if (method.isVarArgs() && i == method.getParameterCount() - 1 && type instanceof CollectionDataType) {
-					return ((CollectionDataType) type).getElementDataType();
+					return FunctionArgumentTemplate.of(((CollectionDataType) type).getElementDataType());
 				} else {
-					return type;
+					return FunctionArgumentTemplate.of(type);
 				}
 			})
-			.map(FunctionArgumentTemplate::of)
 			.collect(Collectors.toList());
 	}
 
@@ -437,26 +449,9 @@ public final class FunctionMappingExtractor {
 			String methodName,
 			Class<?>[] parameters,
 			@Nullable Class<?> returnType) {
-		final StringBuilder builder = new StringBuilder();
-		if (returnType != null) {
-			builder.append(returnType.getName()).append(" ");
-		}
-		builder
-			.append(methodName)
-			.append(
-				Stream.of(parameters)
-					.map(parameter -> {
-						// in case we don't know the parameter at this location (i.e. for accumulators)
-						if (parameter == null) {
-							return "_";
-						} else {
-							return parameter.getName();
-						}
-					})
-					.collect(Collectors.joining(", ", "(", ")")));
 		return extractionError(
 			"Considering all hints, the method should comply with the signature:\n%s",
-			builder.toString());
+			createMethodSignatureString(methodName, parameters, returnType));
 	}
 
 	// --------------------------------------------------------------------------------------------
