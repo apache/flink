@@ -21,7 +21,6 @@ package org.apache.flink.api.java.io.jdbc.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.io.jdbc.JdbcDmlOptions;
-import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
 import org.apache.flink.types.Row;
 
 import java.sql.Connection;
@@ -58,19 +57,18 @@ public interface JdbcBatchStatementExecutor<T> {
 
 	static JdbcBatchStatementExecutor<Row> upsertRow(JdbcDmlOptions opt, RuntimeContext ctx) {
 		checkNotNull(opt.getKeyFields());
-		JDBCDialect dialect = opt.getDialectName().getInstance(opt);
 
 		int[] pkFields = Arrays.stream(opt.getKeyFields()).mapToInt(Arrays.asList(opt.getFieldNames())::indexOf).toArray();
 		int[] pkTypes = opt.getFieldTypes() == null ? null : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
 
-		return dialect
+		return opt.getDialect()
 				.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields())
 				.map(sql -> keyedRow(pkFields, opt.getFieldTypes(), sql))
 				.orElseGet(() ->
 						new InsertOrUpdateJdbcExecutor<>(
-								dialect.getRowExistsStatement(opt.getTableName(), opt.getKeyFields()),
-								dialect.getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
-								dialect.getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields()),
+								opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields()),
+								opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
+								opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields()),
 								ParameterSetter.forRow(pkTypes),
 								ParameterSetter.forRow(opt.getFieldTypes()),
 								ParameterSetter.forRow(opt.getFieldTypes()),

@@ -27,20 +27,16 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.function.Function;
 
 class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
 	private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
 
 	private JdbcBatchStatementExecutor<Row> deleteExecutor;
+	private final JdbcDmlOptions dmlOptions;
 
-	TableJdbcUpsertOutputFormat(JdbcConnectionOptions connectionOptions, JdbcDmlOptions dmlOptions, JdbcBatchOptions batchOptions) {
-		super(connectionOptions, dmlOptions, batchOptions, ctx -> JdbcBatchStatementExecutor.upsertRow(dmlOptions, ctx), new Function<Tuple2<Boolean, Row>, Row>() {
-			@Override
-			public Row apply(Tuple2<Boolean, Row> record) {
-				return record.f1;
-			}
-		});
+	TableJdbcUpsertOutputFormat(JdbcConnectionOptions connectionOptions, JdbcDmlOptions dmlOptions, JdbcExecutionOptions batchOptions) {
+		super(connectionOptions, batchOptions, ctx -> JdbcBatchStatementExecutor.upsertRow(dmlOptions, ctx), tuple2 -> tuple2.f1);
+		this.dmlOptions = dmlOptions;
 	}
 
 	@Override

@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
@@ -48,22 +47,22 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
 	final JdbcInsertOptions insertOptions;
-	private final JdbcBatchOptions batchOptions;
+	private final JdbcExecutionOptions batchOptions;
 
 	private transient PreparedStatement upload;
 	private transient int batchCount = 0;
 
 	/**
-	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionOptions, JdbcInsertOptions, JdbcBatchOptions)}}.
+	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionOptions, JdbcInsertOptions, JdbcExecutionOptions)}}.
 	 */
 	@Deprecated
 	public JDBCOutputFormat(String username, String password, String drivername, String dbURL, String query, int batchInterval, int[] typesArray) {
 		this(new JdbcConnectionOptions(dbURL, drivername, username, password),
 				new JdbcInsertOptions(query, typesArray),
-				JdbcBatchOptions.builder().withSize(batchInterval).build());
+				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
 	}
 
-	public JDBCOutputFormat(JdbcConnectionOptions connectionOptions, JdbcInsertOptions insertOptions, JdbcBatchOptions batchOptions) {
+	public JDBCOutputFormat(JdbcConnectionOptions connectionOptions, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
 		super(connectionOptions);
 		this.insertOptions = insertOptions;
 		this.batchOptions = batchOptions;
@@ -97,7 +96,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 		batchCount++;
 
-		if (batchCount >= batchOptions.getSize()) {
+		if (batchCount >= batchOptions.getBatchSize()) {
 			// execute batch
 			flush();
 		}
@@ -202,7 +201,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		public JDBCOutputFormat finish() {
 			return new JDBCOutputFormat(buildConnectionOptions(),
 					new JdbcInsertOptions(query, typesArray),
-					JdbcBatchOptions.builder().withSize(batchInterval).build());
+					JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
 		}
 
 		public JdbcConnectionOptions buildConnectionOptions() {
