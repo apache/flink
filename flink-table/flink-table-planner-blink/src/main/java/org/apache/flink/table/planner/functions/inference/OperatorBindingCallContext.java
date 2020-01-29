@@ -79,6 +79,9 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
 	@Override
 	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+		if (isArgumentNull(pos)) {
+			return Optional.empty();
+		}
 		try {
 			return Optional.ofNullable(
 				getLiteralValueAs(

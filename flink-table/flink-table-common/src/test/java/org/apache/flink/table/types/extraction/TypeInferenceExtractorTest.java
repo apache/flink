@@ -206,6 +206,17 @@ public class TypeInferenceExtractorTest {
 						}),
 					TypeStrategies.explicit(DataTypes.STRING())),
 
+			// test varying arguments extraction with byte
+			TestSpec
+				.forScalarFunction(VarArgWithByteFunction.class)
+				.expectOutputMapping(
+					InputTypeStrategies.varyingSequence(
+						new String[]{"bytes"},
+						new ArgumentTypeStrategy[]{
+							InputTypeStrategies.explicit(DataTypes.TINYINT().notNull().bridgedTo(byte.class))
+						}),
+					TypeStrategies.explicit(DataTypes.STRING())),
+
 			// output hint with input extraction
 			TestSpec
 				.forScalarFunction(ExtractWithOutputHintFunction.class)
@@ -296,7 +307,7 @@ public class TypeInferenceExtractorTest {
 			TestSpec
 				.forScalarFunction(InvalidMethodScalarFunction.class)
 				.expectErrorMessage("Considering all hints, the method should comply with the signature:\n" +
-					"java.lang.String eval(int)"),
+					"java.lang.String eval(int[])"),
 
 			// mismatch between hints and implementation regarding accumulator
 			TestSpec
@@ -312,7 +323,26 @@ public class TypeInferenceExtractorTest {
 			// named arguments with overloaded function
 			TestSpec
 				.forScalarFunction(NamedArgumentsScalarFunction.class)
-				.expectNamedArguments("n")
+				.expectNamedArguments("n"),
+
+			// scalar function that takes any input
+			TestSpec
+				.forScalarFunction(InputGroupScalarFunction.class)
+				.expectNamedArguments("o")
+				.expectOutputMapping(
+					InputTypeStrategies.sequence(
+						new String[]{"o"},
+						new ArgumentTypeStrategy[]{InputTypeStrategies.ANY}),
+					TypeStrategies.explicit(DataTypes.STRING())),
+
+			// scalar function that takes any input as vararg
+			TestSpec
+				.forScalarFunction(VarArgInputGroupScalarFunction.class)
+				.expectOutputMapping(
+					InputTypeStrategies.varyingSequence(
+						new String[]{"o"},
+						new ArgumentTypeStrategy[]{InputTypeStrategies.ANY}),
+					TypeStrategies.explicit(DataTypes.STRING()))
 		);
 	}
 
@@ -598,6 +628,12 @@ public class TypeInferenceExtractorTest {
 		}
 	}
 
+	private static class VarArgWithByteFunction extends ScalarFunction {
+		public String eval(byte... bytes) {
+			return null;
+		}
+	}
+
 	@FunctionHint(output = @DataTypeHint("INT"))
 	private static class ExtractWithOutputHintFunction extends ScalarFunction {
 		public Object eval(Integer i) {
@@ -667,7 +703,7 @@ public class TypeInferenceExtractorTest {
 
 	@FunctionHint(output = @DataTypeHint("STRING"))
 	private static class InvalidMethodScalarFunction extends ScalarFunction {
-		public Long eval(int i) {
+		public Long eval(int[] i) {
 			return null;
 		}
 	}
@@ -705,6 +741,18 @@ public class TypeInferenceExtractorTest {
 
 		public Integer eval(@DataTypeHint("DECIMAL(10, 2)") Object n) {
 			return null;
+		}
+	}
+
+	private static class InputGroupScalarFunction extends ScalarFunction {
+		public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+			return o.toString();
+		}
+	}
+
+	private static class VarArgInputGroupScalarFunction extends ScalarFunction {
+		public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... o) {
+			return Arrays.toString(o);
 		}
 	}
 }

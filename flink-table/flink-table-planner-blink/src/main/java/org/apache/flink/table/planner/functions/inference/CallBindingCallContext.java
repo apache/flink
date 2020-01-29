@@ -93,6 +93,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
 	@Override
 	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+		if (isArgumentNull(pos)) {
+			return Optional.empty();
+		}
 		try {
 			final SqlLiteral literal = SqlLiteral.unchain(adaptedArguments.get(pos));
 			return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
