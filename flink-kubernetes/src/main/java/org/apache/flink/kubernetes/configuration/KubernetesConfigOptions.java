@@ -29,6 +29,14 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class KubernetesConfigOptions {
 
+	public static final ConfigOption<String> CONTEXT =
+		key("kubernetes.context")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("The desired context from your Kubernetes config file used to configure the Kubernetes client " +
+			"for interacting with the cluster. This could be helpful if one has multiple contexts configured and " +
+			"wants to administrate different Flink clusters on different Kubernetes clusters/contexts.");
+
 	public static final ConfigOption<String> REST_SERVICE_EXPOSED_TYPE =
 		key("kubernetes.rest-service.exposed.type")
 		.stringType()
