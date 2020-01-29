@@ -572,12 +572,15 @@ object GenerateUtils {
     * @param ctx code generator context which maintains various code statements.
     * @param fieldType type of field
     * @param fieldTerm expression term of field to be unboxed
+    * @param unboxingTerm unboxing/conversion term
     * @return internal unboxed field representation
     */
   def generateInputFieldUnboxing(
       ctx: CodeGeneratorContext,
       fieldType: LogicalType,
-      fieldTerm: String): GeneratedExpression = {
+      fieldTerm: String,
+      unboxingTerm: String)
+    : GeneratedExpression = {
 
     val resultTypeTerm = primitiveTypeTermForType(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
@@ -591,12 +594,12 @@ object GenerateUtils {
          |$nullTerm = $fieldTerm == null;
          |$resultTerm = $defaultValue;
          |if (!$nullTerm) {
-         |  $resultTerm = $fieldTerm;
+         |  $resultTerm = $unboxingTerm;
          |}
          |""".stripMargin.trim
     } else {
       s"""
-         |$resultTerm = $fieldTerm;
+         |$resultTerm = $unboxingTerm;
          |""".stripMargin.trim
     }
 
@@ -659,7 +662,7 @@ object GenerateUtils {
       case _ =>
         val fieldTypeTerm = boxedTypeTermForType(inputType)
         val inputCode = s"($fieldTypeTerm) $inputTerm"
-        generateInputFieldUnboxing(ctx, inputType, inputCode)
+        generateInputFieldUnboxing(ctx, inputType, inputCode, inputCode)
     }
 
   /**

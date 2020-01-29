@@ -625,8 +625,7 @@ object AggCodeGenHelper {
           agg, externalAccType, inputExprs.map(_.resultType))
         val parameters = inputExprs.zipWithIndex.map {
           case (expr, i) =>
-            s"${expr.nullTerm} ? null : " +
-                s"${ genToExternal(ctx, externalUDITypes(i), expr.resultTerm)}"
+            genToExternalIfNeeded(ctx, externalUDITypes(i), expr)
         }
 
         val javaTerm = boxedTypeTermForExternalType(externalAccType)

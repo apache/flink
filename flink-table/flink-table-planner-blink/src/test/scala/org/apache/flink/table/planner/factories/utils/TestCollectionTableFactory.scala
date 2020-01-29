@@ -97,6 +97,10 @@ object TestCollectionTableFactory {
   val RESULT = new JLinkedList[Row]()
   private var emitIntervalMS = -1L
 
+  def initData(sourceData: JList[Row]): Unit ={
+    initData(sourceData, List(), -1L)
+  }
+
   def initData(sourceData: JList[Row],
     dimData: JList[Row] = List(),
     emitInterval: Long = -1L): Unit ={
@@ -111,6 +115,8 @@ object TestCollectionTableFactory {
     DIM_DATA.clear()
     emitIntervalMS = -1L
   }
+
+  def getResult: util.List[Row] = RESULT
 
   def getCollectionSource(props: JMap[String, String]): CollectionTableSource = {
     val properties = new DescriptorProperties()
