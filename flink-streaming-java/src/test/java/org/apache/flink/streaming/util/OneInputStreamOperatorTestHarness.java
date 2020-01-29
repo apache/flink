@@ -169,4 +169,5 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public long getCurrentWatermark() {
 		return currentWatermark;
 	}
+
 }

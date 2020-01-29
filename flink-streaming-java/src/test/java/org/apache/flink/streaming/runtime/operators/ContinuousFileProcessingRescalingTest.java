@@ -24,13 +24,15 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 
@@ -39,6 +41,7 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -61,17 +64,25 @@ public class ContinuousFileProcessingRescalingTest {
 	*/
 	@Test
 	public void testReaderScalingDown() throws Exception {
-		HarnessWithFormat[] beforeRescale = buildAndStart(5, 15);
+		HarnessWithFormat[] beforeRescale = {};
+		try {
+			beforeRescale = buildAndStart(5, 15);
+			try (HarnessWithFormat afterRescale = buildAndStart(1, 0, 5, snapshotAndMergeState(beforeRescale))) {
 
-		HarnessWithFormat afterRescale = buildAndStart(1, 0, 5, snapshotAndMergeState(beforeRescale));
-		afterRescale.awaitEverythingProcessed();
+				afterRescale.awaitEverythingProcessed();
 
-		for (HarnessWithFormat i : beforeRescale) {
-			i.getHarness().getOutput().clear(); // we only want output from the 2nd chunk (after the "checkpoint")
-			i.awaitEverythingProcessed();
+				for (HarnessWithFormat i : beforeRescale) {
+					i.getHarness().getOutput().clear(); // we only want output from the 2nd chunk (after the "checkpoint")
+					i.awaitEverythingProcessed();
+				}
+
+				Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale));
+			}
+		} finally {
+			for (HarnessWithFormat harness : beforeRescale) {
+				harness.close();
+			}
 		}
-
-		Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale));
 	}
 
 	/**
@@ -79,20 +90,21 @@ public class ContinuousFileProcessingRescalingTest {
 	 */
 	@Test
 	public void testReaderScalingUp() throws Exception {
-		HarnessWithFormat beforeRescale = buildAndStart(1, 0, 5, null, buildSplits(2));
+		try (HarnessWithFormat beforeRescale = buildAndStart(1, 0, 5, null, buildSplits(2))) {
+			OperatorSubtaskState snapshot = beforeRescale.getHarness().snapshot(0, 0);
+			try (
+				HarnessWithFormat afterRescale0 = buildAndStart(2, 0, 15, repartitionOperatorState(snapshot, maxParallelism, 1, 2, 0));
+				HarnessWithFormat afterRescale1 = buildAndStart(2, 1, 15, repartitionOperatorState(snapshot, maxParallelism, 1, 2, 1))) {
 
-		OperatorSubtaskState snapshot = beforeRescale.getHarness().snapshot(0, 0);
+				beforeRescale.getHarness().getOutput().clear();
 
-		HarnessWithFormat afterRescale0 = buildAndStart(2, 0, 15, repartitionOperatorState(snapshot, maxParallelism, 1, 2, 0));
-		HarnessWithFormat afterRescale1 = buildAndStart(2, 1, 15, repartitionOperatorState(snapshot, maxParallelism, 1, 2, 1));
+				for (HarnessWithFormat harness : Arrays.asList(beforeRescale, afterRescale0, afterRescale1)) {
+					harness.awaitEverythingProcessed();
+				}
 
-		beforeRescale.getHarness().getOutput().clear();
-
-		for (HarnessWithFormat harness : Arrays.asList(beforeRescale, afterRescale0, afterRescale1)) {
-			harness.awaitEverythingProcessed();
+				Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale0, afterRescale1));
+			}
 		}
-
-		Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale0, afterRescale1));
 	}
 
 	private HarnessWithFormat[] buildAndStart(int... elementsBeforeCheckpoint) throws Exception {
@@ -125,9 +137,11 @@ public class ContinuousFileProcessingRescalingTest {
 				harness.processElement(new StreamRecord<>(getTimestampedSplit(i, splits[i])));
 			}
 		}
-
-		format.awaitFirstChunkProcessed();
-		return new HarnessWithFormat(harness, format);
+		HarnessWithFormat harnessWithFormat = new HarnessWithFormat(harness, format);
+		while (!format.isFirstChunkProcessed()) {
+			harnessWithFormat.mailboxProcessor.runMailboxStep();
+		}
+		return harnessWithFormat;
 	}
 
 	private OperatorSubtaskState snapshotAndMergeState(HarnessWithFormat[] hh) throws Exception {
@@ -166,9 +180,8 @@ public class ContinuousFileProcessingRescalingTest {
 	}
 
 	private static class BlockingFileInputFormat extends FileInputFormat<String> implements CheckpointableInputFormat<FileInputSplit, Integer> {
-		private final OneShotLatch firstChunkTrigger = new OneShotLatch();
-		private final OneShotLatch continueLatch = new OneShotLatch();
-		private final OneShotLatch endTrigger = new OneShotLatch();
+		private boolean firstChunkTrigger = false;
+		private boolean endTrigger = false;
 		private final int elementsBeforeCheckpoint;
 		private final int linesPerSplit;
 
@@ -210,19 +223,10 @@ public class ContinuousFileProcessingRescalingTest {
 		@Override
 		public boolean reachedEnd() {
 			if (state == elementsBeforeCheckpoint) {
-				firstChunkTrigger.trigger();
-				try {
-					continueLatch.await();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					Thread.currentThread().interrupt();
-				}
+				firstChunkTrigger = true;
 			}
-			boolean ended = state == linesPerSplit;
-			if (ended) {
-				endTrigger.trigger();
-			}
-			return ended;
+			endTrigger = state == linesPerSplit;
+			return endTrigger;
 		}
 
 		@Override
@@ -230,26 +234,24 @@ public class ContinuousFileProcessingRescalingTest {
 			return reachedEnd() ? null : split.getSplitNumber() + ": test line " + state++;
 		}
 
-		public void awaitFirstChunkProcessed() throws InterruptedException {
-			firstChunkTrigger.await();
+		public boolean isFirstChunkProcessed() {
+			return firstChunkTrigger;
 		}
 
-		public void awaitLastProcessed() throws InterruptedException {
-			endTrigger.await();
-		}
-
-		public void resume() {
-			continueLatch.trigger();
+		public boolean isLastProcessed() {
+			return endTrigger;
 		}
 	}
 
-	private static final class HarnessWithFormat {
+	private static final class HarnessWithFormat implements Closeable {
 		private final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness;
 		private final BlockingFileInputFormat format;
+		private final SteppingMailboxProcessor mailboxProcessor;
 
 		HarnessWithFormat(OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness, BlockingFileInputFormat format) {
 			this.format = format;
 			this.harness = harness;
+			this.mailboxProcessor = new SteppingMailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction, harness.getTaskMailbox(), StreamTaskActionExecutor.IMMEDIATE);
 		}
 
 		public OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> getHarness() {
@@ -260,10 +262,27 @@ public class ContinuousFileProcessingRescalingTest {
 			return format;
 		}
 
-		public void awaitEverythingProcessed() throws Exception {
-			getFormat().awaitFirstChunkProcessed();
-			getFormat().resume();
-			getFormat().awaitLastProcessed();
+		void awaitEverythingProcessed() throws Exception {
+			while (!getFormat().isFirstChunkProcessed()) {
+				mailboxProcessor.runMailboxStep();
+			}
+			while (!getFormat().isLastProcessed()) {
+				mailboxProcessor.runMailboxStep();
+			}
+			getHarness().close();
+		}
+
+		@Override
+		public void close() throws IOException {
+			try {
+				harness.close();
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+			format.close();
+			mailboxProcessor.close();
 		}
 	}
 

@@ -66,6 +66,8 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -114,6 +116,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	protected StreamTaskStateInitializer streamTaskStateInitializer;
 
 	CloseableRegistry closableRegistry;
+
+	private final TaskMailbox taskMailbox;
 
 	// use this as default for tests
 	protected StateBackend stateBackend = new MemoryStateBackend();
@@ -247,6 +251,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			wasFailedExternally = true;
 		};
 
+		this.taskMailbox = new TaskMailboxImpl();
+
 		mockTask = new MockStreamTaskBuilder(env)
 			.setCheckpointLock(checkpointLock)
 			.setConfig(config)
@@ -256,6 +262,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			.setCheckpointStorage(checkpointStorage)
 			.setTimerService(processingTimeService)
 			.setHandleAsyncException(handleAsyncException)
+			.setTaskMailbox(taskMailbox)
 			.build();
 	}
 
@@ -652,6 +659,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	@VisibleForTesting
 	public StreamStatus getStreamStatus() {
 		return mockTask.getStreamStatusMaintainer().getStreamStatus();
+	}
+
+	@VisibleForTesting
+	public TaskMailbox getTaskMailbox() {
+		return taskMailbox;
 	}
 
 	private class MockOutput implements Output<StreamRecord<OUT>> {
