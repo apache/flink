@@ -71,6 +71,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
@@ -1483,11 +1484,10 @@ public class StreamExecutionEnvironment {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval);
 
-		ContinuousFileReaderOperator<OUT> reader =
-			new ContinuousFileReaderOperator<>(inputFormat);
+		ContinuousFileReaderOperatorFactory<OUT> factory = new ContinuousFileReaderOperatorFactory<>(inputFormat);
 
 		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
-				.transform("Split Reader: " + sourceName, typeInfo, reader);
+				.transform("Split Reader: " + sourceName, typeInfo, factory);
 
 		return new DataStreamSource<>(source);
 	}
