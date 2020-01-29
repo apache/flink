@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
@@ -60,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public final class FunctionCatalog implements FunctionLookup {
-	private final TableConfig config;
+	private final ReadableConfig config;
 	private final CatalogManager catalogManager;
 	private final ModuleManager moduleManager;
 
@@ -76,7 +77,7 @@ public final class FunctionCatalog implements FunctionLookup {
 			TableConfig config,
 			CatalogManager catalogManager,
 			ModuleManager moduleManager) {
-		this.config = checkNotNull(config);
+		this.config = checkNotNull(config).getConfiguration();
 		this.catalogManager = checkNotNull(catalogManager);
 		this.moduleManager = checkNotNull(moduleManager);
 	}

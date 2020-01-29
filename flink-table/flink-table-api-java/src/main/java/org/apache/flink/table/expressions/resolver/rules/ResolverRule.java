@@ -19,7 +19,7 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
@@ -52,7 +52,7 @@ public interface ResolverRule {
 		/**
 		 * Access to configuration.
 		 */
-		TableConfig configuration();
+		ReadableConfig configuration();
 
 		/**
 		 * Access to available {@link org.apache.flink.table.expressions.FieldReferenceExpression} in inputs.

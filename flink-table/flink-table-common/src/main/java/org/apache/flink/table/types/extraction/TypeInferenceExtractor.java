@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.utils.FunctionMappingExtractor;
 import org.apache.flink.table.types.extraction.utils.FunctionResultTemplate;
@@ -79,7 +80,7 @@ public final class TypeInferenceExtractor {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
 			typeFactory,
 			function,
-			"eval",
+			UserDefinedFunctionHelper.SCALAR_EVAL,
 			createParameterSignatureExtraction(0),
 			null,
 			createReturnTypeResultExtraction(),
@@ -96,7 +97,7 @@ public final class TypeInferenceExtractor {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
 			typeFactory,
 			function,
-			"accumulate",
+			UserDefinedFunctionHelper.AGGREGATE_ACCUMULATE,
 			createParameterSignatureExtraction(1),
 			createGenericResultExtraction(AggregateFunction.class, 1),
 			createGenericResultExtraction(AggregateFunction.class, 0),
@@ -113,7 +114,7 @@ public final class TypeInferenceExtractor {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
 			typeFactory,
 			function,
-			"eval",
+			UserDefinedFunctionHelper.TABLE_EVAL,
 			createParameterSignatureExtraction(0),
 			null,
 			createGenericResultExtraction(TableFunction.class, 0),
@@ -130,7 +131,7 @@ public final class TypeInferenceExtractor {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
 			typeFactory,
 			function,
-			"accumulate",
+			UserDefinedFunctionHelper.TABLE_AGGREGATE_ACCUMULATE,
 			createParameterSignatureExtraction(1),
 			createGenericResultExtraction(TableAggregateFunction.class, 1),
 			createGenericResultExtraction(TableAggregateFunction.class, 0),
@@ -147,7 +148,7 @@ public final class TypeInferenceExtractor {
 		final FunctionMappingExtractor mappingExtractor = new FunctionMappingExtractor(
 			typeFactory,
 			function,
-			"eval",
+			UserDefinedFunctionHelper.ASYNC_TABLE_EVAL,
 			createParameterSignatureExtraction(1),
 			null,
 			createGenericResultExtraction(AsyncTableFunction.class, 0),

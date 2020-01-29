@@ -24,9 +24,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -41,11 +40,38 @@ import java.util.stream.Collectors;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
 
 /**
- * Utility methods for instantiating, validating and extracting types during function registration in
- * a {@link FunctionCatalog}.
+ * Utility for dealing with subclasses of {@link UserDefinedFunction}. The purpose of this class is to
+ * keep the user-facing APIs clean and offer methods/constants from here.
+ *
+ * <p>It contains methods for instantiating, validating and extracting types during function registration
+ * in a catalog.
  */
 @Internal
 public final class UserDefinedFunctionHelper {
+
+	// method names of code generated UDFs
+
+	public static final String SCALAR_EVAL = "eval";
+
+	public static final String TABLE_EVAL = "eval";
+
+	public static final String AGGREGATE_ACCUMULATE = "accumulate";
+
+	public static final String AGGREGATE_RETRACT = "retract";
+
+	public static final String AGGREGATE_MERGE = "merge";
+
+	public static final String AGGREGATE_RESET = "resetAccumulator";
+
+	public static final String TABLE_AGGREGATE_ACCUMULATE = "accumulate";
+
+	public static final String TABLE_AGGREGATE_RETRACT = "retract";
+
+	public static final String TABLE_AGGREGATE_EMIT = "emitValue";
+
+	public static final String TABLE_AGGREGATE_EMIT_RETRACT = "emitUpdateWithRetract";
+
+	public static final String ASYNC_TABLE_EVAL = "eval";
 
 	/**
 	 * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
@@ -173,7 +199,7 @@ public final class UserDefinedFunctionHelper {
 	/**
 	 * Prepares a {@link UserDefinedFunction} instance for usage in the API.
 	 */
-	public static void prepareInstance(TableConfig config, UserDefinedFunction function) {
+	public static void prepareInstance(ReadableConfig config, UserDefinedFunction function) {
 		validateClass(function.getClass(), false);
 		cleanFunction(config, function);
 	}
@@ -215,26 +241,26 @@ public final class UserDefinedFunctionHelper {
 	}
 
 	/**
-	 * Validates the implementation methods such as {@code eval()} or {@code accumulate()} depending
-	 * on the {@link UserDefinedFunction} subclass.
+	 * Validates the implementation methods such as {@link #SCALAR_EVAL} or {@link #AGGREGATE_ACCUMULATE}
+	 * depending on the {@link UserDefinedFunction} subclass.
 	 *
 	 * <p>This method must be kept in sync with the code generation requirements and the individual
 	 * docs of each function.
 	 */
 	private static void validateImplementationMethods(Class<? extends UserDefinedFunction> functionClass) {
 		if (ScalarFunction.class.isAssignableFrom(functionClass)) {
-			validateImplementationMethod(functionClass, false, false, "eval");
+			validateImplementationMethod(functionClass, false, false, SCALAR_EVAL);
 		} else if (TableFunction.class.isAssignableFrom(functionClass)) {
-			validateImplementationMethod(functionClass, true, false, "eval");
+			validateImplementationMethod(functionClass, true, false, TABLE_EVAL);
 		} else if (AggregateFunction.class.isAssignableFrom(functionClass)) {
-			validateImplementationMethod(functionClass, true, false, "accumulate");
-			validateImplementationMethod(functionClass, true, true, "retract");
-			validateImplementationMethod(functionClass, true, true, "merge");
-			validateImplementationMethod(functionClass, true, true, "resetAccumulator");
+			validateImplementationMethod(functionClass, true, false, AGGREGATE_ACCUMULATE);
+			validateImplementationMethod(functionClass, true, true, AGGREGATE_RETRACT);
+			validateImplementationMethod(functionClass, true, true, AGGREGATE_MERGE);
+			validateImplementationMethod(functionClass, true, true, AGGREGATE_RESET);
 		} else if (TableAggregateFunction.class.isAssignableFrom(functionClass)) {
-			validateImplementationMethod(functionClass, true, false, "accumulate");
-			validateImplementationMethod(functionClass, true, false, "emitValue", "emitUpdateWithRetract");
-			validateImplementationMethod(functionClass, true, true, "retract");
+			validateImplementationMethod(functionClass, true, false, TABLE_AGGREGATE_ACCUMULATE);
+			validateImplementationMethod(functionClass, true, true, TABLE_AGGREGATE_RETRACT);
+			validateImplementationMethod(functionClass, true, false, TABLE_AGGREGATE_EMIT, TABLE_AGGREGATE_EMIT_RETRACT);
 		}
 	}
 
@@ -314,8 +340,8 @@ public final class UserDefinedFunctionHelper {
 	 * Modifies a function instance by removing any reference to outer classes. This enables
 	 * non-static inner function classes.
 	 */
-	private static void cleanFunction(TableConfig config, UserDefinedFunction function) {
-		final ClosureCleanerLevel level = config.getConfiguration().get(PipelineOptions.CLOSURE_CLEANER_LEVEL);
+	private static void cleanFunction(ReadableConfig config, UserDefinedFunction function) {
+		final ClosureCleanerLevel level = config.get(PipelineOptions.CLOSURE_CLEANER_LEVEL);
 		try {
 			ClosureCleaner.clean(function, level, true);
 		} catch (Throwable t) {

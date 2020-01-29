@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.util.Collector;
 
@@ -130,7 +130,7 @@ public class UserDefinedFunctionHelperTest {
 		if (testSpec.functionClass != null) {
 			UserDefinedFunctionHelper.validateClass(testSpec.functionClass);
 		} else if (testSpec.functionInstance != null) {
-			UserDefinedFunctionHelper.prepareInstance(new TableConfig(), testSpec.functionInstance);
+			UserDefinedFunctionHelper.prepareInstance(new Configuration(), testSpec.functionInstance);
 		}
 	}
 
@@ -138,9 +138,6 @@ public class UserDefinedFunctionHelperTest {
 	// Test utilities
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Test specification shared with the Scala tests.
-	 */
 	private static class TestSpec {
 
 		final @Nullable Class<? extends UserDefinedFunction> functionClass;
