@@ -38,6 +38,7 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETES;
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.apache.flink.kubernetes.utils.Constants.POD_IP_FIELD_PATH;
@@ -97,10 +99,14 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 		final Container container = createJobManagerContainer(flinkConfig, mainClass, hasLogback, hasLog4j, blobServerPort);
 
 		final String serviceAccount = flinkConfig.getString(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT);
+
+		final LocalObjectReference[] imagePullSecrets = KubernetesUtils.parseImagePullSecrets(flinkConfig.get(CONTAINER_IMAGE_PULL_SECRETES));
+
 		final PodSpec podSpec = new PodSpecBuilder()
 			.withServiceAccountName(serviceAccount)
 			.withVolumes(configMapVolume)
 			.withContainers(container)
+			.withImagePullSecrets(imagePullSecrets)
 			.build();
 
 		deployment.setSpec(new DeploymentSpecBuilder()

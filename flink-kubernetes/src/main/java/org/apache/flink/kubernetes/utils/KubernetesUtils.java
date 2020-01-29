@@ -30,6 +30,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.KeyToPath;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -48,6 +49,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -286,6 +288,21 @@ public class KubernetesUtils {
 			.addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
 			.addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity)
 			.build();
+	}
+
+	/**
+	 * Parses comma-separated list of imagePullSecrets into K8s-understandable format.
+	 */
+	public static LocalObjectReference[] parseImagePullSecrets(@Nullable String imagePullSecrets) {
+		if (imagePullSecrets == null) {
+			return new LocalObjectReference[0];
+		} else {
+			return Arrays.stream(imagePullSecrets.split(","))
+				.map(String::trim)
+				.filter(secret -> !secret.isEmpty())
+				.map(LocalObjectReference::new)
+				.toArray(LocalObjectReference[]::new);
+		}
 	}
 
 	private static String getJavaOpts(Configuration flinkConfig, ConfigOption<String> configOption) {

@@ -63,6 +63,12 @@ public class KubernetesConfigOptions {
 		.withDescription("Kubernetes image pull policy. Valid values are Always, Never, and IfNotPresent. " +
 			"The default policy is IfNotPresent to avoid putting pressure to image repository.");
 
+	public static final ConfigOption<String> CONTAINER_IMAGE_PULL_SECRETES =
+		key("kubernetes.container.image.pull-secretes")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Comma separated list of the Kubernetes secrets used to access private image registries.");
+
 	public static final ConfigOption<String> KUBE_CONFIG_FILE =
 		key("kubernetes.config.file")
 		.stringType()
