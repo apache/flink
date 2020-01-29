@@ -34,6 +34,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -147,7 +148,13 @@ public abstract class YarnTestBase extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder tmp = new TemporaryFolder();
 
+	// Temp directory for mini hdfs
+	@ClassRule
+	public static TemporaryFolder tmpHDFS = new TemporaryFolder();
+
 	protected static MiniYARNCluster yarnCluster = null;
+
+	protected static MiniDFSCluster miniDFSCluster = null;
 
 	/**
 	 * Uberjar (fat jar) file of Flink.
@@ -168,6 +175,7 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static File flinkShadedHadoopDir;
 
 	protected static File yarnSiteXML = null;
+	protected static File hdfsSiteXML = null;
 
 	private YarnClient yarnClient = null;
 
@@ -372,6 +380,14 @@ public abstract class YarnTestBase extends TestLogger {
 		yarnSiteXML = new File(targetFolder, "/yarn-site.xml");
 		try (FileWriter writer = new FileWriter(yarnSiteXML)) {
 			yarnConf.writeXml(writer);
+			writer.flush();
+		}
+	}
+
+	private static void writeHDFSSiteConfigXML(Configuration coreSite, File targetFolder) throws IOException {
+		hdfsSiteXML = new File(targetFolder, "/hdfs-site.xml");
+		try (FileWriter writer = new FileWriter(hdfsSiteXML)) {
+			coreSite.writeXml(writer);
 			writer.flush();
 		}
 	}
@@ -592,14 +608,18 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	public static void startYARNSecureMode(YarnConfiguration conf, String principal, String keytab) {
-		start(conf, principal, keytab);
+		start(conf, principal, keytab, false);
 	}
 
 	public static void startYARNWithConfig(YarnConfiguration conf) {
-		start(conf, null, null);
+		startYARNWithConfig(conf,	false);
 	}
 
-	private static void start(YarnConfiguration conf, String principal, String keytab) {
+	public static void startYARNWithConfig(YarnConfiguration conf, boolean withDFS) {
+		start(conf, null, null, withDFS);
+	}
+
+	private static void start(YarnConfiguration conf, String principal, String keytab, boolean withDFS) {
 		// set the home directory to a temp directory. Flink on YARN is using the home dir to distribute the file
 		File homeDir = null;
 		try {
@@ -666,6 +686,12 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File targetTestClassesFolder = new File("target/test-classes");
 			writeYarnSiteConfigXML(conf, targetTestClassesFolder);
+
+			if (withDFS) {
+				LOG.info("Starting up MiniDFSCluster");
+				setMiniDFSCluster(targetTestClassesFolder);
+			}
+
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
 			TestBaseUtils.setEnv(map);
@@ -684,12 +710,28 @@ public abstract class YarnTestBase extends TestLogger {
 
 	}
 
+	private static void setMiniDFSCluster(File targetTestClassesFolder) throws Exception {
+		if (miniDFSCluster == null) {
+			Configuration hdfsConfiguration = new Configuration();
+			hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
+			miniDFSCluster = new MiniDFSCluster
+				.Builder(hdfsConfiguration)
+				.numDataNodes(2)
+				.build();
+			miniDFSCluster.waitClusterUp();
+
+			hdfsConfiguration = miniDFSCluster.getConfiguration(0);
+			writeHDFSSiteConfigXML(hdfsConfiguration, targetTestClassesFolder);
+			YARN_CONFIGURATION.addResource(hdfsConfiguration);
+		}
+	}
+
 	/**
 	 * Default @BeforeClass impl. Overwrite this for passing a different configuration
 	 */
 	@BeforeClass
 	public static void setup() throws Exception {
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, false);
 	}
 
 	// -------------------------- Runner -------------------------- //
@@ -962,6 +1004,12 @@ public abstract class YarnTestBase extends TestLogger {
 			yarnCluster = null;
 		}
 
+		if (miniDFSCluster != null) {
+			LOG.info("Stopping MiniDFS Cluster");
+			miniDFSCluster.shutdown();
+			miniDFSCluster = null;
+		}
+
 		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
 		Map<String, String> map = new HashMap<>(System.getenv());
 		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
@@ -976,6 +1024,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 		if (yarnSiteXML != null) {
 			yarnSiteXML.delete();
+		}
+
+		if (hdfsSiteXML != null) {
+			hdfsSiteXML.delete();
 		}
 
 		// When we are on travis, we copy the temp files of JUnit (containing the MiniYARNCluster log files)
