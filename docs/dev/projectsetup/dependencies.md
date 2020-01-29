@@ -109,13 +109,10 @@ the best case is that the resulting JAR becomes excessively large, because it al
 dependencies. The worst case is that the Flink core dependencies that are added to the application's jar file
 clash with some of your own dependency versions (which is normally avoided through inverted classloading).
 
-**Note on IntelliJ:** To make the applications run within IntelliJ IDEA, the Flink dependencies need
-to be declared in scope *compile* rather than *provided*. Otherwise IntelliJ will not add them to the classpath and
-the in-IDE execution will fail with a `NoClassDefFountError`. To avoid having to declare the
-dependency scope as *compile* (which is not recommended, see above), the above linked Java- and Scala
-project templates use a trick: They add a profile that selectively activates when the application
-is run in IntelliJ and only then promotes the dependencies to scope *compile*, without affecting
-the packaging of the JAR files.
+**Note on IntelliJ:** To make the applications run within IntelliJ IDEA it is necessary to tick the
+`Include dependencies with "Provided" scope` box in the run configuration.
+If this option is not available (possibly due to using an older IntelliJ IDEA version), then a simple workaround
+is to create a test that calls the applications `main()` method.
 
 
 ## Adding Connector and Library Dependencies
