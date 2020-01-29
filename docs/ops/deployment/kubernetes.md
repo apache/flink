@@ -133,16 +133,24 @@ data:
     jobmanager.heap.size: 1024m
     taskmanager.memory.process.size: 1024m
   log4j.properties: |+
-    log4j.rootLogger=INFO, file
-    log4j.logger.akka=INFO
-    log4j.logger.org.apache.kafka=INFO
-    log4j.logger.org.apache.hadoop=INFO
-    log4j.logger.org.apache.zookeeper=INFO
-    log4j.appender.file=org.apache.log4j.FileAppender
-    log4j.appender.file.file=${log.file}
-    log4j.appender.file.layout=org.apache.log4j.PatternLayout
-    log4j.appender.file.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
-    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, file
+    rootLogger.level = INFO
+    rootLogger.appenderRef.file.ref = MainAppender
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+    appender.main.name = MainAppender
+    appender.main.type = File
+    appender.main.append = false
+    appender.main.fileName = ${sys:log.file}
+    appender.main.layout.type = PatternLayout
+    appender.main.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = ERROR
 {% endhighlight %}
 
 `jobmanager-deployment.yaml`
