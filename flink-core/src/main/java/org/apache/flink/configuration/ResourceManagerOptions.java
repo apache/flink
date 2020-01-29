@@ -36,8 +36,9 @@ public class ResourceManagerOptions {
 		.withDescription("Timeout for jobs which don't have a job manager as leader assigned.");
 
 	/**
-	 * The number of resource managers start.
+	 * This option is not used any more.
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
 		.key("local.number-resourcemanager")
 		.defaultValue(1)
