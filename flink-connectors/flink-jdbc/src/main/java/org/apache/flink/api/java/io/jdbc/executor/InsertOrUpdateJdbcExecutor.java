@@ -17,6 +17,8 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
+import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -32,9 +34,9 @@ final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExe
 	private final String insertSQL;
 	private final String updateSQL;
 
-	private final ParameterSetter<K> existSetter;
-	private final ParameterSetter<V> insertSetter;
-	private final ParameterSetter<V> updateSetter;
+	private final JdbcStatementBuilder<K> existSetter;
+	private final JdbcStatementBuilder<V> insertSetter;
+	private final JdbcStatementBuilder<V> updateSetter;
 
 	private final Function<R, K> keyExtractor;
 	private final Function<R, V> valueMapper;
@@ -47,9 +49,9 @@ final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExe
 	InsertOrUpdateJdbcExecutor(String existSQL,
 								String insertSQL,
 								String updateSQL,
-								ParameterSetter<K> existSetter,
-								ParameterSetter<V> insertSetter,
-								ParameterSetter<V> updateSetter,
+								JdbcStatementBuilder<K> existSetter,
+								JdbcStatementBuilder<V> insertSetter,
+								JdbcStatementBuilder<V> updateSetter,
 								Function<R, K> keyExtractor,
 								Function<R, V> valueExtractor) {
 		this.existSQL = existSQL;

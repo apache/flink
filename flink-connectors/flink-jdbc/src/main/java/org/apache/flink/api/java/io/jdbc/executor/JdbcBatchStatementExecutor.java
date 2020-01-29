@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io.jdbc.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.io.jdbc.JdbcDmlOptions;
+import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
 import org.apache.flink.types.Row;
 
 import java.sql.Connection;
@@ -69,9 +70,9 @@ public interface JdbcBatchStatementExecutor<T> {
 								opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields()),
 								opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
 								opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields()),
-								ParameterSetter.forRow(pkTypes),
-								ParameterSetter.forRow(opt.getFieldTypes()),
-								ParameterSetter.forRow(opt.getFieldTypes()),
+								JdbcStatementBuilder.forRow(pkTypes),
+								JdbcStatementBuilder.forRow(opt.getFieldTypes()),
+								JdbcStatementBuilder.forRow(opt.getFieldTypes()),
 								rowKeyExtractor(pkFields),
 								ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity()));
 	}
@@ -86,15 +87,15 @@ public interface JdbcBatchStatementExecutor<T> {
 				(st, record) -> setRecordToStatement(st, pkTypes, rowKeyExtractor(pkFields).apply(record)));
 	}
 
-	static <T, K> JdbcBatchStatementExecutor<T> keyed(String sql, Function<T, K> keyExtractor, ParameterSetter<K> parameterSetter) {
-		return new KeyedBatchStatementExecutor<>(sql, keyExtractor, parameterSetter);
+	static <T, K> JdbcBatchStatementExecutor<T> keyed(String sql, Function<T, K> keyExtractor, JdbcStatementBuilder<K> statementBuilder) {
+		return new KeyedBatchStatementExecutor<>(sql, keyExtractor, statementBuilder);
 	}
 
 	static JdbcBatchStatementExecutor<Row> simpleRow(String sql, int[] fieldTypes, boolean objectReuse) {
-		return simple(sql, ParameterSetter.forRow(fieldTypes), objectReuse ? Row::copy : Function.identity());
+		return simple(sql, JdbcStatementBuilder.forRow(fieldTypes), objectReuse ? Row::copy : Function.identity());
 	}
 
-	static <T, V> JdbcBatchStatementExecutor<T> simple(String sql, ParameterSetter<V> paramSetter, Function<T, V> valueTransformer) {
+	static <T, V> JdbcBatchStatementExecutor<T> simple(String sql, JdbcStatementBuilder<V> paramSetter, Function<T, V> valueTransformer) {
 		return new SimpleBatchStatementExecutor<>(sql, paramSetter, valueTransformer);
 	}
 

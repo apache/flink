@@ -74,12 +74,16 @@ public class JdbcTestFixture {
 		public final Double price;
 		public final Integer qty;
 
-		private TestEntry(Integer id, String title, String author, Double price, Integer qty) {
+		TestEntry(Integer id, String title, String author, Double price, Integer qty) {
 			this.id = id;
 			this.title = title;
 			this.author = author;
 			this.price = price;
 			this.qty = qty;
+		}
+
+		public TestEntry withTitle(String newTitle) {
+			return new TestEntry(id, newTitle, author, price, qty);
 		}
 
 		@Override
@@ -176,7 +180,7 @@ public class JdbcTestFixture {
 
 	static void cleanupData(String url) throws Exception {
 		try (Connection conn = DriverManager.getConnection(url);
-			Statement st = conn.createStatement()) {
+				Statement st = conn.createStatement()) {
 			st.executeUpdate("delete from " + INPUT_TABLE);
 		}
 	}

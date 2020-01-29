@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
+import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -28,15 +30,15 @@ import java.util.function.Function;
 class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
 	private final String sql;
-	private final ParameterSetter<V> parameterSetter;
+	private final JdbcStatementBuilder<V> parameterSetter;
 	private final Function<T, V> valueTransformer;
 
 	private transient PreparedStatement st;
 	private transient List<V> batch;
 
-	SimpleBatchStatementExecutor(String sql, ParameterSetter<V> parameterSetter, Function<T, V> valueTransformer) {
+	SimpleBatchStatementExecutor(String sql, JdbcStatementBuilder<V> statementBuilder, Function<T, V> valueTransformer) {
 		this.sql = sql;
-		this.parameterSetter = parameterSetter;
+		this.parameterSetter = statementBuilder;
 		this.valueTransformer = valueTransformer;
 	}
 
