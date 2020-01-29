@@ -27,6 +27,18 @@
             <td>Time we wait for the timers in milliseconds to finish all pending timer threads when the stream task is cancelled.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.data.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The task manager’s port used for data exchange operations.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.debug.memory.log</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -49,6 +61,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.segment-size</h5></td>
+            <td style="word-wrap: break-word;">32 kb</td>
+            <td>MemorySize</td>
+            <td>Size of memory buffers used by the network stack and the memory manager.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.bind-policy</h5></td>

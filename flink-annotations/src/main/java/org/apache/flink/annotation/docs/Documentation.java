@@ -51,13 +51,6 @@ public final class Documentation {
 	@Retention(RetentionPolicy.RUNTIME)
 	@Internal
 	public @interface Section {
-		int POSITION_MEMORY = 10;
-		int POSITION_PARALLELISM_SLOTS = 20;
-		int POSITION_FAULT_TOLERANCE = 30;
-		int POSITION_HIGH_AVAILABILITY = 40;
-		int POSITION_SECURITY = 50;
-
-		String SECTION_COMMON = "common";
 
 		/**
 		 * The sections in the config docs where this option should be included.
@@ -68,6 +61,43 @@ public final class Documentation {
 		 * The relative position of the option in its section.
 		 */
 		int position() default Integer.MAX_VALUE;
+	}
+
+	/**
+	 * Constants for section names.
+	 */
+	public static final class Sections {
+
+		public static final String COMMON_HOST_PORT = "common_host_port";
+		public static final String COMMON_STATE_BACKENDS = "common_state_backends";
+		public static final String COMMON_HIGH_AVAILABILITY = "common_high_availability";
+		public static final String COMMON_HIGH_AVAILABILITY_ZOOKEEPER = "common_high_availability_zk";
+		public static final String COMMON_MEMORY = "common_memory";
+		public static final String COMMON_MISCELLANEOUS = "common_miscellaneous";
+
+		public static final String SECURITY_SSL = "security_ssl";
+		public static final String SECURITY_AUTH_KERBEROS = "security_auth_kerberos";
+		public static final String SECURITY_AUTH_ZOOKEEPER = "security_auth_zk";
+
+		public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";
+
+		public static final String EXPERT_CLASS_LOADING = "expert_class_loading";
+		public static final String EXPERT_SCHEDULING = "expert_scheduling";
+		public static final String EXPERT_FAULT_TOLERANCE = "expert_fault_tolerance";
+		public static final String EXPERT_STATE_BACKENDS = "expert_state_backends";
+		public static final String EXPERT_REST = "expert_rest";
+		public static final String EXPERT_HIGH_AVAILABILITY = "expert_high_availability";
+		public static final String EXPERT_ZOOKEEPER_HIGH_AVAILABILITY = "expert_high_availability_zk";
+		public static final String EXPERT_SECURITY_SSL = "expert_security_ssl";
+		public static final String EXPERT_ROCKSDB = "expert_rocksdb";
+
+		public static final String ALL_JOB_MANAGER = "all_jobmanager";
+		public static final String ALL_TASK_MANAGER = "all_taskmanager";
+		public static final String ALL_TASK_MANAGER_NETWORK = "all_taskmanager_network";
+
+		public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
+
+		private Sections() {}
 	}
 
 	/**
