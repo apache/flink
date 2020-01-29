@@ -570,17 +570,20 @@ object GenerateUtils {
     * Wrapper types can autoboxed to their corresponding primitive type (Integer -> int).
     *
     * @param ctx code generator context which maintains various code statements.
-    * @param fieldType type of field
-    * @param fieldTerm expression term of field to be unboxed
+    * @param inputType type of field
+    * @param inputTerm expression term of field to be unboxed
+    * @param inputUnboxingTerm unboxing/conversion term
     * @return internal unboxed field representation
     */
   def generateInputFieldUnboxing(
       ctx: CodeGeneratorContext,
-      fieldType: LogicalType,
-      fieldTerm: String): GeneratedExpression = {
+      inputType: LogicalType,
+      inputTerm: String,
+      inputUnboxingTerm: String)
+    : GeneratedExpression = {
 
-    val resultTypeTerm = primitiveTypeTermForType(fieldType)
-    val defaultValue = primitiveDefaultValue(fieldType)
+    val resultTypeTerm = primitiveTypeTermForType(inputType)
+    val defaultValue = primitiveDefaultValue(inputType)
 
     val Seq(resultTerm, nullTerm) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),
@@ -588,19 +591,19 @@ object GenerateUtils {
 
     val wrappedCode = if (ctx.nullCheck) {
       s"""
-         |$nullTerm = $fieldTerm == null;
+         |$nullTerm = $inputTerm == null;
          |$resultTerm = $defaultValue;
          |if (!$nullTerm) {
-         |  $resultTerm = $fieldTerm;
+         |  $resultTerm = $inputUnboxingTerm;
          |}
          |""".stripMargin.trim
     } else {
       s"""
-         |$resultTerm = $fieldTerm;
+         |$resultTerm = $inputUnboxingTerm;
          |""".stripMargin.trim
     }
 
-    GeneratedExpression(resultTerm, nullTerm, wrappedCode, fieldType)
+    GeneratedExpression(resultTerm, nullTerm, wrappedCode, inputType)
   }
 
   /**
@@ -659,7 +662,7 @@ object GenerateUtils {
       case _ =>
         val fieldTypeTerm = boxedTypeTermForType(inputType)
         val inputCode = s"($fieldTypeTerm) $inputTerm"
-        generateInputFieldUnboxing(ctx, inputType, inputCode)
+        generateInputFieldUnboxing(ctx, inputType, inputCode, inputCode)
     }
 
   /**
