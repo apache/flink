@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.io.jdbc.executor;
+package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.io.jdbc.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -32,14 +33,14 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
  * @param <T> type of payload in {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord StreamRecord}
  * @see JdbcBatchStatementExecutor
  */
-@Internal
-public interface ParameterSetter<T> extends BiConsumerWithException<PreparedStatement, T, SQLException>, Serializable {
+@PublicEvolving
+public interface JdbcStatementBuilder<T> extends BiConsumerWithException<PreparedStatement, T, SQLException>, Serializable {
 
 	/**
-	 * Creates a {@link ParameterSetter} for {@link Row} using the provided SQL types array.
+	 * Creates a {@link JdbcStatementBuilder} for {@link Row} using the provided SQL types array.
 	 * Uses {@link org.apache.flink.api.java.io.jdbc.JDBCUtils#setRecordToStatement}
 	 */
-	static ParameterSetter<Row> forRow(int[] types) {
+	static JdbcStatementBuilder<Row> forRow(int[] types) {
 		return (st, record) -> setRecordToStatement(st, types, record);
 	}
 }

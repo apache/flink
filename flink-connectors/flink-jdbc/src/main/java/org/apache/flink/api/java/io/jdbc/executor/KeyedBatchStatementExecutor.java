@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
+import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -28,7 +30,7 @@ import java.util.function.Function;
 class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T> {
 
 	private final String sql;
-	private final ParameterSetter<K> parameterSetter;
+	private final JdbcStatementBuilder<K> parameterSetter;
 	private final Function<T, K> keyExtractor;
 
 	private transient Set<K> batch = new HashSet<>();
@@ -37,8 +39,8 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	/**
 	 * Keep in mind object reuse: if it's on then key extractor may be required to return new object.
 	 */
-	KeyedBatchStatementExecutor(String sql, Function<T, K> keyExtractor, ParameterSetter<K> parameterSetter) {
-		this.parameterSetter = parameterSetter;
+	KeyedBatchStatementExecutor(String sql, Function<T, K> keyExtractor, JdbcStatementBuilder<K> statementBuilder) {
+		this.parameterSetter = statementBuilder;
 		this.keyExtractor = keyExtractor;
 		this.sql = sql;
 	}

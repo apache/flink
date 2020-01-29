@@ -282,7 +282,7 @@ class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementEx
 				return new JdbcBatchingOutputFormat<>(
 						new SimpleJdbcConnectionProvider(options),
 						JdbcExecutionOptions.builder().withBatchSize(flushMaxSize).withMaxRetries(maxRetryTimes).withBatchIntervalMs(flushIntervalMills).build(),
-						unused -> JdbcBatchStatementExecutor.simpleRow(sql, dml.getFieldTypes()),
+						ctx -> JdbcBatchStatementExecutor.simpleRow(sql, dml.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()),
 						tuple2 -> {
 							Preconditions.checkArgument(tuple2.f0);
 							return tuple2.f1;
