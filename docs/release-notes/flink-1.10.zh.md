@@ -31,13 +31,11 @@ these notes carefully if you are planning to upgrade your Flink version to 1.10.
 
 ### Clusters & Deployment
 #### FileSystems should be loaded via Plugin Architecture ([FLINK-11956](https://issues.apache.org/jira/browse/FLINK-11956))
-In the s3-hadoop and s3-presto filesystems, classes from external
-dependencies, such as the AWS SDK, are no longer relocated. In the past, class
-relocation turned out to be problematic in combination with custom
-implementations of the `AWSCredentialsProvider` interface. As a consequence of
-removing class relocation, s3-hadoop and s3-presto filesystems can only be
-used as [plugins]({{ site.baseurl }}/ops/filesystems/#pluggable-file-systems).
-Other filesystems are strongly recommended to be only used as plugins.
+s3-hadoop and s3-presto filesystems do no longer use class relocations and need
+to be loaded through [plugins]({{ site.baseurl }}/ops/filesystems/#pluggable-file-systems)
+but now seamlessly integrate with all credential providers. Other filesystems
+are strongly recommended to be only used as plugins as we will continue to
+remove relocations.
 
 #### Flink Client respects Classloading Policy ([FLINK-13749](https://issues.apache.org/jira/browse/FLINK-13749))
 The Flink client now also respects the configured classloading policy, i.e.,
@@ -48,14 +46,14 @@ which case they should configure the classloading policy explicitly to use
 `parent-first` classloading, which was the previous (hard-coded) behaviour.
 
 #### Enable spreading out Tasks evenly across all TaskManagers ([FLINK-12122](https://issues.apache.org/jira/browse/FLINK-12122))
-When [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)
-was rolled out with Flink 1.5.0, we changed how slots are allocated
-from TaskManagers (TMs). Instead of evenly allocating the slots from all
-registered TMs, we had the tendency to exhaust a TM before using another one.
-To use a scheduling strategy that is more similar to the pre-FLIP-6
-behaviour, where Flink tries to spread out the workload across all available
-TMs, one can set `cluster.evenly-spread-out-slots: true` in the
-`flink-conf.yaml`.
+When
+[FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)
+was rolled out with Flink 1.5.0, we changed how slots are allocated from
+TaskManagers (TMs). Instead of evenly allocating the slots from all registered
+TMs, we had the tendency to exhaust a TM before using another one. To use a
+scheduling strategy that is more similar to the pre-FLIP-6 behaviour, where
+Flink tries to spread out the workload across all currently available TMs, one
+can set `cluster.evenly-spread-out-slots: true` in the `flink-conf.yaml`.
 
 #### Directory Structure Change for highly available Artifacts ([FLINK-13633](https://issues.apache.org/jira/browse/FLINK-13633))
 All highly available artifacts stored by Flink will now be stored under
@@ -102,8 +100,6 @@ If you try to reuse your previous Flink configuration without any adjustments,
 the new memory model can result in differently computed memory parameters for
 the JVM and, thus, performance changes.
 
-Please check the user documentation <!-- TODO: insert link --> for more details.
-
 ##### Deprecation and breaking changes
 The following options have been removed and have no effect anymore:
 
@@ -126,7 +122,7 @@ The following options have been removed and have no effect anymore:
     </tr>
     <tr>
       <td>taskmanager.memory.off-heap</td>
-      <td>On-heap managed memory is no longer supported</td>
+      <td>Support for on-heap managed memory has been removed, leaving off-heap managed memory as the only possibility</td>
     </tr>
     <tr>
       <td>taskmanager.memory.preallocate</td>
@@ -180,13 +176,18 @@ The container cut-off configuration options, `containerized.heap-cutoff-ratio`
 and `containerized.heap-cutoff-min`, have no effect for task executor processes
 anymore but they still have the same semantics for the JobManager process.
 
-#### Fine Grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
-<!-- wip -->
+#### Fine-grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
+Config options `table.exec.resource.external-buffer-memory`,
+`table.exec.resource.hash-agg.memory`, `table.exec.resource.hash-join.memory`,
+and `table.exec.resource.sort.memory` have been deprecated. Beginning from Flink
+1.10, these config options are interpreted as weight hints instead of absolute
+memory requirements. Flink choses sensible default weight hints which should
+not be adjustment by users.
 
 
 ### Table API & SQL
 #### Rename of ANY Type to RAW Type ([FLINK-14904](https://issues.apache.org/jira/browse/FLINK-14904))
-The identifier `raw` is a reserved keyword now and be must be escaped with
+The identifier `raw` is a reserved keyword now and must be escaped with
 backticks when used as a SQL field or function name.
 
 #### Rename of Table Connector Properties ([FLINK-14649](https://issues.apache.org/jira/browse/FLINK-14649))
@@ -200,17 +201,18 @@ Connectors documentation]({{ site.baseurl }}/dev/table/connect.html#table-connec
 for the new property names.
 
 #### Methods for interacting with temporary Tables & Views ([FLINK-14490](https://issues.apache.org/jira/browse/FLINK-14490))
-Methods `registerTable()`/`registerDataStream()`/`registerDataSet()` become
+Methods `registerTable()`/`registerDataStream()`/`registerDataSet()` have been
 deprecated in favor of `createTemporaryView()`, which better adheres to the
 corresponding SQL term.
 
-The `scan()` method becomes deprecated in favor of the `from()` method.
+The `scan()` method has been deprecated in favor of the `from()` method.
 
-Methods `registerTableSource()`/`registerTableSink()` become deprecated in favor of
-`ConnectTableDescriptor#createTemporaryTable()`. That method expects only a
-set of string properties as a description of a TableSource or TableSinks
-instead of an instance of a class in case of the deprecated methods. This in
-return makes it possible to reliably store those definitions in catalogs.
+Methods `registerTableSource()`/`registerTableSink()` become deprecated in favor
+of `ConnectTableDescriptor#createTemporaryTable()`. The `ConnectTableDescriptor`
+approach expects only a set of string properties as a description of a
+TableSource or TableSink instead of an instance of a class in case of the
+deprecated methods. This in return makes it possible to reliably store those
+definitions in catalogs.
 
 Method `insertInto(String path, String... pathContinued)` has been removed in
 favor of in `insertInto(String path)`.
@@ -252,14 +254,14 @@ for details.
 The config option `taskmanager.network.bounded-blocking-subpartition-type` has
 been renamed to `taskmanager.network.blocking-shuffle.type`. Moreover, the
 default value of the aforementioned config option has been changed from `auto`
-to `file`. The reason is that TaskManagers running on cluster managers, such
-as YARN, could easily exceed the memory budget of their container when
-memory-mapping large result subpartitions.
+to `file`. The reason is that TaskManagers running on YARN with `auto`, could
+easily exceed the memory budget of their container, due to incorrectly accounted
+memory-mapped files memory usage.
 
 #### Removal of non-credit-based Network Flow Control ([FLINK-14516](https://issues.apache.org/jira/browse/FLINK-14516))
 The non-credit-based network flow control code was removed alongside of the
-configuration option `taskmanager.network.credit-model`. Credit-based flow
-control is now the only option.
+configuration option `taskmanager.network.credit-model`. Flink will now always
+use credit-based flow control.
 
 #### Removal of HighAvailabilityOptions#HA_JOB_DELAY ([FLINK-13885](https://issues.apache.org/jira/browse/FLINK-13885))
 The configuration option `high-availability.job.delay` has been removed
@@ -272,22 +274,21 @@ since it is no longer used.
 is activated by default now for all state backends shipped with Flink.
 Note that the RocksDB state backend implements background cleanup by employing
 a compaction filter. This has the caveat that even if a Flink job does not
-store state with TTL, a minor performance penalty during compaction incurs.
+store state with TTL, a minor performance penalty during compaction is incurred.
 Users that experience noticeable performance degradation during RocksDB
 compaction can disable the TTL compaction filter by setting the config option
 `state.backend.rocksdb.ttl.compaction.filter.enabled` to `false`.
 
 #### Deprecation of StateTtlConfig#Builder#cleanupInBackground() ([FLINK-15606](https://issues.apache.org/jira/browse/FLINK-15606))
-`StateTtlConfig#Builder#cleanupInBackground()` is deprecated now because the
+`StateTtlConfig#Builder#cleanupInBackground()` has been deprecated because the
 background cleanup of state with TTL is already enabled by default.
 
 #### Timers are stored in RocksDB by default when using RocksDBStateBackend ([FLINK-15637](https://issues.apache.org/jira/browse/FLINK-15637))
 The default timer store has been changed from Heap to RocksDB for the RocksDB
 state backend to support asynchronous snapshots for timer state and better
-scalability, with less than 5% performance cost. Users that find the
-performance decline critical, can set
-`state.backend.rocksdb.timer-service.factory` to `HEAP` in `flink-conf.yaml`
-to restore the old behavior.
+scalability, with less than 5% performance cost. Users that find the performance
+decline critical can set `state.backend.rocksdb.timer-service.factory` to `HEAP`
+in `flink-conf.yaml` to restore the old behavior.
 
 #### Removal of StateTtlConfig#TimeCharacteristic ([FLINK-15605](https://issues.apache.org/jira/browse/FLINK-15605))
 `StateTtlConfig#TimeCharacteristic` has been removed in favor of
@@ -330,7 +331,7 @@ InfluxDB, such as `Double.POSITIVE_INFINITY`, `Double.NEGATIVE_INFINITY`,
 #### Kinesis Connector License Change ([FLINK-12847](https://issues.apache.org/jira/browse/FLINK-12847))
 flink-connector-kinesis is now licensed under the Apache License, Version 2.0,
 and its artifacts will be deployed to Maven central as part of the Flink
-releases. Users no longer need to build the  Kinesis connector from source themselves.
+releases. Users no longer need to build the Kinesis connector from source themselves.
 
 
 ### Miscellaneous Interface Changes
