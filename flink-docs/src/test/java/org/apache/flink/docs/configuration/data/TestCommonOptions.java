@@ -28,7 +28,10 @@ import org.apache.flink.configuration.ConfigOptions;
 @SuppressWarnings("unused") // this class is only accessed reflectively
 public class TestCommonOptions {
 
-	@Documentation.SectionOption(sections = {Documentation.SectionOption.SECTION_COMMON})
+	public static final String SECTION_1 = "test_A";
+	public static final String SECTION_2 = "other";
+
+	@Documentation.Section({SECTION_1, SECTION_2})
 	public static final ConfigOption<Integer> COMMON_OPTION = ConfigOptions
 		.key("first.option.a")
 		.intType()
@@ -41,9 +44,7 @@ public class TestCommonOptions {
 		.noDefaultValue()
 		.withDescription("This is the description for the generic option.");
 
-	@Documentation.SectionOption(
-		sections = {Documentation.SectionOption.SECTION_COMMON},
-		position = 2)
+	@Documentation.Section(value = SECTION_1, position = 2)
 	public static final ConfigOption<Integer> COMMON_POSITIONED_OPTION = ConfigOptions
 		.key("third.option.a")
 		.intType()
