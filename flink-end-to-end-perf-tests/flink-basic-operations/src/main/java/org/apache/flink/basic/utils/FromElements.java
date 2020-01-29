@@ -160,7 +160,7 @@ public class FromElements {
 				}
 				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(next);
-					this.numElements++;
+					this.numElements = this.numElements + 1;
 					sourceTpsMetrics.markEvent();
 				}
 			}
