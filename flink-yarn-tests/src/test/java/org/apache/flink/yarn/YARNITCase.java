@@ -69,27 +69,26 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST, getTestingJobGraph()));
+		runTest(() -> deployPerjob(
+			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.FIRST),
+			getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, getTestingJobGraph()));
+		runTest(() -> deployPerjob(
+			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
+			getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDistributedCache() throws Exception {
 		runTest(() -> deployPerjob(
-			YarnConfigOptions.UserJarInclusion.DISABLED,
+			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
 			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
 	}
 
-	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion, JobGraph jobGraph) throws Exception {
-
-		Configuration configuration = new Configuration();
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
+	protected void deployPerjob(Configuration configuration, JobGraph jobGraph) throws Exception {
 
 		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
 
@@ -122,13 +121,15 @@ public class YARNITCase extends YarnTestBase {
 				assertThat(jobResult, is(notNullValue()));
 				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
+				extraVerification(configuration, applicationId);
+
 				waitApplicationFinishedElseKillIt(
 					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
 			}
 		}
 	}
 
-	private JobGraph getTestingJobGraph() {
+	protected JobGraph getTestingJobGraph() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(2);
 
@@ -138,4 +139,15 @@ public class YARNITCase extends YarnTestBase {
 
 		return env.getStreamGraph().getJobGraph();
 	}
+
+	protected Configuration createDefaultConfiguration(YarnConfigOptions.UserJarInclusion userJarInclusion) {
+		Configuration configuration = new Configuration();
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
+
+		return configuration;
+	}
+
+	protected void extraVerification(Configuration configuration, ApplicationId applicationId) throws Exception { }
 }
