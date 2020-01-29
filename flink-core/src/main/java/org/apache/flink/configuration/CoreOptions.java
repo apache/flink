@@ -250,9 +250,9 @@ public class CoreOptions {
 	//  program
 	// ------------------------------------------------------------------------
 
-	@Documentation.SectionOption(
-		sections = {Documentation.SectionOption.SECTION_COMMON},
-		position = Documentation.SectionOption.POSITION_PARALLELISM_SLOTS)
+	@Documentation.Section(
+		value = {Documentation.Section.SECTION_COMMON},
+		position = Documentation.Section.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
 		.defaultValue(1)

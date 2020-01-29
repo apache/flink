@@ -44,13 +44,13 @@ public final class Documentation {
 	 * Annotation used on config option fields to include them in specific sections. Sections are groups of options
 	 * that are aggregated across option classes, with each group being placed into a dedicated file.
 	 *
-	 * <p>The {@link SectionOption#position()} argument controls the position in the generated table, with lower values
+	 * <p>The {@link Section#position()} argument controls the position in the generated table, with lower values
 	 * being placed at the top. Fields with the same position are sorted alphabetically by key.
 	 */
 	@Target(ElementType.FIELD)
 	@Retention(RetentionPolicy.RUNTIME)
 	@Internal
-	public @interface SectionOption {
+	public @interface Section {
 		int POSITION_MEMORY = 10;
 		int POSITION_PARALLELISM_SLOTS = 20;
 		int POSITION_FAULT_TOLERANCE = 30;
@@ -62,7 +62,7 @@ public final class Documentation {
 		/**
 		 * The sections in the config docs where this option should be included.
 		 */
-		String[] sections() default {};
+		String[] value() default {};
 
 		/**
 		 * The relative position of the option in its section.

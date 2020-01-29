@@ -165,9 +165,9 @@ public class TaskManagerOptions {
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
 	 */
-	@Documentation.SectionOption(
-		sections = {Documentation.SectionOption.SECTION_COMMON},
-		position = Documentation.SectionOption.POSITION_PARALLELISM_SLOTS)
+	@Documentation.Section(
+		value = {Documentation.Section.SECTION_COMMON},
+		position = Documentation.Section.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
 		key("taskmanager.numberOfTaskSlots")
 			.intType()
@@ -254,9 +254,9 @@ public class TaskManagerOptions {
 	/**
 	 * Total Process Memory size for the TaskExecutors.
 	 */
-	@Documentation.SectionOption(
-		sections = {Documentation.SectionOption.SECTION_COMMON},
-		position = Documentation.SectionOption.POSITION_MEMORY)
+	@Documentation.Section(
+		value = {Documentation.Section.SECTION_COMMON},
+		position = Documentation.Section.POSITION_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
 		key("taskmanager.memory.process.size")
 			.memoryType()
@@ -270,9 +270,9 @@ public class TaskManagerOptions {
 	/**
 	 * Total Flink Memory size for the TaskExecutors.
 	 */
-	@Documentation.SectionOption(
-		sections = {Documentation.SectionOption.SECTION_COMMON},
-		position = Documentation.SectionOption.POSITION_MEMORY)
+	@Documentation.Section(
+		value = {Documentation.Section.SECTION_COMMON},
+		position = Documentation.Section.POSITION_MEMORY)
 	public static final ConfigOption<MemorySize> TOTAL_FLINK_MEMORY =
 		key("taskmanager.memory.flink.size")
 			.memoryType()
