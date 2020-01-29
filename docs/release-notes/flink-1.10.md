@@ -125,7 +125,7 @@ The following options have been removed and have no effect anymore:
     </tr>
     <tr>
       <td>taskmanager.memory.off-heap</td>
-      <td>On-heap managed memory is no longer supported</td>
+      <td>Support for on-heap managed memory has been removed, leaving off-heap managed memory as the only possibility</td>
     </tr>
     <tr>
       <td>taskmanager.memory.preallocate</td>
