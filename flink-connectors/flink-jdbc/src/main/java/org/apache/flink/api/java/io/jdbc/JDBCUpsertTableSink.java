@@ -39,7 +39,7 @@ import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
-import static org.apache.flink.api.java.io.jdbc.JdbcBatchingOutputFormat.DEFAULT_MAX_RETRY_TIMES;
+import static org.apache.flink.api.java.io.jdbc.JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
 import static org.apache.flink.api.java.io.jdbc.JdbcTypeUtil.normalizeTableSchema;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

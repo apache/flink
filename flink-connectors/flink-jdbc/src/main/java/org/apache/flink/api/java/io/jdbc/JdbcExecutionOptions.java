@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
@@ -25,31 +26,39 @@ import java.io.Serializable;
  * JDBC sink batch options.
  */
 @PublicEvolving
-public class JdbcBatchOptions implements Serializable {
+public class JdbcExecutionOptions implements Serializable {
+	static final int DEFAULT_MAX_RETRY_TIMES = 3;
 	private static final int DEFAULT_INTERVAL_MILLIS = 0;
 	private static final int DEFAULT_SIZE = 5000;
 
-	private final long intervalMs;
-	private final int size;
+	private final long batchIntervalMs;
+	private final int batchSize;
+	private final int maxRetries;
 
-	private JdbcBatchOptions(long intervalMs, int size) {
-		this.intervalMs = intervalMs;
-		this.size = size;
+	private JdbcExecutionOptions(long batchIntervalMs, int batchSize, int maxRetries) {
+		Preconditions.checkArgument(maxRetries >= 1);
+		this.batchIntervalMs = batchIntervalMs;
+		this.batchSize = batchSize;
+		this.maxRetries = maxRetries;
 	}
 
-	public long getIntervalMs() {
-		return intervalMs;
+	public long getBatchIntervalMs() {
+		return batchIntervalMs;
 	}
 
-	public int getSize() {
-		return size;
+	public int getBatchSize() {
+		return batchSize;
+	}
+
+	public int getMaxRetries() {
+		return maxRetries;
 	}
 
 	public static JdbcBatchOptionsBuilder builder() {
 		return new JdbcBatchOptionsBuilder();
 	}
 
-	public static JdbcBatchOptions defaults() {
+	public static JdbcExecutionOptions defaults() {
 		return builder().build();
 	}
 
@@ -59,19 +68,25 @@ public class JdbcBatchOptions implements Serializable {
 	public static final class JdbcBatchOptionsBuilder {
 		private long intervalMs = DEFAULT_INTERVAL_MILLIS;
 		private int size = DEFAULT_SIZE;
+		private int maxRetries = DEFAULT_MAX_RETRY_TIMES;
 
-		public JdbcBatchOptionsBuilder withSize(int size) {
+		public JdbcBatchOptionsBuilder withBatchSize(int size) {
 			this.size = size;
 			return this;
 		}
 
-		public JdbcBatchOptionsBuilder withIntervalMs(long intervalMs) {
+		public JdbcBatchOptionsBuilder withBatchIntervalMs(long intervalMs) {
 			this.intervalMs = intervalMs;
 			return this;
 		}
 
-		public JdbcBatchOptions build() {
-			return new JdbcBatchOptions(intervalMs, size);
+		public JdbcBatchOptionsBuilder withMaxRetries(int maxRetries) {
+			this.maxRetries = maxRetries;
+			return this;
+		}
+
+		public JdbcExecutionOptions build() {
+			return new JdbcExecutionOptions(intervalMs, size, maxRetries);
 		}
 	}
 }
