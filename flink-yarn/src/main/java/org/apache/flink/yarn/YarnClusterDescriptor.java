@@ -496,10 +496,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// print the application id for user to cancel themselves.
 		if (detached) {
-			LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
-				"Flink on YARN, use the following command or a YARN web interface to stop " +
-				"it:\nyarn application -kill " + report.getApplicationId() + "\nPlease also note that the " +
-				"temporary files of the YARN session in the home directory will not be removed.");
+			final ApplicationId yarnApplicationId = report.getApplicationId();
+			logDetachedClusterInformation(yarnApplicationId, LOG);
 		}
 
 		setClusterEntrypointInfoToConfig(report);
@@ -1609,6 +1607,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 		flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(clusterId));
+	}
+
+	public static void logDetachedClusterInformation(ApplicationId yarnApplicationId, Logger logger) {
+		logger.info(
+			"The Flink YARN session cluster has been started in detached mode. In order to " +
+				"stop Flink gracefully, use the following command:\n" +
+				"$ echo \"stop\" | ./bin/yarn-session.sh -id {}\n" +
+				"If this should not be possible, then you can also kill Flink via YARN's web interface or via:\n" +
+				"$ yarn application -kill {}\n" +
+				"Note that killing Flink might not clean up all job artifacts and temporary files.",
+			yarnApplicationId, yarnApplicationId);
 	}
 }
 
