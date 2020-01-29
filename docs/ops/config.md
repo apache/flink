@@ -44,22 +44,6 @@ The configuration files for the TaskManagers can be different, Flink does not as
 
 ## Full Reference
 
-### HDFS
-
-<div class="alert alert-warning">
-  <strong>Note:</strong> These keys are deprecated and it is recommended to configure the Hadoop path with the environment variable <code>HADOOP_CONF_DIR</code> instead.
-</div>
-
-See also [how to configure Hadoop]({{ site.baseurl }}/ops/deployment/hadoop.html#configure-hadoop).
-
-These parameters configure the default HDFS used by Flink. Setups that do not specify an HDFS configuration have to specify the full path to HDFS files (`hdfs://address:port/path/to/files`) Files will also be written with default HDFS parameters (block size, replication factor).
-
-- `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS) configuration **directory** (OPTIONAL VALUE). Specifying this value allows programs to reference HDFS files using short URIs (`hdfs:///path/to/files`, without including the address and port of the NameNode in the file URI). Without this option, HDFS files can be accessed, but require fully qualified URIs like `hdfs://address:port/path/to/files`. This option also causes file writers to pick up the HDFS's default values for block sizes and replication factors. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in the specified directory.
-
-- `fs.hdfs.hdfsdefault`: The absolute path of Hadoop's own configuration file "hdfs-default.xml" (DEFAULT: null).
-
-- `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file "hdfs-site.xml" (DEFAULT: null).
-
 ### Core
 
 {% include generated/core_configuration.html %}
