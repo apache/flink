@@ -101,7 +101,7 @@ public class ConfigOptionsDocGenerator {
 	 * every {@link ConfigOption}.
 	 *
 	 * <p>One additional table is generated containing all {@link ConfigOption ConfigOptions} that are annotated with
-	 * {@link Documentation.SectionOption}.
+	 * {@link Documentation.Section}.
 	 *
 	 * @param args
 	 *  [0] output directory for the generated files
@@ -127,12 +127,12 @@ public class ConfigOptionsDocGenerator {
 
 		Map<String, List<OptionWithMetaInfo>> optionsGroupedBySection = allSectionOptions.stream()
 			.flatMap(option -> {
-				final String[] sections = option.field.getAnnotation(Documentation.SectionOption.class).sections();
+				final String[] sections = option.field.getAnnotation(Documentation.Section.class).value();
 				if (sections.length == 0) {
 					throw new RuntimeException(String.format(
 						"Option %s is annotated with %s but the list of sections is empty.",
 						option.option.key(),
-						Documentation.SectionOption.class.getSimpleName()));
+						Documentation.Section.class.getSimpleName()));
 				}
 
 				return Arrays.stream(sections).map(section -> Tuple2.of(section, option));
@@ -142,8 +142,8 @@ public class ConfigOptionsDocGenerator {
 		optionsGroupedBySection.forEach(
 			(section, options) -> {
 				options.sort((o1, o2) -> {
-					int position1 = o1.field.getAnnotation(Documentation.SectionOption.class).position();
-					int position2 = o2.field.getAnnotation(Documentation.SectionOption.class).position();
+					int position1 = o1.field.getAnnotation(Documentation.Section.class).position();
+					int position2 = o2.field.getAnnotation(Documentation.Section.class).position();
 					if (position1 == position2) {
 						return o1.option.key().compareTo(o2.option.key());
 					} else {
@@ -169,7 +169,7 @@ public class ConfigOptionsDocGenerator {
 	private static Collection<OptionWithMetaInfo> findSectionOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
 		Collection<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
 		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> extractConfigOptions(optionsClass).stream()
-			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.SectionOption.class) != null)
+			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.Section.class) != null)
 			.forEachOrdered(commonOptions::add));
 		return commonOptions;
 	}

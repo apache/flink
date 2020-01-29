@@ -34,9 +34,9 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -423,8 +423,8 @@ public class ConfigOptionsDocGeneratorTest {
 	}
 
 	@Test
-	public void testCommonOptions() throws IOException, ClassNotFoundException {
-		final String projectRootDir = System.getProperty("rootDir");
+	public void testSections() throws IOException, ClassNotFoundException {
+		final String projectRootDir = getProjectRootDir();
 		final String outputDirectory = TMP.newFolder().getAbsolutePath();
 
 		final OptionsClassLocation[] locations = new OptionsClassLocation[] {
@@ -434,7 +434,7 @@ public class ConfigOptionsDocGeneratorTest {
 		ConfigOptionsDocGenerator.generateCommonSection(projectRootDir, outputDirectory, locations, "src/test/java");
 		Formatter formatter = new HtmlFormatter();
 
-		String expected =
+		String expected1 =
 			"<table class=\"table table-bordered\">\n" +
 			"    <thead>\n" +
 			"        <tr>\n" +
@@ -460,9 +460,34 @@ public class ConfigOptionsDocGeneratorTest {
 			"    </tbody>\n" +
 			"</table>\n";
 
-		String output = FileUtils.readFile(Paths.get(outputDirectory, ConfigOptionsDocGenerator.getSectionFileName("common")).toFile(), StandardCharsets.UTF_8.name());
+		String expected2 =
+			"<table class=\"table table-bordered\">\n" +
+				"    <thead>\n" +
+				"        <tr>\n" +
+				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
+				"        </tr>\n" +
+				"    </thead>\n" +
+				"    <tbody>\n" +
+				"        <tr>\n" +
+				"            <td><h5>" + TestCommonOptions.COMMON_OPTION.key() + "</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_OPTION.defaultValue() + "</td>\n" +
+				"            <td>Integer</td>\n" +
+				"            <td>" + formatter.format(TestCommonOptions.COMMON_OPTION.description()) + "</td>\n" +
+				"        </tr>\n" +
+				"    </tbody>\n" +
+				"</table>\n";
 
-		assertEquals(expected, output);
+		final String fileName1 = ConfigOptionsDocGenerator.getSectionFileName(TestCommonOptions.SECTION_1);
+		final String fileName2 = ConfigOptionsDocGenerator.getSectionFileName(TestCommonOptions.SECTION_2);
+
+		final String output1 = FileUtils.readFile(new File(outputDirectory, fileName1), StandardCharsets.UTF_8.name());
+		final String output2 = FileUtils.readFile(new File(outputDirectory, fileName2), StandardCharsets.UTF_8.name());
+
+		assertEquals(expected1, output1);
+		assertEquals(expected2, output2);
 	}
 
 	static class TestConfigGroupWithExclusion {
@@ -508,5 +533,16 @@ public class ConfigOptionsDocGeneratorTest {
 		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroupWithExclusion.class).get(0).f1;
 
 		assertEquals(expectedTable, htmlTable);
+	}
+
+	static String getProjectRootDir() {
+		final String dirFromProperty = System.getProperty("rootDir");
+		if (dirFromProperty != null) {
+			return dirFromProperty;
+		}
+
+		// to make this work in the IDE use a default fallback
+		final String currentDir = System.getProperty("user.dir");
+		return new File(currentDir).getParent();
 	}
 }
