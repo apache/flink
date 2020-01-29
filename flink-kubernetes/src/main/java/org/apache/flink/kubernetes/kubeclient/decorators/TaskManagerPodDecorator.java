@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
@@ -39,6 +40,7 @@ import java.io.File;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,9 +81,12 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 
 		final Volume configMapVolume = KubernetesUtils.getConfigMapVolume(clusterId, hasLogback, hasLog4j);
 
+		final LocalObjectReference[] imagePullSecrets = KubernetesUtils.parseImagePullSecrets(flinkConfig.get(CONTAINER_IMAGE_PULL_SECRETS));
+
 		pod.setSpec(new PodSpecBuilder()
 			.withVolumes(configMapVolume)
 			.withContainers(createTaskManagerContainer(flinkConfig, hasLogback, hasLog4j, taskManagerRpcPort))
+			.withImagePullSecrets(imagePullSecrets)
 			.build());
 		return pod;
 	}
