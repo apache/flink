@@ -139,7 +139,7 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 		}
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
+			LOG.info("Elasticsearch RestHighLevelClient is connected to {}", httpHosts.toString());
 		}
 	}
 }

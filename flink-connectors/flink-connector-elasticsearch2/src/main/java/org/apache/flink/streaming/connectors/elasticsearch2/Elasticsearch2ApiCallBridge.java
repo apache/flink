@@ -125,7 +125,7 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge<T
 		}
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch TransportClient with connected nodes {}", client.connectedNodes());
+			LOG.info("Elasticsearch TransportClient is connected to nodes {}", client.connectedNodes());
 		}
 	}
 }
