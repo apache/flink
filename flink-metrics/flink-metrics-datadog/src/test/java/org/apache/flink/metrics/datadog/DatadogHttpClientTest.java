@@ -144,7 +144,7 @@ public class DatadogHttpClientTest {
 		}, "testCounter", "localhost", tags);
 
 		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			"{\"metric\":\"testCounter\",\"type\":\"count\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
 			DatadogHttpClient.serialize(c));
 	}
 
@@ -170,7 +170,7 @@ public class DatadogHttpClientTest {
 		}, "testCounter", null, tags);
 
 		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			"{\"metric\":\"testCounter\",\"type\":\"count\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
 			DatadogHttpClient.serialize(c));
 	}
 
