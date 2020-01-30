@@ -45,6 +45,9 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -98,6 +101,8 @@ import java.io.Serializable;
 public class StreamingFileSink<IN>
 		extends RichSinkFunction<IN>
 		implements CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StreamingFileSink.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -180,6 +185,17 @@ public class StreamingFileSink<IN>
 	 */
 	public static <IN> StreamingFileSink.BulkFormatBuilder<IN, String, ? extends BulkFormatBuilder<IN, String, ?>> forBulkFormat(
 			final Path basePath, final BulkWriter.Factory<IN> writerFactory) {
+
+		if ("s3".equals(basePath.toUri().getScheme())) {
+			LOG.warn("The StreamingFileSink only supports bulk output formats on S3" +
+				"with the flink-s3-fs-hadoop filesystem. The scheme `s3://` is" +
+				"ambiguous when multiple S3 fileystems are loaded by Flink. " +
+				"It is strongly recommended when using this sink that users" +
+				"specify the scheme `s3a://`. For more information on the different" +
+				"S3 filesystems, please reference the official Apache Flink " +
+				"documentation: https://ci.apache.org/projects/flink/flink-docs-stable/ops/filesystems/s3.html");
+		}
+
 		return new StreamingFileSink.BulkFormatBuilder<>(basePath, writerFactory, new DateTimeBucketAssigner<>());
 	}
 
