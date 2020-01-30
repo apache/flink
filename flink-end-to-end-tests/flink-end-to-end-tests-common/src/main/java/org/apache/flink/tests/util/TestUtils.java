@@ -20,6 +20,9 @@ package org.apache.flink.tests.util;
 
 import org.apache.flink.util.Preconditions;
 
+import ch.ethz.ssh2.Connection;
+import ch.ethz.ssh2.SCPClient;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -34,6 +37,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 
 /**
  * General test utilities.
@@ -108,6 +112,79 @@ public enum TestUtils {
 				return FileVisitResult.CONTINUE;
 			}
 		});
+
+		return destination;
+	}
+
+	public static Connection createConn(String ip, int port)  {
+		Connection conn = new Connection(ip, port);
+		return conn;
+	}
+
+	public static SCPClient createSCPClient(Connection conn, String user, String passwd) throws IOException{
+		try {
+			conn.connect();
+			boolean isAuthenticated = conn.authenticateWithPassword(user, passwd);
+			if (!isAuthenticated){
+				throw new IOException("Authentication failed.");
+			}
+			SCPClient client = new SCPClient(conn);
+			return client;
+		} catch (IOException e) {
+			throw e;
+		}
+	}
+
+	/**
+	 * Remote copy all the files and sub-directories under source directory
+	 * from local to destination directory of remote machines recursively.
+	 *
+	 * @param source      directory or file path to copy from.
+	 * @param destination directory or file path to copy to.
+	 * @param slaves machines to copy to
+	 * @return Path of the destination directory.
+	 * @throws IOException if any IO error happen.
+	 */
+	public static String remoteCopyDirectory(
+		String source, String destination, String slaves, int port, String user, String passwd) throws IOException {
+		String[] ips = slaves.split(",");
+		for (String ip : ips) {
+			try {
+				Connection conn = createConn(ip, port);
+				SCPClient client = createSCPClient(conn, user, passwd);
+				client.put(source, destination);
+				conn.close();
+			} catch (IOException e) {
+				throw e;
+			}
+		}
+
+		return destination;
+	}
+
+	/**
+	 * Remote copy all the files and sub-directories under source directory
+	 * from remote machines to local destination directory recursively.
+	 *
+	 * @param source      directory or file path to copy from.
+	 * @param destination directory or file path to copy to.
+	 * @param slaves machines to copy from
+	 * @return Path of the destination directory.
+	 * @throws IOException if any IO error happen.
+	 */
+	public static String remoteGetDirectory(
+		String source, String destination, String slaves, int port, String user, String passwd) throws IOException {
+		String[] ips = slaves.split(",");
+		for (String ip : ips) {
+			try {
+				Connection conn = createConn(ip, port);
+				SCPClient client = createSCPClient(conn, user, passwd);
+				client.get(source, destination);
+				conn.close();
+			} catch (IOException e) {
+				throw e;
+			}
+		}
 
 		return destination;
 	}

@@ -71,6 +71,11 @@ public final class FlinkDistribution implements ExternalResource {
 	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final Path originalFlinkDir;
+	private String slaves;
+	private String user;
+	private String passwd;
+	private Path flinkDir;
+	private int port;
 	private Path opt;
 	private Path lib;
 	private Path conf;
@@ -87,14 +92,41 @@ public final class FlinkDistribution implements ExternalResource {
 		final String backupDirProperty = System.getProperty("logBackupDir");
 		logBackupDir = backupDirProperty == null ? null : Paths.get(backupDirProperty);
 		originalFlinkDir = Paths.get(distDirProperty);
+		slaves = System.getProperty("slaveIps");
+		final String flinkDirProperty = System.getProperty("flinkDir");
+		if (slaves == null) {
+			LOG.info("The slaveIps property was not set. cluster can start in local");
+		} else {
+			LOG.info("The slaveIps property was set. cluster can start in machines: " + slaves);
+		}
+		final String portProperty = System.getProperty("port");
+		if (portProperty == null) {
+			port = 2020;
+		} else {
+			port = Integer.valueOf(portProperty);
+		}
+		if (flinkDirProperty == null) {
+			LOG.info("The flinkDir property was not set. You can set it when running maven via -DflinkDir=<path> .");
+		} else {
+			flinkDir = Paths.get(flinkDirProperty);
+		}
+		user = System.getProperty("user");
+		passwd = System.getProperty("passwd");
+		if (slaves != null) {
+			if (user == null || passwd == null){
+				Assert.fail("The user or passed property were not set. " +
+					"You can set it when running maven via -Duser=<user>, -Dpassed=<passwd> .");
+			}
+		}
+
 	}
 
 	@Override
 	public void before() throws IOException {
-		temporaryFolder.create();
-
-		final Path flinkDir = temporaryFolder.newFolder().toPath();
-
+		if (flinkDir == null) {
+			temporaryFolder.create();
+			flinkDir = temporaryFolder.newFolder().toPath();
+		}
 		LOG.info("Copying distribution to {}.", flinkDir);
 		TestUtils.copyDirectory(originalFlinkDir, flinkDir);
 
@@ -103,8 +135,13 @@ public final class FlinkDistribution implements ExternalResource {
 		lib = flinkDir.resolve("lib");
 		conf = flinkDir.resolve("conf");
 		log = flinkDir.resolve("log");
-
+		updateSlaves(slaves);
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
+		appendConfiguration(defaultConfig);
+		if (slaves != null){
+			TestUtils.remoteCopyDirectory(flinkDir.toAbsolutePath().toString(),
+				flinkDir.toAbsolutePath().toString(), slaves, port, user, passwd);
+		}
 	}
 
 	@Override
@@ -144,34 +181,41 @@ public final class FlinkDistribution implements ExternalResource {
 		AutoClosableProcess.runBlocking(bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
 	}
 
-	public void startFlinkCluster() throws IOException {
-		LOG.info("Starting Flink cluster.");
-		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
-
+	public Boolean checkTaskManagerNum(int numTaskManagers) throws IOException {
 		final OkHttpClient client = new OkHttpClient();
-
 		final Request request = new Request.Builder()
 			.get()
 			.url("http://localhost:8081/taskmanagers")
 			.build();
+		Exception reportedException = null;
+		try (Response response = client.newCall(request).execute()) {
+			if (response.isSuccessful()) {
+				final String json = response.body().string();
+				final JsonNode taskManagerList = OBJECT_MAPPER.readTree(json)
+					.get("taskmanagers");
+				if (numTaskManagers == 0 && taskManagerList != null && taskManagerList.size() > 0) {
+					LOG.info("Dispatcher REST endpoint is up.");
+					return true;
+				}
+				if (taskManagerList != null && taskManagerList.size() == numTaskManagers) {
+					LOG.info("Dispatcher REST endpoint is up.");
+					return true;
+				}
+			}
+		} catch (IOException ioe) {
+			reportedException = ExceptionUtils.firstOrSuppressed(ioe, reportedException);
+		}
+		return false;
+	}
 
+	public void startFlinkCluster(int numTaskManagers) throws IOException {
+		LOG.info("Starting Flink cluster.");
+		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
 		Exception reportedException = null;
 		for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
-			try (Response response = client.newCall(request).execute()) {
-				if (response.isSuccessful()) {
-					final String json = response.body().string();
-					final JsonNode taskManagerList = OBJECT_MAPPER.readTree(json)
-						.get("taskmanagers");
-
-					if (taskManagerList != null && taskManagerList.size() > 0) {
-						LOG.info("Dispatcher REST endpoint is up.");
-						return;
-					}
-				}
-			} catch (IOException ioe) {
-				reportedException = ExceptionUtils.firstOrSuppressed(ioe, reportedException);
+			if (checkTaskManagerNum(numTaskManagers)){
+				return;
 			}
-
 			LOG.info("Waiting for dispatcher REST endpoint to come up...");
 			try {
 				Thread.sleep(1000);
@@ -181,6 +225,10 @@ public final class FlinkDistribution implements ExternalResource {
 			}
 		}
 		throw new AssertionError("Dispatcher REST endpoint did not start in time.", reportedException);
+	}
+
+	public void startFlinkCluster() throws IOException {
+		startFlinkCluster(0);
 	}
 
 	public void stopFlinkCluster() throws IOException {
@@ -264,9 +312,16 @@ public final class FlinkDistribution implements ExternalResource {
 		Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
 	}
 
+	public void updateSlaves(String slaves) throws IOException {
+		List<String> slaveLines = new ArrayList<>();
+		for (String slave:slaves.split(",")){
+			slaveLines.add(slave);
+		}
+		Files.write(conf.resolve("slaves"), slaveLines);
+	}
+
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
 		final List<String> matches = new ArrayList<>(2);
-
 		try (Stream<Path> logFilesStream = Files.list(log)) {
 			final Iterator<Path> logFiles = logFilesStream.iterator();
 			while (logFiles.hasNext()) {
@@ -287,5 +342,14 @@ public final class FlinkDistribution implements ExternalResource {
 			}
 		}
 		return matches.stream();
+	}
+
+	public Stream<String> searchAllLogs(
+		Pattern pattern, Function<Matcher, String> matchProcessor, String slaves) throws IOException {
+		if (slaves != null) {
+			TestUtils.remoteGetDirectory(log.toAbsolutePath().toString(),
+				log.toAbsolutePath().toString(), slaves, port, user, passwd);
+		}
+		return searchAllLogs(pattern, matchProcessor);
 	}
 }

@@ -18,9 +18,7 @@
 
 package org.apache.flink.tests.util.flink;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
@@ -41,11 +39,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Flink resource that start local standalone clusters.
+ * Flink resource that start distributed standalone clusters.
  */
-public class LocalStandaloneFlinkResource implements FlinkResource {
+public class DistributedStandaloneFlinkResource extends LocalStandaloneFlinkResource {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DistributedStandaloneFlinkResource.class);
 
 	private final FlinkDistribution distribution = new FlinkDistribution();
 
@@ -71,11 +69,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	@Override
 	public ClusterController startCluster(int numTaskManagers) throws IOException {
-		distribution.startJobManager();
-		for (int x = 0; x < numTaskManagers; x++) {
-			distribution.startTaskManager();
-		}
-
+		distribution.startFlinkCluster(numTaskManagers);
 		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor())) {
 			for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
 				final CompletableFuture<TaskManagersInfo> localhost = restClient.sendRequest(
@@ -90,7 +84,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 					final int numRunningTaskManagers = taskManagersInfo.getTaskManagerInfos().size();
 					if (numRunningTaskManagers == numTaskManagers) {
-						return new StandaloneClusterController(distribution);
+						return new LocalStandaloneFlinkResource.StandaloneClusterController(distribution);
 					} else {
 						LOG.info("Waiting for task managers to come up. {}/{} are currently running.", numRunningTaskManagers, numTaskManagers);
 					}
@@ -117,43 +111,37 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 		throw new RuntimeException("Cluster did not start in expected time-frame.");
 	}
 
-	/**
-	* StandaloneClusterController.
-	*/
-	public static class StandaloneClusterController implements ClusterController {
-
-		private final FlinkDistribution distribution;
-
-		StandaloneClusterController(FlinkDistribution distribution) {
-			this.distribution = distribution;
-		}
-
-		@Override
-		public JobController submitJob(JobSubmission job) throws IOException {
-			final JobID run = distribution.submitJob(job);
-
-			return new StandaloneJobController(run);
-		}
-
-		@Override
-		public CompletableFuture<Void> closeAsync() {
-			try {
-				distribution.stopFlinkCluster();
-				return CompletableFuture.completedFuture(null);
-			} catch (IOException e) {
-				return FutureUtils.getFailedFuture(e);
-			}
-		}
-	}
-
-	/**
-	 * StandaloneJobController.
-	 */
-	public static class StandaloneJobController implements JobController {
-		private final JobID jobId;
-
-		StandaloneJobController(JobID jobId) {
-			this.jobId = jobId;
-		}
-	}
+//	private static class StandaloneClusterController implements ClusterController {
+//
+//		private final FlinkDistribution distribution;
+//
+//		StandaloneClusterController(FlinkDistribution distribution) {
+//			this.distribution = distribution;
+//		}
+//
+//		@Override
+//		public JobController submitJob(JobSubmission job) throws IOException {
+//			final JobID run = distribution.submitJob(job);
+//
+//			return new LocalStandaloneFlinkResource.StandaloneJobController(run);
+//		}
+//
+//		@Override
+//		public CompletableFuture<Void> closeAsync() {
+//			try {
+//				distribution.stopFlinkCluster();
+//				return CompletableFuture.completedFuture(null);
+//			} catch (IOException e) {
+//				return FutureUtils.getFailedFuture(e);
+//			}
+//		}
+//	}
+//
+//	private static class StandaloneJobController implements JobController {
+//		private final JobID jobId;
+//
+//		StandaloneJobController(JobID jobId) {
+//			this.jobId = jobId;
+//		}
+//	}
 }
