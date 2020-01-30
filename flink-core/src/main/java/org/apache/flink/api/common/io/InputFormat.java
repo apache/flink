@@ -80,7 +80,7 @@ public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<
 	 * This method optionally gets a cached version of the statistics. The input format may examine them and decide
 	 * whether it directly returns them without spending effort to re-gather the statistics.
 	 * <p>
-	 * When this method is called, the input format it guaranteed to be configured.
+	 * When this method is called, the input format is guaranteed to be configured.
 	 * 
 	 * @param cachedStatistics The statistics that were cached. May be null.
 	 * @return The base statistics for the input, or null, if not available.
