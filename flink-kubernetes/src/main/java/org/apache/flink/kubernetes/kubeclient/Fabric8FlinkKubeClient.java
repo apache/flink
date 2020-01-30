@@ -37,6 +37,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -312,12 +313,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final Duration timeout = TimeUtils.parseDuration(
 			flinkConfig.get(KubernetesConfigOptions.SERVICE_CREATE_TIMEOUT));
 
-		return CompletableFuture.supplyAsync(() -> {
-			final Service createdService = watcher.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
-			watchConnectionManager.close();
+		return CompletableFuture.supplyAsync(
+			FunctionUtils.uncheckedSupplier(() -> {
+				final Service createdService = watcher.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				watchConnectionManager.close();
 
-			return new KubernetesService(this.flinkConfig, createdService);
-		});
+				return new KubernetesService(this.flinkConfig, createdService);
+			}));
 	}
 
 	private KubernetesService getService(String serviceName) {
