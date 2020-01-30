@@ -46,7 +46,7 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({DMetric.class, DatadogHttpClient.class})
-@PowerMockIgnore("javax.net.ssl.*")
+@PowerMockIgnore({"javax.net.ssl.*", "javax.management.*"})
 public class DatadogHttpClientTest {
 
 	private static List<String> tags = Arrays.asList("tag1", "tag2");
