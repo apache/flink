@@ -48,7 +48,7 @@ Flink 中的 Table API 通常用于简化数据分析，数据流水线和 ETL �
 ## 如何跟进
 
 如果想要继续，你的电脑需要安装：
-* Java 8 
+* Java 8 or 11
 * Maven 
 
 现成的 Flink Maven Archetype 可以快速创建一个具有所有必要依赖的框架项目：
