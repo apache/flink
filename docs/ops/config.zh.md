@@ -59,7 +59,7 @@ These value are configured as memory sizes, for example *1536m* or *2g*.
 **Parallelism**
 
   - `taskmanager.numberOfTaskSlots`: The number of slots that a TaskManager offers *(default: 1)*. Each slot can take one task or pipeline.
-    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines.
+    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/runtime.html#task-slots-and-resources) concepts section for details.
 
      Running more smaller TaskManagers with one slot each is a good starting point and leads to the best isolation between tasks. Dedicating the same resources to fewer larger TaskManagers with more slots can help to increase resource utilization, at the cost of weaker isolation between the tasks (more tasks share the same JVM).
 
@@ -380,9 +380,19 @@ Flink does not use Akka for data transport.
 ----
 ----
 
-# Startup Script Environment
+# JVM and Logging Options
 
 {% include generated/environment_configuration.html %}
+
+# Forwarding Environment Variables
+
+You can configure  environment variables to be set on the Flink Master and TaskManager processes started on Yarn/Mesos.
+
+  - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's master process. 
+   For example for passing LD_LIBRARY_PATH as an env variable to the Master, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+    in the flink-conf.yaml.
+
+  - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
 ----
 ----
@@ -423,105 +433,5 @@ These options may be removed in a future release.
 #### Checkpointing
 
 {% include generated/execution_checkpointing_configuration.html %}
-
-----
-----
-
-# Background
-
-### Configuring the Network Buffers
-
-If you ever see the Exception `java.io.IOException: Insufficient number of network buffers`, you
-need to adapt the amount of memory used for network buffers in order for your program to run on your
-task managers.
-
-Network buffers are a critical resource for the communication layers. They are used to buffer
-records before transmission over a network, and to buffer incoming data before dissecting it into
-records and handing them to the application. A sufficient number of network buffers is critical to
-achieve a good throughput.
-
-<div class="alert alert-info">
-Since Flink 1.3, you may follow the idiom "more is better" without any penalty on the latency (we
-prevent excessive buffering in each outgoing and incoming channel, i.e. *buffer bloat*, by limiting
-the actual number of buffers used by each channel).
-</div>
-
-In general, configure the task manager to have enough buffers that each logical network connection
-you expect to be open at the same time has a dedicated buffer. A logical network connection exists
-for each point-to-point exchange of data over the network, which typically happens at
-repartitioning or broadcasting steps (shuffle phase). In those, each parallel task inside the
-TaskManager has to be able to talk to all other parallel tasks.
-
-<div class="alert alert-warning">
-  <strong>Note:</strong> Since Flink 1.5, network buffers will always be allocated off-heap, i.e. outside of the JVM heap. This way, we can pass these buffers directly to the underlying network stack layers.
-</div>
-
-#### Setting Memory Fractions
-
-Previously, the number of network buffers was set manually which became a quite error-prone task
-(see below). Since Flink 1.3, it is possible to define a fraction of memory that is being used for
-network buffers with the following configuration parameters:
-
-- `taskmanager.memory.network.fraction`: Fraction of JVM memory to use for network buffers (DEFAULT: 0.1),
-- `taskmanager.memory.network.min`: Minimum memory size for network buffers (DEFAULT: 64MB),
-- `taskmanager.memory.network.max`: Maximum memory size for network buffers (DEFAULT: 1GB), and
-- `taskmanager.memory.segment-size`: Size of memory buffers used by the memory manager and the
-network stack in bytes (DEFAULT: 32KB).
-
-#### Setting the Number of Network Buffers directly
-
-<div class="alert alert-warning">
-  <strong>Note:</strong> This way of configuring the amount of memory used for network buffers is deprecated. Please consider using the method above by defining a fraction of memory to use.
-</div>
-
-The required number of buffers on a task manager is
-*total-degree-of-parallelism* (number of targets) \* *intra-node-parallelism* (number of sources in one task manager) \* *n*
-with *n* being a constant that defines how many repartitioning-/broadcasting steps you expect to be
-active at the same time. Since the *intra-node-parallelism* is typically the number of cores, and
-more than 4 repartitioning or broadcasting channels are rarely active in parallel, it frequently
-boils down to
-
-{% highlight plain %}
-#slots-per-TM^2 * #TMs * 4
-{% endhighlight %}
-
-Where `#slots per TM` are the [number of slots per TaskManager](#configuring-taskmanager-processing-slots) and `#TMs` are the total number of task managers.
-
-To support, for example, a cluster of 20 8-slot machines, you should use roughly 5000 network
-buffers for optimal throughput.
-
-Each network buffer has by default a size of 32 KiBytes. In the example above, the system would thus
-allocate roughly 300 MiBytes for network buffers.
-
-The number and size of network buffers can be configured with the following parameters:
-
-- `taskmanager.network.numberOfBuffers`, and
-- `taskmanager.memory.segment-size`.
-
-### Configuring Temporary I/O Directories
-
-Although Flink aims to process as much data in main memory as possible, it is not uncommon that more data needs to be processed than memory is available. Flink's runtime is designed to write temporary data to disk to handle these situations.
-
-The `io.tmp.dirs` parameter specifies a list of directories into which Flink writes temporary files. The paths of the directories need to be separated by ':' (colon character). Flink will concurrently write (or read) one temporary file to (from) each configured directory. This way, temporary I/O can be evenly distributed over multiple independent I/O devices such as hard disks to improve performance. To leverage fast I/O devices (e.g., SSD, RAID, NAS), it is possible to specify a directory multiple times.
-
-If the `io.tmp.dirs` parameter is not explicitly specified, Flink writes temporary data to the temporary directory of the operating system, such as */tmp* in Linux systems.
-
-### Configuring TaskManager processing slots
-
-Flink executes a program in parallel by splitting it into subtasks and scheduling these subtasks to processing slots.
-
-Each Flink TaskManager provides processing slots in the cluster. The number of slots is typically proportional to the number of available CPU cores __of each__ TaskManager. As a general recommendation, the number of available CPU cores is a good default for `taskmanager.numberOfTaskSlots`.
-
-When starting a Flink application, users can supply the default number of slots to use for that job. The command line value therefore is called `-p` (for parallelism). In addition, it is possible to [set the number of slots in the programming APIs]({{site.baseurl}}/dev/parallel.html) for the whole application and for individual operators.
-
-<img src="{{ site.baseurl }}/fig/slots_parallelism.svg" class="img-responsive" />
-
-### Configuration Runtime Environment Variables
-You have to set config with prefix `containerized.master.env.` and `containerized.taskmanager.env.` in order to set redefined environment variable in ApplicationMaster and TaskManager.
-
-- `containerized.master.env.`: Prefix for passing custom environment variables to Flink's master process. 
-   For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
-    in the flink-conf.yaml.
-- `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
 {% top %}
