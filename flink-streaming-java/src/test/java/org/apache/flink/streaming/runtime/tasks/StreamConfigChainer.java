@@ -121,7 +121,7 @@ public class StreamConfigChainer {
 		tailConfig = new StreamConfig(new Configuration());
 		tailConfig.setStreamOperatorFactory(checkNotNull(operatorFactory));
 		tailConfig.setOperatorID(checkNotNull(operatorID));
-		tailConfig.setTypeSerializerIn1(inputSerializer);
+		tailConfig.setTypeSerializersIn(inputSerializer);
 		tailConfig.setTypeSerializerOut(outputSerializer);
 		if (createKeyedStateBackend) {
 			// used to test multiple stateful operators chained in a single task.
