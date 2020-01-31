@@ -243,7 +243,6 @@ and increase `taskmanager.memory.task.off-heap.size` by "`taskmanager.numberOfTa
 There might existed performance regression compared with previous no-memory-limit case if you have too many states per slot.
 - If you observed this behavior and not running jobs in containerized environment or don't care about the over-limit memory usage.
 The easiest way to wipe out the performance regression is to disable memory bound for RocksDB, e.g. turn `state.backend.rocksdb.memory.managed` as `false`.
-Moreover, please refer to [memory configuration migration guide](WIP) to know how to keep backward compatibility to previous memory configuration.
 - Otherwise you need to increase the upper memory for RocksDB by tuning up `taskmanager.memory.managed.size` or `taskmanager.memory.managed.fraction`, or increasing the total memory for task manager.
 
 *Experts only*: Apart from increasing total memory, user could also tune RocksDB options (e.g. arena block size, max background flush threads, etc.) via `RocksDBOptionsFactory`:
