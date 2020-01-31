@@ -22,10 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.DecimalType;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.JoinType;
-import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -42,7 +40,6 @@ import org.apache.calcite.util.Static;
 import java.math.BigDecimal;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
-import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
 /**
  * Extends Calcite's {@link SqlValidator} by Flink-specific behavior.
@@ -55,16 +52,6 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 			SqlValidatorCatalogReader catalogReader,
 			RelDataTypeFactory typeFactory) {
 		super(opTab, catalogReader, typeFactory, SqlConformanceEnum.DEFAULT);
-	}
-
-	@Override
-	protected RelDataType getLogicalSourceRowType(RelDataType sourceRowType, SqlInsert insert) {
-		return unwrapTypeFactory(typeFactory).toSql(sourceRowType);
-	}
-
-	@Override
-	protected RelDataType getLogicalTargetRowType(RelDataType targetRowType, SqlInsert insert) {
-		return unwrapTypeFactory(typeFactory).toSql(targetRowType);
 	}
 
 	@Override
