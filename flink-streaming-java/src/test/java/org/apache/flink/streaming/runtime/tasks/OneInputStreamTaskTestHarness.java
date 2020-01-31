@@ -133,7 +133,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		}
 
 		streamConfig.setNumberOfInputs(1);
-		streamConfig.setTypeSerializerIn1(inputSerializer);
+		streamConfig.setTypeSerializersIn(inputSerializer);
 	}
 
 	public <K> void configureForKeyedStream(
