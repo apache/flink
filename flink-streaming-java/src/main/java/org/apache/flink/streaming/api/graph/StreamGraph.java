@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -637,19 +638,24 @@ public class StreamGraph implements Pipeline {
 		return streamNodes.keySet();
 	}
 
+	@VisibleForTesting
 	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
-
 		List<StreamEdge> result = new ArrayList<>();
 		for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
 			if (edge.getTargetId() == targetId) {
 				result.add(edge);
 			}
 		}
+		return result;
+	}
 
+	@VisibleForTesting
+	@Deprecated
+	public List<StreamEdge> getStreamEdgesOrThrow(int sourceId, int targetId) {
+		List<StreamEdge> result = getStreamEdges(sourceId, targetId);
 		if (result.isEmpty()) {
 			throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
 		}
-
 		return result;
 	}
 
