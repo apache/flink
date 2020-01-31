@@ -62,7 +62,7 @@ and *direct memory*.
 
 If you configure *total process memory* you declare how much memory in total should be assigned to the Flink *JVM process*.
 For the containerized deployments it corresponds to the size of the requested container, see also
-[how to configure memory for containers](#heading=h.q0nx4u2c3pzx)
+[how to configure memory for containers](mem_tuning.html#configure-memory-for-containers)
 ([Kubernetes](../deployment/kubernetes.html), [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html)).
 
 Another way to setup the memory is to set [task heap](#task-operator-heap-memory) and [managed memory](#managed-memory)
@@ -110,7 +110,7 @@ The size of *managed memory* can be
 *Size* will override *fraction*, if both are set.
 If neither *size* nor *fraction* is explicitly configured, the [default fraction](../config.html#taskmanager-memory-managed-fraction) will be used.
 
-See also [how to configure memory for state backends](#heading=h.srelwz7nbzwa) and [batch jobs](#heading=h.d6mjc9yd85c0).
+See also [how to configure memory for state backends](mem_tuning.html#configure-memory-for-state-backends) and [batch jobs](mem_tuning.html#configure-memory-for-batch-jobs).
 
 ## Configure Off-Heap Memory (direct or native)
 
