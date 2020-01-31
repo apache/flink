@@ -278,7 +278,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 			@Override
 			public void onClose(KubernetesClientException e) {
-				LOG.debug("The pods watcher is closing.", e);
+				LOG.error("The pods watcher is closing.", e);
 			}
 		};
 		this.internalClient.pods().withLabels(labels).watch(watcher);
