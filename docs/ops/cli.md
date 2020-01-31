@@ -2,7 +2,7 @@
 title:  "Command-Line Interface"
 nav-title: CLI
 nav-parent_id: ops
-nav-pos: 6
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
