@@ -21,11 +21,8 @@ package org.apache.flink.table.calcite;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.JoinType;
-import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -49,16 +46,6 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 			SqlValidatorCatalogReader catalogReader,
 			RelDataTypeFactory typeFactory) {
 		super(opTab, catalogReader, typeFactory, SqlConformanceEnum.DEFAULT);
-	}
-
-	@Override
-	protected RelDataType getLogicalSourceRowType(RelDataType sourceRowType, SqlInsert insert) {
-		return ((JavaTypeFactory) typeFactory).toSql(sourceRowType);
-	}
-
-	@Override
-	protected RelDataType getLogicalTargetRowType(RelDataType targetRowType, SqlInsert insert) {
-		return ((JavaTypeFactory) typeFactory).toSql(targetRowType);
 	}
 
 	@Override
