@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -64,6 +65,24 @@ public class SharedBufferEdge {
 			"target=" + target +
 			", deweyNumber=" + deweyNumber +
 			'}';
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		SharedBufferEdge that = (SharedBufferEdge) o;
+		return Objects.equals(target, that.target) &&
+				Objects.equals(deweyNumber, that.deweyNumber);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(target, deweyNumber);
 	}
 
 	/** Serializer for {@link SharedBufferEdge}. */
