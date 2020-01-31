@@ -60,6 +60,11 @@ under the License.
 					<groupId>com.aliyun.oss</groupId>
 					<artifactId>aliyun-oss-sdk</artifactId>
 				</exclusion>
+				<exclusion>
+					<!-- provided by flink-fs-hadoop-shaded -->
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
