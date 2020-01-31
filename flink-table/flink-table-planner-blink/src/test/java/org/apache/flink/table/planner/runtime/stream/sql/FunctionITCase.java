@@ -463,13 +463,15 @@ public class FunctionITCase extends StreamingTestBase {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1, new byte[]{1, 2, 3}),
 			Row.of(2, new byte[]{2, 3, 4}),
-			Row.of(3, new byte[]{3, 4, 5})
+			Row.of(3, new byte[]{3, 4, 5}),
+			Row.of(null, null)
 		);
 
 		final List<Row> sinkData = Arrays.asList(
 			Row.of(1, "1+2012-12-12 12:12:12.123456789", "[1, 2, 3]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[1, 2, 3]"),
 			Row.of(2, "2+2012-12-12 12:12:12.123456789", "[2, 3, 4]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[2, 3, 4]"),
-			Row.of(3, "3+2012-12-12 12:12:12.123456789", "[3, 4, 5]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[3, 4, 5]")
+			Row.of(3, "3+2012-12-12 12:12:12.123456789", "[3, 4, 5]+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "[3, 4, 5]"),
+			Row.of(null, "null+2012-12-12 12:12:12.123456789", "null+2012-12-12 12:12:12.123456789", new BigDecimal("123.40"), "null")
 		);
 
 		TestCollectionTableFactory.reset();
@@ -502,13 +504,15 @@ public class FunctionITCase extends StreamingTestBase {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1),
 			Row.of(2),
-			Row.of(3)
+			Row.of(3),
+			Row.of((Integer) null)
 		);
 
 		final List<Row> sinkData = Arrays.asList(
 			Row.of(1, 1, 5),
 			Row.of(2, 2, 5),
-			Row.of(3, 3, 5)
+			Row.of(3, 3, 5),
+			Row.of(null, null, 5)
 		);
 
 		TestCollectionTableFactory.reset();
@@ -545,8 +549,9 @@ public class FunctionITCase extends StreamingTestBase {
 				e,
 				hasMessage(
 					equalTo(
-						"Could not find an implementation method that matches the following " +
-							"signature: java.lang.String eval(java.lang.String)")));
+						"Could not find an implementation method in class '" + CustomScalarFunction.class.getCanonicalName() +
+						"' for function 'CustomScalarFunction' that matches the following signature: \n" +
+						"java.lang.String eval(java.lang.String)")));
 		}
 	}
 

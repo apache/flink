@@ -26,7 +26,6 @@ import org.apache.flink.table.dataformat.{BinaryStringUtil, Decimal, _}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
 import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
@@ -117,17 +116,27 @@ object CodeGenUtils {
   /**
     * Retrieve the canonical name of a class type.
     */
-  def className[T](implicit m: Manifest[T]): String = m.runtimeClass.getCanonicalName
+  def className[T](implicit m: Manifest[T]): String = {
+    val name = m.runtimeClass.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${m.runtimeClass.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
 
   /**
    * Returns a term for representing the given class in Java code.
    */
   def typeTerm(clazz: Class[_]): String = {
-    if (clazz.isArray) {
-      s"${typeTerm(clazz.getComponentType)}[]"
-    } else{
-      clazz.getName
+    val name = clazz.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${clazz.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
     }
+    name
   }
 
   // when casting we first need to unbox Primitives, for example,
@@ -177,18 +186,6 @@ object CodeGenUtils {
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
 
     case RAW => className[BinaryGeneric[_]]
-  }
-
-  /**
-    * Gets the boxed type term from external type info.
-    * We only use TypeInformation to store external type info.
-    */
-  def boxedTypeTermForExternalType(t: DataType): String = {
-    if (t.getConversionClass == null) {
-      ClassLogicalTypeConverter.getDefaultExternalClassForType(t.getLogicalType).getCanonicalName
-    } else {
-      t.getConversionClass.getCanonicalName
-    }
   }
 
   /**
@@ -698,7 +695,7 @@ object CodeGenUtils {
       term => s"$term"
     } else {
       val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
-      val eTerm = boxedTypeTermForExternalType(t)
+      val eTerm = typeTerm(t.getConversionClass)
       val converter = ctx.addReusableObject(
         DataFormatConverters.getConverterForDataType(t),
         "converter")
@@ -713,20 +710,22 @@ object CodeGenUtils {
    */
   def genToInternalIfNeeded(
       ctx: CodeGeneratorContext,
-      sourceType: DataType,
+      sourceDataType: DataType,
       externalTerm: String)
     : GeneratedExpression = {
+    val sourceType = sourceDataType.getLogicalType
+    val sourceClass = sourceDataType.getConversionClass
     // convert external source type to internal format
-    val internalResultTerm = if (isInternalClass(sourceType)) {
-      s"(${boxedTypeTermForType(fromDataTypeToLogicalType(sourceType))}) $externalTerm"
+    val internalResultTerm = if (isInternalClass(sourceDataType)) {
+      s"$externalTerm"
     } else {
-      genToInternal(ctx, sourceType, externalTerm)
+      genToInternal(ctx, sourceDataType, externalTerm)
     }
     // extract null term from result term
-    if (sourceType.getConversionClass.isPrimitive) {
-      generateNonNullField(sourceType.getLogicalType, internalResultTerm)
+    if (sourceClass.isPrimitive) {
+      generateNonNullField(sourceType, internalResultTerm)
     } else {
-      generateInputFieldUnboxing(ctx, sourceType.getLogicalType, externalTerm, internalResultTerm)
+      generateInputFieldUnboxing(ctx, sourceType, externalTerm, internalResultTerm)
     }
   }
 
@@ -738,7 +737,7 @@ object CodeGenUtils {
       s"$internalTerm"
     } else {
       val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(targetType))
-      val eTerm = boxedTypeTermForExternalType(targetType)
+      val eTerm = typeTerm(targetType.getConversionClass)
       val converter = ctx.addReusableObject(
         DataFormatConverters.getConverterForDataType(targetType),
         "converter")
@@ -753,17 +752,18 @@ object CodeGenUtils {
    */
   def genToExternalIfNeeded(
       ctx: CodeGeneratorContext,
-      targetType: DataType,
+      targetDataType: DataType,
       internalExpr: GeneratedExpression)
     : String = {
+    val targetType = fromDataTypeToLogicalType(targetDataType)
     // convert internal format to target type
-    val externalResultTerm = if (isInternalClass(targetType)) {
-      s"(${boxedTypeTermForType(fromDataTypeToLogicalType(targetType))}) ${internalExpr.resultTerm}"
+    val externalResultTerm = if (isInternalClass(targetDataType)) {
+      s"(${boxedTypeTermForType(targetType)}) ${internalExpr.resultTerm}"
     } else {
-      genToExternal(ctx, targetType, internalExpr.resultTerm)
+      genToExternal(ctx, targetDataType, internalExpr.resultTerm)
     }
     // merge null term into the result term
-    if (targetType.getConversionClass.isPrimitive) {
+    if (targetDataType.getConversionClass.isPrimitive) {
       externalResultTerm
     } else {
       s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"

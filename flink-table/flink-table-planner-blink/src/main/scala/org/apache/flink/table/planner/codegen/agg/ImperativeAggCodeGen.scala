@@ -103,7 +103,7 @@ class ImperativeAggCodeGen(
   } else {
     boxedTypeTermForType(fromDataTypeToLogicalType(externalAccType))
   }
-  val accTypeExternalTerm: String = boxedTypeTermForExternalType(externalAccType)
+  val accTypeExternalTerm: String = typeTerm(externalAccType.getConversionClass)
 
   val argTypes: Array[LogicalType] = {
     val types = inputTypes ++ constantExprs.map(_.resultType)
@@ -250,7 +250,7 @@ class ImperativeAggCodeGen(
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
     val valueExternalTerm = newName("value_external")
-    val valueExternalTypeTerm = boxedTypeTermForExternalType(externalResultType)
+    val valueExternalTypeTerm = typeTerm(externalResultType.getConversionClass)
     val valueInternalTerm = newName("value_internal")
     val valueInternalTypeTerm = boxedTypeTermForType(internalResultType)
     val nullTerm = newName("valueIsNull")

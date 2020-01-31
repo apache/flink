@@ -189,7 +189,8 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     if (!methods.exists(methodMatches)) {
       throw new CodeGenException(
-        s"Could not find an implementation method that matches the following signature: " +
+        s"Could not find an implementation method in class '${typeTerm(udf.getClass)}' for " +
+          s"function '$function' that matches the following signature: \n" +
           s"${createMethodSignatureString(SCALAR_EVAL, argumentClasses, outputClass)}")
     }
   }

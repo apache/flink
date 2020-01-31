@@ -554,7 +554,7 @@ object AggCodeGenHelper {
         val singleIterableClass = classOf[SingleElementIterator[_]].getCanonicalName
 
         val externalAccT = getAccumulatorTypeOfAggregateFunction(agg)
-        val javaField = boxedTypeTermForExternalType(externalAccT)
+        val javaField = typeTerm(externalAccT.getConversionClass)
         val tmpAcc = newName("tmpAcc")
         s"""
            |final $singleIterableClass accIt$aggIndex = new  $singleIterableClass();
@@ -628,7 +628,7 @@ object AggCodeGenHelper {
             genToExternalIfNeeded(ctx, externalUDITypes(i), expr)
         }
 
-        val javaTerm = boxedTypeTermForExternalType(externalAccType)
+        val javaTerm = typeTerm(externalAccType.getConversionClass)
         val tmpAcc = newName("tmpAcc")
         val innerCode =
           s"""
