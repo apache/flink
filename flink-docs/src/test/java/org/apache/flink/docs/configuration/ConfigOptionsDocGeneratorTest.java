@@ -51,6 +51,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the {@link ConfigOptionsDocGenerator}.
  */
+@SuppressWarnings("unused")
 public class ConfigOptionsDocGeneratorTest {
 
 	@ClassRule
@@ -59,11 +60,13 @@ public class ConfigOptionsDocGeneratorTest {
 	static class TestConfigGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the second option.");
 	}
@@ -71,7 +74,7 @@ public class ConfigOptionsDocGeneratorTest {
 	private enum TestEnum {
 		VALUE_1,
 		VALUE_2,
-		VALUE_3;
+		VALUE_3
 	}
 
 	static class TypeTestConfigGroup {
@@ -209,34 +212,40 @@ public class ConfigOptionsDocGeneratorTest {
 		// should end up in the default group
 		public static ConfigOption<Integer> option1 = ConfigOptions
 			.key("a.option")
+			.intType()
 			.defaultValue(2);
 
 		// should end up in group1, perfect key-prefix match
 		public static ConfigOption<String> option2 = ConfigOptions
 			.key("a.b.option")
+			.stringType()
 			.noDefaultValue();
 
 		// should end up in group1, full key-prefix match
 		public static ConfigOption<Integer> option3 = ConfigOptions
 			.key("a.b.c.option")
+			.intType()
 			.defaultValue(2);
 
 		// should end up in group1, full key-prefix match for group 1, partial match for group 2
 		// checks that the generator remembers the last encountered root node
 		public static ConfigOption<Integer> option4 = ConfigOptions
 			.key("a.b.c.e.option")
+			.intType()
 			.defaultValue(2);
 
 		// should end up in the default group, since no group exists with prefix "a.c"
 		// checks that the generator does not ignore components (like ignoring "c" to find a match "a.b")
 		public static ConfigOption<String> option5 = ConfigOptions
 			.key("a.c.b.option")
+			.stringType()
 			.noDefaultValue();
 
 		// should end up in group2, full key-prefix match for group 2
 		// checks that the longest matching group is assigned
 		public static ConfigOption<Integer> option6 = ConfigOptions
 			.key("a.b.c.d.option")
+			.intType()
 			.defaultValue(2);
 	}
 
@@ -266,21 +275,25 @@ public class ConfigOptionsDocGeneratorTest {
 	static class TestConfigMultipleSubGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the second option.");
 
 		public static ConfigOption<Integer> thirdOption = ConfigOptions
 			.key("third.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the third option.");
 
 		public static ConfigOption<String> fourthOption = ConfigOptions
 			.key("fourth.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the fourth option.");
 	}
@@ -365,12 +378,14 @@ public class ConfigOptionsDocGeneratorTest {
 		@Documentation.OverrideDefault("default_1")
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		@Documentation.OverrideDefault("default_2")
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the second option.");
 	}
@@ -453,12 +468,14 @@ public class ConfigOptionsDocGeneratorTest {
 	static class TestConfigGroupWithExclusion {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		@Documentation.ExcludeFromDocumentation
 		public static ConfigOption<String> excludedOption = ConfigOptions
 			.key("excluded.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This should not be documented.");
 	}
