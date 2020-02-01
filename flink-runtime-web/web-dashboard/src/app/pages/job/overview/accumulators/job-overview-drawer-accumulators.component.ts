@@ -33,6 +33,7 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
   listOfAccumulator: UserAccumulatorsInterface[] = [];
   listOfSubTaskAccumulator: SubTaskAccumulatorsInterface[] = [];
   isLoading = true;
+  isFinite = Number.isFinite;
 
   trackAccumulatorBy(_: number, node: SubTaskAccumulatorsInterface) {
     return node.name;
