@@ -116,4 +116,29 @@ Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 
     </Resource>
   </TestCase>
+  <TestCase name="testTableApiScanWithDDL">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)], class: CatalogSourceTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+
+  <TestCase name="testTableApiScanWithTemporaryTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)], class: CatalogSourceTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]], fields=[word])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

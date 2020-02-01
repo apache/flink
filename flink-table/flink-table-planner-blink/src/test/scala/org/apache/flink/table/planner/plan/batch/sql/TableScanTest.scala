@@ -20,8 +20,11 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -51,8 +54,7 @@ class TableScanTest extends TableTestBase {
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
   }
 
-  @Test
-  def testDDLWithComputedColumn(): Unit = {
+  private def prepareComputedColumnDDL(): Unit = {
     // Create table with field as atom expression.
     util.tableEnv.registerFunction("my_udf", Func0)
     util.addTable(
@@ -68,6 +70,11 @@ class TableScanTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin)
+  }
+
+  @Test
+  def testDDLWithComputedColumn(): Unit = {
+    prepareComputedColumnDDL()
     util.verifyPlan("SELECT * FROM t1")
   }
 
@@ -91,5 +98,35 @@ class TableScanTest extends TableTestBase {
          |)
        """.stripMargin)
     util.verifyPlan("SELECT * FROM t1")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testTableApiScanWithComputedColumn(): Unit = {
+    prepareComputedColumnDDL()
+    util.verifyPlan(util.tableEnv.from("t1"))
+  }
+
+  @Test
+  def testTableApiScanWithDDL(): Unit = {
+    util.addTable(
+      s"""
+         |create table t1(
+         |  a int,
+         |  b varchar
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin)
+    util.verifyPlan(util.tableEnv.from("t1"))
+  }
+
+  @Test
+  def testTableApiScanWithTemporaryTable(): Unit = {
+    util.tableEnv.connect(new FileSystem().path(tempFolder.newFile.getPath))
+        .withFormat(new OldCsv())
+        .withSchema(new Schema().field("word", DataTypes.STRING()))
+        .createTemporaryTable("t1")
+    util.verifyPlan(util.tableEnv.from("t1"))
   }
 }

@@ -18,21 +18,23 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
-import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.flink.table.planner.calcite.FlinkToRelContext
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkToRelContext}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
+import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
+
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableScan
 
+import java.util
 import java.util.{List => JList}
 
-import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * A [[FlinkPreparingTableBase]] implementation which defines the interfaces required to translate
@@ -86,25 +88,30 @@ class CatalogSourceTable[T](
     // Copy this table with physical scan row type.
     val newRelTable = tableSourceTable.copy(tableSource, physicalFields)
     val scan = LogicalTableScan.create(cluster, newRelTable)
-    val toRelContext = context.asInstanceOf[FlinkToRelContext]
-    val relBuilder = toRelContext.createRelBuilder()
+    val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema)
     relBuilder.push(scan)
 
     // 2. push computed column project
     val fieldNames = rowType.getFieldNames.asScala
     if (columnExprs.nonEmpty) {
-      val fieldExprs = fieldNames
-        .map { name =>
-          if (columnExprs.contains(name)) {
-            columnExprs(name)
-          } else {
-            name
-          }
-        }.toArray
-      val rexNodes = toRelContext
-        .createSqlExprToRexConverter(newRelTable.getRowType)
-        .convertToRexNodes(fieldExprs)
-      relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
+      context match {
+        case toRelContext: FlinkToRelContext =>
+          val fieldExprs = fieldNames
+              .map { name =>
+                if (columnExprs.contains(name)) {
+                  columnExprs(name)
+                } else {
+                  name
+                }
+              }.toArray
+          val rexNodes = toRelContext
+              .createSqlExprToRexConverter(newRelTable.getRowType)
+              .convertToRexNodes(fieldExprs)
+          relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
+        case _ =>
+          throw new ValidationException(
+            "Not support TableEnvironment.from/scan for computed column table.")
+      }
     }
 
     // 3. push watermark assigner
@@ -113,22 +120,28 @@ class CatalogSourceTable[T](
       // we only support single watermark currently
       .getWatermarkSpecs.asScala.headOption
     if (schemaTable.isStreamingMode && watermarkSpec.nonEmpty) {
-      if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
-        throw new TableException(
-          "If watermark is specified in DDL, the underlying TableSource of connector shouldn't" +
-            " return an non-empty list of RowtimeAttributeDescriptor" +
-            " via DefinedRowtimeAttributes interface.")
+      context match {
+        case toRelContext: FlinkToRelContext =>
+          if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
+            throw new TableException(
+              "If watermark is specified in DDL, the underlying TableSource of connector" +
+                  " shouldn't return an non-empty list of RowtimeAttributeDescriptor" +
+                  " via DefinedRowtimeAttributes interface.")
+          }
+          val rowtime = watermarkSpec.get.getRowtimeAttribute
+          if (rowtime.contains(".")) {
+            throw new TableException(
+              s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
+          }
+          val rowtimeIndex = fieldNames.indexOf(rowtime)
+          val watermarkRexNode = toRelContext
+              .createSqlExprToRexConverter(rowType)
+              .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
+          relBuilder.watermark(rowtimeIndex, watermarkRexNode)
+        case _ =>
+          throw new ValidationException(
+            "Not support TableEnvironment.from/scan for watermark specified table.")
       }
-      val rowtime = watermarkSpec.get.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new TableException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
-      val rowtimeIndex = fieldNames.indexOf(rowtime)
-      val watermarkRexNode = toRelContext
-        .createSqlExprToRexConverter(rowType)
-        .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
-      relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
 
     // 4. returns the final RelNode
@@ -155,5 +168,12 @@ class CatalogSourceTable[T](
         + "StreamTableSource and InputFormatTableSource")
     }
     tableSource
+  }
+
+  override protected def explainSourceAsString(ts: TableSource[_]): JList[String] = {
+    val ret = new util.ArrayList[String](super.explainSourceAsString(ts))
+    // Add class name to distinguish TableSourceTable.
+    ret.add("class: " + classOf[CatalogSourceTable[_]].getSimpleName)
+    ret
   }
 }
