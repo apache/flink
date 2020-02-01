@@ -200,7 +200,7 @@ Instead of producing a full, self-contained backup of the state backend, increme
 
 An incremental checkpoint builds upon (typically multiple) previous checkpoints. Flink leverages RocksDB's internal compaction mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically.
 
-Recovery time of incremental checkpoints may be longer or shorter comapared to full checkpoints. If your network bandwidth is the bottleneck, it may take a bit longer to restore from an incremental checkpoint, because it implies fetching more data (more deltas). Restoring from an incremental checkpoint is faster, if the bottleneck is your CPU or IOPs, because restoring from an incremental checkpoint means not re-building the local RocksDB tables from Flink's canonical key/value snapshot format(used in savepoints and full checkpoints).
+Recovery time of incremental checkpoints may be longer or shorter compared to full checkpoints. If your network bandwidth is the bottleneck, it may take a bit longer to restore from an incremental checkpoint, because it implies fetching more data (more deltas). Restoring from an incremental checkpoint is faster, if the bottleneck is your CPU or IOPs, because restoring from an incremental checkpoint means not re-building the local RocksDB tables from Flink's canonical key/value snapshot format(used in savepoints and full checkpoints).
 
 While we encourage the use of incremental checkpoints for large state, you need to enable this feature manually:
   - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true`
@@ -262,8 +262,8 @@ See [configuration docs]({{ site.baseurl }}/ops/config.html#rocksdb-native-metri
 
 With *Predefined Options*, users can apply some predefined config profiles on each RocksDB Column Family, configuring for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
-There are two ways to select prefedined options to be applied:
-  - Sset the option's name in `flink-conf.yaml` via `state.backend.rocksdb.predefined-options`.
+There are two ways to select predefined options to be applied:
+  - Set the option's name in `flink-conf.yaml` via `state.backend.rocksdb.predefined-options`.
   - Set the predefined options programmatically: `RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 The default value for this option is `DEFAULT` which translates to `PredefinedOptions.DEFAULT`.
@@ -274,7 +274,7 @@ The default value for this option is `DEFAULT` which translates to `PredefinedOp
 
 <span class="label label-info">Note</span> With the introduction of [memory management for RocksDB](#memory-management) this mechanism should be mainly used for *expert tuning* or *trouble shooting*.
 
-To manually control RocksDB's options, you need to configure an `OptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
+To manually control RocksDB's options, you need to configure an `RocksDBOptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
 There are two ways to pass an OptionsFactory to the RocksDB State Backend:
 
