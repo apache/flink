@@ -133,7 +133,23 @@ public class JobWithJars {
 		}
 	}
 
+	/**
+	 * @deprecated Use {@link #buildUserCodeClassLoader(List, List, ClassLoader, Configuration)}
+	 */
+	@Deprecated
+	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
+		return FlinkUserCodeClassLoaders.parentFirst(extractUrls(jars, classpaths), parent);
+	}
+
 	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent, Configuration configuration) {
+		URL[] urls = extractUrls(jars, classpaths);
+		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder = FlinkUserCodeClassLoaders.ResolveOrder
+			.fromString(configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER));
+		String[] parentFirstPattern = CoreOptions.getParentFirstLoaderPatterns(configuration);
+		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, parentFirstPattern);
+	}
+
+	private static URL[] extractUrls(List<URL> jars, List<URL> classpaths) {
 		URL[] urls = new URL[jars.size() + classpaths.size()];
 		for (int i = 0; i < jars.size(); i++) {
 			urls[i] = jars.get(i);
@@ -141,9 +157,6 @@ public class JobWithJars {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder = FlinkUserCodeClassLoaders.ResolveOrder
-			.fromString(configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER));
-		String[] parentFirstPattern = CoreOptions.getParentFirstLoaderPatterns(configuration);
-		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, parentFirstPattern);
+		return urls;
 	}
 }
