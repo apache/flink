@@ -67,5 +67,14 @@ public class CsvValidator extends FormatDescriptorValidator {
 			throw new ValidationException(
 				"A definition of a schema or derivation from the table's schema is required.");
 		}
+
+		final boolean hasQuoteCharacter = properties.containsKey(FORMAT_QUOTE_CHARACTER);
+		final boolean isDisabledQuoteCharacter = properties
+			.getOptionalBoolean(FORMAT_DISABLE_QUOTE_CHARACTER)
+			.orElse(false);
+		if (isDisabledQuoteCharacter && hasQuoteCharacter){
+			throw new ValidationException(
+				"Format cannot define a quote character and disabled quote character at the same time.");
+		}
 	}
 }
