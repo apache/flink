@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.tests.util.FlinkDistribution;
 import org.apache.flink.tests.util.util.FactoryUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -37,6 +38,8 @@ public interface FlinkResource extends ExternalResource {
 	 * @throws IOException
 	 */
 	void addConfiguration(Configuration config) throws IOException;
+
+	FlinkDistribution getDistribution();
 
 	/**
 	 * Starts a cluster.

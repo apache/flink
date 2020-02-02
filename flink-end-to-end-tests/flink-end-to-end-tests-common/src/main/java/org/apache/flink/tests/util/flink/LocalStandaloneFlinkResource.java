@@ -70,6 +70,11 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 	}
 
 	@Override
+	public FlinkDistribution getDistribution() {
+		return distribution;
+	}
+
+	@Override
 	public ClusterController startCluster(int numTaskManagers) throws IOException {
 		distribution.startJobManager();
 		for (int x = 0; x < numTaskManagers; x++) {
