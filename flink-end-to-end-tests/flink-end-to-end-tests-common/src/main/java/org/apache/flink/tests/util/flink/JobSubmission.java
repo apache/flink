@@ -31,14 +31,15 @@ import java.util.List;
 public class JobSubmission {
 
 	private final Path jar;
-	private final int parallelism;
-	private final boolean detached;
+	private final List<String> options;
 	private final List<String> arguments;
 
-	JobSubmission(final Path jar, final int parallelism, final boolean detached, final List<String> arguments) {
+	JobSubmission(
+			final Path jar,
+			final List<String> options,
+			final List<String> arguments) {
 		this.jar = jar;
-		this.parallelism = parallelism;
-		this.detached = detached;
+		this.options = options;
 		this.arguments = Collections.unmodifiableList(arguments);
 	}
 
@@ -46,12 +47,8 @@ public class JobSubmission {
 		return arguments;
 	}
 
-	public boolean isDetached() {
-		return detached;
-	}
-
-	public int getParallelism() {
-		return parallelism;
+	public List<String> getOptions() {
+		return options;
 	}
 
 	public Path getJar() {
@@ -63,9 +60,8 @@ public class JobSubmission {
 	 */
 	public static class JobSubmissionBuilder {
 		private final Path jar;
-		private int parallelism = 0;
 		private final List<String> arguments = new ArrayList<>(2);
-		private boolean detached = false;
+		private final List<String> options = new ArrayList<>(2);
 
 		public JobSubmissionBuilder(final Path jar) {
 			Preconditions.checkNotNull(jar);
@@ -80,7 +76,7 @@ public class JobSubmission {
 		 * @return the modified builder
 		 */
 		public JobSubmissionBuilder setParallelism(final int parallelism) {
-			this.parallelism = parallelism;
+			addOption("-p", String.valueOf(parallelism));
 			return this;
 		}
 
@@ -91,7 +87,7 @@ public class JobSubmission {
 		 * @return the modified builder
 		 */
 		public JobSubmissionBuilder setDetached(final boolean detached) {
-			this.detached = detached;
+			addOption("-d");
 			return this;
 		}
 
@@ -103,7 +99,7 @@ public class JobSubmission {
 		 */
 		public JobSubmissionBuilder addArgument(final String argument) {
 			Preconditions.checkNotNull(argument);
-			this.arguments.add(argument);
+			arguments.add(argument);
 			return this;
 		}
 
@@ -121,8 +117,45 @@ public class JobSubmission {
 			return this;
 		}
 
+		/**
+		 * Adds a program option.
+		 *
+		 * @param option option option
+		 * @return the modified builder
+		 */
+		public JobSubmissionBuilder addOption(final String option) {
+			Preconditions.checkNotNull(option);
+			options.add(option);
+			return this;
+		}
+
+		/**
+		 * Convenience method for providing key-value program options. Invoking this method is equivalent to invoking
+		 * {@link #addOption(String)} twice.
+		 *
+		 * @param key option key
+		 * @param value option value
+		 * @return the modified builder
+		 */
+		public JobSubmissionBuilder addOption(final String key, final String value) {
+			addOption(key);
+			addOption(value);
+			return this;
+		}
+
+		/**
+		 * Convenience method for setting Flink's main entry point.
+		 *
+		 * @param entryPoint fully qualified class name of the entry point
+		 * @return the modified builder
+		 */
+		public JobSubmissionBuilder setEntryPoint(final String entryPoint) {
+			addOption("-c", entryPoint);
+			return this;
+		}
+
 		public JobSubmission build() {
-			return new JobSubmission(jar, parallelism, detached, arguments);
+			return new JobSubmission(jar, options, arguments);
 		}
 	}
 }

@@ -193,13 +193,7 @@ public final class FlinkDistribution implements ExternalResource {
 		final List<String> commands = new ArrayList<>(4);
 		commands.add(bin.resolve("flink").toString());
 		commands.add("run");
-		if (jobSubmission.isDetached()) {
-			commands.add("-d");
-		}
-		if (jobSubmission.getParallelism() > 0) {
-			commands.add("-p");
-			commands.add(String.valueOf(jobSubmission.getParallelism()));
-		}
+		commands.addAll(jobSubmission.getOptions());
 		commands.add(jobSubmission.getJar().toAbsolutePath().toString());
 		commands.addAll(jobSubmission.getArguments());
 
@@ -209,11 +203,12 @@ public final class FlinkDistribution implements ExternalResource {
 			.command(commands)
 			.start())) {
 
-			final Pattern pattern = jobSubmission.isDetached()
+			final boolean detached = jobSubmission.getOptions().contains("-d");
+			final Pattern pattern = detached
 				? Pattern.compile("Job has been submitted with JobID (.*)")
 				: Pattern.compile("Job with JobID (.*) has finished.");
 
-			if (jobSubmission.isDetached()) {
+			if (detached) {
 				try {
 					flink.getProcess().waitFor();
 				} catch (InterruptedException e) {
