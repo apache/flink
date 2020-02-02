@@ -59,10 +59,10 @@ public class TaskExecutorProcessUtils {
 		final MemorySize jvmDirectSize = taskExecutorProcessSpec.getJvmDirectMemorySize();
 		final MemorySize jvmMetaspaceSize = taskExecutorProcessSpec.getJvmMetaspaceSize();
 
-		return "-Xmx" + jvmHeapSize.getBytes()
-			+ " -Xms" + jvmHeapSize.getBytes()
-			+ " -XX:MaxDirectMemorySize=" + jvmDirectSize.getBytes()
-			+ " -XX:MaxMetaspaceSize=" + jvmMetaspaceSize.getBytes();
+		return "-Xmx" + jvmHeapSize.getMebiBytes() + "m"
+			+ " -Xms" + jvmHeapSize.getMebiBytes() + "m"
+			+ " -XX:MaxDirectMemorySize=" + jvmDirectSize.getMebiBytes() + "m"
+			+ " -XX:MaxMetaspaceSize=" + jvmMetaspaceSize.getMebiBytes() + "m";
 	}
 
 	// ------------------------------------------------------------------------
@@ -73,13 +73,13 @@ public class TaskExecutorProcessUtils {
 		final Map<String, String> configs = new HashMap<>();
 		configs.put(TaskManagerOptions.CPU_CORES.key(),
 			String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue().doubleValue()));
-		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
-		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskOffHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.NETWORK_MEMORY_MIN.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorProcessSpec.getManagedMemorySize().getBytes() + "b");
+		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkHeapSize().getMebiBytes() + "m");
+		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkOffHeapMemorySize().getMebiBytes() + "m");
+		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskHeapSize().getMebiBytes() + "m");
+		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskOffHeapSize().getMebiBytes() + "m");
+		configs.put(TaskManagerOptions.NETWORK_MEMORY_MIN.key(), taskExecutorProcessSpec.getNetworkMemSize().getMebiBytes() + "m");
+		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorProcessSpec.getNetworkMemSize().getMebiBytes() + "m");
+		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorProcessSpec.getManagedMemorySize().getMebiBytes() + "m");
 		return assembleDynamicConfigsStr(configs);
 	}
 
