@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -78,9 +78,7 @@ class TableScanTest extends TableTestBase {
     util.verifyPlan("SELECT * FROM t1")
   }
 
-
-  @Test
-  def testDDLWithWatermarkComputedColumn(): Unit = {
+  private def prepareWatermarkDDL(): Unit = {
     // Create table with field as atom expression.
     util.tableEnv.registerFunction("my_udf", Func0)
     util.addTable(
@@ -97,12 +95,23 @@ class TableScanTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin)
+  }
+
+  @Test
+  def testDDLWithWatermarkComputedColumn(): Unit = {
+    prepareWatermarkDDL()
     util.verifyPlan("SELECT * FROM t1")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTableApiScanWithComputedColumn(): Unit = {
     prepareComputedColumnDDL()
+    util.verifyPlan(util.tableEnv.from("t1"))
+  }
+
+  @Test
+  def testTableApiScanWithWatermark(): Unit = {
+    prepareWatermarkDDL()
     util.verifyPlan(util.tableEnv.from("t1"))
   }
 

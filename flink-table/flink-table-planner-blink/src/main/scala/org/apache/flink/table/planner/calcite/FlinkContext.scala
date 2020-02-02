@@ -43,6 +43,11 @@ trait FlinkContext extends Context {
     */
   def getCatalogManager: CatalogManager
 
+  /**
+    * Gets [[ToRexConverterFactory]] instance to convert sql expression to rex node.
+    */
+  def getToRexConverterFactory: ToRexConverterFactory
+
   override def unwrap[C](clazz: Class[C]): C = {
     if (clazz.isInstance(this)) clazz.cast(this) else null.asInstanceOf[C]
   }

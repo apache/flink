@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.CalciteParser;
-import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
@@ -37,6 +36,7 @@ import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
@@ -84,7 +84,7 @@ public class PlannerContext {
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
 	private final RelOptCluster cluster;
-	private final FlinkContext context;
+	private final FlinkContextImpl context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
 
@@ -109,6 +109,9 @@ public class PlannerContext {
 			planner.addRelTraitDef(traitDef);
 		}
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
+
+		this.context.toRexConverterFactory_$eq(t -> new SqlExprToRexConverterImpl(
+				frameworkConfig, typeFactory, cluster, t));
 	}
 
 	private FrameworkConfig createFrameworkConfig() {
@@ -146,7 +149,8 @@ public class PlannerContext {
 			// We need to overwrite the default scan factory, which does not
 			// expand views. The expandingScanFactory uses the FlinkPlanner to translate a view
 			// into a rel tree, before applying any subsequent rules.
-			Contexts.of(expandingScanFactory(createFlinkPlanner(currentCatalog, currentDatabase)))
+			Contexts.of(expandingScanFactory(
+					createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext()))
 		);
 		return new FlinkRelBuilder(chain, cluster, relOptSchema);
 	}

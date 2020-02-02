@@ -27,9 +27,13 @@ class FlinkContextImpl(
     catalogManager: CatalogManager)
   extends FlinkContext {
 
+  var toRexConverterFactory: ToRexConverterFactory = _
+
   override def getTableConfig: TableConfig = tableConfig
 
   override def getFunctionCatalog: FunctionCatalog = functionCatalog
 
   override def getCatalogManager: CatalogManager = catalogManager
+
+  override def getToRexConverterFactory: ToRexConverterFactory = toRexConverterFactory
 }

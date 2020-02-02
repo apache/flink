@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory}
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkToRelContext}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
 
@@ -91,27 +91,25 @@ class CatalogSourceTable[T](
     val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema)
     relBuilder.push(scan)
 
+    val toRexFactory = cluster
+        .getPlanner
+        .getContext
+        .unwrap(classOf[FlinkContext])
+        .getToRexConverterFactory
+
     // 2. push computed column project
     val fieldNames = rowType.getFieldNames.asScala
     if (columnExprs.nonEmpty) {
-      context match {
-        case toRelContext: FlinkToRelContext =>
-          val fieldExprs = fieldNames
-              .map { name =>
-                if (columnExprs.contains(name)) {
-                  columnExprs(name)
-                } else {
-                  name
-                }
-              }.toArray
-          val rexNodes = toRelContext
-              .createSqlExprToRexConverter(newRelTable.getRowType)
-              .convertToRexNodes(fieldExprs)
-          relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
-        case _ =>
-          throw new ValidationException(
-            "Not support TableEnvironment.from/scan for computed column table.")
-      }
+      val fieldExprs = fieldNames
+          .map { name =>
+            if (columnExprs.contains(name)) {
+              columnExprs(name)
+            } else {
+              name
+            }
+          }.toArray
+      val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
+      relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
     }
 
     // 3. push watermark assigner
@@ -120,28 +118,22 @@ class CatalogSourceTable[T](
       // we only support single watermark currently
       .getWatermarkSpecs.asScala.headOption
     if (schemaTable.isStreamingMode && watermarkSpec.nonEmpty) {
-      context match {
-        case toRelContext: FlinkToRelContext =>
-          if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
-            throw new TableException(
-              "If watermark is specified in DDL, the underlying TableSource of connector" +
-                  " shouldn't return an non-empty list of RowtimeAttributeDescriptor" +
-                  " via DefinedRowtimeAttributes interface.")
-          }
-          val rowtime = watermarkSpec.get.getRowtimeAttribute
-          if (rowtime.contains(".")) {
-            throw new TableException(
-              s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-          }
-          val rowtimeIndex = fieldNames.indexOf(rowtime)
-          val watermarkRexNode = toRelContext
-              .createSqlExprToRexConverter(rowType)
-              .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
-          relBuilder.watermark(rowtimeIndex, watermarkRexNode)
-        case _ =>
-          throw new ValidationException(
-            "Not support TableEnvironment.from/scan for watermark specified table.")
+      if (TableSourceValidation.hasRowtimeAttribute(tableSource)) {
+        throw new TableException(
+          "If watermark is specified in DDL, the underlying TableSource of connector" +
+              " shouldn't return an non-empty list of RowtimeAttributeDescriptor" +
+              " via DefinedRowtimeAttributes interface.")
       }
+      val rowtime = watermarkSpec.get.getRowtimeAttribute
+      if (rowtime.contains(".")) {
+        throw new TableException(
+          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
+      }
+      val rowtimeIndex = fieldNames.indexOf(rowtime)
+      val watermarkRexNode = toRexFactory
+          .create(rowType)
+          .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
+      relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
 
     // 4. returns the final RelNode
