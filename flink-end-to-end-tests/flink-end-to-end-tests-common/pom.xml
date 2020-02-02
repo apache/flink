@@ -31,8 +31,9 @@ under the License.
 
 	<dependencies>
 		<dependency>
+			<!-- Communicating with rest server -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
