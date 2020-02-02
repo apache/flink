@@ -36,6 +36,9 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+
+import static org.apache.flink.tests.util.TestUtils.inputStreamToStream;
 
 /**
  * Utility class to terminate a given {@link Process} when exiting a try-with-resources statement.
@@ -165,6 +168,22 @@ public class AutoClosableProcess implements AutoCloseable {
 			}
 		}
 		).start();
+	}
+
+	public void processStderr(final Consumer<String> streamConsumer) {
+		processStream(getProcess().getErrorStream(), streamConsumer);
+	}
+
+	public void processStdout(final Consumer<String> streamConsumer) {
+		processStream(getProcess().getInputStream(), streamConsumer);
+	}
+
+	public Stream<String> getStderr() {
+		return inputStreamToStream(getProcess().getErrorStream());
+	}
+
+	public Stream<String> getStdout() {
+		return inputStreamToStream(getProcess().getInputStream());
 	}
 
 	@Override

@@ -20,8 +20,15 @@ package org.apache.flink.tests.util;
 
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
@@ -55,9 +62,10 @@ public enum TestUtils {
 		String moduleDirProp = System.getProperty("moduleDir");
 		Preconditions.checkNotNull(moduleDirProp, "The moduleDir property was not set, You can set it when running maven via -DmoduleDir=<path>");
 
+		final Pattern pattern = Pattern.compile(jarNameRegex);
 		try (Stream<Path> dependencyJars = Files.walk(Paths.get(moduleDirProp))) {
 			final List<Path> matchingJars = dependencyJars
-				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.toAbsolutePath().toString()).find())
+				.filter(jar -> pattern.matcher(jar.toAbsolutePath().toString()).find())
 				.collect(Collectors.toList());
 			switch (matchingJars.size()) {
 				case 0:
@@ -67,7 +75,7 @@ public enum TestUtils {
 						)
 					);
 				case 1:
-					return matchingJars.get(0);
+					return matchingJars.get(0).toAbsolutePath();
 				default:
 					throw new RuntimeException(
 						new IOException(
@@ -78,6 +86,20 @@ public enum TestUtils {
 		} catch (final IOException ioe) {
 			throw new RuntimeException("Could not search for resource jars.", ioe);
 		}
+	}
+
+	@Nonnull
+	public static Stream<String> inputStreamToStream(final InputStream inputStream) {
+		final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
+			inputStream,
+			StandardCharsets.UTF_8));
+		return bufferedReader.lines().onClose(() -> {
+			try {
+				bufferedReader.close();
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		});
 	}
 
 	/**

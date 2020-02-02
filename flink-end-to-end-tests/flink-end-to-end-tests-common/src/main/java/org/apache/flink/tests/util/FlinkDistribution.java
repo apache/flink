@@ -38,17 +38,17 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
+import javax.annotation.Nonnull;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,6 +57,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * A wrapper around a Flink distribution.
@@ -74,6 +75,7 @@ public final class FlinkDistribution implements ExternalResource {
 	private final Path originalFlinkDir;
 	private Path opt;
 	private Path lib;
+	private Path plugins;
 	private Path conf;
 	private Path log;
 	private Path bin;
@@ -102,6 +104,7 @@ public final class FlinkDistribution implements ExternalResource {
 		bin = flinkDir.resolve("bin");
 		opt = flinkDir.resolve("opt");
 		lib = flinkDir.resolve("lib");
+		plugins = flinkDir.resolve("plugins");
 		conf = flinkDir.resolve("conf");
 		log = flinkDir.resolve("log");
 
@@ -202,6 +205,7 @@ public final class FlinkDistribution implements ExternalResource {
 		try (AutoClosableProcess flink = new AutoClosableProcess(new ProcessBuilder()
 			.command(commands)
 			.start())) {
+			flink.processStderr(LOG::warn);
 
 			final boolean detached = jobSubmission.getOptions().contains("-d");
 			final Pattern pattern = detached
@@ -216,13 +220,14 @@ public final class FlinkDistribution implements ExternalResource {
 				}
 			}
 
-			try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(flink.getProcess().getInputStream(), StandardCharsets.UTF_8))) {
-				final Optional<String> jobId = bufferedReader.lines()
+			try (Stream<String> stdout = flink.getStdout()) {
+				final Optional<String> jobId = stdout
 					.peek(LOG::info)
 					.map(pattern::matcher)
 					.filter(Matcher::matches)
 					.map(matcher -> matcher.group(1))
 					.findAny();
+				flink.processStdout(LOG::info);
 				if (!jobId.isPresent()) {
 					throw new IOException("Could not determine Job ID.");
 				} else {
@@ -254,20 +259,31 @@ public final class FlinkDistribution implements ExternalResource {
 		AutoClosableProcess.runBlocking(commands.toArray(new String[0]));
 	}
 
-	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
-		final Optional<Path> reporterJarOptional;
+	public void copyOptJarsToLib(String jarNamePrefix) throws IOException {
+		final Path jar = getOptJar(jarNamePrefix);
+		Files.copy(jar, lib.resolve(jar.getFileName()));
+	}
+
+	public void addPlugin(String jarNamePrefix) throws IOException {
+		final Path jar = getOptJar(jarNamePrefix);
+		final Path pluginPath = plugins.resolve(jarNamePrefix);
+		Files.createDirectory(pluginPath);
+		Files.copy(jar, pluginPath.resolve(jar.getFileName()));
+	}
+
+	@Nonnull
+	public Path getOptJar(final String jarNamePrefix) throws IOException {
 		try (Stream<Path> logFiles = Files.walk(opt)) {
-			reporterJarOptional = logFiles
+			return logFiles
 				.filter(path -> path.getFileName().toString().startsWith(jarNamePrefix))
-				.findFirst();
+				.findFirst()
+				.orElseThrow(() -> new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + "."));
 		}
-		if (reporterJarOptional.isPresent()) {
-			final Path optReporterJar = reporterJarOptional.get();
-			final Path libReporterJar = lib.resolve(optReporterJar.getFileName());
-			Files.copy(optReporterJar, libReporterJar);
-		} else {
-			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + ".");
-		}
+	}
+
+	public void copyResourceJarToLib(String jarNameRegex) throws IOException {
+		final Path jar = TestUtils.getResourceJar(jarNameRegex);
+		Files.copy(jar, lib.resolve(jar.getFileName()));
 	}
 
 	public void appendConfiguration(Configuration config) throws IOException {
@@ -283,27 +299,24 @@ public final class FlinkDistribution implements ExternalResource {
 	}
 
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
-		final List<String> matches = new ArrayList<>(2);
+		return getLogs()
+			.flatMap(line -> {
+				final Matcher matcher = pattern.matcher(line);
+				if (matcher.matches()) {
+					return Stream.of(matchProcessor.apply(matcher));
+				}
+				return Stream.empty();
+			});
+	}
 
-		try (Stream<Path> logFilesStream = Files.list(log)) {
-			final Iterator<Path> logFiles = logFilesStream.iterator();
-			while (logFiles.hasNext()) {
-				final Path logFile = logFiles.next();
-				if (!logFile.getFileName().toString().endsWith(".log")) {
-					// ignore logs for previous runs that have a number suffix
-					continue;
+	public Stream<String> getLogs() throws IOException {
+		return StreamSupport.stream(Files.newDirectoryStream(log, "*.log").spliterator(), false)
+			.flatMap(logFile -> {
+				try {
+					return TestUtils.inputStreamToStream(new FileInputStream(logFile.toFile()));
+				} catch (FileNotFoundException e) {
+					throw new UncheckedIOException(e);
 				}
-				try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(logFile.toFile()), StandardCharsets.UTF_8))) {
-					String line;
-					while ((line = br.readLine()) != null) {
-						Matcher matcher = pattern.matcher(line);
-						if (matcher.matches()) {
-							matches.add(matchProcessor.apply(matcher));
-						}
-					}
-				}
-			}
-		}
-		return matches.stream();
+			});
 	}
 }
