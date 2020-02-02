@@ -295,7 +295,7 @@ public final class FlinkDistribution implements ExternalResource {
 			.map(entry -> entry.getKey() + ": " + entry.getValue())
 			.collect(Collectors.toList());
 
-		Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+		Files.write(conf.resolve("flink-conf.yaml"), configurationLines, StandardOpenOption.APPEND);
 	}
 
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
