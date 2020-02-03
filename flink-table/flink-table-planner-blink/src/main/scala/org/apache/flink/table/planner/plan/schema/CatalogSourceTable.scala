@@ -95,7 +95,7 @@ class CatalogSourceTable[T](
         .getPlanner
         .getContext
         .unwrap(classOf[FlinkContext])
-        .getToRexConverterFactory
+        .getSqlExprToRexConverterFactory
 
     // 2. push computed column project
     val fieldNames = rowType.getFieldNames.asScala

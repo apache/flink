@@ -160,13 +160,8 @@ class FlinkPlannerImpl(
   }
 
   /**
-    * Creates a new instance of [[SqlExprToRexConverter]] to convert SQL expression
-    * to RexNode.
+    * Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]].
     */
-  def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter = {
-    new SqlExprToRexConverterImpl(config, typeFactory, cluster, tableRowType)
-  }
-
   def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
 
   /**

@@ -71,6 +71,7 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to create {@link org.apache.calcite.tools.RelBuilder} or {@link FrameworkConfig} used to create
@@ -80,13 +81,15 @@ import static java.util.Collections.singletonList;
  */
 @Internal
 public class PlannerContext {
+
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
-	private final RelOptCluster cluster;
 	private final FlinkContextImpl context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
+	private FrameworkConfig frameworkConfig;
+	private RelOptCluster cluster;
 
 	public PlannerContext(
 			TableConfig tableConfig,
@@ -95,13 +98,23 @@ public class PlannerContext {
 			CalciteSchema rootSchema,
 			List<RelTraitDef> traitDefs) {
 		this.tableConfig = tableConfig;
-		this.context = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager);
+
+		this.context = new FlinkContextImpl(
+				tableConfig,
+				functionCatalog,
+				catalogManager,
+				t -> new SqlExprToRexConverterImpl(
+						checkNotNull(frameworkConfig),
+						checkNotNull(typeFactory),
+						checkNotNull(cluster),
+						t));
+
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
 		// Make a framework config to initialize the RelOptCluster instance,
 		// caution that we can only use the attributes that can not be overwrite/configured
 		// by user.
-		final FrameworkConfig frameworkConfig = createFrameworkConfig();
+		this.frameworkConfig = createFrameworkConfig();
 
 		RelOptPlanner planner = new VolcanoPlanner(frameworkConfig.getCostFactory(), frameworkConfig.getContext());
 		planner.setExecutor(frameworkConfig.getExecutor());
@@ -109,9 +122,6 @@ public class PlannerContext {
 			planner.addRelTraitDef(traitDef);
 		}
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
-
-		this.context.toRexConverterFactory_$eq(t -> new SqlExprToRexConverterImpl(
-				frameworkConfig, typeFactory, cluster, t));
 	}
 
 	private FrameworkConfig createFrameworkConfig() {
