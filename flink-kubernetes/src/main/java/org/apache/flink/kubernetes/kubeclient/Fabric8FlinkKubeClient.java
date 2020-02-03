@@ -36,6 +36,8 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesDeployment;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -59,6 +61,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -82,12 +87,23 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	private final List<Decorator<Deployment, KubernetesDeployment>> flinkMasterDeploymentDecorators = new ArrayList<>();
 	private final List<Decorator<Pod, KubernetesPod>> taskManagerPodDecorators = new ArrayList<>();
 
+	private final ExecutorWrapper executorWrapper;
+
 	public Fabric8FlinkKubeClient(Configuration flinkConfig, KubernetesClient client) {
+		this(flinkConfig, client, new ExecutorWrapper(flinkConfig));
+	}
+
+	public Fabric8FlinkKubeClient(Configuration flinkConfig, KubernetesClient client, Executor executor) {
+		this(flinkConfig, client, new ExecutorWrapper(flinkConfig, checkNotNull(executor)));
+	}
+
+	private Fabric8FlinkKubeClient(Configuration flinkConfig, KubernetesClient client, ExecutorWrapper executorWrapper) {
 		this.flinkConfig = checkNotNull(flinkConfig);
 		this.internalClient = checkNotNull(client);
 		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
-		this.nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+		this.nameSpace = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.NAMESPACE));
+		this.executorWrapper = checkNotNull(executorWrapper);
 
 		initialize();
 	}
@@ -288,6 +304,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Override
 	public void close() {
 		this.internalClient.close();
+		this.executorWrapper.close();
 	}
 
 	private CompletableFuture<KubernetesService> createService(
@@ -321,7 +338,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 				watchConnectionManager.close();
 
 				return new KubernetesService(this.flinkConfig, createdService);
-			}));
+			}), executorWrapper.getExecutor());
 	}
 
 	private KubernetesService getService(String serviceName) {
@@ -354,5 +371,34 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 			}
 		}
 		return port;
+	}
+
+	/**
+	 * The help class to get the executor to run asynchronous operations on. It could create a dedicated thread pool or
+	 * reuse an existing one.
+	 */
+	private static class ExecutorWrapper {
+
+		private final ExecutorService internalExecutorService;
+		private Executor executor = null;
+
+		ExecutorWrapper(Configuration flinkConfig) {
+			internalExecutorService = Executors.newFixedThreadPool(
+				flinkConfig.getInteger(KubernetesConfigOptions.CLIENT_ASYNC_THREAD_POOL_SIZE),
+				new ExecutorThreadFactory("FlinkKubeClient-IO"));
+		}
+
+		ExecutorWrapper(Configuration flinkConfig, Executor executor) {
+			this(flinkConfig);
+			this.executor = executor;
+		}
+
+		Executor getExecutor() {
+			return executor == null ? this.internalExecutorService : executor;
+		}
+
+		public void close() {
+			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.internalExecutorService);
+		}
 	}
 }

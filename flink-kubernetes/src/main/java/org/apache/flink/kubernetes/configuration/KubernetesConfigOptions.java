@@ -97,7 +97,13 @@ public class KubernetesConfigOptions {
 		.withDescription("Timeout used for creating the service. The timeout value requires a time-unit " +
 			"specifier (ms/s/min/h/d).");
 
-  	// ---------------------------------------------------------------------------------
+	public static final ConfigOption<Integer> CLIENT_ASYNC_THREAD_POOL_SIZE =
+		key("kubernetes.client.async.thread-pool-size")
+		.intType()
+		.defaultValue(4)
+		.withDescription("Number of threads in FlinkKubeClient to process all asynchronous operations.");
+
+	// ---------------------------------------------------------------------------------
 	// The following config options could be overridden by KubernetesCliOptions.
 	// ---------------------------------------------------------------------------------
 
