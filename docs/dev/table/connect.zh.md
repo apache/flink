@@ -1356,6 +1356,8 @@ The CSV format can be used as follows:
     .fieldDelimiter(';')         // optional: field delimiter character (',' by default)
     .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
                                  //   otherwise "\r", "\r\n", or "" are allowed)
+    .disableQuoteCharacter()     // optional: disabled quote character for enclosing field values;
+                                 //   cannot define a quote character and disabled quote character at the same time
     .quoteCharacter('\'')        // optional: quote character for enclosing field values ('"' by default)
     .allowComments()             // optional: ignores comment lines that start with '#' (disabled by default);
                                  //   if enabled, make sure to also ignore parse errors to allow empty rows
@@ -1412,6 +1414,8 @@ format:
   field-delimiter: ";"         # optional: field delimiter character (',' by default)
   line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default;
                                #   otherwise "\r", "\r\n", or "" are allowed)
+  disable-quote-character = true # optional: disabled quote character for enclosing field values (false by default)
+                               # if true, quote-character can not be set
   quote-character: "'"         # optional: quote character for enclosing field values ('"' by default)
   allow-comments: true         # optional: ignores comment lines that start with "#" (disabled by default);
                                #   if enabled, make sure to also ignore parse errors to allow empty rows
@@ -1442,7 +1446,7 @@ CREATE TABLE MyUserTable (
   'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
                                           -- "\r" or "\r\n" are allowed)
-  'format.disable-quote-character' = true,-- optional: disabled quote character for enclosing field values (false by default)
+  'format.disable-quote-character' = 'true',-- optional: disabled quote character for enclosing field values (false by default)
                                           -- if true, format.quote-character can not be set
   'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
   'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#"
@@ -1917,8 +1921,6 @@ CREATE TABLE MyUserTable (
 
   'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
   'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
-  'format.disable-quote-character' = true,-- optional: disabled quote character for enclosing field values (false by default)
-                                          -- if true, format.quote-character can not be set
   'format.quote-character' = '"',         -- optional: single character for string values, empty by default
   'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
   'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
