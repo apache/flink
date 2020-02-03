@@ -26,7 +26,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
@@ -35,7 +34,6 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Test;
 
 import java.util.List;
@@ -62,7 +60,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 		assertEquals(CLUSTER_ID + "." + NAMESPACE, FLINK_CONFIG.getString(JobManagerOptions.ADDRESS));
 		assertEquals(MOCK_SERVICE_ID, FLINK_CONFIG.getString(KubernetesConfigOptionsInternal.SERVICE_ID));
 
-		final KubernetesClient kubeClient = server.getClient();
 		final ServiceList serviceList = kubeClient.services().list();
 		assertEquals(2, serviceList.getItems().size());
 		assertEquals(CLUSTER_ID, serviceList.getItems().get(0).getMetadata().getName());
@@ -97,7 +94,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 		final ClusterClient<String> clusterClient = deploySessionCluster();
 
-		final KubernetesClient kubeClient = server.getClient();
 		final Container jmContainer = kubeClient
 			.apps()
 			.deployments()
@@ -121,7 +117,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 	@Test
 	public void testKillCluster() throws Exception {
-		final FlinkKubeClient flinkKubeClient = getFabric8FlinkKubeClient();
 		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(FLINK_CONFIG, flinkKubeClient);
 
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
@@ -129,7 +124,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 		descriptor.deploySessionCluster(clusterSpecification);
 
-		final KubernetesClient kubeClient = server.getClient();
 		assertEquals(2, kubeClient.services().list().getItems().size());
 
 		descriptor.killCluster(CLUSTER_ID);
@@ -143,7 +137,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 	}
 
 	private ClusterClient<String> deploySessionCluster() throws ClusterDeploymentException {
-		final FlinkKubeClient flinkKubeClient = getFabric8FlinkKubeClient();
 		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(FLINK_CONFIG, flinkKubeClient);
 
 		final ClusterClient<String> clusterClient = descriptor

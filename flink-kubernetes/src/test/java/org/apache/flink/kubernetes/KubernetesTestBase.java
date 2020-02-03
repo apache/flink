@@ -43,6 +43,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
 import io.fabric8.kubernetes.api.model.WatchEvent;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -68,6 +69,10 @@ public class KubernetesTestBase extends TestLogger {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private File flinkConfDir;
+
+	protected FlinkKubeClient flinkKubeClient;
+
+	protected KubernetesClient kubeClient;
 
 	protected static final String NAMESPACE = "test";
 
@@ -106,21 +111,25 @@ public class KubernetesTestBase extends TestLogger {
 		map.put(ConfigConstants.ENV_FLINK_CONF_DIR, flinkConfDir.toString());
 		TestBaseUtils.setEnv(map);
 
+		flinkKubeClient = getFabric8FlinkKubeClient();
+		kubeClient = getKubeClient();
+
 		// Set mock requests.
 		mockInternalServiceActionWatch();
 		mockRestServiceActionWatcher(CLUSTER_ID);
 		mockGetRestService(CLUSTER_ID, MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP);
 	}
 
-	protected FlinkKubeClient getFabric8FlinkKubeClient(){
-		return getFabric8FlinkKubeClient(FLINK_CONFIG);
+	@After
+	public void tearDown() throws Exception {
+		flinkKubeClient.close();
 	}
 
-	protected FlinkKubeClient getFabric8FlinkKubeClient(Configuration flinkConfig){
-		return new Fabric8FlinkKubeClient(flinkConfig, server.getClient().inNamespace(NAMESPACE));
+	private FlinkKubeClient getFabric8FlinkKubeClient(){
+		return new Fabric8FlinkKubeClient(FLINK_CONFIG, server.getClient().inNamespace(NAMESPACE));
 	}
 
-	protected KubernetesClient getKubeClient() {
+	private KubernetesClient getKubeClient() {
 		return server.getClient().inNamespace(NAMESPACE);
 	}
 

@@ -33,13 +33,10 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import org.hamcrest.Matchers;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -57,17 +54,6 @@ import static org.junit.Assert.assertTrue;
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
  */
 public class Fabric8ClientTest extends KubernetesTestBase {
-
-	private FlinkKubeClient flinkKubeClient;
-
-	private KubernetesClient kubeClient;
-
-	@Before
-	public void setUp() throws IOException {
-		super.setUp();
-		flinkKubeClient = getFabric8FlinkKubeClient();
-		kubeClient = getKubeClient();
-	}
 
 	@Test
 	public void testCreateConfigMap() throws Exception {
