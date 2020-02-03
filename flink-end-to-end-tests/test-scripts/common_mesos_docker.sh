@@ -33,6 +33,7 @@ start_time=$(date +%s)
 
 # make sure we stop our cluster at the end
 function cluster_shutdown {
+  docker exec mesos-master bash -c "chmod -R ogu+rw ${FLINK_DIR}/log/ ${TEST_DATA_DIR}"
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml down
 }
 on_exit cluster_shutdown
