@@ -107,7 +107,9 @@ public class StreamSourceOperatorWatermarksTest {
 			testHarness.waitForTaskCompletion();
 			fail("should throw an exception");
 		} catch (Throwable t) {
-			assertTrue(ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent());
+			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+				throw t;
+			}
 		}
 		assertTrue(testHarness.getOutput().isEmpty());
 	}
@@ -120,11 +122,13 @@ public class StreamSourceOperatorWatermarksTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 		Thread.sleep(200);
-		testHarness.getTask().cancel(); // cancel task
+		testHarness.getTask().cancel();
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
-			assertTrue(ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent());
+			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+				throw t;
+			}
 		}
 		assertTrue(testHarness.getOutput().isEmpty());
 	}

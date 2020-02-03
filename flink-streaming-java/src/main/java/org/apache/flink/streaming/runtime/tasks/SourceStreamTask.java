@@ -21,11 +21,13 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import java.util.concurrent.CompletableFuture;
@@ -121,10 +123,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		sourceThread.setTaskDescription(getName());
 		sourceThread.start();
 		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
-			if (sourceThreadThrowable == null || isFinished) {
-				mailboxProcessor.allActionsCompleted();
-			} else {
+			if (isCanceled() && ExceptionUtils.findThrowable(sourceThreadThrowable, InterruptedException.class).isPresent()) {
+				mailboxProcessor.reportThrowable(new CancelTaskException(sourceThreadThrowable));
+			} else if (!isFinished && sourceThreadThrowable != null) {
 				mailboxProcessor.reportThrowable(sourceThreadThrowable);
+			} else {
+				mailboxProcessor.allActionsCompleted();
 			}
 		});
 	}
