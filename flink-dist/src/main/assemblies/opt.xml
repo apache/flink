@@ -168,6 +168,14 @@
 			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<!-- ML (API & LIB)  -->
+		<file>
+			<source>../flink-ml-parent/flink-ml-lib/target/flink-ml-lib_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 	<dependencySets>
 		<dependencySet>
