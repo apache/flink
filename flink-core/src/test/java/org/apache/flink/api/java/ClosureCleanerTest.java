@@ -231,6 +231,11 @@ public class ClosureCleanerTest {
 		Assert.assertEquals("text", writeReplace.getPayload().getRaw());
 		ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCleanedObjectClass() {
+		ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
 }
 
 class CustomMap implements MapFunction<Integer, Integer> {
