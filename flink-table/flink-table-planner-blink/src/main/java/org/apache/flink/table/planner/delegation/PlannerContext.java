@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.CalciteParser;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
@@ -85,7 +86,7 @@ public class PlannerContext {
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
-	private final FlinkContextImpl context;
+	private final FlinkContext context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
 	private FrameworkConfig frameworkConfig;
@@ -103,11 +104,11 @@ public class PlannerContext {
 				tableConfig,
 				functionCatalog,
 				catalogManager,
-				t -> new SqlExprToRexConverterImpl(
+				rowType -> new SqlExprToRexConverterImpl(
 						checkNotNull(frameworkConfig),
 						checkNotNull(typeFactory),
 						checkNotNull(cluster),
-						t));
+						rowType));
 
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
