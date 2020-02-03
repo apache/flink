@@ -24,7 +24,6 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.commons.io.FilenameUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -76,7 +75,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 
 		File fileChannelDir = temporaryFolder.newFolder();
 		File signalDir = temporaryFolder.newFolder();
-		File signalFile = new File(FilenameUtils.concat(signalDir.getAbsolutePath(), SIGNAL_FILE_FOR_KILLING));
+		File signalFile = new File(signalDir.getAbsolutePath(), SIGNAL_FILE_FOR_KILLING);
 
 		FileChannelManagerTestProcess fileChannelManagerTestProcess = new FileChannelManagerTestProcess(
 			callerHasHook,
