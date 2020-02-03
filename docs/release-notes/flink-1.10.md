@@ -84,6 +84,12 @@ customizable in the future. Users that experience issues related to scheduling
 can fallback to the legacy scheduler by setting `jobmanager.scheduler: legacy`
 in their `flink-conf.yaml`.
 
+#### Java 11 Support ([FLINK-10725](https://issues.apache.org/jira/browse/FLINK-10725))
+Beginning from this release, Flink can be compiled and run with Java 11. Note
+that the connectors for Cassandra, Hive, HBase, and Kafka 0.8--0.11 have not been
+tested with Java 11 because the respective projects did not provide Java 11
+support at the time of the Flink 1.10.0 release.
+
 
 ### Memory Management
 #### New Task Executor Memory Model ([FLINK-13980](https://issues.apache.org/jira/browse/FLINK-13980))
@@ -175,6 +181,18 @@ maintain backwards compatibility where it makes sense:
 The container cut-off configuration options, `containerized.heap-cutoff-ratio`
 and `containerized.heap-cutoff-min`, have no effect for task executor processes
 anymore but they still have the same semantics for the JobManager process.
+
+#### RocksDB State Backend Memory Control ([FLINK-7289](https://issues.apache.org/jira/browse/FLINK-7289))
+Together with the introduction of the [new Task Executor Memory
+Model](#new-task-executor-memory-model-flink-13980), the memory consumption of the RocksDB state backend will be
+limited by the total amount of Flink Managed Memory, which can be configured via
+`taskmanager.memory.managed.size` or `taskmanager.memory.managed.fraction`.
+Furthermore, users can tune RocksDB's write/read memory ratio
+(`state.backend.rocksdb.memory.write-buffer-ratio`, by default `0.5`) and the
+reserved memory fraction for indices/filters
+(`state.backend.rocksdb.memory.high-prio-pool-ratio`, by default `0.1`). More
+details and advanced configuration options can be found in the [Flink user
+documentation]({{ site.baseurl }}/ops/state/large_state_tuning.html#tuning-rocksdb-memory).
 
 #### Fine-grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
 Config options `table.exec.resource.external-buffer-memory`,
@@ -294,6 +312,11 @@ in `flink-conf.yaml` to restore the old behavior.
 `StateTtlConfig#TimeCharacteristic` has been removed in favor of
 `StateTtlConfig#TtlTimeCharacteristic`.
 
+#### New efficient Method to check if MapState is empty ([FLINK-13034](https://issues.apache.org/jira/browse/FLINK-13034))
+We have added a new method `MapState#isEmpty()` which enables users to check
+whether a map state is empty. The new method is 40% faster than
+`mapState.keys().iterator().hasNext()` when using the RocksDB state backend.
+
 #### RocksDB Upgrade ([FLINK-14483](https://issues.apache.org/jira/browse/FLINK-14483))
 We have again released our own RocksDB build (FRocksDB) which is based on
 RocksDB version 5.17.2 with several feature backports for the [Write Buffer
@@ -302,6 +325,13 @@ enable limiting RocksDB's memory usage. The decision to release our own
 RocksDB build was made because later RocksDB versions suffer from a
 [performance regression under certain
 workloads](https://github.com/facebook/rocksdb/issues/5774).
+
+#### RocksDB Logging disabled by default ([FLINK-15068](https://issues.apache.org/jira/browse/FLINK-15068))
+Logging in RocksDB (e.g., logging related to flush, compaction, memtable
+creation, etc.) has been disabled by default to prevent disk space from being
+filled up unexpectedly. Users that need to enable logging should implement their
+own `RocksDBOptionsFactory` that creates `DBOptions` instances with
+`InfoLogLevel` set to `INFO_LEVEL`.
 
 #### Improved RocksDB Savepoint Recovery ([FLINK-12785](https://issues.apache.org/jira/browse/FLINK-12785))
 In previous Flink releases users may encounter an `OutOfMemoryError` when
@@ -376,3 +406,8 @@ external thread). The methods `MailboxExecutor#yield()` or
 control to other actions temporarily, e.g., if the current operator is
 blocked. The `MailboxExecutor` can be accessed by using
 `YieldingOperatorFactory` (see `AsyncWaitOperator` for an example usage).
+
+#### Deprecation of OptionsFactory and ConfigurableOptionsFactory interfaces ([FLINK-14926](https://issues.apache.org/jira/browse/FLINK-14926))
+Interfaces `OptionsFactory` and `ConfigurableOptionsFactory` have been
+deprecated in favor of `RocksDBOptionsFactory` and
+`ConfigurableRocksDBOptionsFactory`, respectively.
