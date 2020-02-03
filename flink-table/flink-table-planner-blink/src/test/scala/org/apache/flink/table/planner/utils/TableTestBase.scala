@@ -66,10 +66,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.commons.lang3.SystemUtils
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
-import org.junit.rules.{ExpectedException, TestName}
+import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -87,6 +86,11 @@ abstract class TableTestBase {
 
   // used for get test case method name
   val testName: TestName = new TestName
+
+  val _tempFolder = new TemporaryFolder
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Rule
   def thrown: ExpectedException = expectedException
