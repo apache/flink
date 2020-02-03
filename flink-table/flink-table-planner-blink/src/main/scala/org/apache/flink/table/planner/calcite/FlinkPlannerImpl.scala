@@ -49,7 +49,7 @@ class FlinkPlannerImpl(
     config: FrameworkConfig,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
-    cluster: RelOptCluster) extends FlinkToRelContext {
+    cluster: RelOptCluster) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
@@ -139,7 +139,7 @@ class FlinkPlannerImpl(
     try {
       assert(validatedSqlNode != null)
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        this,
+        createToRelContext(),
         sqlValidator,
         sqlValidator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]),
         cluster,
@@ -160,38 +160,36 @@ class FlinkPlannerImpl(
   }
 
   /**
-    * Creates a new instance of [[SqlExprToRexConverter]] to convert SQL expression
-    * to RexNode.
+    * Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]].
     */
-  def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter = {
-    new SqlExprToRexConverterImpl(config, typeFactory, cluster, tableRowType)
-  }
+  def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
 
-  override def getCluster: RelOptCluster = cluster
+  /**
+    * Implements [[RelOptTable.ToRelContext]] interface for [[RelOptTable]] and
+    * [[org.apache.calcite.tools.Planner]].
+    */
+  class ToRelContextImpl extends RelOptTable.ToRelContext {
 
-  override def expandView(
-      rowType: RelDataType,
-      queryString: String,
-      schemaPath: util.List[String],
-      viewPath: util.List[String])
+    override def expandView(
+        rowType: RelDataType,
+        queryString: String,
+        schemaPath: util.List[String],
+        viewPath: util.List[String])
     : RelRoot = {
-    val parsed = parser.parse(queryString)
-    val originalReader = catalogReaderSupplier.apply(false)
-    val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
-      originalReader.getRootSchema,
-      List(schemaPath, schemaPath.subList(0, 1)).asJava,
-      originalReader.getTypeFactory,
-      originalReader.getConfig
-    )
-    val validator = createSqlValidator(readerWithPathAdjusted)
-    val validated = validate(parsed, validator)
-    rel(validated, validator)
-  }
+      val parsed = parser.parse(queryString)
+      val originalReader = catalogReaderSupplier.apply(false)
+      val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
+        originalReader.getRootSchema,
+        List(schemaPath, schemaPath.subList(0, 1)).asJava,
+        originalReader.getTypeFactory,
+        originalReader.getConfig
+      )
+      val validator = createSqlValidator(readerWithPathAdjusted)
+      val validated = validate(parsed, validator)
+      rel(validated, validator)
+    }
 
-  override def createRelBuilder(): FlinkRelBuilder = {
-    sqlToRelConverterConfig.getRelBuilderFactory
-      .create(cluster, null)
-      .asInstanceOf[FlinkRelBuilder]
+    override def getCluster: RelOptCluster = cluster
   }
 }
 

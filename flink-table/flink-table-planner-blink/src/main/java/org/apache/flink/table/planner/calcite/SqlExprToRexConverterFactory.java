@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,26 +18,16 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.RelDataType;
 
 /**
- * A ToRelContext impl that takes the context variables
- * used for sql expression transformation.
+ * Factory to create {@link SqlExprToRexConverter}.
  */
-public interface FlinkToRelContext extends RelOptTable.ToRelContext {
+public interface SqlExprToRexConverterFactory {
 
 	/**
-	 * Creates a new instance of {@link SqlExprToRexConverter} to convert sql statements
-	 * to {@link org.apache.calcite.rex.RexNode}.
-	 *
-	 * <p>See {@link org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase#toRel}
-	 * for details.
+	 * Creates a new instance of {@link SqlExprToRexConverter} to convert SQL expression
+	 * to RexNode.
 	 */
-	SqlExprToRexConverter createSqlExprToRexConverter(RelDataType tableRowType);
-
-	/**
-	 * Creates a new instance of {@link FlinkRelBuilder} to build relational expressions.
-	 */
-	FlinkRelBuilder createRelBuilder();
+	SqlExprToRexConverter create(RelDataType tableRowType);
 }
