@@ -298,7 +298,7 @@ public class FlinkKinesisProducerTest {
 			}
 		};
 		msg1.start();
-		msg1.trySync(deadline.timeLeftIfAny().toMillis());
+		msg1.trySync(deadline.timeLeft().toMillis());
 		assertFalse("Flush triggered before reaching queue limit", msg1.isAlive());
 
 		// consume msg-1 so that queue is empty again
@@ -311,7 +311,7 @@ public class FlinkKinesisProducerTest {
 			}
 		};
 		msg2.start();
-		msg2.trySync(deadline.timeLeftIfAny().toMillis());
+		msg2.trySync(deadline.timeLeft().toMillis());
 		assertFalse("Flush triggered before reaching queue limit", msg2.isAlive());
 
 		CheckedThread moreElementsThread = new CheckedThread() {
@@ -341,7 +341,7 @@ public class FlinkKinesisProducerTest {
 		}
 		producer.getPendingRecordFutures().get(2).set(result);
 
-		moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
+		moreElementsThread.trySync(deadline.timeLeft().toMillis());
 
 		assertFalse("Prodcuer still blocks although the queue is flushed", moreElementsThread.isAlive());
 
