@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
@@ -58,6 +59,7 @@ import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.schema.SchemaPlus;
@@ -86,11 +88,11 @@ public class PlannerContext {
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
+	private final RelOptCluster cluster;
 	private final FlinkContext context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
-	private FrameworkConfig frameworkConfig;
-	private RelOptCluster cluster;
+	private final FrameworkConfig frameworkConfig;
 
 	public PlannerContext(
 			TableConfig tableConfig,
@@ -104,11 +106,7 @@ public class PlannerContext {
 				tableConfig,
 				functionCatalog,
 				catalogManager,
-				rowType -> new SqlExprToRexConverterImpl(
-						checkNotNull(frameworkConfig),
-						checkNotNull(typeFactory),
-						checkNotNull(cluster),
-						rowType));
+				this::createSqlExprToRexConverter);
 
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
@@ -123,6 +121,14 @@ public class PlannerContext {
 			planner.addRelTraitDef(traitDef);
 		}
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
+	}
+
+	private SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {
+		return new SqlExprToRexConverterImpl(
+				checkNotNull(frameworkConfig),
+				checkNotNull(typeFactory),
+				checkNotNull(cluster),
+				rowType);
 	}
 
 	private FrameworkConfig createFrameworkConfig() {
