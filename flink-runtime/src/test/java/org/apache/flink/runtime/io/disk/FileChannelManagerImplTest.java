@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.io.disk;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.io.FilenameUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -75,7 +75,6 @@ public class FileChannelManagerImplTest extends TestLogger {
 				|| OperatingSystem.isMac());
 
 		File fileChannelDir = temporaryFolder.newFolder();
-
 		File signalDir = temporaryFolder.newFolder();
 		File signalFile = new File(FilenameUtils.concat(signalDir.getAbsolutePath(), SIGNAL_FILE_FOR_KILLING));
 
@@ -161,7 +160,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 		public static void main(String[] args) throws Exception{
 			boolean callerHasHook = Boolean.parseBoolean(args[0]);
 			String tmpDirectory = args[1];
-			String couldKillSignalFilePath = args[2];
+			String signalFilePath = args[2];
 
 			FileChannelManager manager = new FileChannelManagerImpl(new String[]{tmpDirectory}, DIR_NAME_PREFIX);
 
@@ -172,7 +171,7 @@ public class FileChannelManagerImplTest extends TestLogger {
 			}
 
 			// Signals the main process to execute the kill action.
-			new File(couldKillSignalFilePath).createNewFile();
+			new File(signalFilePath).createNewFile();
 
 			// Blocks the process to wait to be killed.
 			Thread.sleep(3 * TEST_TIMEOUT.toMillis());

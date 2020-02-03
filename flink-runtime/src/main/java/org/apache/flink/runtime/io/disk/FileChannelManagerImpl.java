@@ -22,8 +22,8 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.Enumerator;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
-
 import org.apache.flink.util.ShutdownHookUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
