@@ -305,7 +305,7 @@ public final class DataTypeExtractor {
 			DataTypeTemplate template,
 			List<Type> typeHierarchy,
 			Type type) {
-		// byte arrays have higher priority than regular arrays
+		// prefer BYTES over ARRAY<TINYINT> for byte[]
 		if (type == byte[].class) {
 			return DataTypes.BYTES();
 		}

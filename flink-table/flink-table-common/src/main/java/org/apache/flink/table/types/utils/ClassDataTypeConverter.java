@@ -92,8 +92,8 @@ public final class ClassDataTypeConverter {
 	 */
 	@SuppressWarnings("unchecked")
 	public static Optional<DataType> extractDataType(Class<?> clazz) {
-		// byte arrays have higher priority than regular arrays
-		if (clazz.equals(byte[].class)) {
+		// prefer BYTES over ARRAY<TINYINT> for byte[]
+		if (clazz == byte[].class) {
 			return Optional.of(DataTypes.BYTES());
 		}
 
