@@ -107,8 +107,11 @@ public class MemoryUtils {
 	 * @param address address of the unsafe memory to release
 	 * @return action to run to release the unsafe memory manually
 	 */
-	static Runnable createMemoryGcCleaner(Object owner, long address) {
-		return JavaGcCleanerWrapper.create(owner, () -> releaseUnsafe(address));
+	static Runnable createMemoryGcCleaner(Object owner, long address, Runnable customCleanup) {
+		return JavaGcCleanerWrapper.createCleaner(owner, () -> {
+			releaseUnsafe(address);
+			customCleanup.run();
+		});
 	}
 
 	private static void releaseUnsafe(long address) {
