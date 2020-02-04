@@ -155,9 +155,9 @@ under the License.
 				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
 				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.21.0:compile
 				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.9.6:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.10.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:compile
 				[INFO] |  +- com.google.guava:guava:jar:19.0:compile
 				[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
 
