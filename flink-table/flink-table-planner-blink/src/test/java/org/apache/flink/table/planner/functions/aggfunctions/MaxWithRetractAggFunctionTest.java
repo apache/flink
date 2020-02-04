@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.BooleanMaxWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.ByteMaxWithRetractAggFunction;
@@ -42,7 +43,6 @@ import org.junit.runner.RunWith;
 import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -444,17 +444,17 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for TimestampMaxWithRetractAggFunction.
 	 */
-	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Timestamp> {
+	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
 
 		@Override
-		protected List<List<Timestamp>> getInputValueSets() {
+		protected List<List<SqlTimestamp>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Timestamp(0),
-							new Timestamp(1000),
-							new Timestamp(100),
+							SqlTimestamp.fromEpochMillis(0),
+							SqlTimestamp.fromEpochMillis(1000),
+							SqlTimestamp.fromEpochMillis(100),
 							null,
-							new Timestamp(10)
+							SqlTimestamp.fromEpochMillis(10)
 					),
 					Arrays.asList(
 							null,
@@ -465,23 +465,69 @@ public class MaxWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Timestamp(1)
+							SqlTimestamp.fromEpochMillis(1)
 					)
 			);
 		}
 
 		@Override
-		protected List<Timestamp> getExpectedResults() {
+		protected List<SqlTimestamp> getExpectedResults() {
 			return Arrays.asList(
-					new Timestamp(1000),
+					SqlTimestamp.fromEpochMillis(1000),
 					null,
-					new Timestamp(1)
+					SqlTimestamp.fromEpochMillis(1)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Timestamp, MaxWithRetractAccumulator<Timestamp>> getAggregator() {
-			return new TimestampMaxWithRetractAggFunction();
+		protected AggregateFunction<SqlTimestamp, MaxWithRetractAccumulator<SqlTimestamp>> getAggregator() {
+			return new TimestampMaxWithRetractAggFunction(3);
+		}
+	}
+
+	/**
+	 * Test for TimestampMaxWithRetractAggFunction, precision is 9.
+	 */
+	public static class Timestamp9MaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
+
+		@Override
+		protected List<List<SqlTimestamp>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							SqlTimestamp.fromEpochMillis(0, 0),
+							SqlTimestamp.fromEpochMillis(1000, 0),
+							SqlTimestamp.fromEpochMillis(1000, 1),
+							SqlTimestamp.fromEpochMillis(100, 0),
+							null,
+							SqlTimestamp.fromEpochMillis(10, 0)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							SqlTimestamp.fromEpochMillis(1, 0),
+							SqlTimestamp.fromEpochMillis(1, 1)
+					)
+			);
+		}
+
+		@Override
+		protected List<SqlTimestamp> getExpectedResults() {
+			return Arrays.asList(
+					SqlTimestamp.fromEpochMillis(1000, 1),
+					null,
+					SqlTimestamp.fromEpochMillis(1, 1)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<SqlTimestamp, MaxWithRetractAccumulator<SqlTimestamp>> getAggregator() {
+			return new TimestampMaxWithRetractAggFunction(9);
 		}
 	}
 
