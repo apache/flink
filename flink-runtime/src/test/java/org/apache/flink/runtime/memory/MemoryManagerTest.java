@@ -20,7 +20,6 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager.AllocationRequest;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
 import org.junit.After;
@@ -33,7 +32,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.forOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -165,7 +163,7 @@ public class MemoryManagerTest {
 
 			List<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
 
-			testCannotAllocateAnymore(forOf(mockInvoke, 1));
+			testCannotAllocateAnymore(mockInvoke, 1);
 
 			Assert.assertTrue("The previously allocated segments were not valid any more.",
 																	allMemorySegmentsValid(segs));
@@ -182,13 +180,13 @@ public class MemoryManagerTest {
 	public void doubleReleaseReturnsMemoryOnlyOnce() throws MemoryAllocationException {
 		final AbstractInvokable mockInvoke = new DummyInvokable();
 
-		Collection<MemorySegment> segs = this.memoryManager.allocatePages(forOf(mockInvoke, NUM_PAGES));
+		Collection<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
 		MemorySegment segment = segs.iterator().next();
 
 		this.memoryManager.release(segment);
 		this.memoryManager.release(segment);
 
-		testCannotAllocateAnymore(forOf(mockInvoke, 2));
+		testCannotAllocateAnymore(mockInvoke, 2);
 
 		this.memoryManager.releaseAll(mockInvoke);
 	}
@@ -281,13 +279,13 @@ public class MemoryManagerTest {
 
 		// allocate half memory for segments
 		Object owner1 = new Object();
-		memoryManager.allocatePages(forOf(owner1, totalPagesForType / 2));
+		memoryManager.allocatePages(owner1, totalPagesForType / 2);
 
 		// reserve the other half of memory
 		Object owner2 = new Object();
 		memoryManager.reserveMemory(owner2, (long) PAGE_SIZE * totalPagesForType / 2);
 
-		testCannotAllocateAnymore(forOf(new Object(), 1));
+		testCannotAllocateAnymore(new Object(), 1);
 		testCannotReserveAnymore(1L);
 
 		memoryManager.releaseAll(owner1);
@@ -318,9 +316,9 @@ public class MemoryManagerTest {
 		memoryManager.computeMemorySize(-0.1);
 	}
 
-	private void testCannotAllocateAnymore(AllocationRequest request) {
+	private void testCannotAllocateAnymore(Object owner, int numPages) {
 		try {
-			memoryManager.allocatePages(request);
+			memoryManager.allocatePages(owner, numPages);
 			Assert.fail("Expected MemoryAllocationException. " +
 				"We should not be able to allocate after allocating or(and) reserving all memory of a certain type.");
 		} catch (MemoryAllocationException maex) {
