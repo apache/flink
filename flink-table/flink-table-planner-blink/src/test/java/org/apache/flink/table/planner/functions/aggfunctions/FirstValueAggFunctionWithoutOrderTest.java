@@ -44,65 +44,19 @@ import java.util.List;
  * This class tests `accumulate` method without order argument.
  */
 @RunWith(Enclosed.class)
-public class FirstValueAggFunctionWithoutOrderTest {
+public final class FirstValueAggFunctionWithoutOrderTest {
 
-	/**
-	 * The base test class for FirstValueAggFunction without order.
-	 */
-	public abstract static class FirstValueAggFunctionWithoutOrderTestBase<T>
-			extends AggFunctionTestBase<T, GenericRow> {
-		@Override
-		protected Class<?> getAccClass() {
-			return GenericRow.class;
-		}
-	}
-
-	/**
-	 * Test FirstValueAggFunction for number type.
-	 */
-	public abstract static class NumberFirstValueAggFunctionWithoutOrderTest<T>
-			extends FirstValueAggFunctionWithoutOrderTestBase<T> {
-		protected abstract T getValue(String v);
-
-		@Override
-		protected List<List<T>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							getValue("1"),
-							null,
-							getValue("-99"),
-							getValue("3"),
-							null
-					),
-					Arrays.asList(
-							null,
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							getValue("10"),
-							null,
-							getValue("3")
-					)
-			);
-		}
-
-		@Override
-		protected List<T> getExpectedResults() {
-			return Arrays.asList(
-					getValue("1"),
-					null,
-					getValue("10")
-			);
-		}
-	}
+	// --------------------------------------------------------------------------------------------
+	// Test sets for a particular type being aggregated
+	//
+	// Actual tests are implemented in:
+	//  - AggFunctionTestBase
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Test for ByteFirstValueAggFunction.
 	 */
-	public static class ByteFirstValueAggFunctionWithoutOrderTest
+	public static final class ByteFirstValueAggFunctionWithoutOrderTest
 			extends NumberFirstValueAggFunctionWithoutOrderTest<Byte> {
 
 		@Override
@@ -119,7 +73,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for ShortFirstValueAggFunction.
 	 */
-	public static class ShortFirstValueAggFunctionWithoutOrderTest
+	public static final class ShortFirstValueAggFunctionWithoutOrderTest
 			extends NumberFirstValueAggFunctionWithoutOrderTest<Short> {
 
 		@Override
@@ -136,7 +90,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for IntFirstValueAggFunction.
 	 */
-	public static class IntFirstValueAggFunctionWithoutOrderTest
+	public static final class IntFirstValueAggFunctionWithoutOrderTest
 			extends NumberFirstValueAggFunctionWithoutOrderTest<Integer> {
 
 		@Override
@@ -153,7 +107,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for LongFirstValueAggFunction.
 	 */
-	public static class LongFirstValueAggFunctionWithoutOrderTest
+	public static final class LongFirstValueAggFunctionWithoutOrderTest
 			extends NumberFirstValueAggFunctionWithoutOrderTest<Long> {
 
 		@Override
@@ -170,7 +124,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for FloatFirstValueAggFunction.
 	 */
-	public static class FloatFirstValueAggFunctionWithoutOrderTest
+	public static final class FloatFirstValueAggFunctionWithoutOrderTest
 			extends NumberFirstValueAggFunctionWithoutOrderTest<Float> {
 
 		@Override
@@ -187,7 +141,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for DoubleFirstValueAggFunction.
 	 */
-	public static class DoubleFirstValueAggFunctionWithoutOrderTest
+	public static final class DoubleFirstValueAggFunctionWithoutOrderTest
 			extends NumberFirstValueAggFunctionWithoutOrderTest<Double> {
 
 		@Override
@@ -204,7 +158,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for BooleanFirstValueAggFunction.
 	 */
-	public static class BooleanFirstValueAggFunctionWithoutOrderTest extends
+	public static final class BooleanFirstValueAggFunctionWithoutOrderTest extends
 			FirstValueAggFunctionWithoutOrderTestBase<Boolean> {
 
 		@Override
@@ -260,7 +214,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for DecimalFirstValueAggFunction.
 	 */
-	public static class DecimalFirstValueAggFunctionWithoutOrderTest extends
+	public static final class DecimalFirstValueAggFunctionWithoutOrderTest extends
 			FirstValueAggFunctionWithoutOrderTestBase<Decimal> {
 
 		private int precision = 20;
@@ -312,7 +266,7 @@ public class FirstValueAggFunctionWithoutOrderTest {
 	/**
 	 * Test for StringFirstValueAggFunction.
 	 */
-	public static class StringFirstValueAggFunctionWithoutOrderTest extends
+	public static final class StringFirstValueAggFunctionWithoutOrderTest extends
 			FirstValueAggFunctionWithoutOrderTestBase<BinaryString> {
 
 		@Override
@@ -356,6 +310,66 @@ public class FirstValueAggFunctionWithoutOrderTest {
 		@Override
 		protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
 			return new StringFirstValueAggFunction();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// This section contain base classes that provide:
+	//  - common inputs
+	//  - accumulator class
+	// for tests declared above.
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The base test class for FirstValueAggFunction without order.
+	 */
+	public abstract static class FirstValueAggFunctionWithoutOrderTestBase<T>
+		extends AggFunctionTestBase<T, GenericRow> {
+		@Override
+		protected Class<?> getAccClass() {
+			return GenericRow.class;
+		}
+	}
+
+	/**
+	 * Test FirstValueAggFunction for number type.
+	 */
+	public abstract static class NumberFirstValueAggFunctionWithoutOrderTest<T>
+		extends FirstValueAggFunctionWithoutOrderTestBase<T> {
+		protected abstract T getValue(String v);
+
+		@Override
+		protected List<List<T>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					getValue("1"),
+					null,
+					getValue("-99"),
+					getValue("3"),
+					null
+				),
+				Arrays.asList(
+					null,
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					getValue("10"),
+					null,
+					getValue("3")
+				)
+			);
+		}
+
+		@Override
+		protected List<T> getExpectedResults() {
+			return Arrays.asList(
+				getValue("1"),
+				null,
+				getValue("10")
+			);
 		}
 	}
 }
