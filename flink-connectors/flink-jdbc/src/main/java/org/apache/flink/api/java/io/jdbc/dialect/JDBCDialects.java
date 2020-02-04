@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.TimestampType;
 
 import java.util.Arrays;
@@ -73,7 +74,9 @@ public final class JDBCDialects {
 			for (int i = 0; i < schema.getFieldCount(); i++) {
 				DataType dt = schema.getFieldDataType(i).get();
 				String fieldName = schema.getFieldName(i).get();
-				if (DECIMAL == dt.getLogicalType().getTypeRoot()) {
+				// We only validate precision of DECIMAL type for blink planner.
+				if (!(dt.getLogicalType() instanceof LegacyTypeInformationType)
+						&& DECIMAL == dt.getLogicalType().getTypeRoot()) {
 					int precision = ((DecimalType) dt.getLogicalType()).getPrecision();
 					if (precision > MAX_DERBY_DECIMAL_PRECISION
 							|| precision < MIN_DERBY_DECIMAL_PRECISION) {

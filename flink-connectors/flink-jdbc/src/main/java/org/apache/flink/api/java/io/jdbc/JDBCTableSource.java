@@ -194,12 +194,6 @@ public class JDBCTableSource implements
 		}
 	}
 
-	@Override
-	public String explainSource() {
-		return String.format(
-			"JDBCTableSource(read fields: %s)", String.join(", ", returnType.getFieldNames()));
-	}
-
 	/**
 	 * Builder for a {@link JDBCTableSource}.
 	 */
