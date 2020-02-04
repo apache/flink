@@ -117,6 +117,7 @@ public class MemoryManagerSharedResourcesTest {
 		resource1.close();
 
 		assertFalse(resource1.getResourceHandle().closed);
+		assertFalse(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -132,6 +133,7 @@ public class MemoryManagerSharedResourcesTest {
 		resource2.close();
 
 		assertTrue(resource1.getResourceHandle().closed);
+		assertTrue(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -145,6 +147,7 @@ public class MemoryManagerSharedResourcesTest {
 		resource1.close();
 
 		assertFalse(resource1.getResourceHandle().closed);
+		assertFalse(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -160,6 +163,7 @@ public class MemoryManagerSharedResourcesTest {
 
 		assertTrue(resource1.getResourceHandle().closed);
 		assertTrue(resource2.getResourceHandle().closed);
+		assertTrue(memoryManager.verifyEmpty());
 	}
 
 	@Test
