@@ -8,7 +8,7 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.8.11
+- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.10.1
 - com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.11
 - commons-codec:commons-codec:1.10
 - commons-logging:commons-logging:1.1.3
