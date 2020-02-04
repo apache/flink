@@ -112,10 +112,6 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is {@code null}.
 	 */
 	public void runNullAddressesTest() throws Exception {
-		Map<String, String> userConfig = new HashMap<>();
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", CLUSTER_NAME);
-
 		try {
 			createElasticsearchSink(
 					1,
@@ -134,10 +130,6 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is empty.
 	 */
 	public void runEmptyAddressesTest() throws Exception {
-		Map<String, String> userConfig = new HashMap<>();
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", CLUSTER_NAME);
-
 		try {
 			createElasticsearchSink(
 					1,
@@ -159,10 +151,6 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
-
-		Map<String, String> userConfig = new HashMap<>();
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", "invalid-cluster-name");
 
 		source.addSink(createElasticsearchSinkForNode(
 				1,
