@@ -520,7 +520,7 @@ public class MinWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<SqlTimestamp, MinWithRetractAccumulator<SqlTimestamp>> getAggregator() {
-			return new TimestampMinWithRetractAggFunction(3);
+			return new TimestampMinWithRetractAggFunction(9);
 		}
 	}
 
