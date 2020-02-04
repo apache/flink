@@ -373,34 +373,33 @@ public class NFA<T> {
 
 		ComputationState earliestMatch = nfaState.getCompletedMatches().peek();
 
-		if (earliestMatch != null) {
+		while (earliestMatch != null) {
+			nfaState.setStateChanged();
+			nfaState.getCompletedMatches().poll();
+			List<Map<String, List<EventId>>> matchedResult =
+					sharedBufferAccessor.extractPatterns(earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
+
+			afterMatchSkipStrategy.prune(
+					nfaState.getCompletedMatches(),
+					matchedResult,
+					sharedBufferAccessor);
+
+			result.add(sharedBufferAccessor.materializeMatch(matchedResult.get(0)));
+			sharedBufferAccessor.releaseNode(earliestMatch.getPreviousBufferEntry());
 
 			ComputationState earliestPartialMatch;
-			while (earliestMatch != null && ((earliestPartialMatch = partialMatches.peek()) == null ||
-				isEarlier(earliestMatch, earliestPartialMatch))) {
-
-				nfaState.setStateChanged();
-				nfaState.getCompletedMatches().poll();
-				List<Map<String, List<EventId>>> matchedResult =
-					sharedBufferAccessor.extractPatterns(earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
+			if ((earliestPartialMatch = partialMatches.peek()) != null &&
+				isEarlier(earliestMatch, earliestPartialMatch)) {
 
 				afterMatchSkipStrategy.prune(
 					partialMatches,
 					matchedResult,
 					sharedBufferAccessor);
-
-				afterMatchSkipStrategy.prune(
-					nfaState.getCompletedMatches(),
-					matchedResult,
-					sharedBufferAccessor);
-
-				result.add(sharedBufferAccessor.materializeMatch(matchedResult.get(0)));
-				sharedBufferAccessor.releaseNode(earliestMatch.getPreviousBufferEntry());
-				earliestMatch = nfaState.getCompletedMatches().peek();
 			}
 
-			nfaState.getPartialMatches().removeIf(pm -> pm.getStartEventID() != null && !partialMatches.contains(pm));
+			earliestMatch = nfaState.getCompletedMatches().peek();
 		}
+		nfaState.getPartialMatches().removeIf(pm -> pm.getStartEventID() != null && !partialMatches.contains(pm));
 	}
 
 	private boolean isEarlier(ComputationState earliestMatch, ComputationState earliestPartialMatch) {

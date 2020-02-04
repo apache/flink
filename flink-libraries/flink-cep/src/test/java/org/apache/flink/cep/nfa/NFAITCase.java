@@ -26,6 +26,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
@@ -2843,5 +2844,32 @@ public class NFAITCase extends TestLogger {
 			nfa.advanceTime(accessor, nfa.createInitialNFAState(), 2);
 			Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);
 		}
+	}
+
+	@Test
+	public void testMatchedResultsReturnedAtOnce() throws Exception {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+			.followedBy("end").where(new IterativeCondition<Event>() {
+				private static final long serialVersionUID = -4702359359303151881L;
+
+				@Override
+				public boolean filter(Event value, Context<Event> ctx) throws Exception {
+					return value.getName().equals(ctx.getEventsForPattern("start").iterator().next().getName());
+				}
+			});
+
+		Event a = new Event(40, "a", 1.0);
+		Event b1 = new Event(41, "b", 2.0);
+		Event b2 = new Event(43, "b", 3.0);
+
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+		inputEvents.add(new StreamRecord<>(a, 1));
+		inputEvents.add(new StreamRecord<>(b1, 3));
+		inputEvents.add(new StreamRecord<>(b2, 5));
+
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
+
+		comparePatterns(resultingPatterns, Collections.singletonList(Lists.newArrayList(b1, b2)));
 	}
 }
