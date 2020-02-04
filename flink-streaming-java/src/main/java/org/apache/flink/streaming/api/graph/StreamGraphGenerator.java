@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -742,6 +743,7 @@ public class StreamGraphGenerator {
 
 	private <OUT> Collection<Integer> transformMultipleInputTransform(MultipleInputTransformation<OUT> transform) {
 		checkArgument(!transform.getInputs().isEmpty(), "Empty inputs for MultipleInputTransformation. Did you forget to add inputs?");
+		MultipleInputSelectionHandler.checkSupportedInputCount(transform.getInputs().size());
 
 		List<Collection<Integer>> allInputIds = new ArrayList<>();
 

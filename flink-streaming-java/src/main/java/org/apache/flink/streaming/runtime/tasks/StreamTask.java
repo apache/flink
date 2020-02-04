@@ -330,7 +330,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * 2. Only input is unavailable.
 	 * 3. Only output is unavailable.
 	 */
-	private CompletableFuture<?> getInputOutputJointFuture(InputStatus status) {
+	@VisibleForTesting
+	CompletableFuture<?> getInputOutputJointFuture(InputStatus status) {
 		if (status == InputStatus.NOTHING_AVAILABLE && !recordWriter.isAvailable()) {
 			return CompletableFuture.allOf(inputProcessor.getAvailableFuture(), recordWriter.getAvailableFuture());
 		} else if (status == InputStatus.NOTHING_AVAILABLE) {

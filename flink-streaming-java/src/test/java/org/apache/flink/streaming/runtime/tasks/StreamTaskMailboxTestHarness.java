@@ -102,7 +102,11 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 	}
 
 	public void processEvent(AbstractEvent event) throws Exception {
-		processEvent(event, 0, 0);
+		processEvent(event, 0);
+	}
+
+	public void processEvent(AbstractEvent event, int inputGate) throws Exception {
+		processEvent(event, inputGate, 0);
 	}
 
 	public void processEvent(AbstractEvent event, int inputGate, int channel) throws Exception {
