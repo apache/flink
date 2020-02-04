@@ -192,9 +192,7 @@ public class MemoryManager {
 	 * @return A list with the memory segments.
 	 * @throws MemoryAllocationException Thrown, if this memory manager does not have the requested amount
 	 *                                   of memory pages any more.
-	 * @deprecated use {@link #allocatePages(AllocationRequest)}
 	 */
-	@Deprecated
 	public List<MemorySegment> allocatePages(Object owner, int numPages) throws MemoryAllocationException {
 		List<MemorySegment> segments = new ArrayList<>(numPages);
 		allocatePages(owner, segments, numPages);
@@ -211,36 +209,11 @@ public class MemoryManager {
 	 * @param numberOfPages The number of pages to allocate.
 	 * @throws MemoryAllocationException Thrown, if this memory manager does not have the requested amount
 	 *                                   of memory pages any more.
-	 * @deprecated use {@link #allocatePages(AllocationRequest)}
 	 */
-	@Deprecated
 	public void allocatePages(
 			Object owner,
 			Collection<MemorySegment> target,
 			int numberOfPages) throws MemoryAllocationException {
-		allocatePages(AllocationRequest
-			.newBuilder(owner)
-			.numberOfPages(numberOfPages)
-			.withOutput(target)
-			.build());
-	}
-
-	/**
-	 * Allocates a set of memory segments from this memory manager.
-	 *
-	 * <p>The allocated segments can have any memory type. The total allocated memory for each type will not exceed its
-	 * size limit, announced in the constructor.
-	 *
-	 * @param request The allocation request which contains all the parameters.
-	 * @return A collection with the allocated memory segments.
-	 * @throws MemoryAllocationException Thrown, if this memory manager does not have the requested amount
-	 *                                   of memory pages any more.
-	 */
-	public Collection<MemorySegment> allocatePages(AllocationRequest request) throws MemoryAllocationException {
-		Object owner = request.getOwner();
-		Collection<MemorySegment> target = request.output;
-		int numberOfPages = request.getNumberOfPages();
-
 		// sanity check
 		Preconditions.checkNotNull(owner, "The memory owner must not be null.");
 		Preconditions.checkState(!isShutDown, "Memory manager has been shut down.");
@@ -274,8 +247,6 @@ public class MemoryManager {
 		});
 
 		Preconditions.checkState(!isShutDown, "Memory manager has been concurrently shut down.");
-
-		return target;
 	}
 
 	/**
@@ -702,71 +673,6 @@ public class MemoryManager {
 				size,
 				currentAvailableMemorySize,
 				totalMemorySize));
-		}
-	}
-
-	/** Memory segment allocation request. */
-	@SuppressWarnings("WeakerAccess")
-	public static class AllocationRequest {
-		/** Owner of the segment to track by. */
-		private final Object owner;
-
-		/** Collection to add the allocated segments to. */
-		private final Collection<MemorySegment> output;
-
-		/** Number of pages to allocate. */
-		private final int numberOfPages;
-
-		private AllocationRequest(
-				Object owner,
-				Collection<MemorySegment> output,
-				int numberOfPages) {
-			this.owner = owner;
-			this.output = output;
-			this.numberOfPages = numberOfPages;
-		}
-
-		public Object getOwner() {
-			return owner;
-		}
-
-		public int getNumberOfPages() {
-			return numberOfPages;
-		}
-
-		public static Builder newBuilder(Object owner) {
-			return new Builder(owner);
-		}
-
-		public static AllocationRequest forOf(Object owner, int numberOfPages) {
-			return newBuilder(owner).numberOfPages(numberOfPages).build();
-		}
-	}
-
-	/** A builder for the {@link AllocationRequest}. */
-	@SuppressWarnings("WeakerAccess")
-	public static class Builder {
-		private final Object owner;
-		private Collection<MemorySegment> output = new ArrayList<>();
-		private int numberOfPages = 1;
-
-		public Builder(Object owner) {
-			this.owner = owner;
-		}
-
-		public Builder withOutput(Collection<MemorySegment> output) {
-			//noinspection AssignmentOrReturnOfFieldWithMutableType
-			this.output = output;
-			return this;
-		}
-
-		public Builder numberOfPages(int numberOfPages) {
-			this.numberOfPages = numberOfPages;
-			return this;
-		}
-
-		public AllocationRequest build() {
-			return new AllocationRequest(owner, output, numberOfPages);
 		}
 	}
 
