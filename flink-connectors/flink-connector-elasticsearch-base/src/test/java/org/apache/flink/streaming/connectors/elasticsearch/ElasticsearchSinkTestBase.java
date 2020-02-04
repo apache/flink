@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.junit.Assert.fail;
 
@@ -85,9 +86,13 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	}
 
 	/**
-	 * Tests that the Elasticsearch sink works properly.
+	 * Tests that the Elasticsearch sink works properly with json.
 	 */
 	public void runElasticsearchSinkTest() throws Exception {
+		runElasticSearchSinkTest(SourceSinkDataTestKit::getJsonSinkFunction);
+	}
+
+	private void runElasticSearchSinkTest(Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory) throws Exception {
 		final String index = "elasticsearch-sink-test-index";
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -97,7 +102,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
 				1,
 				CLUSTER_NAME,
-				new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index)));
+				functionFactory.apply(index)));
 
 		env.execute("Elasticsearch Sink Test");
 
@@ -117,7 +122,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 					1,
 					CLUSTER_NAME,
 					null,
-					new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
+					SourceSinkDataTestKit.getJsonSinkFunction("test"));
 		} catch (IllegalArgumentException | NullPointerException expectedException) {
 			// test passes
 			return;
@@ -135,7 +140,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 					1,
 					CLUSTER_NAME,
 					Collections.emptyList(),
-					new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
+					SourceSinkDataTestKit.getJsonSinkFunction("test"));
 		} catch (IllegalArgumentException expectedException) {
 			// test passes
 			return;
@@ -155,7 +160,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		source.addSink(createElasticsearchSinkForNode(
 				1,
 				"invalid-cluster-name",
-				new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"),
+				SourceSinkDataTestKit.getJsonSinkFunction("test"),
 				"123.123.123.123")); // incorrect ip address
 
 		try {
