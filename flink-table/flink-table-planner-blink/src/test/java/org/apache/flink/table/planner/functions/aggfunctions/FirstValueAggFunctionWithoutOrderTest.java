@@ -45,26 +45,26 @@ import java.util.function.Function;
  * This class tests `accumulate` method without order argument.
  */
 @RunWith(Parameterized.class)
-public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase {
+public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBase<T, GenericRow> {
 
 	@Parameterized.Parameter
-	public AggFunctionTestSpec aggFunctionTestSpec;
+	public AggFunctionTestSpec<T, GenericRow> aggFunctionTestSpec;
 
 	private static final int DECIMAL_PRECISION = 20;
 	private static final int DECIMAL_SCALE = 6;
 
 	@Override
-	protected List<List> getInputValueSets() {
+	protected List<List<T>> getInputValueSets() {
 		return aggFunctionTestSpec.inputValueSets;
 	}
 
 	@Override
-	protected List getExpectedResults() {
+	protected List<T> getExpectedResults() {
 		return aggFunctionTestSpec.expectedResults;
 	}
 
 	@Override
-	protected AggregateFunction getAggregator() {
+	protected AggregateFunction<T, GenericRow> getAggregator() {
 		return aggFunctionTestSpec.aggregator;
 	}
 
@@ -79,7 +79,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for ByteFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new ByteFirstValueAggFunction(),
 						numberInputValueSets(Byte::valueOf),
 						numberExpectedResults(Byte::valueOf)
@@ -87,7 +87,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for ShortFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new ShortFirstValueAggFunction(),
 						numberInputValueSets(Short::valueOf),
 						numberExpectedResults(Short::valueOf)
@@ -95,7 +95,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for IntFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new IntFirstValueAggFunction(),
 						numberInputValueSets(Integer::valueOf),
 						numberExpectedResults(Integer::valueOf)
@@ -103,7 +103,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for LongFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new LongFirstValueAggFunction(),
 						numberInputValueSets(Long::valueOf),
 						numberExpectedResults(Long::valueOf)
@@ -111,7 +111,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for FloatFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new FloatFirstValueAggFunction(),
 						numberInputValueSets(Float::valueOf),
 						numberExpectedResults(Float::valueOf)
@@ -119,7 +119,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for DoubleFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new DoubleFirstValueAggFunction(),
 						numberInputValueSets(Double::valueOf),
 						numberExpectedResults(Double::valueOf)
@@ -127,7 +127,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for BooleanFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new BooleanFirstValueAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -170,7 +170,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for DecimalFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new DecimalFirstValueAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
 						Arrays.asList(
 								Arrays.asList(
@@ -205,7 +205,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 				/**
 				 * Test for StringFirstValueAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new StringFirstValueAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -241,7 +241,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 		);
 	}
 
-	private static List<List> numberInputValueSets(Function<String, Object> strToValueFun) {
+	private static <N> List<List<N>> numberInputValueSets(Function<String, N> strToValueFun) {
 		return Arrays.asList(
 				Arrays.asList(
 						strToValueFun.apply("1"),
@@ -265,7 +265,7 @@ public class FirstValueAggFunctionWithoutOrderTest<T> extends AggFunctionTestBas
 		);
 	}
 
-	private static List numberExpectedResults(Function<String, Object> strToValueFun) {
+	private static <N> List<N> numberExpectedResults(Function<String, N> strToValueFun) {
 		return Arrays.asList(
 				strToValueFun.apply("1"),
 				null,

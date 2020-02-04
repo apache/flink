@@ -34,20 +34,20 @@ import java.util.List;
  * Base test case for built-in FirstValue and LastValue (with retreat) aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggFunctionTestBase {
+public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggFunctionTestBase<T, GenericRow> {
 
 	/**
 	 * An AggFunctionTestSpec with input order.
 	 */
-	protected static class AggFunctionWithOrderTestSpec extends AggFunctionTestSpec {
+	protected static class AggFunctionWithOrderTestSpec<T> extends AggFunctionTestSpec<T, GenericRow> {
 
 		final List<List<Long>> inputOrderSets;
 
 		public AggFunctionWithOrderTestSpec(
-				AggregateFunction aggregator,
+				AggregateFunction<T, GenericRow> aggregator,
 				List<List<Long>> inputOrderSets,
-				List<List> inputValueSets,
-				List expectedResults) {
+				List<List<T>> inputValueSets,
+				List<T> expectedResults) {
 			super(aggregator, inputValueSets, expectedResults);
 			this.inputOrderSets = inputOrderSets;
 		}
@@ -69,27 +69,27 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 	public void testAccumulateAndRetractWithoutMerge()
 			throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		// iterate over input sets
-		List<List> inputValueSets = getInputValueSets();
+		List<List<T>> inputValueSets = getInputValueSets();
 		List<List<Long>> inputOrderSets = getInputOrderSets();
-		List expectedResults = getExpectedResults();
+		List<T> expectedResults = getExpectedResults();
 		Preconditions.checkArgument(inputValueSets.size() == inputOrderSets.size(),
 				"The number of inputValueSets is not same with the number of inputOrderSets");
 		Preconditions.checkArgument(inputValueSets.size() == expectedResults.size(),
 				"The number of inputValueSets is not same with the number of expectedResults");
-		AggregateFunction aggregator = getAggregator();
+		AggregateFunction<T, GenericRow> aggregator = getAggregator();
 		int size = getInputValueSets().size();
 		// iterate over input sets
 		for (int i = 0; i < size; ++i) {
-			List inputValues = inputValueSets.get(i);
+			List<T> inputValues = inputValueSets.get(i);
 			List<Long> inputOrders = inputOrderSets.get(i);
-			Object expected = expectedResults.get(i);
+			T expected = expectedResults.get(i);
 			GenericRow acc = accumulateValues(inputValues, inputOrders);
-			Object result = aggregator.getValue(acc);
+			T result = aggregator.getValue(acc);
 			validateResult(expected, result, aggregator.getResultType());
 
 			if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 				retractValues(acc, inputValues, inputOrders);
-				GenericRow expectedAcc = (GenericRow) aggregator.createAccumulator();
+				GenericRow expectedAcc = aggregator.createAccumulator();
 				// The two accumulators should be exactly same
 				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 			}
@@ -99,13 +99,13 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 	@Test
 	@Override
 	public void testResetAccumulator() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-		AggregateFunction aggregator = getAggregator();
+		AggregateFunction<T, GenericRow> aggregator = getAggregator();
 		if (UserDefinedFunctionUtils.ifMethodExistInFunction("resetAccumulator", aggregator)) {
 			Method resetAccFunc = aggregator.getClass().getMethod("resetAccumulator", getAccClass());
 
-			List<List> inputValueSets = getInputValueSets();
+			List<List<T>> inputValueSets = getInputValueSets();
 			List<List<Long>> inputOrderSets = getInputOrderSets();
-			List expectedResults = getExpectedResults();
+			List<T> expectedResults = getExpectedResults();
 			Preconditions.checkArgument(inputValueSets.size() == inputOrderSets.size(),
 					"The number of inputValueSets is not same with the number of inputOrderSets");
 			Preconditions.checkArgument(inputValueSets.size() == expectedResults.size(),
@@ -113,24 +113,25 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 			int size = getInputValueSets().size();
 			// iterate over input sets
 			for (int i = 0; i < size; ++i) {
-				List inputValues = inputValueSets.get(i);
+				List<T> inputValues = inputValueSets.get(i);
 				List<Long> inputOrders = inputOrderSets.get(i);
+				T expected = expectedResults.get(i);
 				GenericRow acc = accumulateValues(inputValues, inputOrders);
-				resetAccFunc.invoke(aggregator, acc);
-				GenericRow expectedAcc = (GenericRow) aggregator.createAccumulator();
+				resetAccFunc.invoke(aggregator, (Object) acc);
+				GenericRow expectedAcc = aggregator.createAccumulator();
 				//The accumulator after reset should be exactly same as the new accumulator
 				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
 			}
 		}
 	}
 
-	protected GenericRow accumulateValues(List values, List<Long> orders)
+	protected GenericRow accumulateValues(List<T> values, List<Long> orders)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		Preconditions.checkArgument(values.size() == orders.size(),
 				"The number of values is not same with the number of orders, " +
 						"\nvalues: " + values + "\norders: " + orders);
-		AggregateFunction aggregator = getAggregator();
-		GenericRow accumulator = (GenericRow) getAggregator().createAccumulator();
+		AggregateFunction<T, GenericRow> aggregator = getAggregator();
+		GenericRow accumulator = getAggregator().createAccumulator();
 		Method accumulateFunc = getAccumulateFunc();
 		for (int i = 0; i < values.size(); ++i) {
 			accumulateFunc.invoke(aggregator, (Object) accumulator, (Object) values.get(i), orders.get(i));
@@ -139,16 +140,16 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 	}
 
 	@Override
-	protected GenericRow accumulateValues(List values) {
+	protected GenericRow accumulateValues(List<T> values) {
 		throw new TableException("Should not call this method");
 	}
 
-	protected void retractValues(GenericRow accumulator, List values, List<Long> orders)
+	protected void retractValues(GenericRow accumulator, List<T> values, List<Long> orders)
 			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		Preconditions.checkArgument(values.size() == orders.size(),
 				"The number of values is not same with the number of orders, " +
 						"\nvalues: " + values + "\norders: " + orders);
-		AggregateFunction aggregator = getAggregator();
+		AggregateFunction<T, GenericRow> aggregator = getAggregator();
 		Method retractFunc = getRetractFunc();
 		for (int i = 0; i < values.size(); ++i) {
 			retractFunc.invoke(aggregator, (Object) accumulator, (Object) values.get(i), orders.get(i));
@@ -156,7 +157,7 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 	}
 
 	@Override
-	protected void retractValues(Object accumulator, List values) {
+	protected void retractValues(GenericRow accumulator, List<T> values) {
 		throw new TableException("Should not call this method");
 	}
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.BooleanFirstValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.ByteFirstValueAggFunction;
@@ -47,7 +48,7 @@ import java.util.function.Function;
 public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunctionWithOrderTestBase<T> {
 
 	@Parameterized.Parameter
-	public AggFunctionWithOrderTestSpec aggFunctionTestSpec;
+	public AggFunctionWithOrderTestSpec<T> aggFunctionTestSpec;
 
 	private static final int DECIMAL_PRECISION = 20;
 	private static final int DECIMAL_SCALE = 6;
@@ -58,17 +59,17 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 	}
 
 	@Override
-	protected List<List> getInputValueSets() {
+	protected List<List<T>> getInputValueSets() {
 		return aggFunctionTestSpec.inputValueSets;
 	}
 
 	@Override
-	protected List getExpectedResults() {
+	protected List<T> getExpectedResults() {
 		return aggFunctionTestSpec.expectedResults;
 	}
 
 	@Override
-	protected AggregateFunction getAggregator() {
+	protected AggregateFunction<T, GenericRow> getAggregator() {
 		return aggFunctionTestSpec.aggregator;
 	}
 
@@ -78,7 +79,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for ByteFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new ByteFirstValueAggFunction(),
 						numberInputOrderSets(),
 						numberInputValueSets(Byte::valueOf),
@@ -87,7 +88,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for ShortFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new ShortFirstValueAggFunction(),
 						numberInputOrderSets(),
 						numberInputValueSets(Short::valueOf),
@@ -96,7 +97,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for IntFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new IntFirstValueAggFunction(),
 						numberInputOrderSets(),
 						numberInputValueSets(Integer::valueOf),
@@ -105,7 +106,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for LongFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new LongFirstValueAggFunction(),
 						numberInputOrderSets(),
 						numberInputValueSets(Long::valueOf),
@@ -114,7 +115,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for FloatFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new FloatFirstValueAggFunction(),
 						numberInputOrderSets(),
 						numberInputValueSets(Float::valueOf),
@@ -123,7 +124,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for DoubleFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new DoubleFirstValueAggFunction(),
 						numberInputOrderSets(),
 						numberInputValueSets(Double::valueOf),
@@ -132,7 +133,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for BooleanFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new BooleanFirstValueAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -205,7 +206,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for DecimalFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new DecimalFirstValueAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
 						Arrays.asList(
 								Arrays.asList(
@@ -264,7 +265,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 				/**
 				 * Test for StringFirstValueAggFunction.
 				 */
-				new AggFunctionWithOrderTestSpec(
+				new AggFunctionWithOrderTestSpec<>(
 						new StringFirstValueAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -351,7 +352,7 @@ public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunc
 		);
 	}
 
-	private static List<List> numberInputValueSets(Function<String, Object> strToValueFun) {
+	private static <N> List<List<N>> numberInputValueSets(Function<String, N> strToValueFun) {
 		return Arrays.asList(
 				Arrays.asList(
 						strToValueFun.apply("1"),

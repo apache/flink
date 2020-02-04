@@ -51,26 +51,26 @@ import java.util.function.Function;
  * Test case for built-in Max with retraction aggregate function.
  */
 @RunWith(Parameterized.class)
-public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
+public class MaxWithRetractAggFunctionTest<T> extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
 
 	@Parameterized.Parameter
-	public AggFunctionTestSpec aggFunctionTestSpec;
+	public AggFunctionTestSpec<T, MaxWithRetractAccumulator<T>> aggFunctionTestSpec;
 
 	private static final int DECIMAL_PRECISION = 20;
 	private static final int DECIMAL_SCALE = 6;
 
 	@Override
-	protected List<List> getInputValueSets() {
+	protected List<List<T>> getInputValueSets() {
 		return aggFunctionTestSpec.inputValueSets;
 	}
 
 	@Override
-	protected List getExpectedResults() {
+	protected List<T> getExpectedResults() {
 		return aggFunctionTestSpec.expectedResults;
 	}
 
 	@Override
-	protected AggregateFunction getAggregator() {
+	protected AggregateFunction<T, MaxWithRetractAccumulator<T>> getAggregator() {
 		return aggFunctionTestSpec.aggregator;
 	}
 
@@ -90,7 +90,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for ByteMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new ByteMaxWithRetractAggFunction(),
 						numberInputValueSets((byte) (Byte.MIN_VALUE + 1), (byte) (Byte.MAX_VALUE - 1), Byte::valueOf),
 						numberExpectedResults((byte) (Byte.MAX_VALUE - 1), Byte::valueOf)
@@ -98,7 +98,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for ShortMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new ShortMaxWithRetractAggFunction(),
 						numberInputValueSets(
 								(short) (Short.MIN_VALUE + 1), (short) (Short.MAX_VALUE - 1), Short::valueOf),
@@ -107,7 +107,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for IntMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new IntMaxWithRetractAggFunction(),
 						numberInputValueSets(Integer.MIN_VALUE + 1, Integer.MAX_VALUE - 1, Integer::valueOf),
 						numberExpectedResults(Integer.MAX_VALUE - 1, Integer::valueOf)
@@ -115,7 +115,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for LongMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new LongMaxWithRetractAggFunction(),
 						numberInputValueSets(Long.MIN_VALUE + 1L, Long.MAX_VALUE - 1L, Long::valueOf),
 						numberExpectedResults(Long.MAX_VALUE - 1L, Long::valueOf)
@@ -123,7 +123,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for FloatMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new FloatMaxWithRetractAggFunction(),
 						numberInputValueSets((-Float.MAX_VALUE / 2), (Float.MAX_VALUE / 2), Float::valueOf),
 						numberExpectedResults((Float.MAX_VALUE / 2), Float::valueOf)
@@ -131,7 +131,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for DoubleMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new DoubleMaxWithRetractAggFunction(),
 						numberInputValueSets((-Double.MAX_VALUE / 2), (Double.MAX_VALUE / 2), Double::valueOf),
 						numberExpectedResults((Double.MAX_VALUE / 2), Double::valueOf)
@@ -139,7 +139,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for BooleanMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new BooleanMaxWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -182,7 +182,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for DecimalMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new DecimalMaxWithRetractAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
 						Arrays.asList(
 								Arrays.asList(
@@ -217,7 +217,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for StringMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new StringMaxWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -253,7 +253,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for TimestampMaxWithRetractAggFunction with millisecond's precision.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new TimestampMaxWithRetractAggFunction(3),
 						Arrays.asList(
 								Arrays.asList(
@@ -284,7 +284,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for TimestampMaxWithRetractAggFunction with nanosecond's precision.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new TimestampMaxWithRetractAggFunction(9),
 						Arrays.asList(
 								Arrays.asList(
@@ -317,7 +317,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for DateMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new DateMaxWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -348,7 +348,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 				/**
 				 * Test for TimeMaxWithRetractAggFunction.
 				 */
-				new AggFunctionTestSpec(
+				new AggFunctionTestSpec<>(
 						new TimeMaxWithRetractAggFunction(),
 						Arrays.asList(
 								Arrays.asList(
@@ -379,7 +379,7 @@ public class MaxWithRetractAggFunctionTest extends AggFunctionTestBase {
 		);
 	}
 
-	private static List<List> numberInputValueSets(Object minValue, Object maxValue, Function<String, Object> strToValueFun) {
+	private static <N> List<List<N>> numberInputValueSets(N minValue, N maxValue, Function<String, N> strToValueFun) {
 		return Arrays.asList(
 				Arrays.asList(
 						strToValueFun.apply("1"),
