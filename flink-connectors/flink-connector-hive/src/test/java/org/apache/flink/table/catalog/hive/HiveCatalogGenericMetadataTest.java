@@ -173,6 +173,18 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
 	public void testAlterPartitionTableStats() throws Exception {
 	}
 
+	@Override
+	public void testAlterPartitionedTable() throws Exception {
+	}
+
+	@Override
+	public void testAlterTableStats_partitionedTable() throws Exception {
+	}
+
+	@Override
+	public void testCreatePartitionedTable_Batch() throws Exception {
+	}
+
 	// ------ test utils ------
 
 	@Override
