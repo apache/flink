@@ -84,7 +84,7 @@ function setup_and_start_cluster() {
     set_config_key "heartbeat.timeout" "10000"
 
     start_local_zk
-    start_ha_jm_watchdog 1 "StandaloneSessionClusterEntrypoint" start_jm_cmd "8081"
+    start_ha_jm_watchdog 1 "StandaloneSessionClusterEntrypoint" start_jm_cmd "${NODEPORT}"
     start_taskmanagers ${NUM_TASK_MANAGERS}
 }
 

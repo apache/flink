@@ -140,7 +140,7 @@ function ha_tm_watchdog() {
         # check how many successful checkpoints we have
         # and kill a TM only if the previous one already had some
 
-        local CHECKPOINTS=`curl -s "http://localhost:8081/jobs/${JOB_ID}/checkpoints" | cut -d ":" -f 6 | sed 's/,.*//'`
+        local CHECKPOINTS=`curl -s "http://localhost:${NODEPORT}/jobs/${JOB_ID}/checkpoints" | cut -d ":" -f 6 | sed 's/,.*//'`
 
         if [[ ${CHECKPOINTS} =~ '^[0-9]+$' ]] || [[ ${CHECKPOINTS} == "" ]]; then
 

@@ -42,5 +42,5 @@ spec:
           name: blob
         - containerPort: 6125
           name: query
-        - containerPort: 8081
+        - containerPort: ${NODEPORT}
           name: ui
