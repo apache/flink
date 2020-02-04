@@ -45,71 +45,19 @@ import java.util.List;
  * This class tests `accumulate` method without order argument.
  */
 @RunWith(Enclosed.class)
-public class FirstValueWithRetractAggFunctionWithoutOrderTest {
+public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 
-	/**
-	 * The base test class for FirstValueWithRetractAggFunction without order.
-	 */
-	public abstract static class FirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
-			extends AggFunctionTestBase<T, GenericRow> {
-
-		@Override
-		protected Class<?> getAccClass() {
-			return GenericRow.class;
-		}
-
-		@Override
-		protected Method getRetractFunc() throws NoSuchMethodException {
-			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
-		}
-	}
-
-	/**
-	 * Test FirstValueWithRetractAggFunction for number type.
-	 */
-	public abstract static class NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
-			extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<T> {
-		protected abstract T getValue(String v);
-
-		@Override
-		protected List<List<T>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							getValue("1"),
-							null,
-							getValue("-99"),
-							getValue("3"),
-							null
-					),
-					Arrays.asList(
-							null,
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							getValue("10"),
-							null,
-							getValue("3")
-					)
-			);
-		}
-
-		@Override
-		protected List<T> getExpectedResults() {
-			return Arrays.asList(
-					getValue("1"),
-					null,
-					getValue("10")
-			);
-		}
-	}
+	// --------------------------------------------------------------------------------------------
+	// Test sets for a particular type being aggregated
+	//
+	// Actual tests are implemented in:
+	//  - AggFunctionTestBase
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Test for ByteFirstValueWithRetractAggFunction.
 	 */
-	public static class ByteFirstValueWithRetractAggFunctionWithoutOrderTest
+	public static final class ByteFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Byte> {
 
 		@Override
@@ -126,7 +74,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for ShortFirstValueWithRetractAggFunction.
 	 */
-	public static class ShortFirstValueWithRetractAggFunctionWithoutOrderTest
+	public static final class ShortFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Short> {
 
 		@Override
@@ -143,7 +91,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for IntFirstValueWithRetractAggFunction.
 	 */
-	public static class IntFirstValueWithRetractAggFunctionWithoutOrderTest
+	public static final class IntFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Integer> {
 
 		@Override
@@ -160,7 +108,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for LongFirstValueWithRetractAggFunction.
 	 */
-	public static class LongFirstValueWithRetractAggFunctionWithoutOrderTest
+	public static final class LongFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Long> {
 
 		@Override
@@ -177,7 +125,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for FloatFirstValueWithRetractAggFunction.
 	 */
-	public static class FloatFirstValueWithRetractAggFunctionWithoutOrderTest
+	public static final class FloatFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Float> {
 
 		@Override
@@ -194,7 +142,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for DoubleFirstValueWithRetractAggFunction.
 	 */
-	public static class DoubleFirstValueWithRetractAggFunctionWithoutOrderTest
+	public static final class DoubleFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Double> {
 
 		@Override
@@ -211,7 +159,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for BooleanFirstValueWithRetractAggFunction.
 	 */
-	public static class BooleanFirstValueWithRetractAggFunctionWithoutOrderTest extends
+	public static final class BooleanFirstValueWithRetractAggFunctionWithoutOrderTest extends
 			FirstValueWithRetractAggFunctionWithoutOrderTestBase<Boolean> {
 
 		@Override
@@ -267,7 +215,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for DecimalFirstValueWithRetractAggFunction.
 	 */
-	public static class DecimalFirstValueWithRetractAggFunctionWithoutOrderTest extends
+	public static final class DecimalFirstValueWithRetractAggFunctionWithoutOrderTest extends
 			FirstValueWithRetractAggFunctionWithoutOrderTestBase<Decimal> {
 
 		private int precision = 20;
@@ -319,7 +267,7 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	/**
 	 * Test for StringFirstValueWithRetractAggFunction.
 	 */
-	public static class StringFirstValueWithRetractAggFunctionWithoutOrderTest extends
+	public static final class StringFirstValueWithRetractAggFunctionWithoutOrderTest extends
 			FirstValueWithRetractAggFunctionWithoutOrderTestBase<BinaryString> {
 
 		@Override
@@ -363,6 +311,73 @@ public class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		@Override
 		protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
 			return new StringFirstValueWithRetractAggFunction();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// This section contain base classes that provide common:
+	//  - inputs
+	//  - accumulator class
+	//  - accessor for retract function
+	//  for tests declared above.
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The base test class for FirstValueWithRetractAggFunction without order.
+	 */
+	public abstract static class FirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
+		extends AggFunctionTestBase<T, GenericRow> {
+
+		@Override
+		protected Class<?> getAccClass() {
+			return GenericRow.class;
+		}
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		}
+	}
+
+	/**
+	 * Test FirstValueWithRetractAggFunction for number type.
+	 */
+	public abstract static class NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
+		extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<T> {
+		protected abstract T getValue(String v);
+
+		@Override
+		protected List<List<T>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					getValue("1"),
+					null,
+					getValue("-99"),
+					getValue("3"),
+					null
+				),
+				Arrays.asList(
+					null,
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					getValue("10"),
+					null,
+					getValue("3")
+				)
+			);
+		}
+
+		@Override
+		protected List<T> getExpectedResults() {
+			return Arrays.asList(
+				getValue("1"),
+				null,
+				getValue("10")
+			);
 		}
 	}
 }

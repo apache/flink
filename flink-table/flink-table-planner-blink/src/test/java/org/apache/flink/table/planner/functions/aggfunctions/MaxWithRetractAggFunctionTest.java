@@ -50,80 +50,19 @@ import java.util.List;
  * Test case for built-in Max with retraction aggregate function.
  */
 @RunWith(Enclosed.class)
-public class MaxWithRetractAggFunctionTest {
+public final class MaxWithRetractAggFunctionTest {
 
-	/**
-	 * The base test class for MaxWithRetractAggFunction.
-	 */
-	public abstract static class MaxWithRetractAggFunctionTestBase<T>
-			extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
-
-		@Override
-		protected Class<?> getAccClass() {
-			return MaxWithRetractAccumulator.class;
-		}
-
-		@Override
-		protected Method getRetractFunc() throws NoSuchMethodException {
-			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
-		}
-	}
-
-	/**
-	 * Test MaxWithRetractAggFunction for number type.
-	 */
-	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTestBase {
-		protected abstract T getMinValue();
-
-		protected abstract T getMaxValue();
-
-		protected abstract T getValue(String v);
-
-		@Override
-		protected List<List<T>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							getValue("1"),
-							null,
-							getMaxValue(),
-							getValue("-99"),
-							getValue("3"),
-							getValue("56"),
-							getValue("0"),
-							getMinValue(),
-							getValue("-20"),
-							getValue("17"),
-							null
-					),
-					Arrays.asList(
-							null,
-							null,
-							null,
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							getValue("10")
-					)
-			);
-		}
-
-		@Override
-		protected List<T> getExpectedResults() {
-			return Arrays.asList(
-					getMaxValue(),
-					null,
-					getValue("10")
-			);
-		}
-	}
+	// --------------------------------------------------------------------------------------------
+	// Test sets for a particular type being aggregated
+	//
+	// Actual tests are implemented in:
+	//  - AggFunctionTestBase
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Test for ByteMaxWithRetractAggFunction.
 	 */
-	public static class ByteMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Byte> {
+	public static final class ByteMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Byte> {
 
 		@Override
 		protected Byte getMinValue() {
@@ -149,7 +88,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for ShortMaxWithRetractAggFunction.
 	 */
-	public static class ShortMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Short> {
+	public static final class ShortMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Short> {
 
 		@Override
 		protected Short getMinValue() {
@@ -175,7 +114,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for IntMaxWithRetractAggFunction.
 	 */
-	public static class IntMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Integer> {
+	public static final class IntMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Integer> {
 
 		@Override
 		protected Integer getMinValue() {
@@ -201,7 +140,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for LongMaxWithRetractAggFunction.
 	 */
-	public static class LongMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Long> {
+	public static final class LongMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Long> {
 
 		@Override
 		protected Long getMinValue() {
@@ -227,7 +166,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for FloatMaxWithRetractAggFunction.
 	 */
-	public static class FloatMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Float> {
+	public static final class FloatMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Float> {
 
 		@Override
 		protected Float getMinValue() {
@@ -253,7 +192,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for DoubleMaxWithRetractAggFunction.
 	 */
-	public static class DoubleMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Double> {
+	public static final class DoubleMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Double> {
 
 		@Override
 		protected Double getMinValue() {
@@ -279,7 +218,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for BooleanMaxWithRetractAggFunction.
 	 */
-	public static class BooleanMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Boolean> {
+	public static final class BooleanMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -344,7 +283,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for DecimalMaxWithRetractAggFunction.
 	 */
-	public static class DecimalMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Decimal> {
+	public static final class DecimalMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Decimal> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -395,7 +334,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for StringMaxWithRetractAggFunction.
 	 */
-	public static class StringMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<BinaryString> {
+	public static final class StringMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<BinaryString> {
 
 		@Override
 		protected List<List<BinaryString>> getInputValueSets() {
@@ -444,7 +383,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for TimestampMaxWithRetractAggFunction.
 	 */
-	public static class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
+	public static final class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
 
 		@Override
 		protected List<List<SqlTimestamp>> getInputValueSets() {
@@ -488,7 +427,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for TimestampMaxWithRetractAggFunction, precision is 9.
 	 */
-	public static class Timestamp9MaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
+	public static final class Timestamp9MaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<SqlTimestamp> {
 
 		@Override
 		protected List<List<SqlTimestamp>> getInputValueSets() {
@@ -534,7 +473,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for DateMaxWithRetractAggFunction.
 	 */
-	public static class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Date> {
+	public static final class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Date> {
 
 		@Override
 		protected List<List<Date>> getInputValueSets() {
@@ -578,7 +517,7 @@ public class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for TimeMaxWithRetractAggFunction.
 	 */
-	public static class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Time> {
+	public static final class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Time> {
 
 		@Override
 		protected List<List<Time>> getInputValueSets() {
@@ -616,6 +555,82 @@ public class MaxWithRetractAggFunctionTest {
 		@Override
 		protected AggregateFunction<Time, MaxWithRetractAccumulator<Time>> getAggregator() {
 			return new TimeMaxWithRetractAggFunction();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// This section contain base classes that provide:
+	//  - common inputs
+	//  - declare the accumulator class
+	//  - accessor for retract function
+	//  for tests declared above.
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The base test class for MaxWithRetractAggFunction.
+	 */
+	public abstract static class MaxWithRetractAggFunctionTestBase<T>
+		extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
+
+		@Override
+		protected Class<?> getAccClass() {
+			return MaxWithRetractAccumulator.class;
+		}
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		}
+	}
+
+	/**
+	 * Test MaxWithRetractAggFunction for number type.
+	 */
+	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTestBase<T> {
+		protected abstract T getMinValue();
+
+		protected abstract T getMaxValue();
+
+		protected abstract T getValue(String v);
+
+		@Override
+		protected List<List<T>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					getValue("1"),
+					null,
+					getMaxValue(),
+					getValue("-99"),
+					getValue("3"),
+					getValue("56"),
+					getValue("0"),
+					getMinValue(),
+					getValue("-20"),
+					getValue("17"),
+					null
+				),
+				Arrays.asList(
+					null,
+					null,
+					null,
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					getValue("10")
+				)
+			);
+		}
+
+		@Override
+		protected List<T> getExpectedResults() {
+			return Arrays.asList(
+				getMaxValue(),
+				null,
+				getValue("10")
+			);
 		}
 	}
 }
