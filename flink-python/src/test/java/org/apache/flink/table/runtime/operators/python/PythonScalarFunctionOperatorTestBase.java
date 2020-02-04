@@ -58,9 +58,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the output elements.
  * @param <UDFIN> Type of the UDF input type.
- * @param <UDFOUT> Type of the UDF input type.
  */
-public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOUT> {
+public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 
 	@Test
 	public void testRetractionFieldKept() throws Exception {
@@ -214,7 +213,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
 			new RowType.RowField("f3", new BigIntType())));
-		AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> operator = getTestOperator(
+		AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> operator = getTestOperator(
 			config,
 			new PythonFunctionInfo[] {
 				new PythonFunctionInfo(
@@ -233,7 +232,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		return testHarness;
 	}
 
-	public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT> getTestOperator(
+	public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> getTestOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -34,11 +35,13 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -47,7 +50,7 @@ import java.util.stream.Collectors;
  */
 @Internal
 public class BaseRowPythonScalarFunctionOperator
-		extends AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow, BaseRow> {
+		extends AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -71,6 +74,11 @@ public class BaseRowPythonScalarFunctionOperator
 	 */
 	private transient Projection<BaseRow, BinaryRow> udfInputProjection;
 
+	/**
+	 * The TypeSerializer for udf execution results.
+	 */
+	private transient TypeSerializer<BaseRow> udfOutputTypeSerializer;
+
 	public BaseRowPythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
@@ -82,6 +90,7 @@ public class BaseRowPythonScalarFunctionOperator
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
 		baseRowWrapper = new StreamRecordBaseRowWrappingCollector(output);
@@ -89,6 +98,7 @@ public class BaseRowPythonScalarFunctionOperator
 
 		udfInputProjection = createUdfInputProjection();
 		forwardedFieldProjection = createForwardedFieldProjection();
+		udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(udfOutputType);
 	}
 
 	@Override
@@ -106,18 +116,20 @@ public class BaseRowPythonScalarFunctionOperator
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResults() {
-		BaseRow udfResult;
-		while ((udfResult = udfResultQueue.poll()) != null) {
+	public void emitResults() throws IOException {
+		byte[] rawUdfResult;
+		while ((rawUdfResult = udfResultQueue.poll()) != null) {
 			BaseRow input = forwardedInputQueue.poll();
 			reuseJoinedRow.setHeader(input.getHeader());
+			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
+			BaseRow udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
 			baseRowWrapper.collect(reuseJoinedRow.replace(input, udfResult));
 		}
 	}
 
 	@Override
 	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
-			FnDataReceiver<BaseRow> resultReceiver,
+			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager) {
 		return new BaseRowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),

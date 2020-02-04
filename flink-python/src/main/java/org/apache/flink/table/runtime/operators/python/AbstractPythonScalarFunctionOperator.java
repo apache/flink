@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
@@ -62,10 +64,9 @@ import java.util.stream.Collectors;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the output elements.
  * @param <UDFIN> Type of the UDF input type.
- * @param <UDFOUT> Type of the UDF input type.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT>
+public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 		extends AbstractPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -114,7 +115,17 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	 * The queue holding the user-defined function execution results. The execution results are in
 	 * the same order as the input elements.
 	 */
-	protected transient LinkedBlockingQueue<UDFOUT> udfResultQueue;
+	protected transient LinkedBlockingQueue<byte[]> udfResultQueue;
+
+	/**
+	 * Reusable InputStream used to holding the execution results to be deserialized.
+	 */
+	protected transient ByteArrayInputStreamWithPos bais;
+
+	/**
+	 * InputStream Wrapper.
+	 */
+	protected transient DataInputViewStreamWrapper baisWrapper;
 
 	AbstractPythonScalarFunctionOperator(
 		Configuration config,
@@ -140,6 +151,8 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
 		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
+		bais = new ByteArrayInputStreamWithPos();
+		baisWrapper = new DataInputViewStreamWrapper(bais);
 		super.open();
 	}
 
@@ -157,7 +170,7 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 
 	@Override
 	public PythonFunctionRunner<IN> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<UDFOUT> udfResultReceiver = input -> {
+		final FnDataReceiver<byte[]> udfResultReceiver = input -> {
 			// handover to queue, do not block the result receiver thread
 			udfResultQueue.put(input);
 		};
@@ -177,7 +190,7 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	public abstract UDFIN getUdfInput(IN element);
 
 	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
-			FnDataReceiver<UDFOUT> resultReceiver,
+			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager);
 
 	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
