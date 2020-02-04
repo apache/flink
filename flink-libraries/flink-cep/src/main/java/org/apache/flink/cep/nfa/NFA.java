@@ -377,12 +377,12 @@ public class NFA<T> {
 			nfaState.setStateChanged();
 			nfaState.getCompletedMatches().poll();
 			List<Map<String, List<EventId>>> matchedResult =
-					sharedBufferAccessor.extractPatterns(earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
+				sharedBufferAccessor.extractPatterns(earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
 
 			afterMatchSkipStrategy.prune(
-					nfaState.getCompletedMatches(),
-					matchedResult,
-					sharedBufferAccessor);
+				nfaState.getCompletedMatches(),
+				matchedResult,
+				sharedBufferAccessor);
 
 			result.add(sharedBufferAccessor.materializeMatch(matchedResult.get(0)));
 			sharedBufferAccessor.releaseNode(earliestMatch.getPreviousBufferEntry());

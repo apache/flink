@@ -588,7 +588,10 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("1,5,0,null,2,3,3.4,8", "9,4,0,null,3,4,3.2,12")
+    val expected = mutable.MutableList(
+      "1,5,0,null,2,3,3.4,8",
+      "3,2,0,null,2,4,0.4,7",
+      "9,4,0,null,3,4,3.2,12")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
