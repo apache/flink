@@ -51,7 +51,7 @@ public class KeySelectorUtil {
 			// do not provide field names for the result key type,
 			// because we may have duplicate key fields and the field names may conflict
 			RowType returnType = RowType.of(keyFieldTypes);
-			RowType inputType = RowType.of(inputFieldTypes, rowType.getFieldNames());
+			RowType inputType = rowType.toRowType();
 			GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 				CodeGeneratorContext.apply(new TableConfig()),
 				"KeyProjection",
