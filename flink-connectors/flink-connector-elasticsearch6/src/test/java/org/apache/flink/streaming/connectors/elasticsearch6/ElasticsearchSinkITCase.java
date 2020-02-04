@@ -45,6 +45,11 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 	}
 
 	@Test
+	public void testElasticsearchSinkWithSmile() throws Exception {
+		runElasticsearchSinkSmileTest();
+	}
+
+	@Test
 	public void testNullAddresses() throws Exception {
 		runNullAddressesTest();
 	}
