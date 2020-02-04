@@ -44,8 +44,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.List;
@@ -58,9 +56,6 @@ import java.util.List;
  */
 @Internal
 public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFunctionRunner<IN> {
-
-	/** The logger used by the runner class and its subclasses. */
-	protected static final Logger LOG = LoggerFactory.getLogger(AbstractPythonFunctionRunner.class);
 
 	private static final String MAIN_INPUT_ID = "input";
 
