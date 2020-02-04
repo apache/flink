@@ -33,6 +33,9 @@ import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFuncti
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.StringFirstValueAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,12 +43,22 @@ import java.util.List;
  * Test case for built-in FirstValue aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+@RunWith(Enclosed.class)
+public class FirstValueAggFunctionWithOrderTest {
+
+	/**
+	 * The base test class for FirstValueAggFunction with order.
+	 */
+	public abstract static class FirstValueAggFunctionWithOrderTestBase<T>
+			extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+
+	}
+
 	/**
 	 * Test FirstValueAggFunction for number type.
 	 */
-	public abstract static class NumberFirstValueAggFunctionWithOrderTest<T>
-			extends FirstValueAggFunctionWithOrderTest<T> {
+	public abstract static class NumberFirstValueAggFunctionWithOrderTestBase<T>
+			extends FirstValueAggFunctionWithOrderTestBase<T> {
 		protected abstract T getValue(String v);
 
 		@Override
@@ -118,7 +131,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for ByteFirstValueAggFunction.
 	 */
 	public static class ByteFirstValueAggFunctionWithOrderTest
-			extends NumberFirstValueAggFunctionWithOrderTest<Byte> {
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Byte> {
 
 		@Override
 		protected Byte getValue(String v) {
@@ -135,7 +148,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for ShortFirstValueAggFunction.
 	 */
 	public static class ShortFirstValueAggFunctionWithOrderTest
-			extends NumberFirstValueAggFunctionWithOrderTest<Short> {
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Short> {
 
 		@Override
 		protected Short getValue(String v) {
@@ -152,7 +165,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for IntFirstValueAggFunction.
 	 */
 	public static class IntFirstValueAggFunctionWithOrderTest
-			extends NumberFirstValueAggFunctionWithOrderTest<Integer> {
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Integer> {
 
 		@Override
 		protected Integer getValue(String v) {
@@ -169,7 +182,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for LongFirstValueAggFunction.
 	 */
 	public static class LongFirstValueAggFunctionWithOrderTest
-			extends NumberFirstValueAggFunctionWithOrderTest<Long> {
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Long> {
 
 		@Override
 		protected Long getValue(String v) {
@@ -186,7 +199,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for FloatFirstValueAggFunction.
 	 */
 	public static class FloatFirstValueAggFunctionWithOrderTest
-			extends NumberFirstValueAggFunctionWithOrderTest<Float> {
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Float> {
 
 		@Override
 		protected Float getValue(String v) {
@@ -203,7 +216,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for DoubleFirstValueAggFunction.
 	 */
 	public static class DoubleFirstValueAggFunctionWithOrderTest
-			extends NumberFirstValueAggFunctionWithOrderTest<Double> {
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Double> {
 
 		@Override
 		protected Double getValue(String v) {
@@ -220,7 +233,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for BooleanFirstValueAggFunction.
 	 */
 	public static class BooleanFirstValueAggFunctionWithOrderTest
-			extends FirstValueAggFunctionWithOrderTest<Boolean> {
+			extends FirstValueAggFunctionWithOrderTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -310,7 +323,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for DecimalFirstValueAggFunction.
 	 */
 	public static class DecimalFirstValueAggFunctionWithOrderTest
-			extends FirstValueAggFunctionWithOrderTest<Decimal> {
+			extends FirstValueAggFunctionWithOrderTestBase<Decimal> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -390,7 +403,7 @@ public abstract class FirstValueAggFunctionWithOrderTest<T> extends FirstLastVal
 	 * Test for StringFirstValueAggFunction.
 	 */
 	public static class StringFirstValueAggFunctionWithOrderTest
-			extends FirstValueAggFunctionWithOrderTest<BinaryString> {
+			extends FirstValueAggFunctionWithOrderTestBase<BinaryString> {
 
 		@Override
 		protected List<List<BinaryString>> getInputValueSets() {

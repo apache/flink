@@ -33,6 +33,9 @@ import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetrac
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.StringLastValueWithRetractAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -41,19 +44,26 @@ import java.util.List;
  * Test case for built-in LastValue with retract aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
-		extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+@RunWith(Enclosed.class)
+public class LastValueWithRetractAggFunctionWithOrderTest {
 
-	@Override
-	protected Method getRetractFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class, Long.class);
+	/**
+	 * The base test class for LastValueWithRetractAggFunction with order.
+	 */
+	public abstract static class LastValueWithRetractAggFunctionWithOrderTestBase<T>
+			extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class, Long.class);
+		}
 	}
 
 	/**
 	 * Test LastValueWithRetractAggFunction for number type.
 	 */
-	public abstract static class NumberLastValueWithRetractAggFunctionWithOrderTest<T>
-			extends LastValueWithRetractAggFunctionWithOrderTest<T> {
+	public abstract static class NumberLastValueWithRetractAggFunctionWithOrderTestBase<T>
+			extends LastValueWithRetractAggFunctionWithOrderTestBase<T> {
 		protected abstract T getValue(String v);
 
 		@Override
@@ -126,7 +136,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for ByteLastValueWithRetractAggFunction.
 	 */
 	public static class ByteLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Byte> {
+			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Byte> {
 
 		@Override
 		protected Byte getValue(String v) {
@@ -143,7 +153,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for ShortLastValueWithRetractAggFunction.
 	 */
 	public static class ShortLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Short> {
+			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Short> {
 
 		@Override
 		protected Short getValue(String v) {
@@ -160,7 +170,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for IntLastValueWithRetractAggFunction.
 	 */
 	public static class IntLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Integer> {
+			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Integer> {
 
 		@Override
 		protected Integer getValue(String v) {
@@ -177,7 +187,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for LongLastValueWithRetractAggFunction.
 	 */
 	public static class LongLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Long> {
+			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Long> {
 
 		@Override
 		protected Long getValue(String v) {
@@ -194,7 +204,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for FloatLastValueWithRetractAggFunction.
 	 */
 	public static class FloatLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Float> {
+			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Float> {
 
 		@Override
 		protected Float getValue(String v) {
@@ -211,7 +221,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for DoubleLastValueWithRetractAggFunction.
 	 */
 	public static class DoubleLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTest<Double> {
+			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Double> {
 
 		@Override
 		protected Double getValue(String v) {
@@ -228,7 +238,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for BooleanLastValueWithRetractAggFunction.
 	 */
 	public static class BooleanLastValueWithRetractAggFunctionWithOrderTest
-			extends LastValueWithRetractAggFunctionWithOrderTest<Boolean> {
+			extends LastValueWithRetractAggFunctionWithOrderTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -318,7 +328,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for DecimalLastValueWithRetractAggFunction.
 	 */
 	public static class DecimalLastValueWithRetractAggFunctionWithOrderTest
-			extends LastValueWithRetractAggFunctionWithOrderTest<Decimal> {
+			extends LastValueWithRetractAggFunctionWithOrderTestBase<Decimal> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -398,7 +408,7 @@ public abstract class LastValueWithRetractAggFunctionWithOrderTest<T>
 	 * Test for StringLastValueWithRetractAggFunction.
 	 */
 	public static class StringLastValueWithRetractAggFunctionWithOrderTest
-			extends LastValueWithRetractAggFunctionWithOrderTest<BinaryString> {
+			extends LastValueWithRetractAggFunctionWithOrderTestBase<BinaryString> {
 
 		@Override
 		protected List<List<BinaryString>> getInputValueSets() {
