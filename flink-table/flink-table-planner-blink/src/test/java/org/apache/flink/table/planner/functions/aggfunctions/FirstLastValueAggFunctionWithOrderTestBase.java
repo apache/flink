@@ -36,23 +36,6 @@ import java.util.List;
  */
 public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggFunctionTestBase<T, GenericRow> {
 
-	/**
-	 * An AggFunctionTestSpec with input order.
-	 */
-	protected static class AggFunctionWithOrderTestSpec<T> extends AggFunctionTestSpec<T, GenericRow> {
-
-		final List<List<Long>> inputOrderSets;
-
-		public AggFunctionWithOrderTestSpec(
-				AggregateFunction<T, GenericRow> aggregator,
-				List<List<Long>> inputOrderSets,
-				List<List<T>> inputValueSets,
-				List<T> expectedResults) {
-			super(aggregator, inputValueSets, expectedResults);
-			this.inputOrderSets = inputOrderSets;
-		}
-	}
-
 	protected Method getAccumulateFunc() throws NoSuchMethodException {
 		return getAggregator().getClass().getMethod("accumulate", getAccClass(), Object.class, Long.class);
 	}
@@ -85,13 +68,13 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 			T expected = expectedResults.get(i);
 			GenericRow acc = accumulateValues(inputValues, inputOrders);
 			T result = aggregator.getValue(acc);
-			validateResult(expected, result, aggregator.getResultType());
+			validateResult(expected, result);
 
 			if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 				retractValues(acc, inputValues, inputOrders);
 				GenericRow expectedAcc = aggregator.createAccumulator();
 				// The two accumulators should be exactly same
-				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
+				validateResult(expectedAcc, acc);
 			}
 		}
 	}
@@ -120,7 +103,7 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 				resetAccFunc.invoke(aggregator, (Object) acc);
 				GenericRow expectedAcc = aggregator.createAccumulator();
 				//The accumulator after reset should be exactly same as the new accumulator
-				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
+				validateResult(expectedAcc, acc);
 			}
 		}
 	}

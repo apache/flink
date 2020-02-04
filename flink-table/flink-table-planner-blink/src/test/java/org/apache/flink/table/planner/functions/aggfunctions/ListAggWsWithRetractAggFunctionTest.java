@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -106,14 +105,14 @@ public class ListAggWsWithRetractAggFunctionTest
 	}
 
 	@Override
-	protected <E> void validateResult(E expected, E result, TypeInformation<?> typeInfo) {
+	protected <E> void validateResult(E expected, E result) {
 		if (expected instanceof ListAggWsWithRetractAccumulator && result instanceof ListAggWsWithRetractAccumulator) {
 			ListAggWsWithRetractAccumulator e = (ListAggWsWithRetractAccumulator) expected;
 			ListAggWsWithRetractAccumulator r = (ListAggWsWithRetractAccumulator) result;
 			assertEquals(e.list, r.list);
 			assertEquals(e.list, r.list);
 		} else {
-			super.validateResult(expected, result, typeInfo);
+			super.validateResult(expected, result);
 		}
 	}
 
