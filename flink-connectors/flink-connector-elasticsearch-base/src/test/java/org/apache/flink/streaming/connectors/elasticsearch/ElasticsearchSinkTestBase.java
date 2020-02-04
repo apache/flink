@@ -92,6 +92,27 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		runElasticSearchSinkTest(SourceSinkDataTestKit::getJsonSinkFunction);
 	}
 
+	/**
+	 * Tests that the Elasticsearch sink works properly with cbor.
+	 */
+	public void runElasticsearchSinkCborTest() throws Exception {
+		runElasticSearchSinkTest(SourceSinkDataTestKit::getCborSinkFunction);
+	}
+
+	/**
+	 * Tests that the Elasticsearch sink works properly with smile.
+	 */
+	public void runElasticsearchSinkSmileTest() throws Exception {
+		runElasticSearchSinkTest(SourceSinkDataTestKit::getSmileSinkFunction);
+	}
+
+	/**
+	 * Tests that the Elasticsearch sink works properly with yaml.
+	 */
+	public void runElasticsearchSinkYamlTest() throws Exception {
+		runElasticSearchSinkTest(SourceSinkDataTestKit::getYamlSinkFunction);
+	}
+
 	private void runElasticSearchSinkTest(Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory) throws Exception {
 		final String index = "elasticsearch-sink-test-index";
 

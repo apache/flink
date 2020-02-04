@@ -47,6 +47,21 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<Transport
 	}
 
 	@Test
+	public void testElasticsearchSinkWithCbor() throws Exception {
+		runElasticsearchSinkCborTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithSmile() throws Exception {
+		runElasticsearchSinkSmileTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithYaml() throws Exception {
+		runElasticsearchSinkYamlTest();
+	}
+
+	@Test
 	public void testNullAddresses() throws Exception {
 		runNullAddressesTest();
 	}
