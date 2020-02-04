@@ -21,10 +21,14 @@ package org.apache.flink.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Java GC Cleaner wrapper.
@@ -43,216 +47,367 @@ public enum JavaGcCleanerWrapper {
 	private static final Logger LOG = LoggerFactory.getLogger(JavaGcCleanerWrapper.class);
 
 	private static final Collection<CleanerProvider> CLEANER_PROVIDERS =
-		Arrays.asList(LegacyCleanerProvider.INSTANCE, Java9CleanerProvider.INSTANCE);
-	private static final CleanerFactory CLEANER_FACTORY = findGcCleaner();
+		Arrays.asList(createLegacyCleanerProvider(), createJava9CleanerProvider());
+	private static final CleanerManager CLEANER_MANAGER = findGcCleanerManager();
 
-	private static CleanerFactory findGcCleaner() {
-		CleanerFactory foundCleanerFactory = null;
+	private static CleanerProvider createLegacyCleanerProvider() {
+		String name = "Legacy (before Java 9) cleaner";
+		ReflectionUtils reflectionUtils = new ReflectionUtils(name + " provider");
+		String cleanerClassName = "sun.misc.Cleaner";
+
+		// Actual Legacy code under the hood:
+		//
+		// public static Runnable createCleaner(Object owner, Runnable cleanOperation) {
+		//     sun.misc.Cleaner jvmCleaner = sun.misc.Cleaner.create(owner, cleanOperation);
+		//     return () -> jvmCleaner.clean();
+		// }
+		//
+		// public static boolean tryRunPendingCleaners() throws InterruptedException {
+		//     sun.misc.JavaLangRefAccess javaLangRefAccess = sun.misc.SharedSecrets.getJavaLangRefAccess();
+		//	   return javaLangRefAccess.tryHandlePendingReference();
+		// }
+		//
+		return new CleanerProvider(
+			name,
+			new CleanerFactoryProvider(
+				name,
+				reflectionUtils,
+				cleanerClassName,
+				Optional::empty, // there is no Cleaner object, static method of its class will be called to create it
+				"create", // static method of Cleaner class to create it
+				cleanerClassName, // Cleaner is Cleanable in this case
+				"clean"),
+			new PendingCleanersRunnerProvider(
+				name,
+				reflectionUtils,
+				"sun.misc.SharedSecrets",
+				"sun.misc.JavaLangRefAccess",
+				"getJavaLangRefAccess",
+				"tryHandlePendingReference"));
+	}
+
+	private static CleanerProvider createJava9CleanerProvider() {
+		String name = "New Java 9+ cleaner";
+		ReflectionUtils reflectionUtils = new ReflectionUtils(name + " provider");
+		String cleanerClassName = "java.lang.ref.Cleaner";
+
+		// Actual Java 9+ code under the hood:
+		//
+		// public static Runnable createCleaner(Object owner, Runnable cleanOperation) {
+		//     java.lang.ref.Cleaner jvmCleaner = java.lang.ref.Cleaner.create();
+		//     java.lang.ref.Cleaner.Cleanable cleanable = jvmCleaner.register(owner, cleanOperation);
+		//     return () -> cleanable.clean();
+		// }
+		//
+		// public static boolean tryRunPendingCleaners() throws InterruptedException {
+		//     jdk.internal.misc.JavaLangRefAccess javaLangRefAccess = jdk.internal.misc.SharedSecrets.getJavaLangRefAccess();
+		//	   return javaLangRefAccess.waitForReferenceProcessing();
+		// }
+		//
+		return new CleanerProvider(
+			name,
+			new CleanerFactoryProvider(
+				name,
+				reflectionUtils,
+				cleanerClassName,
+				() -> {
+					Class<?> cleanerClass = reflectionUtils.findClass(cleanerClassName);
+					Method cleanerCreateMethod = reflectionUtils.findMethod(cleanerClass, "create");
+					try {
+						return Optional.of(cleanerCreateMethod.invoke(null));
+					} catch (IllegalAccessException | InvocationTargetException e) {
+						throw new FlinkRuntimeException("Failed to create a Java 9 Cleaner", e);
+					}
+				},
+				"register",
+				"java.lang.ref.Cleaner$Cleanable",
+				"clean"),
+			new PendingCleanersRunnerProvider(
+				name,
+				reflectionUtils,
+				"jdk.internal.misc.SharedSecrets",
+				"jdk.internal.misc.JavaLangRefAccess",
+				"getJavaLangRefAccess",
+				"waitForReferenceProcessing"));
+	}
+
+	private static CleanerManager findGcCleanerManager() {
+		CleanerManager foundCleanerManager = null;
 		Throwable t = null;
 		for (CleanerProvider cleanerProvider : CLEANER_PROVIDERS) {
-			//noinspection OverlyBroadCatchBlock
 			try {
-				foundCleanerFactory = cleanerProvider.createCleanerFactory();
+				foundCleanerManager = cleanerProvider.createCleanerManager();
 				break;
 			} catch (Throwable e) {
 				t = ExceptionUtils.firstOrSuppressed(e, t);
 			}
 		}
 
-		if (foundCleanerFactory == null) {
+		if (foundCleanerManager == null) {
 			String errorMessage = String.format("Failed to find GC Cleaner among available providers: %s", CLEANER_PROVIDERS);
 			throw new Error(errorMessage, t);
 		}
-		return foundCleanerFactory;
+		return foundCleanerManager;
 	}
 
-	public static Runnable create(Object owner, Runnable cleanOperation) {
-		return CLEANER_FACTORY.create(owner, cleanOperation);
+	public static Runnable createCleaner(Object owner, Runnable cleanOperation) {
+		return CLEANER_MANAGER.create(owner, cleanOperation);
 	}
 
-	@FunctionalInterface
-	private interface CleanerProvider {
-		CleanerFactory createCleanerFactory() throws ClassNotFoundException;
+	public static boolean tryRunPendingCleaners() throws InterruptedException {
+		return CLEANER_MANAGER.tryRunPendingCleaners();
 	}
 
-	@FunctionalInterface
-	private interface CleanerFactory {
-		Runnable create(Object owner, Runnable cleanOperation);
-	}
+	private static class CleanerProvider {
+		private final String cleanerName;
+		private final CleanerFactoryProvider cleanerFactoryProvider;
+		private final PendingCleanersRunnerProvider pendingCleanersRunnerProvider;
 
-	private enum LegacyCleanerProvider implements CleanerProvider {
-		INSTANCE;
-
-		private static final String LEGACY_CLEANER_CLASS_NAME = "sun.misc.Cleaner";
-
-		@Override
-		public CleanerFactory createCleanerFactory() {
-			Class<?> cleanerClass = findCleanerClass();
-			Method cleanerCreateMethod = getCleanerCreateMethod(cleanerClass);
-			Method cleanerCleanMethod = getCleanerCleanMethod(cleanerClass);
-			return new LegacyCleanerFactory(cleanerCreateMethod, cleanerCleanMethod);
+		private CleanerProvider(
+				String cleanerName,
+				CleanerFactoryProvider cleanerFactoryProvider,
+				PendingCleanersRunnerProvider pendingCleanersRunnerProvider) {
+			this.cleanerName = cleanerName;
+			this.cleanerFactoryProvider = cleanerFactoryProvider;
+			this.pendingCleanersRunnerProvider = pendingCleanersRunnerProvider;
 		}
 
-		private static Class<?> findCleanerClass() {
-			try {
-				return Class.forName(LEGACY_CLEANER_CLASS_NAME);
-			} catch (ClassNotFoundException e) {
-				throw new FlinkRuntimeException("Failed to find Java legacy Cleaner class", e);
-			}
-		}
-
-		private static Method getCleanerCreateMethod(Class<?> cleanerClass) {
-			try {
-				return cleanerClass.getMethod("create", Object.class, Runnable.class);
-			} catch (NoSuchMethodException e) {
-				throw new FlinkRuntimeException("Failed to find Java legacy Cleaner#create method", e);
-			}
-		}
-
-		private static Method getCleanerCleanMethod(Class<?> cleanerClass) {
-			try {
-				return cleanerClass.getMethod("clean");
-			} catch (NoSuchMethodException e) {
-				throw new FlinkRuntimeException("Failed to find Java legacy Cleaner#clean method", e);
-			}
+		private CleanerManager createCleanerManager() {
+			return new CleanerManager(
+				cleanerName,
+				cleanerFactoryProvider.createCleanerFactory(),
+				pendingCleanersRunnerProvider.createPendingCleanersRunner());
 		}
 
 		@Override
 		public String toString() {
-			return "Legacy cleaner provider before Java 9 using " + LEGACY_CLEANER_CLASS_NAME;
+			return cleanerName + " provider";
 		}
 	}
 
-	private static final class LegacyCleanerFactory implements CleanerFactory {
-		private final Method cleanerCreateMethod;
-		private final Method cleanerCleanMethod;
+	private static class CleanerManager {
+		private final String cleanerName;
+		private final CleanerFactory cleanerFactory;
+		private final PendingCleanersRunner pendingCleanersRunner;
 
-		private LegacyCleanerFactory(Method cleanerCreateMethod, Method cleanerCleanMethod) {
-			this.cleanerCreateMethod = cleanerCreateMethod;
-			this.cleanerCleanMethod = cleanerCleanMethod;
+		private CleanerManager(
+				String cleanerName,
+				CleanerFactory cleanerFactory,
+				PendingCleanersRunner pendingCleanersRunner) {
+			this.cleanerName = cleanerName;
+			this.cleanerFactory = cleanerFactory;
+			this.pendingCleanersRunner = pendingCleanersRunner;
 		}
 
-		@Override
-		public Runnable create(Object owner, Runnable cleanupOperation) {
-			Object cleaner;
-			try {
-				cleaner = cleanerCreateMethod.invoke(null, owner, cleanupOperation);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				throw new Error("Failed to create a Java legacy Cleaner", e);
-			}
-			String ownerString = owner.toString(); // lambda should not capture the owner object
-			return () -> {
-				try {
-					cleanerCleanMethod.invoke(cleaner);
-				} catch (IllegalAccessException | InvocationTargetException e) {
-					String message = String.format("FATAL UNEXPECTED - Failed to invoke a Java legacy Cleaner for %s", ownerString);
-					LOG.error(message, e);
-					throw new Error(message, e);
-				}
-			};
-		}
-	}
-
-	/** New cleaner provider for Java 9+. */
-	private enum Java9CleanerProvider implements CleanerProvider {
-		INSTANCE;
-
-		private static final String JAVA9_CLEANER_CLASS_NAME = "java.lang.ref.Cleaner";
-
-		@Override
-		public CleanerFactory createCleanerFactory() {
-			Class<?> cleanerClass = findCleanerClass();
-			Method cleanerCreateMethod = getCleanerCreateMethod(cleanerClass);
-			Object cleaner = createCleaner(cleanerCreateMethod);
-			Method cleanerRegisterMethod = getCleanerRegisterMethod(cleanerClass);
-			Class<?> cleanableClass = findCleanableClass();
-			Method cleanMethod = getCleanMethod(cleanableClass);
-			return new Java9CleanerFactory(cleaner, cleanerRegisterMethod, cleanMethod);
+		private Runnable create(Object owner, Runnable cleanOperation) {
+			return cleanerFactory.create(owner, cleanOperation);
 		}
 
-		private static Class<?> findCleanerClass() {
-			try {
-				return Class.forName(JAVA9_CLEANER_CLASS_NAME);
-			} catch (ClassNotFoundException e) {
-				throw new FlinkRuntimeException("Failed to find Java 9 Cleaner class", e);
-			}
-		}
-
-		private static Method getCleanerCreateMethod(Class<?> cleanerClass) {
-			try {
-				return cleanerClass.getMethod("create");
-			} catch (NoSuchMethodException e) {
-				throw new FlinkRuntimeException("Failed to find Java 9 Cleaner#create method", e);
-			}
-		}
-
-		private static Object createCleaner(Method cleanerCreateMethod) {
-			try {
-				return cleanerCreateMethod.invoke(null);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				throw new FlinkRuntimeException("Failed to create a Java 9 Cleaner", e);
-			}
-		}
-
-		private static Method getCleanerRegisterMethod(Class<?> cleanerClass) {
-			try {
-				return cleanerClass.getMethod("register", Object.class, Runnable.class);
-			} catch (NoSuchMethodException e) {
-				throw new FlinkRuntimeException("Failed to find Java 9 Cleaner#create method", e);
-			}
-		}
-
-		private static Class<?> findCleanableClass() {
-			try {
-				return Class.forName("java.lang.ref.Cleaner$Cleanable");
-			} catch (ClassNotFoundException e) {
-				throw new FlinkRuntimeException("Failed to find Java 9 Cleaner#Cleanable class", e);
-			}
-		}
-
-		private static Method getCleanMethod(Class<?> cleanableClass) {
-			try {
-				return cleanableClass.getMethod("clean");
-			} catch (NoSuchMethodException e) {
-				throw new FlinkRuntimeException("Failed to find Java 9 Cleaner$Cleanable#clean method", e);
-			}
+		private boolean tryRunPendingCleaners() throws InterruptedException {
+			return pendingCleanersRunner.tryRunPendingCleaners();
 		}
 
 		@Override
 		public String toString() {
-			return "New cleaner provider for Java 9+" + JAVA9_CLEANER_CLASS_NAME;
+			return cleanerName + " manager";
 		}
 	}
 
-	private static final class Java9CleanerFactory implements CleanerFactory {
+	private static class CleanerFactoryProvider {
+		private final String cleanerName;
+		private final ReflectionUtils reflectionUtils;
+		private final String cleanerClassName;
+		private final Supplier<Optional<Object>> cleanerSupplier;
+		private final String cleanableCreationMethodName;
+		private final String cleanableClassName;
+		private final String cleanMethodName;
+
+		private CleanerFactoryProvider(
+				String cleanerName,
+				ReflectionUtils reflectionUtils,
+				String cleanerClassName,
+				Supplier<Optional<Object>> cleanerSupplier,
+				String cleanableCreationMethodName, // Cleaner is a factory for Cleanable
+				String cleanableClassName,
+				String cleanMethodName) {
+			this.cleanerName = cleanerName;
+			this.reflectionUtils = reflectionUtils;
+			this.cleanerClassName = cleanerClassName;
+			this.cleanerSupplier = cleanerSupplier;
+			this.cleanableCreationMethodName = cleanableCreationMethodName;
+			this.cleanableClassName = cleanableClassName;
+			this.cleanMethodName = cleanMethodName;
+		}
+
+		private CleanerFactory createCleanerFactory() {
+			Class<?> cleanerClass = reflectionUtils.findClass(cleanerClassName);
+			Method cleanableCreationMethod = reflectionUtils.findMethod(
+				cleanerClass,
+				cleanableCreationMethodName,
+				Object.class,
+				Runnable.class);
+			Class<?> cleanableClass = reflectionUtils.findClass(cleanableClassName);
+			Method cleanMethod = reflectionUtils.findMethod(cleanableClass, cleanMethodName);
+			return new CleanerFactory(
+				cleanerName,
+				cleanerSupplier.get().orElse(null), // static method of Cleaner class will be called to create Cleanable
+				cleanableCreationMethod,
+				cleanMethod);
+		}
+
+		@Override
+		public String toString() {
+			return cleanerName + " factory provider using " + cleanerClassName;
+		}
+	}
+
+	private static class CleanerFactory {
+		private final String cleanerName;
+		@Nullable
 		private final Object cleaner;
-		private final Method cleanerRegisterMethod;
+		private final Method cleanableCreationMethod;
 		private final Method cleanMethod;
 
-		private Java9CleanerFactory(Object cleaner, Method cleanerRegisterMethod, Method cleanMethod) {
+		private CleanerFactory(
+			String cleanerName,
+			@Nullable Object cleaner,
+			Method cleanableCreationMethod,
+			Method cleanMethod) {
+			this.cleanerName = cleanerName;
 			this.cleaner = cleaner;
-			this.cleanerRegisterMethod = cleanerRegisterMethod;
+			this.cleanableCreationMethod = cleanableCreationMethod;
 			this.cleanMethod = cleanMethod;
 		}
 
-		@Override
-		public Runnable create(Object owner, Runnable cleanupOperation) {
+		private Runnable create(Object owner, Runnable cleanupOperation) {
 			Object cleanable;
 			try {
-				cleanable = cleanerRegisterMethod.invoke(cleaner, owner, cleanupOperation);
+				cleanable = cleanableCreationMethod.invoke(cleaner, owner, cleanupOperation);
 			} catch (IllegalAccessException | InvocationTargetException e) {
-				throw new Error("Failed to create a Java 9 Cleaner", e);
+				throw new Error("Failed to create a " + cleanerName, e);
 			}
 			String ownerString = owner.toString(); // lambda should not capture the owner object
 			return () -> {
 				try {
 					cleanMethod.invoke(cleanable);
 				} catch (IllegalAccessException | InvocationTargetException e) {
-					String message = String.format("FATAL UNEXPECTED - Failed to invoke a Java 9 Cleaner$Cleanable for %s", ownerString);
+					String message = String.format("FATAL UNEXPECTED - Failed to invoke a %s for %s", cleanerName, ownerString);
 					LOG.error(message, e);
 					throw new Error(message, e);
 				}
 			};
+		}
+	}
+
+	private static class PendingCleanersRunnerProvider {
+		private final String cleanerName;
+		private final ReflectionUtils reflectionUtils;
+		private final String sharedSecretsClassName;
+		private final String javaLangRefAccessClassName;
+		private final String getJavaLangRefAccessName;
+		private final String tryHandlePendingReferenceName;
+
+		private PendingCleanersRunnerProvider(
+				String cleanerName,
+				ReflectionUtils reflectionUtils,
+				String sharedSecretsClassName,
+				String javaLangRefAccessClassName,
+				String getJavaLangRefAccessName,
+				String tryHandlePendingReferenceName) {
+			this.cleanerName = cleanerName;
+			this.reflectionUtils = reflectionUtils;
+			this.sharedSecretsClassName = sharedSecretsClassName;
+			this.javaLangRefAccessClassName = javaLangRefAccessClassName;
+			this.getJavaLangRefAccessName = getJavaLangRefAccessName;
+			this.tryHandlePendingReferenceName = tryHandlePendingReferenceName;
+		}
+
+		private PendingCleanersRunner createPendingCleanersRunner() {
+			Class<?> sharedSecretsClass = reflectionUtils.findClass(sharedSecretsClassName);
+			Class<?> javaLangRefAccessClass = reflectionUtils.findClass(javaLangRefAccessClassName);
+			Method getJavaLangRefAccessMethod = reflectionUtils.findMethod(sharedSecretsClass, getJavaLangRefAccessName);
+			Method tryHandlePendingReferenceMethod = reflectionUtils.findMethod(
+				javaLangRefAccessClass,
+				tryHandlePendingReferenceName);
+			return new PendingCleanersRunner(getJavaLangRefAccessMethod, tryHandlePendingReferenceMethod);
+		}
+
+		@Override
+		public String toString() {
+			return "Pending " + cleanerName + "s runner provider";
+		}
+	}
+
+	private static class PendingCleanersRunner {
+		private final Method getJavaLangRefAccessMethod;
+		private final Method waitForReferenceProcessingMethod;
+
+		private PendingCleanersRunner(Method getJavaLangRefAccessMethod, Method waitForReferenceProcessingMethod) {
+			this.getJavaLangRefAccessMethod = getJavaLangRefAccessMethod;
+			this.waitForReferenceProcessingMethod = waitForReferenceProcessingMethod;
+		}
+
+		private boolean tryRunPendingCleaners() throws InterruptedException {
+			Object javaLangRefAccess = getJavaLangRefAccess();
+			try {
+				return (Boolean) waitForReferenceProcessingMethod.invoke(javaLangRefAccess);
+			} catch (IllegalAccessException | InvocationTargetException e) {
+				throwIfCauseIsInterruptedException(e);
+				return throwInvocationError(e, javaLangRefAccess, waitForReferenceProcessingMethod);
+			}
+		}
+
+		private Object getJavaLangRefAccess() {
+			try {
+				return getJavaLangRefAccessMethod.invoke(null);
+			} catch (IllegalAccessException | InvocationTargetException e) {
+				return throwInvocationError(e, null, waitForReferenceProcessingMethod);
+			}
+		}
+
+		private static void throwIfCauseIsInterruptedException(Throwable t) throws InterruptedException {
+			// if the original wrapped method can throw InterruptedException
+			// then we may want to explicitly handle in the user code for certain implementations
+			if (t.getCause() instanceof InterruptedException) {
+				throw (InterruptedException) t.getCause();
+			}
+		}
+
+		private static <T> T throwInvocationError(Throwable t, @Nullable Object obj, Method method) {
+			String message = String.format(
+				"FATAL UNEXPECTED - Failed to invoke %s%s",
+				obj == null ? "" : obj.getClass().getSimpleName() + '#',
+				method.getName());
+			LOG.error(message, t);
+			throw new Error(message, t);
+		}
+	}
+
+	private static class ReflectionUtils {
+		private final String logPrefix;
+
+		private ReflectionUtils(String logPrefix) {
+			this.logPrefix = logPrefix;
+		}
+
+		private Class<?> findClass(String className) {
+			try {
+				return Class.forName(className);
+			} catch (ClassNotFoundException e) {
+				throw new FlinkRuntimeException(
+					String.format("%s: Failed to find %s class", logPrefix, className.split("\\.")[0]),
+					e);
+			}
+		}
+
+		private Method findMethod(Class<?> cl, String methodName, Class<?>... parameterTypes) {
+			try {
+				return cl.getMethod(methodName, parameterTypes);
+			} catch (NoSuchMethodException e) {
+				throw new FlinkRuntimeException(
+					String.format("%s: Failed to find %s#%s method", logPrefix, cl.getSimpleName(), methodName),
+					e);
+			}
 		}
 	}
 }

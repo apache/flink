@@ -29,7 +29,6 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnegative;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -42,7 +41,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -77,11 +75,9 @@ public class MemoryManager {
 
 	private final long pageSize;
 
-	private final long totalMemorySize;
-
 	private final long totalNumberOfPages;
 
-	private final AtomicLong availableMemorySize;
+	private final UnsafeMemoryBudget memoryBudget;
 
 	private final SharedResources sharedResources;
 
@@ -98,13 +94,12 @@ public class MemoryManager {
 		sanityCheck(memorySize, pageSize);
 
 		this.pageSize = pageSize;
-		this.totalMemorySize = memorySize;
+		this.memoryBudget = new UnsafeMemoryBudget(memorySize);
 		this.totalNumberOfPages = memorySize / pageSize;
 		this.allocatedSegments = new ConcurrentHashMap<>();
 		this.reservedMemory = new ConcurrentHashMap<>();
-		this.availableMemorySize = new AtomicLong(totalMemorySize);
 		this.sharedResources = new SharedResources();
-		verifyIntTotalNumberOfPages(totalMemorySize, totalNumberOfPages);
+		verifyIntTotalNumberOfPages(memorySize, totalNumberOfPages);
 
 		LOG.debug(
 			"Initialized MemoryManager with total memory size {} and page size {}.",
@@ -146,7 +141,6 @@ public class MemoryManager {
 			// mark as shutdown and release memory
 			isShutDown = true;
 			reservedMemory.clear();
-			availableMemorySize.set(totalMemorySize);
 
 			// go over all allocated segments and release them
 			for (Set<MemorySegment> segments : allocatedSegments.values()) {
@@ -175,7 +169,7 @@ public class MemoryManager {
 	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
 	 */
 	public boolean verifyEmpty() {
-		return availableMemorySize.get() == totalMemorySize;
+		return memoryBudget.verifyEmpty();
 	}
 
 	// ------------------------------------------------------------------------
@@ -230,16 +224,17 @@ public class MemoryManager {
 
 		long memoryToReserve = numberOfPages * pageSize;
 		try {
-			reserveMemory(memoryToReserve);
+			memoryBudget.reserveMemory(memoryToReserve);
 		} catch (MemoryReservationException e) {
 			throw new MemoryAllocationException(String.format("Could not allocate %d pages", numberOfPages), e);
 		}
 
+		Runnable pageCleanup = this::releasePage;
 		allocatedSegments.compute(owner, (o, currentSegmentsForOwner) -> {
 			Set<MemorySegment> segmentsForOwner = currentSegmentsForOwner == null ?
 				new HashSet<>(numberOfPages) : currentSegmentsForOwner;
 			for (long i = numberOfPages; i > 0; i--) {
-				MemorySegment segment = allocateOffHeapUnsafeMemory(getPageSize(), owner);
+				MemorySegment segment = allocateOffHeapUnsafeMemory(getPageSize(), owner, pageCleanup);
 				target.add(segment);
 				segmentsForOwner.add(segment);
 			}
@@ -247,6 +242,10 @@ public class MemoryManager {
 		});
 
 		Preconditions.checkState(!isShutDown, "Memory manager has been concurrently shut down.");
+	}
+
+	private void releasePage() {
+		memoryBudget.releaseMemory(getPageSize());
 	}
 
 	/**
@@ -270,9 +269,7 @@ public class MemoryManager {
 		try {
 			allocatedSegments.computeIfPresent(segment.getOwner(), (o, segsForOwner) -> {
 				segment.free();
-				if (segsForOwner.remove(segment)) {
-					releaseMemory(getPageSize());
-				}
+				segsForOwner.remove(segment);
 				return segsForOwner.isEmpty() ? null : segsForOwner;
 			});
 		}
@@ -296,8 +293,6 @@ public class MemoryManager {
 
 		Preconditions.checkState(!isShutDown, "Memory manager has been shut down.");
 
-		AtomicLong releasedMemory = new AtomicLong(0L);
-
 		// since concurrent modifications to the collection
 		// can disturb the release, we need to try potentially multiple times
 		boolean successfullyReleased = false;
@@ -316,7 +311,7 @@ public class MemoryManager {
 					segment = segmentsIterator.next();
 				}
 				while (segment != null) {
-					segment = releaseSegmentsForOwnerUntilNextOwner(segment, segmentsIterator, releasedMemory);
+					segment = releaseSegmentsForOwnerUntilNextOwner(segment, segmentsIterator);
 				}
 				segments.clear();
 				// the only way to exit the loop
@@ -326,18 +321,15 @@ public class MemoryManager {
 				// call releases the memory. fall through the loop and try again
 			}
 		} while (!successfullyReleased);
-
-		releaseMemory(releasedMemory.get());
 	}
 
 	private MemorySegment releaseSegmentsForOwnerUntilNextOwner(
 			MemorySegment firstSeg,
-			Iterator<MemorySegment> segmentsIterator,
-			AtomicLong releasedMemory) {
+			Iterator<MemorySegment> segmentsIterator) {
 		AtomicReference<MemorySegment> nextOwnerMemorySegment = new AtomicReference<>();
 		Object owner = firstSeg.getOwner();
 		allocatedSegments.compute(owner, (o, segsForOwner) -> {
-			releasedMemory.addAndGet(freeSegment(firstSeg, segsForOwner));
+			freeSegment(firstSeg, segsForOwner);
 			while (segmentsIterator.hasNext()) {
 				MemorySegment segment = segmentsIterator.next();
 				try {
@@ -349,7 +341,7 @@ public class MemoryManager {
 						nextOwnerMemorySegment.set(segment);
 						break;
 					}
-					releasedMemory.addAndGet(freeSegment(segment, segsForOwner));
+					freeSegment(segment, segsForOwner);
 				} catch (Throwable t) {
 					throw new RuntimeException(
 						"Error removing book-keeping reference to allocated memory segment.", t);
@@ -360,9 +352,11 @@ public class MemoryManager {
 		return nextOwnerMemorySegment.get();
 	}
 
-	private long freeSegment(MemorySegment segment, @Nullable Collection<MemorySegment> segments) {
+	private static void freeSegment(MemorySegment segment, @Nullable Collection<MemorySegment> segments) {
 		segment.free();
-		return segments != null && segments.remove(segment) ? getPageSize() : 0L;
+		if (segments != null) {
+			segments.remove(segment);
+		}
 	}
 
 	/**
@@ -386,12 +380,9 @@ public class MemoryManager {
 		}
 
 		// free each segment
-		long releasedMemory = 0L;
-		for (MemorySegment segment : segments) {
+		for (MemorySegment segment: segments) {
 			segment.free();
-			releasedMemory += getPageSize();
 		}
-		releaseMemory(releasedMemory);
 
 		segments.clear();
 	}
@@ -410,7 +401,7 @@ public class MemoryManager {
 			return;
 		}
 
-		reserveMemory(size);
+		memoryBudget.reserveMemory(size);
 
 		reservedMemory.compute(owner, (o, memoryReservedForOwner) ->
 			memoryReservedForOwner == null ? size : memoryReservedForOwner + size);
@@ -450,7 +441,7 @@ public class MemoryManager {
 
 	private long releaseAndCalculateReservedMemory(long memoryToFree, long currentlyReserved) {
 		final long effectiveMemoryToRelease = Math.min(currentlyReserved, memoryToFree);
-		releaseMemory(effectiveMemoryToRelease);
+		memoryBudget.releaseMemory(effectiveMemoryToRelease);
 
 		return currentlyReserved - effectiveMemoryToRelease;
 	}
@@ -470,7 +461,7 @@ public class MemoryManager {
 		checkMemoryReservationPreconditions(owner, 0L);
 		Long memoryReservedForOwner = reservedMemory.remove(owner);
 		if (memoryReservedForOwner != null) {
-			releaseMemory(memoryReservedForOwner);
+			memoryBudget.releaseMemory(memoryReservedForOwner);
 		}
 	}
 
@@ -595,7 +586,7 @@ public class MemoryManager {
 	 * @return The total size of memory.
 	 */
 	public long getMemorySize() {
-		return totalMemorySize;
+		return memoryBudget.getTotalMemorySize();
 	}
 
 	/**
@@ -604,7 +595,7 @@ public class MemoryManager {
 	 * @return The available amount of memory.
 	 */
 	public long availableMemory() {
-		return availableMemorySize.get();
+		return memoryBudget.getAvailableMemorySize();
 	}
 
 	/**
@@ -636,44 +627,7 @@ public class MemoryManager {
 			"The fraction of memory to allocate must within (0, 1], was: %s", fraction);
 
 		//noinspection NumericCastThatLosesPrecision
-		return (long) Math.floor(totalMemorySize * fraction);
-	}
-
-	private void reserveMemory(long size) throws MemoryReservationException {
-		long availableOrReserved = tryReserveMemory(size);
-		if (availableOrReserved < size) {
-			throw new MemoryReservationException(
-				String.format("Could not allocate %d bytes, only %d bytes are remaining", size, availableOrReserved));
-		}
-	}
-
-	private long tryReserveMemory(long size) {
-		long currentAvailableMemorySize;
-		while (size <= (currentAvailableMemorySize = availableMemorySize.get())) {
-			if (availableMemorySize.compareAndSet(currentAvailableMemorySize, currentAvailableMemorySize - size)) {
-				return size;
-			}
-		}
-		return currentAvailableMemorySize;
-	}
-
-	private void releaseMemory(@Nonnegative long size) {
-		if (size == 0) {
-			return;
-		}
-		boolean released = false;
-		long currentAvailableMemorySize = 0L;
-		while (!released && totalMemorySize >= (currentAvailableMemorySize = availableMemorySize.get()) + size) {
-			released = availableMemorySize
-				.compareAndSet(currentAvailableMemorySize, currentAvailableMemorySize + size);
-		}
-		if (!released) {
-			throw new IllegalStateException(String.format(
-				"Trying to release more managed memory (%d bytes) than has been allocated (%d bytes), the total size is %d bytes",
-				size,
-				currentAvailableMemorySize,
-				totalMemorySize));
-		}
+		return (long) Math.floor(memoryBudget.getTotalMemorySize() * fraction);
 	}
 
 	// ------------------------------------------------------------------------
