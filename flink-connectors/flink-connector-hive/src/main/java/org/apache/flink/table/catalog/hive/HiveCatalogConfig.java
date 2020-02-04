@@ -32,4 +32,9 @@ public class HiveCatalogConfig {
 
 	// Partition related configs
 	public static final String PARTITION_LOCATION = "partition.location";
+
+	// config prefix for the table schema of a generic table
+	public static final String GENERIC_TABLE_SCHEMA_PREFIX = "generic.table.schema";
+	// a comma separated list of partition column names for generic table
+	public static final String GENERIC_PART_COL_NAMES = "generic.part.col.names";
 }
