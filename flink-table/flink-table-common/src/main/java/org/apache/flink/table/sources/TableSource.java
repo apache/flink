@@ -24,6 +24,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.TableConnectorUtils;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
@@ -85,6 +87,14 @@ public interface TableSource<T> {
 	 * @return A String explaining the {@link TableSource}.
 	 */
 	default String explainSource() {
-		return TableConnectorUtils.generateRuntimeName(getClass(), getTableSchema().getFieldNames());
+		DataType producedDataType = getProducedDataType();
+		TableSchema physicalSchema;
+		if (LogicalTypeChecks.isCompositeType(producedDataType.getLogicalType())) {
+			physicalSchema = DataTypeUtils.expandCompositeTypeToSchema(getProducedDataType());
+		} else {
+			//if producedDataType is simple type, we use default name f0
+			physicalSchema = TableSchema.builder().field("f0", producedDataType).build();
+		}
+		return TableConnectorUtils.generateRuntimeName(getClass(), physicalSchema.getFieldNames());
 	}
 }

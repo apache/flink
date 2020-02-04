@@ -143,7 +143,7 @@ class TableSourceTest extends TableTestBase {
         "DataStreamCalc",
         "StreamTableSourceScan(table=[[default_catalog, default_database, procTimeT]], " +
           "fields=[id, proctime, val, name], " +
-          "source=[TestTableSourceWithTime(id, proctime, val, name)])",
+          "source=[TestTableSourceWithTime(id, val, name)])",
         term("select", "PROCTIME(proctime) AS proctime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
@@ -176,7 +176,7 @@ class TableSourceTest extends TableTestBase {
           "DataStreamOverAggregate",
           "StreamTableSourceScan(table=[[default_catalog, default_database, procTimeT]], " +
             "fields=[id, proctime, val, name], " +
-            "source=[TestTableSourceWithTime(id, proctime, val, name)])",
+            "source=[TestTableSourceWithTime(id, val, name)])",
           term("partitionBy", "id"),
           term("orderBy", "proctime"),
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),

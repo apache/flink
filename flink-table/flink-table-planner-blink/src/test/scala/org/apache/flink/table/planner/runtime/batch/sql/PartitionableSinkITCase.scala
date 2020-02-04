@@ -168,7 +168,7 @@ class PartitionableSinkITCase extends BatchTestBase {
     expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4,
       partitionColumns = Array("a", "b"))
-    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
+    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sortTable")
     tEnv.execute("testJob")
   }
 
@@ -176,7 +176,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   def testInsertStaticPartitionOnNonPartitionedSink(): Unit = {
     expectedEx.expect(classOf[TableException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array())
-    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
+    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sortTable")
     tEnv.execute("testJob")
   }
 
