@@ -21,6 +21,7 @@ package org.apache.flink.table.types.extraction.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -36,6 +37,7 @@ import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -331,26 +333,47 @@ public final class FunctionMappingExtractor {
 			Method method,
 			int offset) {
 		return IntStream.range(offset, method.getParameterCount())
-			.mapToObj(i -> {
+			.mapToObj(i ->
 				// check for input group before start extracting a data type
-				final Parameter parameter = method.getParameters()[i];
-				final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
-				if (hint != null) {
-					final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
-					if (template.inputGroup != null) {
-						return FunctionArgumentTemplate.of(template.inputGroup);
-					}
-				}
-				// extract a concrete data type
-				final DataType type = DataTypeExtractor.extractFromMethodParameter(typeFactory, function, method, i);
-				// unwrap from ARRAY data type in case of varargs
-				if (method.isVarArgs() && i == method.getParameterCount() - 1 && type instanceof CollectionDataType) {
-					return FunctionArgumentTemplate.of(((CollectionDataType) type).getElementDataType());
-				} else {
-					return FunctionArgumentTemplate.of(type);
-				}
-			})
+				tryExtractInputGroupArgument(method, i)
+					.orElseGet(() -> extractDataTypeArgument(typeFactory, function, method, i)))
 			.collect(Collectors.toList());
+	}
+
+	private static Optional<FunctionArgumentTemplate> tryExtractInputGroupArgument(Method method, int paramPos) {
+		final Parameter parameter = method.getParameters()[paramPos];
+		final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
+		if (hint != null) {
+			final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
+			if (template.inputGroup != null) {
+				return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
+			}
+		}
+		return Optional.empty();
+	}
+
+	private static FunctionArgumentTemplate extractDataTypeArgument(
+			DataTypeFactory typeFactory,
+			Class<? extends UserDefinedFunction> function,
+			Method method,
+			int paramPos) {
+		final DataType type = DataTypeExtractor.extractFromMethodParameter(
+			typeFactory,
+			function,
+			method,
+			paramPos);
+		// unwrap data type in case of varargs
+		if (method.isVarArgs() && paramPos == method.getParameterCount() - 1) {
+			// for ARRAY
+			if (type instanceof CollectionDataType) {
+				return FunctionArgumentTemplate.of(((CollectionDataType) type).getElementDataType());
+			}
+			// special case for varargs that have been misinterpreted as BYTES
+			else {
+				return FunctionArgumentTemplate.of(DataTypes.TINYINT().notNull().bridgedTo(byte.class));
+			}
+		}
+		return FunctionArgumentTemplate.of(type);
 	}
 
 	private static @Nullable String[] extractArgumentNames(Method method, int offset) {

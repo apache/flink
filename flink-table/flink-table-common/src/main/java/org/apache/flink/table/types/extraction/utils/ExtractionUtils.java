@@ -474,7 +474,7 @@ public final class ExtractionUtils {
 			@Nullable Class<?> returnType) {
 		final StringBuilder builder = new StringBuilder();
 		if (returnType != null) {
-			builder.append(returnType.getName()).append(" ");
+			builder.append(returnType.getCanonicalName()).append(" ");
 		}
 		builder
 			.append(methodName)
@@ -485,7 +485,7 @@ public final class ExtractionUtils {
 						if (parameter == null) {
 							return "_";
 						} else {
-							return parameter.getName();
+							return parameter.getCanonicalName();
 						}
 					})
 					.collect(Collectors.joining(", ", "(", ")")));
