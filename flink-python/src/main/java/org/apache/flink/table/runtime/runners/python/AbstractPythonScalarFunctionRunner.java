@@ -49,10 +49,9 @@ import java.util.List;
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
  *
  * @param <IN> Type of the input elements.
- * @param <OUT> Type of the execution results.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends AbstractPythonFunctionRunner<IN, OUT> {
+public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPythonFunctionRunner<IN> {
 
 	private static final String SCHEMA_CODER_URN = "flink:coder:schema:v1";
 	private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
@@ -76,7 +75,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 
 	public AbstractPythonScalarFunctionRunner(
 		String taskName,
-		FnDataReceiver<OUT> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,

@@ -21,9 +21,7 @@ package org.apache.flink.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.util.Preconditions;
@@ -52,10 +50,9 @@ import java.util.List;
  * An base class for {@link PythonFunctionRunner}.
  *
  * @param <IN> Type of the input elements.
- * @param <OUT> Type of the execution results.
  */
 @Internal
-public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFunctionRunner<IN> {
+public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunctionRunner<IN> {
 
 	private static final String MAIN_INPUT_ID = "input";
 
@@ -64,7 +61,7 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	/**
 	 * The Python function execution result receiver.
 	 */
-	private final FnDataReceiver<OUT> resultReceiver;
+	private final FnDataReceiver<byte[]> resultReceiver;
 
 	/**
 	 * The Python execution environment manager.
@@ -111,21 +108,6 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	private transient TypeSerializer<IN> inputTypeSerializer;
 
 	/**
-	 * The TypeSerializer for execution results.
-	 */
-	private transient TypeSerializer<OUT> outputTypeSerializer;
-
-	/**
-	 * Reusable InputStream used to holding the execution results to be deserialized.
-	 */
-	private transient ByteArrayInputStreamWithPos bais;
-
-	/**
-	 * InputStream Wrapper.
-	 */
-	private transient DataInputViewStreamWrapper baisWrapper;
-
-	/**
 	 * Reusable OutputStream used to holding the serialized input elements.
 	 */
 	private transient ByteArrayOutputStreamWithPos baos;
@@ -143,7 +125,7 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 
 	public AbstractPythonFunctionRunner(
 		String taskName,
-		FnDataReceiver<OUT> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager environmentManager,
 		StateRequestHandler stateRequestHandler) {
 		this.taskName = Preconditions.checkNotNull(taskName);
@@ -154,12 +136,9 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 
 	@Override
 	public void open() throws Exception {
-		bais = new ByteArrayInputStreamWithPos();
-		baisWrapper = new DataInputViewStreamWrapper(bais);
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
 		inputTypeSerializer = getInputTypeSerializer();
-		outputTypeSerializer = getOutputTypeSerializer();
 
 		// The creation of stageBundleFactory depends on the initialized environment manager.
 		environmentManager.open();
@@ -217,10 +196,7 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 				@SuppressWarnings("unchecked")
 				@Override
 				public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-					return input -> {
-						bais.setBuffer(input.getValue(), 0, input.getValue().length);
-						resultReceiver.accept(outputTypeSerializer.deserialize(baisWrapper));
-					};
+					return input -> resultReceiver.accept(input.getValue());
 				}
 			};
 
@@ -284,10 +260,4 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	 * Returns the TypeSerializer for input elements.
 	 */
 	public abstract TypeSerializer<IN> getInputTypeSerializer();
-
-	/**
-	 * Returns the TypeSerializer for execution results.
-	 */
-	public abstract TypeSerializer<OUT> getOutputTypeSerializer();
-
 }

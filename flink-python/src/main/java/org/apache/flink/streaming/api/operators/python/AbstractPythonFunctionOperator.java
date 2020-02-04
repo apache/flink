@@ -263,7 +263,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Sends the execution results to the downstream operator.
 	 */
-	public abstract void emitResults();
+	public abstract void emitResults() throws IOException;
 
 	/**
 	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that

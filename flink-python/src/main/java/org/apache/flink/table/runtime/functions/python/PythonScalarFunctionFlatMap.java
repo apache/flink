@@ -26,6 +26,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -36,6 +38,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
@@ -107,6 +110,11 @@ public final class PythonScalarFunctionFlatMap
 	private transient RowType udfOutputType;
 
 	/**
+	 * The TypeSerializer for udf execution results.
+	 */
+	private transient TypeSerializer<Row> udfOutputTypeSerializer;
+
+	/**
 	 * The queue holding the input elements for which the execution results have not been received.
 	 */
 	private transient LinkedBlockingQueue<Row> forwardedInputQueue;
@@ -115,7 +123,17 @@ public final class PythonScalarFunctionFlatMap
 	 * The queue holding the user-defined function execution results. The execution results are in
 	 * the same order as the input elements.
 	 */
-	private transient LinkedBlockingQueue<Row> udfResultQueue;
+	private transient LinkedBlockingQueue<byte[]> udfResultQueue;
+
+	/**
+	 * Reusable InputStream used to holding the execution results to be deserialized.
+	 */
+	private transient ByteArrayInputStreamWithPos bais;
+
+	/**
+	 * InputStream Wrapper.
+	 */
+	private transient DataInputViewStreamWrapper baisWrapper;
 
 	/**
 	 * The python config.
@@ -163,6 +181,7 @@ public final class PythonScalarFunctionFlatMap
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
@@ -190,6 +209,7 @@ public final class PythonScalarFunctionFlatMap
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
 		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
+		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(udfOutputType);
 
 		RowTypeInfo forwardedInputTypeInfo = new RowTypeInfo(
 			Arrays.stream(forwardedFields)
@@ -199,6 +219,9 @@ public final class PythonScalarFunctionFlatMap
 				.map(TypeConversions::fromDataTypeToLegacyInfo)
 				.toArray(TypeInformation[]::new));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+
+		bais = new ByteArrayInputStreamWithPos();
+		baisWrapper = new DataInputViewStreamWrapper(bais);
 
 		this.pythonFunctionRunner = createPythonFunctionRunner();
 		this.pythonFunctionRunner.open();
@@ -251,7 +274,7 @@ public final class PythonScalarFunctionFlatMap
 	}
 
 	private PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		FnDataReceiver<Row> udfResultReceiver = input -> {
+		FnDataReceiver<byte[]> udfResultReceiver = input -> {
 			// handover to queue, do not block the result receiver thread
 			udfResultQueue.put(input);
 		};
@@ -288,10 +311,12 @@ public final class PythonScalarFunctionFlatMap
 		forwardedInputQueue.add(forwardedFieldsRow);
 	}
 
-	private void emitResults() {
-		Row udfResult;
-		while ((udfResult = udfResultQueue.poll()) != null) {
+	private void emitResults() throws IOException {
+		byte[] rawUdfResult;
+		while ((rawUdfResult = udfResultQueue.poll()) != null) {
 			Row input = forwardedInputQueue.poll();
+			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
+			Row udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
 			this.resultCollector.collect(Row.join(input, udfResult));
 		}
 	}
