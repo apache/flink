@@ -73,6 +73,7 @@ message Schema {
     ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
+    TABLE = 19;
   }
 
   message MapType {

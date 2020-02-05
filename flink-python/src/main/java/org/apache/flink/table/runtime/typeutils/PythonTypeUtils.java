@@ -38,6 +38,7 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerial
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowTableSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
@@ -88,6 +89,39 @@ public final class PythonTypeUtils {
 
 	public static FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
 		return logicalType.accept(new LogicalTypeToProtoTypeConverter());
+	}
+
+	public static TypeSerializer toFlinkTableTypeSerializer(LogicalType logicalType) {
+		RowType rowType = (RowType) logicalType;
+		LogicalTypeDefaultVisitor<TypeSerializer> converter =
+			new LogicalTypeToTypeSerializerConverter();
+		final TypeSerializer[] fieldTypeSerializers = rowType.getFields()
+			.stream()
+			.map(f -> f.getType().accept(converter))
+			.toArray(TypeSerializer[]::new);
+		return new RowTableSerializer(fieldTypeSerializers);
+	}
+
+	public static FlinkFnApi.Schema.FieldType toTableProtoType(LogicalType logicalType) {
+		RowType rowType = (RowType) logicalType;
+		FlinkFnApi.Schema.FieldType.Builder builder =
+			FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.TABLE)
+				.setNullable(rowType.isNullable());
+
+		LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> converter =
+			new LogicalTypeToProtoTypeConverter();
+		FlinkFnApi.Schema.Builder schemaBuilder = FlinkFnApi.Schema.newBuilder();
+		for (RowType.RowField field : rowType.getFields()) {
+			schemaBuilder.addFields(
+				FlinkFnApi.Schema.Field.newBuilder()
+					.setName(field.getName())
+					.setDescription(field.getDescription().orElse(EMPTY_STRING))
+					.setType(field.getType().accept(converter))
+					.build());
+		}
+		builder.setRowSchema(schemaBuilder.build());
+		return builder.build();
 	}
 
 	/**

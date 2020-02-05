@@ -24,6 +24,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowTableSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DateType;
@@ -55,6 +56,17 @@ public class PythonTypeUtilsTest {
 		assertTrue(rowSerializer instanceof RowSerializer);
 
 		assertEquals(1, ((RowSerializer) rowSerializer).getArity());
+	}
+
+	@Test
+	public void testLogicalTypeToFlinkTableTypeSerializer() {
+		List<RowType.RowField> rowFields = new ArrayList<>();
+		rowFields.add(new RowType.RowField("f1", new BigIntType()));
+		RowType rowType = new RowType(rowFields);
+		TypeSerializer rowTableSerializer = PythonTypeUtils.toFlinkTableTypeSerializer(rowType);
+		assertTrue(rowTableSerializer instanceof RowTableSerializer);
+
+		assertEquals(1, ((RowTableSerializer) rowTableSerializer).getRowSerializer().getArity());
 	}
 
 	@Test
