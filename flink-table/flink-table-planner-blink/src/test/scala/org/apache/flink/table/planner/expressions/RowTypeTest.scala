@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
-
 import org.junit.Test
 
 class RowTypeTest extends RowTypeTestBase {
@@ -129,4 +128,17 @@ class RowTypeTest extends RowTypeTestBase {
       "null"
     )
   }
+
+  @Test
+  def testUnsupportedCast(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Unsupported cast from Row(f0: String, f1: Boolean) to Long")
+
+    testTableApi(
+      'f5.cast(DataTypes.BIGINT()),
+      ""
+    )
+  }
+
 }
