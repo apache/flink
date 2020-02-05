@@ -44,12 +44,14 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
 	// ------ tables ------
 
 	@Test
-	public void testGenericTypes() throws Exception {
+	public void testGenericTableSchema() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 
-		TableSchema tableSchema = TableSchema.builder().fields(
-				new String[]{"col1", "col2", "col3"},
-				new DataType[]{DataTypes.TIMESTAMP(3), DataTypes.TIMESTAMP(6), DataTypes.TIMESTAMP(9)}).build();
+		TableSchema tableSchema = TableSchema.builder()
+				.fields(new String[]{"col1", "col2", "col3"},
+						new DataType[]{DataTypes.TIMESTAMP(3), DataTypes.TIMESTAMP(6), DataTypes.TIMESTAMP(9)})
+				.watermark("col3", "col3", DataTypes.TIMESTAMP(9))
+				.build();
 
 		ObjectPath tablePath = new ObjectPath(db1, "generic_table");
 		try {
