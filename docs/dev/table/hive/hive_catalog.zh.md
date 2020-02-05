@@ -190,7 +190,7 @@ root
 
 {% endhighlight %}
 
-Verify the table from Hive side via Hive Cli:
+Verify the table is also visible to Hive via Hive Cli:
 
 {% highlight bash %}
 hive> show tables;
@@ -198,13 +198,10 @@ OK
 mykafka
 Time taken: 0.038 seconds, Fetched: 1 row(s)
 
-hive> describe mykafka;
-OK
-name                	string
-age                 	int
-Time taken: 0.056 seconds, Fetched: 2 row(s)
-
 {% endhighlight %}
+
+Please note since this is a generic table, Hive doesn't understand such a table and using this table in
+Hive leads to undefined behavior.
 
 
 #### step 5: run Flink SQL to query the Kakfa table
