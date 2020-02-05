@@ -433,16 +433,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			// so we check only in ticket cache scenario.
 			boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
 
-			UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-			if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
-					&& useTicketCache && !loginUser.hasKerberosCredentials()) {
-				// a delegation token is an adequate substitute in most cases
-				if (!HadoopUtils.hasHDFSDelegationToken()) {
-					LOG.error("Hadoop security with Kerberos is enabled but the login user " +
-						"does not have Kerberos credentials");
-					throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
-						"does not have Kerberos credentials");
-				}
+			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(useTicketCache);
+			if (!isCredentialsConfigured) {
+				throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
+					"does not have Kerberos credentials");
 			}
 		}
 
