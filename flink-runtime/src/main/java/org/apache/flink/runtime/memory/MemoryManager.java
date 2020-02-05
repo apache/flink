@@ -49,6 +49,7 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -490,6 +491,7 @@ public class MemoryManager {
 			return;
 		}
 
+		AtomicLong releasedSize = new AtomicLong();
 		reservedMemory.compute(owner, (o, reservations) -> {
 			if (reservations != null) {
 				reservations.compute(
@@ -501,9 +503,13 @@ public class MemoryManager {
 								size,
 								currentlyReserved == null ? 0 : currentlyReserved,
 								owner);
+							if (currentlyReserved != null) {
+								releasedSize.set(currentlyReserved);
+							}
 							//noinspection ReturnOfNull
 							return null;
 						} else {
+							releasedSize.set(size);
 							return currentlyReserved - size;
 						}
 					});
@@ -511,7 +517,7 @@ public class MemoryManager {
 			//noinspection ReturnOfNull
 			return reservations == null || reservations.isEmpty() ? null : reservations;
 		});
-		budgetByType.releaseBudgetForKey(memoryType, size);
+		budgetByType.releaseBudgetForKey(memoryType, releasedSize.get());
 	}
 
 	private void checkMemoryReservationPreconditions(Object owner, MemoryType memoryType, long size) {
