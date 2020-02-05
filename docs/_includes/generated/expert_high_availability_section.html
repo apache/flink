@@ -12,7 +12,7 @@
             <td><h5>high-availability.jobmanager.port</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>String</td>
-            <td>Optional port (range) used by the job manager in high-availability mode.</td>
+            <td>The port (range) used by the Flink Master for its RPC connections in highly-available setups. In highly-available setups, this value is used instead of 'jobmanager.rpc.port'.A value of '0' means that a random free port is chosen. TaskManagers discover this port through the high-availability services (leader election), so a random port or a port range works without requiring any additional means of service discovery.</td>
         </tr>
     </tbody>
 </table>
