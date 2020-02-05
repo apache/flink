@@ -816,7 +816,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 	}
 
-	private Optional<Object> getRawValue(String key) {
+	protected Optional<Object> getRawValue(String key) {
 		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
 		}
