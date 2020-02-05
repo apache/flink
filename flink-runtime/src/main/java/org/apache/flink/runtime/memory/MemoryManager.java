@@ -49,7 +49,6 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -491,33 +490,37 @@ public class MemoryManager {
 			return;
 		}
 
-		AtomicLong releasedSize = new AtomicLong();
 		reservedMemory.compute(owner, (o, reservations) -> {
 			if (reservations != null) {
 				reservations.compute(
 					memoryType,
 					(mt, currentlyReserved) -> {
-						if (currentlyReserved == null || currentlyReserved < size) {
-							LOG.warn(
-								"Trying to release more memory {} than it was reserved {} so far for the owner {}",
-								size,
-								currentlyReserved == null ? 0 : currentlyReserved,
-								owner);
-							if (currentlyReserved != null) {
-								releasedSize.set(currentlyReserved);
+						long newReservedMemory = 0;
+						if (currentlyReserved != null) {
+							if (currentlyReserved < size) {
+								LOG.warn(
+									"Trying to release more memory {} than it was reserved {} so far for the owner {}",
+									size,
+									currentlyReserved,
+									owner);
 							}
-							//noinspection ReturnOfNull
-							return null;
-						} else {
-							releasedSize.set(size);
-							return currentlyReserved - size;
+
+							newReservedMemory = releaseAndCalculateReservedMemory(size, memoryType, currentlyReserved);
 						}
+
+						return newReservedMemory == 0 ? null : newReservedMemory;
 					});
 			}
 			//noinspection ReturnOfNull
 			return reservations == null || reservations.isEmpty() ? null : reservations;
 		});
-		budgetByType.releaseBudgetForKey(memoryType, releasedSize.get());
+	}
+
+	private long releaseAndCalculateReservedMemory(long memoryToFree, MemoryType memoryType, long currentlyReserved) {
+		final long effectiveMemoryToRelease = Math.min(currentlyReserved, memoryToFree);
+		budgetByType.releaseBudgetForKey(memoryType, effectiveMemoryToRelease);
+
+		return currentlyReserved - effectiveMemoryToRelease;
 	}
 
 	private void checkMemoryReservationPreconditions(Object owner, MemoryType memoryType, long size) {

@@ -266,30 +266,6 @@ public class MemoryManagerTest {
 	}
 
 	@Test
-	public void testMemoryReleaseMoreThanReserved() throws MemoryReservationException {
-		Object owner = new Object();
-		Object owner2 = new Object();
-		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
-		// to prevent memory size exceeding the maximum, reserve some memory from another owner.
-		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
-
-		// test reserve once and release multiple times
-		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
-		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
-
-		// test release more than the left reserved size
-		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE / 2);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
-		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
-		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
-	}
-
-	@Test
 	public void testCannotReserveBeyondTheLimit() throws MemoryReservationException {
 		Object owner = new Object();
 		memoryManager.reserveMemory(owner, MemoryType.OFF_HEAP, memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP));
@@ -301,6 +277,41 @@ public class MemoryManagerTest {
 	public void testMemoryTooBigReservation() {
 		long size = memoryManager.getMemorySizeByType(MemoryType.HEAP) + PAGE_SIZE;
 		testCannotReserveAnymore(MemoryType.HEAP, size);
+	}
+
+	@Test
+	public void testMemoryReleaseMultipleTimes() throws MemoryReservationException {
+		Object owner = new Object();
+		Object owner2 = new Object();
+		int rounds = 5;
+		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
+		// to prevent memory size exceeding the maximum, reserve some memory from another owner.
+		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
+
+		// reserve once and release multiple times
+		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		for (int i = 0; i < rounds; i++) {
+			memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		}
+		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
+		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
+	}
+
+	@Test
+	public void testMemoryReleaseMoreThanReserved() throws MemoryReservationException {
+		Object owner = new Object();
+		Object owner2 = new Object();
+		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
+		// to prevent memory size exceeding the maximum, reserve some memory from another owner.
+		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
+
+		// release more than reserved size
+		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE * 2);
+		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
+		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
 	}
 
 	@Test
