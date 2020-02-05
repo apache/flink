@@ -79,9 +79,15 @@ public class HighAvailabilityOptions {
 	@Documentation.Section(Documentation.Sections.EXPERT_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_JOB_MANAGER_PORT_RANGE =
 			key("high-availability.jobmanager.port")
+			.stringType()
 			.defaultValue("0")
 			.withDeprecatedKeys("recovery.jobmanager.port")
-			.withDescription("Optional port (range) used by the job manager in high-availability mode.");
+			.withDescription(
+					"The port (range) used by the Flink Master for its RPC connections in highly-available setups. " +
+					"In highly-available setups, this value is used instead of '" + JobManagerOptions.PORT.key() + "'." +
+					"A value of '0' means that a random free port is chosen. TaskManagers discover this port through " +
+					"the high-availability services (leader election), so a random port or a port range works " +
+					"without requiring any additional means of service discovery.");
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Options
