@@ -92,27 +92,6 @@ the same time. For applications with large state in Flink, this often ties up to
 When a savepoint is manually triggered, it may be in process concurrently with an ongoing checkpoint.
 
 
-## Tuning Network Buffers
-
-Before Flink 1.3, an increased number of network buffers also caused increased checkpointing times since
-keeping more in-flight data meant that checkpoint barriers got delayed. Since Flink 1.3, the
-number of network buffers used per outgoing/incoming channel is limited and thus network buffers
-may be configured without affecting checkpoint times
-(see [network buffer configuration](../config.html#configuring-the-network-buffers)).
-
-## Asynchronous Checkpointing
-
-When state is *asynchronously* snapshotted, the checkpoints scale better than when the state is *synchronously* snapshotted.
-Especially in more complex streaming applications with multiple joins, co-functions, or windows, this may have a profound
-impact.
-
-For state to be snapshotted asynchronsously, you need to use a state backend which supports asynchronous snapshotting.
-Starting from Flink 1.3, both RocksDB-based as well as heap-based state backends (`filesystem`) support asynchronous
-snapshotting and use it by default. This applies to both managed operator state as well as managed keyed state (incl. timers state).
-
-<span class="label label-info">Note</span> *The combination RocksDB state backend with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
-Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
-
 ## Tuning RocksDB
 
 The state storage workhorse of many large scale Flink streaming applications is the *RocksDB State Backend*.
