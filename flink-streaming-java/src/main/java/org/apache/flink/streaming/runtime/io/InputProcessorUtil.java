@@ -24,6 +24,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -66,6 +67,7 @@ public class InputProcessorUtil {
 			InputGate inputGate1,
 			InputGate inputGate2,
 			Configuration taskManagerConfig,
+			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) throws IOException {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
@@ -90,6 +92,8 @@ public class InputProcessorUtil {
 			inputGate1.getNumberOfInputChannels() + inputGate2.getNumberOfInputChannels(),
 			taskName,
 			toNotifyOnCheckpoint);
+		taskIOMetricGroup.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+
 		return new CheckpointedInputGate[] {
 			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
 			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
