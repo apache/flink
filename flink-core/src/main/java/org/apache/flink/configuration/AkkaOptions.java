@@ -30,6 +30,18 @@ import static org.apache.flink.configuration.description.LinkElement.link;
 public class AkkaOptions {
 
 	/**
+	 * Flag whether to capture call stacks for RPC ask calls.
+	 */
+	public static final ConfigOption<Boolean> CAPTURE_ASK_CALLSTACK = ConfigOptions
+		.key("akka.ask.callstack")
+		.booleanType()
+		.defaultValue(true)
+		.withDescription("If true, call stack for asynchronous asks are captured. That way, when an ask fails " +
+			"(for example times out), you get a proper exception, describing to the original method call and " +
+			"call site. Note that in case of having millions of concurrent RPC calls, this may add to the " +
+			"memory footprint.");
+
+	/**
 	 * Timeout for akka ask calls.
 	 */
 	public static final ConfigOption<String> ASK_TIMEOUT = ConfigOptions
