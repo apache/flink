@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
@@ -42,6 +43,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -418,7 +420,16 @@ public class OrcColumnarRowSplitReaderTest {
 	}
 
 	private String getPath(String fileName) {
-		return getClass().getClassLoader().getResource(fileName).getPath();
+		try {
+			File file = TEMPORARY_FOLDER.newFile();
+			IOUtils.copyBytes(
+					getClass().getClassLoader().getResource(fileName).openStream(),
+					new FileOutputStream(file),
+					true);
+			return file.getPath();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	private static FileInputSplit[] createSplits(Path path, int minNumSplits) throws IOException {
