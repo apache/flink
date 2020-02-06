@@ -277,32 +277,32 @@ jobs:
       rvm: 2.4.0
       name: Documentation links check
     # E2E profiles - Hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       stage: test
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup2"
       script: ./tools/travis/nightly.sh split_ha.sh
       name: e2e - ha - hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup3"
       script: ./tools/travis/nightly.sh split_sticky.sh
       name: e2e - sticky - hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup4"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
       name: e2e - checkpoints - hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup5"
       script: ./tools/travis/nightly.sh split_container.sh
       name: e2e - container - hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_heavy.sh
       name: e2e - heavy - hadoop 2.8
-    - if: type = pull_request
+    - if: type = push
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup6"
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - hadoop 2.8
