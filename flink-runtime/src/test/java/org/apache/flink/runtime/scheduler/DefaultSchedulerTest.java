@@ -609,6 +609,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		final ExecutionAttemptID attemptId2 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
 
 		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
+		final JobStatus jobStatusAfterFirstFailure = scheduler.requestJobStatus();
 		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId2, ExecutionState.FAILED, new RuntimeException("expected")));
 
 		taskRestartExecutor.triggerNonPeriodicScheduledTask();
@@ -616,6 +617,7 @@ public class DefaultSchedulerTest extends TestLogger {
 		taskRestartExecutor.triggerNonPeriodicScheduledTask();
 		final JobStatus jobStatusAfterRestarts = scheduler.requestJobStatus();
 
+		assertThat(jobStatusAfterFirstFailure, equalTo(JobStatus.RESTARTING));
 		assertThat(jobStatusWithPendingRestarts, equalTo(JobStatus.RESTARTING));
 		assertThat(jobStatusAfterRestarts, equalTo(JobStatus.RUNNING));
 	}
