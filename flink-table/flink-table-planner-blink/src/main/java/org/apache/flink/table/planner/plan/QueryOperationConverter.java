@@ -295,10 +295,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
 
+			// TODO use relBuilder.functionScan() once we remove TableSqlFunction
 			return LogicalTableFunctionScan.create(
 					relBuilder.peek().getCluster(),
 					Collections.emptyList(),
-					relBuilder.call(sqlFunction, parameters),
+					relBuilder.getRexBuilder()
+						.makeCall(function.getRowType(typeFactory, null, null), sqlFunction, parameters),
 					function.getElementType(null),
 					function.getRowType(typeFactory, null, null),
 					null);

@@ -779,6 +779,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case tsf: TableSqlFunction =>
         new TableFunctionCallGen(
+          call,
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
 
