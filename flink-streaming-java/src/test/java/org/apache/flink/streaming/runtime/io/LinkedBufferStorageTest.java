@@ -72,8 +72,8 @@ public class LinkedBufferStorageTest {
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 2));
 
 		assertTrue(bufferStorage.isEmpty());
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
 		assertTrue(bufferStorage.isEmpty());
 		assertTrue(linkedStorage.isEmpty());
@@ -83,20 +83,20 @@ public class LinkedBufferStorageTest {
 		assertFalse(bufferStorage.isEmpty());
 		assertFalse(linkedStorage.isEmpty());
 
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
 		linkedStorage.add(generateRandomBuffer(PAGE_SIZE + 3));
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE + 4));
 
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
+		assertPendingBytes();
+		assertRolledBytes();
 
 		bufferStorage.rollOver();
 
-		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
-		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
-
+		assertPendingBytes();
+		assertRolledBytes();
+		
 		ArrayList<Integer> bufferSizes = drain(bufferStorage);
 
 		assertEquals(PAGE_SIZE + 4, (long) bufferSizes.get(0));
@@ -150,6 +150,14 @@ public class LinkedBufferStorageTest {
 		bufferStorage.add(generateRandomBuffer(PAGE_SIZE));
 
 		assertTrue(bufferStorage.isFull());
+	}
+
+	private void assertPendingBytes() {
+		assertEquals(mainStorage.getPendingBytes() + linkedStorage.getPendingBytes(), bufferStorage.getPendingBytes());
+	}
+
+	private void assertRolledBytes() {
+		assertEquals(mainStorage.getRolledBytes() + linkedStorage.getRolledBytes(), bufferStorage.getRolledBytes());
 	}
 
 	private ArrayList<Integer> drain(BufferStorage bufferStorage) throws IOException {
