@@ -135,6 +135,10 @@ Please find the required dependencies for different Hive major versions below.
        hive-metastore-1.0.0.jar
        hive-exec-1.0.0.jar
        libfb303-0.9.0.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+       
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3-nohive.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
 
 {% endhighlight %}
 </div>
@@ -158,6 +162,10 @@ Please find the required dependencies for different Hive major versions below.
        hive-exec-1.1.0.jar
        libfb303-0.9.2.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
 
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3-nohive.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
+
 {% endhighlight %}
 </div>
 
@@ -179,6 +187,10 @@ Please find the required dependencies for different Hive major versions below.
        hive-metastore-1.2.1.jar
        hive-exec-1.2.1.jar
        libfb303-0.9.2.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3-nohive.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
 
 {% endhighlight %}
 </div>
