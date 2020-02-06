@@ -32,15 +32,10 @@ import java.io.File;
  *
  * <p>This example shows how to:
  *  - Register a table via DDL
- *  - Declare event time attribute in the DDL
+ *  - Declare an event time attribute in the DDL
  *  - Run a streaming window aggregate on the registered table
- *
  */
 public class StreamWindowSQLExample {
-
-	// *************************************************************************
-	//     PROGRAM
-	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
 
@@ -83,9 +78,9 @@ public class StreamWindowSQLExample {
 		tEnv.sqlUpdate(ddl);
 
 		// run a SQL query on the table and retrieve the result as a new Table
-		String query = "SELECT \n" +
-			"  CAST(TUMBLE_START(ts, INTERVAL '5' SECOND) AS STRING) window_start, \n" +
-			"  COUNT(*) order_num, \n" +
+		String query = "SELECT\n" +
+			"  CAST(TUMBLE_START(ts, INTERVAL '5' SECOND) AS STRING) window_start,\n" +
+			"  COUNT(*) order_num,\n" +
 			"  SUM(amount) total_amount,\n" +
 			"  COUNT(DISTINCT product) unique_products\n" +
 			"FROM orders\n" +
