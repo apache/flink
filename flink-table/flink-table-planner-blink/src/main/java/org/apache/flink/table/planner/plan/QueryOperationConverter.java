@@ -300,9 +300,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					relBuilder.peek().getCluster(),
 					Collections.emptyList(),
 					relBuilder.getRexBuilder()
-						.makeCall(function.getRowType(typeFactory, null, null), sqlFunction, parameters),
+						.makeCall(function.getRowType(typeFactory), sqlFunction, parameters),
 					function.getElementType(null),
-					function.getRowType(typeFactory, null, null),
+					function.getRowType(typeFactory),
 					null);
 		}
 

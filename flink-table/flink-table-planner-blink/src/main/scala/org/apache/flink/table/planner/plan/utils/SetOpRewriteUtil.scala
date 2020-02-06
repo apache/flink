@@ -99,7 +99,7 @@ object SetOpRewriteUtil {
       new util.ArrayList[RelNode](),
       builder.getRexBuilder
         .makeCall(
-          function.getRowType(typeFactory, null, null),
+          function.getRowType(typeFactory),
           sqlFunction,
           builder.fields(Util.range(fields.size() + 1))),
       function.getElementType(null),
