@@ -65,7 +65,7 @@ Flink uses the property '*is_generic*' to tell whether a table is Hive-compatibl
 `is_generic` to false in your table properties.
 
 As stated above, generic tables shouldn't be used from Hive. In Hive CLI, you can call `DESCRIBE FORMATTED` for a table and
-decide whether it's generic or not by checking the `is_generic`. Generic tables will have `is_generic=true`.
+decide whether it's generic or not by checking the `is_generic` property. Generic tables will have `is_generic=true`.
 
 ### Example
 
