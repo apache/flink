@@ -703,7 +703,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createCancellationBarrier(3L, 1),
 			createBuffer(0)
 		};
-		AbstractInvokable validator = new CheckpointSequenceValidator(-3);
+		AbstractInvokable validator = new ValidatingCheckpointHandler();
 		inputGate = createBarrierBuffer(2, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
