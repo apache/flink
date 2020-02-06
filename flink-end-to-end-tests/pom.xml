@@ -35,8 +35,6 @@ under the License.
 	<name>flink-end-to-end-tests</name>
 
 	<properties>
-		<includeE2E/> <!-- keep this empty -->
-		<excludeE2E/> <!-- keep this empty -->
 		<!-- functions as a global exclude; required since an empty set of included groups implicitly includes all -->
 		<includeE2E.default>org.apache.flink.tests.util.categories.Dummy</includeE2E.default>
 		<!-- default inclusions / exclusions -->
@@ -198,7 +196,7 @@ under the License.
 
 									def includes = categorySearcher('e2e.include.')
 									// allow overrides from the command-line
-									if (!project.properties.includeE2E.isEmpty()) {
+									if (project.properties.includeE2E != null && !project.properties.includeE2E.isEmpty()) {
 										includes.add(project.properties.includeE2E)
 									}
 									if (includes.size() > 0) {
