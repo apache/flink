@@ -23,9 +23,9 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FileUtils;
 
-import java.net.URL;
-import java.nio.file.Paths;
+import java.io.File;
 
 /**
  * Simple example for demonstrating the use of SQL in Java.
@@ -54,9 +54,18 @@ public class StreamWindowSQLExample {
 			.build();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 
-		// get the absolute path of the source content file
-		URL res = StreamWindowSQLExample.class.getClassLoader().getResource("orders.csv");
-		String path = Paths.get(res.toURI()).toFile().getAbsolutePath();
+		// write source data into temporary file and get the absolute path
+		String contents = "1,beer,3,2019-12-12 00:00:01\n" +
+			"1,diaper,4,2019-12-12 00:00:02\n" +
+			"2,pen,3,2019-12-12 00:00:04\n" +
+			"2,rubber,3,2019-12-12 00:00:06\n" +
+			"3,rubber,2,2019-12-12 00:00:05\n" +
+			"4,beer,1,2019-12-12 00:00:08";
+		File tempFile = File.createTempFile("orders", ".csv");
+		tempFile.deleteOnExit();
+		FileUtils.writeFileUtf8(tempFile, contents);
+		String path = tempFile.toURI().toString();
+		System.out.println(path);
 
 		// register table via DDL with watermark,
 		// the events are out of order, hence, we use 3 seconds to wait the late events
