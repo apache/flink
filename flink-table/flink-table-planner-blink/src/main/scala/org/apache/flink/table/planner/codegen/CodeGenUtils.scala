@@ -690,6 +690,12 @@ object CodeGenUtils {
   def genToInternal(ctx: CodeGeneratorContext, t: DataType, term: String): String =
     genToInternal(ctx, t)(term)
 
+  /**
+   * Generates code for converting the given external source data type to the internal data format.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
   def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
     if (isConverterIdentity(t)) {
       term => s"$term"
@@ -706,7 +712,8 @@ object CodeGenUtils {
   /**
    * Generates code for converting the given external source data type to the internal data format.
    *
-   * Use this function for converting at the edges of the API.
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
    */
   def genToInternalIfNeeded(
       ctx: CodeGeneratorContext,

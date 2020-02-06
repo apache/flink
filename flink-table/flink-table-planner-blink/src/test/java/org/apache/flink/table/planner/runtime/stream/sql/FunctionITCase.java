@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
@@ -27,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.codegen.CodeGenException;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
@@ -41,6 +43,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -555,6 +558,116 @@ public class FunctionITCase extends StreamingTestBase {
 		}
 	}
 
+	@Test
+	public void testRowTableFunction() throws Exception {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("1,2,3"),
+			Row.of("2,3,4"),
+			Row.of("3,4,5"),
+			Row.of((String) null)
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("1,2,3", new String[]{"1", "2", "3"}),
+			Row.of("2,3,4", new String[]{"2", "3", "4"}),
+			Row.of("3,4,5", new String[]{"3", "4", "5"}),
+			Row.of(null, null)
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
+		tEnv().sqlUpdate("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
+		tEnv().execute("Test Job");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testDynamicTableFunction() throws Exception {
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("Test is a string"),
+			Row.of("42"),
+			Row.of((String) null)
+		);
+
+		TestCollectionTableFactory.reset();
+
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("DynamicTableFunction", DynamicTableFunction.class);
+		tEnv().sqlUpdate(
+			"INSERT INTO SinkTable " +
+			"SELECT T1.s FROM TABLE(DynamicTableFunction('Test')) AS T1(s) " +
+			"UNION ALL " +
+			"SELECT CAST(T2.i AS STRING) FROM TABLE(DynamicTableFunction(42)) AS T2(i)" +
+			"UNION ALL " +
+			"SELECT CAST(T3.i AS STRING) FROM TABLE(DynamicTableFunction(CAST(NULL AS INT))) AS T3(i)");
+		tEnv().execute("Test Job");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testInvalidUseOfScalarFunction() {
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
+		try {
+			tEnv().sqlUpdate(
+				"INSERT INTO SinkTable " +
+				"SELECT * FROM TABLE(PrimitiveScalarFunction(1, 2, '3'))");
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(
+					containsString(
+						"No match found for function signature PrimitiveScalarFunction(<NUMERIC>, <NUMERIC>, <CHARACTER>)")));
+		}
+	}
+
+	@Test
+	public void testInvalidUseOfSystemScalarFunction() {
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+		try {
+			tEnv().sqlUpdate(
+				"INSERT INTO SinkTable " +
+				"SELECT * FROM TABLE(MD5('3'))");
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(
+					containsString(
+						"Currently, only table functions can emit rows.")));
+		}
+	}
+
+	@Test
+	public void testInvalidUseOfTableFunction() {
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
+		try {
+			tEnv().sqlUpdate(
+				"INSERT INTO SinkTable " +
+				"SELECT RowTableFunction('test')");
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(
+					containsString(
+						"No match found for function signature RowTableFunction(<CHARACTER>)")));
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Test functions
 	// --------------------------------------------------------------------------------------------
@@ -603,6 +716,43 @@ public class FunctionITCase extends StreamingTestBase {
 			return TypeInference.newBuilder()
 				.outputTypeStrategy(TypeStrategies.argument(0))
 				.build();
+		}
+	}
+
+	/**
+	 * Function that returns a row.
+	 */
+	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
+	public static class RowTableFunction extends TableFunction<Row> {
+		public void eval(String s) {
+			if (s == null) {
+				collect(null);
+			} else {
+				collect(Row.of(s, s.split(",")));
+			}
+		}
+	}
+
+	/**
+	 * Function that returns a string or integer.
+	 */
+	public static class DynamicTableFunction extends TableFunction<Object> {
+		@FunctionHint(output = @DataTypeHint("STRING"))
+		public void eval(String s) {
+			if (s == null) {
+				fail();
+			} else {
+				collect(s + " is a string");
+			}
+		}
+
+		@FunctionHint(output = @DataTypeHint("INT"))
+		public void eval(Integer i) {
+			if (i == null) {
+				collect(null);
+			} else {
+				collect(i);
+			}
 		}
 	}
 }

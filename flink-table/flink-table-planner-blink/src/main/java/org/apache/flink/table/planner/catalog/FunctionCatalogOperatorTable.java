@@ -145,12 +145,18 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			}
 		}
 		// new stack
-		return convertToBridgingSqlFunction(identifier, definition);
+		return convertToBridgingSqlFunction(category, identifier, definition);
 	}
 
 	private Optional<SqlFunction> convertToBridgingSqlFunction(
+			@Nullable SqlFunctionCategory category,
 			FunctionIdentifier identifier,
 			FunctionDefinition definition) {
+
+		if (!verifyFunctionKind(category, definition)) {
+			return Optional.empty();
+		}
+
 		final TypeInference typeInference;
 		try {
 			typeInference = definition.getTypeInference(dataTypeFactory);
@@ -185,6 +191,24 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 				typeInference);
 		}
 		return Optional.of(function);
+	}
+
+	@SuppressWarnings("RedundantIfStatement")
+	private boolean verifyFunctionKind(
+			@Nullable SqlFunctionCategory category,
+			FunctionDefinition definition) {
+
+		// it would be nice to give a more meaningful exception when a scalar function is used instead
+		// of a table function and vice versa, but we can do that only once FLIP-51 is implemented
+
+		if (definition.getKind() == FunctionKind.SCALAR &&
+				(category == SqlFunctionCategory.USER_DEFINED_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+			return true;
+		} else if (definition.getKind() == FunctionKind.TABLE &&
+				(category == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+			return true;
+		}
+		return false;
 	}
 
 	private Optional<SqlFunction> convertAggregateFunction(

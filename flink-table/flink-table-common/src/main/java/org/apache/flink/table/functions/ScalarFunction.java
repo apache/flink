@@ -47,12 +47,12 @@ import org.apache.flink.table.types.inference.TypeInference;
  * {@code
  *   // a function that accepts two INT arguments and computes a sum
  *   class SumFunction extends ScalarFunction {
- *     public int eval(int a, int b) {
+ *     public Integer eval(Integer a, Integer b) {
  *       return a + b;
  *     }
  *   }
  *
- *   // a function that accepts either INT or BOOLEAN and computes a STRING
+ *   // a function that accepts either INT NOT NULL or BOOLEAN NOT NULL and computes a STRING
  *   class StringifyFunction extends ScalarFunction {
  *     public String eval(int i) {
  *       return String.valueOf(i);
@@ -80,14 +80,15 @@ import org.apache.flink.table.types.inference.TypeInference;
  *
  *   // a function that accepts an arbitrary number of BIGINT values and computes a DECIMAL(10, 4)
  *   class SumFunction extends ScalarFunction {
- *     public @DataTypeHint("DECIMAL(10, 4)") BigDecimal eval(long... values) {
+ *     public @DataTypeHint("DECIMAL(10, 4)") BigDecimal eval(Long... values) {
  *       // ...
  *     }
  *   }
  * }
  * </pre>
  *
- * <p>User-defined functions must have a default constructor and must be instantiable during runtime.
+ * <p>For storing a user-defined function in a catalog, the class must have a default constructor and
+ * must be instantiable during runtime.
  */
 @PublicEvolving
 public abstract class ScalarFunction extends UserDefinedFunction {

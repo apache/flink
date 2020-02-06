@@ -41,7 +41,6 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
-import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
@@ -783,7 +782,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
 
-      case bf: BridgingSqlFunction if bf.getDefinition.isInstanceOf[ScalarFunction] =>
+      case _: BridgingSqlFunction =>
         new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
 
       // advanced scalar functions

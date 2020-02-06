@@ -22,34 +22,83 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
 
 /**
- * Base class for a user-defined table function (UDTF). A user-defined table functions works on
- * zero, one, or multiple scalar values as input and returns multiple rows as output.
+ * Base class for a user-defined table function. A user-defined table functions maps zero, one, or
+ * multiple scalar values to zero, one, or multiple rows. If an output row consists of only one field,
+ * the row can be omitted and a scalar value can be emitted. It will be wrapped into a row by the runtime.
  *
  * <p>The behavior of a {@link TableFunction} can be defined by implementing a custom evaluation
  * method. An evaluation method must be declared publicly, not static, and named <code>eval</code>.
  * Evaluation methods can also be overloaded by implementing multiple methods named <code>eval</code>.
  *
- * <p>User-defined functions must have a default constructor and must be instantiable during runtime.
+ * <p>By default, input and output data types are automatically extracted using reflection. This includes
+ * the generic argument {@code T} of the class for determining an output data type. If the reflective
+ * information is not sufficient, it can be supported and enriched with {@link DataTypeHint} and
+ * {@link FunctionHint} annotations.
  *
- * <p>By default the result type of an evaluation method is determined by Flink's type extraction
- * facilities. This is sufficient for basic types or simple POJOs but might be wrong for more
- * complex, custom, or composite types. In these cases {@link TypeInformation} of the result type
- * can be manually defined by overriding {@link TableFunction#getResultType}.
+ * <p>The following examples show how to specify a table function:
  *
- * <p>Internally, the Table/SQL API code generation works with primitive values as much as possible.
- * If a user-defined table function should not introduce much overhead during runtime, it is
- * recommended to declare parameters and result types as primitive types instead of their boxed
- * classes. <code>DATE/TIME</code> is equal to <code>int</code>, <code>TIMESTAMP</code> is equal
- * to <code>long</code>.
+ * <pre>
+ * {@code
+ *   // a function that accepts an arbitrary number of INT arguments and emits them as implicit ROW < INT >
+ *   class FlattenFunction extends TableFunction<Integer> {
+ *     public void eval(Integer... args) {
+ *       for (Integer i : args) {
+ *         collect(i);
+ *       }
+ *     }
+ *   }
  *
- * <p>For Example:
+ *   // a function that accepts either INT or STRING and emits them as implicit ROW < STRING >
+ *   class DuplicatorFunction extends TableFunction<String> {
+ *     public void eval(Integer i) {
+ *       eval(String.valueOf(i));
+ *     }
+ *     public void eval(String s) {
+ *       collect(s);
+ *       collect(s);
+ *     }
+ *   }
+ *
+ *   // a function that produces a ROW < i INT, s STRING > from arguments, the function hint helps in
+ *   // declaring the row's fields
+ *   @FunctionHint(output = @DataTypeHint("ROW< i INT, s STRING >"))
+ *   class DuplicatorFunction extends TableFunction<Row> {
+ *     public void eval(Integer i, String s) {
+ *       collect(Row.of(i, s));
+ *       collect(Row.of(i, s));
+ *     }
+ *   }
+ *
+ *   // a function that accepts either INT or DECIMAL(10, 4) and emits them as implicit ROW < INT > or
+ *   // ROW<DECIMAL(10, 4)> using function hints for declaring the output type
+ *   class DuplicatorFunction extends TableFunction<Object> {
+ *     @FunctionHint(output = @DataTypeHint("INT"))
+ *     public void eval(Integer i) {
+ *       collect(i);
+ *       collect(i);
+ *     }
+ *     @FunctionHint(output = @DataTypeHint("DECIMAL(10, 4)"))
+ *     public void eval(@DataTypeHint("DECIMAL(10, 4)") BigDecimal d) {
+ *       collect(d);
+ *       collect(d);
+ *     }
+ *   }
+ * }
+ * </pre>
+ *
+ * <p>For storing a user-defined function in a catalog, the class must have a default constructor and
+ * must be instantiable during runtime.
+ *
+ * <p>In the API, a table function can be used as follows:
  *
  * <pre>
  * {@code
@@ -66,23 +115,24 @@ import org.apache.flink.util.Collector;
  *   }
  *
  *   TableEnvironment tEnv = ...
- *   Table table = ...    // schema: ROW(a VARCHAR)
+ *   Table table = ...    // schema: ROW< a VARCHAR >
  *
  *   // for Scala users
  *   val split = new Split()
  *   table.joinLateral(split('a) as ('s)).select('a, 's)
  *
  *   // for Java users
- *   tEnv.registerFunction("split", new Split());   // register table function first
+ *   tEnv.createTemporarySystemFunction("split", Split.class); // register table function first
  *   table.joinLateral("split(a) as (s)").select("a, s");
  *
  *   // for SQL users
- *   tEnv.registerFunction("split", new Split());   // register table function first
+ *   tEnv.createTemporarySystemFunction("split", Split.class); // register table function first
  *   tEnv.sqlQuery("SELECT a, s FROM MyTable, LATERAL TABLE(split(a)) as T(s)");
  * }
  * </pre>
  *
- * @param <T> The type of the output row
+ * @param <T> The type of the output row. Either an explicit composite type or an atomic type that is
+ *            implicitly wrapped into a row consisting of one field.
  */
 @PublicEvolving
 public abstract class TableFunction<T> extends UserDefinedFunction {
@@ -100,15 +150,16 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	}
 
 	/**
-	 * Returns the result type of the evaluation method with a given signature.
+	 * Returns the result type of the evaluation method.
 	 *
-	 * <p>This method needs to be overridden in case Flink's type extraction facilities are not
-	 * sufficient to extract the {@link TypeInformation} based on the return type of the evaluation
-	 * method. Flink's type extraction facilities can handle basic types or
-	 * simple POJOs but might be wrong for more complex, custom, or composite types.
-	 *
-	 * @return {@link TypeInformation} of result type or <code>null</code> if Flink should determine the type
+	 * @deprecated This method uses the old type system and is based on the old reflective extraction
+	 *             logic. The method will be removed in future versions and is only called when using
+	 *             the deprecated {@code TableEnvironment.registerFunction(...)} method. The new reflective
+	 *             extraction logic (possibly enriched with {@link DataTypeHint} and {@link FunctionHint})
+	 *             should be powerful enough to cover most use cases. For advanced users, it is possible
+	 *             to override {@link UserDefinedFunction#getTypeInference(DataTypeFactory)}.
 	 */
+	@Deprecated
 	public TypeInformation<T> getResultType() {
 		return null;
 	}
@@ -117,14 +168,14 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	 * Returns {@link TypeInformation} about the operands of the evaluation method with a given
 	 * signature.
 	 *
-	 * <p>In order to perform operand type inference in SQL (especially when NULL is used) it might be
-	 * necessary to determine the parameter {@link TypeInformation} of an evaluation method.
-	 * By default Flink's type extraction facilities are used for this but might be wrong for
-	 * more complex, custom, or composite types.
-	 *
-	 * @param signature signature of the method the operand types need to be determined
-	 * @return {@link TypeInformation} of operand types
+	 * @deprecated This method uses the old type system and is based on the old reflective extraction
+	 *             logic. The method will be removed in future versions and is only called when using
+	 *             the deprecated {@code TableEnvironment.registerFunction(...)} method. The new reflective
+	 *             extraction logic (possibly enriched with {@link DataTypeHint} and {@link FunctionHint})
+	 *             should be powerful enough to cover most use cases. For advanced users, it is possible
+	 *             to override {@link UserDefinedFunction#getTypeInference(DataTypeFactory)}.
 	 */
+	@Deprecated
 	public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
 		final TypeInformation<?>[] types = new TypeInformation<?>[signature.length];
 		for (int i = 0; i < signature.length; i++) {
@@ -154,7 +205,8 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	}
 
 	@Override
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Table functions are not updated to the new type system yet.");
+		return TypeInferenceExtractor.forTableFunction(typeFactory, (Class) getClass());
 	}
 }
