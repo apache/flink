@@ -207,7 +207,7 @@ under the License.
 
 									def excludes = categorySearcher('e2e.exclude.')
 									// allow overrides from the command-line
-									if (!project.properties.excludeE2E.isEmpty()) {
+									if (project.properties.excludeE2E != null && !project.properties.excludeE2E.isEmpty()) {
 										excludes.add(project.properties.excludeE2E)
 									}
 									project.properties.excludeE2E = excludes.join(',')
