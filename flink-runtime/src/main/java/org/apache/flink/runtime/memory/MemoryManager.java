@@ -495,23 +495,32 @@ public class MemoryManager {
 				reservations.compute(
 					memoryType,
 					(mt, currentlyReserved) -> {
-						if (currentlyReserved == null || currentlyReserved < size) {
-							LOG.warn(
-								"Trying to release more memory {} than it was reserved {} so far for the owner {}",
-								size,
-								currentlyReserved == null ? 0 : currentlyReserved,
-								owner);
-							//noinspection ReturnOfNull
-							return null;
-						} else {
-							return currentlyReserved - size;
+						long newReservedMemory = 0;
+						if (currentlyReserved != null) {
+							if (currentlyReserved < size) {
+								LOG.warn(
+									"Trying to release more memory {} than it was reserved {} so far for the owner {}",
+									size,
+									currentlyReserved,
+									owner);
+							}
+
+							newReservedMemory = releaseAndCalculateReservedMemory(size, memoryType, currentlyReserved);
 						}
+
+						return newReservedMemory == 0 ? null : newReservedMemory;
 					});
 			}
 			//noinspection ReturnOfNull
 			return reservations == null || reservations.isEmpty() ? null : reservations;
 		});
-		budgetByType.releaseBudgetForKey(memoryType, size);
+	}
+
+	private long releaseAndCalculateReservedMemory(long memoryToFree, MemoryType memoryType, long currentlyReserved) {
+		final long effectiveMemoryToRelease = Math.min(currentlyReserved, memoryToFree);
+		budgetByType.releaseBudgetForKey(memoryType, effectiveMemoryToRelease);
+
+		return currentlyReserved - effectiveMemoryToRelease;
 	}
 
 	private void checkMemoryReservationPreconditions(Object owner, MemoryType memoryType, long size) {
