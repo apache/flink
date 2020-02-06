@@ -48,7 +48,7 @@ under the License.
 		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>
 		<e2e.include.org.apache.flink.tests.util.categories.PreCommit>false</e2e.include.org.apache.flink.tests.util.categories.PreCommit>
 		<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>true</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
-		<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>true</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
+		<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>false</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
 	</properties>
 
 	<modules>
@@ -149,7 +149,7 @@ under the License.
 				<jdk>11</jdk>
 			</activation>
 			<properties>
-				<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>false</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
+				<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>true</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
 			</properties>
 		</profile>
 	</profiles>
