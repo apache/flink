@@ -99,7 +99,7 @@ public class InputChannelBuilder {
 		return this;
 	}
 
-	InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
+	public InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
 		this.partitionManager = network.getResultPartitionManager();
 		this.connectionManager = network.getConnectionManager();
 		this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
