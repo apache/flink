@@ -216,8 +216,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Set<ExecutionVertexVersion> executionVertexVersions =
 			new HashSet<>(executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
 
-		transitionExecutionGraphState(JobStatus.RUNNING, JobStatus.RESTARTING);
-		verticesWaitingForRestart.addAll(verticesToRestart);
+		addVerticesToRestartPending(verticesToRestart);
 
 		final CompletableFuture<?> cancelFuture = cancelTasksAsync(verticesToRestart);
 
@@ -228,14 +227,23 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			TimeUnit.MILLISECONDS);
 	}
 
+	private void addVerticesToRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
+		verticesWaitingForRestart.addAll(verticesToRestart);
+		transitionExecutionGraphState(JobStatus.RUNNING, JobStatus.RESTARTING);
+	}
+
+	private void removeVerticesFromRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
+		verticesWaitingForRestart.removeAll(verticesToRestart);
+		if (verticesWaitingForRestart.isEmpty()) {
+			transitionExecutionGraphState(JobStatus.RESTARTING, JobStatus.RUNNING);
+		}
+	}
+
 	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions) {
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
-			verticesWaitingForRestart.removeAll(verticesToRestart);
-			if (verticesWaitingForRestart.isEmpty()) {
-				transitionExecutionGraphState(JobStatus.RESTARTING, JobStatus.RUNNING);
-			}
+			removeVerticesFromRestartPending(verticesToRestart);
 
 			resetForNewExecutions(verticesToRestart);
 

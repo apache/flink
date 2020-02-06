@@ -602,15 +602,16 @@ public class DefaultSchedulerTest extends TestLogger {
 	@Test
 	public void jobStatusIsRestartingIfOneVertexIsWaitingForRestart() {
 		final JobGraph jobGraph = singleJobVertexJobGraph(2);
+		final JobID jobId = jobGraph.getJobID();
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
 		final Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
 		final ExecutionAttemptID attemptId1 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
 		final ExecutionAttemptID attemptId2 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
 
-		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobId, attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
 		final JobStatus jobStatusAfterFirstFailure = scheduler.requestJobStatus();
-		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId2, ExecutionState.FAILED, new RuntimeException("expected")));
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobId, attemptId2, ExecutionState.FAILED, new RuntimeException("expected")));
 
 		taskRestartExecutor.triggerNonPeriodicScheduledTask();
 		final JobStatus jobStatusWithPendingRestarts = scheduler.requestJobStatus();
@@ -623,15 +624,35 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	@Test
+	public void cancelWhileRestartingShouldWaitForRunningTasks() {
+		final JobGraph jobGraph = singleJobVertexJobGraph(2);
+		final JobID jobid = jobGraph.getJobID();
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
+		final ExecutionAttemptID attemptId1 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
+		final ExecutionAttemptID attemptId2 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobid, attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
+		scheduler.cancel();
+		final JobStatus statusAfterCancelWhileRestarting = scheduler.requestJobStatus();
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobid, attemptId2, ExecutionState.CANCELED, new RuntimeException("expected")));
+
+		assertThat(statusAfterCancelWhileRestarting, is(equalTo(JobStatus.CANCELLING)));
+		assertThat(scheduler.requestJobStatus(), is(equalTo(JobStatus.CANCELED)));
+	}
+
+	@Test
 	public void failureInfoIsSetAfterTaskFailure() {
 		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final JobID jobId = jobGraph.getJobID();
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
 		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
 		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
 
 		final String exceptionMessage = "expected exception";
-		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED, new RuntimeException(exceptionMessage)));
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobId, attemptId, ExecutionState.FAILED, new RuntimeException(exceptionMessage)));
 
 		final ErrorInfo failureInfo = scheduler.requestJob().getFailureInfo();
 		assertThat(failureInfo, is(notNullValue()));
