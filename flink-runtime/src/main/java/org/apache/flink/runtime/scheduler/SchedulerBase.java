@@ -94,6 +94,8 @@ import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -348,8 +350,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			.transitionState(ExecutionState.SCHEDULED));
 	}
 
-	protected void setGlobalFailureCause(final Throwable cause) {
-		getExecutionGraph().initFailureCause(cause);
+	protected void setGlobalFailureCause(@Nullable final Throwable cause) {
+		if (cause != null) {
+			getExecutionGraph().initFailureCause(cause);
+		}
 	}
 
 	protected ComponentMainThreadExecutor getMainThreadExecutor() {
@@ -411,6 +415,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			IterableUtils.toStream(schedulingTopology.getVertices())
 				.map(SchedulingExecutionVertex::getId)
 				.collect(Collectors.toSet()));
+	}
+
+	protected void transitionExecutionGraphState(final JobStatus current, final JobStatus newState) {
+		executionGraph.transitionState(current, newState);
 	}
 
 	// ------------------------------------------------------------------------

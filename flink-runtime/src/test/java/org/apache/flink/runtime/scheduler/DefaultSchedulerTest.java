@@ -34,6 +34,7 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
@@ -89,10 +90,12 @@ import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -594,6 +597,43 @@ public class DefaultSchedulerTest extends TestLogger {
 		scheduler.suspend(new Exception("forced suspend"));
 
 		assertTrue(executionVertexVersioner.isModified(executionVertexVersion));
+	}
+
+	@Test
+	public void jobStatusIsRestartingIfOneVertexIsWaitingForRestart() {
+		final JobGraph jobGraph = singleJobVertexJobGraph(2);
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
+		final ExecutionAttemptID attemptId1 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
+		final ExecutionAttemptID attemptId2 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId2, ExecutionState.FAILED, new RuntimeException("expected")));
+
+		taskRestartExecutor.triggerNonPeriodicScheduledTask();
+		final JobStatus jobStatusWithPendingRestarts = scheduler.requestJobStatus();
+		taskRestartExecutor.triggerNonPeriodicScheduledTask();
+		final JobStatus jobStatusAfterRestarts = scheduler.requestJobStatus();
+
+		assertThat(jobStatusWithPendingRestarts, equalTo(JobStatus.RESTARTING));
+		assertThat(jobStatusAfterRestarts, equalTo(JobStatus.RUNNING));
+	}
+
+	@Test
+	public void failureInfoIsSetAfterTaskFailure() {
+		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+		final ArchivedExecutionVertex onlyExecutionVertex = Iterables.getOnlyElement(scheduler.requestJob().getAllExecutionVertices());
+		final ExecutionAttemptID attemptId = onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+		final String exceptionMessage = "expected exception";
+		scheduler.updateTaskExecutionState(new TaskExecutionState(jobGraph.getJobID(), attemptId, ExecutionState.FAILED, new RuntimeException(exceptionMessage)));
+
+		final ErrorInfo failureInfo = scheduler.requestJob().getFailureInfo();
+		assertThat(failureInfo, is(notNullValue()));
+		assertThat(failureInfo.getExceptionAsString(), containsString(exceptionMessage));
 	}
 
 	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {

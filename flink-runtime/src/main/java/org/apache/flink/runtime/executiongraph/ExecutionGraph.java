@@ -1220,7 +1220,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	//  State Transitions
 	// ------------------------------------------------------------------------
 
-	private boolean transitionState(JobStatus current, JobStatus newState) {
+	public boolean transitionState(JobStatus current, JobStatus newState) {
 		return transitionState(current, newState, null);
 	}
 
