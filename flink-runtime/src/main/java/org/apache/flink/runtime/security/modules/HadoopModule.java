@@ -137,7 +137,8 @@ public class HadoopModule implements SecurityModule {
 				loginUser = UserGroupInformation.getLoginUser();
 			}
 
-			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(securityConfig.useTicketCache());
+			boolean isCredentialsConfigured = HadoopUtils.isCredentialsConfigured(
+				loginUser, securityConfig.useTicketCache());
 
 			LOG.info("Hadoop user set to {}, credential check status: {}", loginUser, isCredentialsConfigured);
 
