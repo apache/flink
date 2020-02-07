@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -56,7 +57,6 @@ public class JDBCTableSource implements
 
 	// index of fields selected, null means that all fields are selected
 	private final int[] selectFields;
-	private final RowTypeInfo returnType;
 	private final DataType producedDataType;
 
 	private JDBCTableSource(
@@ -86,11 +86,9 @@ public class JDBCTableSource implements
 				dataTypes[i] = schemaDataTypes[selectFields[i]];
 				fieldNames[i] = schemaFieldNames[selectFields[i]];
 			}
-			this.returnType = new RowTypeInfo(typeInfos, fieldNames);
 			this.producedDataType =
 					TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
 		} else {
-			this.returnType = new RowTypeInfo(schemaTypeInfos, schemaFieldNames);
 			this.producedDataType = schema.toRowDataType();
 		}
 	}
@@ -102,16 +100,21 @@ public class JDBCTableSource implements
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv.createInput(getInputFormat(), returnType).name(explainSource());
+		return execEnv
+				.createInput(
+						getInputFormat(),
+						(RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
+				.name(explainSource());
 	}
 
 	@Override
 	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		return JDBCLookupFunction.builder()
 				.setOptions(options)
 				.setLookupOptions(lookupOptions)
-				.setFieldTypes(returnType.getFieldTypes())
-				.setFieldNames(returnType.getFieldNames())
+				.setFieldTypes(rowTypeInfo.getFieldTypes())
+				.setFieldNames(rowTypeInfo.getFieldNames())
 				.setKeyNames(lookupKeys)
 				.build();
 	}
@@ -143,7 +146,8 @@ public class JDBCTableSource implements
 
 	@Override
 	public String explainSource() {
-		return TableConnectorUtils.generateRuntimeName(getClass(), returnType.getFieldNames());
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+		return TableConnectorUtils.generateRuntimeName(getClass(), rowTypeInfo.getFieldNames());
 	}
 
 	public static Builder builder() {
@@ -151,12 +155,13 @@ public class JDBCTableSource implements
 	}
 
 	private JDBCInputFormat getInputFormat() {
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		JDBCInputFormat.JDBCInputFormatBuilder builder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(options.getDriverName())
 				.setDBUrl(options.getDbURL())
 				.setUsername(options.getUsername())
 				.setPassword(options.getPassword())
-				.setRowTypeInfo(new RowTypeInfo(returnType.getFieldTypes(), returnType.getFieldNames()));
+				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
 
 		if (readOptions.getFetchSize() != 0) {
 			builder.setFetchSize(readOptions.getFetchSize());
@@ -164,7 +169,7 @@ public class JDBCTableSource implements
 
 		final JDBCDialect dialect = options.getDialect();
 		String query = dialect.getSelectFromStatement(
-			options.getTableName(), returnType.getFieldNames(), new String[0]);
+			options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]);
 		if (readOptions.getPartitionColumnName().isPresent()) {
 			long lowerBound = readOptions.getPartitionLowerBound().get();
 			long upperBound = readOptions.getPartitionUpperBound().get();
