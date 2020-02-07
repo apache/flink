@@ -57,7 +57,7 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	private transient TypeSerializer<CRow> forwardedInputSerializer;
 
 	/**
-	 * The TypeSerializer for udf execution results.
+	 * The TypeSerializer for udtf execution results.
 	 */
 	private transient TypeSerializer<Row> udtfOutputTypeSerializer;
 
@@ -79,14 +79,14 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 			new RowTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(
 				TypeConversions.fromLogicalToDataType(inputType))));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
-		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(udfOutputType);
+		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
 	public void emitResults() throws IOException {
 		CRow input = null;
 		byte[] rawUdtfResult;
-		while ((rawUdtfResult = udfResultQueue.poll()) != null) {
+		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			if (input == null) {
 				input = forwardedInputQueue.poll();
 			}
@@ -106,14 +106,14 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	@Override
 	public void bufferInput(CRow input) {
 		if (getExecutionConfig().isObjectReuseEnabled()) {
-			input =  forwardedInputSerializer.copy(input);
+			input = forwardedInputSerializer.copy(input);
 		}
 		forwardedInputQueue.add(input);
 	}
 
 	@Override
 	public Row getUdfInput(CRow element) {
-		return Row.project(element.row(), udfInputOffsets);
+		return Row.project(element.row(), userDefinedFunctionInputOffsets);
 	}
 
 	@Override
@@ -125,7 +125,7 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 			resultReceiver,
 			tableFunction,
 			pythonEnvironmentManager,
-			udfInputType,
-			udfOutputType);
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType);
 	}
 }

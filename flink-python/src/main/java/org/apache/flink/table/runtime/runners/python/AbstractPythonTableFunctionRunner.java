@@ -97,7 +97,7 @@ public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPyth
 	private FlinkFnApi.Schema.FieldType toTableFunctionProtoType(RowType rowType) {
 		FlinkFnApi.Schema.FieldType.Builder builder =
 			FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.TABLEFUNCTIONROW)
+				.setTypeName(FlinkFnApi.Schema.TypeName.TABLE_FUNCTION_ROW)
 				.setNullable(rowType.isNullable());
 
 		LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> converter =

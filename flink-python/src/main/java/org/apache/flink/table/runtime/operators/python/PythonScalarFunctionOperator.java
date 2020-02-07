@@ -87,7 +87,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 				.map(TypeConversions::fromDataTypeToLegacyInfo)
 				.toArray(TypeInformation[]::new)));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
-		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(udfOutputType);
+		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
@@ -101,14 +101,14 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 
 	@Override
 	public Row getUdfInput(CRow element) {
-		return Row.project(element.row(), udfInputOffsets);
+		return Row.project(element.row(), userDefinedFunctionInputOffsets);
 	}
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
 	public void emitResults() throws IOException {
 		byte[] rawUdfResult;
-		while ((rawUdfResult = udfResultQueue.poll()) != null) {
+		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			CRow input = forwardedInputQueue.poll();
 			cRowWrapper.setChange(input.change());
 			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
@@ -126,7 +126,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 			resultReceiver,
 			scalarFunctions,
 			pythonEnvironmentManager,
-			udfInputType,
-			udfOutputType);
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType);
 	}
 }

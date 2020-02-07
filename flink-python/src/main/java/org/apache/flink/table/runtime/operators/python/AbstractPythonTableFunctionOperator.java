@@ -59,7 +59,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 	public void open() throws Exception {
 		List<RowType.RowField> udtfOutputDataFields = new ArrayList<>(
 			outputType.getFields().subList(inputType.getFieldCount(), outputType.getFieldCount()));
-		udfOutputType = new RowType(udtfOutputDataFields);
+		userDefinedFunctionOutputType = new RowType(udtfOutputDataFields);
 		super.open();
 	}
 
@@ -69,7 +69,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 	}
 
 	/**
-	 * The received udtf execution result is a finish message when it is a byte 0x00.
+	 * The received udtf execution result is a finish message when it is a byte with value 0x00.
 	 */
 	protected boolean isFinishResult(byte[] rawUdtfResult) {
 		return rawUdtfResult.length == 1 && rawUdtfResult[0] == 0x00;

@@ -82,7 +82,8 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 
 	@Override
 	public void open() throws Exception {
-		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
+		userDefinedFunctionOutputType = new RowType(
+			outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
 		super.open();
 	}
 

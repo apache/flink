@@ -118,7 +118,7 @@ public class BaseRowPythonScalarFunctionOperatorTest
 
 				@Override
 				public TypeSerializer<BaseRow> getInputTypeSerializer() {
-					return PythonTypeUtils.toBlinkTypeSerializer(udfInputType);
+					return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
 				}
 			};
 		}

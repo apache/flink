@@ -93,7 +93,7 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 				@Override
 				@SuppressWarnings("unchecked")
 				public TypeSerializer<Row> getInputTypeSerializer() {
-					return PythonTypeUtils.toFlinkTypeSerializer(udfInputType);
+					return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
 				}
 			};
 		}

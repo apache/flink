@@ -96,7 +96,7 @@ public class BaseRowPythonScalarFunctionOperator
 
 		udfInputProjection = createUdfInputProjection();
 		forwardedFieldProjection = createForwardedFieldProjection();
-		udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(udfOutputType);
+		udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
@@ -116,7 +116,7 @@ public class BaseRowPythonScalarFunctionOperator
 	@SuppressWarnings("ConstantConditions")
 	public void emitResults() throws IOException {
 		byte[] rawUdfResult;
-		while ((rawUdfResult = udfResultQueue.poll()) != null) {
+		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			BaseRow input = forwardedInputQueue.poll();
 			reuseJoinedRow.setHeader(input.getHeader());
 			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
@@ -134,8 +134,8 @@ public class BaseRowPythonScalarFunctionOperator
 			resultReceiver,
 			scalarFunctions,
 			pythonEnvironmentManager,
-			udfInputType,
-			udfOutputType);
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType);
 	}
 
 	private Projection<BaseRow, BinaryRow> createUdfInputProjection() {
@@ -143,8 +143,8 @@ public class BaseRowPythonScalarFunctionOperator
 			CodeGeneratorContext.apply(new TableConfig()),
 			"UdfInputProjection",
 			inputType,
-			udfInputType,
-			udfInputOffsets);
+			userDefinedFunctionInputType,
+			userDefinedFunctionInputOffsets);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
 	}

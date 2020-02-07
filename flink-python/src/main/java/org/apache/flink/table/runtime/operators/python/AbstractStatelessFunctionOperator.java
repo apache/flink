@@ -64,19 +64,19 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	protected final RowType outputType;
 
 	/**
-	 * The offsets of udf inputs.
+	 * The offsets of user-defined function inputs.
 	 */
-	protected final int[] udfInputOffsets;
+	protected final int[] userDefinedFunctionInputOffsets;
 
 	/**
-	 * The udf input logical type.
+	 * The user-defined function input logical type.
 	 */
-	protected transient RowType udfInputType;
+	protected transient RowType userDefinedFunctionInputType;
 
 	/**
-	 * The udf output logical type.
+	 * The user-defined function output logical type.
 	 */
-	protected transient RowType udfOutputType;
+	protected transient RowType userDefinedFunctionOutputType;
 
 	/**
 	 * The queue holding the input elements for which the execution results have not been received.
@@ -84,10 +84,10 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	protected transient LinkedBlockingQueue<IN> forwardedInputQueue;
 
 	/**
-	 * The queue holding the user-defined table function execution results. The execution results
+	 * The queue holding the user-defined function execution results. The execution results
 	 * are in the same order as the input elements.
 	 */
-	protected transient LinkedBlockingQueue<byte[]> udfResultQueue;
+	protected transient LinkedBlockingQueue<byte[]> userDefinedFunctionResultQueue;
 
 	/**
 	 * Reusable InputStream used to holding the execution results to be deserialized.
@@ -103,19 +103,19 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		Configuration config,
 		RowType inputType,
 		RowType outputType,
-		int[] udfInputOffsets) {
+		int[] userDefinedFunctionInputOffsets) {
 		super(config);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
-		this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
+		this.userDefinedFunctionInputOffsets = Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
 	}
 
 	@Override
 	public void open() throws Exception {
 		forwardedInputQueue = new LinkedBlockingQueue<>();
-		udfResultQueue = new LinkedBlockingQueue<>();
-		udfInputType = new RowType(
-			Arrays.stream(udfInputOffsets)
+		userDefinedFunctionResultQueue = new LinkedBlockingQueue<>();
+		userDefinedFunctionInputType = new RowType(
+			Arrays.stream(userDefinedFunctionInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
 		bais = new ByteArrayInputStreamWithPos();
@@ -132,20 +132,20 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 	@Override
 	public PythonFunctionRunner<IN> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<byte[]> udfResultReceiver = input -> {
+		final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
 			// handover to queue, do not block the result receiver thread
-			udfResultQueue.put(input);
+			userDefinedFunctionResultQueue.put(input);
 		};
 
 		return new ProjectUdfInputPythonScalarFunctionRunner(
 			createPythonFunctionRunner(
-				udfResultReceiver,
+				userDefinedFunctionResultReceiver,
 				createPythonEnvironmentManager()));
 	}
 
 	/**
 	 * Buffers the specified input, it will be used to construct
-	 * the operator result together with the udf execution result.
+	 * the operator result together with the user-defined function execution result.
 	 */
 	public abstract void bufferInput(IN input);
 

@@ -83,7 +83,7 @@ public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperator
 				@Override
 				@SuppressWarnings("unchecked")
 				public TypeSerializer<Row> getInputTypeSerializer() {
-					return PythonTypeUtils.toFlinkTypeSerializer(udfInputType);
+					return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
 				}
 			};
 		}
