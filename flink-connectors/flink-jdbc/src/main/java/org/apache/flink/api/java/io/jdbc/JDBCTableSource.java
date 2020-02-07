@@ -74,15 +74,12 @@ public class JDBCTableSource implements
 
 		this.selectFields = selectFields;
 
-		final TypeInformation<?>[] schemaTypeInfos = schema.getFieldTypes();
 		final DataType[] schemaDataTypes = schema.getFieldDataTypes();
 		final String[] schemaFieldNames = schema.getFieldNames();
 		if (selectFields != null) {
-			TypeInformation<?>[] typeInfos = new TypeInformation[selectFields.length];
 			DataType[] dataTypes = new DataType[selectFields.length];
 			String[] fieldNames = new String[selectFields.length];
 			for (int i = 0; i < selectFields.length; i++) {
-				typeInfos[i] = schemaTypeInfos[selectFields[i]];
 				dataTypes[i] = schemaDataTypes[selectFields[i]];
 				fieldNames[i] = schemaFieldNames[selectFields[i]];
 			}
