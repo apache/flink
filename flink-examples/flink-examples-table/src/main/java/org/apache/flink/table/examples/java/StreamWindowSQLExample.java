@@ -26,11 +26,12 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * Simple example for demonstrating the use of SQL in Java.
  *
- * <p>Usage: <code>./bin/flink run ./examples/table/StreamWindowSQLExample.java</code></p>
+ * <p>Usage: {@code ./bin/flink run ./examples/table/StreamWindowSQLExample.java}
  *
  * <p>This example shows how to:
  *  - Register a table via DDL
@@ -58,10 +59,7 @@ public class StreamWindowSQLExample {
 			"2,rubber,3,2019-12-12 00:00:06\n" +
 			"3,rubber,2,2019-12-12 00:00:05\n" +
 			"4,beer,1,2019-12-12 00:00:08";
-		File tempFile = File.createTempFile("orders", ".csv");
-		tempFile.deleteOnExit();
-		FileUtils.writeFileUtf8(tempFile, contents);
-		String path = tempFile.toURI().toString();
+		String path = createTempFile(contents);
 
 		// register table via DDL with watermark,
 		// the events are out of order, hence, we use 3 seconds to wait the late events
@@ -95,5 +93,15 @@ public class StreamWindowSQLExample {
 		// should output:
 		// 2019-12-12 00:00:00.000,3,10,3
 		// 2019-12-12 00:00:05.000,3,6,2
+	}
+
+	/**
+	 * Creates a temporary file with the contents and returns the absolute path.
+	 */
+	private static String createTempFile(String contents) throws IOException {
+		File tempFile = File.createTempFile("orders", ".csv");
+		tempFile.deleteOnExit();
+		FileUtils.writeFileUtf8(tempFile, contents);
+		return tempFile.toURI().toString();
 	}
 }
