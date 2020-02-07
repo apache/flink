@@ -113,6 +113,39 @@ public final class InputSelection implements Serializable {
 		throw new UnsupportedOperationException("Only two inputs are supported.");
 	}
 
+	/**
+	 * Fairly select one of the available inputs for reading.
+	 *
+	 * @param availableInputsMask The mask of all available inputs. Note -1 for this is interpreted
+	 *                            as all of the 32 inputs are available.
+	 * @param lastReadInputIndex The index of last read input.
+	 * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
+	 *         {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
+	 */
+	public int fairSelectNextIndex(int availableInputsMask, int lastReadInputIndex) {
+		int selectionMask = (int) inputMask;
+		int combineMask = availableInputsMask & selectionMask;
+
+		if (combineMask == 0) {
+			return NONE_AVAILABLE;
+		}
+
+		int nextReadInputIndex = selectFirstBitRightFromNext(combineMask, lastReadInputIndex + 1);
+		if (nextReadInputIndex >= 0) {
+			return nextReadInputIndex;
+		}
+		return selectFirstBitRightFromNext(combineMask, 0);
+	}
+
+	private int selectFirstBitRightFromNext(int bits, int next) {
+		if (next >= 32) {
+			return NONE_AVAILABLE;
+		}
+		for (bits >>>= next; bits != 0 && (bits & 1) != 1; bits >>>= 1, next++) {
+		}
+		return bits != 0 ? next : NONE_AVAILABLE;
+	}
+
 	private static boolean isALLMaskOf2(long inputMask) {
 		return (3 & inputMask) == 3;
 	}
