@@ -26,6 +26,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -141,6 +142,18 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 	public void triggerScheduledTasks() {
 		triggerPeriodicScheduledTasks();
 		triggerNonPeriodicScheduledTasks();
+	}
+
+	/**
+	 * Triggers a single non-periodically scheduled task.
+	 *
+	 * @throws NoSuchElementException If there is no such task.
+	 */
+	public void triggerNonPeriodicScheduledTask() {
+		final ScheduledTask<?> poll = nonPeriodicScheduledTasks.remove();
+		if (poll != null) {
+			poll.execute();
+		}
 	}
 
 	public void triggerNonPeriodicScheduledTasks() {
