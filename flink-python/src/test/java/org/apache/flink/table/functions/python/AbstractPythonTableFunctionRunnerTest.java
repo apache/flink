@@ -28,38 +28,17 @@ import java.util.Collections;
  * Base class for PythonTableFunctionRunner and BaseRowPythonTableFunctionRunner test.
  *
  * @param <IN>  Type of the input elements.
- * @param <OUT> Type of the output elements.
  */
-public abstract class AbstractPythonTableFunctionRunnerTest<IN, OUT> {
-	AbstractPythonTableFunctionRunner<IN, OUT> createUDTFRunner() throws Exception {
+public abstract class AbstractPythonTableFunctionRunnerTest<IN> {
+	AbstractPythonTableFunctionRunner<IN> createUDTFRunner() throws Exception {
 		PythonFunctionInfo pythonFunctionInfo = new PythonFunctionInfo(
-			DummyPythonFunction.INSTANCE,
+			AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
 			new Integer[]{0});
 
 		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
 		return createPythonTableFunctionRunner(pythonFunctionInfo, rowType, rowType);
 	}
 
-	public abstract AbstractPythonTableFunctionRunner<IN, OUT> createPythonTableFunctionRunner(
+	public abstract AbstractPythonTableFunctionRunner<IN> createPythonTableFunctionRunner(
 		PythonFunctionInfo pythonFunctionInfo, RowType inputType, RowType outputType) throws Exception;
-
-	/**
-	 * Dummy PythonFunction.
-	 */
-	public static class DummyPythonFunction implements PythonFunction {
-
-		private static final long serialVersionUID = 1L;
-
-		public static final PythonFunction INSTANCE = new DummyPythonFunction();
-
-		@Override
-		public byte[] getSerializedPythonFunction() {
-			return new byte[0];
-		}
-
-		@Override
-		public PythonEnv getPythonEnv() {
-			return new PythonEnv(PythonEnv.ExecType.PROCESS);
-		}
-	}
 }

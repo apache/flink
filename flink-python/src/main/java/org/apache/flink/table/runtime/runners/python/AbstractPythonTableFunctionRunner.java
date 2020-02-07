@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.runners.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
@@ -26,6 +27,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -34,10 +36,10 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
  *
- * @param <IN>  Type of the input elements.
- * @param <OUT> Type of the execution results.
+ * @param <IN> Type of the input elements.
  */
-public abstract class AbstractPythonTableFunctionRunner<IN, OUT> extends AbstractPythonStatelessFunctionRunner<IN, OUT> {
+@Internal
+public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPythonStatelessFunctionRunner<IN> {
 
 	private static final String SCHEMA_CODER_URN = "flink:coder:schema:v1";
 	private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
@@ -46,7 +48,7 @@ public abstract class AbstractPythonTableFunctionRunner<IN, OUT> extends Abstrac
 
 	public AbstractPythonTableFunctionRunner(
 		String taskName,
-		FnDataReceiver<OUT> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo tableFunction,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
@@ -87,8 +89,29 @@ public abstract class AbstractPythonTableFunctionRunner<IN, OUT> extends Abstrac
 				RunnerApi.FunctionSpec.newBuilder()
 					.setUrn(SCHEMA_CODER_URN)
 					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						PythonTypeUtils.toTableProtoType(rowType).toByteArray()))
+						toTableFunctionProtoType(rowType).toByteArray()))
 					.build())
 			.build();
+	}
+
+	private FlinkFnApi.Schema.FieldType toTableFunctionProtoType(RowType rowType) {
+		FlinkFnApi.Schema.FieldType.Builder builder =
+			FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.TABLEFUNCTIONROW)
+				.setNullable(rowType.isNullable());
+
+		LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> converter =
+			new PythonTypeUtils.LogicalTypeToProtoTypeConverter();
+		FlinkFnApi.Schema.Builder schemaBuilder = FlinkFnApi.Schema.newBuilder();
+		for (RowType.RowField field : rowType.getFields()) {
+			schemaBuilder.addFields(
+				FlinkFnApi.Schema.Field.newBuilder()
+					.setName(field.getName())
+					.setDescription(field.getDescription().orElse(""))
+					.setType(field.getType().accept(converter))
+					.build());
+		}
+		builder.setRowSchema(schemaBuilder.build());
+		return builder.build();
 	}
 }

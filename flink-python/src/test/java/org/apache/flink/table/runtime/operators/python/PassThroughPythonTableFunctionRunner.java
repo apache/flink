@@ -18,23 +18,55 @@
 
 package org.apache.flink.table.runtime.operators.python;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.PythonTableFunctionRunner;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * A {@link PythonTableFunctionRunner} that just emit each input element.
  */
-public class PassThroughPythonTableFunctionRunner extends AbstractPassThroughPythonTableFunctionRunner<Row> {
-	PassThroughPythonTableFunctionRunner(FnDataReceiver<Row> resultReceiver) {
-		super(resultReceiver);
+public abstract class PassThroughPythonTableFunctionRunner<IN> implements PythonFunctionRunner<IN> {
+	private boolean bundleStarted;
+	private final List<IN> bufferedElements;
+	private final FnDataReceiver<byte[]> resultReceiver;
+
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
+	private transient ByteArrayOutputStreamWithPos baos;
+
+	/**
+	 * OutputStream Wrapper.
+	 */
+	private transient DataOutputViewStreamWrapper baosWrapper;
+
+	PassThroughPythonTableFunctionRunner(FnDataReceiver<byte[]> resultReceiver) {
+		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
+		bundleStarted = false;
+		bufferedElements = new ArrayList<>();
 	}
 
 	@Override
-	public Row copy(Row element) {
-		return Row.copy(element);
+	public void open() {
+		baos = new ByteArrayOutputStreamWithPos();
+		baosWrapper = new DataOutputViewStreamWrapper(baos);
+	}
+
+	@Override
+	public void close() {}
+
+	@Override
+	public void startBundle() {
+		Preconditions.checkState(!bundleStarted);
+		bundleStarted = true;
 	}
 
 	@Override
@@ -42,10 +74,21 @@ public class PassThroughPythonTableFunctionRunner extends AbstractPassThroughPyt
 		Preconditions.checkState(bundleStarted);
 		bundleStarted = false;
 
-		for (Row element : bufferedElements) {
-			resultReceiver.accept(element);
-			resultReceiver.accept(new Row(0));
+		for (IN element : bufferedElements) {
+			baos.reset();
+			getInputTypeSerializer().serialize(element, baosWrapper);
+			resultReceiver.accept(baos.toByteArray());
+			resultReceiver.accept(new byte[]{0});
 		}
 		bufferedElements.clear();
 	}
+
+	@Override
+	public void processElement(IN element) {
+		bufferedElements.add(copy(element));
+	}
+
+	public abstract IN copy(IN element);
+
+	public abstract TypeSerializer<IN> getInputTypeSerializer();
 }

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -37,7 +36,6 @@ import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
@@ -164,32 +162,5 @@ public class BaseRowPythonScalarFunctionOperator
 			forwardedFields);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
-	}
-
-	/**
-	 * The collector is used to convert a {@link BaseRow} to a {@link StreamRecord}.
-	 */
-	private static class StreamRecordBaseRowWrappingCollector implements Collector<BaseRow> {
-
-		private final Collector<StreamRecord<BaseRow>> out;
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<BaseRow> reuseStreamRecord = new StreamRecord<>(null);
-
-		StreamRecordBaseRowWrappingCollector(Collector<StreamRecord<BaseRow>> out) {
-			this.out = out;
-		}
-
-		@Override
-		public void collect(BaseRow record) {
-			out.collect(reuseStreamRecord.replace(record));
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
 	}
 }

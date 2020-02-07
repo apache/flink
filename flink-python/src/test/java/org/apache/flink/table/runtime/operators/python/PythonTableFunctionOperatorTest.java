@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.python;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -35,9 +37,9 @@ import java.util.Queue;
 /**
  * Tests for {@link PythonTableFunctionOperator}.
  */
-public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row, Row> {
+public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row> {
 	@Override
-	public AbstractPythonTableFunctionOperator<CRow, CRow, Row, Row> getTestOperator(
+	public AbstractPythonTableFunctionOperator<CRow, CRow, Row> getTestOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
@@ -70,9 +72,20 @@ public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperator
 
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
-			FnDataReceiver<Row> resultReceiver,
+			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonTableFunctionRunner(resultReceiver);
+			return new PassThroughPythonTableFunctionRunner<Row>(resultReceiver) {
+				@Override
+				public Row copy(Row element) {
+					return Row.copy(element);
+				}
+
+				@Override
+				@SuppressWarnings("unchecked")
+				public TypeSerializer<Row> getInputTypeSerializer() {
+					return PythonTypeUtils.toFlinkTypeSerializer(udfInputType);
+				}
+			};
 		}
 	}
 }

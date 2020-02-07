@@ -25,7 +25,6 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
@@ -35,7 +34,6 @@ import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
@@ -130,38 +128,5 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 			pythonEnvironmentManager,
 			udfInputType,
 			udfOutputType);
-	}
-
-	/**
-	 * The collector is used to convert a {@link Row} to a {@link CRow}.
-	 */
-	private static class StreamRecordCRowWrappingCollector implements Collector<Row> {
-
-		private final Collector<StreamRecord<CRow>> out;
-		private final CRow reuseCRow = new CRow();
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<CRow> reuseStreamRecord = new StreamRecord<>(reuseCRow);
-
-		StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
-			this.out = out;
-		}
-
-		public void setChange(boolean change) {
-			this.reuseCRow.change_$eq(change);
-		}
-
-		@Override
-		public void collect(Row record) {
-			reuseCRow.row_$eq(record);
-			out.collect(reuseStreamRecord);
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
 	}
 }

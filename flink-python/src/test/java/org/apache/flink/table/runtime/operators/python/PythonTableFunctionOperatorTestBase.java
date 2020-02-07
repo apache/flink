@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.functions.python.AbstractPythonTableFunctionRunnerTest;
+import org.apache.flink.table.functions.python.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -46,9 +46,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the output elements.
  * @param <UDTFIN> Type of the UDTF input type.
- * @param <UDTFOUT> Type of the UDTF input type.
  */
-public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN, UDTFOUT> {
+public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 
 	@Test
 	public void testRetractionFieldKept() throws Exception {
@@ -139,17 +138,22 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN, UDTFO
 	}
 
 	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(Configuration config) throws Exception {
-		RowType dataType = new RowType(Arrays.asList(
+		RowType inputType = new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
 			new RowType.RowField("f3", new BigIntType())));
-		AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN, UDTFOUT> operator = getTestOperator(
+		RowType outputType = new RowType(Arrays.asList(
+			new RowType.RowField("f1", new VarCharType()),
+			new RowType.RowField("f2", new VarCharType()),
+			new RowType.RowField("f3", new BigIntType()),
+			new RowType.RowField("f4", new BigIntType())));
+		AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN> operator = getTestOperator(
 			config,
 			new PythonFunctionInfo(
-				AbstractPythonTableFunctionRunnerTest.DummyPythonFunction.INSTANCE,
+				AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
 				new Integer[]{0}),
-			dataType,
-			dataType,
+			inputType,
+			outputType,
 			new int[]{2}
 		);
 
@@ -163,7 +167,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN, UDTFO
 
 	public abstract void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual);
 
-	public abstract AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN, UDTFOUT> getTestOperator(
+	public abstract AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN> getTestOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
 		RowType inputType,

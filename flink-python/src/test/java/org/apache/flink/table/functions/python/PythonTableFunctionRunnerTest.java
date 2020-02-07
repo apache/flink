@@ -19,13 +19,13 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonTableFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.PythonTableFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.serializers.python.RowTableSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -50,27 +50,22 @@ import static org.junit.Assert.assertTrue;
  *     <li>The UDTF proto is properly constructed</li>
  * </ul>
  */
-public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRunnerTest<Row, Row> {
+public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRunnerTest<Row> {
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForSingleUDTF() throws Exception {
-		final AbstractPythonTableFunctionRunner<Row, Row> runner = createUDTFRunner();
+		final AbstractPythonTableFunctionRunner<Row> runner = createUDTFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof RowTableSerializer);
+		assertTrue(inputTypeSerializer instanceof RowSerializer);
 
-		assertEquals(1, ((RowTableSerializer) inputTypeSerializer).getRowSerializer().getArity());
-
-		// check output TypeSerializer
-		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
-		assertTrue(outputTypeSerializer instanceof RowTableSerializer);
-		assertEquals(1, ((RowTableSerializer) outputTypeSerializer).getRowSerializer().getArity());
+		assertEquals(1, ((RowSerializer) inputTypeSerializer).getArity());
 	}
 
 	@Test
 	public void testUDFnProtoConstructedProperlyForSingleUTDF() throws Exception {
-		final AbstractPythonTableFunctionRunner<Row, Row> runner = createUDTFRunner();
+		final AbstractPythonTableFunctionRunner<Row> runner = createUDTFRunner();
 
 		FlinkFnApi.UserDefinedFunctions udtfs = runner.getUserDefinedFunctionsProto();
 		assertEquals(1, udtfs.getUdfsCount());
@@ -81,11 +76,11 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 	}
 
 	@Override
-	public AbstractPythonTableFunctionRunner<Row, Row> createPythonTableFunctionRunner(
+	public AbstractPythonTableFunctionRunner<Row> createPythonTableFunctionRunner(
 		PythonFunctionInfo pythonFunctionInfo,
 		RowType inputType,
 		RowType outputType) throws Exception {
-		final FnDataReceiver<Row> dummyReceiver = input -> {
+		final FnDataReceiver<byte[]> dummyReceiver = input -> {
 			// ignore the execution results
 		};
 
@@ -104,10 +99,10 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			outputType);
 	}
 
-	private AbstractPythonTableFunctionRunner<Row, Row> createUDTFRunner(
-		JobBundleFactory jobBundleFactory, FnDataReceiver<Row> receiver) throws IOException {
+	private AbstractPythonTableFunctionRunner<Row> createUDTFRunner(
+		JobBundleFactory jobBundleFactory, FnDataReceiver<byte[]> receiver) throws IOException {
 		PythonFunctionInfo pythonFunctionInfo = new PythonFunctionInfo(
-			DummyPythonFunction.INSTANCE,
+			AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
 			new Integer[]{0});
 
 		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
@@ -134,7 +129,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 
 		PythonTableFunctionRunnerTestHarness(
 			String taskName,
-			FnDataReceiver<Row> resultReceiver,
+			FnDataReceiver<byte[]> resultReceiver,
 			PythonFunctionInfo tableFunction,
 			PythonEnvironmentManager environmentManager,
 			RowType inputType,

@@ -20,12 +20,12 @@ package org.apache.flink.table.runtime.runners.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.table.runtime.typeutils.serializers.python.RowTableSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -36,11 +36,11 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
  * It takes {@link Row} as the input and output type.
  */
 @Internal
-public class PythonTableFunctionRunner extends AbstractPythonTableFunctionRunner<Row, Row> {
+public class PythonTableFunctionRunner extends AbstractPythonTableFunctionRunner<Row> {
 
 	public PythonTableFunctionRunner(
 		String taskName,
-		FnDataReceiver<Row> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo tableFunction,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
@@ -50,11 +50,6 @@ public class PythonTableFunctionRunner extends AbstractPythonTableFunctionRunner
 
 	@Override
 	public TypeSerializer<Row> getInputTypeSerializer() {
-		return (RowTableSerializer) PythonTypeUtils.toFlinkTableTypeSerializer(getInputType());
-	}
-
-	@Override
-	public TypeSerializer<Row> getOutputTypeSerializer() {
-		return (RowTableSerializer) PythonTypeUtils.toFlinkTableTypeSerializer(getOutputType());
+		return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
 	}
 }

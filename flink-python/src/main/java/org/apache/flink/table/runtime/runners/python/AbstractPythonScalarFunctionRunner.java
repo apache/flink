@@ -26,6 +26,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -90,8 +91,12 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 				RunnerApi.FunctionSpec.newBuilder()
 					.setUrn(SCHEMA_CODER_URN)
 					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						PythonTypeUtils.toProtoType(rowType).getRowSchema().toByteArray()))
+						toProtoType(rowType).getRowSchema().toByteArray()))
 					.build())
 			.build();
+	}
+
+	private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
+		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
 	}
 }
