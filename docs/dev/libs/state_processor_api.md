@@ -253,16 +253,16 @@ class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Vo
    var updateTimes: ListState[Long] = _ 
 
    @throws[Exception]
-   override def open(parameters: Configuration): Unit {
+   override def open(parameters: Configuration): Unit = {
       val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
       state = getRuntimeContext().getState(stateDescriptor)
 
-      val updateDescirptor = new ListStateDescriptor("times", Types.LONG)
+      val updateDescriptor = new ListStateDescriptor("times", Types.LONG)
       updateTimes = getRuntimeContext().getListState(updateDescriptor)
    }
  
    @throws[Exception]
-   override def processElement(value: Integer, ctx: Context, out: Collector[Void]): Unit = {
+   override def processElement(value: Integer, ctx: KeyedProcessFunction[ Integer, Integer, Void ]#Context, out: Collector[Void]): Unit = {
       state.update(value + 1)
       updateTimes.add(System.currentTimeMillis)
    }
@@ -323,7 +323,7 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 {% highlight scala %}
 val keyedState = savepoint.readKeyedState("my-uid", new ReaderFunction)
 
-case class KeyedState(key: Int, value: Int, List[Long])
+case class KeyedState(key: Int, value: Int, times: List[Long])
  
 class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
  
@@ -332,11 +332,11 @@ class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
   var updateTimes: ListState[Long] = _
  
   @throws[Exception]
-  override def open(parameters: Configuration): Unit {
+  override def open(parameters: Configuration): Unit = {
      val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
      state = getRuntimeContext().getState(stateDescriptor)
 
-      val updateDescirptor = new ListStateDescriptor("times", Types.LONG)
+      val updateDescriptor = new ListStateDescriptor("times", Types.LONG)
       updateTimes = getRuntimeContext().getListState(updateDescriptor)
     }
  
@@ -345,7 +345,7 @@ class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
   override def processKey(
     key: Int,
     ctx: Context,
-    out: Collector[Keyedstate]): Unit {
+    out: Collector[Keyedstate]): Unit = {
  
      val data = KeyedState(key, state.value(), updateTimes.get.asScala.toList)
      out.collect(data)
