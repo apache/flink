@@ -25,6 +25,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matcher;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -32,7 +33,9 @@ import java.util.List;
 
 import static org.apache.flink.runtime.clusterframework.types.ResourceProfile.MAX_CPU_CORE_NUMBER_TO_LOG;
 import static org.apache.flink.runtime.clusterframework.types.ResourceProfile.MAX_MEMORY_SIZE_TO_LOG;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -45,7 +48,7 @@ import static org.junit.Assert.fail;
  * Tests for the {@link ResourceProfile}.
  */
 public class ResourceProfileTest extends TestLogger {
-	private static final MemorySize NOT_LOGGED_MEMORY = MAX_MEMORY_SIZE_TO_LOG.add(MemorySize.ofMebiBytes(10));
+	private static final MemorySize TOO_LARGE_MEMORY = MAX_MEMORY_SIZE_TO_LOG.add(MemorySize.ofMebiBytes(10));
 
 	@Test
 	public void testMatchRequirement() {
@@ -395,34 +398,39 @@ public class ResourceProfileTest extends TestLogger {
 	}
 
 	@Test
-	public void testToStringWithoutCpu() {
-		double notLoggedCpu = MAX_CPU_CORE_NUMBER_TO_LOG.doubleValue() + 1.0;
-		ResourceProfile resourceProfile = getResourceProfileForLogsWithCpuVal(notLoggedCpu);
-		assertThat(resourceProfile.toString(), is(getExpectedToString(resourceProfile, "")));
+	public void doesNotIncludeCPUAndMemoryInToStringIfTheyAreTooLarge() {
+		double tooLargeCpuCount = MAX_CPU_CORE_NUMBER_TO_LOG.doubleValue() + 1.0;
+		ResourceProfile resourceProfile = createResourceProfile(tooLargeCpuCount, TOO_LARGE_MEMORY);
+		assertThat(
+			resourceProfile.toString(),
+			allOf(
+				not(containsCPUCores()),
+				not(containsTaskHeapMemory())));
 	}
 
 	@Test
-	public void testToStringWithCpu() {
-		ResourceProfile resourceProfile = getResourceProfileForLogsWithCpuVal(1.0);
-		assertThat(resourceProfile.toString(), is(getExpectedToString(resourceProfile, "cpuCores=1.0, ")));
+	public void includesCPUAndMemoryInToStringIfTheyAreBelowThreshold() {
+		ResourceProfile resourceProfile = createResourceProfile(1.0, MemorySize.ofMebiBytes(4));
+		assertThat(
+			resourceProfile.toString(),
+			allOf(
+				containsCPUCores(),
+				containsTaskHeapMemory()));
 	}
 
-	private static ResourceProfile getResourceProfileForLogsWithCpuVal(double cpu) {
+	private Matcher<String> containsTaskHeapMemory() {
+		return containsString("taskHeapMemory=");
+	}
+
+	private Matcher<String> containsCPUCores() {
+		return containsString("cpuCores=");
+	}
+
+	private static ResourceProfile createResourceProfile(double cpu, MemorySize taskHeapMemory) {
 		return ResourceProfile
 			.newBuilder()
 			.setCpuCores(cpu)
-			.setTaskHeapMemoryMB(2)
-			.setTaskOffHeapMemory(NOT_LOGGED_MEMORY)
-			.setManagedMemoryMB(4)
-			.setNetworkMemory(NOT_LOGGED_MEMORY)
+			.setTaskHeapMemory(taskHeapMemory)
 			.build();
-	}
-
-	private static String getExpectedToString(ResourceProfile resourceProfile, String expectedCpuStr) {
-		return String.format(
-			"ResourceProfile{%staskHeapMemory=%s, managedMemory=%s}",
-			expectedCpuStr,
-			resourceProfile.getTaskHeapMemory().toHumanReadableString(),
-			resourceProfile.getManagedMemory().toHumanReadableString());
 	}
 }
