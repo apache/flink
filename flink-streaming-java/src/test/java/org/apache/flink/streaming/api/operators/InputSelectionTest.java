@@ -75,6 +75,38 @@ public class InputSelectionTest {
 		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.SECOND.fairSelectNextIndexOutOf2(0, 1));
 	}
 
+	@Test
+	public void testFairSelectNextIndex() {
+		assertEquals(1, InputSelection.ALL.fairSelectNextIndex(7, 0));
+		assertEquals(2, InputSelection.ALL.fairSelectNextIndex(7, 1));
+		assertEquals(0, InputSelection.ALL.fairSelectNextIndex(7, 2));
+		assertEquals(1, InputSelection.ALL.fairSelectNextIndex(7, 0));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.ALL.fairSelectNextIndex(0, 2));
+
+
+		// combination of selection and availability is supposed to be 3, 5, 8:
+		InputSelection selection = new Builder().select(2).select(3).select(4).select(5).select(8).build();
+		int availableInputs = (int) new Builder().select(3).select(5).select(6).select(8).build().getInputMask();
+
+		assertEquals(2, selection.fairSelectNextIndex(availableInputs, 0));
+		assertEquals(2, selection.fairSelectNextIndex(availableInputs, 1));
+		assertEquals(4, selection.fairSelectNextIndex(availableInputs, 2));
+		assertEquals(4, selection.fairSelectNextIndex(availableInputs, 3));
+		assertEquals(7, selection.fairSelectNextIndex(availableInputs, 4));
+		assertEquals(7, selection.fairSelectNextIndex(availableInputs, 5));
+		assertEquals(7, selection.fairSelectNextIndex(availableInputs, 6));
+		assertEquals(2, selection.fairSelectNextIndex(availableInputs, 7));
+		assertEquals(2, selection.fairSelectNextIndex(availableInputs, 8));
+		assertEquals(2, selection.fairSelectNextIndex(availableInputs, 158));
+		assertEquals(InputSelection.NONE_AVAILABLE, selection.fairSelectNextIndex(0, 5));
+
+		assertEquals(11, InputSelection.ALL.fairSelectNextIndex(-1, 10));
+		assertEquals(0, InputSelection.ALL.fairSelectNextIndex(-1, 31));
+		assertEquals(0, InputSelection.ALL.fairSelectNextIndex(-1, 158));
+
+		assertEquals(InputSelection.NONE_AVAILABLE, new Builder().build().fairSelectNextIndex(-1, 5));
+	}
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testUnsupportedFairSelectNextIndexOutOf2() {
 		InputSelection.ALL.fairSelectNextIndexOutOf2(7, 0);
