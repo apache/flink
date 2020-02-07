@@ -417,6 +417,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 				.collect(Collectors.toSet()));
 	}
 
+	protected void transitionExecutionGraphState(final JobStatus current, final JobStatus newState) {
+		executionGraph.transitionState(current, newState);
+	}
+
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------
