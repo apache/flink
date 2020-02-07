@@ -628,16 +628,20 @@ public class DefaultSchedulerTest extends TestLogger {
 		final JobGraph jobGraph = singleJobVertexJobGraph(2);
 		final JobID jobid = jobGraph.getJobID();
 		final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+		final SchedulingTopology<?, ?> topology = scheduler.getSchedulingTopology();
 
 		final Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
 		final ExecutionAttemptID attemptId1 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
 		final ExecutionAttemptID attemptId2 = vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
+		final ExecutionVertexID executionVertex2 = scheduler.getExecutionVertexIdOrThrow(attemptId2);
 
 		scheduler.updateTaskExecutionState(new TaskExecutionState(jobid, attemptId1, ExecutionState.FAILED, new RuntimeException("expected")));
 		scheduler.cancel();
+		final ExecutionState vertex2StateAfterCancel = topology.getVertexOrThrow(executionVertex2).getState();
 		final JobStatus statusAfterCancelWhileRestarting = scheduler.requestJobStatus();
 		scheduler.updateTaskExecutionState(new TaskExecutionState(jobid, attemptId2, ExecutionState.CANCELED, new RuntimeException("expected")));
 
+		assertThat(vertex2StateAfterCancel, is(equalTo(ExecutionState.CANCELING)));
 		assertThat(statusAfterCancelWhileRestarting, is(equalTo(JobStatus.CANCELLING)));
 		assertThat(scheduler.requestJobStatus(), is(equalTo(JobStatus.CANCELED)));
 	}
