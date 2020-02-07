@@ -253,7 +253,7 @@ class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Vo
    var updateTimes: ListState[Long] = _ 
 
    @throws[Exception]
-   override def open(parameters: Configuration): Unit ={
+   override def open(parameters: Configuration): Unit = {
       val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
       state = getRuntimeContext().getState(stateDescriptor)
 
