@@ -128,7 +128,7 @@ jobs:
       name: tests - legacy_scheduler
     - if: type in (pull_request, push)
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Pe2e-pre-commit"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
       name: misc
     - if: type in (pull_request, push)
       stage: cleanup
@@ -168,7 +168,7 @@ jobs:
       name: tests - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests -Pe2e-pre-commit"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: misc - hadoop 2.4.1
     - if: type = cron
       stage: cleanup
@@ -208,7 +208,7 @@ jobs:
       name: tests - scala 2.12
     - if: type = cron
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1 -Pe2e-pre-commit"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: misc - scala 2.12
     - if: type = cron
       stage: cleanup
@@ -261,7 +261,7 @@ jobs:
     - if: type = cron
       jdk: "openjdk11"
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11 -Pe2e-pre-commit"
+      env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: misc
     - if: type = cron
       jdk: "openjdk11"
