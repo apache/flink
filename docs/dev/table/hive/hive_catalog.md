@@ -205,13 +205,53 @@ root
 
 {% endhighlight %}
 
-Verify the table is also visible to Hive via Hive Cli:
+Verify the table is also visible to Hive via Hive Cli, and note that the table has property `is_generic=true`:
 
 {% highlight bash %}
 hive> show tables;
 OK
 mykafka
 Time taken: 0.038 seconds, Fetched: 1 row(s)
+
+hive> describe formatted mykafka;
+OK
+# col_name            	data_type           	comment
+
+
+# Detailed Table Information
+Database:           	default
+Owner:              	null
+CreateTime:         	......
+LastAccessTime:     	UNKNOWN
+Retention:          	0
+Location:           	......
+Table Type:         	MANAGED_TABLE
+Table Parameters:
+	flink.connector.properties.bootstrap.servers	localhost:9092
+	flink.connector.properties.zookeeper.connect	localhost:2181
+	flink.connector.topic	test
+	flink.connector.type	kafka
+	flink.connector.version	universal
+	flink.format.type   	csv
+	flink.generic.table.schema.0.data-type	VARCHAR(2147483647)
+	flink.generic.table.schema.0.name	name
+	flink.generic.table.schema.1.data-type	INT
+	flink.generic.table.schema.1.name	age
+	flink.update-mode   	append
+	is_generic          	true
+	transient_lastDdlTime	......
+
+# Storage Information
+SerDe Library:      	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+InputFormat:        	org.apache.hadoop.mapred.TextInputFormat
+OutputFormat:       	org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
+Compressed:         	No
+Num Buckets:        	-1
+Bucket Columns:     	[]
+Sort Columns:       	[]
+Storage Desc Params:
+	serialization.format	1
+Time taken: 0.158 seconds, Fetched: 36 row(s)
 
 {% endhighlight %}
 
