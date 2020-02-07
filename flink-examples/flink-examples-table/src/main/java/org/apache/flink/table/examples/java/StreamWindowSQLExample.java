@@ -30,6 +30,8 @@ import java.io.File;
 /**
  * Simple example for demonstrating the use of SQL in Java.
  *
+ * <p>Usage: <code>./bin/flink run ./examples/table/StreamWindowSQLExample.java</code></p>
+ *
  * <p>This example shows how to:
  *  - Register a table via DDL
  *  - Declare an event time attribute in the DDL
@@ -60,7 +62,6 @@ public class StreamWindowSQLExample {
 		tempFile.deleteOnExit();
 		FileUtils.writeFileUtf8(tempFile, contents);
 		String path = tempFile.toURI().toString();
-		System.out.println(path);
 
 		// register table via DDL with watermark,
 		// the events are out of order, hence, we use 3 seconds to wait the late events
