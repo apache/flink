@@ -293,8 +293,9 @@ class TableEnvironment(object):
         :param table: The Table to write to the sink.
         :type table: pyflink.table.Table
 
-        .. versionadded:: 1.10.0
-            The *table* parameter.
+        .. versionchanged:: 1.10.0
+            The signature is changed, e.g. the parameter *table_path_continued* was removed and
+            the parameter *target_path* is moved before the parameter *table*.
         """
         self._j_tenv.insertInto(target_path, table._j_table)
 
