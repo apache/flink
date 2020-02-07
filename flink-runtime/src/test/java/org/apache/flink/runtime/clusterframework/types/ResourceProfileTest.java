@@ -23,6 +23,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -43,7 +44,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link ResourceProfile}.
  */
-public class ResourceProfileTest {
+public class ResourceProfileTest extends TestLogger {
 	private static final MemorySize NOT_LOGGED_MEMORY = MAX_MEMORY_SIZE_TO_LOG.add(MemorySize.ofMebiBytes(10));
 
 	@Test
