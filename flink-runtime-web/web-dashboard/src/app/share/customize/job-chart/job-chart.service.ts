@@ -15,58 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  padding: 12px;
-  margin-bottom: 12px;
-  float: left;
-  width: 33.33%;
+import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 
-  &.big {
-    width: 100%;
+@Injectable({ providedIn: 'root' })
+export class JobChartService {
+  resize$ = new Subject();
+  resize() {
+    this.resize$.next();
   }
-}
-
-.close {
-  margin-left: 8px;
-}
-
-.chart {
-  position: relative;
-  border: 1px solid @border-color-split;
-}
-
-.title {
-  padding: 12px;
-  position: relative;
-  border-bottom: 1px solid @border-color-split;
-}
-
-.text {
-  font-size: 12px;
-  line-height: 24px;
-  overflow: hidden;
-  max-width: calc(~"100% - 128px");
-  text-overflow: ellipsis;
-}
-
-.operate {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
-
-.content {
-  padding: 12px;
-
-  .numeric {
-    line-height: 150px;
-    font-size: 32px;
-    text-align: center;
-  }
-}
-
-button {
-  transition: none;
 }
