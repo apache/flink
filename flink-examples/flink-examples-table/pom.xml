@@ -115,6 +115,28 @@ under the License.
 					</execution>
 
 					<execution>
+						<id>StreamWindowSQLExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>StreamWindowSQLExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.StreamWindowSQLExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/StreamWindowSQLExample*</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
 						<id>WordCountSQL</id>
 						<phase>package</phase>
 						<goals>
