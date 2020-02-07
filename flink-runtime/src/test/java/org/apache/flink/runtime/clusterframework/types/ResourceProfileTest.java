@@ -29,10 +29,14 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.runtime.clusterframework.types.ResourceProfile.MAX_CPU_CORE_NUMBER_TO_LOG;
+import static org.apache.flink.runtime.clusterframework.types.ResourceProfile.MAX_MEMORY_SIZE_TO_LOG;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -40,6 +44,7 @@ import static org.junit.Assert.fail;
  * Tests for the {@link ResourceProfile}.
  */
 public class ResourceProfileTest {
+	private static final MemorySize NOT_LOGGED_MEMORY = MAX_MEMORY_SIZE_TO_LOG.add(MemorySize.ofMebiBytes(10));
 
 	@Test
 	public void testMatchRequirement() {
@@ -386,5 +391,37 @@ public class ResourceProfileTest {
 		final ResourceProfile copiedProfile = CommonTestUtils.createCopySerializable(ResourceProfile.ANY);
 
 		assertSame(ResourceProfile.ANY, copiedProfile);
+	}
+
+	@Test
+	public void testToStringWithoutCpu() {
+		double notLoggedCpu = MAX_CPU_CORE_NUMBER_TO_LOG.doubleValue() + 1.0;
+		ResourceProfile resourceProfile = getResourceProfileForLogsWithCpuVal(notLoggedCpu);
+		assertThat(resourceProfile.toString(), is(getExpectedToString(resourceProfile, "")));
+	}
+
+	@Test
+	public void testToStringWithCpu() {
+		ResourceProfile resourceProfile = getResourceProfileForLogsWithCpuVal(1.0);
+		assertThat(resourceProfile.toString(), is(getExpectedToString(resourceProfile, "cpuCores=1.0, ")));
+	}
+
+	private static ResourceProfile getResourceProfileForLogsWithCpuVal(double cpu) {
+		return ResourceProfile
+			.newBuilder()
+			.setCpuCores(cpu)
+			.setTaskHeapMemoryMB(2)
+			.setTaskOffHeapMemory(NOT_LOGGED_MEMORY)
+			.setManagedMemoryMB(4)
+			.setNetworkMemory(NOT_LOGGED_MEMORY)
+			.build();
+	}
+
+	private static String getExpectedToString(ResourceProfile resourceProfile, String expectedCpuStr) {
+		return String.format(
+			"ResourceProfile{%staskHeapMemory=%s, managedMemory=%s}",
+			expectedCpuStr,
+			resourceProfile.getTaskHeapMemory().toHumanReadableString(),
+			resourceProfile.getManagedMemory().toHumanReadableString());
 	}
 }
