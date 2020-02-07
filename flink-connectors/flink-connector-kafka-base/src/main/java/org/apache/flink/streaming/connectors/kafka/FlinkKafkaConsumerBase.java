@@ -1031,6 +1031,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			Collection<KafkaTopicPartition> partitions,
 			long timestamp);
 
+	public KafkaTopicsDescriptor getTopicsDescriptor() {
+		return topicsDescriptor;
+	}
+
 	// ------------------------------------------------------------------------
 	//  ResultTypeQueryable methods
 	// ------------------------------------------------------------------------

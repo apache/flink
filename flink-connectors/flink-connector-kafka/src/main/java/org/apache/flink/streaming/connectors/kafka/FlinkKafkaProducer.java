@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaInternalProducer;
 import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGenerator;
 import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMutableWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -49,6 +50,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -97,6 +99,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @PublicEvolving
 public class FlinkKafkaProducer<IN>
 	extends TwoPhaseCommitSinkFunction<IN, FlinkKafkaProducer.KafkaTransactionState, FlinkKafkaProducer.KafkaTransactionContext> {
+
+	private KafkaTopicsDescriptor topicsDescriptor;
 
 	/**
 	 *  Semantics that can be chosen.
@@ -608,6 +612,7 @@ public class FlinkKafkaProducer<IN>
 		super(new FlinkKafkaProducer.TransactionStateSerializer(), new FlinkKafkaProducer.ContextStateSerializer());
 
 		this.defaultTopicId = checkNotNull(defaultTopic, "defaultTopic is null");
+		this.topicsDescriptor = new KafkaTopicsDescriptor(Lists.newArrayList(defaultTopicId), null);
 
 		if (kafkaSchema != null) {
 			this.keyedSchema = null;
@@ -725,6 +730,10 @@ public class FlinkKafkaProducer<IN>
 	public FlinkKafkaProducer<IN> ignoreFailuresAfterTransactionTimeout() {
 		super.ignoreFailuresAfterTransactionTimeout();
 		return this;
+	}
+
+	public Properties getProperties() {
+		return producerConfig;
 	}
 
 	// ----------------------------------- Utilities --------------------------
@@ -1263,6 +1272,14 @@ public class FlinkKafkaProducer<IN>
 		}
 
 		return partitions;
+	}
+
+	public void setTopicsDescriptor(KafkaTopicsDescriptor topicsDescriptor)  {
+		this.topicsDescriptor = Preconditions.checkNotNull(topicsDescriptor);
+	}
+
+	public KafkaTopicsDescriptor getTopicsDescriptor() {
+		return topicsDescriptor;
 	}
 
 	/**

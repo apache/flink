@@ -38,6 +38,7 @@ public class KafkaTopicsDescriptor implements Serializable {
 	private static final long serialVersionUID = -3807227764764900975L;
 
 	private final List<String> fixedTopics;
+
 	private final Pattern topicPattern;
 
 	public KafkaTopicsDescriptor(@Nullable List<String> fixedTopics, @Nullable Pattern topicPattern) {
@@ -75,6 +76,10 @@ public class KafkaTopicsDescriptor implements Serializable {
 
 	public List<String> getFixedTopics() {
 		return fixedTopics;
+	}
+
+	public Pattern getTopicPattern() {
+		return topicPattern;
 	}
 
 	@Override

@@ -293,6 +293,10 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 			PropertiesUtil.getLong(properties, ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 5000) > 0;
 	}
 
+	public Properties getProperties() {
+		return properties;
+	}
+
 	/**
 	 * Makes sure that the ByteArrayDeserializer is registered in the Kafka properties.
 	 *
