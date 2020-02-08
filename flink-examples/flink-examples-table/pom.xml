@@ -240,6 +240,7 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountTable.jar" tofile="${project.basedir}/target/WordCountTable.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamTableExample.jar" tofile="${project.basedir}/target/StreamTableExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-TPCHQuery3Table.jar" tofile="${project.basedir}/target/TPCHQuery3Table.jar"/>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamWindowSQLExample.jar" tofile="${project.basedir}/target/StreamWindowSQLExample.jar"/>
 							</target>
 						</configuration>
 					</execution>
