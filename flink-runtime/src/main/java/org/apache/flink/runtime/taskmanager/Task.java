@@ -952,7 +952,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			if (cause == null) {
 				LOG.info("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState);
 			} else {
-				LOG.info("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState, cause);
+				LOG.warn("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState, cause);
 			}
 
 			return true;
