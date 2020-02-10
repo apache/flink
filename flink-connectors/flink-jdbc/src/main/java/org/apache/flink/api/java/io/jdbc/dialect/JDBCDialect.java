@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io.jdbc.dialect;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -39,11 +40,10 @@ public interface JDBCDialect extends Serializable {
 
 	/**
 	 * Check if this dialect instance support a specific data type in table schema.
-	 *
-	 * @param schema the table schema
+	 * @param schema the table schema.
+	 * @exception ValidationException in case of the table schema contains unsupported type.
 	 */
-	default void validate(TableSchema schema) {
-		return;
+	default void validate(TableSchema schema) throws ValidationException {
 	}
 
 	/**
