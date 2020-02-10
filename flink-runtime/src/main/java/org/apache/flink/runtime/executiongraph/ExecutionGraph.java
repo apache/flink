@@ -62,7 +62,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
@@ -94,10 +93,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -1117,17 +1114,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			this.currentExecutions.clear();
 
-			final Collection<CoLocationGroup> colGroups = new HashSet<>();
 			final long resetTimestamp = System.currentTimeMillis();
 
 			for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
-
-				CoLocationGroup cgroup = jv.getCoLocationGroup();
-				if (cgroup != null && !colGroups.contains(cgroup)){
-					cgroup.resetConstraints();
-					colGroups.add(cgroup);
-				}
-
 				jv.resetForNewExecution(resetTimestamp, expectedGlobalVersion);
 			}
 
