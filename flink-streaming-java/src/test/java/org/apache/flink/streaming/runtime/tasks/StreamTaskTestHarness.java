@@ -23,14 +23,20 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
@@ -57,6 +63,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -460,6 +467,40 @@ public class StreamTaskTestHarness<OUT> {
 
 		public Throwable getError() {
 			return error;
+		}
+	}
+
+	/**
+	 * The task metric group for implementing the custom registry to store the registered metrics.
+	 */
+	static class TestTaskMetricGroup extends TaskMetricGroup {
+
+		TestTaskMetricGroup(Map<String, Metric> metrics) {
+			super(
+				new TestMetricRegistry(metrics),
+				new UnregisteredMetricGroups.UnregisteredTaskManagerJobMetricGroup(),
+				new JobVertexID(0, 0),
+				new ExecutionAttemptID(0, 0),
+				"test",
+				0,
+				0);
+		}
+	}
+
+	/**
+	 * The metric registry for storing the registered metrics to verify in tests.
+	 */
+	static class TestMetricRegistry extends NoOpMetricRegistry {
+		private final Map<String, Metric> metrics;
+
+		TestMetricRegistry(Map<String, Metric> metrics) {
+			super();
+			this.metrics = metrics;
+		}
+
+		@Override
+		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+			metrics.put(metricName, metric);
 		}
 	}
 }

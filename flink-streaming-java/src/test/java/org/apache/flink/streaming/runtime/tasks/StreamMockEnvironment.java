@@ -114,6 +114,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
+	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+
 	public StreamMockEnvironment(
 		Configuration jobConfig,
 		Configuration taskConfig,
@@ -351,6 +353,10 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+		return this.taskMetricGroup;
+	}
+
+	public void setTaskMetricGroup(TaskMetricGroup taskMetricGroup) {
+		this.taskMetricGroup = taskMetricGroup;
 	}
 }
