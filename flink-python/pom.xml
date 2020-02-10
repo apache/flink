@@ -88,13 +88,6 @@ under the License.
 			<artifactId>beam-runners-java-fn-execution</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>com.github.spotbugs</groupId>
-			<artifactId>spotbugs</artifactId>
-			<version>3.1.10</version>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- Protobuf dependencies -->
 
 		<dependency>
