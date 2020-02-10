@@ -100,7 +100,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	}
 
 	@Override
-	public Row getUdfInput(CRow element) {
+	public Row getFunctionInput(CRow element) {
 		return Row.project(element.row(), userDefinedFunctionInputOffsets);
 	}
 

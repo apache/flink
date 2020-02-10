@@ -32,7 +32,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
- * It takes {@link BaseRow} as the input and output type.
+ * It takes {@link BaseRow} as the input and outputs a byte array.
  */
 @Internal
 public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<BaseRow> {

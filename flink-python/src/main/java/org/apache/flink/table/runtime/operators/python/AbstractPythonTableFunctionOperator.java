@@ -26,6 +26,8 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.rel.core.JoinRelType;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,14 +47,24 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 	 */
 	protected final PythonFunctionInfo tableFunction;
 
+	/**
+	 * The correlate join type.
+	 */
+	protected final JoinRelType joinType;
+
 	public AbstractPythonTableFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udtfInputOffsets) {
+		int[] udtfInputOffsets,
+		JoinRelType joinType) {
 		super(config, inputType, outputType, udtfInputOffsets);
 		this.tableFunction = Preconditions.checkNotNull(tableFunction);
+		Preconditions.checkArgument(
+			joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT,
+			"The join type should be inner join or left join");
+		this.joinType = joinType;
 	}
 
 	@Override

@@ -73,11 +73,16 @@ public abstract class PassThroughPythonTableFunctionRunner<IN> implements Python
 	public void finishBundle() throws Exception {
 		Preconditions.checkState(bundleStarted);
 		bundleStarted = false;
+		int num = 0;
 
 		for (IN element : bufferedElements) {
+			num++;
 			baos.reset();
 			getInputTypeSerializer().serialize(element, baosWrapper);
-			resultReceiver.accept(baos.toByteArray());
+			// test for left join
+			if (num != 6 && num != 8) {
+				resultReceiver.accept(baos.toByteArray());
+			}
 			resultReceiver.accept(new byte[]{0});
 		}
 		bufferedElements.clear();
