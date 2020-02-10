@@ -78,7 +78,7 @@ public class JDBCTableSourceITCase extends AbstractTestBase {
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
 			Statement stat = conn.createStatement()) {
-			stat.execute("DROP TABLE " + INPUT_TABLE);
+			stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
 		}
 	}
 
@@ -165,7 +165,7 @@ public class JDBCTableSourceITCase extends AbstractTestBase {
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 
 		tEnv.sqlUpdate(
-		"CREATE TABLE " + INPUT_TABLE + "(" +
+			"CREATE TABLE " + INPUT_TABLE + "(" +
 				"id BIGINT," +
 				"timestamp6_col TIMESTAMP(6)," +
 				"timestamp9_col TIMESTAMP(9)," +
