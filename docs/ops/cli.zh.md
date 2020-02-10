@@ -377,7 +377,7 @@ Action "run" compiles and runs a program.
                                           UDF worker (e.g.: --pyExecutable
                                           /usr/local/bin/python3). The python
                                           UDF worker depends on Python 3.5+,
-                                          Apache Beam (version == 2.15.0), Pip
+                                          Apache Beam (version == 2.19.0), Pip
                                           (version >= 7.1.0) and SetupTools
                                           (version >= 37.0.0). Please ensure
                                           that the specified environment meets
