@@ -122,7 +122,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -148,7 +148,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -174,7 +174,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -200,7 +200,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -220,7 +220,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -240,7 +240,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -264,7 +264,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies

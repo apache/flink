@@ -20,7 +20,7 @@ package org.apache.flink.orc.nohive.shim;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.orc.OrcSplitReader;
-import org.apache.flink.orc.nohive.vector.NoHiveOrcVectorizedBatch;
+import org.apache.flink.orc.nohive.vector.OrcNoHiveBatchWrapper;
 import org.apache.flink.orc.shim.OrcShim;
 
 import org.apache.hadoop.conf.Configuration;
@@ -29,6 +29,7 @@ import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,7 +40,7 @@ import static org.apache.flink.orc.shim.OrcShimV200.getOffsetAndLengthForSplit;
 /**
  * Shim for orc reader without hive dependents.
  */
-public class NoHiveOrcShim implements OrcShim<NoHiveOrcVectorizedBatch> {
+public class OrcNoHiveShim implements OrcShim<VectorizedRowBatch> {
 
 	@Override
 	public RecordReader createRecordReader(
@@ -82,12 +83,12 @@ public class NoHiveOrcShim implements OrcShim<NoHiveOrcVectorizedBatch> {
 	}
 
 	@Override
-	public NoHiveOrcVectorizedBatch createVectorizedBatch(TypeDescription schema, int batchSize) {
-		return new NoHiveOrcVectorizedBatch(schema.createRowBatch(batchSize));
+	public OrcNoHiveBatchWrapper createBatchWrapper(TypeDescription schema, int batchSize) {
+		return new OrcNoHiveBatchWrapper(schema.createRowBatch(batchSize));
 	}
 
 	@Override
-	public boolean nextBatch(RecordReader reader, NoHiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
+	public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
+		return reader.nextBatch(rowBatch);
 	}
 }

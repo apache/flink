@@ -19,10 +19,10 @@
 package org.apache.flink.orc.shim;
 
 import org.apache.flink.orc.OrcSplitReader;
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
-import org.apache.flink.orc.vector.OrcVectorizedBatch;
+import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.RecordReader;
 import org.apache.orc.TypeDescription;
 
@@ -33,7 +33,7 @@ import java.util.List;
 /**
  * A shim layer to support orc with different dependents versions of Hive.
  */
-public interface OrcShim<BATCH extends OrcVectorizedBatch> extends Serializable {
+public interface OrcShim<BATCH> extends Serializable {
 
 	/**
 	 * Create orc {@link RecordReader} from conf, schema and etc...
@@ -47,7 +47,7 @@ public interface OrcShim<BATCH extends OrcVectorizedBatch> extends Serializable 
 			long splitStart,
 			long splitLength) throws IOException;
 
-	BATCH createVectorizedBatch(TypeDescription schema, int batchSize);
+	OrcVectorizedBatchWrapper<BATCH> createBatchWrapper(TypeDescription schema, int batchSize);
 
 	/**
 	 * Read the next row batch.
@@ -57,14 +57,14 @@ public interface OrcShim<BATCH extends OrcVectorizedBatch> extends Serializable 
 	/**
 	 * Default with orc dependent, we should use v2.3.0.
 	 */
-	static OrcShim defaultShim() {
+	static OrcShimV230 defaultShim() {
 		return new OrcShimV230();
 	}
 
 	/**
 	 * Create shim from hive version.
 	 */
-	static OrcShim<HiveOrcVectorizedBatch> createShim(String hiveVersion) {
+	static OrcShim<VectorizedRowBatch> createShim(String hiveVersion) {
 		if (hiveVersion.startsWith("2.0")) {
 			return new OrcShimV200();
 		} else if (hiveVersion.startsWith("2.1")) {

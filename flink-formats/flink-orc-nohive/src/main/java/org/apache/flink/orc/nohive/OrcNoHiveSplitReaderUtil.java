@@ -21,14 +21,14 @@ package org.apache.flink.orc.nohive;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
 import org.apache.flink.orc.OrcSplitReader;
-import org.apache.flink.orc.nohive.shim.NoHiveOrcShim;
-import org.apache.flink.orc.nohive.vector.NoHiveOrcVectorizedBatch;
+import org.apache.flink.orc.nohive.shim.OrcNoHiveShim;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,18 +37,18 @@ import java.util.Map;
 import static org.apache.flink.orc.OrcSplitReaderUtil.convertToOrcTypeWithPart;
 import static org.apache.flink.orc.OrcSplitReaderUtil.getNonPartNames;
 import static org.apache.flink.orc.OrcSplitReaderUtil.getSelectedOrcFields;
-import static org.apache.flink.orc.nohive.vector.AbstractOrcColumnVector.createVector;
-import static org.apache.flink.orc.nohive.vector.AbstractOrcColumnVector.createVectorFromConstant;
+import static org.apache.flink.orc.nohive.vector.AbstractOrcNoHiveVector.createFlinkVector;
+import static org.apache.flink.orc.nohive.vector.AbstractOrcNoHiveVector.createFlinkVectorFromConstant;
 
 /**
  * Util for generating {@link OrcSplitReader}.
  */
-public class OrcSplitReaderUtil {
+public class OrcNoHiveSplitReaderUtil {
 
 	/**
 	 * Util for generating partitioned {@link OrcColumnarRowSplitReader}.
 	 */
-	public static OrcColumnarRowSplitReader<NoHiveOrcVectorizedBatch> genPartColumnarRowReader(
+	public static OrcColumnarRowSplitReader<VectorizedRowBatch> genPartColumnarRowReader(
 			Configuration conf,
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
@@ -64,21 +64,21 @@ public class OrcSplitReaderUtil {
 
 		int[] selectedOrcFields = getSelectedOrcFields(fullFieldNames, selectedFields, nonPartNames);
 
-		OrcColumnarRowSplitReader.ColumnBatchGenerator<NoHiveOrcVectorizedBatch> gen = (NoHiveOrcVectorizedBatch rowBatch) -> {
+		OrcColumnarRowSplitReader.ColumnBatchGenerator<VectorizedRowBatch> gen = (VectorizedRowBatch rowBatch) -> {
 			// create and initialize the row batch
 			ColumnVector[] vectors = new ColumnVector[selectedFields.length];
 			for (int i = 0; i < vectors.length; i++) {
 				String name = fullFieldNames[selectedFields[i]];
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
-						createVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						createVector(rowBatch.getBatch().cols[nonPartNames.indexOf(name)]);
+						createFlinkVectorFromConstant(type, partitionSpec.get(name), batchSize) :
+						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)]);
 			}
 			return new VectorizedColumnBatch(vectors);
 		};
 
 		return new OrcColumnarRowSplitReader<>(
-				new NoHiveOrcShim(),
+				new OrcNoHiveShim(),
 				conf,
 				convertToOrcTypeWithPart(fullFieldNames, fullFieldTypes, partitionSpec.keySet()),
 				selectedOrcFields,

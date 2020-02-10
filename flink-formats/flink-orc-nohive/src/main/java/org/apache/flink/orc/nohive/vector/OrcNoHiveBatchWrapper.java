@@ -16,21 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.vector;
+package org.apache.flink.orc.nohive.vector;
 
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
+import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
+
+import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 /**
- * Wrap {@link VectorizedRowBatch} hive orc batch.
+ * Wrap {@link VectorizedRowBatch} orc batch.
  */
-public class HiveOrcVectorizedBatch implements OrcVectorizedBatch {
+public class OrcNoHiveBatchWrapper implements OrcVectorizedBatchWrapper<VectorizedRowBatch> {
 
-	private final VectorizedRowBatch batch;
+	private VectorizedRowBatch batch;
 
-	public HiveOrcVectorizedBatch(VectorizedRowBatch batch) {
+	public OrcNoHiveBatchWrapper(VectorizedRowBatch batch) {
 		this.batch = batch;
 	}
 
+	@Override
 	public VectorizedRowBatch getBatch() {
 		return batch;
 	}

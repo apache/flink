@@ -18,8 +18,7 @@
 
 package org.apache.flink.orc.shim;
 
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
-
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.RecordReader;
 
 import java.io.IOException;
@@ -32,7 +31,7 @@ public class OrcShimV210 extends OrcShimV200 {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch.getBatch());
+	public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
+		return reader.nextBatch(rowBatch);
 	}
 }

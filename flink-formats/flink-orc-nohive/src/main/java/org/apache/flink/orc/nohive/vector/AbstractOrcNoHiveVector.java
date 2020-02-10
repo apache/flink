@@ -41,18 +41,18 @@ import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToIn
 /**
  * This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector.
  */
-public abstract class AbstractOrcColumnVector implements
+public abstract class AbstractOrcNoHiveVector implements
 		org.apache.flink.table.dataformat.vector.ColumnVector {
 
-	private ColumnVector vector;
+	private ColumnVector orcVector;
 
-	AbstractOrcColumnVector(ColumnVector vector) {
-		this.vector = vector;
+	AbstractOrcNoHiveVector(ColumnVector orcVector) {
+		this.orcVector = orcVector;
 	}
 
 	@Override
 	public boolean isNullAt(int i) {
-		return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
+		return !orcVector.noNulls && orcVector.isNull[orcVector.isRepeating ? 0 : i];
 	}
 
 	@Override
@@ -60,18 +60,18 @@ public abstract class AbstractOrcColumnVector implements
 		throw new UnsupportedOperationException();
 	}
 
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVector(
+	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {
-			return new OrcLongColumnVector((LongColumnVector) vector);
+			return new OrcNoHiveLongVector((LongColumnVector) vector);
 		} else if (vector instanceof DoubleColumnVector) {
-			return new OrcDoubleColumnVector((DoubleColumnVector) vector);
+			return new OrcNoHiveDoubleVector((DoubleColumnVector) vector);
 		} else if (vector instanceof BytesColumnVector) {
-			return new OrcBytesColumnVector((BytesColumnVector) vector);
+			return new OrcNoHiveBytesVector((BytesColumnVector) vector);
 		} else if (vector instanceof DecimalColumnVector) {
-			return new OrcDecimalColumnVector((DecimalColumnVector) vector);
+			return new OrcNoHiveDecimalVector((DecimalColumnVector) vector);
 		} else if (vector instanceof TimestampColumnVector) {
-			return new OrcTimestampColumnVector((TimestampColumnVector) vector);
+			return new OrcNoHiveTimestampVector((TimestampColumnVector) vector);
 		} else {
 			throw new UnsupportedOperationException("Unsupport vector: " + vector.getClass().getName());
 		}
@@ -80,9 +80,9 @@ public abstract class AbstractOrcColumnVector implements
 	/**
 	 * Create flink vector by hive vector from constant.
 	 */
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVectorFromConstant(
+	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVectorFromConstant(
 			LogicalType type, Object value, int batchSize) {
-		return createVector(createHiveVectorFromConstant(type, value, batchSize));
+		return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
 	}
 
 	/**

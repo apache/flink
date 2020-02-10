@@ -24,7 +24,7 @@ import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
  * This column vector is used to adapt hive's LongColumnVector to
  * Flink's boolean, byte, short, int and long ColumnVector.
  */
-public class OrcLongColumnVector extends AbstractOrcColumnVector implements
+public class OrcNoHiveLongVector extends AbstractOrcNoHiveVector implements
 		org.apache.flink.table.dataformat.vector.LongColumnVector,
 		org.apache.flink.table.dataformat.vector.BooleanColumnVector,
 		org.apache.flink.table.dataformat.vector.ByteColumnVector,
@@ -33,7 +33,7 @@ public class OrcLongColumnVector extends AbstractOrcColumnVector implements
 
 	private LongColumnVector vector;
 
-	public OrcLongColumnVector(LongColumnVector vector) {
+	public OrcNoHiveLongVector(LongColumnVector vector) {
 		super(vector);
 		this.vector = vector;
 	}

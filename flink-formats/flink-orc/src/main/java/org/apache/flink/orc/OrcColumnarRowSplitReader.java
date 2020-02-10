@@ -20,7 +20,6 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
-import org.apache.flink.orc.vector.OrcVectorizedBatch;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.ColumnarRow;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
@@ -34,7 +33,7 @@ import java.util.List;
 /**
  * {@link OrcSplitReader} to read ORC files into {@link BaseRow}.
  */
-public class OrcColumnarRowSplitReader<BATCH extends OrcVectorizedBatch> extends OrcSplitReader<BaseRow, BATCH> {
+public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<BaseRow, BATCH> {
 
 	// the vector of rows that is read in a batch
 	private final VectorizedColumnBatch columnarBatch;
@@ -63,13 +62,13 @@ public class OrcColumnarRowSplitReader<BATCH extends OrcVectorizedBatch> extends
 				splitStart,
 				splitLength);
 
-		this.columnarBatch = batchGenerator.generate(rowBatch);
+		this.columnarBatch = batchGenerator.generate(rowBatchWrapper.getBatch());
 		this.row = new ColumnarRow(columnarBatch);
 	}
 
 	@Override
 	protected int fillRows() {
-		int size = rowBatch.size();
+		int size = rowBatchWrapper.size();
 		columnarBatch.setNumRows(size);
 		return size;
 	}
@@ -84,7 +83,7 @@ public class OrcColumnarRowSplitReader<BATCH extends OrcVectorizedBatch> extends
 	/**
 	 * Interface to gen {@link VectorizedColumnBatch}.
 	 */
-	public interface ColumnBatchGenerator<BATCH extends OrcVectorizedBatch> {
+	public interface ColumnBatchGenerator<BATCH> {
 		VectorizedColumnBatch generate(BATCH rowBatch);
 	}
 }

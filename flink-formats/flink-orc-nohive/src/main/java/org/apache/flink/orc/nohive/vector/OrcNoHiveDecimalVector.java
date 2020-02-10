@@ -16,32 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc;
+package org.apache.flink.orc.nohive.vector;
 
-import java.io.Closeable;
-import java.io.IOException;
+import org.apache.flink.table.dataformat.Decimal;
+
+import org.apache.orc.storage.ql.exec.vector.DecimalColumnVector;
+
+import java.math.BigDecimal;
 
 /**
- * Split reader to read record from files. The reader is only responsible for reading the data
- * of a single split.
+ * This column vector is used to adapt hive's DecimalColumnVector to Flink's DecimalColumnVector.
  */
-public interface SplitReader<T> extends Closeable {
+public class OrcNoHiveDecimalVector extends AbstractOrcNoHiveVector implements
+		org.apache.flink.table.dataformat.vector.DecimalColumnVector {
 
-	/**
-	 * Method used to check if the end of the input is reached.
-	 *
-	 * @return True if the end is reached, otherwise false.
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	boolean reachedEnd() throws IOException;
+	private DecimalColumnVector vector;
 
-	/**
-	 * Reads the next record from the input.
-	 *
-	 * @param reuse Object that may be reused.
-	 * @return Read record.
-	 *
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	T nextRecord(T reuse) throws IOException;
+	public OrcNoHiveDecimalVector(DecimalColumnVector vector) {
+		super(vector);
+		this.vector = vector;
+	}
+
+	@Override
+	public Decimal getDecimal(int i, int precision, int scale) {
+		BigDecimal data = vector.vector[vector.isRepeating ? 0 : i]
+				.getHiveDecimal().bigDecimalValue();
+		return Decimal.fromBigDecimal(data, precision, scale);
+	}
 }

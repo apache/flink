@@ -21,7 +21,6 @@ package org.apache.flink.orc;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader.ColumnBatchGenerator;
 import org.apache.flink.orc.shim.OrcShim;
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
@@ -35,6 +34,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
 
 import java.io.IOException;
@@ -44,8 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createVector;
-import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createVectorFromConstant;
+import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVector;
+import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVectorFromConstant;
 
 /**
  * Util for generating {@link OrcSplitReader}.
@@ -55,7 +55,7 @@ public class OrcSplitReaderUtil {
 	/**
 	 * Util for generating partitioned {@link OrcColumnarRowSplitReader}.
 	 */
-	public static OrcColumnarRowSplitReader<HiveOrcVectorizedBatch> genPartColumnarRowReader(
+	public static OrcColumnarRowSplitReader<VectorizedRowBatch> genPartColumnarRowReader(
 			String hiveVersion,
 			Configuration conf,
 			String[] fullFieldNames,
@@ -72,15 +72,15 @@ public class OrcSplitReaderUtil {
 
 		int[] selectedOrcFields = getSelectedOrcFields(fullFieldNames, selectedFields, nonPartNames);
 
-		ColumnBatchGenerator<HiveOrcVectorizedBatch> gen = (HiveOrcVectorizedBatch rowBatch) -> {
+		ColumnBatchGenerator<VectorizedRowBatch> gen = (VectorizedRowBatch rowBatch) -> {
 			// create and initialize the row batch
 			ColumnVector[] vectors = new ColumnVector[selectedFields.length];
 			for (int i = 0; i < vectors.length; i++) {
 				String name = fullFieldNames[selectedFields[i]];
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
-						createVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						createVector(rowBatch.getBatch().cols[nonPartNames.indexOf(name)]);
+						createFlinkVectorFromConstant(type, partitionSpec.get(name), batchSize) :
+						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)]);
 			}
 			return new VectorizedColumnBatch(vectors);
 		};

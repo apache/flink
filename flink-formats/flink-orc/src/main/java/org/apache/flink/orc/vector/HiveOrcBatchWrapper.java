@@ -16,29 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.nohive.vector;
+package org.apache.flink.orc.vector;
 
-import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 
 /**
- * This column vector is used to adapt hive's BytesColumnVector to Flink's BytesColumnVector.
+ * Wrap {@link VectorizedRowBatch} hive orc batch.
  */
-public class OrcBytesColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.BytesColumnVector {
+public class HiveOrcBatchWrapper implements OrcVectorizedBatchWrapper<VectorizedRowBatch> {
 
-	private BytesColumnVector vector;
+	private final VectorizedRowBatch batch;
 
-	public OrcBytesColumnVector(BytesColumnVector vector) {
-		super(vector);
-		this.vector = vector;
+	public HiveOrcBatchWrapper(VectorizedRowBatch batch) {
+		this.batch = batch;
 	}
 
 	@Override
-	public Bytes getBytes(int i) {
-		int rowId = vector.isRepeating ? 0 : i;
-		byte[][] data = vector.vector;
-		int[] start = vector.start;
-		int[] length = vector.length;
-		return new Bytes(data[rowId], start[rowId], length[rowId]);
+	public VectorizedRowBatch getBatch() {
+		return batch;
+	}
+
+	@Override
+	public int size() {
+		return batch.size;
 	}
 }

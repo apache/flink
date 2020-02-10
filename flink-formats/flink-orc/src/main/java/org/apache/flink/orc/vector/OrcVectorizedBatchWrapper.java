@@ -16,31 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.orc.nohive.vector;
-
-import org.apache.flink.table.dataformat.Decimal;
-
-import org.apache.orc.storage.ql.exec.vector.DecimalColumnVector;
-
-import java.math.BigDecimal;
+package org.apache.flink.orc.vector;
 
 /**
- * This column vector is used to adapt hive's DecimalColumnVector to Flink's DecimalColumnVector.
+ * Interface to unify orc reader in hive and orc reader without hive dependents.
  */
-public class OrcDecimalColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.DecimalColumnVector {
+public interface OrcVectorizedBatchWrapper<T> {
 
-	private DecimalColumnVector vector;
+	/**
+	 * Get the real batch.
+	 */
+	T getBatch();
 
-	public OrcDecimalColumnVector(DecimalColumnVector vector) {
-		super(vector);
-		this.vector = vector;
-	}
-
-	@Override
-	public Decimal getDecimal(int i, int precision, int scale) {
-		BigDecimal data = vector.vector[vector.isRepeating ? 0 : i]
-				.getHiveDecimal().bigDecimalValue();
-		return Decimal.fromBigDecimal(data, precision, scale);
-	}
+	/**
+	 * @return batch size.
+	 */
+	int size();
 }

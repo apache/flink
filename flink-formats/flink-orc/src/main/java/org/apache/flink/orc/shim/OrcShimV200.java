@@ -21,7 +21,7 @@ package org.apache.flink.orc.shim;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.orc.OrcSplitReader.Predicate;
-import org.apache.flink.orc.vector.HiveOrcVectorizedBatch;
+import org.apache.flink.orc.vector.HiveOrcBatchWrapper;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -46,7 +46,7 @@ import static org.apache.commons.lang3.reflect.MethodUtils.invokeStaticMethod;
 /**
  * Shim orc for Hive version 2.0.0 and upper versions.
  */
-public class OrcShimV200 implements OrcShim<HiveOrcVectorizedBatch> {
+public class OrcShimV200 implements OrcShim<VectorizedRowBatch> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -130,12 +130,12 @@ public class OrcShimV200 implements OrcShim<HiveOrcVectorizedBatch> {
 	}
 
 	@Override
-	public HiveOrcVectorizedBatch createVectorizedBatch(TypeDescription schema, int batchSize) {
-		return new HiveOrcVectorizedBatch(schema.createRowBatch(batchSize));
+	public HiveOrcBatchWrapper createBatchWrapper(TypeDescription schema, int batchSize) {
+		return new HiveOrcBatchWrapper(schema.createRowBatch(batchSize));
 	}
 
 	@Override
-	public boolean nextBatch(RecordReader reader, HiveOrcVectorizedBatch rowBatch) throws IOException {
+	public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
 		try {
 			if (hasNextMethod == null) {
 				hasNextMethod = Class.forName("org.apache.hadoop.hive.ql.io.orc.RecordReader")
@@ -148,7 +148,7 @@ public class OrcShimV200 implements OrcShim<HiveOrcVectorizedBatch> {
 			}
 			boolean hasNext = (boolean) hasNextMethod.invoke(reader);
 			if (hasNext) {
-				nextBatchMethod.invoke(reader, rowBatch.getBatch());
+				nextBatchMethod.invoke(reader, rowBatch);
 				return true;
 			} else {
 				return false;

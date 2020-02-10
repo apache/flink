@@ -18,27 +18,31 @@
 
 package org.apache.flink.orc.nohive.vector;
 
-import org.apache.flink.orc.vector.OrcVectorizedBatch;
+import org.apache.flink.table.dataformat.SqlTimestamp;
 
-import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
+import org.apache.orc.storage.ql.exec.vector.TimestampColumnVector;
+
+import java.sql.Timestamp;
 
 /**
- * Wrap {@link VectorizedRowBatch} orc batch.
+ * This column vector is used to adapt hive's TimestampColumnVector to
+ * Flink's TimestampColumnVector.
  */
-public class NoHiveOrcVectorizedBatch implements OrcVectorizedBatch {
+public class OrcNoHiveTimestampVector extends AbstractOrcNoHiveVector implements
+		org.apache.flink.table.dataformat.vector.TimestampColumnVector {
 
-	private VectorizedRowBatch batch;
+	private TimestampColumnVector vector;
 
-	public NoHiveOrcVectorizedBatch(VectorizedRowBatch batch) {
-		this.batch = batch;
-	}
-
-	public VectorizedRowBatch getBatch() {
-		return batch;
+	public OrcNoHiveTimestampVector(TimestampColumnVector vector) {
+		super(vector);
+		this.vector = vector;
 	}
 
 	@Override
-	public int size() {
-		return batch.size;
+	public SqlTimestamp getTimestamp(int i, int precision) {
+		int index = vector.isRepeating ? 0 : i;
+		Timestamp timestamp = new Timestamp(vector.time[index]);
+		timestamp.setNanos(vector.nanos[index]);
+		return SqlTimestamp.fromTimestamp(timestamp);
 	}
 }

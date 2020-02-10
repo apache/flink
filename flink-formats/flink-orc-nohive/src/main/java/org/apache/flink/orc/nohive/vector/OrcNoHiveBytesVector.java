@@ -18,31 +18,27 @@
 
 package org.apache.flink.orc.nohive.vector;
 
-import org.apache.flink.table.dataformat.SqlTimestamp;
-
-import org.apache.orc.storage.ql.exec.vector.TimestampColumnVector;
-
-import java.sql.Timestamp;
+import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
 
 /**
- * This column vector is used to adapt hive's TimestampColumnVector to
- * Flink's TimestampColumnVector.
+ * This column vector is used to adapt hive's BytesColumnVector to Flink's BytesColumnVector.
  */
-public class OrcTimestampColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.TimestampColumnVector {
+public class OrcNoHiveBytesVector extends AbstractOrcNoHiveVector implements
+		org.apache.flink.table.dataformat.vector.BytesColumnVector {
 
-	private TimestampColumnVector vector;
+	private BytesColumnVector vector;
 
-	public OrcTimestampColumnVector(TimestampColumnVector vector) {
+	public OrcNoHiveBytesVector(BytesColumnVector vector) {
 		super(vector);
 		this.vector = vector;
 	}
 
 	@Override
-	public SqlTimestamp getTimestamp(int i, int precision) {
-		int index = vector.isRepeating ? 0 : i;
-		Timestamp timestamp = new Timestamp(vector.time[index]);
-		timestamp.setNanos(vector.nanos[index]);
-		return SqlTimestamp.fromTimestamp(timestamp);
+	public Bytes getBytes(int i) {
+		int rowId = vector.isRepeating ? 0 : i;
+		byte[][] data = vector.vector;
+		int[] start = vector.start;
+		int[] length = vector.length;
+		return new Bytes(data[rowId], start[rowId], length[rowId]);
 	}
 }
