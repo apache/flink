@@ -26,7 +26,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamCorrelate
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.plan.util.CorrelateUtil
+import org.apache.flink.table.plan.util.{CorrelateUtil, PythonUtil}
 
 class DataStreamCorrelateRule
   extends ConverterRule(
@@ -40,10 +40,11 @@ class DataStreamCorrelateRule
     val right = join.getRight.asInstanceOf[RelSubset].getOriginal
 
     right match {
-      // right node is a table function
-      case scan: FlinkLogicalTableFunctionScan => true
+      // right node is a java table function
+      case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
       // a filter is pushed above the table function
-      case calc: FlinkLogicalCalc if CorrelateUtil.getTableFunctionScan(calc).isDefined => true
+      case calc: FlinkLogicalCalc =>
+        PythonUtil.isNonPythonCall(CorrelateUtil.getTableFunctionScan(calc).get.getCall)
       case _ => false
     }
   }

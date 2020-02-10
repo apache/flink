@@ -15,79 +15,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.physical.batch
+package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
-import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Correlate, JoinRelType}
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.flink.table.api.TableException
 
 /**
-  * Batch physical RelNode for [[Correlate]] (Java user defined table function).
+  * Flink RelNode which matches along with join a python user defined table function.
   */
-class BatchExecCorrelate(
+class StreamExecPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
+    projectProgram: Option[RexProgram],
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
-    projectProgram: Option[RexProgram],
     outputRowType: RelDataType,
     joinType: JoinRelType)
-  extends BatchExecCorrelateBase(
+  extends StreamExecCorrelateBase(
     cluster,
     traitSet,
     inputRel,
+    projectProgram,
     scan,
     condition,
-    projectProgram,
     outputRowType,
     joinType) {
 
   def copy(
       traitSet: RelTraitSet,
-      child: RelNode,
+      newChild: RelNode,
       projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
-    new BatchExecCorrelate(
+    new StreamExecPythonCorrelate(
       cluster,
       traitSet,
-      child,
+      newChild,
+      projectProgram,
       scan,
       condition,
-      projectProgram,
       outputType,
       joinType)
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
-    val config = planner.getTableConfig
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val operatorCtx = CodeGeneratorContext(config)
-    CorrelateCodeGenerator.generateCorrelateTransformation(
-      config,
-      operatorCtx,
-      inputTransformation,
-      input.getRowType,
-      projectProgram,
-      scan,
-      condition,
-      outputRowType,
-      joinType,
-      inputTransformation.getParallelism,
-      retainHeader = false,
-      getExpressionString,
-      "BatchExecCorrelate",
-      getRelDetailedDescription)
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    throw new TableException("The implementation will be next commit.")
   }
-
 }

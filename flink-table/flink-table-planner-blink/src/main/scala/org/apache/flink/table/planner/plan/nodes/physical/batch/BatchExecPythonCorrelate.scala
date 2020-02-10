@@ -19,20 +19,19 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.flink.table.api.TableException
 
 /**
-  * Batch physical RelNode for [[Correlate]] (Java user defined table function).
+  * Batch physical RelNode for [[Correlate]] (Python user defined table function).
   */
-class BatchExecCorrelate(
+class BatchExecPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -56,7 +55,7 @@ class BatchExecCorrelate(
       child: RelNode,
       projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
-    new BatchExecCorrelate(
+    new BatchExecPythonCorrelate(
       cluster,
       traitSet,
       child,
@@ -69,25 +68,6 @@ class BatchExecCorrelate(
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[BaseRow] = {
-    val config = planner.getTableConfig
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val operatorCtx = CodeGeneratorContext(config)
-    CorrelateCodeGenerator.generateCorrelateTransformation(
-      config,
-      operatorCtx,
-      inputTransformation,
-      input.getRowType,
-      projectProgram,
-      scan,
-      condition,
-      outputRowType,
-      joinType,
-      inputTransformation.getParallelism,
-      retainHeader = false,
-      getExpressionString,
-      "BatchExecCorrelate",
-      getRelDetailedDescription)
+    throw new TableException("The implementation will be next commit.")
   }
-
 }

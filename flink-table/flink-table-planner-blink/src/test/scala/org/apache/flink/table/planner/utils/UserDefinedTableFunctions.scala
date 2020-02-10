@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
 import org.apache.flink.types.Row
 
@@ -111,6 +112,25 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
       }
     }
   }
+}
+
+class PythonTableFunction extends TableFunction[Row] with PythonFunction {
+
+  def eval(x: Int, y: Int): Unit = {
+    for (i <- 0 until y) {
+      val row = new Row(2)
+      row.setField(0, x)
+      row.setField(1, i * i)
+      collect(row)
+    }
+  }
+
+  override def getResultType: TypeInformation[Row] =
+    new RowTypeInfo(Types.INT, Types.INT)
+
+  override def getSerializedPythonFunction: Array[Byte] = Array[Byte](0)
+
+  override def getPythonEnv: PythonEnv = null
 }
 
 //TODO support dynamic type

@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.functions.utils.TableSqlFunction
-import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
@@ -31,7 +30,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
@@ -48,11 +47,17 @@ class DataStreamCorrelate(
     joinSchema: RowSchema,
     joinType: JoinRelType,
     ruleDescription: String)
-  extends SingleRel(cluster, traitSet, input)
-  with CommonCorrelate
-  with DataStreamRel {
-
-  override def deriveRowType() = schema.relDataType
+  extends DataStreamCorrelateBase(
+    cluster,
+    traitSet,
+    inputSchema,
+    input,
+    scan,
+    condition,
+    schema,
+    joinSchema,
+    joinType,
+    ruleDescription) {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(
@@ -66,27 +71,6 @@ class DataStreamCorrelate(
       joinSchema,
       joinType,
       ruleDescription)
-  }
-
-  override def toString: String = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(inputSchema.relDataType, rexCall, sqlFunction, getExpressionString)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    super.explainTerms(pw)
-      .item("invocation", scan.getCall)
-      .item("correlate", correlateToString(
-        inputSchema.relDataType,
-        rexCall, sqlFunction,
-        getExpressionString))
-      .item("select", selectToString(schema.relDataType))
-      .item("rowType", schema.relDataType)
-      .item("joinType", joinType)
-      .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
   override def translateToPlan(
