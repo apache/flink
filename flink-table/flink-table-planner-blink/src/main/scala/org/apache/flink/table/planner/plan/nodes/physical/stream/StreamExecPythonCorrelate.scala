@@ -19,21 +19,19 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.flink.table.api.TableException
 
 /**
-  * Flink RelNode which matches along with join a Java/Scala user defined table function.
+  * Flink RelNode which matches along with join a python user defined table function.
   */
-class StreamExecCorrelate(
+class StreamExecPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -57,7 +55,7 @@ class StreamExecCorrelate(
       newChild: RelNode,
       projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
-    new StreamExecCorrelate(
+    new StreamExecPythonCorrelate(
       cluster,
       traitSet,
       newChild,
@@ -70,30 +68,6 @@ class StreamExecCorrelate(
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
-    val tableConfig = planner.getTableConfig
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val operatorCtx = CodeGeneratorContext(tableConfig)
-      .setOperatorBaseClass(classOf[AbstractProcessStreamOperator[_]])
-    val transform = CorrelateCodeGenerator.generateCorrelateTransformation(
-      tableConfig,
-      operatorCtx,
-      inputTransformation,
-      inputRel.getRowType,
-      projectProgram,
-      scan,
-      condition,
-      outputRowType,
-      joinType,
-      inputTransformation.getParallelism,
-      retainHeader = true,
-      getExpressionString,
-      "StreamExecCorrelate",
-      getRelDetailedDescription)
-    if (inputsContainSingleton()) {
-      transform.setParallelism(1)
-      transform.setMaxParallelism(1)
-    }
-    transform
+    throw new TableException("The implementation will be FLINK-15972.")
   }
 }
