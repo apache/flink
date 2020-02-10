@@ -134,14 +134,14 @@ object TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="python" markdown="1">
-<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
+<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.19.0 are required to run the Python scalar function.
 
 <span class="label label-info">Note</span> By default PyFlink uses the command “python” to run the python udf workers. Before starting cluster, run the following command to confirm that it meets the requirements:
 
 {% highlight bash %}
 $ python --version
 # the version printed here must be 3.5+
-$ python -m pip install apache-beam==2.15.0
+$ python -m pip install apache-beam==2.19.0
 {% endhighlight %}
 
 It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.

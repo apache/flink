@@ -172,7 +172,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 		when(jobBundleFactorySpy.forStage(any())).thenReturn(stageBundleFactorySpy);
 		RemoteBundle remoteBundleSpy = spy(RemoteBundle.class);
 		when(stageBundleFactorySpy.getBundle(any(), any(), any())).thenReturn(remoteBundleSpy);
-		Map<String, FnDataReceiver<WindowedValue<?>>> inputReceivers = new HashMap<>();
+		Map<String, FnDataReceiver> inputReceivers = new HashMap<>();
 		FnDataReceiver<WindowedValue<?>> windowedValueReceiverSpy = spy(FnDataReceiver.class);
 		inputReceivers.put("input", windowedValueReceiverSpy);
 		when(remoteBundleSpy.getInputReceivers()).thenReturn(inputReceivers);

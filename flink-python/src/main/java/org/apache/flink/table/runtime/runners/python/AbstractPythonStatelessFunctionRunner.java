@@ -140,7 +140,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			Collections.singletonList(
 				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
 		return ImmutableExecutableStage.of(
-			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs);
+			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, ExecutableStage.DEFAULT_WIRE_CODER_SETTING);
 	}
 
 	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {

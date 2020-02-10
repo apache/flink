@@ -34,10 +34,10 @@ $ python --version
 # the version printed here must be 3.5+
 {% endhighlight %}
 
-<span class="label label-info">注意</span> 在Python Shell中使用Python UDF依赖apache-beam 2.15.0。 在以本地模式执行之前，执行以下命令以确认环境满足需求：
+<span class="label label-info">注意</span> 在Python Shell中使用Python UDF依赖apache-beam 2.19.0。 在以本地模式执行之前，执行以下命令以确认环境满足需求：
 
 {% highlight bash %}
-$ python -m pip install apache-beam==2.15.0
+$ python -m pip install apache-beam==2.19.0
 {% endhighlight %}
 
 为了使用Flink的Python Shell，你只需要在Flink的binary目录下执行:

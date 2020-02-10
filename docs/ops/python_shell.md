@@ -34,10 +34,10 @@ $ python --version
 # the version printed here must be 3.5+
 {% endhighlight %}
 
-<span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.15.0. Run the following command to confirm that it meets the requirements before run the Shell in local mode:
+<span class="label label-info">Note</span> Using Python UDF in Python Shell requires apache-beam 2.19.0. Run the following command to confirm that it meets the requirements before run the Shell in local mode:
 
 {% highlight bash %}
-$ python -m pip install apache-beam==2.15.0
+$ python -m pip install apache-beam==2.19.0
 {% endhighlight %}
 
 To use the shell with an integrated Flink cluster just execute:
