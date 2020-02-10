@@ -20,24 +20,11 @@ package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.stream.Collectors;
 
 /**
  * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the Python
@@ -67,7 +54,7 @@ import java.util.stream.Collectors;
  */
 @Internal
 public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
-		extends AbstractPythonFunctionOperator<IN, OUT> {
+		extends AbstractStatelessFunctionOperator<IN, OUT, UDFIN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -77,55 +64,9 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 	protected final PythonFunctionInfo[] scalarFunctions;
 
 	/**
-	 * The input logical type.
-	 */
-	protected final RowType inputType;
-
-	/**
-	 * The output logical type.
-	 */
-	protected final RowType outputType;
-
-	/**
-	 * The offsets of udf inputs.
-	 */
-	protected final int[] udfInputOffsets;
-
-	/**
 	 * The offset of the fields which should be forwarded.
 	 */
 	protected final int[] forwardedFields;
-
-	/**
-	 * The udf input logical type.
-	 */
-	protected transient RowType udfInputType;
-
-	/**
-	 * The udf output logical type.
-	 */
-	protected transient RowType udfOutputType;
-
-	/**
-	 * The queue holding the input elements for which the execution results have not been received.
-	 */
-	protected transient LinkedBlockingQueue<IN> forwardedInputQueue;
-
-	/**
-	 * The queue holding the user-defined function execution results. The execution results are in
-	 * the same order as the input elements.
-	 */
-	protected transient LinkedBlockingQueue<byte[]> udfResultQueue;
-
-	/**
-	 * Reusable InputStream used to holding the execution results to be deserialized.
-	 */
-	protected transient ByteArrayInputStreamWithPos bais;
-
-	/**
-	 * InputStream Wrapper.
-	 */
-	protected transient DataInputViewStreamWrapper baisWrapper;
 
 	AbstractPythonScalarFunctionOperator(
 		Configuration config,
@@ -134,33 +75,16 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		super(config);
+		super(config, inputType, outputType, udfInputOffsets);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-		this.inputType = Preconditions.checkNotNull(inputType);
-		this.outputType = Preconditions.checkNotNull(outputType);
-		this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
 		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
 	}
 
 	@Override
 	public void open() throws Exception {
-		forwardedInputQueue = new LinkedBlockingQueue<>();
-		udfResultQueue = new LinkedBlockingQueue<>();
-		udfInputType = new RowType(
-			Arrays.stream(udfInputOffsets)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.collect(Collectors.toList()));
-		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
-		bais = new ByteArrayInputStreamWithPos();
-		baisWrapper = new DataInputViewStreamWrapper(bais);
+		userDefinedFunctionOutputType = new RowType(
+			outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
 		super.open();
-	}
-
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		bufferInput(element.getValue());
-		super.processElement(element);
-		emitResults();
 	}
 
 	@Override
@@ -168,62 +92,4 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 		return scalarFunctions[0].getPythonFunction().getPythonEnv();
 	}
 
-	@Override
-	public PythonFunctionRunner<IN> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<byte[]> udfResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			udfResultQueue.put(input);
-		};
-
-		return new ProjectUdfInputPythonScalarFunctionRunner(
-			createPythonFunctionRunner(
-				udfResultReceiver,
-				createPythonEnvironmentManager()));
-	}
-
-	/**
-	 * Buffers the specified input, it will be used to construct
-	 * the operator result together with the udf execution result.
-	 */
-	public abstract void bufferInput(IN input);
-
-	public abstract UDFIN getUdfInput(IN element);
-
-	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager);
-
-	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
-
-		private final PythonFunctionRunner<UDFIN> pythonFunctionRunner;
-
-		ProjectUdfInputPythonScalarFunctionRunner(PythonFunctionRunner<UDFIN> pythonFunctionRunner) {
-			this.pythonFunctionRunner = pythonFunctionRunner;
-		}
-
-		@Override
-		public void open() throws Exception {
-			pythonFunctionRunner.open();
-		}
-
-		@Override
-		public void close() throws Exception {
-			pythonFunctionRunner.close();
-		}
-
-		@Override
-		public void startBundle() throws Exception {
-			pythonFunctionRunner.startBundle();
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			pythonFunctionRunner.finishBundle();
-		}
-
-		@Override
-		public void processElement(IN element) throws Exception {
-			pythonFunctionRunner.processElement(getUdfInput(element));
-		}
-	}
 }

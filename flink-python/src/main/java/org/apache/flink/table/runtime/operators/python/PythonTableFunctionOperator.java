@@ -19,15 +19,14 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.PythonTableFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
@@ -38,13 +37,12 @@ import org.apache.flink.types.Row;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
- * The Python {@link ScalarFunction} operator for the legacy planner.
+ * The Python {@link TableFunction} operator for the legacy planner.
  */
 @Internal
-public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator<CRow, CRow, Row> {
+public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOperator<CRow, CRow, Row> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -59,18 +57,17 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	private transient TypeSerializer<CRow> forwardedInputSerializer;
 
 	/**
-	 * The TypeSerializer for udf execution results.
+	 * The TypeSerializer for udtf execution results.
 	 */
-	private transient TypeSerializer<Row> udfOutputTypeSerializer;
+	private transient TypeSerializer<Row> udtfOutputTypeSerializer;
 
-	public PythonScalarFunctionOperator(
+	public PythonTableFunctionOperator(
 		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
+		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+		int[] udtfInputOffsets) {
+		super(config, tableFunction, inputType, outputType, udtfInputOffsets);
 	}
 
 	@Override
@@ -78,25 +75,40 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	public void open() throws Exception {
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
-
-		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(new RowTypeInfo(
-			Arrays.stream(forwardedFields)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.map(RowType.RowField::getType)
-				.map(TypeConversions::fromLogicalToDataType)
-				.map(TypeConversions::fromDataTypeToLegacyInfo)
-				.toArray(TypeInformation[]::new)));
+		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(
+			new RowTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(
+				TypeConversions.fromLogicalToDataType(inputType))));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
-		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+	}
+
+	@Override
+	public void emitResults() throws IOException {
+		CRow input = null;
+		byte[] rawUdtfResult;
+		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
+			if (input == null) {
+				input = forwardedInputQueue.poll();
+			}
+			boolean isFinishResult = isFinishResult(rawUdtfResult);
+			if (isFinishResult) {
+				input = forwardedInputQueue.poll();
+			}
+			if (input != null && !isFinishResult) {
+				bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
+				Row udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+				cRowWrapper.setChange(input.change());
+				cRowWrapper.collect(Row.join(input.row(), udtfResult));
+			}
+		}
 	}
 
 	@Override
 	public void bufferInput(CRow input) {
-		CRow forwardedFieldsRow = new CRow(Row.project(input.row(), forwardedFields), input.change());
 		if (getExecutionConfig().isObjectReuseEnabled()) {
-			forwardedFieldsRow = forwardedInputSerializer.copy(forwardedFieldsRow);
+			input = forwardedInputSerializer.copy(input);
 		}
-		forwardedInputQueue.add(forwardedFieldsRow);
+		forwardedInputQueue.add(input);
 	}
 
 	@Override
@@ -105,26 +117,13 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	}
 
 	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResults() throws IOException {
-		byte[] rawUdfResult;
-		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			CRow input = forwardedInputQueue.poll();
-			cRowWrapper.setChange(input.change());
-			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			Row udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
-			cRowWrapper.collect(Row.join(input.row(), udfResult));
-		}
-	}
-
-	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
-		return new PythonScalarFunctionRunner(
+		FnDataReceiver<byte[]> resultReceiver,
+		PythonEnvironmentManager pythonEnvironmentManager) {
+		return new PythonTableFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
-			scalarFunctions,
+			tableFunction,
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType);

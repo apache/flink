@@ -73,7 +73,8 @@ public class PythonTypeUtilsTest {
 		List<RowType.RowField> rowFields = new ArrayList<>();
 		rowFields.add(new RowType.RowField("f1", new BigIntType()));
 		RowType rowType = new RowType(rowFields);
-		FlinkFnApi.Schema.FieldType protoType = PythonTypeUtils.toProtoType(rowType);
+		FlinkFnApi.Schema.FieldType protoType =
+			rowType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
 		FlinkFnApi.Schema schema = protoType.getRowSchema();
 		assertEquals(1, schema.getFieldsCount());
 		assertEquals("f1", schema.getFields(0).getName());

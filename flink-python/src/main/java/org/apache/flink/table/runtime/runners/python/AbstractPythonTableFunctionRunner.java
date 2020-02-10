@@ -23,38 +23,38 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
- * Abstract {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
+ * Abstract {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
  *
  * @param <IN> Type of the input elements.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPythonStatelessFunctionRunner<IN> {
+public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPythonStatelessFunctionRunner<IN> {
 
 	private static final String SCHEMA_CODER_URN = "flink:coder:schema:v1";
-	private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
+	private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
-	private final PythonFunctionInfo[] scalarFunctions;
+	private final PythonFunctionInfo tableFunction;
 
-	public AbstractPythonScalarFunctionRunner(
+	public AbstractPythonTableFunctionRunner(
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
+		PythonFunctionInfo tableFunction,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN);
-		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
+		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN);
+		this.tableFunction = Preconditions.checkNotNull(tableFunction);
 	}
 
 	/**
@@ -63,9 +63,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 	@VisibleForTesting
 	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
-		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
-		}
+		builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
 		return builder.build();
 	}
 
@@ -74,7 +72,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 	 */
 	@Override
 	RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(getInputType());
+		return getTableCoderProto(getInputType());
 	}
 
 	/**
@@ -82,21 +80,38 @@ public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPyt
 	 */
 	@Override
 	RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(getOutputType());
+		return getTableCoderProto(getOutputType());
 	}
 
-	private RunnerApi.Coder getRowCoderProto(RowType rowType) {
+	private RunnerApi.Coder getTableCoderProto(RowType rowType) {
 		return RunnerApi.Coder.newBuilder()
 			.setSpec(
 				RunnerApi.FunctionSpec.newBuilder()
 					.setUrn(SCHEMA_CODER_URN)
 					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						toProtoType(rowType).getRowSchema().toByteArray()))
+						toTableFunctionProtoType(rowType).toByteArray()))
 					.build())
 			.build();
 	}
 
-	private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
-		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
+	private FlinkFnApi.Schema.FieldType toTableFunctionProtoType(RowType rowType) {
+		FlinkFnApi.Schema.FieldType.Builder builder =
+			FlinkFnApi.Schema.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.Schema.TypeName.TABLE_FUNCTION_ROW)
+				.setNullable(rowType.isNullable());
+
+		LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> converter =
+			new PythonTypeUtils.LogicalTypeToProtoTypeConverter();
+		FlinkFnApi.Schema.Builder schemaBuilder = FlinkFnApi.Schema.newBuilder();
+		for (RowType.RowField field : rowType.getFields()) {
+			schemaBuilder.addFields(
+				FlinkFnApi.Schema.Field.newBuilder()
+					.setName(field.getName())
+					.setDescription(field.getDescription().orElse(""))
+					.setType(field.getType().accept(converter))
+					.build());
+		}
+		builder.setRowSchema(schemaBuilder.build());
+		return builder.build();
 	}
 }

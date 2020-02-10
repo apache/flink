@@ -22,9 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
@@ -37,20 +35,18 @@ import java.util.Collection;
 import java.util.Queue;
 
 /**
- * Tests for {@link PythonScalarFunctionOperator}.
+ * Tests for {@link PythonTableFunctionOperator}.
  */
-public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
-
+public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row> {
 	@Override
-	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row> getTestOperator(
+	public AbstractPythonTableFunctionOperator<CRow, CRow, Row> getTestOperator(
 		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
+		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		return new PassThroughPythonScalarFunctionOperator(
-			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+		int[] udfInputOffsets) {
+		return new PassThroughPythonTableFunctionOperator(
+			config, tableFunction, inputType, outputType, udfInputOffsets);
 	}
 
 	@Override
@@ -63,28 +59,22 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
 	}
 
-	@Override
-	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
-		return StreamTableEnvironment.create(env);
-	}
+	private static class PassThroughPythonTableFunctionOperator extends PythonTableFunctionOperator {
 
-	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {
-
-		PassThroughPythonScalarFunctionOperator(
+		PassThroughPythonTableFunctionOperator(
 			Configuration config,
-			PythonFunctionInfo[] scalarFunctions,
+			PythonFunctionInfo tableFunction,
 			RowType inputType,
 			RowType outputType,
-			int[] udfInputOffsets,
-			int[] forwardedFields) {
-			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+			int[] udfInputOffsets) {
+			super(config, tableFunction, inputType, outputType, udfInputOffsets);
 		}
 
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
-				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonFunctionRunner<Row>(resultReceiver) {
+			FnDataReceiver<byte[]> resultReceiver,
+			PythonEnvironmentManager pythonEnvironmentManager) {
+			return new PassThroughPythonTableFunctionRunner<Row>(resultReceiver) {
 				@Override
 				public Row copy(Row element) {
 					return Row.copy(element);
