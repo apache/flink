@@ -122,6 +122,18 @@ When starting Flink with Java 11, the following warnings may be logged:
     WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
     WARNING: All illegal access operations will be denied in a future release
 
+    WARNING: An illegal reflective access operation has occurred
+    WARNING: Illegal reflective access by org.jboss.netty.util.internal.ByteBufferUtil (file:/home/flinkuser/.m2/repository/io/netty/netty/3.10.6.Final/netty-3.10.6.Final.jar) to method java.nio.DirectByteBuffer.cleaner()
+    WARNING: Please consider reporting this to the maintainers of org.jboss.netty.util.internal.ByteBufferUtil
+    WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+    WARNING: All illegal access operations will be denied in a future release
+
+    WARNING: An illegal reflective access operation has occurred
+    WARNING: Illegal reflective access by com.esotericsoftware.kryo.util.UnsafeUtil (file:/home/flinkuser/.m2/repository/com/esotericsoftware/kryo/kryo/2.24.0/kryo-2.24.0.jar) to constructor java.nio.DirectByteBuffer(long,int,java.lang.Object)
+    WARNING: Please consider reporting this to the maintainers of com.esotericsoftware.kryo.util.UnsafeUtil
+    WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+    WARNING: All illegal access operations will be denied in a future release
+
 These warnings are considered harmless and will be addressed in future Flink
 releases.
 
