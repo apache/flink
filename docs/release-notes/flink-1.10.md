@@ -85,18 +85,23 @@ without giving them back to the Mesos resource manager.
 
 #### Scheduler Rearchitecture ([FLINK-14651](https://issues.apache.org/jira/browse/FLINK-14651))
 Flink's scheduler was refactored with the goal of making scheduling strategies
-customizable in the future. Users that did not already use the [Pipelined
+customizable in the future. Using the legacy scheduler is discouraged as it
+will be removed in a future release. However, users that experience issues
+related to scheduling can fallback to the legacy scheduler by setting
+`jobmanager.scheduler` to `legacy` in their `flink-conf.yaml` for the time
+being.  Note, however, that using the legacy scheduler with the [Pipelined
 Region Failover Strategy]({{ site.baseurl
 }}/dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy)
-in Flink 1.9, should take the following caveats into account:
+enabled has the following caveats:
 
-* Exceptions that caused a job to restart will not shown on the job overview page of the Web UI ([FLINK-15917](https://issues.apache.org/jira/browse/FLINK-15917)).
+* Exceptions that caused a job to restart will not be shown on the job overview page of the Web UI ([FLINK-15917](https://issues.apache.org/jira/browse/FLINK-15917)).
 However, exceptions that cause a job to fail (e.g., when all restart attempts exhausted) will still be shown.
 * The `uptime` metric will not be reset after restarting a job due to task failure ([FLINK-15918](https://issues.apache.org/jira/browse/FLINK-15918)).
 
-The abovementioned caveats will be addressed in future releases but can be
-worked around by setting `jobmanager.scheduler: legagcy` and unsetting
-`jobmanager.execution.failover-strategy` in the `flink-conf.yaml`.
+Note that in the default `flink-conf.yaml`, the Pipelined Region Failover
+Strategy is already enabled. That is, users that want to use the legacy
+scheduler and cannot accept aforementioned caveats should make sure that
+`jobmanager.execution.failover-strategy` is set to `full` or not set at all.
 
 #### Java 11 Support ([FLINK-10725](https://issues.apache.org/jira/browse/FLINK-10725))
 Beginning from this release, Flink can be compiled and run with Java 11. All
