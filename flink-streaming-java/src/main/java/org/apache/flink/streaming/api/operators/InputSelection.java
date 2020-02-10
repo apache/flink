@@ -34,7 +34,7 @@ public final class InputSelection implements Serializable {
 	/**
 	 * The {@code InputSelection} instance which indicates to select all inputs.
 	 */
-	public static final InputSelection ALL = new InputSelection(-1, Boolean.TRUE);
+	public static final InputSelection ALL = new InputSelection(-1);
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select the first input.
@@ -48,11 +48,11 @@ public final class InputSelection implements Serializable {
 
 	private final long inputMask;
 
-	private final boolean isALLMaskOf2;
-
-	private InputSelection(long inputMask, boolean isALLMaskOf2) {
+	/**
+	 * @param inputMask -1 to mark if all inputs are selected.
+	 */
+	private InputSelection(long inputMask) {
 		this.inputMask = inputMask;
-		this.isALLMaskOf2 = isALLMaskOf2;
 	}
 
 	public long getInputMask() {
@@ -76,15 +76,6 @@ public final class InputSelection implements Serializable {
 	 */
 	public boolean areAllInputsSelected() {
 		return inputMask == -1L;
-	}
-
-	/**
-	 * Tells whether or not the input mask includes all of two inputs.
-	 *
-	 * @return {@code true} if the input mask includes all of two inputs, {@code false} otherwise.
-	 */
-	public boolean isALLMaskOf2() {
-		return isALLMaskOf2;
 	}
 
 	/**
@@ -122,9 +113,8 @@ public final class InputSelection implements Serializable {
 	 * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
 	 *         {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
 	 */
-	public int fairSelectNextIndex(int availableInputsMask, int lastReadInputIndex) {
-		int selectionMask = (int) inputMask;
-		int combineMask = availableInputsMask & selectionMask;
+	public int fairSelectNextIndex(long availableInputsMask, int lastReadInputIndex) {
+		long combineMask = availableInputsMask & inputMask;
 
 		if (combineMask == 0) {
 			return NONE_AVAILABLE;
@@ -137,17 +127,13 @@ public final class InputSelection implements Serializable {
 		return selectFirstBitRightFromNext(combineMask, 0);
 	}
 
-	private int selectFirstBitRightFromNext(int bits, int next) {
-		if (next >= 32) {
+	private int selectFirstBitRightFromNext(long bits, int next) {
+		if (next >= 64) {
 			return NONE_AVAILABLE;
 		}
 		for (bits >>>= next; bits != 0 && (bits & 1) != 1; bits >>>= 1, next++) {
 		}
 		return bits != 0 ? next : NONE_AVAILABLE;
-	}
-
-	private static boolean isALLMaskOf2(long inputMask) {
-		return (3 & inputMask) == 3;
 	}
 
 	@Override
@@ -205,8 +191,26 @@ public final class InputSelection implements Serializable {
 			return this;
 		}
 
+		/**
+		 * Build normalized mask, if all inputs were manually selected, inputMask will be normalized
+		 * to -1.
+		 */
+		public InputSelection build(int inputCount) {
+			long allSelectedMask = (1L << inputCount) - 1;
+			if (inputMask == allSelectedMask) {
+				inputMask = -1;
+			}
+			else if (inputMask > allSelectedMask) {
+				throw new IllegalArgumentException(
+					String.format("inputMask [%d] selects more than expected number of inputs [%d]",
+						inputMask,
+						inputCount));
+			}
+			return build();
+		}
+
 		public InputSelection build() {
-			return new InputSelection(inputMask, isALLMaskOf2(inputMask));
+			return new InputSelection(inputMask);
 		}
 	}
 }
