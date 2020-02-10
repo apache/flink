@@ -34,6 +34,34 @@ import java.util.Optional;
 public class TableFactoryUtil {
 
 	/**
+	 * Returns a table source matching the descriptor.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> TableSource<T> findAndCreateTableSource(TableSourceFactory.Context context) {
+		try {
+			return TableFactoryService
+					.find(TableSourceFactory.class, context.getTable().toProperties())
+					.createTableSource(context);
+		} catch (Throwable t) {
+			throw new TableException("findAndCreateTableSource failed.", t);
+		}
+	}
+
+	/**
+	 * Returns a table sink matching the context.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> TableSink<T> findAndCreateTableSink(TableSinkFactory.Context context) {
+		try {
+			return TableFactoryService
+					.find(TableSinkFactory.class, context.getTable().toProperties())
+					.createTableSink(context);
+		} catch (Throwable t) {
+			throw new TableException("findAndCreateTableSink failed.", t);
+		}
+	}
+
+	/**
 	 * Returns a table source matching the properties.
 	 */
 	@SuppressWarnings("unchecked")
@@ -82,6 +110,17 @@ public class TableFactoryUtil {
 		TableFactory tableFactory = catalog.getTableFactory().orElse(null);
 		if (tableFactory instanceof TableSinkFactory) {
 			return Optional.ofNullable(((TableSinkFactory) tableFactory).createTableSink(tablePath, catalogTable));
+		}
+		return Optional.empty();
+	}
+
+	/**
+	 * Creates a table sink for a {@link CatalogTable} using table factory associated with the catalog.
+	 */
+	public static Optional<TableSink> createTableSinkForCatalogTable(Catalog catalog, TableSinkFactory.Context context) {
+		TableFactory tableFactory = catalog.getTableFactory().orElse(null);
+		if (tableFactory instanceof TableSinkFactory) {
+			return Optional.ofNullable(((TableSinkFactory) tableFactory).createTableSink(context));
 		}
 		return Optional.empty();
 	}
