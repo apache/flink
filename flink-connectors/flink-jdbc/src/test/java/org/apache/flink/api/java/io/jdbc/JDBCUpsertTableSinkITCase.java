@@ -18,13 +18,24 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.sources.InputFormatTableSource;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -38,6 +49,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -51,6 +63,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:upsert";
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
+	public static final String OUTPUT_TABLE3 = "batchSink";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
@@ -72,6 +85,10 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 					"num BIGINT NOT NULL DEFAULT 0," +
 					"ts TIMESTAMP)");
 
+			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE3 + " (" +
+				"NAME VARCHAR(20) NOT NULL," +
+				"SCORE BIGINT NOT NULL DEFAULT 0)");
+
 			stat.executeUpdate("CREATE TABLE REAL_TABLE (real_data REAL)");
 		}
 	}
@@ -84,6 +101,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			Statement stat = conn.createStatement()) {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE1);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
+			stat.execute("DROP TABLE " + OUTPUT_TABLE3);
 			stat.execute("DROP TABLE REAL_TABLE");
 		}
 	}
@@ -209,5 +227,77 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
 				Row.of(20, 6, Timestamp.valueOf("1970-01-01 00:00:00.02"))
 		}, DB_URL, OUTPUT_TABLE2, new String[]{"id", "num", "ts"});
+	}
+
+	@Test
+	public void testBatchUpsert() throws Exception {
+		StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		StreamTableEnvironment bsTableEnv = StreamTableEnvironment.create(bsEnv, bsSettings);
+		RowTypeInfo rt = (RowTypeInfo) Types.ROW_NAMED(new String[]{"NAME", "SCORE"}, Types.STRING, Types.LONG);
+		Table source = bsTableEnv.fromTableSource(new CollectionTableSource(generateRecords(2), rt));
+		bsTableEnv.registerTable("sourceTable", source);
+		bsTableEnv.sqlUpdate(
+			"CREATE TABLE USER_RESULT(" +
+				"NAME VARCHAR," +
+				"SCORE BIGINT" +
+				") WITH ( " +
+				"'connector.type' = 'jdbc'," +
+				"'connector.url'='" + DB_URL + "'," +
+				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
+				")");
+
+		bsTableEnv.sqlUpdate("insert into USER_RESULT SELECT s.NAME, s.SCORE " +
+			"FROM sourceTable as s ");
+		bsTableEnv.execute("test");
+
+		check(new Row[] {
+			Row.of("a0", 0L),
+			Row.of("a1", 1L)
+		}, DB_URL, OUTPUT_TABLE3, new String[]{"NAME", "SCORE"});
+	}
+
+	private List<Row> generateRecords(int numRecords) {
+		int arity = 2;
+		List<Row> res = new ArrayList<>(numRecords);
+		for (long i = 0; i < numRecords; i++) {
+			Row row = new Row(arity);
+			row.setField(0, "a" + i);
+			row.setField(1, i);
+			res.add(row);
+		}
+		return res;
+	}
+
+	private static class CollectionTableSource extends InputFormatTableSource<Row> {
+
+		private final Collection<Row> data;
+		private final RowTypeInfo rowTypeInfo;
+
+		CollectionTableSource(Collection<Row> data, RowTypeInfo rowTypeInfo) {
+			this.data = data;
+			this.rowTypeInfo = rowTypeInfo;
+		}
+
+		@Override
+		public DataType getProducedDataType() {
+			return TypeConversions.fromLegacyInfoToDataType(rowTypeInfo);
+		}
+
+		@Override
+		public TypeInformation<Row> getReturnType() {
+			return rowTypeInfo;
+		}
+
+		@Override
+		public InputFormat<Row, ?> getInputFormat() {
+			return new CollectionInputFormat<>(data, rowTypeInfo.createSerializer(new ExecutionConfig()));
+		}
+
+		@Override
+		public TableSchema getTableSchema() {
+			return new TableSchema.Builder().fields(rowTypeInfo.getFieldNames(),
+				TypeConversions.fromLegacyInfoToDataType(rowTypeInfo.getFieldTypes())).build();
+		}
 	}
 }

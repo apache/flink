@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelNode, RelVisitor}
@@ -40,7 +39,7 @@ object UpdatingPlanChecker {
   /** Extracts the unique keys of the table produced by the plan. */
   def getUniqueKeyFields(
       relNode: RelNode,
-      planner: StreamPlanner,
+      planner: PlannerBase,
       sinkFieldNames: Array[String]): Option[Array[Array[String]]] = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
