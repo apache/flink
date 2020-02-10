@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
