@@ -31,7 +31,7 @@ import java.io.IOException;
 /**
  * Simple example for demonstrating the use of SQL in Java.
  *
- * <p>Usage: {@code ./bin/flink run ./examples/table/StreamWindowSQLExample.java}
+ * <p>Usage: {@code ./bin/flink run ./examples/table/StreamWindowSQLExample.jar}
  *
  * <p>This example shows how to:
  *  - Register a table via DDL
