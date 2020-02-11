@@ -247,7 +247,9 @@ function wait_rest_endpoint_up {
     echo "Waiting for ${endpoint_name} REST endpoint to come up..."
     sleep 1
   done
-  echo "${endpoint_name} REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  echo "${endpoint_name} REST endpoint has not started on query url '${query_url}' within a timeout of ${TIMEOUT} sec. curl output:"
+  curl ${CURL_SSL_ARGS} "$query_url"
+  echo "Exiting ..."
   exit 1
 }
 
@@ -437,16 +439,51 @@ function wait_for_job_state_transition {
   done
 }
 
+function is_job_submitted {
+  JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -a | grep "$1")
+  if [[ "$JOB_LIST_RESULT" == "" ]]; then
+      echo "false"
+    else
+      echo "true"
+    fi
+}
+
+function wait_job_submitted {
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
+    local IS_SUBMITTED=`is_job_submitted $1`
+
+    if [[ "$IS_SUBMITTED" == "true" ]]; then
+      echo "Job ($1) is submitted."
+      return
+    else
+      echo "Job ($1) is not yet submitted."
+    fi
+    sleep 1
+  done
+  echo "Job ($1) has not been submitted within a timeout of ${TIMEOUT} sec"
+  exit 1
+}
+
+function is_job_running {
+  JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
+  if [[ "$JOB_LIST_RESULT" == "" ]]; then
+      echo "false"
+    else
+      echo "true"
+    fi
+}
+
 function wait_job_running {
   local TIMEOUT=10
   for i in $(seq 1 ${TIMEOUT}); do
-    JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
+    local IS_RUNNING=`is_job_running $1`
 
-    if [[ "$JOB_LIST_RESULT" == "" ]]; then
-      echo "Job ($1) is not yet running."
-    else
+    if [[ "$IS_RUNNING" == "true" ]]; then
       echo "Job ($1) is running."
       return
+    else
+      echo "Job ($1) is not yet running."
     fi
     sleep 1
   done
