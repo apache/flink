@@ -95,7 +95,7 @@ public class SqlToOperationConverterTest {
 	private final PlanningConfigurationBuilder planningConfigurationBuilder =
 		new PlanningConfigurationBuilder(tableConfig,
 			functionCatalog,
-			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
+			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, tableConfig, false)),
 			new ExpressionBridge<>(functionCatalog,
 				PlannerExpressionConverter.INSTANCE()));
 
