@@ -29,7 +29,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -80,19 +79,7 @@ public abstract class ConnectTableDescriptor
 					" use registerTableSource/registerTableSink/registerTableSourceAndSink.");
 		}
 
-		Map<String, String> schemaProperties = schemaDescriptor.toProperties();
-		TableSchema tableSchema = getTableSchema(schemaProperties);
-
-		Map<String, String> properties = new HashMap<>(toProperties());
-		schemaProperties.keySet().forEach(properties::remove);
-
-		CatalogTableImpl catalogTable = new CatalogTableImpl(
-			tableSchema,
-			properties,
-			""
-		);
-
-		registration.createTemporaryTable(path, catalogTable);
+		registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
 	}
 
 	private TableSchema getTableSchema(Map<String, String> schemaProperties) {
