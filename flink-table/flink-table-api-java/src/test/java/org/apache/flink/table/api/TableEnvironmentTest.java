@@ -49,7 +49,7 @@ public class TableEnvironmentTest {
 				.field("my_field_0", "INT")
 				.field("my_field_1", "BOOLEAN"))
 			.inAppendMode()
-			.registerTableSource("my_table");
+			.createTemporaryTable("my_table");
 
 		CatalogManager.TableLookupResult lookupResult = tableEnv.catalogManager.getTable(ObjectIdentifier.of(
 			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
