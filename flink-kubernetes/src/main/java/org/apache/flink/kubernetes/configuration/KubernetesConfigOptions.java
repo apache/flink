@@ -33,9 +33,9 @@ public class KubernetesConfigOptions {
 		key("kubernetes.context")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("The desired context from your K8s config file used to configure the K8s client for " +
-			"interacting with the cluster. This could be helpful if one has multiple contexts configured and " +
-			"wants to administrate different Flink clusters on different K8s clusters/contexts.");
+		.withDescription("The desired context from your Kubernetes config file used to configure the Kubernetes client " +
+			"for interacting with the cluster. This could be helpful if one has multiple contexts configured and " +
+			"wants to administrate different Flink clusters on different Kubernetes clusters/contexts.");
 
 	public static final ConfigOption<String> REST_SERVICE_EXPOSED_TYPE =
 		key("kubernetes.rest-service.exposed.type")

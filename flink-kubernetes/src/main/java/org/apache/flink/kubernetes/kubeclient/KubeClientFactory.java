@@ -44,19 +44,23 @@ public class KubeClientFactory {
 
 		final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
 		if (kubeContext != null) {
-			LOG.info("Configuring K8S client using context {}.", kubeContext);
+			LOG.info("Configuring Kubernetes client using context {}.", kubeContext);
 		}
 
 		final String kubeConfigFile = flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
 		if (kubeConfigFile != null) {
-			LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
+			LOG.debug("Trying to load Kubernetes config from file: {}.", kubeConfigFile);
 			try {
+				// If kubeContext is null, the default context in the kubeConfigFile will be used.
+				// Note: the third parameter kubeconfigPath is optional and is set to null. It is only used to rewrite
+				// relative tls asset paths inside kubeconfig when a file is passed, and in the case that the kubeconfig
+				// references some assets via relative paths.
 				config = Config.fromKubeconfig(kubeContext, KubernetesUtils.getContentFromFile(kubeConfigFile), null);
 			} catch (IOException e) {
-				throw new KubernetesClientException("Load kubernetes config failed.", e);
+				throw new KubernetesClientException("Load Kubernetes config failed.", e);
 			}
 		} else {
-			LOG.debug("Trying to load default kubernetes config.");
+			LOG.debug("Trying to load default Kubernetes config.");
 			// Null means load from default context
 			config = Config.autoConfigure(kubeContext);
 		}
