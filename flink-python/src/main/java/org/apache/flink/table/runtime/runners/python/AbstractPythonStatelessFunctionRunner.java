@@ -38,10 +38,19 @@ import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.WindowedValue;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python stateless functions..
@@ -140,7 +149,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			Collections.singletonList(
 				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
 		return ImmutableExecutableStage.of(
-			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, ExecutableStage.DEFAULT_WIRE_CODER_SETTING);
+			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createWireCoderSetting());
 	}
 
 	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
@@ -159,6 +168,20 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			builder.addInputs(inputProto);
 		}
 		return builder.build();
+	}
+
+	private RunnerApi.WireCoderSetting createWireCoderSetting() throws IOException {
+		WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
+		Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
+		WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
+			WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), windowCoder);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		windowedValueCoder.encode(value, baos);
+		return RunnerApi.WireCoderSetting.newBuilder()
+			.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+			.setPayload(
+				org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
+			.build();
 	}
 
 	/**
