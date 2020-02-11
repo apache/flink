@@ -1,9 +1,9 @@
 ---
-title: "Project Build Setup"
-nav-id: projectsetup
-nav-title: 'Project Build Setup'
-nav-parent_id: dev
-nav-pos: 0
+title: "Project Setup"
+nav-id: project-setup
+nav-title: 'Project Setup'
+nav-parent_id: getting-started
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

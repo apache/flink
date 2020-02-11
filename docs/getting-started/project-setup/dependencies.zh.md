@@ -1,6 +1,6 @@
 ---
 title: "配置依赖、连接器、类库"
-nav-parent_id: projectsetup
+nav-parent_id: project-setup
 nav-pos: 2
 ---
 <!--

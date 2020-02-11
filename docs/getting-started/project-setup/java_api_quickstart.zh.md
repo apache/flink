@@ -1,7 +1,7 @@
 ---
 title: "Java 项目模板"
 nav-title: Java 项目模板
-nav-parent_id: projectsetup
+nav-parent_id: project-setup
 nav-pos: 0
 ---
 <!--

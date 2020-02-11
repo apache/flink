@@ -1,6 +1,6 @@
 ---
 title: "Configuring Dependencies, Connectors, Libraries"
-nav-parent_id: projectsetup
+nav-parent_id: project-setup
 nav-pos: 2
 ---
 <!--
