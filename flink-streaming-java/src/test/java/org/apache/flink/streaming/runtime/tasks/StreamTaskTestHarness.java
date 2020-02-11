@@ -80,7 +80,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>After setting up everything the Task can be invoked using {@link #invoke()}. This will start
  * a new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task
  * thread to finish.
+ *
+ * <p>This class id deprecated because of it's threading model. Please use {@link StreamTaskMailboxTestHarness}
  */
+@Deprecated
 public class StreamTaskTestHarness<OUT> {
 
 	public static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
@@ -422,16 +425,16 @@ public class StreamTaskTestHarness<OUT> {
 		inputGates[gateIndex].sendEvent(EndOfPartitionEvent.INSTANCE, channelIndex);
 	}
 
-	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, StreamOperator<?> headOperator) {
+	public StreamConfigChainer<StreamTaskTestHarness<OUT>> setupOperatorChain(OperatorID headOperatorId, StreamOperator<?> headOperator) {
 		return setupOperatorChain(headOperatorId, SimpleOperatorFactory.of(headOperator));
 	}
 
-	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, StreamOperatorFactory<?> headOperatorFactory) {
+	public StreamConfigChainer<StreamTaskTestHarness<OUT>> setupOperatorChain(OperatorID headOperatorId, StreamOperatorFactory<?> headOperatorFactory) {
 		Preconditions.checkState(!setupCalled, "This harness was already setup.");
 		setupCalled = true;
 		StreamConfig streamConfig = getStreamConfig();
 		streamConfig.setStreamOperatorFactory(headOperatorFactory);
-		return new StreamConfigChainer(headOperatorId, streamConfig);
+		return new StreamConfigChainer(headOperatorId, streamConfig, this);
 	}
 
 	// ------------------------------------------------------------------------

@@ -414,7 +414,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	private void beforeInvoke() throws Exception {
+	protected void beforeInvoke() throws Exception {
 		disposedOperators = false;
 		LOG.debug("Initializing {}.", getName());
 
@@ -455,6 +455,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// registers a timer, that fires before the open() is called.
 			operatorChain.initializeStateAndOpenOperators();
 		});
+
+		isRunning = true;
 	}
 
 	@Override
@@ -468,7 +470,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 
 			// let the task do its work
-			isRunning = true;
 			runMailboxLoop();
 
 			// if this left the run() method cleanly despite the fact that this was canceled,
@@ -484,11 +485,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
+	protected boolean runMailboxStep() throws Exception {
+		return mailboxProcessor.runMailboxStep();
+	}
+
 	private void runMailboxLoop() throws Exception {
 		mailboxProcessor.runMailboxLoop();
 	}
 
-	private void afterInvoke() throws Exception {
+	protected void afterInvoke() throws Exception {
 		LOG.debug("Finished task {}", getName());
 
 		final CompletableFuture<Void> timersFinishedFuture = new CompletableFuture<>();
@@ -527,7 +532,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		disposedOperators = true;
 	}
 
-	private void cleanUpInvoke() throws Exception {
+	protected void cleanUpInvoke() throws Exception {
 		// clean up everything we initialized
 		isRunning = false;
 

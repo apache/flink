@@ -941,7 +941,7 @@ public class StreamTaskTest extends TestLogger {
 		streamConfig.setStreamOperatorFactory(new UnusedOperatorFactory());
 
 		// Make sure that there is some output edge in the config so that some RecordWriter is created
-		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), streamConfig);
+		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), streamConfig, this);
 		cfg.chain(
 			new OperatorID(44, 44),
 			new UnusedOperatorFactory(),
