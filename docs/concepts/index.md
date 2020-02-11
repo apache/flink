@@ -7,6 +7,7 @@ nav-parent_id: root
 layout: redirect
 redirect: /concepts/programming-model.html
 permalink: /concepts/index.html
+always-expand: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
