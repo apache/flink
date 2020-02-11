@@ -19,8 +19,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 
 /**
  * A utility to instantiate new operators with a given factory.
@@ -40,11 +41,18 @@ public class StreamOperatorFactoryUtil {
 			StreamTask<OUT, ?> containingTask,
 			StreamConfig configuration,
 			Output<StreamRecord<OUT>> output) {
-		MailboxExecutorFactory mailboxExecutorFactory = containingTask.getMailboxExecutorFactory();
+
+		MailboxExecutor mailboxExecutor = containingTask.getMailboxExecutorFactory().createExecutor(configuration.getChainIndex());
+
 		if (operatorFactory instanceof YieldingOperatorFactory) {
-			MailboxExecutor mailboxExecutor = mailboxExecutorFactory.createExecutor(configuration.getChainIndex());
 			((YieldingOperatorFactory) operatorFactory).setMailboxExecutor(mailboxExecutor);
 		}
+
+		if (operatorFactory instanceof ProcessingTimeServiceAware) {
+			ProcessingTimeService processingTimeService = containingTask.getProcessingTimeServiceFactory().createProcessingTimeService(mailboxExecutor);
+			((ProcessingTimeServiceAware) operatorFactory).setProcessingTimeService(processingTimeService);
+		}
+
 		return operatorFactory.createStreamOperator(containingTask, configuration, output);
 	}
 }

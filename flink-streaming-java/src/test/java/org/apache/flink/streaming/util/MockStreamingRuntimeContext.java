@@ -94,7 +94,7 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 		}
 
 		@Override
-		protected ProcessingTimeService getProcessingTimeService() {
+		public ProcessingTimeService getProcessingTimeService() {
 			if (testProcessingTimeService == null) {
 				testProcessingTimeService = new TestProcessingTimeService();
 			}

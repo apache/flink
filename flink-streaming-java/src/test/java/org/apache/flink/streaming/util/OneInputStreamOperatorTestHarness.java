@@ -74,6 +74,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		this(operator, 1, 1, 0);
 	}
 
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperatorFactory<IN, OUT> factory) throws Exception {
+		this(factory, 1, 1, 0);
+	}
+
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			int maxParallelism,
