@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -447,7 +448,7 @@ public class HiveTableSourceTest {
 
 		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
 		doReturn(new TestVectorReaderSource(new JobConf(hiveCatalog.getHiveConf()), tablePath, catalogTable))
-				.when(tableFactorySpy).createTableSource(any(ObjectPath.class), any(CatalogTable.class));
+				.when(tableFactorySpy).createTableSource(any(TableSourceFactory.Context.class));
 		HiveCatalog catalogSpy = spy(hiveCatalog);
 		doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
 
