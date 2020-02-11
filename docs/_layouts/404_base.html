@@ -20,9 +20,18 @@ under the License.
 <html lang="en-US">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=https:{{ site.stable_baseurl }}">
+    <noscript>
+      <meta http-equiv="refresh" content="5; url=https:{{ site.stable_baseurl }}">
+    </noscript>
     <script type="text/javascript">
-      window.location.href = "https:{{ site.stable_baseurl }}"
+      var documentationRootUrl = "https:{{ site.stable_baseurl }}";
+      var timeout = "5000";
+      window.onload = function() {
+        setTimeout(doRedirect, timeout);
+      }
+      function doRedirect() {
+        window.location.href = documentationRootUrl;
+      }
     </script>
     <title>404</title>
   </head>
