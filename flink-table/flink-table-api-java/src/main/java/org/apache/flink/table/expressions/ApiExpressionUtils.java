@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Utilities for API-specific {@link Expression}s.
@@ -48,6 +50,24 @@ public final class ApiExpressionUtils {
 
 	private ApiExpressionUtils() {
 		// private
+	}
+
+	public static Expression objectToExpression(Object expression) {
+		if (expression instanceof ApiExpression) {
+			return ((ApiExpression) expression).toExpr();
+		} else if (expression instanceof Expression) {
+			return (Expression) expression;
+		} else {
+			return valueLiteral(expression);
+		}
+	}
+
+	public static Expression unwrapFromApi(Expression expression) {
+		if (expression instanceof ApiExpression) {
+			return ((ApiExpression) expression).toExpr();
+		} else {
+			return expression;
+		}
 	}
 
 	public static LocalReferenceExpression localRef(String name, DataType dataType) {
@@ -74,14 +94,17 @@ public final class ApiExpressionUtils {
 			FunctionIdentifier functionIdentifier,
 			FunctionDefinition functionDefinition,
 			Expression... args) {
-		return new UnresolvedCallExpression(functionIdentifier, functionDefinition, Arrays.asList(args));
+		return unresolvedCall(functionIdentifier, functionDefinition, Arrays.asList(args));
 	}
 
 	public static UnresolvedCallExpression unresolvedCall(
 			FunctionIdentifier functionIdentifier,
 			FunctionDefinition functionDefinition,
 			List<Expression> args) {
-		return new UnresolvedCallExpression(functionIdentifier, functionDefinition, args);
+		return new UnresolvedCallExpression(functionIdentifier, functionDefinition,
+			args.stream()
+				.map(ApiExpressionUtils::unwrapFromApi)
+				.collect(Collectors.toList()));
 	}
 
 	public static UnresolvedCallExpression unresolvedCall(FunctionDefinition functionDefinition, Expression... args) {
@@ -89,7 +112,11 @@ public final class ApiExpressionUtils {
 	}
 
 	public static UnresolvedCallExpression unresolvedCall(FunctionDefinition functionDefinition, List<Expression> args) {
-		return new UnresolvedCallExpression(functionDefinition, args);
+		return new UnresolvedCallExpression(
+			functionDefinition,
+			args.stream()
+				.map(ApiExpressionUtils::unwrapFromApi)
+				.collect(Collectors.toList()));
 	}
 
 	public static TableReferenceExpression tableRef(String name, Table table) {
@@ -101,7 +128,11 @@ public final class ApiExpressionUtils {
 	}
 
 	public static LookupCallExpression lookupCall(String name, Expression... args) {
-		return new LookupCallExpression(name, Arrays.asList(args));
+		return new LookupCallExpression(
+			name,
+			Arrays.stream(args)
+				.map(ApiExpressionUtils::unwrapFromApi)
+				.collect(Collectors.toList()));
 	}
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {

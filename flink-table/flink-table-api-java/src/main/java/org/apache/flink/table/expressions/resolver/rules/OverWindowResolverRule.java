@@ -55,7 +55,7 @@ final class OverWindowResolverRule implements ResolverRule {
 			.collect(Collectors.toList());
 	}
 
-	private class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
+	private static class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
 
 		ExpressionResolverVisitor(ResolutionContext context) {
 			super(context);

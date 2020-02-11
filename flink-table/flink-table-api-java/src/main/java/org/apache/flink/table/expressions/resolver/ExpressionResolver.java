@@ -77,6 +77,7 @@ public class ExpressionResolver {
 	 */
 	public static List<ResolverRule> getExpandingResolverRules() {
 		return Arrays.asList(
+			ResolverRules.UNWRAP_API_EXPRESSION,
 			ResolverRules.LOOKUP_CALL_BY_NAME,
 			ResolverRules.FLATTEN_STAR_REFERENCE,
 			ResolverRules.EXPAND_COLUMN_FUNCTIONS);
@@ -87,6 +88,7 @@ public class ExpressionResolver {
 	 */
 	public static List<ResolverRule> getAllResolverRules() {
 		return Arrays.asList(
+			ResolverRules.UNWRAP_API_EXPRESSION,
 			ResolverRules.LOOKUP_CALL_BY_NAME,
 			ResolverRules.FLATTEN_STAR_REFERENCE,
 			ResolverRules.EXPAND_COLUMN_FUNCTIONS,

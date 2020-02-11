@@ -133,12 +133,12 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             expr
 
           case AND =>
-            assert(args.size == 2)
-            And(args.head, args.last)
+            assert(args.size >= 2)
+            args.reduceLeft(And)
 
           case OR =>
-            assert(args.size == 2)
-            Or(args.head, args.last)
+            assert(args.size >= 2)
+            args.reduceLeft(Or)
 
           case NOT =>
             assert(args.size == 1)
