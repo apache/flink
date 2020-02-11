@@ -39,10 +39,31 @@ on_exit test_cleanup
 TEST_ES_JAR=${END_TO_END_DIR}/flink-elasticsearch${ELASTICSEARCH_VERSION}-test/target/Elasticsearch${ELASTICSEARCH_VERSION}SinkExample.jar
 
 # run the Flink job
-$FLINK_DIR/bin/flink run -p 1 $TEST_ES_JAR \
+JOB_ID=$($FLINK_DIR/bin/flink run -d -p 1 $TEST_ES_JAR \
   --numRecords 20 \
   --index index \
-  --type type
+  --type type | awk '{print $NF}' | tail -n 1)
 
+
+# wait for 10 seconds
+wait_job_submitted ${JOB_ID}
+
+# Wait for 60 seconds for the job to finish
+MAX_RETRY_SECONDS=60
+
+start_time=$(date +%s)
+
+RUNNING=`is_job_running ${JOB_ID}`
+while [[ "$RUNNING" == "true" ]]; do
+	RUNNING=`is_job_running ${JOB_ID}`
+	current_time=$(date +%s)
+	time_diff=$((current_time - start_time))
+	if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+		echo "Job did not finish after $MAX_RETRY_SECONDS seconds. Printing logs and failing test: "
+		cat $FLINK_DIR/log/*
+		exit 1
+	fi
+done
+    
 # 40 index requests and 20 final update requests
 verify_result_line_number 60 index
