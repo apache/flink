@@ -71,42 +71,47 @@ public final class JDBCDialects {
 				//  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in LegacyTypeInfoDataTypeConverter
 				//  when n is smaller than Integer.MAX_VALUE
 				if (unsupportedTypes().contains(dt.getLogicalType().getTypeRoot()) ||
-						(!(dt.getLogicalType() instanceof LegacyTypeInformationType) &&
-						(VARBINARY == dt.getLogicalType().getTypeRoot()
-							&& Integer.MAX_VALUE != ((VarBinaryType) dt.getLogicalType()).getLength()))) {
+						(dt.getLogicalType() instanceof VarBinaryType
+							&& Integer.MAX_VALUE != ((VarBinaryType) dt.getLogicalType()).getLength())) {
 					throw new ValidationException(
-							String.format("The dialect don't support type: %s.", dt.toString()));
+							String.format("The %s dialect don't support type: %s.",
+									dialectName(),
+									dt.toString()));
 				}
 
 				// only validate precision of DECIMAL type for blink planner
-				if (!(dt.getLogicalType() instanceof LegacyTypeInformationType)
-						&& DECIMAL == dt.getLogicalType().getTypeRoot()) {
+				if (dt.getLogicalType() instanceof DecimalType) {
 					int precision = ((DecimalType) dt.getLogicalType()).getPrecision();
 					if (precision > maxDecimalPrecision()
 							|| precision < minDecimalPrecision()) {
 						throw new ValidationException(
-								String.format("The precision of %s is out of the range [%d, %d].",
+								String.format("The precision of field '%s' is out of the DECIMAL " +
+												"precision range [%d, %d] supported by %s dialect.",
 										fieldName,
 										minDecimalPrecision(),
-										maxDecimalPrecision()));
+										maxDecimalPrecision(),
+										dialectName()));
 					}
 				}
 
 				// only validate precision of DECIMAL type for blink planner
-				if (!(dt.getLogicalType() instanceof LegacyTypeInformationType)
-						&& TIMESTAMP_WITHOUT_TIME_ZONE == dt.getLogicalType().getTypeRoot()) {
+				if (dt.getLogicalType() instanceof TimestampType) {
 					int precision = ((TimestampType) dt.getLogicalType()).getPrecision();
 					if (precision > maxTimestampPrecision()
 							|| precision < minTimestampPrecision()) {
 						throw new ValidationException(
-								String.format("The precision of %s is out of the range [%d, %d].",
+								String.format("The precision of field '%s' is out of the TIMESTAMP " +
+												"precision range [%d, %d] supported by %s dialect.",
 										fieldName,
 										minTimestampPrecision(),
-										maxTimestampPrecision()));
+										maxTimestampPrecision(),
+										dialectName()));
 					}
 				}
 			}
 		}
+
+		public abstract String dialectName();
 
 		public abstract int maxDecimalPrecision();
 
@@ -150,6 +155,11 @@ public final class JDBCDialects {
 		@Override
 		public String quoteIdentifier(String identifier) {
 			return identifier;
+		}
+
+		@Override
+		public String dialectName() {
+			return "derby";
 		}
 
 		@Override
@@ -245,6 +255,11 @@ public final class JDBCDialects {
 		}
 
 		@Override
+		public String dialectName() {
+			return "mysql";
+		}
+
+		@Override
 		public int maxDecimalPrecision() {
 			return MAX_DECIMAL_PRECISION;
 		}
@@ -330,6 +345,11 @@ public final class JDBCDialects {
 							" ON CONFLICT (" + uniqueColumns + ")" +
 							" DO UPDATE SET " + updateClause
 			);
+		}
+
+		@Override
+		public String dialectName() {
+			return "postgresql";
 		}
 
 		@Override

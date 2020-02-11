@@ -154,31 +154,4 @@ public class JDBCTableSourceITCase extends AbstractTestBase {
 				"2020-01-01T15:36:01.123456,101.1234");
 		StreamITCase.compareWithList(expected);
 	}
-
-	@Test(expected = TableException.class)
-	public void testInvalidPrecisionOfJDBCSource() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
-				.useBlinkPlanner()
-				.inStreamingMode()
-				.build();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
-
-		tEnv.sqlUpdate(
-			"CREATE TABLE " + INPUT_TABLE + "(" +
-				"id BIGINT," +
-				"timestamp6_col TIMESTAMP(6)," +
-				"timestamp9_col TIMESTAMP(9)," +
-				"time_col TIME," +
-				"real_col FLOAT," +
-				"decimal_col DECIMAL(38, 4)" +
-				") WITH (" +
-				"  'connector.type'='jdbc'," +
-				"  'connector.url'='" + DB_URL + "'," +
-				"  'connector.table'='" + INPUT_TABLE + "'" +
-				")"
-		);
-
-		tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE);
-	}
 }
