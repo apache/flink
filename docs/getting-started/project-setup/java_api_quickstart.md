@@ -1,7 +1,7 @@
 ---
 title: "Project Template for Java"
 nav-title: Project Template for Java
-nav-parent_id: projectsetup
+nav-parent_id: project-setup
 nav-pos: 0
 ---
 <!--

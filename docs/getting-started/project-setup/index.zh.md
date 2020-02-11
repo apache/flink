@@ -1,9 +1,9 @@
 ---
 title: "项目构建设置"
-nav-id: projectsetup
+nav-id: project-setup
 nav-title: '项目构建设置'
-nav-parent_id: dev
-nav-pos: 0
+nav-parent_id: getting-started
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
