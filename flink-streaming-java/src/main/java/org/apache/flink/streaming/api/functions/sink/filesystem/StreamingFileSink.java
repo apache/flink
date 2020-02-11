@@ -153,6 +153,10 @@ public class StreamingFileSink<IN>
 		this.bucketCheckInterval = bucketCheckInterval;
 	}
 
+	public BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> getBucketsBuilder() {
+		return bucketsBuilder;
+	}
+
 	// ------------------------------------------------------------------------
 
 	// --------------------------- Sink Builders  -----------------------------
@@ -186,7 +190,7 @@ public class StreamingFileSink<IN>
 	/**
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
-	private abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
+	public abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
@@ -198,6 +202,8 @@ public class StreamingFileSink<IN>
 		}
 
 		abstract Buckets<IN, BucketID> createBuckets(final int subtaskIndex) throws IOException;
+
+		public abstract Path getBasePath();
 	}
 
 	/**
@@ -293,6 +299,11 @@ public class StreamingFileSink<IN>
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
+		}
+
+		@Override
+		public Path getBasePath() {
+			return basePath;
 		}
 	}
 
@@ -391,6 +402,11 @@ public class StreamingFileSink<IN>
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
+		}
+
+		@Override
+		public Path getBasePath() {
+			return basePath;
 		}
 	}
 

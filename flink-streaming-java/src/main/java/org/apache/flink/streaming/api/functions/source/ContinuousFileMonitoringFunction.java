@@ -132,6 +132,10 @@ public class ContinuousFileMonitoringFunction<OUT>
 		return this.globalModificationTime;
 	}
 
+	public String getMonitoredPath() {
+		return path;
+	}
+
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 
