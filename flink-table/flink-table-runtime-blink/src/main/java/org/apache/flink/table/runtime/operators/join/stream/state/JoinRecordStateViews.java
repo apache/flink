@@ -79,6 +79,7 @@ public final class JoinRecordStateViews {
 				.newBuilder(Time.milliseconds(retentionTime))
 				.setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
 				.setStateVisibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
+				.cleanupInBackground()
 				.build();
 		} else {
 			return StateTtlConfig.DISABLED;
