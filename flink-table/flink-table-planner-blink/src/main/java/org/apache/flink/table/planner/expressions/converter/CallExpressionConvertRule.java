@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -52,5 +53,7 @@ public interface CallExpressionConvertRule {
 		RelBuilder getRelBuilder();
 
 		FlinkTypeFactory getTypeFactory();
+
+		DataTypeFactory getDataTypeFactory();
 	}
 }

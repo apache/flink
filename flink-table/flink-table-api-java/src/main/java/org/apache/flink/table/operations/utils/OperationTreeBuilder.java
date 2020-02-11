@@ -471,9 +471,14 @@ public final class OperationTreeBuilder {
 			throw new ValidationException("Only a table function can be used in the flatMap operator.");
 		}
 
-		TypeInformation<?> resultType = ((TableFunctionDefinition) ((UnresolvedCallExpression) resolvedTableFunction)
-			.getFunctionDefinition())
-			.getResultType();
+		FunctionDefinition functionDefinition = ((UnresolvedCallExpression) resolvedTableFunction)
+			.getFunctionDefinition();
+		if (!(functionDefinition instanceof TableFunctionDefinition)) {
+			throw new ValidationException(
+				"The new type inference for functions is not supported in the flatMap yet.");
+		}
+
+		TypeInformation<?> resultType = ((TableFunctionDefinition) functionDefinition).getResultType();
 		List<String> originFieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultType));
 
 		List<String> childFields = Arrays.asList(child.getTableSchema().getFieldNames());

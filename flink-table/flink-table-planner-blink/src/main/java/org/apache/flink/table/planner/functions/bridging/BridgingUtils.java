@@ -18,10 +18,16 @@
 
 package org.apache.flink.table.planner.functions.bridging;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandChecker;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandInference;
@@ -39,14 +45,22 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
  * Utilities for bridging {@link FunctionDefinition} with Calcite's representation of functions.
  */
 final class BridgingUtils {
+	static String createName(@Nullable FunctionIdentifier identifier, FunctionDefinition definition) {
+		if (identifier != null) {
+			return extractName(identifier);
+		} else {
+			return createInlineFunctionName(definition);
+		}
+	}
 
-	static String createName(FunctionIdentifier identifier) {
+	private static String extractName(FunctionIdentifier identifier) {
 		if (identifier.getSimpleName().isPresent()) {
 			return identifier.getSimpleName().get();
 		}
@@ -55,10 +69,40 @@ final class BridgingUtils {
 			.orElseThrow(IllegalStateException::new);
 	}
 
-	static @Nullable SqlIdentifier createSqlIdentifier(FunctionIdentifier identifier) {
+	private static String createInlineFunctionName(FunctionDefinition functionDefinition) {
+		final Optional<UserDefinedFunction> userDefinedFunction = extractUserDefinedFunction(functionDefinition);
+
+		return userDefinedFunction.map(UserDefinedFunction::functionIdentifier)
+			.orElseThrow(() -> new TableException(String.format(
+				"Unsupported function definition: %s. Only user defined functions are supported as inline functions.",
+				functionDefinition)));
+	}
+
+	private static Optional<UserDefinedFunction> extractUserDefinedFunction(FunctionDefinition functionDefinition) {
+		if (functionDefinition instanceof UserDefinedFunction) {
+			return Optional.of((UserDefinedFunction) functionDefinition);
+		} else if (functionDefinition instanceof ScalarFunctionDefinition) {
+			return Optional.ofNullable(((ScalarFunctionDefinition) functionDefinition).getScalarFunction());
+		} else if (functionDefinition instanceof AggregateFunctionDefinition) {
+			return Optional.ofNullable(((AggregateFunctionDefinition) functionDefinition).getAggregateFunction());
+		} else if (functionDefinition instanceof TableFunctionDefinition) {
+			return Optional.ofNullable(((TableFunctionDefinition) functionDefinition).getTableFunction());
+		} else if (functionDefinition instanceof TableAggregateFunctionDefinition) {
+			return Optional.ofNullable(
+				((TableAggregateFunctionDefinition) functionDefinition).getTableAggregateFunction()
+			);
+		}
+		return Optional.empty();
+	}
+
+	static @Nullable SqlIdentifier createSqlIdentifier(@Nullable FunctionIdentifier identifier) {
+		if (identifier == null) {
+			return null;
+		}
+
 		return identifier.getIdentifier()
 			.map(i -> new SqlIdentifier(i.toList(), SqlParserPos.ZERO))
-			.orElse(null); // null indicates a built-in system function
+			.orElseGet(() -> new SqlIdentifier(identifier.getSimpleName().get(), SqlParserPos.ZERO));
 	}
 
 	static SqlReturnTypeInference createSqlReturnTypeInference(
@@ -93,11 +137,12 @@ final class BridgingUtils {
 			.orElse(null);
 	}
 
-	static SqlFunctionCategory createSqlFunctionCategory(FunctionIdentifier identifier) {
-		if (identifier.getSimpleName().isPresent()) {
-			return SqlFunctionCategory.SYSTEM;
+	static SqlFunctionCategory createSqlFunctionCategory(@Nullable FunctionIdentifier identifier) {
+		if (identifier == null || identifier.getIdentifier().isPresent()) {
+			return SqlFunctionCategory.USER_DEFINED_FUNCTION;
 		}
-		return SqlFunctionCategory.USER_DEFINED_FUNCTION;
+
+		return SqlFunctionCategory.SYSTEM;
 	}
 
 	private BridgingUtils() {
