@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
 
@@ -108,6 +109,7 @@ public class AsyncWaitOperator<IN, OUT>
 			long timeout,
 			int capacity,
 			@Nonnull AsyncDataStream.OutputMode outputMode,
+			@Nonnull ProcessingTimeService processingTimeService,
 			@Nonnull MailboxExecutor mailboxExecutor) {
 		super(asyncFunction);
 
@@ -121,6 +123,8 @@ public class AsyncWaitOperator<IN, OUT>
 		this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
 
 		this.timeout = timeout;
+
+		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
 		this.mailboxExecutor = mailboxExecutor;
 	}

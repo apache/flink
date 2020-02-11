@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
@@ -162,8 +163,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		return accumulatorMap;
 	}
 
-	@Override
-	public ProcessingTimeService getProcessingTimeService(int operatorIndex) {
-		return processingTimeService;
+	public ProcessingTimeServiceFactory getProcessingTimeServiceFactory() {
+		return mailboxExecutor -> processingTimeService;
 	}
 }

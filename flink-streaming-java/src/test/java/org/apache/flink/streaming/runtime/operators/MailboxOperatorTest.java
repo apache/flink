@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -80,8 +81,9 @@ public class MailboxOperatorTest extends TestLogger {
 		assertThat(numMailsProcessed, is(Arrays.asList(0, 2, 4)));
 	}
 
-	private static class ReplicatingMailOperatorFactory implements OneInputStreamOperatorFactory<Integer, Integer>,
-			YieldingOperatorFactory<Integer> {
+	private static class ReplicatingMailOperatorFactory extends AbstractStreamOperatorFactory<Integer>
+		implements OneInputStreamOperatorFactory<Integer, Integer>,	YieldingOperatorFactory<Integer> {
+
 		private MailboxExecutor mailboxExecutor;
 
 		@Override
@@ -95,17 +97,13 @@ public class MailboxOperatorTest extends TestLogger {
 				StreamConfig config,
 				Output<StreamRecord<Integer>> output) {
 			ReplicatingMailOperator operator = new ReplicatingMailOperator(mailboxExecutor);
+			operator.setProcessingTimeService(processingTimeService);
 			operator.setup(containingTask, config, output);
 			return (Operator) operator;
 		}
 
 		@Override
 		public void setChainingStrategy(ChainingStrategy strategy) {
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return ChainingStrategy.ALWAYS;
 		}
 
 		@Override

@@ -165,7 +165,6 @@ public class ContinuousFileProcessingTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
-		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
 		final long watermarkInterval = 10;
 

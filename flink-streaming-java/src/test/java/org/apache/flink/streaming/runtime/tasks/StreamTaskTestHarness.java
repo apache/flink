@@ -161,6 +161,11 @@ public class StreamTaskTestHarness<OUT> {
 		return taskThread.task.getTimerService();
 	}
 
+	@SuppressWarnings("unchecked")
+	public <OP extends StreamOperator<OUT>> OP getHeadOperator() {
+		return (OP) taskThread.task.getHeadOperator();
+	}
+
 	/**
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */

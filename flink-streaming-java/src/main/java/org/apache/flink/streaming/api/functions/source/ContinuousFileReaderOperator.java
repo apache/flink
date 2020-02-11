@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -215,8 +216,13 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		}
 	};
 
-	ContinuousFileReaderOperator(FileInputFormat<OUT> format, MailboxExecutor mailboxExecutor) {
+	ContinuousFileReaderOperator(
+		FileInputFormat<OUT> format,
+		ProcessingTimeService processingTimeService,
+		MailboxExecutor mailboxExecutor) {
+
 		this.format = checkNotNull(format);
+		this.processingTimeService = checkNotNull(processingTimeService);
 		this.executor = checkNotNull(mailboxExecutor);
 	}
 

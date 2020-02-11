@@ -1027,10 +1027,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return timerService;
 	}
 
-	public ProcessingTimeService getProcessingTimeService(int operatorIndex) {
-		Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
-		MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(operatorIndex);
-		return new ProcessingTimeServiceImpl(timerService, callback -> deferCallbackToMailbox(mailboxExecutor, callback));
+	@VisibleForTesting
+	OP getHeadOperator() {
+		return this.headOperator;
+	}
+
+	public ProcessingTimeServiceFactory getProcessingTimeServiceFactory() {
+		return mailboxExecutor -> {
+			Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
+			return new ProcessingTimeServiceImpl(timerService, callback -> deferCallbackToMailbox(mailboxExecutor, callback));
+		};
 	}
 
 	/**
