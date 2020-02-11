@@ -183,9 +183,20 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+		while (runMailboxStep(localMailbox, defaultActionContext)) {
 		}
+	}
+
+	public boolean runMailboxStep() throws Exception {
+		return runMailboxStep(mailbox, new MailboxController(this));
+	}
+
+	private boolean runMailboxStep(TaskMailbox localMailbox, MailboxController defaultActionContext) throws Exception {
+		if (processMail(localMailbox)) {
+			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -285,7 +296,8 @@ public class MailboxProcessor implements Closeable {
 		return suspendedDefaultAction != null;
 	}
 
-	protected boolean isMailboxLoopRunning() {
+	@VisibleForTesting
+	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
 	}
 
