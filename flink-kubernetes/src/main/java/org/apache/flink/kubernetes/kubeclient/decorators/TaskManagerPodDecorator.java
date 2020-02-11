@@ -40,7 +40,7 @@ import java.io.File;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETES;
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -81,7 +81,7 @@ public class TaskManagerPodDecorator extends Decorator<Pod, KubernetesPod> {
 
 		final Volume configMapVolume = KubernetesUtils.getConfigMapVolume(clusterId, hasLogback, hasLog4j);
 
-		final LocalObjectReference[] imagePullSecrets = KubernetesUtils.parseImagePullSecrets(flinkConfig.get(CONTAINER_IMAGE_PULL_SECRETES));
+		final LocalObjectReference[] imagePullSecrets = KubernetesUtils.parseImagePullSecrets(flinkConfig.get(CONTAINER_IMAGE_PULL_SECRETS));
 
 		pod.setSpec(new PodSpecBuilder()
 			.withVolumes(configMapVolume)

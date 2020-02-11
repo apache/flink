@@ -52,7 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETES;
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS;
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.apache.flink.kubernetes.utils.Constants.POD_IP_FIELD_PATH;
@@ -100,7 +100,7 @@ public class FlinkMasterDeploymentDecorator extends Decorator<Deployment, Kubern
 
 		final String serviceAccount = flinkConfig.getString(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT);
 
-		final LocalObjectReference[] imagePullSecrets = KubernetesUtils.parseImagePullSecrets(flinkConfig.get(CONTAINER_IMAGE_PULL_SECRETES));
+		final LocalObjectReference[] imagePullSecrets = KubernetesUtils.parseImagePullSecrets(flinkConfig.get(CONTAINER_IMAGE_PULL_SECRETS));
 
 		final PodSpec podSpec = new PodSpecBuilder()
 			.withServiceAccountName(serviceAccount)

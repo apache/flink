@@ -247,8 +247,8 @@ public class KubernetesUtilsTest extends TestLogger {
 		final LocalObjectReference[] noSecrets = KubernetesUtils.parseImagePullSecrets(null);
 		assertEquals(0, noSecrets.length);
 
-		final LocalObjectReference[] oneSecrete = KubernetesUtils.parseImagePullSecrets("s1");
-		assertTrue(oneSecrete.length == 1 && oneSecrete[0].getName().equals("s1"));
+		final LocalObjectReference[] oneSecret = KubernetesUtils.parseImagePullSecrets("s1");
+		assertTrue(oneSecret.length == 1 && oneSecret[0].getName().equals("s1"));
 
 		final LocalObjectReference[] commonSeparatedSecrets = KubernetesUtils.parseImagePullSecrets("s1, s2 , s3,, s4");
 		final String[] expectedSecrets = new String[]{"s1", "s2", "s3", "s4"};
