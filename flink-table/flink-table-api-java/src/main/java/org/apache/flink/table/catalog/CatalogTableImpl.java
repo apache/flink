@@ -81,4 +81,19 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 
 		return descriptor.asMap();
 	}
+
+	/**
+	 * Construct a {@link CatalogTableImpl} from complete properties that contains table schema.
+	 */
+	public static CatalogTableImpl fromProperties(Map<String, String> properties) {
+		DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putProperties(properties);
+		TableSchema tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA);
+		descriptorProperties.removeKeyPrefix(Schema.SCHEMA);
+		return new CatalogTableImpl(
+				tableSchema,
+				descriptorProperties.asMap(),
+				""
+		);
+	}
 }
