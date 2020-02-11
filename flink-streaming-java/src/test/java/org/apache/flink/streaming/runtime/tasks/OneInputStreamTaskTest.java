@@ -76,6 +76,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -808,17 +809,17 @@ public class OneInputStreamTaskTest extends TestLogger {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(new TestOperator());
 
-		final Map<String, Metric> metrics = new HashMap<>();
+		final Map<String, Metric> metrics = new ConcurrentHashMap<>();
 		final TaskMetricGroup taskMetricGroup = new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
 		final StreamMockEnvironment environment = testHarness.createEnvironment();
 		environment.setTaskMetricGroup(taskMetricGroup);
 
 		testHarness.invoke(environment);
+		testHarness.waitForTaskRunning();
 
 		assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME));
 		assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_START_DELAY_TIME));
 
-		testHarness.waitForTaskRunning();
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 	}
