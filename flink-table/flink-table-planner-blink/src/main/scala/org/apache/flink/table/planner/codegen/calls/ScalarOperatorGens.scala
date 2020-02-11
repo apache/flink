@@ -1280,8 +1280,8 @@ object ScalarOperatorGens {
           | (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
 
-    case (from, to) =>
-      throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
+    case (_, _) =>
+      throw new CodeGenException(s"Unsupported cast from '${operand.resultType}' to '$targetType'.")
   }
 
   def generateIfElse(
