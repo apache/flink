@@ -315,14 +315,14 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	void insertInto(Table table, BatchQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
 
 	/**
-	 * Creates a table source and/or table sink from a descriptor.
+	 * Creates a temporary table from a descriptor.
 	 *
 	 * <p>Descriptors allow for declaring the communication to external systems in an
 	 * implementation-agnostic way. The classpath is scanned for suitable table factories that match
 	 * the desired configuration.
 	 *
 	 * <p>The following example shows how to read from a connector using a JSON format and
-	 * registering a table source as "MyTable":
+	 * registering a temporary table as "MyTable":
 	 *
 	 * <pre>
 	 * {@code
@@ -339,7 +339,7 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 *     new Schema()
 	 *       .field("user-name", "VARCHAR").from("u_name")
 	 *       .field("count", "DECIMAL")
-	 *   .registerSource("MyTable")
+	 *   .createTemporaryTable("MyTable")
 	 * }
 	 * </pre>
 	 *

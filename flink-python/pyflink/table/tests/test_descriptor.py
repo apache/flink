@@ -963,7 +963,7 @@ class AbstractTableDescriptorTests(object):
                           .field("a", DataTypes.INT())
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
-             .register_table_source("source")
+             .create_temporary_table("source")
 
         # register_table_sink
         t_env.connect(FileSystem().path(sink_path))\
@@ -976,7 +976,7 @@ class AbstractTableDescriptorTests(object):
                           .field("a", DataTypes.INT())
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
-             .register_table_sink("sink")
+             .create_temporary_table("sink")
 
         t_env.scan("source") \
              .select("a + 1, b, c") \
@@ -1009,7 +1009,7 @@ class AbstractTableDescriptorTests(object):
                           .field("a", DataTypes.INT())
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
-             .register_table_source_and_sink("source")
+             .create_temporary_table("source")
         t_env.connect(FileSystem().path(sink_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
@@ -1020,7 +1020,7 @@ class AbstractTableDescriptorTests(object):
                           .field("a", DataTypes.INT())
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
-             .register_table_source_and_sink("sink")
+             .create_temporary_table("sink")
         t_env.scan("source") \
              .select("a + 1, b, c") \
              .insert_into("sink")
