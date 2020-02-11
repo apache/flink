@@ -64,26 +64,16 @@ public class HiveTableFactory
 	}
 
 	@Override
-	public TableSink<Row> createTableSink(Map<String, String> properties) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public TableSource<BaseRow> createTableSource(Map properties) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public TableSource<BaseRow> createTableSource(ObjectPath tablePath, CatalogTable table) {
-		Preconditions.checkNotNull(table);
+	public TableSource<BaseRow> createTableSource(TableSourceFactory.Context context) {
+		CatalogTable table = checkNotNull(context.getTable());
 		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
 		if (!isGeneric) {
-			return createHiveTableSource(tablePath, table);
+			return createHiveTableSource(context.getObjectIdentifier().toObjectPath(), table);
 		} else {
-			return TableFactoryUtil.findAndCreateTableSource(table);
+			return TableFactoryUtil.findAndCreateTableSource(context);
 		}
 	}
 
@@ -95,16 +85,16 @@ public class HiveTableFactory
 	}
 
 	@Override
-	public TableSink<Row> createTableSink(ObjectPath tablePath, CatalogTable table) {
-		Preconditions.checkNotNull(table);
+	public TableSink<Row> createTableSink(TableSinkFactory.Context context) {
+		CatalogTable table = checkNotNull(context.getTable());
 		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
 		if (!isGeneric) {
-			return createOutputFormatTableSink(tablePath, table);
+			return createOutputFormatTableSink(context.getObjectIdentifier().toObjectPath(), table);
 		} else {
-			return TableFactoryUtil.findAndCreateTableSink(table);
+			return TableFactoryUtil.findAndCreateTableSink(context);
 		}
 	}
 

@@ -89,20 +89,6 @@ public class TableFactoryUtil {
 	}
 
 	/**
-	 * Returns a table sink matching the {@link org.apache.flink.table.catalog.CatalogTable}.
-	 */
-	public static <T> TableSink<T> findAndCreateTableSink(CatalogTable table) {
-		return findAndCreateTableSink(table.toProperties());
-	}
-
-	/**
-	 * Returns a table source matching the {@link org.apache.flink.table.catalog.CatalogTable}.
-	 */
-	public static <T> TableSource<T> findAndCreateTableSource(CatalogTable table) {
-		return findAndCreateTableSource(table.toProperties());
-	}
-
-	/**
 	 * Creates a table sink for a {@link CatalogTable} using table factory associated with the catalog.
 	 */
 	public static Optional<TableSink> createTableSinkForCatalogTable(Catalog catalog, TableSinkFactory.Context context) {
