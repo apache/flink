@@ -42,6 +42,8 @@ import static org.apache.flink.orc.shim.OrcShimV200.getOffsetAndLengthForSplit;
  */
 public class OrcNoHiveShim implements OrcShim<VectorizedRowBatch> {
 
+	private static final long serialVersionUID = 1L;
+
 	@Override
 	public RecordReader createRecordReader(
 			Configuration conf,

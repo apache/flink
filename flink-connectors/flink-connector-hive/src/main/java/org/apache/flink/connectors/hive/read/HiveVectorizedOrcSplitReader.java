@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
+import org.apache.flink.orc.OrcSplitReaderUtil;
 import org.apache.flink.orc.nohive.OrcNoHiveSplitReaderUtil;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.types.DataType;
@@ -74,7 +75,7 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
 						new Path(fileSplit.getPath().toString()),
 						fileSplit.getStart(),
 						fileSplit.getLength()) :
-				org.apache.flink.orc.OrcSplitReaderUtil.genPartColumnarRowReader(
+				OrcSplitReaderUtil.genPartColumnarRowReader(
 						hiveVersion,
 						conf,
 						fieldNames,

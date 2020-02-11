@@ -57,7 +57,7 @@ public interface OrcShim<BATCH> extends Serializable {
 	/**
 	 * Default with orc dependent, we should use v2.3.0.
 	 */
-	static OrcShimV230 defaultShim() {
+	static OrcShim<VectorizedRowBatch> defaultShim() {
 		return new OrcShimV230();
 	}
 
