@@ -361,7 +361,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 			if (operator == null) {
 				this.operator = StreamOperatorFactoryUtil.createOperator(factory, mockTask, config,
-						new MockOutput(outputSerializer));
+						new MockOutput(outputSerializer)).f0;
 			} else {
 				if (operator instanceof AbstractStreamOperator) {
 					((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);

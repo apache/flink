@@ -17,11 +17,14 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+
+import java.util.Optional;
 
 /**
  * A utility to instantiate new operators with a given factory.
@@ -34,9 +37,9 @@ public class StreamOperatorFactoryUtil {
 	 * @param containingTask the containing task.
 	 * @param configuration the configuration of the operator.
 	 * @param output the output of the operator.
-	 * @return a newly created and configured operator.
+	 * @return a newly created and configured operator, and the {@link ProcessingTimeService} instance it can access.
 	 */
-	public static <OUT, OP extends StreamOperator<OUT>> OP createOperator(
+	public static <OUT, OP extends StreamOperator<OUT>> Tuple2<OP, Optional<ProcessingTimeService>> createOperator(
 			StreamOperatorFactory<OUT> operatorFactory,
 			StreamTask<OUT, ?> containingTask,
 			StreamConfig configuration,
@@ -48,11 +51,13 @@ public class StreamOperatorFactoryUtil {
 			((YieldingOperatorFactory) operatorFactory).setMailboxExecutor(mailboxExecutor);
 		}
 
+		ProcessingTimeService processingTimeService = null;
 		if (operatorFactory instanceof ProcessingTimeServiceAware) {
-			ProcessingTimeService processingTimeService = containingTask.getProcessingTimeServiceFactory().createProcessingTimeService(mailboxExecutor);
+			processingTimeService = containingTask.getProcessingTimeServiceFactory().createProcessingTimeService(mailboxExecutor);
 			((ProcessingTimeServiceAware) operatorFactory).setProcessingTimeService(processingTimeService);
 		}
 
-		return operatorFactory.createStreamOperator(containingTask, configuration, output);
+		OP op = operatorFactory.createStreamOperator(containingTask, configuration, output);
+		return new Tuple2<>(op, Optional.ofNullable(processingTimeService));
 	}
 }
