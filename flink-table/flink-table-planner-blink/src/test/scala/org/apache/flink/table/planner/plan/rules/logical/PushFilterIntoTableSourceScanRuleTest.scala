@@ -144,31 +144,19 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
     util.addFunction("myUdf", Func1)
     util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
+
   @Test
-  def testLowerPushdown(): Unit = {
-    val rti =
-      new RowTypeInfo(Array[TypeInformation[_]](Types.STRING, Types.STRING), Array("a", "b"))
-    val rows = List(Row.of("foo", "bar"))
+  def testLowerUpperPushdown(): Unit = {
+    val rti = new RowTypeInfo(Array[TypeInformation[_]](
+      Types.STRING, Types.STRING),
+      Array("a", "b"))
+    val data = List(Row.of("foo", "bar"))
     util.tableEnv
       .registerTableSource(
         "MTable",
-        TestFilterableTableSource(true, rti, rows, Set("a", "b"), Set("lower"))
+        TestFilterableTableSource(true, rti, data, Set("a", "b"))
       )
 
-    util.verifyPlan("SELECT * FROM MTable WHERE LOWER(a) like 'foo'")
-  }
-
-  @Test
-  def testUpperPushdown(): Unit = {
-    val rti =
-      new RowTypeInfo(Array[TypeInformation[_]](Types.STRING, Types.STRING), Array("a", "b"))
-    val rows = List(Row.of("foo", "bar"))
-    util.tableEnv
-      .registerTableSource(
-        "MTable",
-        TestFilterableTableSource(true, rti, rows, Set("a", "b"), Set("upper"))
-      )
-
-    util.verifyPlan("SELECT * FROM MTable WHERE UPPER(a) like 'foo'")
+    util.verifyPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'")
   }
 }

@@ -29,12 +29,12 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
-import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, UnresolvedCallExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSourceFactory}
-import org.apache.flink.table.functions.{BuiltInFunctionDefinition, BuiltInFunctionDefinitions}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
@@ -389,7 +389,6 @@ class TestFilterableTableSource(
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
     filterPredicates: Seq[Expression] = Seq(),
-    filterBuiltInFunctions: Set[String] = Set(),
     val filterPushedDown: Boolean = false)
   extends StreamTableSource[Row]
   with FilterableTableSource[Row] {
@@ -431,8 +430,7 @@ class TestFilterableTableSource(
       data,
       filterableFields,
       predicatesToUse,
-      filterPushedDown = true,
-      filterBuiltInFunctions = filterBuiltInFunctions)
+      filterPushedDown = true)
   }
 
   override def isFilterPushedDown: Boolean = filterPushedDown
@@ -441,29 +439,23 @@ class TestFilterableTableSource(
 
   private def shouldPushDown(expr: Expression): Boolean = {
     expr match {
-      case expr: CallExpression if expr.getChildren.size() == 2 => shouldPushDown(expr)
+      case expr: CallExpression if expr.getChildren.size() == 2 =>
+        shouldPushDownUnaryExpression(expr.getChildren.head) &&
+          shouldPushDownUnaryExpression(expr.getChildren.last)
       case _ => false
     }
   }
 
-  private def shouldPushDown(binExpr: CallExpression): Boolean = {
-    val children = binExpr.getChildren
-    require(children.size() == 2)
-    (children.head, children.last) match {
-      case (f: FieldReferenceExpression, _: ValueLiteralExpression) =>
-        filterableFields.contains(f.getName)
-      case (f: CallExpression, _: ValueLiteralExpression) =>
-        f.getFunctionDefinition match {
-          case b: BuiltInFunctionDefinition =>
-            filterBuiltInFunctions.contains(b.getName)
-          case _ => false
-        }
-      case (_: ValueLiteralExpression, f: FieldReferenceExpression) =>
-        filterableFields.contains(f.getName)
-      case (f1: FieldReferenceExpression, f2: FieldReferenceExpression) =>
-        filterableFields.contains(f1.getName) && filterableFields.contains(f2.getName)
-      case (_, _) => false
-    }
+  private def shouldPushDownUnaryExpression(expr: Expression): Boolean = expr match {
+    case f: FieldReferenceExpression => filterableFields.contains(f.getName)
+    case _: ValueLiteralExpression => true
+    case c: CallExpression if c.getChildren.size() == 1 =>
+      c.getFunctionDefinition match {
+        case BuiltInFunctionDefinitions.UPPER | BuiltInFunctionDefinitions.LOWER =>
+          shouldPushDownUnaryExpression(c.getChildren.head)
+        case _ => false
+      }
+    case _ => false
   }
 
   private def shouldKeep(row: Row): Boolean = {
@@ -500,39 +492,30 @@ class TestFilterableTableSource(
       row: Row): (Comparable[Any], Comparable[Any]) = {
     val children = binExpr.getChildren
     require(children.size() == 2)
-
-    (children.head, children.last) match {
-      case (l: FieldReferenceExpression, r: ValueLiteralExpression) =>
-        val idx = rowTypeInfo.getFieldIndex(l.getName)
-        val lv = row.getField(idx).asInstanceOf[Comparable[Any]]
-        val rv = getValue(r)
-        (lv, rv)
-      case (l: ValueLiteralExpression, r: FieldReferenceExpression) =>
-        val idx = rowTypeInfo.getFieldIndex(r.getName)
-        val lv = getValue(l)
-        val rv = row.getField(idx).asInstanceOf[Comparable[Any]]
-        (lv, rv)
-      case (l: ValueLiteralExpression, r: ValueLiteralExpression) =>
-        val lv = getValue(l)
-        val rv = getValue(r)
-        (lv, rv)
-      case (l: FieldReferenceExpression, r: FieldReferenceExpression) =>
-        val lidx = rowTypeInfo.getFieldIndex(l.getName)
-        val ridx = rowTypeInfo.getFieldIndex(r.getName)
-        val lv = row.getField(lidx).asInstanceOf[Comparable[Any]]
-        val rv = row.getField(ridx).asInstanceOf[Comparable[Any]]
-        (lv, rv)
-      case _ => throw new RuntimeException(binExpr + " not supported!")
-    }
+    (getValue(children.head, row), getValue(children.last, row))
   }
 
-  private def getValue(v: ValueLiteralExpression): Comparable[Any] = {
-    val value = v.getValueAs(v.getOutputDataType.getConversionClass)
-    if (value.isPresent) {
-      value.get().asInstanceOf[Comparable[Any]]
-    } else {
-      null
-    }
+  private def getValue(expr: Expression, row: Row): Comparable[Any] = expr match {
+    case v: ValueLiteralExpression =>
+      val value = v.getValueAs(v.getOutputDataType.getConversionClass)
+      if (value.isPresent) {
+        value.get().asInstanceOf[Comparable[Any]]
+      } else {
+        null
+      }
+    case f: FieldReferenceExpression =>
+      val idx = rowTypeInfo.getFieldIndex(f.getName)
+      row.getField(idx).asInstanceOf[Comparable[Any]]
+    case c: CallExpression if c.getChildren.size() == 1 =>
+      val child = getValue(c.getChildren.head, row)
+      c.getFunctionDefinition match {
+        case BuiltInFunctionDefinitions.UPPER =>
+          child.toString.toUpperCase.asInstanceOf[Comparable[Any]]
+        case BuiltInFunctionDefinitions.LOWER =>
+          child.toString.toLowerCase().asInstanceOf[Comparable[Any]]
+        case _ => throw new RuntimeException(c + " not supported!")
+      }
+    case _ => throw new RuntimeException(expr + " not supported!")
   }
 
   override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
@@ -565,41 +548,16 @@ object TestFilterableTableSource {
     new TestFilterableTableSource(isBounded, rowTypeInfo, rows, filterableFields)
   }
 
-  /**
-    * A filterable data source with custom data.
-    *
-    * @param isBounded whether this is a bounded source
-    * @param rowTypeInfo The type of the data. Its expected that both types and field
-    *                    names are provided.
-    * @param rows The data as a sequence of rows.
-    * @param filterableFields The fields that are allowed to be filtered on.
-    * @param filterableBuiltInFunctions Allow pushdown for
-    *                                   BuiltInFunctionDefinition names
-    * @return The table source.
-    */
-  def apply(isBounded: Boolean,
-            rowTypeInfo: RowTypeInfo,
-            rows: Seq[Row],
-            filterableFields: Set[String],
-            filterableBuiltInFunctions: Set[String]): TestFilterableTableSource =
-    new TestFilterableTableSource(
-      isBounded,
-      rowTypeInfo,
-      rows,
-      filterableFields,
-      filterBuiltInFunctions = filterableBuiltInFunctions
-    )
+  val defaultFilterableFields = Set("amount")
 
-  private lazy val defaultFilterableFields = Set("amount")
-
-  private lazy val defaultTypeInfo: RowTypeInfo = {
+  val defaultTypeInfo: RowTypeInfo = {
     val fieldNames: Array[String] = Array("name", "id", "amount", "price")
     val fieldTypes: Array[TypeInformation[_]] =
       Array(Types.STRING, Types.LONG, Types.INT, Types.DOUBLE)
     new RowTypeInfo(fieldTypes, fieldNames)
   }
 
-  private lazy val defaultRows: Seq[Row] = {
+  val defaultRows: Seq[Row] = {
     for {
       cnt <- 0 until 33
     } yield {
