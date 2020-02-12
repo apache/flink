@@ -69,7 +69,7 @@ public final class JDBCDialects {
 						(dt.getLogicalType() instanceof VarBinaryType
 							&& Integer.MAX_VALUE != ((VarBinaryType) dt.getLogicalType()).getLength())) {
 					throw new ValidationException(
-							String.format("The %s dialect don't support type: %s.",
+							String.format("The %s dialect doesn't support type: %s.",
 									dialectName(),
 									dt.toString()));
 				}
