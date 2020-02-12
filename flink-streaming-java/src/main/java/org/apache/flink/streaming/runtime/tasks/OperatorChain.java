@@ -42,8 +42,6 @@ import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.BoundedMultiInput;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -278,25 +276,33 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 * @param inputId the input ID starts from 1 which indicates the first input.
 	 */
 	public void endHeadOperatorInput(int inputId) throws Exception {
-		endOperatorInput(getHeadOperator(), inputId);
+		if (headOperatorWrapper != null) {
+			headOperatorWrapper.endOperatorInput(inputId);
+		}
 	}
 
 	/**
-	 * Ends all inputs of the non-head operator specified by {@code streamOperator})
-	 * (now there is only one input for each non-head operator).
-	 *
-	 * @param streamOperator non-head operator for ending the only input.
+	 * Executes {@link StreamOperator#initializeState()} followed by {@link StreamOperator#open()}
+	 * of each operator in the chain of this {@link StreamTask}. State initialization and opening
+	 * happens from <b>tail to head</b> operator in the chain, contrary to {@link StreamOperator#close()}
+	 * which happens <b>head to tail</b>(see {@link #closeOperators(StreamTaskActionExecutor)}).
 	 */
-	public void endNonHeadOperatorInput(StreamOperator<?> streamOperator) throws Exception {
-		checkState(streamOperator != getHeadOperator());
-		endOperatorInput(streamOperator, 1);
+	protected void initializeStateAndOpenOperators() throws Exception {
+		for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+			StreamOperator<?> operator = operatorWrapper.getStreamOperator();
+			operator.initializeState();
+			operator.open();
+		}
 	}
 
-	private void endOperatorInput(StreamOperator<?> streamOperator, int inputId) throws Exception {
-		if (streamOperator instanceof BoundedOneInput) {
-			((BoundedOneInput) streamOperator).endInput();
-		} else if (streamOperator instanceof BoundedMultiInput) {
-			((BoundedMultiInput) streamOperator).endInput(inputId);
+	/**
+	 * Closes all operators in a chain effect way. Closing happens from <b>head to tail</b> operator
+	 * in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
+	 * (see {@link #initializeStateAndOpenOperators()}).
+	 */
+	protected void closeOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+		if (headOperatorWrapper != null) {
+			headOperatorWrapper.close(actionExecutor);
 		}
 	}
 

@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -76,7 +77,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Internal
 public class AsyncWaitOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT> {
+		implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -234,13 +235,11 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	@Override
-	public void close() throws Exception {
-		try {
-			waitInFlightInputsFinished();
-		}
-		finally {
-			super.close();
-		}
+	public void endInput() throws Exception {
+		// we should wait here for the data in flight to be finished. the reason is that the
+		// timer not in running will be forbidden to fire after this, so that when the async
+		// operation is stuck, it results in deadlock due to what the timeout timer is not fired
+		waitInFlightInputsFinished();
 	}
 
 	/**

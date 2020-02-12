@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util;
+package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
@@ -49,12 +49,19 @@ public class TestBoundedTwoInputOperator extends AbstractStreamOperator<String>
 
 	@Override
 	public void endInput(int inputId) {
-		output.collect(new StreamRecord<>("[" + name + "-" + inputId + "]: EndOfInput"));
+		output("[" + name + "-" + inputId + "]: End of input");
 	}
 
 	@Override
 	public void close() throws Exception {
+		ProcessingTimeService timeService = getProcessingTimeService();
+		timeService.registerTimer(timeService.getCurrentProcessingTime(), t -> output("[" + name + "]: Timer registered in close"));
+
 		output.collect(new StreamRecord<>("[" + name + "]: Bye"));
 		super.close();
+	}
+
+	private void output(String record) {
+		output.collect(new StreamRecord<>(record));
 	}
 }
