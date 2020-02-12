@@ -288,11 +288,10 @@ public class BootstrapTools {
 	public static void writeConfiguration(Configuration cfg, File file) throws IOException {
 		try (FileWriter fwrt = new FileWriter(file);
 			PrintWriter out = new PrintWriter(fwrt)) {
-			for (String key : cfg.keySet()) {
-				String value = cfg.getString(key, null);
-				out.print(key);
+			for (Map.Entry<String, String> entry : cfg.toMap().entrySet()) {
+				out.print(entry.getKey());
 				out.print(": ");
-				out.println(value);
+				out.println(entry.getValue());
 			}
 		}
 	}
