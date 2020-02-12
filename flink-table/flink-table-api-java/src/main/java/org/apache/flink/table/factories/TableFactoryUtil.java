@@ -24,7 +24,6 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -58,34 +57,6 @@ public class TableFactoryUtil {
 		} catch (Throwable t) {
 			throw new TableException("findAndCreateTableSink failed.", t);
 		}
-	}
-
-	/**
-	 * Returns a table source matching the properties.
-	 */
-	@SuppressWarnings("unchecked")
-	private static <T> TableSource<T> findAndCreateTableSource(Map<String, String> properties) {
-		try {
-			return TableFactoryService
-				.find(TableSourceFactory.class, properties)
-				.createTableSource(properties);
-		} catch (Throwable t) {
-			throw new TableException("findAndCreateTableSource failed.", t);
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <T> TableSink<T> findAndCreateTableSink(Map<String, String> properties) {
-		TableSink tableSink;
-		try {
-			tableSink = TableFactoryService
-				.find(TableSinkFactory.class, properties)
-				.createTableSink(properties);
-		} catch (Throwable t) {
-			throw new TableException("findAndCreateTableSink failed.", t);
-		}
-
-		return tableSink;
 	}
 
 	/**
