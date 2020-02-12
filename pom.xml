@@ -436,6 +436,24 @@ under the License.
 				<version>${jackson.version}</version>
 			</dependency>
 
+			<dependency>
+				<!-- re-branded javax.activation:javax.activation-api that is provided by flink-dist
+				 	(the package names are identical!) -->
+				<groupId>jakarta.activation</groupId>
+				<artifactId>jakarta.activation-api</artifactId>
+				<version>1.2.1</version>
+				<scope>provided</scope>
+			</dependency>
+
+			<dependency>
+				<!-- re-branded javax.xml.bind:jaxb-api that is provided by flink-dist
+					(the package names are identical!) -->
+				<groupId>jakarta.xml.bind</groupId>
+				<artifactId>jakarta.xml.bind-api</artifactId>
+				<version>2.3.2</version>
+				<scope>provided</scope>
+			</dependency>
+
 			<!-- For dependency convergence -->
 			<dependency>
 				<groupId>junit</groupId>
