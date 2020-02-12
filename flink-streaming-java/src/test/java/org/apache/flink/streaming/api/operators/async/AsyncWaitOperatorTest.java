@@ -276,6 +276,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -347,6 +348,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(16, initialTime + 8));
 
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -665,6 +667,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.endInput();
 			testHarness.close();
 		}
 
@@ -698,6 +701,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		synchronized (harness.getCheckpointLock()) {
+			harness.endInput();
 			harness.close();
 		}
 
@@ -861,6 +865,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		synchronized (recoverHarness.getCheckpointLock()) {
+			recoverHarness.endInput();
 			recoverHarness.close();
 		}
 
