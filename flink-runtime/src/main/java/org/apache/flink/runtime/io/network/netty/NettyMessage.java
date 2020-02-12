@@ -84,7 +84,7 @@ public abstract class NettyMessage {
 	 * 		{@link NettyMessage} subclass ID
 	 *
 	 * @return a newly allocated direct buffer with header data written for {@link
-	 * NettyMessageDecoder}
+	 * NettyMessageEncoder}
 	 */
 	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id) {
 		return allocateBuffer(allocator, id, -1);
@@ -105,7 +105,7 @@ public abstract class NettyMessage {
 	 * 		content length (or <tt>-1</tt> if unknown)
 	 *
 	 * @return a newly allocated direct buffer with header data written for {@link
-	 * NettyMessageDecoder}
+	 * NettyMessageEncoder}
 	 */
 	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id, int contentLength) {
 		return allocateBuffer(allocator, id, 0, contentLength, true);
@@ -131,7 +131,7 @@ public abstract class NettyMessage {
 	 * 		only return a buffer with the header information (<tt>false</tt>)
 	 *
 	 * @return a newly allocated direct buffer with header data written for {@link
-	 * NettyMessageDecoder}
+	 * NettyMessageEncoder}
 	 */
 	private static ByteBuf allocateBuffer(
 			ByteBufAllocator allocator,
