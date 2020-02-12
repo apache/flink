@@ -910,6 +910,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "FROM_BASE64(CAST(x'6147567362473867643239796247513D' AS VARBINARY))",
       "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(x'6147567362473867643239796247513D')",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(f58)",
+      "你好")
   }
 
   @Test
