@@ -100,25 +100,6 @@ More details on how to handle time are in the [event time docs]({{ site.baseurl 
 
 {% top %}
 
-## Stateful Operations
-
-While many operations in a dataflow simply look at one individual *event at a time* (for example an event parser),
-some operations remember information across multiple events (for example window operators).
-These operations are called **stateful**.
-
-The state of stateful operations is maintained in what can be thought of as an embedded key/value store.
-The state is partitioned and distributed strictly together with the streams that are read by the
-stateful operators. Hence, access to the key/value state is only possible on *keyed streams*, after a *keyBy()* function,
-and is restricted to the values associated with the current event's key. Aligning the keys of streams and state
-makes sure that all state updates are local operations, guaranteeing consistency without transaction overhead.
-This alignment also allows Flink to redistribute the state and adjust the stream partitioning transparently.
-
-<img src="{{ site.baseurl }}/fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
-
-For more information, see the documentation on [state](../dev/stream/state/index.html).
-
-{% top %}
-
 ## Checkpoints for Fault Tolerance
 
 Flink implements fault tolerance using a combination of **stream replay** and **checkpointing**. A
