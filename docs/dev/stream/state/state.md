@@ -22,42 +22,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document explains how to use Flink's state abstractions when developing an application.
+In this section you will learn about the stateful abstractions that Flink
+offers and how to use them in practice. Please take a look at [Stateful Stream
+Processing]({{site.baseurl}}{% link concepts/stateful-stream-processing.md %})
+to learn about the concepts behind stateful stream processing.
 
 * ToC
 {:toc}
-
-## Keyed State and Operator State
-
-There are two basic kinds of state in Flink: `Keyed State` and `Operator State`.
-
-### Keyed State
-
-*Keyed State* is always relative to keys and can only be used in functions and operators on a `KeyedStream`.
-
-You can think of Keyed State as Operator State that has been partitioned,
-or sharded, with exactly one state-partition per key.
-Each keyed-state is logically bound to a unique
-composite of <parallel-operator-instance, key>, and since each key
-"belongs" to exactly one parallel instance of a keyed operator, we can
-think of this simply as <operator, key>.
-
-Keyed State is further organized into so-called *Key Groups*. Key Groups are the
-atomic unit by which Flink can redistribute Keyed State;
-there are exactly as many Key Groups as the defined maximum parallelism.
-During execution each parallel instance of a keyed operator works with the keys
-for one or more Key Groups.
-
-### Operator State
-
-With *Operator State* (or *non-keyed state*), each operator state is
-bound to one parallel operator instance.
-The [Kafka Connector]({{ site.baseurl }}/dev/connectors/kafka.html) is a good motivating example for the use of Operator State
-in Flink. Each parallel instance of the Kafka consumer maintains a map
-of topic partitions and offsets as its Operator State.
-
-The Operator State interfaces support redistributing state among
-parallel operator instances when the parallelism is changed. There can be different schemes for doing this redistribution.
 
 ## Using Keyed State
 
