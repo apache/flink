@@ -39,8 +39,6 @@ export TASK_SLOTS_PER_TM_HA=4
 
 echo "Flink dist directory: $FLINK_DIR"
 
-FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
-
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
