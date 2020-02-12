@@ -43,7 +43,6 @@ import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -90,8 +89,8 @@ public class StreamTaskTestHarness<OUT> {
 
 	private final Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory;
 
-	public long memorySize = 0;
-	public int bufferSize = 0;
+	public long memorySize;
+	public int bufferSize;
 
 	protected StreamMockEnvironment mockEnv;
 	protected ExecutionConfig executionConfig;
@@ -148,7 +147,7 @@ public class StreamTaskTestHarness<OUT> {
 		streamConfig.setBufferTimeout(0);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
-		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
+		outputStreamRecordSerializer = new StreamElementSerializer<>(outputSerializer);
 
 		this.taskStateManager = new TestTaskStateManager(localRecoveryConfig);
 	}
@@ -181,9 +180,8 @@ public class StreamTaskTestHarness<OUT> {
 			Collections.singletonMap(checkpointId, taskStateSnapshot));
 	}
 
-	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
-		outputList = new LinkedBlockingQueue<Object>();
+		outputList = new LinkedBlockingQueue<>();
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
 	}
 
@@ -200,7 +198,7 @@ public class StreamTaskTestHarness<OUT> {
 		setupCalled = true;
 		streamConfig.setChainStart();
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
-		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
+		streamConfig.setOutputSelectors(Collections.emptyList());
 		streamConfig.setNumberOfOutputs(1);
 		streamConfig.setTypeSerializerOut(outputSerializer);
 		streamConfig.setVertexID(0);
@@ -210,11 +208,11 @@ public class StreamTaskTestHarness<OUT> {
 			private static final long serialVersionUID = 1L;
 		};
 
-		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertexDummy = new StreamNode(0, "group", null, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(1, "group", null, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		List<StreamEdge> outEdgesInOrder = new LinkedList<>();
+		StreamNode sourceVertexDummy = new StreamNode(0, "group", null, dummyOperator, "source dummy", new LinkedList<>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(1, "group", null, dummyOperator, "target dummy", new LinkedList<>(), SourceStreamTask.class);
 
-		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
+		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<>(), new BroadcastPartitioner<>(), null /* output tag */));
 
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
 		streamConfig.setNonChainedOutputs(outEdgesInOrder);
@@ -267,8 +265,6 @@ public class StreamTaskTestHarness<OUT> {
 
 	/**
 	 * Waits for the task completion.
-	 *
-	 * @throws Exception
 	 */
 	public void waitForTaskCompletion() throws Exception {
 		waitForTaskCompletion(Long.MAX_VALUE);
@@ -279,7 +275,6 @@ public class StreamTaskTestHarness<OUT> {
 	 * TimeoutException is thrown.
 	 *
 	 * @param timeout Timeout for the task completion
-	 * @throws Exception
 	 */
 	public void waitForTaskCompletion(long timeout) throws Exception {
 		Preconditions.checkState(taskThread != null, "Task thread was not started.");
@@ -292,8 +287,6 @@ public class StreamTaskTestHarness<OUT> {
 
 	/**
 	 * Waits for the task to be running.
-	 *
-	 * @throws Exception
 	 */
 	public void waitForTaskRunning() throws Exception {
 		Preconditions.checkState(taskThread != null, "Task thread was not started.");
@@ -335,7 +328,7 @@ public class StreamTaskTestHarness<OUT> {
 		this.mockEnv.getIOManager().close();
 	}
 
-	private void shutdownMemoryManager() throws Exception {
+	private void shutdownMemoryManager() {
 		if (this.memorySize > 0) {
 			MemoryManager memMan = this.mockEnv.getMemoryManager();
 			if (memMan != null) {
@@ -348,7 +341,6 @@ public class StreamTaskTestHarness<OUT> {
 	/**
 	 * Sends the element to input gate 0 on channel 0.
 	 */
-	@SuppressWarnings("unchecked")
 	public void processElement(Object element) {
 		inputGates[0].sendElement(element, 0);
 	}
@@ -356,7 +348,6 @@ public class StreamTaskTestHarness<OUT> {
 	/**
 	 * Sends the element to the specified channel on the specified input gate.
 	 */
-	@SuppressWarnings("unchecked")
 	public void processElement(Object element, int inputGate, int channel) {
 		inputGates[inputGate].sendElement(element, channel);
 	}

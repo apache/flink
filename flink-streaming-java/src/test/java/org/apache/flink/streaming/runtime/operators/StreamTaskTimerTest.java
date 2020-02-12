@@ -70,11 +70,7 @@ public class StreamTaskTimerTest extends TestLogger {
 	@Test
 	public void testOpenCloseAndTimestamps() {
 		// first one spawns thread
-		timeService.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
-			@Override
-			public void onProcessingTime(long timestamp) {
-			}
-		});
+		timeService.registerTimer(System.currentTimeMillis(), timestamp -> {});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
 	}
