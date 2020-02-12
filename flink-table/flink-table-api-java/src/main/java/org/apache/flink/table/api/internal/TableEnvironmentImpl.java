@@ -133,22 +133,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
 	 */
 	private final Registration registration = new Registration() {
+
 		@Override
 		public void createTemporaryTable(String path, CatalogBaseTable table) {
 			UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
 			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(
 				unresolvedIdentifier);
 			catalogManager.createTemporaryTable(table, objectIdentifier, false);
-		}
-
-		@Override
-		public void createTableSource(String name, TableSource<?> tableSource) {
-			registerTableSource(name, tableSource);
-		}
-
-		@Override
-		public void createTableSink(String name, TableSink<?> tableSink) {
-			registerTableSink(name, tableSink);
 		}
 	};
 

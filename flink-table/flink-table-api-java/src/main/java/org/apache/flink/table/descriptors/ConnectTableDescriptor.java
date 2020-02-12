@@ -24,9 +24,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.Registration;
 import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -59,59 +56,6 @@ public abstract class ConnectTableDescriptor
 	public ConnectTableDescriptor withSchema(Schema schema) {
 		schemaDescriptor = Preconditions.checkNotNull(schema, "Schema must not be null.");
 		return this;
-	}
-
-	/**
-	 * Searches for the specified table source, configures it accordingly, and registers it as
-	 * a table under the given name.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name table name to be registered in the table environment
-	 * @deprecated use {@link #createTemporaryTable(String)}
-	 */
-	@Deprecated
-	public void registerTableSource(String name) {
-		Preconditions.checkNotNull(name);
-		TableSource<?> tableSource = TableFactoryUtil.findAndCreateTableSource(this);
-		registration.createTableSource(name, tableSource);
-	}
-
-	/**
-	 * Searches for the specified table sink, configures it accordingly, and registers it as
-	 * a table under the given name.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name table name to be registered in the table environment
-	 * @deprecated use {@link #createTemporaryTable(String)}
-	 */
-	@Deprecated
-	public void registerTableSink(String name) {
-		Preconditions.checkNotNull(name);
-		TableSink<?> tableSink = TableFactoryUtil.findAndCreateTableSink(this);
-		registration.createTableSink(name, tableSink);
-	}
-
-	/**
-	 * Searches for the specified table source and sink, configures them accordingly, and registers
-	 * them as a table under the given name.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name table name to be registered in the table environment
-	 * @deprecated use {@link #createTemporaryTable(String)}
-	 */
-	@Deprecated
-	public void registerTableSourceAndSink(String name) {
-		registerTableSource(name);
-		registerTableSink(name);
 	}
 
 	/**
