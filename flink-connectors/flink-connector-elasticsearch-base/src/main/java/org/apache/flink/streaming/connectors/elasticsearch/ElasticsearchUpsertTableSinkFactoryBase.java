@@ -243,8 +243,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		@SuppressWarnings("unchecked")
 		final SerializationSchemaFactory<Row> formatFactory = TableFactoryService.find(
 			SerializationSchemaFactory.class,
-			properties,
-			this.getClass().getClassLoader());
+			properties);
 		return formatFactory.createSerializationSchema(properties);
 	}
 

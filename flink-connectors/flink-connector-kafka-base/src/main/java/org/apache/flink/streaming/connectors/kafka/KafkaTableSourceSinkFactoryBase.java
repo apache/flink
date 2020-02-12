@@ -280,8 +280,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		@SuppressWarnings("unchecked")
 		final DeserializationSchemaFactory<Row> formatFactory = TableFactoryService.find(
 			DeserializationSchemaFactory.class,
-			properties,
-			this.getClass().getClassLoader());
+			properties);
 		return formatFactory.createDeserializationSchema(properties);
 	}
 
@@ -289,8 +288,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		@SuppressWarnings("unchecked")
 		final SerializationSchemaFactory<Row> formatFactory = TableFactoryService.find(
 			SerializationSchemaFactory.class,
-			properties,
-			this.getClass().getClassLoader());
+			properties);
 		return formatFactory.createSerializationSchema(properties);
 	}
 
