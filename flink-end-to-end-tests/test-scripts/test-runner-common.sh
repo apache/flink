@@ -19,6 +19,8 @@
 
 source "${END_TO_END_DIR}"/test-scripts/common.sh
 
+FLINK_VERSION=$(mvn --file ${END_TO_END_DIR}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
+
 #######################################
 # Prints the given description, runs the given test and prints how long the execution took.
 # Arguments:
@@ -92,6 +94,8 @@ function post_test_validation {
         exit "${exit_code}"
     fi
 }
+
+
 
 # Shuts down cluster and reverts changes to cluster configs
 function cleanup_proc {
