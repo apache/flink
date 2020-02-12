@@ -73,18 +73,11 @@ abstract class BatchTableEnvImpl(
    * Provides necessary methods for [[ConnectTableDescriptor]].
    */
   private val registration = new Registration() {
+
     override def createTemporaryTable(path: String, table: CatalogBaseTable): Unit = {
       val unresolvedIdentifier = parseIdentifier(path)
       val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
       catalogManager.createTemporaryTable(table, objectIdentifier, false)
-    }
-
-    override def createTableSource(name: String, tableSource: TableSource[_]): Unit = {
-      registerTableSource(name, tableSource)
-    }
-
-    override def createTableSink(name: String, tableSource: TableSink[_]): Unit = {
-      registerTableSink(name, tableSource)
     }
   }
 
