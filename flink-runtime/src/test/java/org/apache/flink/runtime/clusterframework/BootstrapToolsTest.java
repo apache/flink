@@ -20,8 +20,11 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -34,13 +37,19 @@ import org.apache.flink.util.function.CheckedSupplier;
 
 import akka.actor.ActorSystem;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +61,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -65,6 +76,9 @@ import static org.junit.Assert.fail;
 public class BootstrapToolsTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapToolsTest.class);
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void testSubstituteConfigKey() {
@@ -532,5 +546,57 @@ public class BootstrapToolsTest extends TestLogger {
 		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
 
 		Assert.assertEquals(0, res.size());
+	}
+
+	@Test
+	public void testWriteConfigurationAndReload() throws IOException {
+		final File flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
+		final Configuration flinkConfig = new Configuration();
+
+		final ConfigOption<List<String>> listStringConfigOption = ConfigOptions
+			.key("test-list-string-key")
+			.stringType()
+			.asList()
+			.noDefaultValue();
+		final List<String> list = Arrays.asList("A,B,C,D", "A'B'C'D", "A;BCD", "AB\"C\"D", "AB'\"D:B");
+		flinkConfig.set(listStringConfigOption, list);
+		assertThat(flinkConfig.get(listStringConfigOption), containsInAnyOrder(list.toArray()));
+
+		final ConfigOption<List<Duration>> listDurationConfigOption = ConfigOptions
+			.key("test-list-duration-key")
+			.durationType()
+			.asList()
+			.noDefaultValue();
+		final List<Duration> durationList = Arrays.asList(Duration.ofSeconds(3), Duration.ofMinutes(1));
+		flinkConfig.set(listDurationConfigOption, durationList);
+		assertThat(flinkConfig.get(listDurationConfigOption), containsInAnyOrder(durationList.toArray()));
+
+		final ConfigOption<Map<String, String>> mapConfigOption = ConfigOptions
+			.key("test-map-key")
+			.mapType()
+			.noDefaultValue();
+		final Map<String, String> map = new HashMap<>();
+		map.put("key1", "A,B,C,D");
+		map.put("key2", "A;BCD");
+		map.put("key3", "A'B'C'D");
+		map.put("key4", "AB\"C\"D");
+		map.put("key5", "AB'\"D:B");
+		flinkConfig.set(mapConfigOption, map);
+		assertThat(flinkConfig.get(mapConfigOption).entrySet(), containsInAnyOrder(map.entrySet().toArray()));
+
+		final ConfigOption<Duration> durationConfigOption = ConfigOptions
+			.key("test-duration-key")
+			.durationType()
+			.noDefaultValue();
+		final Duration duration = Duration.ofMillis(3000);
+		flinkConfig.set(durationConfigOption, duration);
+		assertEquals(duration, flinkConfig.get(durationConfigOption));
+
+		BootstrapTools.writeConfiguration(flinkConfig, new File(flinkConfDir, FLINK_CONF_FILENAME));
+		final Configuration loadedFlinkConfig = GlobalConfiguration.loadConfiguration(flinkConfDir.getAbsolutePath());
+		assertThat(loadedFlinkConfig.get(listStringConfigOption), containsInAnyOrder(list.toArray()));
+		assertThat(loadedFlinkConfig.get(listDurationConfigOption), containsInAnyOrder(durationList.toArray()));
+		assertThat(loadedFlinkConfig.get(mapConfigOption).entrySet(), containsInAnyOrder(map.entrySet().toArray()));
+		assertEquals(duration, loadedFlinkConfig.get(durationConfigOption));
 	}
 }
