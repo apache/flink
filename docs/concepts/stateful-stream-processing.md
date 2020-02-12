@@ -94,4 +94,25 @@ docs](../dev/stream/state/checkpointing.html).
 
 ###End-to-end exactly once semantics
 
+## State and Fault Tolerance in Batch Programs
+
+Flink executes [batch programs](../dev/batch/index.html) as a special case of
+streaming programs, where the streams are bounded (finite number of elements).
+A *DataSet* is treated internally as a stream of data. The concepts above thus
+apply to batch programs in the same way as well as they apply to streaming
+programs, with minor exceptions:
+
+  - [Fault tolerance for batch programs](../dev/batch/fault_tolerance.html)
+    does not use checkpointing.  Recovery happens by fully replaying the
+    streams.  That is possible, because inputs are bounded. This pushes the
+    cost more towards the recovery, but makes the regular processing cheaper,
+    because it avoids checkpoints.
+
+  - Stateful operations in the DataSet API use simplified in-memory/out-of-core
+    data structures, rather than key/value indexes.
+
+  - The DataSet API introduces special synchronized (superstep-based)
+    iterations, which are only possible on bounded streams. For details, check
+    out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
+
 {% top %}
