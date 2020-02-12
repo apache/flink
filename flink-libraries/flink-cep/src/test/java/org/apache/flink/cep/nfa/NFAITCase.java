@@ -26,6 +26,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
@@ -2843,5 +2844,36 @@ public class NFAITCase extends TestLogger {
 			nfa.advanceTime(accessor, nfa.createInitialNFAState(), 2);
 			Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);
 		}
+	}
+
+	/**
+	 * Test that can access the value of the previous stage directly in notFollowedBy.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-15964">FLINK-15964</a>
+	 * @throws Exception
+	 */
+	@Test
+	public void testAccessPreviousStageInNotFollowedBy() throws Exception {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+				.notFollowedBy("not").where(new IterativeCondition<Event>() {
+					private static final long serialVersionUID = -4702359359303151881L;
+
+					@Override
+					public boolean filter(Event value, Context<Event> ctx) throws Exception {
+						return value.getName().equals(ctx.getEventsForPattern("start").iterator().next().getName());
+					}
+				}).followedBy("end");
+
+		Event a = new Event(40, "a", 1.0);
+		Event b = new Event(41, "b", 2.0);
+
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+		inputEvents.add(new StreamRecord<>(a, 1));
+		inputEvents.add(new StreamRecord<>(b, 2));
+
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
+
+		comparePatterns(resultingPatterns, Collections.singletonList(Lists.newArrayList(a, b)));
 	}
 }
