@@ -100,24 +100,6 @@ More details on how to handle time are in the [event time docs]({{ site.baseurl 
 
 {% top %}
 
-## Checkpoints for Fault Tolerance
-
-Flink implements fault tolerance using a combination of **stream replay** and **checkpointing**. A
-checkpoint is related to a specific point in each of the input streams along with the corresponding state for each
-of the operators. A streaming dataflow can be resumed from a checkpoint while maintaining consistency *(exactly-once
-processing semantics)* by restoring the state of the operators and replaying the events from the
-point of the checkpoint.
-
-The checkpoint interval is a means of trading off the overhead of fault tolerance during execution with the recovery time (the number
-of events that need to be replayed).
-
-The description of the [fault tolerance internals]({{ site.baseurl }}/internals/stream_checkpointing.html) provides
-more information about how Flink manages checkpoints and related topics.
-Details about enabling and configuring checkpointing are in the [checkpointing API docs](../dev/stream/state/checkpointing.html).
-
-
-{% top %}
-
 ## Batch on Streaming
 
 Flink executes [batch programs](../dev/batch/index.html) as a special case of streaming programs, where the streams are bounded (finite number of elements).
