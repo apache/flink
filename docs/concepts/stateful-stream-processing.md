@@ -317,6 +317,10 @@ updates to that state.
 See [Restart Strategies]({{ site.baseurl }}{% link dev/task_failure_recovery.md
 %}#restart-strategies) for more information.
 
+### State Backends
+
+`TODO: add`
+
 ### Exactly Once vs. At Least Once
 
 The alignment step may add latency to the streaming program. Usually, this
@@ -340,8 +344,11 @@ repartitioning/shuffle).  Because of that, dataflows with only embarrassingly
 parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually
 give *exactly once* guarantees even in *at least once* mode.
 
-
 {% top %}
+
+## End-to-end Exactly-Once Programs
+
+`TODO: add`
 
 ## State and Fault Tolerance in Batch Programs
 
