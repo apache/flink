@@ -24,21 +24,63 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Stateful Operations
-
 While many operations in a dataflow simply look at one individual *event at a
 time* (for example an event parser), some operations remember information
 across multiple events (for example window operators).  These operations are
 called **stateful**.
 
+Stateful functions and operators store data across the processing of individual
+elements/events, making state a critical building block for any type of more
+elaborate operation.
+
+For example:
+
+  - When an application searches for certain event patterns, the state will
+    store the sequence of events encountered so far.
+  - When aggregating events per minute/hour/day, the state holds the pending
+    aggregates.
+  - When training a machine learning model over a stream of data points, the
+    state holds the current version of the model parameters.
+  - When historic data needs to be managed, the state allows efficient access
+    to events that occurred in the past.
+
+Flink needs to be aware of the state in order to make state fault tolerant
+using [checkpoints]({{ site.baseurl}}{% link dev/stream/state/checkpointing.md
+%}) and to allow [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.md
+%}) of streaming applications.
+
+Knowledge about the state also allows for rescaling Flink applications, meaning
+that Flink takes care of redistributing state across parallel instances.
+
+The [queryable state]({{ site.baseurl }}{% link
+dev/stream/state/queryable_state.md %}) feature of Flink allows you to access
+state from outside of Flink during runtime.
+
+When working with state, it might also be useful to read about [Flink's state
+backends]({{ site.baseurl }}{% link ops/state/state_backends.md %}). Flink
+provides different state backends that specify how and where state is stored.
+State can be located on Java's heap or off-heap. Depending on your state
+backend, Flink can also *manage* the state for the application, meaning Flink
+deals with the memory management (possibly spilling to disk if necessary) to
+allow applications to hold very large state. State backends can be configured
+without changing your application logic.
+
 * This will be replaced by the TOC
 {:toc}
 
-### What is State?
+## What is State?
+
+`TODO: expand this section`
+
+There are different types of state in Flink, the most-used type of state is
+*Keyed State*. For special cases you can use *Operator State* and *Broadcast
+State*. *Broadcast State* is a special type of *Operator State*.
 
 {% top %}
 
 ## State in Stream & Batch Processing
+
+`TODO: What is this section about? Do we even need it?`
 
 {% top %}
 
@@ -55,6 +97,24 @@ alignment also allows Flink to redistribute the state and adjust the stream
 partitioning transparently.
 
 <img src="{{ site.baseurl }}/fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
+
+Keyed State is further organized into so-called *Key Groups*. Key Groups are
+the atomic unit by which Flink can redistribute Keyed State; there are exactly
+as many Key Groups as the defined maximum parallelism.  During execution each
+parallel instance of a keyed operator works with the keys for one or more Key
+Groups.
+
+## Operator State
+
+*Operator State* (or *non-keyed state*) is state that is is bound to one
+parallel operator instance.  The [Kafka Connector]({{ site.baseurl }}{% link
+dev/connectors/kafka.md %}) is a good motivating example for the use of
+Operator State in Flink. Each parallel instance of the Kafka consumer maintains
+a map of topic partitions and offsets as its Operator State.
+
+The Operator State interfaces support redistributing state among parallel
+operator instances when the parallelism is changed. There can be different
+schemes for doing this redistribution.
 
 {% top %}
 
