@@ -36,6 +36,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils.{createMethodSignatureString, isAssignable, isMethodInvokable, primitiveToWrapper}
 import org.apache.flink.table.types.inference.TypeInferenceUtil
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.util.Preconditions
@@ -166,17 +167,24 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
     val externalResultTerm = newName("externalResult")
 
-    // code for wrap atomic types
-    val resultGenerator = new ExprCodeGenerator(collectorCtx, outputType.isNullable)
-      .bindInput(outputType, externalResultTerm)
-    val wrappedResult = resultGenerator.generateConverterResultExpression(
-      returnType,
-      classOf[GenericRow])
-    val collectorCode =
+    // code for wrapping atomic types
+    val collectorCode = if (!isCompositeType(outputType)) {
+      val resultGenerator = new ExprCodeGenerator(collectorCtx, outputType.isNullable)
+        .bindInput(outputType, externalResultTerm)
+      val wrappedResult = resultGenerator.generateConverterResultExpression(
+        returnType,
+        classOf[GenericRow])
       s"""
        |${wrappedResult.code}
        |outputResult(${wrappedResult.resultTerm});
        |""".stripMargin
+    } else {
+      s"""
+        |if ($externalResultTerm != null) {
+        |  outputResult($externalResultTerm);
+        |}
+        |""".stripMargin
+    }
 
     // collector for converting to internal types then wrapping atomic types
     val resultCollector = CollectorCodeGenerator.generateWrappingCollector(

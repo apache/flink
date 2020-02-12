@@ -43,6 +43,7 @@ public abstract class WrappingCollector<T> extends AbstractRichFunction implemen
 		this.collector.collect(result);
 	}
 
+	@Override
 	public void close() {
 		this.collector.close();
 	}

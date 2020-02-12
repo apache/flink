@@ -208,6 +208,9 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 				(category == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
 			return true;
 		}
+
+		// aggregate function are not supported, because the code generator is not ready yet
+
 		return false;
 	}
 

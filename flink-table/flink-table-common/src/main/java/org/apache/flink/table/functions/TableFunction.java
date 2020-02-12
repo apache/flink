@@ -33,7 +33,8 @@ import org.apache.flink.util.Collector;
 /**
  * Base class for a user-defined table function. A user-defined table functions maps zero, one, or
  * multiple scalar values to zero, one, or multiple rows. If an output row consists of only one field,
- * the row can be omitted and a scalar value can be emitted. It will be wrapped into a row by the runtime.
+ * the row can be omitted and a scalar value can be emitted. It will be wrapped into an implicit row
+ * by the runtime.
  *
  * <p>The behavior of a {@link TableFunction} can be defined by implementing a custom evaluation
  * method. An evaluation method must be declared publicly, not static, and named <code>eval</code>.
@@ -140,7 +141,7 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	/**
 	 * The code generated collector used to emit rows.
 	 */
-	protected Collector<T> collector;
+	private Collector<T> collector;
 
 	/**
 	 * Internal use. Sets the current collector.
@@ -191,7 +192,10 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	}
 
 	/**
-	 * Emits an output row.
+	 * Emits an (implicit or explicit) output row.
+	 *
+	 * <p>If null is emitted as an explicit row, it will be skipped by the runtime. For implicit rows,
+	 * the row's field will be null.
 	 *
 	 * @param row the output row
 	 */

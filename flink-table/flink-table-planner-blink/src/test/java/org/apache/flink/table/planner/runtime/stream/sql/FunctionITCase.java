@@ -570,8 +570,7 @@ public class FunctionITCase extends StreamingTestBase {
 		final List<Row> sinkData = Arrays.asList(
 			Row.of("1,2,3", new String[]{"1", "2", "3"}),
 			Row.of("2,3,4", new String[]{"2", "3", "4"}),
-			Row.of("3,4,5", new String[]{"3", "4", "5"}),
-			Row.of(null, null)
+			Row.of("3,4,5", new String[]{"3", "4", "5"})
 		);
 
 		TestCollectionTableFactory.reset();

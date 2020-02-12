@@ -24,23 +24,29 @@ import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newName
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
-import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
 import org.apache.flink.table.planner.codegen._
+import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
 import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
+import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
 
 import scala.collection.JavaConversions._
 
 /**
-  * Generates a call to user-defined [[TableFunction]].
-  *
-  * @param tableFunction user-defined [[TableFunction]] that might be overloaded
-  */
+ * Generates a call to user-defined [[TableFunction]].
+ *
+ * Table functions are a special case because they are using a collector. Thus, the result of this
+ * generator will be a reference to a [[WrappingCollector]]. Furthermore, atomic types are wrapped
+ * into a row by the collector.
+ *
+ * @param tableFunction user-defined [[TableFunction]] that might be overloaded
+ */
 class TableFunctionCallGen(
     rexCall: RexCall,
     tableFunction: TableFunction[_])
@@ -55,9 +61,7 @@ class TableFunctionCallGen(
 
     val resultCollectorTerm = generateResultCollector(ctx)
 
-    val setCollectorCode = s"""
-      |$functionReference.setCollector($resultCollectorTerm);
-      |""".stripMargin
+    val setCollectorCode = s"$functionReference.setCollector($resultCollectorTerm);"
     ctx.addReusableOpenStatement(setCollectorCode)
 
     // generate function call
@@ -116,17 +120,25 @@ class TableFunctionCallGen(
 
     val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
     val externalTerm = newName("externalRecord")
-    val resultGenerator = new ExprCodeGenerator(collectorCtx, true)
-      .bindInput(externalType, externalTerm, pojoFieldMapping)
-    val wrappedResult = resultGenerator.generateConverterResultExpression(
-      wrappedInternalType,
-      classOf[GenericRow])
 
-    val collectorCode =
+    // code for wrapping atomic types
+    val collectorCode = if (!isCompositeType(externalType)) {
+      val resultGenerator = new ExprCodeGenerator(collectorCtx, externalType.isNullable)
+        .bindInput(externalType, externalTerm, pojoFieldMapping)
+      val wrappedResult = resultGenerator.generateConverterResultExpression(
+        wrappedInternalType,
+        classOf[GenericRow])
       s"""
        |${wrappedResult.code}
        |outputResult(${wrappedResult.resultTerm});
        |""".stripMargin
+    } else {
+      s"""
+        |if ($externalTerm != null) {
+        |  outputResult($externalTerm);
+        |}
+        |""".stripMargin
+    }
 
     val resultCollector = CollectorCodeGenerator.generateWrappingCollector(
       collectorCtx,
