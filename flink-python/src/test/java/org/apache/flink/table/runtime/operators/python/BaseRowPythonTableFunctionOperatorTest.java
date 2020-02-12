@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
 
@@ -71,9 +72,10 @@ public class BaseRowPythonTableFunctionOperatorTest
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udfInputOffsets) {
+		int[] udfInputOffsets,
+		JoinRelType joinRelType) {
 		return new BaseRowPassThroughPythonTableFunctionOperator(
-			config, tableFunction, inputType, outputType, udfInputOffsets);
+			config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
 	}
 
 	private static class BaseRowPassThroughPythonTableFunctionOperator extends BaseRowPythonTableFunctionOperator {
@@ -83,8 +85,9 @@ public class BaseRowPythonTableFunctionOperatorTest
 			PythonFunctionInfo tableFunction,
 			RowType inputType,
 			RowType outputType,
-			int[] udfInputOffsets) {
-			super(config, tableFunction, inputType, outputType, udfInputOffsets);
+			int[] udfInputOffsets,
+			JoinRelType joinRelType) {
+			super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
 		}
 
 		@Override

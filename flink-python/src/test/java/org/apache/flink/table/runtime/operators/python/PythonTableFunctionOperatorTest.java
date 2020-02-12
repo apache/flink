@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
 import java.util.Queue;
@@ -44,9 +45,10 @@ public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperator
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udfInputOffsets) {
+		int[] udfInputOffsets,
+		JoinRelType joinRelType) {
 		return new PassThroughPythonTableFunctionOperator(
-			config, tableFunction, inputType, outputType, udfInputOffsets);
+			config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
 	}
 
 	@Override
@@ -66,8 +68,9 @@ public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperator
 			PythonFunctionInfo tableFunction,
 			RowType inputType,
 			RowType outputType,
-			int[] udfInputOffsets) {
-			super(config, tableFunction, inputType, outputType, udfInputOffsets);
+			int[] udfInputOffsets,
+			JoinRelType joinRelType) {
+			super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
 		}
 
 		@Override

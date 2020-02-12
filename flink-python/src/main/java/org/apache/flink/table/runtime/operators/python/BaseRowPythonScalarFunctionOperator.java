@@ -108,7 +108,7 @@ public class BaseRowPythonScalarFunctionOperator
 	}
 
 	@Override
-	public BaseRow getUdfInput(BaseRow element) {
+	public BaseRow getFunctionInput(BaseRow element) {
 		return udfInputProjection.apply(element);
 	}
 

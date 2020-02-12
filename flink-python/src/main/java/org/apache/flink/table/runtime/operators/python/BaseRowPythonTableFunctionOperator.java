@@ -26,6 +26,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -34,10 +35,12 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonTableFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.calcite.rel.core.JoinRelType;
 
 import java.io.IOException;
 
@@ -71,13 +74,19 @@ public class BaseRowPythonTableFunctionOperator
 	 */
 	private transient TypeSerializer<BaseRow> udtfOutputTypeSerializer;
 
+	/**
+	 * The type serializer for the forwarded fields.
+	 */
+	private transient BaseRowSerializer forwardedInputSerializer;
+
 	public BaseRowPythonTableFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udtfInputOffsets) {
-		super(config, tableFunction, inputType, outputType, udtfInputOffsets);
+		int[] udtfInputOffsets,
+		JoinRelType joinType) {
+		super(config, tableFunction, inputType, outputType, udtfInputOffsets, joinType);
 	}
 
 	@Override
@@ -88,16 +97,20 @@ public class BaseRowPythonTableFunctionOperator
 		reuseJoinedRow = new JoinedRow();
 
 		udtfInputProjection = createUdtfInputProjection();
+		forwardedInputSerializer = new BaseRowSerializer(this.getExecutionConfig(), inputType);
 		udtfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
 	public void bufferInput(BaseRow input) {
+		// always copy the input BaseRow
+		BaseRow forwardedFields = forwardedInputSerializer.copy(input);
+		forwardedFields.setHeader(input.getHeader());
 		forwardedInputQueue.add(input);
 	}
 
 	@Override
-	public BaseRow getUdfInput(BaseRow element) {
+	public BaseRow getFunctionInput(BaseRow element) {
 		return udtfInputProjection.apply(element);
 	}
 
@@ -129,20 +142,30 @@ public class BaseRowPythonTableFunctionOperator
 	public void emitResults() throws IOException {
 		BaseRow input = null;
 		byte[] rawUdtfResult;
+		boolean lastIsFinishResult = true;
 		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			if (input == null) {
 				input = forwardedInputQueue.poll();
 			}
 			boolean isFinishResult = isFinishResult(rawUdtfResult);
-			if (isFinishResult) {
+			if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
 				input = forwardedInputQueue.poll();
+			} else if (input != null) {
+				if (!isFinishResult) {
+					reuseJoinedRow.setHeader(input.getHeader());
+					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
+					BaseRow udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+					baseRowWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
+				} else {
+					BaseRow udtfResult = new GenericRow(userDefinedFunctionOutputType.getFieldCount());
+					for (int i = 0; i < udtfResult.getArity(); i++) {
+						udtfResult.setNullAt(i);
+					}
+					baseRowWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
+					input = forwardedInputQueue.poll();
+				}
 			}
-			if (input != null && !isFinishResult) {
-				reuseJoinedRow.setHeader(input.getHeader());
-				bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-				BaseRow udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
-				baseRowWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
-			}
+			lastIsFinishResult = isFinishResult;
 		}
 	}
 }

@@ -149,7 +149,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 */
 	public abstract void bufferInput(IN input);
 
-	public abstract UDFIN getUdfInput(IN element);
+	public abstract UDFIN getFunctionInput(IN element);
 
 	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
@@ -185,7 +185,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 		@Override
 		public void processElement(IN element) throws Exception {
-			pythonFunctionRunner.processElement(getUdfInput(element));
+			pythonFunctionRunner.processElement(getFunctionInput(element));
 		}
 	}
 

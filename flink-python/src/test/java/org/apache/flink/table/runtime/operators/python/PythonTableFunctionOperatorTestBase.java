@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
+import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -51,7 +52,8 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 
 	@Test
 	public void testRetractionFieldKept() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(new Configuration());
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(
+			new Configuration(), JoinRelType.INNER);
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -73,7 +75,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 	public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf, JoinRelType.INNER);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -96,7 +98,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 	public void testFinishBundleTriggeredByCount() throws Exception {
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf, JoinRelType.INNER);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -120,7 +122,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 		Configuration conf = new Configuration();
 		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
 		conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf, JoinRelType.INNER);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -137,7 +139,40 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 		testHarness.close();
 	}
 
-	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(Configuration config) throws Exception {
+	@Test
+	public void testLeftJoin() throws Exception {
+		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(
+			new Configuration(), JoinRelType.LEFT);
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c2", "c4", 1L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c3", "c6", 2L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c4", "c6", 2L), initialTime + 4));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c5", "c6", 2L), initialTime + 5));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c6", "c6", 2L), initialTime + 6));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c7", "c6", 2L), initialTime + 7));
+		testHarness.processElement(new StreamRecord<>(newRow(false, "c8", "c6", 2L), initialTime + 8));
+		testHarness.close();
+
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c2", "c4", 1L, 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c3", "c6", 2L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c4", "c6", 2L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c5", "c6", 2L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c6", "c6", 2L, null)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c7", "c6", 2L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c8", "c6", 2L, null)));
+
+		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+	}
+
+	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(
+		Configuration config,
+		JoinRelType joinRelType) throws Exception {
 		RowType inputType = new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
@@ -154,7 +189,8 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 				new Integer[]{0}),
 			inputType,
 			outputType,
-			new int[]{2}
+			new int[]{2},
+			joinRelType
 		);
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
@@ -172,5 +208,6 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udfInputOffsets);
+		int[] udfInputOffsets,
+		JoinRelType joinRelType);
 }

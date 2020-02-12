@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.runners.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -31,8 +32,9 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
- * It takes {@link BaseRow} as the input and output type.
+ * It takes {@link BaseRow} as the input and outputs a byte array.
  */
+@Internal
 public class BaseRowPythonTableFunctionRunner extends AbstractPythonTableFunctionRunner<BaseRow> {
 	public BaseRowPythonTableFunctionRunner(
 		String taskName,

@@ -33,7 +33,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
- * It takes {@link Row} as the input and output type.
+ * It takes {@link Row} as the input and outputs a byte array.
  */
 @Internal
 public class PythonTableFunctionRunner extends AbstractPythonTableFunctionRunner<Row> {

@@ -35,6 +35,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.calcite.rel.core.JoinRelType;
 
 import java.io.IOException;
 
@@ -66,8 +67,9 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
 		RowType outputType,
-		int[] udtfInputOffsets) {
-		super(config, tableFunction, inputType, outputType, udtfInputOffsets);
+		int[] udtfInputOffsets,
+		JoinRelType joinType) {
+		super(config, tableFunction, inputType, outputType, udtfInputOffsets, joinType);
 	}
 
 	@Override
@@ -86,20 +88,30 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	public void emitResults() throws IOException {
 		CRow input = null;
 		byte[] rawUdtfResult;
+		boolean lastIsFinishResult = true;
 		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			if (input == null) {
 				input = forwardedInputQueue.poll();
 			}
 			boolean isFinishResult = isFinishResult(rawUdtfResult);
-			if (isFinishResult) {
+			if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
 				input = forwardedInputQueue.poll();
+			} else if (input != null) {
+				if (!isFinishResult) {
+					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
+					Row udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+					cRowWrapper.setChange(input.change());
+					cRowWrapper.collect(Row.join(input.row(), udtfResult));
+				} else {
+					Row udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
+					for (int i = 0; i < udtfResult.getArity(); i++) {
+						udtfResult.setField(0, null);
+					}
+					cRowWrapper.collect(Row.join(input.row(), udtfResult));
+					input = forwardedInputQueue.poll();
+				}
 			}
-			if (input != null && !isFinishResult) {
-				bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-				Row udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
-				cRowWrapper.setChange(input.change());
-				cRowWrapper.collect(Row.join(input.row(), udtfResult));
-			}
+			lastIsFinishResult = isFinishResult;
 		}
 	}
 
@@ -112,7 +124,7 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	}
 
 	@Override
-	public Row getUdfInput(CRow element) {
+	public Row getFunctionInput(CRow element) {
 		return Row.project(element.row(), userDefinedFunctionInputOffsets);
 	}
 
