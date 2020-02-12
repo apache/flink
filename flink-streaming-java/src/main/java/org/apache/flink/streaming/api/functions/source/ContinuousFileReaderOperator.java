@@ -376,7 +376,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 			try {
 				cleanUp();
 			} catch (Exception ex) {
-				e = ExceptionUtils.firstOrSuppressed(ex, e);
+				e = ex;
 			}
 		}
 		{
@@ -442,7 +442,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 			try {
 				r.run();
 			} catch (Exception e) {
-				firstException = ExceptionUtils.firstOrSuppressed(firstException, e);
+				firstException = ExceptionUtils.firstOrSuppressed(e, firstException);
 			}
 		}
 		currentSplit = null;
