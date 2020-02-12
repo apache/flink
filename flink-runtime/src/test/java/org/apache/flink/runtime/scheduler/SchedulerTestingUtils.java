@@ -77,6 +77,8 @@ public class SchedulerTestingUtils {
 
 	private static final long DEFAULT_CHECKPOINT_TIMEOUT_MS = 10 * 60 * 1000;
 
+	private SchedulerTestingUtils() {}
+
 	public static DefaultScheduler createScheduler(
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor) throws Exception {
