@@ -78,8 +78,7 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 				ByteArrayOutputStream outputStream = getOutputStream();
 				outputStream.reset();
 				Encoder encoder = getEncoder();
-				schemaCoderProvider.get()
-					.writeSchema(getSchema(), outputStream);
+				schemaCoder.writeSchema(getSchema(), outputStream);
 				getDatumWriter().write(object, encoder);
 				encoder.flush();
 				return outputStream.toByteArray();
