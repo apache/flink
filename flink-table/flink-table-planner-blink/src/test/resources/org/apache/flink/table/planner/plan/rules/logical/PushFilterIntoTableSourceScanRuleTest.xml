@@ -299,16 +299,16 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-  LogicalProject(a=[$0], b=[$1])
-  +- LogicalFilter(condition=[LIKE(LOWER($0), _UTF-16LE'foo')])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
-  ]]>
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[LIKE(LOWER($0), _UTF-16LE'foo')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-  LogicalProject(a=[$0], b=[$1])
-  +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filter=[like(lower(a), 'foo')]]]])
-  ]]>
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[true], filter=[like(lower(a), 'foo')]]]])
+]]>
     </Resource>
   </TestCase>
   <TestCase name="testUpperPushdown">
@@ -317,16 +317,16 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-  LogicalProject(a=[$0], b=[$1])
-  +- LogicalFilter(condition=[LIKE(UPPER($0), _UTF-16LE'foo')])
-  +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
-  ]]>
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[LIKE(UPPER($0), _UTF-16LE'foo')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-  LogicalProject(a=[$0], b=[$1])
-  +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filter=[like(upper(a), 'foo')]]]])
-  ]]>
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[true], filter=[like(upper(a), 'foo')]]]])
+]]>
     </Resource>
   </TestCase>
 </Root>

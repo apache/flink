@@ -452,7 +452,7 @@ class TestFilterableTableSource(
     (children.head, children.last) match {
       case (f: FieldReferenceExpression, _: ValueLiteralExpression) =>
         filterableFields.contains(f.getName)
-      case (f: UnresolvedCallExpression, _: ValueLiteralExpression) =>
+      case (f: CallExpression, _: ValueLiteralExpression) =>
         f.getFunctionDefinition match {
           case b: BuiltInFunctionDefinition =>
             filterBuiltInFunctions.contains(b.getName)
