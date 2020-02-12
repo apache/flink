@@ -617,19 +617,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private void closeAllOperators() throws Exception {
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
-		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-		for (int i = allOperators.length - 1; i >= 0; i--) {
-			StreamOperator<?> operator = allOperators[i];
-			if (operator != null) {
-				operator.close();
-			}
+		boolean isHeadOperator = true;
+		for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators()) {
+			StreamOperator<?> operator = operatorWrapper.getStreamOperator();
 
 			// The operators on the chain, except for the head operator, must be one-input operators.
 			// So after the upstream operator on the chain is closed, the input of its downstream operator
 			// reaches the end.
-			if (i > 0) {
-				operatorChain.endNonHeadOperatorInput(allOperators[i - 1]);
+			if (!isHeadOperator) {
+				operatorChain.endNonHeadOperatorInput(operator);
+			} else {
+				isHeadOperator = false;
 			}
+
+			operator.close();
 		}
 	}
 
@@ -645,10 +646,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	private void disposeAllOperators(boolean logOnlyErrors) throws Exception {
 		if (operatorChain != null && !disposedOperators) {
-			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-				if (operator == null) {
-					continue;
-				}
+			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+				StreamOperator<?> operator = operatorWrapper.getStreamOperator();
 				if (!logOnlyErrors) {
 					operator.dispose();
 				}
@@ -904,10 +903,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				if (isRunning) {
 					LOG.debug("Notification of complete checkpoint for task {}", getName());
 
-					for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-						if (operator != null) {
-							operator.notifyCheckpointComplete(checkpointId);
-						}
+					for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+						operatorWrapper.getStreamOperator().notifyCheckpointComplete(checkpointId);
 					}
 					return true;
 				} else {
@@ -971,14 +968,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * (see {@link #closeAllOperators()}.
 	 */
 	private void initializeStateAndOpen() throws Exception {
-
-		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-
-		for (StreamOperator<?> operator : allOperators) {
-			if (null != operator) {
-				operator.initializeState();
-				operator.open();
-			}
+		for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+			StreamOperator<?> operator = operatorWrapper.getStreamOperator();
+			operator.initializeState();
+			operator.open();
 		}
 	}
 
@@ -1030,6 +1023,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	@VisibleForTesting
 	OP getHeadOperator() {
 		return this.headOperator;
+	}
+
+	@VisibleForTesting
+	StreamTaskActionExecutor getActionExecutor() {
+		return actionExecutor;
 	}
 
 	public ProcessingTimeServiceFactory getProcessingTimeServiceFactory() {
@@ -1322,7 +1320,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		private final CheckpointMetrics checkpointMetrics;
 		private final CheckpointStreamFactory storageLocation;
 
-		private final StreamOperator<?>[] allOperators;
+		private final OperatorChain<?, ?> operatorChain;
 
 		private long startSyncPartNano;
 		private long startAsyncPartNano;
@@ -1343,16 +1341,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			this.checkpointOptions = Preconditions.checkNotNull(checkpointOptions);
 			this.checkpointMetrics = Preconditions.checkNotNull(checkpointMetrics);
 			this.storageLocation = Preconditions.checkNotNull(checkpointStorageLocation);
-			this.allOperators = owner.operatorChain.getAllOperators();
-			this.operatorSnapshotsInProgress = new HashMap<>(allOperators.length);
+			this.operatorChain = owner.operatorChain;
+			this.operatorSnapshotsInProgress = new HashMap<>(operatorChain.getNumberOfOperators());
 		}
 
 		public void executeCheckpointing() throws Exception {
 			startSyncPartNano = System.nanoTime();
 
 			try {
-				for (StreamOperator<?> op : allOperators) {
-					checkpointStreamOperator(op);
+				for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+					checkpointStreamOperator(operatorWrapper.getStreamOperator());
 				}
 
 				if (LOG.isDebugEnabled()) {
@@ -1416,15 +1414,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		@SuppressWarnings("deprecation")
 		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
-			if (null != op) {
-
 				OperatorSnapshotFutures snapshotInProgress = op.snapshotState(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp(),
 						checkpointOptions,
 						storageLocation);
 				operatorSnapshotsInProgress.put(op.getOperatorID(), snapshotInProgress);
-			}
 		}
 
 		private enum AsyncCheckpointState {
@@ -1504,7 +1499,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		handleAsyncException("Caught exception while processing timer.", new TimerException(ex));
 	}
 
-	private ProcessingTimeCallback deferCallbackToMailbox(MailboxExecutor mailboxExecutor, ProcessingTimeCallback callback) {
+	@VisibleForTesting
+	ProcessingTimeCallback deferCallbackToMailbox(MailboxExecutor mailboxExecutor, ProcessingTimeCallback callback) {
 		return timestamp -> {
 			mailboxExecutor.execute(
 				() -> invokeProcessingTimeCallback(callback, timestamp),

@@ -163,6 +163,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		return accumulatorMap;
 	}
 
+	@Override
 	public ProcessingTimeServiceFactory getProcessingTimeServiceFactory() {
 		return mailboxExecutor -> processingTimeService;
 	}

@@ -55,6 +55,7 @@ public class TestProcessingTimeServiceTest {
 		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		ProcessingTimeService processingTimeService = ((StreamMap<?, ?>) testHarness.getHeadOperator()).getProcessingTimeService();
 
