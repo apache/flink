@@ -104,6 +104,8 @@ as many Key Groups as the defined maximum parallelism.  During execution each
 parallel instance of a keyed operator works with the keys for one or more Key
 Groups.
 
+`TODO: potentially leave out Operator State and Broadcast State from concepts documentation`
+
 ## Operator State
 
 *Operator State* (or *non-keyed state*) is state that is is bound to one
@@ -116,9 +118,20 @@ The Operator State interfaces support redistributing state among parallel
 operator instances when the parallelism is changed. There can be different
 schemes for doing this redistribution.
 
-{% top %}
+## Broadcast State
 
-## State Types (Keyed State, Broadcast State)
+*Broadcast State* is a special type of *Operator State*.  It was introduced to
+support use cases where some data coming from one stream is required to be
+broadcasted to all downstream tasks, where it is stored locally and is used to
+process all incoming elements on the other stream. As an example where
+broadcast state can emerge as a natural fit, one can imagine a low-throughput
+stream containing a set of rules which we want to evaluate against all elements
+coming from another stream. Having the above type of use cases in mind,
+broadcast state differs from the rest of operator states in that:
+ 1. it has a map format,
+ 2. it is only available to specific operators that have as inputs a
+    *broadcasted* stream and a *non-broadcasted* one, and
+ 3. such an operator can have *multiple broadcast states* with different names.
 
 {% top %}
 
