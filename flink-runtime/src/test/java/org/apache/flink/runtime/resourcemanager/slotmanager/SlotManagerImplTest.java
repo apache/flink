@@ -48,7 +48,6 @@ import org.apache.flink.util.CoreMatchers;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
-import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
@@ -59,6 +58,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -75,6 +75,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -227,9 +228,7 @@ public class SlotManagerImplTest extends TestLogger {
 			"localhost");
 
 		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction(value -> {
-				throw new ResourceManagerException("Test exception");
-			})
+			.setAllocateResourceFunction(value -> Collections.emptyList())
 			.build();
 
 		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
@@ -1462,7 +1461,7 @@ public class SlotManagerImplTest extends TestLogger {
 		}
 	}
 
-	private static FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> convert(FunctionWithException<ResourceProfile, Integer, ResourceManagerException> function) {
+	private static Function<ResourceProfile, Collection<ResourceProfile>> convert(Function<ResourceProfile, Integer> function) {
 		return (ResourceProfile resourceProfile) -> {
 			final int slots = function.apply(resourceProfile);
 
