@@ -1,8 +1,9 @@
 ---
 title: "类库"
 nav-id: libs
-nav-parent_id: dev
-nav-pos: 80
+nav-title: '<i class="fa fa-book title maindish" aria-hidden="true"></i> Libraries'
+nav-parent_id: root
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
