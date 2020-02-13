@@ -106,7 +106,7 @@ public class BaseRowPythonTableFunctionOperator
 		// always copy the input BaseRow
 		BaseRow forwardedFields = forwardedInputSerializer.copy(input);
 		forwardedFields.setHeader(input.getHeader());
-		forwardedInputQueue.add(input);
+		forwardedInputQueue.add(forwardedFields);
 	}
 
 	@Override

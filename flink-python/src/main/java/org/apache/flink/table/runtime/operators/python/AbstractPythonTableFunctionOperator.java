@@ -61,7 +61,10 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 		JoinRelType joinType) {
 		super(config, inputType, outputType, udtfInputOffsets);
 		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-		this.joinType = Preconditions.checkNotNull(joinType);
+		Preconditions.checkArgument(
+			joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT,
+			"The join type should be inner join or left join");
+		this.joinType = joinType;
 	}
 
 	@Override
