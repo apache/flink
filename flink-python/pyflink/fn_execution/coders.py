@@ -26,6 +26,7 @@ from apache_beam.coders.coders import FastCoder
 
 from pyflink.fn_execution import coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.table import Row
 
 FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
 
@@ -51,7 +52,6 @@ class RowCoder(FastCoder):
         return all(c.is_deterministic() for c in self._field_coders)
 
     def to_type_hint(self):
-        from pyflink.table import Row
         return Row
 
     def __repr__(self):
