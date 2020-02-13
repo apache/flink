@@ -841,21 +841,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void notifyCheckpointComplete(long checkpointId) {
 		try {
-			boolean success = actionExecutor.call(() -> {
-				if (isRunning) {
-					LOG.debug("Notification of complete checkpoint for task {}", getName());
+			boolean isRunning = this.isRunning;
+			if (isRunning) {
+				LOG.debug("Notification of complete checkpoint for task {}", getName());
 
-					for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
-						operatorWrapper.getStreamOperator().notifyCheckpointComplete(checkpointId);
-					}
-					return true;
-				} else {
-					LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
-					return true;
+				for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+					operatorWrapper.getStreamOperator().notifyCheckpointComplete(checkpointId);
 				}
-			});
+			} else {
+				LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
+			}
+
 			getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
-			if (success && isSynchronousSavepointId(checkpointId)) {
+			if (isRunning && isSynchronousSavepointId(checkpointId)) {
 				finishTask();
 				// Reset to "notify" the internal synchronous savepoint mailbox loop.
 				resetSynchronousSavepointId();
