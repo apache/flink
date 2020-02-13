@@ -26,6 +26,7 @@ under the License.
 {:toc}
 
 This page provides instructions on how to enable TLS/SSL authentication and encryption for network communication with and between Flink processes.
+**NOTE: TLS/SSL authentication is not enabled by default.**
 
 ## Internal and External Connectivity
 
