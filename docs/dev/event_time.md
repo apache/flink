@@ -29,10 +29,15 @@ take a look at [Timely Stream Processing]({{site.baseurl}}{% link
 concepts/timely-stream-processing.md %}) to learn about the concepts behind
 timely stream processing.
 
+For information about how to use time in Flink programs refer to
+[windowing]({{site.baseurl}}{% link dev/stream/operators/windows.md %}) and
+[ProcessFunction]({{ site.baseurl }}{% link
+dev/stream/operators/process_function.md %}).
+
 * toc
 {:toc}
 
-### Setting a Time Characteristic
+## Setting a Time Characteristic
 
 The first part of a Flink DataStream program usually sets the base *time characteristic*. That setting
 defines how data stream sources behave (for example, whether they will assign timestamps), and what notion of
