@@ -17,7 +17,6 @@
 package org.apache.calcite.sql.validate;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -60,7 +59,7 @@ public final class ProcedureNamespace extends AbstractNamespace {
 		final SqlCallBinding callBinding =
 			new SqlCallBinding(validator, scope, call);
 		// legacy table functions
-		if (operator instanceof TableSqlFunction) {
+		if (operator instanceof SqlUserDefinedFunction) {
 			assert type.getSqlTypeName() == SqlTypeName.CURSOR
 				: "User-defined table function should have CURSOR type, not " + type;
 			final SqlUserDefinedTableFunction udf =
