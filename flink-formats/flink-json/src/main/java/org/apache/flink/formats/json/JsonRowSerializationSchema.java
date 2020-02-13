@@ -145,7 +145,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		 * @return Configured {@link JsonRowSerializationSchema}
 		 */
 		public JsonRowSerializationSchema build() {
-			checkArgument(typeInfo != null, "");
+			checkArgument(typeInfo != null, "typeInfo should be set.");
 			return new JsonRowSerializationSchema(typeInfo);
 		}
 	}

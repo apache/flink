@@ -77,7 +77,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema.Builder(schema.toRowType()).build(),
+			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
 			createTestSinkOptions());
