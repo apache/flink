@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors.python;
+package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.Map;
 
