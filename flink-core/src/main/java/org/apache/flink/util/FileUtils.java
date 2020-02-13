@@ -51,6 +51,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -94,6 +95,17 @@ public final class FileUtils {
 	public static void writeCompletely(WritableByteChannel channel, ByteBuffer src) throws IOException {
 		while (src.hasRemaining()) {
 			channel.write(src);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Lists the given directory in a resource-leak-safe way.
+	 */
+	public static java.nio.file.Path[] listDirectory(java.nio.file.Path directory) throws IOException {
+		try (Stream<java.nio.file.Path> stream = Files.list(directory)) {
+			return stream.toArray(java.nio.file.Path[]::new);
 		}
 	}
 
