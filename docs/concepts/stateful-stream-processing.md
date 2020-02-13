@@ -319,7 +319,45 @@ See [Restart Strategies]({{ site.baseurl }}{% link dev/task_failure_recovery.md
 
 ### State Backends
 
-`TODO: add`
+`TODO: expand this section`
+
+The exact data structures in which the key/values indexes are stored depends on
+the chosen [state backend]({{ site.baseurl }}{% link
+ops/state/state_backends.md %}). One state backend stores data in an in-memory
+hash map, another state backend uses [RocksDB](http://rocksdb.org) as the
+key/value store.  In addition to defining the data structure that holds the
+state, the state backends also implement the logic to take a point-in-time
+snapshot of the key/value state and store that snapshot as part of a
+checkpoint.
+
+<img src="{{ site.baseurl }}/fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" />
+
+{% top %}
+
+### Savepoints
+
+`TODO: expand this section`
+
+Programs written in the Data Stream API can resume execution from a
+**savepoint**. Savepoints allow both updating your programs and your Flink
+cluster without losing any state. 
+
+[Savepoints]({{ site.baseurl }}{% link ops/state/savepoints.md %}) are
+**manually triggered checkpoints**, which take a snapshot of the program and
+write it out to a state backend. They rely on the regular checkpointing
+mechanism for this. During execution programs are periodically snapshotted on
+the worker nodes and produce checkpoints. For recovery only the last completed
+checkpoint is needed and older checkpoints can be safely discarded as soon as a
+new one is completed.
+
+Savepoints are similar to these periodic checkpoints except that they are
+**triggered by the user** and **don't automatically expire** when newer
+checkpoints are completed. Savepoints can be created from the [command line]({{
+site.baseurl }}{% link ops/cli.md %}#savepoints) or when cancelling a job via
+the [REST API]({{ site.baseurl }}{% link monitoring/rest_api.md
+%}#cancel-job-with-savepoint).
+
+{% top %}
 
 ### Exactly Once vs. At Least Once
 
