@@ -793,7 +793,7 @@ public class SlotManagerImpl implements SlotManager {
 		return false;
 	}
 
-	private Optional<PendingTaskManagerSlot> allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
+	private Optional<PendingTaskManagerSlot> allocateResource(ResourceProfile resourceProfile) {
 		final Collection<ResourceProfile> requestedSlots = resourceActions.allocateResource(resourceProfile);
 
 		if (requestedSlots.isEmpty()) {
