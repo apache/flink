@@ -149,7 +149,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			Collections.singletonList(
 				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
 		return ImmutableExecutableStage.of(
-			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createWireCoderSetting());
+			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
 	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
@@ -170,7 +170,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 		return builder.build();
 	}
 
-	private RunnerApi.WireCoderSetting createWireCoderSetting() throws IOException {
+	private RunnerApi.WireCoderSetting createValueOnlyWireCoderSetting() throws IOException {
 		WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
 		Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
 		WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
