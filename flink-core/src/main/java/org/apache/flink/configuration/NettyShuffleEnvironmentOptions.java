@@ -140,16 +140,18 @@ public class NettyShuffleEnvironmentOptions {
 	/**
 	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).
 	 *
-	 * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization.
+	 * <p>Reasoning: using the minimum number of buffers to reduce the amount of data in flight which is
+	 * useful for checkpoint in the case of back pressure.
 	 */
 	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 		key("taskmanager.network.memory.buffers-per-channel")
-			.defaultValue(2)
-			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
-				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
-				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
-				" for parallel serialization.");
+			.defaultValue(1)
+			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel). " +
+				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. By default, the" +
+				" minimum number of buffers is used to reduce the amount of data in flight which is useful for checkpoint in the case of" +
+				" back pressure. Together with the default 8 floating buffers, one buffer per channel should be enough for most cases. " +
+				"And one can increase it if there are any performance issues.");
 
 	/**
 	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).

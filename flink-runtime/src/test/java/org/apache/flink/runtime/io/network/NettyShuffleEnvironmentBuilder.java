@@ -45,7 +45,7 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int partitionRequestMaxBackoff;
 
-	private int networkBuffersPerChannel = 2;
+	private int networkBuffersPerChannel = 1;
 
 	private int floatingNetworkBuffersPerGate = 8;
 
