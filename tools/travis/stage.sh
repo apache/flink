@@ -88,7 +88,6 @@ flink-connectors/flink-hadoop-compatibility,\
 flink-connectors/flink-jdbc,\
 flink-connectors,\
 flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch7,\

@@ -114,8 +114,6 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_s3_fs presto
         EXIT_CODE=$(($EXIT_CODE+$?))
-        check_shaded_artifacts_connector_elasticsearch 2
-        EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 5
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 6
