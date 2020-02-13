@@ -39,33 +39,6 @@ The sample dataflow in the figure below is executed with five subtasks, and henc
 
 {% top %}
 
-## Job Managers, Task Managers, Clients
-
-The Flink runtime consists of two types of processes:
-
-  - The **JobManagers** (also called *masters*) coordinate the distributed execution. They schedule tasks, coordinate
-    checkpoints, coordinate recovery on failures, etc.
-
-    There is always at least one Job Manager. A high-availability setup will have multiple JobManagers, one of
-    which one is always the *leader*, and the others are *standby*.
-
-  - The **TaskManagers** (also called *workers*) execute the *tasks* (or more specifically, the subtasks) of a dataflow,
-    and buffer and exchange the data *streams*.
-
-    There must always be at least one TaskManager.
-
-The JobManagers and TaskManagers can be started in various ways: directly on the machines as a [standalone cluster](../ops/deployment/cluster_setup.html), in
-containers, or managed by resource frameworks like [YARN](../ops/deployment/yarn_setup.html) or [Mesos](../ops/deployment/mesos.html).
-TaskManagers connect to JobManagers, announcing themselves as available, and are assigned work.
-
-The **client** is not part of the runtime and program execution, but is used to prepare and send a dataflow to the JobManager.
-After that, the client can disconnect, or stay connected to receive progress reports. The client runs either as part of the
-Java/Scala program that triggers the execution, or in the command line process `./bin/flink run ...`.
-
-<img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="80%" />
-
-{% top %}
-
 ## Task Slots and Resources
 
 Each worker (TaskManager) is a *JVM process*, and may execute one or more subtasks in separate threads.

@@ -29,10 +29,44 @@ under the License.
 
 ## Flink Applications and Flink Sessions
 
+`TODO: expand this section`
+
 {% top %}
 
 ## Anatomy of a Flink Cluster
 
-`Client, Flink Master (Dispatcher, Resourcemanager, Jobmanagers), Task Managers`
+`TODO: expand this section, especially about components of the Flink Master and
+container environments`
+
+The Flink runtime consists of two types of processes:
+
+  - The *Flink Master* coordinates the distributed execution. It schedules
+    tasks, coordinates checkpoints, coordinates recovery on failures, etc.
+
+    There is always at least one *Flink Master*. A high-availability setup will
+    have multiple *Flink Masters*, one of which one is always the *leader*, and
+    the others are *standby*.
+
+  - The *TaskManagers* (also called *workers*) execute the *tasks* (or more
+    specifically, the subtasks) of a dataflow, and buffer and exchange the data
+    *streams*.
+
+    There must always be at least one TaskManager.
+
+The Flink Master and TaskManagers can be started in various ways: directly on
+the machines as a [standalone cluster]({{ site.baseurl }}{% link
+ops/deployment/cluster_setup.md %}), in containers, or managed by resource
+frameworks like [YARN]({{ site.baseurl }}{% link ops/deployment/yarn_setup.md
+%}) or [Mesos]({{ site.baseurl }}{% link ops/deployment/mesos.md %}).
+TaskManagers connect to Flink Masters, announcing themselves as available, and
+are assigned work.
+
+The *client* is not part of the runtime and program execution, but is used to
+prepare and send a dataflow to the Flink Master.  After that, the client can
+disconnect, or stay connected to receive progress reports. The client runs
+either as part of the Java/Scala program that triggers the execution, or in the
+command line process `./bin/flink run ...`.
+
+<img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="80%" />
 
 {% top %}
