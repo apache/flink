@@ -31,10 +31,15 @@ to running a Python Table API program.
 
 ## Setting up a Python Project
 
-Firstly, you can fire up your favorite IDE and create a Python project and then
-you need to install the PyFlink package. Please
-see [Build PyFlink]({{ site.baseurl }}/flinkDev/building.html#build-pyflink)
-for more details about this.
+You can begin by creating a Python project and installing the PyFlink package.
+PyFlink is available via [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`.
+
+{% highlight bash %}
+# install the latest 1.9 version of PyFlink
+$ python -m pip install apache-flink==1.9.*
+{% endhighlight %}
+
+You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).
 
 ## Writing a Flink Python Table API Program
 
