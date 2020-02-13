@@ -227,7 +227,6 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 		try {
 			baos.reset();
 			inputTypeSerializer.serialize(element, baosWrapper);
-			// Currently, FullWindowedValueCoder has to be used in Beam's portability framework.
 			mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to process element when sending data to Python SDK harness.", t);
