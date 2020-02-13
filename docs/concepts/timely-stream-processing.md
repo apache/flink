@@ -24,10 +24,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+`TODO: add introduction`
+
 * This will be replaced by the TOC
 {:toc}
 
 ## Latency & Completeness
+
+`TODO: add these two sections`
 
 ### Latency vs. Completeness in Batch & Stream Processing
 
