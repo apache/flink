@@ -1,8 +1,8 @@
 ---
-title: Time & The Latency-Completeness Trade-Off
+title: Timely Stream Processing
 nav-id: timely-stream-processing
 nav-pos: 3
-nav-title: Time & The Latency-Completeness Trade-Off
+nav-title: Timely Stream Processing
 nav-parent_id: concepts
 ---
 <!--
