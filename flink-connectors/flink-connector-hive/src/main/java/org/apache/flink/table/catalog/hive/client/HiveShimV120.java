@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.exec.FunctionUtils;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.thrift.TException;
 
@@ -137,6 +138,8 @@ public class HiveShimV120 extends HiveShimV111 {
 			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
 			// getFunctionNames is a static method
 			Set<String> names = (Set<String>) method.invoke(null);
+			// filter out catalog functions since they're not built-in functions and can cause problems for tests
+			names = names.stream().filter(n -> !isCatalogFunctionName(n)).collect(Collectors.toSet());
 
 			return names.stream()
 				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
@@ -148,6 +151,9 @@ public class HiveShimV120 extends HiveShimV111 {
 
 	@Override
 	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
+		if (isCatalogFunctionName(name)) {
+			return Optional.empty();
+		}
 		Optional<FunctionInfo> functionInfo = getFunctionInfo(name);
 
 		if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
@@ -155,6 +161,10 @@ public class HiveShimV120 extends HiveShimV111 {
 		} else {
 			return Optional.empty();
 		}
+	}
+
+	private static boolean isCatalogFunctionName(String funcName) {
+		return FunctionUtils.isQualifiedFunctionName(funcName);
 	}
 
 	private Optional<FunctionInfo> getFunctionInfo(String name) {
