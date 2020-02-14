@@ -200,16 +200,15 @@ public class JsonRowSerializationSchemaTest {
 
 		// bytes for {"f1","🌺☘️"}
 		byte[] expected = new byte[] {
-			(byte)0X7B, (byte)0X22, (byte)0X66, (byte)0X31, (byte)0X22, (byte)0X3A, (byte)0X22, // {"f1":"
-			(byte)0XF0, (byte)0X9F, (byte)0X8C, (byte)0XBA, // 🌺
-			(byte)0XE2, (byte)0X98, (byte)0X98, // ☘
-			(byte)0XEF, (byte)0XB8, (byte)0X8F, // variation selector, together with ☘, shows ☘️
-			(byte)0X22, (byte)0X7D // "}
+			(byte) 0X7B, (byte) 0X22, (byte) 0X66, (byte) 0X31, (byte) 0X22, (byte) 0X3A, (byte) 0X22, // {"f1":"
+			(byte) 0XF0, (byte) 0X9F, (byte) 0X8C, (byte) 0XBA, // 🌺
+			(byte) 0XE2, (byte) 0X98, (byte) 0X98, // ☘
+			(byte) 0XEF, (byte) 0XB8, (byte) 0X8F, // variation selector, together with ☘, shows ☘️
+			(byte) 0X22, (byte) 0X7D // "}
 		};
 
 		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
 			.build();
 		assertArrayEquals(expected, serializationSchema.serialize(row));
 	}
-
 }
