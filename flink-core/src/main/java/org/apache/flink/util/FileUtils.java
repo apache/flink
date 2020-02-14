@@ -76,7 +76,7 @@ public final class FileUtils {
 
 	/**
 	 * The maximum size of array to allocate for reading. See
-	 * {@link java.nio.file.Files#MAX_BUFFER_SIZE} for more.
+	 * {@code MAX_BUFFER_SIZE} in {@link java.nio.file.Files} for more.
 	 */
 	private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
