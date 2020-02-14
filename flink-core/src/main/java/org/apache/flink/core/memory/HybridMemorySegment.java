@@ -56,7 +56,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	 * released.
 	 */
 	@Nullable
-	private final ByteBuffer offHeapBuffer;
+	private ByteBuffer offHeapBuffer;
 
 	/**
 	  * Creates a new memory segment that represents the memory backing the given direct byte buffer.
@@ -91,6 +91,12 @@ public final class HybridMemorySegment extends MemorySegment {
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
 
+	@Override
+	public void free() {
+		super.free();
+		offHeapBuffer = null; // to enable GC of unsafe memory
+	}
+
 	/**
 	 * Gets the buffer that owns the memory of this memory segment.
 	 *
@@ -99,6 +105,8 @@ public final class HybridMemorySegment extends MemorySegment {
 	public ByteBuffer getOffHeapBuffer() {
 		if (offHeapBuffer != null) {
 			return offHeapBuffer;
+		} else if (isFreed()) {
+			throw new IllegalStateException("segment has been freed");
 		} else {
 			throw new IllegalStateException("Memory segment does not represent off heap memory");
 		}
