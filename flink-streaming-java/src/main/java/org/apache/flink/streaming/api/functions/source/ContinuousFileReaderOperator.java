@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -82,7 +81,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Using FSM approach allows to explicitly define states and enforce {@link ReaderState#TRANSITIONS transitions} between them.</p>
  */
 @Internal
-public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
+class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 	implements OneInputStreamOperator<TimestampedFileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -216,12 +215,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		}
 	};
 
-	@VisibleForTesting
-	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
-		this.format = checkNotNull(format);
-	}
-
-	public ContinuousFileReaderOperator(FileInputFormat<OUT> format, MailboxExecutor mailboxExecutor) {
+	ContinuousFileReaderOperator(FileInputFormat<OUT> format, MailboxExecutor mailboxExecutor) {
 		this.format = checkNotNull(format);
 		this.executor = checkNotNull(mailboxExecutor);
 	}
@@ -274,7 +268,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		this.reusedRecord = serializer.createInstance();
 		this.completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");
-		this.executor = executor != null ? executor : getContainingTask().getMailboxExecutorFactory().createExecutor(getOperatorConfig().getChainIndex());
 		this.splits = this.splits == null ? new PriorityQueue<>() : this.splits;
 
 		if (!splits.isEmpty()) {
