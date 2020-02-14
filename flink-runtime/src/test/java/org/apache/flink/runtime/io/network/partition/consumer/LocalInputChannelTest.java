@@ -387,7 +387,7 @@ public class LocalInputChannelTest {
 			public void run() {
 				try {
 					channel.requestSubpartition(0);
-				} catch (IOException | InterruptedException ignored) {
+				} catch (IOException ignored) {
 				}
 			}
 		};

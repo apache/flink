@@ -95,7 +95,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	protected void requestSubpartition(int subpartitionIndex) throws IOException {
 
 		boolean retriggerRequest = false;
 
