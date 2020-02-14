@@ -242,21 +242,18 @@ class ScalarFunctionOperation(Operation):
         self.scalar_function_runner.open()
 
     def setup(self):
-        with self.scoped_start_state:
-            super(ScalarFunctionOperation, self).setup()
-            self.scalar_function_runner.setup(self.receivers[0])
+        super(ScalarFunctionOperation, self).setup()
+        self.scalar_function_runner.setup(self.receivers[0])
 
     def start(self):
         with self.scoped_start_state:
             super(ScalarFunctionOperation, self).start()
 
     def process(self, o):
-        with self.scoped_process_state:
-            self.scalar_function_runner.process(o)
+        self.scalar_function_runner.process(o)
 
     def finish(self):
-        with self.scoped_finish_state:
-            super(ScalarFunctionOperation, self).finish()
+        super(ScalarFunctionOperation, self).finish()
 
     def needs_finalization(self):
         return False
@@ -265,8 +262,7 @@ class ScalarFunctionOperation(Operation):
         super(ScalarFunctionOperation, self).reset()
 
     def teardown(self):
-        with self.scoped_finish_state:
-            self.scalar_function_runner.close()
+        self.scalar_function_runner.close()
 
     def progress_metrics(self):
         metrics = super(ScalarFunctionOperation, self).progress_metrics()
