@@ -41,7 +41,13 @@ public class ContinuousFileReaderOperatorFactory<OUT> implements YieldingOperato
 	private transient MailboxExecutor mailboxExecutor;
 
 	public ContinuousFileReaderOperatorFactory(FileInputFormat<OUT> inputFormat) {
+		this(inputFormat, null, null);
+	}
+
+	public ContinuousFileReaderOperatorFactory(FileInputFormat<OUT> inputFormat, TypeInformation<OUT> type, ExecutionConfig executionConfig) {
 		this.inputFormat = inputFormat;
+		this.type = type;
+		this.executionConfig = executionConfig;
 	}
 
 	@Override

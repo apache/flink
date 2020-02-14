@@ -30,12 +30,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.test.util.AbstractTestBase;
-
 import org.apache.flink.util.ExceptionUtils;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -131,11 +131,10 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 		DataStream<TimestampedFileInputSplit> splits = env.addSource(monitoringFunction);
 		Assert.assertEquals(1, splits.getParallelism());
 
-		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
 		// the readers can be multiple
-		DataStream<String> content = splits.transform("FileSplitReader", typeInfo, reader);
+		DataStream<String> content = splits.transform("FileSplitReader", typeInfo, new ContinuousFileReaderOperatorFactory<>(format));
 		Assert.assertEquals(PARALLELISM, content.getParallelism());
 
 		// finally for the sink we set the parallelism to 1 so that we can verify the output

@@ -26,7 +26,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -157,13 +157,15 @@ public class ContinuousFileProcessingRescalingTest {
 	}
 
 	private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> getTestHarness(
-		BlockingFileInputFormat format, int noOfTasks, int taskIdx) throws Exception {
-
-		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
-		reader.setOutputType(TypeExtractor.getInputFormatTypes(format), new ExecutionConfig());
-
+		BlockingFileInputFormat format,
+		int noOfTasks,
+		int taskIdx) throws Exception {
 		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> testHarness =
-			new OneInputStreamOperatorTestHarness<>(reader, maxParallelism, noOfTasks, taskIdx);
+			new OneInputStreamOperatorTestHarness<>(
+				new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), new ExecutionConfig()),
+				maxParallelism,
+				noOfTasks,
+				taskIdx);
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		return testHarness;
 	}
