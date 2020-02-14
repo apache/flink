@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.SerializationSchemaMatcher.whenSerializedWith;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -185,6 +186,30 @@ public class JsonRowSerializationSchemaTest {
 		assertThat(row, whenSerializedWith(serializationSchema)
 			.andDeserializedWith(deserializationSchema)
 			.equalsTo(row));
+	}
+
+	@Test
+	public void testNonBMPUnicode() {
+		final TypeInformation<Row> rowSchema = Types.ROW_NAMED(new String[]{"f1"}, Types.STRING);
+
+		final Row row = new Row(1);
+		// 🌺 is a non-BMP unicode, it's unicode is: F0 9F 8C BA
+		// ☘️ is a BMP unicode, it's unicode is: E2 98 98
+		// 🌺 is represented in Java String like \uD83C\uDF3A because Java uses UTF16-BE encoding.
+		row.setField(0, "\uD83C\uDF3A☘️");
+
+		// bytes for {"f1","🌺☘️"}
+		byte[] expected = new byte[] {
+			(byte)0X7B, (byte)0X22, (byte)0X66, (byte)0X31, (byte)0X22, (byte)0X3A, (byte)0X22, // {"f1":"
+			(byte)0XF0, (byte)0X9F, (byte)0X8C, (byte)0XBA, // 🌺
+			(byte)0XE2, (byte)0X98, (byte)0X98, // ☘
+			(byte)0XEF, (byte)0XB8, (byte)0X8F, // variation selector, together with ☘, shows ☘️
+			(byte)0X22, (byte)0X7D // "}
+		};
+
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
+			.build();
+		assertArrayEquals(expected, serializationSchema.serialize(row));
 	}
 
 }

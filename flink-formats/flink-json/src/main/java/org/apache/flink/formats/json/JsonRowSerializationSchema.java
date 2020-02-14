@@ -136,7 +136,8 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
 		try {
 			runtimeConverter.convert(mapper, node, row);
-			return mapper.writeValueAsBytes(node);
+			// hack to resolve https://github.com/FasterXML/jackson-core/issues/223
+			return mapper.writeValueAsString(node).getBytes();
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not serialize row '" + row + "'. " +
 				"Make sure that the schema matches the input.", t);
