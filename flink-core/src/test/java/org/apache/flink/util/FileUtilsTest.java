@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -218,7 +217,6 @@ public class FileUtilsTest extends TestLogger {
 		assertTrue(fileInLinkedDirectory.exists());
 	}
 
-	@Ignore
 	@Test
 	public void testDeleteDirectoryConcurrently() throws Exception {
 		final File parent = tmp.newFolder();
