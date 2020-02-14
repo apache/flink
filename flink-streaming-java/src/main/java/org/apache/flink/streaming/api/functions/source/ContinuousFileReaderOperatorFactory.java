@@ -34,7 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  */
 public class ContinuousFileReaderOperatorFactory<OUT> implements YieldingOperatorFactory<OUT>, OneInputStreamOperatorFactory<TimestampedFileInputSplit, OUT> {
 
-	private ChainingStrategy strategy;
+	private ChainingStrategy strategy = ChainingStrategy.HEAD;
 	private final FileInputFormat<OUT> inputFormat;
 	private TypeInformation<OUT> type;
 	private ExecutionConfig executionConfig;
