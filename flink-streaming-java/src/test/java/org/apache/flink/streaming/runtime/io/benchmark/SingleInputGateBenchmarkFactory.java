@@ -120,7 +120,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 		}
 
 		@Override
-		public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+		public void requestSubpartition(int subpartitionIndex) throws IOException {
 			super.requestSubpartition(channelIndex);
 		}
 
