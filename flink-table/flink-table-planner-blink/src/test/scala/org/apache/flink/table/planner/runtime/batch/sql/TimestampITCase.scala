@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.utils.TestDataTypeTableSource
 import org.apache.flink.types.Row
 import org.junit.Test
-
 import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
 
@@ -113,10 +112,9 @@ class TimestampITCase extends BatchTestBase {
         timestampsWithMilli(i), instantsOfDateTime(i), instantsOfTimestamp(i))
     }
 
-    val tableSource = new TestDataTypeTableSource(
-      tableSchema,
-      data.seq)
-    tEnv.registerTableSource("T", tableSource)
+    TestDataTypeTableSource.setData(data.seq)
+    TestDataTypeTableSource.setTableSchema(tableSchema)
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "T")
   }
 
   @Test

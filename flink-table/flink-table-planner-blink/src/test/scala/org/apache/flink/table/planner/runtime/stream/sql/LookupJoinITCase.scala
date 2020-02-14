@@ -20,15 +20,13 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
-
 import java.lang.{Integer => JInt, Long => JLong}
 
 class LookupJoinITCase extends StreamingTestBase {
@@ -58,20 +56,6 @@ class LookupJoinITCase extends StreamingTestBase {
     (11, 4L, "Hello world"),
     (11, 5L, "Hello world"))
 
-  val userTableSource = InMemoryLookupableTableSource.builder()
-    .data(userData)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .build()
-
-  val userTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
-    .data(userData)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .build()
-
   val userDataWithNull = List(
     (11, 1L, "Julian"),
     (22, null, "Hello"),
@@ -79,8 +63,7 @@ class LookupJoinITCase extends StreamingTestBase {
     (44, null, "Hello world")
   )
 
-  val userWithNullDataTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
-    .data(userDataWithNull)
+  val userSchema = TableSchema.builder()
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
@@ -92,7 +75,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -106,7 +90,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "2,15,Hello,Jark",
       "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -115,8 +98,10 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
     tEnv.registerFunction("add", new TestAddWithOpen)
+
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -130,7 +115,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "2,15,Hello,Jark",
       "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
     assertEquals(0, TestAddWithOpen.aliveCounter.get())
   }
 
@@ -140,7 +124,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON D.id = 1"
@@ -153,7 +138,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "1,12,Julian,Julian", "2,15,Hello,Julian", "3,15,Fabian,Julian",
       "8,11,Hello world,Julian", "9,12,Hello world!,Julian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -163,7 +147,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -174,7 +159,6 @@ class LookupJoinITCase extends StreamingTestBase {
 
     val expected = Seq("3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -183,7 +167,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
@@ -196,7 +181,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "2,15,Hello,Jark",
       "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -205,7 +189,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
@@ -218,7 +203,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "2,15,Hello,Jark,22",
       "3,15,Fabian,Fabian,33")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -227,7 +211,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
@@ -240,7 +225,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "1,12,Julian",
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -249,7 +233,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -262,7 +247,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "1,12,Julian",
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -272,7 +256,8 @@ class LookupJoinITCase extends StreamingTestBase {
     tEnv.registerTable("T", streamTable)
 
     // pk is (id: Int, name: String)
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     // test left table's join key define order diffs from right's
     val sql = "SELECT t1.id, t1.len, D.name FROM (select proctime, content, id, len FROM T) t1 " +
@@ -287,7 +272,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "1,12,Julian",
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -296,7 +280,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND 3 = D.id"
@@ -307,7 +292,6 @@ class LookupJoinITCase extends StreamingTestBase {
 
     val expected = Seq("3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -316,7 +300,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND T.id = D.id"
@@ -327,7 +312,6 @@ class LookupJoinITCase extends StreamingTestBase {
 
     val expected = Seq("3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -336,7 +320,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND 3 = D.id"
@@ -353,7 +338,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "9,12,Fabian"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -362,7 +346,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -378,7 +363,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "8,11,null,null",
       "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -388,7 +372,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T LEFT OUTER JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -403,7 +388,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "null,11,null",
       "9,12,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -412,7 +396,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id and T.content = D.name"
@@ -428,7 +413,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "8,11,null,null",
       "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -438,7 +422,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userWithNullDataTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -450,7 +435,6 @@ class LookupJoinITCase extends StreamingTestBase {
     val expected = Seq(
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -460,7 +444,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userWithNullDataTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT D.id, T.len, D.name FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -475,7 +460,6 @@ class LookupJoinITCase extends StreamingTestBase {
       "null,11,null",
       "null,12,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -485,7 +469,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userWithNullDataTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, T.content FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON D.id = null"
@@ -495,7 +480,6 @@ class LookupJoinITCase extends StreamingTestBase {
     env.execute()
 
     assertTrue(sink.getAppendResults.isEmpty)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -504,7 +488,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
@@ -514,7 +499,6 @@ class LookupJoinITCase extends StreamingTestBase {
     env.execute()
 
     assertTrue(sink.getAppendResults.isEmpty)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -523,7 +507,8 @@ class LookupJoinITCase extends StreamingTestBase {
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable")
 
     val sql = "SELECT T.id, T.content, D.age, D.id FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D " +
@@ -536,7 +521,5 @@ class LookupJoinITCase extends StreamingTestBase {
     val expected = Seq(
       "9,Hello world!,11,5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
-
 }

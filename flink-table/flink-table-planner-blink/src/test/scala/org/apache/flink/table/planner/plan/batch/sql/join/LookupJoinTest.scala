@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.{Before, Test}
 
@@ -37,7 +36,8 @@ class LookupJoinTest extends TableTestBase {
     testUtil.addDataStream[(Int, String, Long)]("T0", 'a, 'b, 'c)
     testUtil.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
     testUtil.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
-    testUtil.tableEnv.registerTableSource("temporalTest", new TestTemporalTable)
+
+    TestTemporalTable.createTemporaryTable(testUtil.tableEnv, "temporalTest", isBounded = true)
     val myTable = testUtil.tableEnv.sqlQuery("SELECT *, PROCTIME() as proctime FROM T0")
     testUtil.tableEnv.registerTable("MyTable", myTable)
   }

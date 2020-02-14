@@ -66,10 +66,10 @@ class PushPartitionIntoTableSourceScanRuleTest(
       .field("virtualField", DataTypes.INT(), "`part2` + 1")
       .build()
 
-    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "MyTable",
-      tableSchema = tableSchema, isBounded = true, sourceFetchPartitions = sourceFetchPartitions)
-    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "VirtualTable",
-      tableSchema = tableSchema2, isBounded = true, sourceFetchPartitions = sourceFetchPartitions)
+    TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "MyTable",
+      tableSchema = tableSchema, isBounded = true)
+    TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "VirtualTable",
+      tableSchema = tableSchema2, isBounded = true)
   }
 
   @Test

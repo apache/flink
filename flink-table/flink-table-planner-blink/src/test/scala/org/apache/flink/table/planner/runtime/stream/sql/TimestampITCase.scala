@@ -34,7 +34,7 @@ import org.junit.Test
 
 import scala.collection.mutable
 
-class TimestampITCase extends StreamingTestBase{
+class TimestampITCase extends StreamingTestBase {
 
   override def before(): Unit = {
     super.before()
@@ -90,11 +90,10 @@ class TimestampITCase extends StreamingTestBase{
       data += row(ints(i), longs(i), datetimes(i), timestamps(i), instants(i))
     }
 
-    val tableSource = new TestDataTypeTableSourceWithTime(
-      tableSchema,
-      data.seq,
-      "d")
-    tEnv.registerTableSource("T", tableSource)
+    TestDataTypeTableSourceWithTime.setData(data.seq)
+    TestDataTypeTableSourceWithTime.setTableSchema(tableSchema)
+    TestDataTypeTableSourceWithTime.setRowTime("d")
+    TestDataTypeTableSourceWithTime.createTemporaryTable(tEnv, tableSchema, "T")
   }
 
   @Test

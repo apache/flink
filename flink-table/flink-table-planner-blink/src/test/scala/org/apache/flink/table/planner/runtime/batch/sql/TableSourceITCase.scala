@@ -145,7 +145,11 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    tEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
+    TestFilterableTableSource.createTemporaryTable(
+      tEnv,
+      TestFilterableTableSource.defaultSchema,
+      "FilterableTable",
+      isBounded = true)
     checkResult(
       "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9",
       Seq(
@@ -158,13 +162,12 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithFunctionFilterable(): Unit = {
-    tEnv.registerTableSource(
+    TestFilterableTableSource.createTemporaryTable(
+      tEnv,
+      TestFilterableTableSource.defaultSchema,
       "FilterableTable",
-      TestFilterableTableSource(
-        true,
-        TestFilterableTableSource.defaultTypeInfo,
-        TestFilterableTableSource.defaultRows,
-        Set("amount", "name")))
+      isBounded = true,
+      filterableFields = List("amount", "name"))
     checkResult(
       "SELECT id, name FROM FilterableTable " +
         "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
@@ -175,7 +178,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithPartitionable(): Unit = {
-    TestPartitionableSourceFactory.registerTableSource(tEnv, "PartitionableTable", true)
+    TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartitionableTable", true)
     checkResult(
       "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'",
       Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2))
@@ -184,8 +187,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testCsvTableSource(): Unit = {
-    val csvTable = TestTableSourceSinks.getPersonCsvTableSource
-    tEnv.registerTableSource("csvTable", csvTable)
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "csvTable")
     checkResult(
       "SELECT id, `first`, `last`, score FROM csvTable",
       Seq(
@@ -203,10 +205,8 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testLookupJoinCsvTemporalTable(): Unit = {
-    val orders = TestTableSourceSinks.getOrdersCsvTableSource
-    val rates = TestTableSourceSinks.getRatesCsvTableSource
-    tEnv.registerTableSource("orders", orders)
-    tEnv.registerTableSource("rates", rates)
+    TestTableSourceSinks.createOrdersCsvTemporaryTable(tEnv, "orders")
+    TestTableSourceSinks.createRatesCsvTemporaryTable(tEnv, "rates")
 
     val sql =
       """
@@ -233,9 +233,8 @@ class TableSourceITCase extends BatchTestBase {
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    val tableSource = new TestInputFormatTableSource(
-      tableSchema, tableSchema.toRowType, TestData.smallData3)
-    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+    TestInputFormatTableSource.createTemporaryTable(
+      tEnv, tableSchema, TestData.smallData3, "MyInputFormatTable")
     checkResult(
       "SELECT a, c FROM MyInputFormatTable",
       Seq(
@@ -296,10 +295,10 @@ class TableSourceITCase extends BatchTestBase {
         ints(i), decimals(i), varchars(i), chars(i), datetimes(i), timestamps(i), instants(i))
     }
 
-    val tableSource = new TestDataTypeTableSource(
-      tableSchema,
-      data.seq)
-    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+    TestDataTypeTableSource.setData(data.seq)
+    TestDataTypeTableSource.setTableSchema(tableSchema)
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable")
+
     checkResult(
       "SELECT a, b, c, d, e, f, g FROM MyInputFormatTable",
       Seq(
@@ -332,11 +331,9 @@ class TableSourceITCase extends BatchTestBase {
     new FileWriter(tmpFile2).append("t3\n").append("t4\n").close()
 
     val schema = new TableSchema(Array("a"), Array(Types.STRING))
+    val paths = Array(tmpFile1.getPath, tmpFile2.getPath)
 
-    val tableSource = new TestFileInputFormatTableSource(
-      Array(tmpFile1.getPath, tmpFile2.getPath), schema)
-    tEnv.registerTableSource("MyMultiPathTable", tableSource)
-
+    TestFileInputFormatTableSource.createTemporaryTable(tEnv, schema, "MyMultiPathTable", paths)
     checkResult(
       "select * from MyMultiPathTable",
       Seq(

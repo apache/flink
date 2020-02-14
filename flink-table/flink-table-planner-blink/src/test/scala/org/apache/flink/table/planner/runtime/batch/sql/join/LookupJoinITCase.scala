@@ -19,13 +19,11 @@ package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, InMemoryLookupableTableSource}
-
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
-
 import java.lang.Boolean
 import java.util
 
@@ -54,19 +52,10 @@ class LookupJoinITCase(isAsyncMode: Boolean) extends BatchTestBase {
     (22, 2L, "Jark"),
     (33, 3L, "Fabian"))
 
-  val userTableSource = InMemoryLookupableTableSource.builder()
-    .data(userData)
+  val userSchema = TableSchema.builder()
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
-    .build()
-
-  val userAsyncTableSource = InMemoryLookupableTableSource.builder()
-    .data(userData)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .enableAsync()
     .build()
 
   val userDataWithNull = List(
@@ -74,21 +63,6 @@ class LookupJoinITCase(isAsyncMode: Boolean) extends BatchTestBase {
     (22, null, "Hello"),
     (33, 3L, "Fabian"),
     (44, null, "Hello world"))
-
-  val userWithNullDataTableSource = InMemoryLookupableTableSource.builder()
-    .data(userDataWithNull)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .build()
-
-  val userAsyncWithNullDataTableSource = InMemoryLookupableTableSource.builder()
-    .data(userDataWithNull)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .enableAsync()
-    .build()
 
   var userTable: String = _
   var userTableWithNull: String = _
@@ -105,12 +79,30 @@ class LookupJoinITCase(isAsyncMode: Boolean) extends BatchTestBase {
     val myTable1 = tEnv.sqlQuery("SELECT *, PROCTIME() as proctime  FROM T1")
     tEnv.registerTable("nullableT", myTable1)
 
-    tEnv.registerTableSource("userTable", userTableSource)
-    tEnv.registerTableSource("userAsyncTable", userAsyncTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = false, userData, userSchema, "userTable", isBounded = true)
+
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = true, userData, userSchema, "userAsyncTable", isBounded = true)
+
     userTable = if (isAsyncMode) "userAsyncTable" else "userTable"
 
-    tEnv.registerTableSource("userWithNullDataTable", userWithNullDataTableSource)
-    tEnv.registerTableSource("userWithNullDataAsyncTable", userAsyncWithNullDataTableSource)
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv,
+      isAsync = false,
+      userDataWithNull,
+      userSchema,
+      "userWithNullDataTable",
+      isBounded = true)
+
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv,
+      isAsync = true,
+      userDataWithNull,
+      userSchema,
+      "userWithNullDataAsyncTable",
+      isBounded = true)
+
     userTableWithNull = if (isAsyncMode) "userWithNullDataAsyncTable" else "userWithNullDataTable"
 
     // TODO: enable object reuse until [FLINK-12351] is fixed.
