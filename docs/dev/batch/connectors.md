@@ -1,7 +1,7 @@
 ---
-title:  "Connectors"
-nav-parent_id: batch
-nav-pos: 4
+title:  "DataSet Connectors"
+nav-parent_id: connectors-root
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

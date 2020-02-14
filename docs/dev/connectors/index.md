@@ -1,9 +1,9 @@
 ---
-title: "Streaming Connectors"
+title: "DataStream Connectors"
 nav-id: connectors
-nav-title: Connectors
-nav-parent_id: streaming
-nav-pos: 30
+nav-title: DataStream Connectors
+nav-parent_id: connectors-root
+nav-pos: 1
 nav-show_overview: true
 ---
 <!--

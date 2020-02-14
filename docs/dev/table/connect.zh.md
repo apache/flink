@@ -1,7 +1,7 @@
 ---
-title: "Connect to External Systems"
-nav-parent_id: tableapi
-nav-pos: 50
+title: "Table API Connectors"
+nav-parent_id: connectors-root
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
