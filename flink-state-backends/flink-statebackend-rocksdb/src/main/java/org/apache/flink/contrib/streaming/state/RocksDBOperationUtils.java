@@ -27,15 +27,12 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
 
-import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-import org.rocksdb.LRUCache;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteBufferManager;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -190,11 +187,8 @@ public class RocksDBOperationUtils {
 		final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
 		final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
 
-		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) -> {
-			final Cache cache = new LRUCache(size, -1, false, highPriorityPoolRatio);
-			final WriteBufferManager wbm = new WriteBufferManager((long) (writeBufferRatio * size), cache);
-			return new RocksDBSharedResources(cache, wbm);
-		};
+		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) ->
+			RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(size, writeBufferRatio, highPriorityPoolRatio);
 
 		try {
 			if (memoryConfig.isUsingFixedMemoryPerSlot()) {

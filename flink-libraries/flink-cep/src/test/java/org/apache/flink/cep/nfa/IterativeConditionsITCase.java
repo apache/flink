@@ -33,7 +33,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 
@@ -60,7 +60,7 @@ public class IterativeConditionsITCase extends TestLogger {
 	public void testIterativeWithBranchingPatternEager() throws Exception {
 		List<List<Event>> actual = testIterativeWithBranchingPattern(true);
 
-		compareMaps(actual,
+		comparePatterns(actual,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, endEvent, middleEvent1, middleEvent2, middleEvent4),
 				Lists.newArrayList(startEvent1, endEvent, middleEvent2, middleEvent1),
@@ -75,7 +75,7 @@ public class IterativeConditionsITCase extends TestLogger {
 	public void testIterativeWithBranchingPatternCombinations() throws Exception {
 		List<List<Event>> actual = testIterativeWithBranchingPattern(false);
 
-		compareMaps(actual,
+		comparePatterns(actual,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, endEvent, middleEvent1, middleEvent2, middleEvent4),
 				Lists.newArrayList(startEvent1, endEvent, middleEvent2, middleEvent1),
@@ -164,7 +164,7 @@ public class IterativeConditionsITCase extends TestLogger {
 	public void testIterativeWithLoopingStartingEager() throws Exception {
 		List<List<Event>> actual = testIterativeWithLoopingStarting(true);
 
-		compareMaps(actual,
+		comparePatterns(actual,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, startEvent2, endEvent),
 				Lists.newArrayList(startEvent1, endEvent),
@@ -179,7 +179,7 @@ public class IterativeConditionsITCase extends TestLogger {
 	public void testIterativeWithLoopingStartingCombination() throws Exception {
 		List<List<Event>> actual = testIterativeWithLoopingStarting(false);
 
-		compareMaps(actual,
+		comparePatterns(actual,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, startEvent2, endEvent),
 				Lists.newArrayList(startEvent1, startEvent3, endEvent),
@@ -283,7 +283,7 @@ public class IterativeConditionsITCase extends TestLogger {
 
 		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns,
+		comparePatterns(resultingPatterns,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, startEvent2, endEvent),
 				Lists.newArrayList(startEvent2, endEvent)
@@ -350,7 +350,7 @@ public class IterativeConditionsITCase extends TestLogger {
 
 		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns,
+		comparePatterns(resultingPatterns,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, startEvent2, startEvent3, middleEvent1, endEvent),
 				Lists.newArrayList(startEvent1, middleEvent1, startEvent2, endEvent),
@@ -407,7 +407,7 @@ public class IterativeConditionsITCase extends TestLogger {
 
 		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns,
+		comparePatterns(resultingPatterns,
 			Lists.<List<Event>>newArrayList(
 				Lists.newArrayList(startEvent1, startEvent2, middleEvent1, endEvent),
 				Lists.newArrayList(startEvent2, middleEvent1, endEvent),

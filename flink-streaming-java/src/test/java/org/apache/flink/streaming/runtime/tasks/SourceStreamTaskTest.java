@@ -41,6 +41,8 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -310,7 +312,8 @@ public class SourceStreamTaskTest {
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Throwable t) {
-			if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+			if (!ExceptionUtils.findThrowable(t, InterruptedException.class).isPresent() &&
+				!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
 				throw t;
 			}
 		}
@@ -370,7 +373,18 @@ public class SourceStreamTaskTest {
 	}
 
 	@Test
-	public void testInterruptedNotSwallowed() throws Exception {
+	public void testInterruptionExceptionNotSwallowed() throws Exception {
+		testInterruptionExceptionNotSwallowed(InterruptedException::new);
+	}
+
+	@Test
+	public void testWrappedInterruptionExceptionNotSwallowed() throws Exception {
+		testInterruptionExceptionNotSwallowed(() ->
+			new RuntimeException(new FlinkRuntimeException(new InterruptedException())));
+	}
+
+	private void testInterruptionExceptionNotSwallowed(InterruptedSource.ExceptionGenerator exceptionGenerator)
+			throws Exception {
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
 			SourceStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO);
@@ -379,7 +393,7 @@ public class SourceStreamTaskTest {
 		testHarness
 			.setupOperatorChain(
 				new OperatorID(),
-				new StreamSource<>(new InterruptedSource()))
+				new StreamSource<>(new InterruptedSource(exceptionGenerator)))
 			.chain(
 				new OperatorID(),
 				new TestBoundedOneInputStreamOperator("Operator1"),
@@ -393,7 +407,7 @@ public class SourceStreamTaskTest {
 		try {
 			testHarness.waitForTaskCompletion();
 		} catch (Exception e) {
-			if (!(e.getCause() instanceof InterruptedException)) {
+			if (!ExceptionUtils.findThrowable(e, InterruptedException.class).isPresent()) {
 				throw e;
 			}
 		}
@@ -403,24 +417,21 @@ public class SourceStreamTaskTest {
 	 * A source that locks if cancellation attempts to cleanly shut down.
 	 */
 	public static class InterruptedSource implements SourceFunction<String> {
+		interface ExceptionGenerator extends CheckedSupplier<Exception>, Serializable {}
+
 		private static final long serialVersionUID = 8713065281092996042L;
 
-		private static CompletableFuture<Void> isRunning = new CompletableFuture<>();
+		private ExceptionGenerator exceptionGenerator;
 
-		public static void reset() {
-			isRunning = new CompletableFuture<>();
-		}
-
-		public static void awaitRunning() throws ExecutionException, InterruptedException {
-			isRunning.get();
+		public InterruptedSource(final ExceptionGenerator exceptionGenerator) {
+			this.exceptionGenerator = exceptionGenerator;
 		}
 
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {
 			synchronized (ctx.getCheckpointLock()) {
-				isRunning.complete(null);
 				Thread.currentThread().interrupt();
-				throw new InterruptedException();
+				throw exceptionGenerator.get();
 			}
 		}
 

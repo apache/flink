@@ -37,6 +37,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -123,7 +124,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 			configMap = c.decorate(configMap);
 		}
 
-		LOG.info("Create config map with data size {}", configMap.getInternalResource().getData().size());
+		LOG.debug("Create config map with data size {}", configMap.getInternalResource().getData().size());
 		this.internalClient.configMaps().create(configMap.getInternalResource());
 	}
 
@@ -146,7 +147,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		}
 
 		deployment = new FlinkMasterDeploymentDecorator(clusterSpecification).decorate(deployment);
-		LOG.info("Create Flink Master deployment with spec: {}", deployment.getInternalResource().getSpec());
+
+		LOG.debug("Create Flink Master deployment with spec: {}", deployment.getInternalResource().getSpec());
 
 		this.internalClient
 			.apps()
@@ -164,7 +166,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		}
 
 		pod = new TaskManagerPodDecorator(parameter).decorate(pod);
-		LOG.info("Create TaskManager pod with spec: {}", pod.getInternalResource().getSpec().toString());
+
+		LOG.debug("Create TaskManager pod with spec: {}", pod.getInternalResource().getSpec());
 
 		this.internalClient.pods().inNamespace(this.nameSpace).create(pod.getInternalResource());
 	}
@@ -191,19 +194,23 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		}
 		Service service = restService.getInternalResource();
 
-		String address;
+		String address = null;
 
 		if (service.getStatus() != null && (service.getStatus().getLoadBalancer() != null ||
 			service.getStatus().getLoadBalancer().getIngress() != null)) {
 			if (service.getStatus().getLoadBalancer().getIngress().size() > 0) {
 				address = service.getStatus().getLoadBalancer().getIngress().get(0).getIp();
+				if (address == null || address.isEmpty()) {
+					address = service.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
+				}
 			} else {
 				address = this.internalClient.getMasterUrl().getHost();
 				restPort = getServiceNodePort(service, RestOptions.PORT);
 			}
 		} else if (service.getSpec().getExternalIPs() != null && service.getSpec().getExternalIPs().size() > 0) {
 			address = service.getSpec().getExternalIPs().get(0);
-		} else {
+		}
+		if (address == null || address.isEmpty()) {
 			return null;
 		}
 		return new Endpoint(address, restPort);
@@ -230,7 +237,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 	@Override
 	public void handleException(Exception e) {
-		LOG.error("Encounter Kubernetes Exception.", e);
+		LOG.error("A Kubernetes exception occurred.", e);
 	}
 
 	@Override
@@ -250,7 +257,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final Watcher<Pod> watcher = new Watcher<Pod>() {
 			@Override
 			public void eventReceived(Action action, Pod pod) {
-				LOG.info("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
+				LOG.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
 				switch (action) {
 					case ADDED:
 						callbackHandler.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
@@ -265,14 +272,14 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 						callbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
 						break;
 					default:
-						LOG.info("Skip handling {} event for pod {}", action, pod.getMetadata().getName());
+						LOG.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
 						break;
 				}
 			}
 
 			@Override
 			public void onClose(KubernetesClientException e) {
-				LOG.error("Pods watcher onClose", e);
+				LOG.error("The pods watcher is closing.", e);
 			}
 		};
 		this.internalClient.pods().withLabels(labels).watch(watcher);
@@ -291,7 +298,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 			kubernetesService = d.decorate(kubernetesService);
 		}
 
-		LOG.info("Create service with spec: {}", kubernetesService.getInternalResource().getSpec());
+		LOG.debug("Create service {} with spec: {}", serviceName, kubernetesService.getInternalResource().getSpec());
 
 		this.internalClient.services().create(kubernetesService.getInternalResource());
 
@@ -308,12 +315,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final Duration timeout = TimeUtils.parseDuration(
 			flinkConfig.get(KubernetesConfigOptions.SERVICE_CREATE_TIMEOUT));
 
-		return CompletableFuture.supplyAsync(() -> {
-			final Service createdService = watcher.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
-			watchConnectionManager.close();
+		return CompletableFuture.supplyAsync(
+			FunctionUtils.uncheckedSupplier(() -> {
+				final Service createdService = watcher.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				watchConnectionManager.close();
 
-			return new KubernetesService(this.flinkConfig, createdService);
-		});
+				return new KubernetesService(this.flinkConfig, createdService);
+			}));
 	}
 
 	private KubernetesService getService(String serviceName) {

@@ -25,26 +25,26 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
  * The Python {@link ScalarFunction} operator for the legacy planner.
  */
 @Internal
-public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator<CRow, CRow, Row, Row> {
+public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator<CRow, CRow, Row> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -58,6 +58,11 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	 */
 	private transient TypeSerializer<CRow> forwardedInputSerializer;
 
+	/**
+	 * The TypeSerializer for udf execution results.
+	 */
+	private transient TypeSerializer<Row> udfOutputTypeSerializer;
+
 	public PythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
@@ -69,6 +74,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
@@ -81,6 +87,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 				.map(TypeConversions::fromDataTypeToLegacyInfo)
 				.toArray(TypeInformation[]::new)));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
+		udfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
@@ -93,64 +100,33 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	}
 
 	@Override
-	public Row getUdfInput(CRow element) {
-		return Row.project(element.row(), udfInputOffsets);
+	public Row getFunctionInput(CRow element) {
+		return Row.project(element.row(), userDefinedFunctionInputOffsets);
 	}
 
 	@Override
 	@SuppressWarnings("ConstantConditions")
-	public void emitResults() {
-		Row udfResult;
-		while ((udfResult = udfResultQueue.poll()) != null) {
+	public void emitResults() throws IOException {
+		byte[] rawUdfResult;
+		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			CRow input = forwardedInputQueue.poll();
 			cRowWrapper.setChange(input.change());
+			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
+			Row udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
 			cRowWrapper.collect(Row.join(input.row(), udfResult));
 		}
 	}
 
 	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner(
-			FnDataReceiver<Row> resultReceiver,
+			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager) {
 		return new PythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
 			pythonEnvironmentManager,
-			udfInputType,
-			udfOutputType);
-	}
-
-	/**
-	 * The collector is used to convert a {@link Row} to a {@link CRow}.
-	 */
-	private static class StreamRecordCRowWrappingCollector implements Collector<Row> {
-
-		private final Collector<StreamRecord<CRow>> out;
-		private final CRow reuseCRow = new CRow();
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<CRow> reuseStreamRecord = new StreamRecord<>(reuseCRow);
-
-		StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
-			this.out = out;
-		}
-
-		public void setChange(boolean change) {
-			this.reuseCRow.change_$eq(change);
-		}
-
-		@Override
-		public void collect(Row record) {
-			reuseCRow.row_$eq(record);
-			out.collect(reuseStreamRecord);
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType);
 	}
 }

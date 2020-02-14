@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
@@ -103,7 +104,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	public void setup() throws Exception {
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 		flinkConfig = new Configuration(FLINK_CONFIG);
-		flinkConfig.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, "1024m");
+		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1024m"));
 
 		flinkKubeClient = getFabric8FlinkKubeClient();
 		resourceManager = createAndStartResourceManager(flinkConfig);

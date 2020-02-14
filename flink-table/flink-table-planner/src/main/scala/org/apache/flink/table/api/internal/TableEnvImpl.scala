@@ -60,7 +60,7 @@ abstract class TableEnvImpl(
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog =
-    new FunctionCatalog(catalogManager, moduleManager)
+    new FunctionCatalog(config, catalogManager, moduleManager)
 
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
@@ -90,7 +90,9 @@ abstract class TableEnvImpl(
   }
 
   private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
+    config,
     functionCatalog,
+    catalogManager.getDataTypeFactory,
     tableLookup,
     isStreamingMode)
 
@@ -134,6 +136,67 @@ abstract class TableEnvImpl(
       function)
   }
 
+  override def createTemporarySystemFunction(
+      name: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    val functionInstance = UserDefinedFunctionHelper.instantiateFunction(functionClass)
+    createTemporarySystemFunction(name, functionInstance)
+  }
+
+  override def createTemporarySystemFunction(
+      name: String,
+      functionInstance: UserDefinedFunction)
+    : Unit = {
+    functionCatalog.registerTemporarySystemFunction(name, functionInstance, false)
+  }
+
+  override def dropTemporarySystemFunction(name: String): Boolean = {
+    functionCatalog.dropTemporarySystemFunction(name, true)
+  }
+
+  override def createFunction(
+      path: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    createFunction(path, functionClass, ignoreIfExists = false)
+  }
+
+  override def createFunction(
+      path: String,
+      functionClass: Class[_ <: UserDefinedFunction],
+      ignoreIfExists: Boolean)
+    : Unit = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.registerCatalogFunction(unresolvedIdentifier, functionClass, ignoreIfExists)
+  }
+
+  override def dropFunction(path: String): Boolean = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.dropCatalogFunction(unresolvedIdentifier, true)
+  }
+
+  override def createTemporaryFunction(
+      path: String,
+      functionClass: Class[_ <: UserDefinedFunction])
+    : Unit = {
+    val functionInstance = UserDefinedFunctionHelper.instantiateFunction(functionClass)
+    createTemporaryFunction(path, functionInstance)
+  }
+
+  override def createTemporaryFunction(
+      path: String,
+      functionInstance: UserDefinedFunction)
+    : Unit = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.registerTemporaryCatalogFunction(unresolvedIdentifier, functionInstance, false)
+  }
+
+  override def dropTemporaryFunction(path: String): Boolean = {
+    val unresolvedIdentifier = parser.parseIdentifier(path)
+    functionCatalog.dropTemporaryCatalogFunction(unresolvedIdentifier, true)
+  }
+
   /**
     * Registers a [[TableFunction]] under a unique name. Replaces already existing
     * user-defined functions under this name.
@@ -142,7 +205,7 @@ abstract class TableEnvImpl(
       name: String,
       function: TableFunction[T])
     : Unit = {
-    val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+    val resultTypeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfTableFunction(
         function,
         implicitly[TypeInformation[T]])
@@ -161,12 +224,12 @@ abstract class TableEnvImpl(
       name: String,
       function: UserDefinedAggregateFunction[T, ACC])
     : Unit = {
-    val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+    val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(
         function,
         implicitly[TypeInformation[T]])
 
-    val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper
+    val accTypeInfo: TypeInformation[ACC] = UserDefinedFunctionHelper
       .getAccumulatorTypeOfAggregateFunction(
       function,
       implicitly[TypeInformation[ACC]])
@@ -703,7 +766,7 @@ abstract class TableEnvImpl(
     val exMsg = getDDLOpExecuteErrorMsg(createFunctionOperation.asSummaryString)
     try {
       val function = createFunctionOperation.getCatalogFunction
-      if (function.isTemporary) {
+      if (createFunctionOperation.isTemporary) {
         val exist = functionCatalog.hasTemporaryCatalogFunction(
           createFunctionOperation.getFunctionIdentifier);
         if (!exist) {
@@ -736,7 +799,7 @@ abstract class TableEnvImpl(
     val exMsg = getDDLOpExecuteErrorMsg(alterFunctionOperation.asSummaryString)
     try {
       val function = alterFunctionOperation.getCatalogFunction
-      if (function.isTemporary) {
+      if (alterFunctionOperation.isTemporary) {
         throw new ValidationException("Alter temporary catalog function is not supported")
       } else {
         val catalog = getCatalogOrThrowException(
@@ -801,7 +864,7 @@ abstract class TableEnvImpl(
   private def dropSystemFunction(dropFunctionOperation: DropTempSystemFunctionOperation): Unit = {
     val exMsg = getDDLOpExecuteErrorMsg(dropFunctionOperation.asSummaryString)
     try {
-      functionCatalog.dropTempSystemFunction(
+      functionCatalog.dropTemporarySystemFunction(
         dropFunctionOperation.getFunctionName, dropFunctionOperation.isIfExists)
     } catch {
       case e: ValidationException =>
@@ -824,8 +887,8 @@ abstract class TableEnvImpl(
       val aggregateFunctionDefinition = functionDefinition.asInstanceOf[AggregateFunctionDefinition]
       val aggregateFunction = aggregateFunctionDefinition
         .getAggregateFunction.asInstanceOf[AggregateFunction[T, ACC]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
-      val accTypeInfo = UserFunctionsTypeHelper
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
+      val accTypeInfo = UserDefinedFunctionHelper
         .getAccumulatorTypeOfAggregateFunction(aggregateFunction)
       functionCatalog.registerTempCatalogAggregateFunction(
         functionIdentifier,
@@ -836,7 +899,7 @@ abstract class TableEnvImpl(
     } else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
       val tableFunctionDefinition = functionDefinition.asInstanceOf[TableFunctionDefinition]
       val tableFunction = tableFunctionDefinition.getTableFunction.asInstanceOf[TableFunction[T]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction)
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction)
       functionCatalog.registerTempCatalogTableFunction(
         functionIdentifier,
         tableFunction,
@@ -857,8 +920,8 @@ abstract class TableEnvImpl(
       val aggregateFunctionDefinition = functionDefinition.asInstanceOf[AggregateFunctionDefinition]
       val aggregateFunction = aggregateFunctionDefinition
         .getAggregateFunction.asInstanceOf[AggregateFunction[T, ACC]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
-      val accTypeInfo = UserFunctionsTypeHelper
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction)
+      val accTypeInfo = UserDefinedFunctionHelper
         .getAccumulatorTypeOfAggregateFunction(aggregateFunction)
       functionCatalog.registerTempSystemAggregateFunction(
         functionName,
@@ -868,7 +931,7 @@ abstract class TableEnvImpl(
     } else if (functionDefinition.isInstanceOf[TableFunctionDefinition]) {
       val tableFunctionDefinition = functionDefinition.asInstanceOf[TableFunctionDefinition]
       val tableFunction = tableFunctionDefinition.getTableFunction.asInstanceOf[TableFunction[T]]
-      val typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction)
+      val typeInfo = UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction)
       functionCatalog.registerTempSystemTableFunction(
         functionName,
         tableFunction,

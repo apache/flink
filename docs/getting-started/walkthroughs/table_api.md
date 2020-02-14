@@ -49,7 +49,7 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 If you want to follow along, you will require a computer with: 
 
-* Java 8 
+* Java 8 or 11
 * Maven 
 
 A provided Flink Maven Archetype will create a skeleton project with all the necessary dependencies quickly:
@@ -302,7 +302,7 @@ This query consumes all records from the `transactions` table, calculates the re
 ## Adding Windows
 
 Grouping data based on time is a typical operation in data processing, especially when working with infinite streams.
-A grouping based on time is called a [window]({{ site.baseurl }} /dev/stream/operators/windows.html) and Flink offers flexible windowing semantics.
+A grouping based on time is called a [window]({{ site.baseurl }}/dev/stream/operators/windows.html) and Flink offers flexible windowing semantics.
 The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap.
 
 <div class="codetabs" markdown="1">

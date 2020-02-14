@@ -70,7 +70,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<optional>true</optional>
 		</dependency>
 
@@ -86,11 +85,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-guava</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm-7</artifactId>
 		</dependency>
 
 		<dependency>
@@ -308,11 +302,6 @@ under the License.
 			<artifactId>okhttp</artifactId>
 			<version>3.7.0</version>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<dependency>
@@ -546,7 +535,6 @@ under the License.
 									<include>io.netty:netty</include>
 									<include>org.uncommons.maths:uncommons-maths</include>
 									<include>org.apache.zookeeper:*</include>
-									<include>org.lz4:lz4-java</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
@@ -560,7 +548,6 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>org.apache.curator</pattern>
-									<!-- IMPORTANT: This must be kept in sync with flink-connector-kafka-0.8 -->
 									<shadedPattern>org.apache.flink.shaded.curator.org.apache.curator</shadedPattern>
 									<excludes>
 										<!-- Do not relocate curator-test. This leads to problems for downstream
@@ -577,11 +564,6 @@ under the License.
 								<relocation>
 									<pattern>org.apache.jute</pattern>
 									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute</shadedPattern>
-								</relocation>
-								<relocation>
-									<!-- Relocate org.lz4:lz4-java -->
-									<pattern>net.jpountz</pattern>
-									<shadedPattern>org.apache.flink.runtime.shaded.net.jpountz</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

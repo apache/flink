@@ -221,7 +221,7 @@ For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
 
-[Here]({{ site.baseurl }}/getting-started/tutorials/local_setup.html) you can find out how to run an application outside the IDE on a local cluster.
+[Here]({{ site.baseurl }}/ops/deployment/local.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).

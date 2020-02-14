@@ -24,6 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.TestLogger;
@@ -38,6 +40,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -48,19 +51,16 @@ import static org.junit.Assert.assertThat;
  * Tests for the {@link TaskSlotTable}.
  */
 public class TaskSlotTableTest extends TestLogger {
-
 	private static final Time SLOT_TIMEOUT = Time.seconds(100L);
 
 	/**
 	 * Tests that one can can mark allocated slots as active.
 	 */
 	@Test
-	public void testTryMarkSlotActive() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(3);
+	public void testTryMarkSlotActive() throws Exception {
+		final TaskSlotTableImpl<?> taskSlotTable = createTaskSlotTableAndStart(3);
 
 		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
 			final JobID jobId1 = new JobID();
 			final AllocationID allocationId1 = new AllocationID();
 			taskSlotTable.allocateSlot(0, jobId1, allocationId1, SLOT_TIMEOUT);
@@ -84,8 +84,8 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(Sets.newHashSet(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(new HashSet<>(Arrays.asList(allocationId2, allocationId1)))));
 		} finally {
-			taskSlotTable.stop();
-			assertThat(taskSlotTable.isStopped(), is(true));
+			taskSlotTable.close();
+			assertThat(taskSlotTable.isClosed(), is(true));
 		}
 	}
 
@@ -93,12 +93,8 @@ public class TaskSlotTableTest extends TestLogger {
 	 * Tests that redundant slot allocation with the same AllocationID to a different slot is rejected.
 	 */
 	@Test
-	public void testRedundantSlotAllocation() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
-
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
+	public void testRedundantSlotAllocation() throws Exception {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(2)) {
 			final JobID jobId = new JobID();
 			final AllocationID allocationId = new AllocationID();
 
@@ -108,21 +104,15 @@ public class TaskSlotTableTest extends TestLogger {
 			assertThat(taskSlotTable.isAllocated(0, jobId, allocationId), is(true));
 			assertThat(taskSlotTable.isSlotFree(1), is(true));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(0));
 			assertThat(allocatedSlots.hasNext(), is(false));
-		} finally {
-			taskSlotTable.stop();
 		}
 	}
 
 	@Test
-	public void testFreeSlot() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
-
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
+	public void testFreeSlot() throws Exception {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(2)) {
 			final JobID jobId = new JobID();
 			final AllocationID allocationId1 = new AllocationID();
 			final AllocationID allocationId2 = new AllocationID();
@@ -132,45 +122,33 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.freeSlot(allocationId2), is(1));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(0));
 			assertThat(allocatedSlots.hasNext(), is(false));
 			assertThat(taskSlotTable.isAllocated(1, jobId, allocationId1), is(false));
 			assertThat(taskSlotTable.isAllocated(1, jobId, allocationId2), is(false));
 			assertThat(taskSlotTable.isSlotFree(1), is(true));
-		} finally {
-			taskSlotTable.stop();
 		}
 	}
 
 	@Test
-	public void testSlotAllocationWithDynamicSlotId() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
-
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
+	public void testSlotAllocationWithDynamicSlotId() throws Exception {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(2)) {
 			final JobID jobId = new JobID();
 			final AllocationID allocationId = new AllocationID();
 
 			assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, SLOT_TIMEOUT), is(true));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(-1));
 			assertThat(allocatedSlots.hasNext(), is(false));
 			assertThat(taskSlotTable.isAllocated(-1, jobId, allocationId), is(true));
-		} finally {
-			taskSlotTable.stop();
 		}
 	}
 
 	@Test
-	public void testSlotAllocationWithResourceProfile() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
-
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
+	public void testSlotAllocationWithResourceProfile() throws Exception {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(2)) {
 			final JobID jobId = new JobID();
 			final AllocationID allocationId = new AllocationID();
 			final ResourceProfile resourceProfile = TaskSlotUtils.DEFAULT_RESOURCE_PROFILE
@@ -178,23 +156,17 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, resourceProfile, SLOT_TIMEOUT), is(true));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
-			TaskSlot allocatedSlot = allocatedSlots.next();
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			TaskSlot<TaskSlotPayload> allocatedSlot = allocatedSlots.next();
 			assertThat(allocatedSlot.getIndex(), is(-1));
 			assertThat(allocatedSlot.getResourceProfile(), is(resourceProfile));
 			assertThat(allocatedSlots.hasNext(), is(false));
-		} finally {
-			taskSlotTable.stop();
 		}
 	}
 
 	@Test
-	public void testSlotAllocationWithResourceProfileFailure() {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
-
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
+	public void testSlotAllocationWithResourceProfileFailure() throws Exception {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(2)) {
 			final JobID jobId = new JobID();
 			final AllocationID allocationId = new AllocationID();
 			ResourceProfile resourceProfile = TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
@@ -202,20 +174,14 @@ public class TaskSlotTableTest extends TestLogger {
 
 			assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, resourceProfile, SLOT_TIMEOUT), is(false));
 
-			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.hasNext(), is(false));
-		} finally {
-			taskSlotTable.stop();
 		}
 	}
 
 	@Test
-	public void testGenerateSlotReport() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(3);
-
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
-
+	public void testGenerateSlotReport() throws Exception {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(3)) {
 			final JobID jobId = new JobID();
 			final AllocationID allocationId1 = new AllocationID();
 			final AllocationID allocationId2 = new AllocationID();
@@ -238,8 +204,113 @@ public class TaskSlotTableTest extends TestLogger {
 				is(new SlotStatus(new SlotID(resourceId, 1), TaskSlotUtils.DEFAULT_RESOURCE_PROFILE, null, null)),
 				is(new SlotStatus(new SlotID(resourceId, 2), TaskSlotUtils.DEFAULT_RESOURCE_PROFILE, null, null)),
 				is(new SlotStatus(SlotID.generateDynamicSlotID(resourceId), TaskSlotUtils.DEFAULT_RESOURCE_PROFILE, jobId, allocationId3))));
-		} finally {
-			taskSlotTable.stop();
 		}
 	}
+
+	@Test
+	public void testAllocateSlot() throws Exception {
+		final JobID jobId = new JobID();
+		final AllocationID allocationId = new AllocationID();
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable =
+				 createTaskSlotTableWithAllocatedSlot(jobId, allocationId, new TestingSlotActionsBuilder().build())) {
+			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
+			TaskSlot<TaskSlotPayload> nextSlot = allocatedSlots.next();
+			assertThat(nextSlot.getIndex(), is(0));
+			assertThat(nextSlot.getAllocationId(), is(allocationId));
+			assertThat(nextSlot.getJobId(), is(jobId));
+			assertThat(allocatedSlots.hasNext(), is(false));
+		}
+	}
+
+	@Test
+	public void testAddTask() throws Exception {
+		final JobID jobId = new JobID();
+		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+		final AllocationID allocationId = new AllocationID();
+		TaskSlotPayload task = new TestingTaskSlotPayload(jobId, executionAttemptId, allocationId).terminate();
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithStartedTask(task)) {
+			Iterator<TaskSlotPayload> tasks = taskSlotTable.getTasks(jobId);
+			TaskSlotPayload nextTask = tasks.next();
+			assertThat(nextTask.getExecutionId(), is(executionAttemptId));
+			assertThat(nextTask.getAllocationId(), is(allocationId));
+			assertThat(tasks.hasNext(), is(false));
+		}
+	}
+
+	@Test(timeout = 10000)
+	public void testRemoveTaskCallsFreeSlotAction() throws Exception {
+		final JobID jobId = new JobID();
+		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+		final AllocationID allocationId = new AllocationID();
+		CompletableFuture<AllocationID> freeSlotFuture = new CompletableFuture<>();
+		SlotActions slotActions = new TestingSlotActions(freeSlotFuture::complete, (aid, uid) -> {});
+		TaskSlotPayload task = new TestingTaskSlotPayload(jobId, executionAttemptId, allocationId).terminate();
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithStartedTask(task, slotActions)) {
+			// we have to initiate closing of the slot externally
+			// to enable that the last remaining finished task does the final slot freeing
+			taskSlotTable.freeSlot(allocationId);
+			taskSlotTable.removeTask(executionAttemptId);
+			assertThat(freeSlotFuture.get(), is(allocationId));
+		}
+	}
+
+	@Test(timeout = 10000)
+	public void testFreeSlotInterruptsSubmittedTask() throws Exception {
+		TestingTaskSlotPayload task = new TestingTaskSlotPayload();
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithStartedTask(task)) {
+			assertThat(taskSlotTable.freeSlot(task.getAllocationId()), is(-1));
+			task.waitForFailure();
+			task.terminate();
+		}
+	}
+
+	@Test(timeout = 10000)
+	public void testTableIsClosedOnlyWhenAllTasksTerminated() throws Exception {
+		TestingTaskSlotPayload task = new TestingTaskSlotPayload();
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithStartedTask(task);
+		assertThat(taskSlotTable.freeSlot(task.getAllocationId()), is(-1));
+		CompletableFuture<Void> closingFuture = taskSlotTable.closeAsync();
+		assertThat(closingFuture.isDone(), is(false));
+		task.terminate();
+		closingFuture.get();
+	}
+
+	private static TaskSlotTable<TaskSlotPayload> createTaskSlotTableWithStartedTask(
+			final TaskSlotPayload task) throws SlotNotFoundException, SlotNotActiveException {
+		return createTaskSlotTableWithStartedTask(task, new TestingSlotActionsBuilder().build());
+	}
+
+	private static TaskSlotTable<TaskSlotPayload> createTaskSlotTableWithStartedTask(
+			final TaskSlotPayload task,
+			final SlotActions slotActions) throws SlotNotFoundException, SlotNotActiveException {
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithAllocatedSlot(
+			task.getJobID(),
+			task.getAllocationId(),
+			slotActions);
+		taskSlotTable.markSlotActive(task.getAllocationId());
+		taskSlotTable.addTask(task);
+		return taskSlotTable;
+	}
+
+	private static TaskSlotTable<TaskSlotPayload> createTaskSlotTableWithAllocatedSlot(
+			final JobID jobId,
+			final AllocationID allocationId,
+			final SlotActions slotActions) {
+		final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(1, slotActions);
+		assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId, SLOT_TIMEOUT), is(true));
+		return taskSlotTable;
+	}
+
+	private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(final int numberOfSlots) {
+		return createTaskSlotTableAndStart(numberOfSlots, new TestingSlotActionsBuilder().build());
+	}
+
+	private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(
+			final int numberOfSlots,
+			final SlotActions slotActions) {
+		final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable = TaskSlotUtils.createTaskSlotTable(numberOfSlots);
+		taskSlotTable.start(slotActions, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		return taskSlotTable;
+	}
+
 }

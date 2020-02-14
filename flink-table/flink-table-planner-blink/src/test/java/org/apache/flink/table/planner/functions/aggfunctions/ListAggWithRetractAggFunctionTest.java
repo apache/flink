@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * Test case for built-in LISTAGG with retraction aggregate function.
  */
-public class ListAggWithRetractAggFunctionTest
+public final class ListAggWithRetractAggFunctionTest
 	extends AggFunctionTestBase<BinaryString, ListAggWithRetractAccumulator> {
 
 	@Override

@@ -67,22 +67,18 @@ public class BufferBuilderTestUtils {
 	}
 
 	public static BufferConsumer createFilledFinishedBufferConsumer(int dataSize) {
-		return createFilledBufferConsumer(dataSize, dataSize, true, false);
-	}
-
-	public static BufferConsumer createFilledFinishedBufferConsumer(int dataSize, boolean isShareable) {
-		return createFilledBufferConsumer(dataSize, dataSize, true, isShareable);
+		return createFilledBufferConsumer(dataSize, dataSize, true);
 	}
 
 	public static BufferConsumer createFilledUnfinishedBufferConsumer(int dataSize) {
-		return createFilledBufferConsumer(dataSize, dataSize, false, false);
+		return createFilledBufferConsumer(dataSize, dataSize, false);
 	}
 
-	public static BufferConsumer createFilledBufferConsumer(int size, int dataSize, boolean isFinished, boolean isShareable) {
+	public static BufferConsumer createFilledBufferConsumer(int size, int dataSize, boolean isFinished) {
 		checkArgument(size >= dataSize);
 
 		BufferBuilder bufferBuilder = createBufferBuilder(size);
-		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer(isShareable);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 		fillBufferBuilder(bufferBuilder, dataSize);
 
 		if (isFinished) {
@@ -96,7 +92,6 @@ public class BufferBuilderTestUtils {
 		return new BufferConsumer(
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE,
-			false,
 			false);
 	}
 

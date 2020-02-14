@@ -21,6 +21,8 @@ import decimal
 import struct
 from apache_beam.coders.coder_impl import StreamCoderImpl
 
+from pyflink.table import Row
+
 
 class RowCoderImpl(StreamCoderImpl):
 
@@ -34,7 +36,6 @@ class RowCoderImpl(StreamCoderImpl):
                 self._field_coders[i].encode_to_stream(value[i], out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
-        from pyflink.table import Row
         null_mask = self.read_null_mask(len(self._field_coders), in_stream)
         assert len(null_mask) == len(self._field_coders)
         return Row(*[None if null_mask[idx] else self._field_coders[idx].decode_from_stream(

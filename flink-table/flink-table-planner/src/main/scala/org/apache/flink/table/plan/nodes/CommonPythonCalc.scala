@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes
 
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode, RexProgram}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
@@ -88,5 +88,19 @@ trait CommonPythonCalc {
           sfc.getScalarFunction.asInstanceOf[PythonFunction].getPythonEnv)
         new PythonFunctionInfo(pythonFunction, inputs.toArray)
     }
+  }
+
+  private[flink] def getPythonRexCalls(calcProgram: RexProgram): Array[RexCall] = {
+    calcProgram.getProjectList
+      .map(calcProgram.expandLocalRef)
+      .collect { case call: RexCall => call }
+      .toArray
+  }
+
+  private[flink] def getForwardedFields(calcProgram: RexProgram): Array[Int] = {
+    calcProgram.getProjectList
+      .map(calcProgram.expandLocalRef)
+      .collect { case inputRef: RexInputRef => inputRef.getIndex }
+      .toArray
   }
 }

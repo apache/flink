@@ -44,8 +44,7 @@ import static org.junit.Assert.assertThat;
  */
 public class MesosTaskManagerParametersTest extends TestLogger {
 	private static final int TOTAL_PROCESS_MEMORY_MB = 1280;
-	private static final String TOTAL_PROCESS_MEMORY_MB_STRING = TOTAL_PROCESS_MEMORY_MB + "m";
-	private static final MemorySize TOTAL_PROCESS_MEMORY_SIZE = MemorySize.parse(TOTAL_PROCESS_MEMORY_MB_STRING);
+	private static final MemorySize TOTAL_PROCESS_MEMORY_SIZE = MemorySize.ofMebiBytes(TOTAL_PROCESS_MEMORY_MB);
 
 	@Test
 	public void testBuildVolumes() throws Exception {
@@ -246,6 +245,14 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	}
 
 	@Test
+	public void testConfigNoCpuCores() {
+		Configuration conf = new Configuration();
+		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(conf);
+		assertThat(mesosTaskManagerParameters.cpus(), is(3.0));
+	}
+
+	@Test
 	public void testUnifiedTotalProcessMemoryConfiguration() {
 		assertTotalProcessMemory(MesosTaskManagerParameters.create(getConfiguration()));
 	}
@@ -273,13 +280,13 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 	private void assertTotalProcessMemory(MesosTaskManagerParameters mesosTaskManagerParameters) {
 		assertThat(
-			mesosTaskManagerParameters.containeredParameters().getTaskExecutorResourceSpec().getTotalProcessMemorySize(),
+			mesosTaskManagerParameters.containeredParameters().getTaskExecutorProcessSpec().getTotalProcessMemorySize(),
 			is(TOTAL_PROCESS_MEMORY_SIZE));
 	}
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_MEMORY_MB_STRING);
+		config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_MEMORY_SIZE);
 		return config;
 	}
 

@@ -28,6 +28,7 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -123,7 +124,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
@@ -428,7 +429,7 @@ public class LocalExecutorITCase extends TestLogger {
 			// start job and retrieval
 			final ResultDescriptor desc = executor.executeQuery(
 				sessionId,
-				"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
+				"SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1");
 
 			assertFalse(desc.isMaterialized());
 
@@ -436,12 +437,12 @@ public class LocalExecutorITCase extends TestLogger {
 				retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,27,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,57,Hello World!!!!)");
+			expectedResults.add("(true,47,Hello World,ABC)");
+			expectedResults.add("(true,27,Hello World,ABC)");
+			expectedResults.add("(true,37,Hello World,ABC)");
+			expectedResults.add("(true,37,Hello World,ABC)");
+			expectedResults.add("(true,47,Hello World,ABC)");
+			expectedResults.add("(true,57,Hello World!!!!,ABC)");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -506,15 +507,15 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 
-		final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
+		final String query = "SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1";
 
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("47,Hello World");
-		expectedResults.add("27,Hello World");
-		expectedResults.add("37,Hello World");
-		expectedResults.add("37,Hello World");
-		expectedResults.add("47,Hello World");
-		expectedResults.add("57,Hello World!!!!");
+		expectedResults.add("47,Hello World,ABC");
+		expectedResults.add("27,Hello World,ABC");
+		expectedResults.add("37,Hello World,ABC");
+		expectedResults.add("37,Hello World,ABC");
+		expectedResults.add("47,Hello World,ABC");
+		expectedResults.add("57,Hello World!!!!,ABC");
 
 		executeStreamQueryTable(replaceVars, query, expectedResults);
 	}
@@ -595,19 +596,19 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		try {
-			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT *, 'ABC' FROM TestView1");
 
 			assertTrue(desc.isMaterialized());
 
 			final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("47");
-			expectedResults.add("27");
-			expectedResults.add("37");
-			expectedResults.add("37");
-			expectedResults.add("47");
-			expectedResults.add("57");
+			expectedResults.add("47,ABC");
+			expectedResults.add("27,ABC");
+			expectedResults.add("37,ABC");
+			expectedResults.add("37,ABC");
+			expectedResults.add("47,ABC");
+			expectedResults.add("57,ABC");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {

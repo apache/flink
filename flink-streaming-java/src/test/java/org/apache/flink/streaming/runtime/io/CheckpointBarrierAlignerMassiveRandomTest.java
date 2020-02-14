@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 
 import org.junit.Test;
 
@@ -60,7 +61,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					myIG,
 					new CachedBufferStorage(PAGE_SIZE),
 					"Testing: No task associated",
-					null);
+					new DummyCheckpointInvokable());
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();

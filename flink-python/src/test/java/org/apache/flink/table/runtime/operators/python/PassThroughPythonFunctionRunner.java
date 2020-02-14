@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.python;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.util.Preconditions;
 
@@ -35,16 +38,29 @@ public abstract class PassThroughPythonFunctionRunner<IN> implements PythonFunct
 
 	private boolean bundleStarted;
 	private final List<IN> bufferedElements;
-	private final FnDataReceiver<IN> resultReceiver;
+	private final FnDataReceiver<byte[]> resultReceiver;
 
-	PassThroughPythonFunctionRunner(FnDataReceiver<IN> resultReceiver) {
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
+	private transient ByteArrayOutputStreamWithPos baos;
+
+	/**
+	 * OutputStream Wrapper.
+	 */
+	private transient DataOutputViewStreamWrapper baosWrapper;
+
+	PassThroughPythonFunctionRunner(FnDataReceiver<byte[]> resultReceiver) {
 		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
 		bundleStarted = false;
 		bufferedElements = new ArrayList<>();
 	}
 
 	@Override
-	public void open() {}
+	public void open() {
+		baos = new ByteArrayOutputStreamWithPos();
+		baosWrapper = new DataOutputViewStreamWrapper(baos);
+	}
 
 	@Override
 	public void close() {}
@@ -61,7 +77,9 @@ public abstract class PassThroughPythonFunctionRunner<IN> implements PythonFunct
 		bundleStarted = false;
 
 		for (IN element : bufferedElements) {
-			resultReceiver.accept(element);
+			baos.reset();
+			getInputTypeSerializer().serialize(element, baosWrapper);
+			resultReceiver.accept(baos.toByteArray());
 		}
 		bufferedElements.clear();
 	}
@@ -72,4 +90,6 @@ public abstract class PassThroughPythonFunctionRunner<IN> implements PythonFunct
 	}
 
 	public abstract IN copy(IN element);
+
+	public abstract TypeSerializer<IN> getInputTypeSerializer();
 }

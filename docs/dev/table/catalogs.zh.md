@@ -1,8 +1,7 @@
 ---
 title: "Catalogs"
-is_beta: true
 nav-parent_id: tableapi
-nav-pos: 100
+nav-pos: 80
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -79,7 +78,7 @@ tableEnv.sqlUpdate("CREATE DATABASE mydb WITH (...)");
 // Create a catalog table
 tableEnv.sqlUpdate("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
 
-tableEnv.sqlQuery("SHOW TABLES"); // should see the table
+tableEnv.listTables(); // should return the tables in current catalog and database.
 
 {% endhighlight %}
 </div>
@@ -97,7 +96,7 @@ Flink SQL> SHOW TABLES;
 mytable
 {% endhighlight %}
 
-For detailed information, please check out [Flink SQL DDL](({{ site.baseurl }}/dev/table/sql.html#create-table)).
+For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
 ### Using Java/Scala/Python API
 
@@ -108,13 +107,13 @@ Users can use Java, Scala, or Python API to create catalog tables programmatical
 {% highlight java %}
 TableEnvironment tableEnv = ...
 
-// Create a HiveCatalog 
+// Create a HiveCatalog
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>");
 
 // Register the catalog
 tableEnv.registerCatalog("myhive", catalog);
 
-// Create a catalog database 
+// Create a catalog database
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
 
 // Create a catalog table
@@ -124,7 +123,7 @@ TableSchema schema = TableSchema.builder()
     .build();
 
 catalog.createTable(
-        new ObjectPath("mydb", "mytable"), 
+        new ObjectPath("mydb", "mytable"),
         new CatalogTableImpl(
             schema,
             new Kafka()
@@ -134,8 +133,8 @@ catalog.createTable(
             "my comment"
         )
     );
-    
-List<String> tables = catalog.listTables("mydb); // tables should contain "mytable"
+
+List<String> tables = catalog.listTables("mydb"); // tables should contain "mytable"
 {% endhighlight %}
 
 </div>
@@ -143,8 +142,8 @@ List<String> tables = catalog.listTables("mydb); // tables should contain "mytab
 
 ## Catalog API
 
-Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL. 
-For detailed DDL information, please refer to [SQL DDL](https://ci.apache.org/projects/flink/flink-docs-release-1.9/dev/table/sql.html#ddl).
+Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL.
+For detailed DDL information, please refer to [SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
 
 ### Database operations

@@ -165,7 +165,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 
 	@Override
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
-		BufferAndBacklog next = subpartitionView.getNextBuffer(false);
+		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
 			sequenceNumber++;
 

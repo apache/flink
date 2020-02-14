@@ -19,15 +19,13 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -35,9 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -46,30 +41,15 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final AtomicReference<JobExecutionResult> jobExecutionResult;
-
-	private boolean alreadyCalled;
-
 	ContextEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader,
-			final AtomicReference<JobExecutionResult> jobExecutionResult) {
+			final ClassLoader userCodeClassLoader) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-		this.jobExecutionResult = checkNotNull(jobExecutionResult);
-
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
-
-		this.alreadyCalled = false;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		verifyExecuteIsCalledOnceWhenInDetachedMode();
-
 		JobClient jobClient = executeAsync(jobName);
 
 		JobExecutionResult jobExecutionResult;
@@ -91,23 +71,21 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			}
 
 			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
 		} else {
 			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 
-		setJobExecutionResult(jobExecutionResult);
 		return jobExecutionResult;
 	}
 
-	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
-		if (alreadyCalled && !getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
-			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
-		}
-		alreadyCalled = true;
-	}
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		final JobClient jobClient = super.executeAsync(jobName);
 
-	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
-		this.jobExecutionResult.set(jobExecutionResult);
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return jobClient;
 	}
 
 	@Override

@@ -70,9 +70,10 @@ import java.io.Serializable;
  *         return a;
  *     }
  *
- *     public void add(Integer value, AverageAccumulator acc) {
+ *     public AverageAccumulator add(Integer value, AverageAccumulator acc) {
  *         acc.sum += value;
  *         acc.count++;
+ *         return acc;
  *     }
  *
  *     public Double getResult(AverageAccumulator acc) {
@@ -94,9 +95,10 @@ import java.io.Serializable;
  *         return a;
  *     }
  *
- *     public void add(Datum value, AverageAccumulator acc) {
+ *     public AverageAccumulator add(Datum value, AverageAccumulator acc) {
  *         acc.count += value.getWeight();
  *         acc.sum += value.getValue();
+ *         return acc;
  *     }
  *
  *     public Double getResult(AverageAccumulator acc) {
@@ -134,6 +136,8 @@ public interface AggregateFunction<IN, ACC, OUT> extends Function, Serializable 
 	 *
 	 * @param value The value to add
 	 * @param accumulator The accumulator to add the value to
+	 *
+	 * @return The accumulator with the updated state
 	 */
 	ACC add(IN value, ACC accumulator);
 

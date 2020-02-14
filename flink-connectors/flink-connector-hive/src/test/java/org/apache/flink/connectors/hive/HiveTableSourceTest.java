@@ -19,11 +19,21 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.connectors.hive.read.HiveMapredSplitReader;
+import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
+import org.apache.flink.connectors.hive.read.HiveTableInputSplit;
+import org.apache.flink.connectors.hive.read.HiveVectorizedOrcSplitReader;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -33,14 +43,18 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FileUtils;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.calcite.rel.RelNode;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -48,17 +62,24 @@ import org.junit.runner.RunWith;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 /**
  * Tests {@link HiveTableSource}.
@@ -104,7 +125,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{4, 4, "d", 4000L, 4.44})
 				.commit();
 
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test");
 		List<Row> rows = TableUtils.collectToList(src);
@@ -131,7 +152,7 @@ public class HiveTableSourceTest {
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{array, map, struct})
 				.commit();
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.complex_test");
 		List<Row> rows = TableUtils.collectToList(src);
@@ -160,7 +181,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt");
 		List<Row> rows = TableUtils.collectToList(src);
@@ -185,7 +206,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt_1 where pt = 0");
 		// first check execution plan to ensure partition prunning works
@@ -215,7 +236,10 @@ public class HiveTableSourceTest {
 					.addRow(new Object[]{2}).commit("p1=2,p2='b'");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
 					.addRow(new Object[]{3}).commit("p1=3,p2='c'");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			// test string partition columns with special characters
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{4}).commit("p1=4,p2='c:2'");
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
 					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
 			tableEnv.registerCatalog(catalog.getName(), catalog);
@@ -224,16 +248,16 @@ public class HiveTableSourceTest {
 			String[] explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, query);
-			assertEquals("[2, 3]", results.toString());
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 3"));
+			List<Row> results = TableUtils.collectToList(query);
+			assertEquals("[2, 3, 4]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
 			explain = tableEnv.explain(query).split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
-			results = HiveTestUtils.collectTable(tableEnv, query);
+			results = TableUtils.collectToList(query);
 			assertEquals("[]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1 in (1,3,5) order by x");
@@ -241,7 +265,7 @@ public class HiveTableSourceTest {
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			results = HiveTestUtils.collectTable(tableEnv, query);
+			results = TableUtils.collectToList(query);
 			assertEquals("[1, 3]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d') order by x");
@@ -249,8 +273,48 @@ public class HiveTableSourceTest {
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			results = HiveTestUtils.collectTable(tableEnv, query);
+			results = TableUtils.collectToList(query);
 			assertEquals("[1, 2]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where p2 = 'c:2' order by x");
+			explain = tableEnv.explain(query).split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
+			results = TableUtils.collectToList(query);
+			assertEquals("[4]", results.toString());
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testPartitionFilterDateTimestamp() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.part(x int) partitioned by (p1 date,p2 timestamp)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{1}).commit("p1='2018-08-08',p2='2018-08-08 08:08:08'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{2}).commit("p1='2018-08-09',p2='2018-08-08 08:08:09'");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+					.addRow(new Object[]{3}).commit("p1='2018-08-10',p2='2018-08-08 08:08:10'");
+
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+			TestPartitionFilterCatalog catalog = new TestPartitionFilterCatalog(
+					hiveCatalog.getName(), hiveCatalog.getDefaultDatabase(), hiveCatalog.getHiveConf(), hiveCatalog.getHiveVersion());
+			tableEnv.registerCatalog(catalog.getName(), catalog);
+			tableEnv.useCatalog(catalog.getName());
+
+			Table query = tableEnv.sqlQuery(
+					"select x from db1.part where p1>cast('2018-08-09' as date) and p2<>cast('2018-08-08 08:08:09' as timestamp)");
+			String[] explain = tableEnv.explain(query).split("==.*==\n");
+			assertTrue(catalog.fallback);
+			String optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
+			List<Row> results = TableUtils.collectToList(query);
+			assertEquals("[3]", results.toString());
+			System.out.println(results);
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
@@ -268,7 +332,7 @@ public class HiveTableSourceTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
 					.addRow(new Object[]{3, "c"})
 					.commit("p1=2014, p2='2014'");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select p1, count(y) from hive.`default`.src group by p1");
 			String[] explain = tableEnv.explain(table).split("==.*==\n");
@@ -302,7 +366,7 @@ public class HiveTableSourceTest {
 						.commit();
 			//Add this to obtain correct stats of table to avoid FLINK-14965 problem
 			hiveShell.execute("analyze table src COMPUTE STATISTICS");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
 			String[] explain = tableEnv.explain(table).split("==.*==\n");
@@ -338,7 +402,7 @@ public class HiveTableSourceTest {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism");
 		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
@@ -347,6 +411,88 @@ public class HiveTableSourceTest {
 		@SuppressWarnings("unchecked")
 		Transformation transformation = execNode.translateToPlan(planner);
 		Assert.assertEquals(2, transformation.getParallelism());
+	}
+
+	@Test
+	public void testVectorReaderSwitch() throws Exception {
+		// vector reader not available for 1.x and we're not testing orc for 2.0.x
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
+		Map<String, String> env = System.getenv();
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x int,y string) stored as orc");
+			hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
+			testVectorReader(true);
+			testVectorReader(false);
+		} finally {
+			TestBaseUtils.setEnv(env);
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	private void testVectorReader(boolean fallback) throws Exception {
+		File tmpDir = Files.createTempDirectory(null).toFile();
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> FileUtils.deleteDirectoryQuietly(tmpDir)));
+
+		File flinkConf = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+		Configuration conf = new Configuration();
+		conf.setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallback);
+		BootstrapTools.writeConfiguration(conf, flinkConf);
+		Map<String, String> map = new HashMap<>(System.getenv());
+		map.put(ConfigConstants.ENV_FLINK_CONF_DIR, tmpDir.getAbsolutePath());
+		TestBaseUtils.setEnv(map);
+
+		ObjectPath tablePath = new ObjectPath("db1", "src");
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
+
+		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
+		doReturn(new TestVectorReaderSource(new JobConf(hiveCatalog.getHiveConf()), tablePath, catalogTable))
+				.when(tableFactorySpy).createTableSource(any(ObjectPath.class), any(CatalogTable.class));
+		HiveCatalog catalogSpy = spy(hiveCatalog);
+		doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
+
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tableEnv.registerCatalog(catalogSpy.getName(), catalogSpy);
+		tableEnv.useCatalog(catalogSpy.getName());
+
+		List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src order by x"));
+		assertEquals("[1,a, 2,b]", results.toString());
+	}
+
+	// A sub-class of HiveTableSource to test vector reader switch.
+	private static class TestVectorReaderSource extends HiveTableSource {
+		private final JobConf jobConf;
+		private final CatalogTable catalogTable;
+
+		TestVectorReaderSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
+			super(jobConf, tablePath, catalogTable);
+			this.jobConf = jobConf;
+			this.catalogTable = catalogTable;
+		}
+
+		@Override
+		HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
+			return new TestVectorReaderInputFormat(
+					jobConf, catalogTable, allHivePartitions, null, -1, hiveCatalog.getHiveVersion(), useMapRedReader);
+		}
+	}
+
+	// A sub-class of HiveTableInputFormat to test vector reader switch.
+	private static class TestVectorReaderInputFormat extends HiveTableInputFormat {
+
+		private static final long serialVersionUID = 1L;
+
+		TestVectorReaderInputFormat(JobConf jobConf, CatalogTable catalogTable, List<HiveTablePartition> partitions,
+				int[] projectedFields, long limit, String hiveVersion, boolean useMapRedReader) {
+			super(jobConf, catalogTable, partitions, projectedFields, limit, hiveVersion, useMapRedReader);
+		}
+
+		@Override
+		public void open(HiveTableInputSplit split) throws IOException {
+			super.open(split);
+			boolean fallback = GlobalConfiguration.loadConfiguration().getBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
+			assertTrue((fallback && reader instanceof HiveMapredSplitReader) || (!fallback && reader instanceof HiveVectorizedOrcSplitReader));
+		}
 	}
 
 	// A sub-class of HiveCatalog to test list partitions by filter.

@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
@@ -45,6 +46,8 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,7 +79,13 @@ public class KubernetesTestBase extends TestLogger {
 
 	protected static final String MOCK_SERVICE_ID = "mock-uuid-of-service";
 
+	protected static final String MOCK_SERVICE_HOST_NAME = "mock-host-name-of-service";
+
 	protected static final String MOCK_SERVICE_IP = "192.168.0.1";
+
+	protected static final String FLINK_MASTER_ENV_KEY = "LD_LIBRARY_PATH";
+
+	protected static final String FLINK_MASTER_ENV_VALUE = "/usr/lib/native";
 
 	@Before
 	public void setUp() throws IOException {
@@ -87,6 +96,9 @@ public class KubernetesTestBase extends TestLogger {
 		FLINK_CONFIG.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, "main-class");
 		FLINK_CONFIG.setString(BlobServerOptions.PORT, String.valueOf(Constants.BLOB_SERVER_PORT));
 		FLINK_CONFIG.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
+		FLINK_CONFIG.setString(
+			ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX + FLINK_MASTER_ENV_KEY,
+			FLINK_MASTER_ENV_VALUE);
 
 		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
 		BootstrapTools.writeConfiguration(new Configuration(), new File(flinkConfDir, "flink-conf.yaml"));
@@ -96,8 +108,8 @@ public class KubernetesTestBase extends TestLogger {
 
 		// Set mock requests.
 		mockInternalServiceActionWatch();
-		mockRestServiceActionWatcher();
-		mockGetRestService();
+		mockRestServiceActionWatcher(CLUSTER_ID);
+		mockGetRestService(CLUSTER_ID, MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP);
 	}
 
 	protected FlinkKubeClient getFabric8FlinkKubeClient(){
@@ -112,8 +124,8 @@ public class KubernetesTestBase extends TestLogger {
 		return server.getClient().inNamespace(NAMESPACE);
 	}
 
-	private void mockRestServiceActionWatcher() {
-		String serviceName = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX;
+	protected void mockRestServiceActionWatcher(String clusterId) {
+		String serviceName = clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
 
 		String path = String.format("/api/v1/namespaces/%s/services?fieldSelector=metadata.name%%3D%s&watch=true",
 			NAMESPACE, serviceName);
@@ -122,7 +134,7 @@ public class KubernetesTestBase extends TestLogger {
 			.andUpgradeToWebSocket()
 			.open()
 			.waitFor(1000)
-			.andEmit(new WatchEvent(getMockRestService(), "ADDED"))
+			.andEmit(new WatchEvent(getMockRestService(MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP), "ADDED"))
 			.done()
 			.once();
 	}
@@ -141,17 +153,17 @@ public class KubernetesTestBase extends TestLogger {
 			.once();
 	}
 
-	private void mockGetRestService() {
-		String serviceName = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX;
+	protected void mockGetRestService(String clusterId, @Nullable String hostname, @Nullable String ip) {
+		String serviceName = clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
 
 		String path = String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, serviceName);
 		server.expect()
 			.withPath(path)
-			.andReturn(200, getMockRestService())
+			.andReturn(200, getMockRestService(hostname, ip))
 			.always();
 	}
 
-	private Service getMockRestService() {
+	private Service getMockRestService(@Nullable String hostname, @Nullable String ip) {
 		List<Decorator<Service, KubernetesService>> restServiceDecorators = new ArrayList<>();
 		restServiceDecorators.add(new InitializerDecorator<>(CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX));
 		String exposedType = FLINK_CONFIG.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
@@ -165,10 +177,9 @@ public class KubernetesTestBase extends TestLogger {
 		}
 
 		Service service = kubernetesService.getInternalResource();
-		String mockServiceHostName = "mock-host-name-of-service";
 		service.setStatus(new ServiceStatusBuilder()
 			.withLoadBalancer(new LoadBalancerStatus(Collections.singletonList(
-			new LoadBalancerIngress(mockServiceHostName, MOCK_SERVICE_IP)))).build());
+			new LoadBalancerIngress(hostname, ip)))).build());
 		return service;
 	}
 
@@ -192,5 +203,4 @@ public class KubernetesTestBase extends TestLogger {
 		labels.put(Constants.LABEL_APP_KEY, CLUSTER_ID);
 		return labels;
 	}
-
 }

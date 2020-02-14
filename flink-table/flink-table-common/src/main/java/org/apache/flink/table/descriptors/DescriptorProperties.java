@@ -229,7 +229,7 @@ public class DescriptorProperties {
 			for (WatermarkSpec spec : schema.getWatermarkSpecs()) {
 				watermarkValues.add(Arrays.asList(
 					spec.getRowtimeAttribute(),
-					spec.getWatermarkExpressionString(),
+					spec.getWatermarkExpr(),
 					spec.getWatermarkExprOutputType().getLogicalType().asSerializableString()));
 			}
 			putIndexedFixedProperties(

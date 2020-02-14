@@ -120,13 +120,13 @@ object FlinkRelBuilder {
     */
   case class NamedWindowProperty(name: String, property: WindowProperty)
 
-  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+  def of(cluster: RelOptCluster, relOptSchema: RelOptSchema): FlinkRelBuilder = {
     val clusterContext = cluster.getPlanner.getContext
 
     new FlinkRelBuilder(
       clusterContext,
       cluster,
-      relTable.getRelOptSchema,
+      relOptSchema,
       clusterContext.unwrap(classOf[ExpressionBridge[PlannerExpression]]))
   }
 

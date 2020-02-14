@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, req
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
+import org.apache.flink.table.planner.codegen.calls.{BridgingSqlFunctionCallGen, FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -41,6 +41,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
 
@@ -224,10 +225,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       outRow: String = DEFAULT_OUT_RECORD_TERM,
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
-      outRowAlreadyExists: Boolean = false): GeneratedExpression = {
+      outRowAlreadyExists: Boolean = false,
+      allowSplit: Boolean = false): GeneratedExpression = {
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     generateResultExpression(fieldExprs, fieldExprIdxToOutputRowPosMap, returnType,
-      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists)
+      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists, allowSplit)
   }
 
   /**
@@ -253,7 +255,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     outRow: String,
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
-    outRowAlreadyExists: Boolean)
+    outRowAlreadyExists: Boolean,
+    allowSplit: Boolean)
   : GeneratedExpression = {
     // initial type check
     if (returnType.getFieldCount != fieldExprs.length) {
@@ -285,11 +288,30 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ => // ok
     }
 
-    val setFieldsCode = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
+    val setFieldsCodes = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
       val pos = fieldExprIdxToOutputRowPosMap.getOrElse(index,
         throw new CodeGenException(s"Illegal field expr index: $index"))
       baseRowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
-    }.mkString("\n")
+    }
+    val totalLen = setFieldsCodes.map(_.length).sum
+    val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
+    val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
+      // do the split.
+      ctx.setCodeSplit()
+      setFieldsCodes.map(project => {
+        val methodName = newName("split")
+        val method =
+          s"""
+            |private void $methodName() throws Exception {
+            |  $project
+            |}
+            |""".stripMargin
+        ctx.addReusableMember(method)
+        s"$methodName();"
+      }).mkString("\n")
+    } else {
+      setFieldsCodes.mkString("\n")
+    }
 
     val outRowInitCode = if (!outRowAlreadyExists) {
       val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter)
@@ -461,7 +483,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (o@_, _) => o.accept(this)
     }
 
-    generateCallExpression(ctx, call.getOperator, operands, resultType)
+    generateCallExpression(ctx, call, operands, resultType)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =
@@ -477,10 +499,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   private def generateCallExpression(
       ctx: CodeGeneratorContext,
-      operator: SqlOperator,
+      call: RexCall,
       operands: Seq[GeneratedExpression],
       resultType: LogicalType): GeneratedExpression = {
-    operator match {
+    call.getOperator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
         val left = operands.head
@@ -756,24 +778,29 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case tsf: TableSqlFunction =>
         new TableFunctionCallGen(
+          call,
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
 
+      case _: BridgingSqlFunction =>
+        new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
-        StringCallGen.generateCallExpression(ctx, operator, operands, resultType).getOrElse {
-          FunctionGenerator
-            .getCallGenerator(
-              sqlOperator,
-              operands.map(expr => expr.resultType),
-              resultType)
-            .getOrElse(
-              throw new CodeGenException(s"Unsupported call: " +
-              s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
-              s"If you think this function should be supported, " +
-              s"you can create an issue and start a discussion for it."))
-            .generate(ctx, operands, resultType)
-        }
+        StringCallGen.generateCallExpression(ctx, call.getOperator, operands, resultType)
+          .getOrElse {
+            FunctionGenerator
+              .getCallGenerator(
+                sqlOperator,
+                operands.map(expr => expr.resultType),
+                resultType)
+              .getOrElse(
+                throw new CodeGenException(s"Unsupported call: " +
+                s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
+                s"If you think this function should be supported, " +
+                s"you can create an issue and start a discussion for it."))
+              .generate(ctx, operands, resultType)
+          }
 
       // unknown or invalid
       case call@_ =>

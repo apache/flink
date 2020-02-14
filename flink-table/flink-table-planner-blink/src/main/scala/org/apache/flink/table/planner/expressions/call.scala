@@ -200,10 +200,6 @@ case class PlannerTableFunctionCall(
   override private[flink] def children: Seq[PlannerExpression] = parameters
 
   override def validateInput(): ValidationResult = {
-    // check if not Scala object
-    UserFunctionsTypeHelper.validateNotSingleton(tableFunction.getClass)
-    // check if class could be instantiated
-    UserFunctionsTypeHelper.validateInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
     val signature = parameters.map(_.resultType).map(fromLegacyInfoToDataType)
     val foundMethod = getUserDefinedMethod(

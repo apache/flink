@@ -53,10 +53,12 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
@@ -80,12 +82,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testRootSlotCreation() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		final SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotRequestId slotRequestId = new SlotRequestId();
 		SlotRequestId allocatedSlotRequestId = new SlotRequestId();
@@ -137,12 +134,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testNestedSlotCreation() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		final SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -239,12 +231,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testInnerSlotRelease() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		final SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -283,18 +270,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotContextFutureCompletion() throws Exception {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
-		final SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
-
-		final SlotContext slotContext = new SimpleSlotContext(
-			new AllocationID(),
-			new LocalTaskManagerLocation(),
-			0,
-			new SimpleAckingTaskManagerGateway());
+		final SlotContext slotContext = createSimpleSlotContext();
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
@@ -350,17 +328,20 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertEquals(slotContext.getAllocationId(), logicalSlot3.getAllocationId());
 	}
 
+	private SimpleSlotContext createSimpleSlotContext() {
+		return new SimpleSlotContext(
+			new AllocationID(),
+			new LocalTaskManagerLocation(),
+			0,
+			new SimpleAckingTaskManagerGateway());
+	}
+
 	/**
 	 * Tests that slot context future failures will release the root slot.
 	 */
 	@Test
 	public void testSlotContextFutureFailure() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 
@@ -391,12 +372,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testRootSlotTransition() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
@@ -408,12 +384,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertFalse(slotSharingManager.getResolvedRootSlots().contains(rootSlot));
 
 		// now complete the slotContextFuture
-		slotContextFuture.complete(
-			new SimpleSlotContext(
-				new AllocationID(),
-				new LocalTaskManagerLocation(),
-				0,
-				new SimpleAckingTaskManagerGateway()));
+		slotContextFuture.complete(createSimpleSlotContext());
 
 		assertFalse(slotSharingManager.getUnresolvedRootSlots().contains(rootSlot));
 		assertTrue(slotSharingManager.getResolvedRootSlots().contains(rootSlot));
@@ -424,12 +395,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testGetResolvedSlot() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot rootSlot = createRootSlot(new LocalTaskManagerLocation(), slotSharingManager);
 
@@ -466,12 +432,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testGetResolvedSlotWithLocationPreferences() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot rootSlot1 = createRootSlot(new LocalTaskManagerLocation(), slotSharingManager);
 
@@ -512,12 +473,7 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testResolvedSlotInReleasingIsNotAvailable() throws Exception {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		final SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		final SlotSharingManager.MultiTaskSlot rootSlot = createRootSlot(new LocalTaskManagerLocation(), slotSharingManager);
 
@@ -556,12 +512,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testGetUnresolvedSlot() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot rootSlot1 = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -594,14 +545,14 @@ public class SlotSharingManagerTest extends TestLogger {
 			.setTaskHeapMemoryMB(100)
 			.setTaskOffHeapMemoryMB(100)
 			.setManagedMemoryMB(100)
-			.setShuffleMemoryMB(100)
+			.setNetworkMemoryMB(100)
 			.build();
 		final ResourceProfile rp2 = ResourceProfile.newBuilder()
 			.setCpuCores(2.0)
 			.setTaskHeapMemoryMB(200)
 			.setTaskOffHeapMemoryMB(200)
 			.setManagedMemoryMB(200)
-			.setShuffleMemoryMB(200)
+			.setNetworkMemoryMB(200)
 			.addExtendedResource("gpu", new GPUResource(2.0))
 			.build();
 		final ResourceProfile rp3 = ResourceProfile.newBuilder()
@@ -609,16 +560,11 @@ public class SlotSharingManagerTest extends TestLogger {
 			.setTaskHeapMemoryMB(300)
 			.setTaskOffHeapMemoryMB(300)
 			.setManagedMemoryMB(300)
-			.setShuffleMemoryMB(300)
+			.setNetworkMemoryMB(300)
 			.addExtendedResource("gpu", new GPUResource(3.0))
 			.build();
 
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-				SLOT_SHARING_GROUP_ID,
-				allocatedSlotActions,
-				SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot unresolvedRootSlot = slotSharingManager.createRootSlot(
 				new SlotRequestId(),
@@ -674,12 +620,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		ResourceProfile rp2 = ResourceProfile.fromResources(2.0, 200);
 		ResourceProfile allocatedSlotRp = ResourceProfile.fromResources(5.0, 500);
 
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-				SLOT_SHARING_GROUP_ID,
-				allocatedSlotActions,
-				SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 				new SlotRequestId(),
@@ -719,12 +660,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		ResourceProfile rp2 = ResourceProfile.fromResources(2.0, 200);
 		ResourceProfile allocatedSlotRp = ResourceProfile.fromResources(2.0, 200);
 
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-				SLOT_SHARING_GROUP_ID,
-				allocatedSlotActions,
-				SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 
@@ -795,12 +731,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		ResourceProfile thirdChildRp = ResourceProfile.fromResources(3.0, 300);
 		ResourceProfile forthChildRp = ResourceProfile.fromResources(9.0, 900);
 
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
-		SlotSharingManager slotSharingManager = new SlotSharingManager(
-				SLOT_SHARING_GROUP_ID,
-				allocatedSlotActions,
-				SLOT_OWNER);
+		SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 
@@ -846,6 +777,15 @@ public class SlotSharingManagerTest extends TestLogger {
 				slotSharingManager,
 				coLocationTaskSlot,
 				Arrays.asList(firstCoLocatedChild, secondCoLocatedChild, thirdChild, forthChild));
+	}
+
+	private SlotSharingManager createTestingSlotSharingManager() {
+		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
+
+		return new SlotSharingManager(
+			SLOT_SHARING_GROUP_ID,
+			allocatedSlotActions,
+			SLOT_OWNER);
 	}
 
 	/**
@@ -898,6 +838,34 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		assertThat(utilizationPerTaskExecutor.get(firstTaskExecutorLocation), is(closeTo(1.0 / 2, 0.1)));
 		assertThat(utilizationPerTaskExecutor.get(secondTaskExecutorLocation), is(closeTo(0, 0.1)));
+	}
+
+	@Test
+	public void shouldResolveRootSlotBeforeCompletingChildSlots() {
+		final SlotSharingManager slotSharingManager = createTestingSlotSharingManager();
+
+		final CompletableFuture<SlotContext> slotFuture = new CompletableFuture<>();
+		// important to add additional completion stage in order to reverse the execution order of callbacks
+		final CompletableFuture<SlotContext> identityFuture = slotFuture.thenApply(Function.identity());
+
+		final SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
+			new SlotRequestId(),
+			identityFuture,
+			new SlotRequestId());
+
+		final SlotSharingManager.SingleTaskSlot singleTaskSlot = rootSlot.allocateSingleTaskSlot(
+			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
+			new AbstractID(),
+			Locality.UNCONSTRAINED);
+
+		final CompletableFuture<Void> assertionFuture = singleTaskSlot.getLogicalSlotFuture().thenRun(() -> assertThat(
+			slotSharingManager.getResolvedRootSlots(),
+			contains(rootSlot)));
+
+		slotFuture.complete(createSimpleSlotContext());
+
+		assertionFuture.join();
 	}
 
 	private SlotSharingManager.MultiTaskSlot createRootSlot(TaskManagerLocation firstTaskExecutorLocation, SlotSharingManager slotSharingManager) {

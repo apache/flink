@@ -68,6 +68,7 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
 		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
+		new OptionsClassLocation("flink-metrics/flink-metrics-influxdb", "org.apache.flink.metrics.influxdb"),
 		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state"),
 		new OptionsClassLocation("flink-table/flink-table-api-java", "org.apache.flink.table.api.config"),
 		new OptionsClassLocation("flink-python", "org.apache.flink.python"),
@@ -79,7 +80,8 @@ public class ConfigOptionsDocGenerator {
 		"org.apache.flink.configuration.WritableConfig",
 		"org.apache.flink.configuration.ConfigOptions",
 		"org.apache.flink.streaming.api.environment.CheckpointConfig",
-		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
+		"org.apache.flink.contrib.streaming.state.PredefinedOptions",
+		"org.apache.flink.python.PythonConfig"));
 
 	static final String DEFAULT_PATH_PREFIX = "src/main/java";
 
@@ -99,7 +101,7 @@ public class ConfigOptionsDocGenerator {
 	 * every {@link ConfigOption}.
 	 *
 	 * <p>One additional table is generated containing all {@link ConfigOption ConfigOptions} that are annotated with
-	 * {@link org.apache.flink.annotation.docs.Documentation.CommonOption}.
+	 * {@link Documentation.Section}.
 	 *
 	 * @param args
 	 *  [0] output directory for the generated files
@@ -118,28 +120,56 @@ public class ConfigOptionsDocGenerator {
 
 	@VisibleForTesting
 	static void generateCommonSection(String rootDir, String outputDirectory, OptionsClassLocation[] locations, String pathPrefix) throws IOException, ClassNotFoundException {
-		List<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
+		List<OptionWithMetaInfo> allSectionOptions = new ArrayList<>(32);
 		for (OptionsClassLocation location : locations) {
-			commonOptions.addAll(findCommonOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
+			allSectionOptions.addAll(findSectionOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
 		}
-		commonOptions.sort((o1, o2) -> {
-			int position1 = o1.field.getAnnotation(Documentation.CommonOption.class).position();
-			int position2 = o2.field.getAnnotation(Documentation.CommonOption.class).position();
-			if (position1 == position2) {
-				return o1.option.key().compareTo(o2.option.key());
-			} else {
-				return Integer.compare(position1, position2);
-			}
-		});
 
-		String commonHtmlTable = toHtmlTable(commonOptions);
-		Files.write(Paths.get(outputDirectory, COMMON_SECTION_FILE_NAME), commonHtmlTable.getBytes(StandardCharsets.UTF_8));
+		Map<String, List<OptionWithMetaInfo>> optionsGroupedBySection = allSectionOptions.stream()
+			.flatMap(option -> {
+				final String[] sections = option.field.getAnnotation(Documentation.Section.class).value();
+				if (sections.length == 0) {
+					throw new RuntimeException(String.format(
+						"Option %s is annotated with %s but the list of sections is empty.",
+						option.option.key(),
+						Documentation.Section.class.getSimpleName()));
+				}
+
+				return Arrays.stream(sections).map(section -> Tuple2.of(section, option));
+			})
+			.collect(Collectors.groupingBy(option -> option.f0, Collectors.mapping(option -> option.f1, Collectors.toList())));
+
+		optionsGroupedBySection.forEach(
+			(section, options) -> {
+				options.sort((o1, o2) -> {
+					int position1 = o1.field.getAnnotation(Documentation.Section.class).position();
+					int position2 = o2.field.getAnnotation(Documentation.Section.class).position();
+					if (position1 == position2) {
+						return o1.option.key().compareTo(o2.option.key());
+					} else {
+						return Integer.compare(position1, position2);
+					}
+				});
+
+				String sectionHtmlTable = toHtmlTable(options);
+				try {
+					Files.write(Paths.get(outputDirectory, getSectionFileName(section)), sectionHtmlTable.getBytes(StandardCharsets.UTF_8));
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			}
+		);
 	}
 
-	private static Collection<OptionWithMetaInfo> findCommonOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
+	@VisibleForTesting
+	static String getSectionFileName(String section) {
+		return section + "_section.html";
+	}
+
+	private static Collection<OptionWithMetaInfo> findSectionOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
 		Collection<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
 		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> extractConfigOptions(optionsClass).stream()
-			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null)
+			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.Section.class) != null)
 			.forEachOrdered(commonOptions::add));
 		return commonOptions;
 	}
@@ -386,7 +416,7 @@ public class ConfigOptionsDocGenerator {
 			}
 			return "\"" + value + "\"";
 		} else if (value instanceof Duration) {
-			return TimeUtils.getStringInMillis((Duration) value);
+			return TimeUtils.formatWithHighestUnit((Duration) value);
 		} else if (value instanceof List) {
 			return ((List<Object>) value).stream()
 				.map(ConfigOptionsDocGenerator::stringifyObject)

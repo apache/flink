@@ -636,7 +636,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new VarBinaryType(VarBinaryType.MAX_LENGTH), operands) {
+    generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
       terms => s"$className.fromBase64(${terms.head})"
     }
   }

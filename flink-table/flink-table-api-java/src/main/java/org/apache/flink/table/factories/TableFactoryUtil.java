@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
@@ -33,14 +32,6 @@ import java.util.Optional;
  * Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}.
  */
 public class TableFactoryUtil {
-
-	/**
-	 * Returns a table source matching the descriptor.
-	 */
-	public static <T> TableSource<T> findAndCreateTableSource(Descriptor descriptor) {
-		Map<String, String> properties = descriptor.toProperties();
-		return findAndCreateTableSource(properties);
-	}
 
 	/**
 	 * Returns a table source matching the properties.
@@ -54,14 +45,6 @@ public class TableFactoryUtil {
 		} catch (Throwable t) {
 			throw new TableException("findAndCreateTableSource failed.", t);
 		}
-	}
-
-	/**
-	 * Returns a table sink matching the descriptor.
-	 */
-	public static <T> TableSink<T> findAndCreateTableSink(Descriptor descriptor) {
-		Map<String, String> properties = descriptor.toProperties();
-		return findAndCreateTableSink(properties);
 	}
 
 	@SuppressWarnings("unchecked")

@@ -22,6 +22,7 @@ from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink import since
 from pyflink.common.dependency_manager import DependencyManager
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
@@ -235,6 +236,7 @@ class TableEnvironment(object):
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table)
 
+    @since("1.10.0")
     def from_path(self, path):
         """
         Reads a registered table and returns the resulting :class:`~pyflink.table.Table`.
@@ -288,8 +290,12 @@ class TableEnvironment(object):
         :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                             the :class:`~pyflink.table.Table` is written.
         :type target_path: str
-        :param table: table The Table to write to the sink.
+        :param table: The Table to write to the sink.
         :type table: pyflink.table.Table
+
+        .. versionchanged:: 1.10.0
+            The signature is changed, e.g. the parameter *table_path_continued* was removed and
+            the parameter *target_path* is moved before the parameter *table*.
         """
         self._j_tenv.insertInto(target_path, table._j_table)
 
@@ -303,6 +309,7 @@ class TableEnvironment(object):
         j_catalog_name_array = self._j_tenv.listCatalogs()
         return [item for item in j_catalog_name_array]
 
+    @since("1.10.0")
     def list_modules(self):
         """
         Gets the names of all modules registered in this environment.
@@ -343,6 +350,7 @@ class TableEnvironment(object):
         j_udf_name_array = self._j_tenv.listUserDefinedFunctions()
         return [item for item in j_udf_name_array]
 
+    @since("1.10.0")
     def list_functions(self):
         """
         Gets the names of all functions in this environment.
@@ -353,6 +361,7 @@ class TableEnvironment(object):
         j_function_name_array = self._j_tenv.listFunctions()
         return [item for item in j_function_name_array]
 
+    @since("1.10.0")
     def list_temporary_tables(self):
         """
         Gets the names of all temporary tables and views available in the current namespace
@@ -367,6 +376,7 @@ class TableEnvironment(object):
         j_table_name_array = self._j_tenv.listTemporaryTables()
         return [item for item in j_table_name_array]
 
+    @since("1.10.0")
     def list_temporary_views(self):
         """
         Gets the names of all temporary views available in the current namespace (the current
@@ -381,6 +391,7 @@ class TableEnvironment(object):
         j_view_name_array = self._j_tenv.listTemporaryViews()
         return [item for item in j_view_name_array]
 
+    @since("1.10.0")
     def drop_temporary_table(self, table_path):
         """
         Drops a temporary table registered in the given path.
@@ -395,6 +406,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
+    @since("1.10.0")
     def drop_temporary_view(self, view_path):
         """
         Drops a temporary view registered in the given path.
@@ -660,14 +672,14 @@ class TableEnvironment(object):
     @abstractmethod
     def connect(self, connector_descriptor):
         """
-        Creates a table source and/or table sink from a descriptor.
+        Creates a temporary table from a descriptor.
 
         Descriptors allow for declaring the communication to external systems in an
         implementation-agnostic way. The classpath is scanned for suitable table factories that
         match the desired configuration.
 
         The following example shows how to read from a connector using a JSON format and
-        registering a table source as "MyTable":
+        registering a temporary table as "MyTable":
 
         Example:
         ::
@@ -682,12 +694,12 @@ class TableEnvironment(object):
             ...                  .field("user-name", "VARCHAR")
             ...                  .from_origin_field("u_name")
             ...                  .field("count", "DECIMAL")) \\
-            ...     .register_table_source("MyTable")
+            ...     .create_temporary_table("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
         :return: A :class:`~pyflink.table.descriptors.ConnectTableDescriptor` used to build the
-                 table source/sink.
+                 temporary table.
         :rtype: pyflink.table.descriptors.ConnectTableDescriptor
         """
         pass
@@ -715,6 +727,7 @@ class TableEnvironment(object):
             .loadClass(function_class_name).newInstance()
         self._j_tenv.registerFunction(name, java_function)
 
+    @since("1.10.0")
     def register_function(self, name, function):
         """
         Registers a python user-defined function under a unique name. Replaces already existing
@@ -746,6 +759,7 @@ class TableEnvironment(object):
         self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
                                                            self.get_config()._j_table_config))
 
+    @since("1.10.0")
     def create_temporary_view(self, view_path, table):
         """
         Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
@@ -764,6 +778,7 @@ class TableEnvironment(object):
         """
         self._j_tenv.createTemporaryView(view_path, table._j_table)
 
+    @since("1.10.0")
     def add_python_file(self, file_path):
         """
         Adds a python dependency which could be python files, python packages or
@@ -775,6 +790,7 @@ class TableEnvironment(object):
         """
         self._dependency_manager.add_python_file(file_path)
 
+    @since("1.10.0")
     def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
         """
         Specifies a requirements.txt file which defines the third-party dependencies.
@@ -799,7 +815,9 @@ class TableEnvironment(object):
         .. note::
 
             Please make sure the installation packages matches the platform of the cluster
-            and the python version used. These packages will be installed using pip.
+            and the python version used. These packages will be installed using pip,
+            so also make sure the version of Pip (version >= 7.1.0) and the version of
+            SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
         :type requirements_file_path: str
@@ -810,6 +828,7 @@ class TableEnvironment(object):
         self._dependency_manager.set_python_requirements(requirements_file_path,
                                                          requirements_cache_dir)
 
+    @since("1.10.0")
     def add_python_archive(self, archive_path, target_dir=None):
         """
         Adds a python archive file. The file will be extracted to the working directory of
@@ -936,7 +955,7 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :type elements: list
         :param schema: The schema of the table.
-        :type schema: pyflink.table.types.DataType
+        :type schema: pyflink.table.types.DataType or list[str]
         :param verify_schema: Whether to verify the elements against the schema.
         :type verify_schema: bool
         :return: The result table.
@@ -1051,14 +1070,14 @@ class StreamTableEnvironment(TableEnvironment):
 
     def connect(self, connector_descriptor):
         """
-        Creates a table source and/or table sink from a descriptor.
+        Creates a temporary table from a descriptor.
 
         Descriptors allow for declaring the communication to external systems in an
         implementation-agnostic way. The classpath is scanned for suitable table factories that
         match the desired configuration.
 
         The following example shows how to read from a connector using a JSON format and
-        registering a table source as "MyTable":
+        registering a temporary table as "MyTable":
         ::
 
             >>> table_env \\
@@ -1071,12 +1090,12 @@ class StreamTableEnvironment(TableEnvironment):
             ...                  .field("user-name", "VARCHAR")
             ...                  .from_origin_field("u_name")
             ...                  .field("count", "DECIMAL")) \\
-            ...     .register_table_source("MyTable")
+            ...     .create_temporary_table("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
-        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the table
-                 source/sink.
+        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the
+                 temporary table.
         :rtype: pyflink.table.descriptors.StreamTableDescriptor
         """
         return StreamTableDescriptor(
@@ -1170,14 +1189,14 @@ class BatchTableEnvironment(TableEnvironment):
 
     def connect(self, connector_descriptor):
         """
-        Creates a table source and/or table sink from a descriptor.
+        Creates a temporary table from a descriptor.
 
         Descriptors allow for declaring the communication to external systems in an
         implementation-agnostic way. The classpath is scanned for suitable table factories that
         match the desired configuration.
 
         The following example shows how to read from a connector using a JSON format and
-        registering a table source as "MyTable":
+        registering a temporary table as "MyTable":
         ::
 
             >>> table_env \\
@@ -1190,13 +1209,13 @@ class BatchTableEnvironment(TableEnvironment):
             ...                  .field("user-name", "VARCHAR")
             ...                  .from_origin_field("u_name")
             ...                  .field("count", "DECIMAL")) \\
-            ...     .register_table_source("MyTable")
+            ...     .create_temporary_table("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
         :type connector_descriptor: pyflink.table.descriptors.ConnectorDescriptor
         :return: A :class:`~pyflink.table.descriptors.BatchTableDescriptor` or a
                  :class:`~pyflink.table.descriptors.StreamTableDescriptor` (for blink planner) used
-                 to build the table source/sink.
+                 to build the temporary table.
         :rtype: pyflink.table.descriptors.BatchTableDescriptor or
                 pyflink.table.descriptors.StreamTableDescriptor
         """

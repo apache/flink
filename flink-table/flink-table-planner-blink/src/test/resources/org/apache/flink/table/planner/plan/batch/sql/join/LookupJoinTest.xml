@@ -53,7 +53,7 @@ HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS EX
 +- Exchange(distribution=[hash[b]])
    +- LocalHashAggregate(groupBy=[b], select=[b, Partial_COUNT(a) AS count$0, Partial_SUM(c) AS sum$1, Partial_SUM(d) AS sum$2])
       +- Calc(select=[b, a, c, d])
-         +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[>(age, 10)], select=[b, a, c, d, id])
+         +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[>(age, 10)], select=[b, a, c, d, id])
             +- Calc(select=[b, a, c, d])
                +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_SUM(sum$0) AS c, Final_SUM(sum$1) AS d])
                   +- Exchange(distribution=[hash[a, b]])
@@ -79,7 +79,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -109,7 +109,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, proctime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[=(age, 10)], select=[a, b, c, proctime, id, name])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[=(age, 10)], select=[a, b, c, proctime, id, name])
    +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[>(c, 1000)])
       +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -134,7 +134,7 @@ LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], select=[a, b, proctime, id, name, age])
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
 +- Calc(select=[a, b, PROCTIME() AS proctime], where=[>(c, 1000)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -157,7 +157,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[LeftOuterJoin], async=[false], on=[a=id], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -185,7 +185,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[], select=[a, b, c, proctime, id])
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -258,7 +258,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[>(c, 1000)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -328,7 +328,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
       +- LocalHashAggregate(groupBy=[b, b0], select=[b, b0, Partial_COUNT(a) AS count$0, Partial_COUNT(id) AS count$1, Partial_SUM(a0) AS sum$2])
          +- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[b, a, id, a0, b0], build=[right])
             :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
-            :  +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[>(age, 10)], select=[b, a, id], reuse_id=[1])
+            :  +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[>(age, 10)], select=[b, a, id], reuse_id=[1])
             :     +- Calc(select=[b, a])
             :        +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
             :           +- Exchange(distribution=[hash[a, b]])

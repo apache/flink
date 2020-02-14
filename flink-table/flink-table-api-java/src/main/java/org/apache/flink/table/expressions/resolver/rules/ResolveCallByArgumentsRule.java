@@ -23,16 +23,23 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -58,13 +65,14 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 
 /**
  * This rule checks if a {@link UnresolvedCallExpression} can work with the given arguments and infers
- * the output data type. All function calls are resolved {@link CallExpression} after applying this
- * rule.
+ * the output data type. All function calls are resolved {@link CallExpression} after applying this rule.
  *
  * <p>This rule also resolves {@code flatten()} calls on composite types.
  *
  * <p>If the call expects different types of arguments, but the given arguments have types that can
  * be casted, a {@link BuiltInFunctionDefinitions#CAST} expression is inserted.
+ *
+ * <p>It validates and prepares inline, unregistered {@link UserDefinedFunction}s.
  */
 @Internal
 final class ResolveCallByArgumentsRule implements ResolverRule {
@@ -89,7 +97,13 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		@Override
 		public List<ResolvedExpression> visit(UnresolvedCallExpression unresolvedCall) {
-			final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
+			final FunctionDefinition definition;
+			// clean functions that were not registered in a catalog
+			if (!unresolvedCall.getFunctionIdentifier().isPresent()) {
+				definition = prepareInlineUserDefinedFunction(unresolvedCall.getFunctionDefinition());
+			} else {
+				definition = unresolvedCall.getFunctionDefinition();
+			}
 
 			final String name = unresolvedCall.getFunctionIdentifier()
 				.map(FunctionIdentifier::toString)
@@ -161,8 +175,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		private Optional<TypeInference> getOptionalTypeInference(FunctionDefinition definition) {
 			if (definition instanceof BuiltInFunctionDefinition) {
 				final BuiltInFunctionDefinition builtInDefinition = (BuiltInFunctionDefinition) definition;
-				if (builtInDefinition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
-					return Optional.of(builtInDefinition.getTypeInference());
+				final TypeInference inference = builtInDefinition.getTypeInference(resolutionContext.typeFactory());
+				if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
+					return Optional.of(inference);
 				}
 			}
 			return Optional.empty();
@@ -177,7 +192,12 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 			final Result inferenceResult = TypeInferenceUtil.runTypeInference(
 				inference,
-				new TableApiCallContext(name, unresolvedCall.getFunctionDefinition(), resolvedArgs), surroundingInfo);
+				new TableApiCallContext(
+					resolutionContext.typeFactory(),
+					name,
+					unresolvedCall.getFunctionDefinition(),
+					resolvedArgs),
+				surroundingInfo);
 
 			final List<ResolvedExpression> adaptedArguments = adaptArguments(inferenceResult, resolvedArgs);
 
@@ -220,11 +240,54 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				})
 				.collect(Collectors.toList());
 		}
+
+		/**
+		 * Validates and cleans an inline, unregistered {@link UserDefinedFunction}.
+		 */
+		private FunctionDefinition prepareInlineUserDefinedFunction(FunctionDefinition definition) {
+			if (definition instanceof ScalarFunctionDefinition) {
+				final ScalarFunctionDefinition sf = (ScalarFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), sf.getScalarFunction());
+				return new ScalarFunctionDefinition(
+					sf.getName(),
+					sf.getScalarFunction());
+			} else if (definition instanceof TableFunctionDefinition) {
+				final TableFunctionDefinition tf = (TableFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), tf.getTableFunction());
+				return new TableFunctionDefinition(
+					tf.getName(),
+					tf.getTableFunction(),
+					tf.getResultType());
+			} else if (definition instanceof AggregateFunctionDefinition) {
+				final AggregateFunctionDefinition af = (AggregateFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), af.getAggregateFunction());
+				return new AggregateFunctionDefinition(
+					af.getName(),
+					af.getAggregateFunction(),
+					af.getResultTypeInfo(),
+					af.getAccumulatorTypeInfo());
+			} else if (definition instanceof TableAggregateFunctionDefinition) {
+				final TableAggregateFunctionDefinition taf = (TableAggregateFunctionDefinition) definition;
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), taf.getTableAggregateFunction());
+				return new TableAggregateFunctionDefinition(
+					taf.getName(),
+					taf.getTableAggregateFunction(),
+					taf.getResultTypeInfo(),
+					taf.getAccumulatorTypeInfo());
+			} else if (definition instanceof UserDefinedFunction) {
+				UserDefinedFunctionHelper.prepareInstance(
+					resolutionContext.configuration(),
+					(UserDefinedFunction) definition);
+			}
+			return definition;
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	private static class TableApiCallContext implements CallContext {
+
+		private final DataTypeFactory typeFactory;
 
 		private final String name;
 
@@ -233,19 +296,19 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		private final List<ResolvedExpression> resolvedArgs;
 
 		public TableApiCallContext(
+				DataTypeFactory typeFactory,
 				String name,
 				FunctionDefinition definition,
 				List<ResolvedExpression> resolvedArgs) {
+			this.typeFactory = typeFactory;
 			this.name = name;
 			this.definition = definition;
 			this.resolvedArgs = resolvedArgs;
 		}
 
 		@Override
-		public List<DataType> getArgumentDataTypes() {
-			return resolvedArgs.stream()
-				.map(ResolvedExpression::getOutputDataType)
-				.collect(Collectors.toList());
+		public DataTypeFactory getDataTypeFactory() {
+			return typeFactory;
 		}
 
 		@Override
@@ -275,6 +338,18 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		@Override
 		public String getName() {
 			return name;
+		}
+
+		@Override
+		public List<DataType> getArgumentDataTypes() {
+			return resolvedArgs.stream()
+				.map(ResolvedExpression::getOutputDataType)
+				.collect(Collectors.toList());
+		}
+
+		@Override
+		public Optional<DataType> getOutputDataType() {
+			return Optional.empty();
 		}
 
 		private ResolvedExpression getArgument(int pos) {

@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -143,7 +144,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		flinkConfig = new Configuration();
 		flinkConfig.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 100);
-		flinkConfig.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
+		flinkConfig.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
 		File root = folder.getRoot();
 		File home = new File(root, "home");
@@ -403,7 +404,7 @@ public class YarnResourceManagerTest extends TestLogger {
 					.setTaskHeapMemoryMB(1)
 					.setTaskOffHeapMemoryMB(1)
 					.setManagedMemoryMB(1)
-					.setShuffleMemoryMB(0)
+					.setNetworkMemoryMB(0)
 					.build();
 				final SlotReport slotReport = new SlotReport(
 					new SlotStatus(new SlotID(taskManagerResourceId, 1), resourceProfile));

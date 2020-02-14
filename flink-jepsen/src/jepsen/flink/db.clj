@@ -51,7 +51,7 @@
    :yarn.application-attempts             99999
    :slotmanager.taskmanager-timeout       10000
    :state.backend.local-recovery          "true"
-   :taskmanager.memory.total-process.size "2048m"
+   :taskmanager.memory.process.size "2048m"
    :taskmanager.registration.timeout      "30 s"})
 
 (defn flink-configuration
@@ -89,7 +89,7 @@
     (info "Installing Flink from" url)
     (cu/install-archive! url install-dir)
     (info "Enable S3 FS")
-    (c/exec (c/lit (str "ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/lib")))
+    (c/exec (c/lit (str "mkdir " install-dir "/plugins/s3-fs-hadoop && ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/plugins/s3-fs-hadoop")))
     (upload-job-jars! (->> test :test-spec :jobs (map :job-jar)))
     (write-configuration! test node)))
 
@@ -303,7 +303,7 @@
     "-Djobmanager.rpc.address=$(hostname -f)"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.cpus=1"
-    "-Dmesos.resourcemanager.tasks.mem=2048" ;; FLINK-15082: this option must be set instead of taskmanager.memory.total-process.size
+    "-Dmesos.resourcemanager.tasks.mem=2048" ;; FLINK-15082: this option must be set instead of taskmanager.memory.process.size
     "-Drest.bind-address=$(hostname -f)"))
 
 (defn- start-mesos-session!

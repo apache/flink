@@ -984,6 +984,24 @@ public class FutureUtils {
 	}
 
 	/**
+	 * Gets the result of a completable future without any exception thrown.
+	 *
+	 * @param future the completable future specified.
+	 * @param <T> the type of result
+	 * @return the result of completable future,
+	 * or null if it's unfinished or finished exceptionally
+	 */
+	public static <T> T getWithoutException(CompletableFuture<T> future) {
+		if (future.isDone() && !future.isCompletedExceptionally()) {
+			try {
+				return future.get();
+			} catch (InterruptedException | ExecutionException ignored) {
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Runnable to complete the given future with a {@link TimeoutException}.
 	 */
 	private static final class Timeout implements Runnable {

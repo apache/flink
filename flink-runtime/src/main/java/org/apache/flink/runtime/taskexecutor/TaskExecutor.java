@@ -139,7 +139,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -188,15 +187,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
 
-	private final TaskCompletionTracker taskCompletionTracker;
-
 	// --------- job manager connections -----------
 
 	private final Map<ResourceID, JobManagerConnection> jobManagerConnections;
 
 	// --------- task slot allocation table -----------
 
-	private final TaskSlotTable taskSlotTable;
+	private final TaskSlotTable<Task> taskSlotTable;
 
 	private final JobManagerTable jobManagerTable;
 
@@ -279,7 +276,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
 		this.currentRegistrationTimeoutId = null;
-		this.taskCompletionTracker = new TaskCompletionTracker();
 
 		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
 		this.jobManagerHeartbeatManager = createJobManagerHeartbeatManager(heartbeatServices, resourceId);
@@ -330,7 +326,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 
 			// tell the task slot table who's responsible for the task slot actions
-			taskSlotTable.start(new SlotActionsImpl());
+			taskSlotTable.start(new SlotActionsImpl(), getMainThreadExecutor());
 
 			// start the job leader service
 			jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
@@ -376,7 +372,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		return FutureUtils
 			.runAfterwards(
-				taskCompletionTracker.failIncompleteTasksAndGetTerminationFuture(),
+				taskSlotTable.closeAsync(),
 				this::stopTaskExecutorServices)
   		    .handle((ignored, throwable) -> {
   		    	handleOnStopException(throwableBeforeTasksCompletion, throwable);
@@ -606,7 +602,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			if (taskAdded) {
 				task.startTaskThread();
-				taskCompletionTracker.trackTaskCompletion(task);
 
 				setupResultPartitionBookkeeping(
 					tdd.getJobId(),
@@ -1143,7 +1138,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
-				final Iterator<TaskSlot> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
+				final Iterator<TaskSlot<Task>> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
 				final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
 				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
@@ -1456,7 +1451,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 
 			log.info("Un-registering task and sending final execution state {} to JobManager for task {} {}.",
-				task.getExecutionState(), task.getTaskInfo().getTaskName(), task.getExecutionId());
+				task.getExecutionState(), task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionId());
 
 			AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 
@@ -1854,32 +1849,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		public TaskExecutorHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
 			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()), partitionTracker.createClusterPartitionReport());
-		}
-	}
-
-	private static class TaskCompletionTracker {
-		private final Map<ExecutionAttemptID, Task> incompleteTasks;
-
-		private TaskCompletionTracker() {
-			incompleteTasks = new ConcurrentHashMap<>(8);
-		}
-
-		void trackTaskCompletion(Task task) {
-			incompleteTasks.put(task.getExecutionId(), task);
-			task.getTerminationFuture().thenRun(() -> incompleteTasks.remove(task.getExecutionId()));
-		}
-
-		CompletableFuture<Void> failIncompleteTasksAndGetTerminationFuture() {
-			FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
-			return FutureUtils.waitForAll(
-				incompleteTasks
-					.values()
-					.stream()
-					.map(task -> {
-						task.failExternally(cause);
-						return task.getTerminationFuture();
-					})
-					.collect(Collectors.toList()));
 		}
 	}
 }

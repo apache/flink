@@ -272,7 +272,7 @@ class TableAggSum extends TableAggregateFunction[JInt, GenericRow] {
 /**
   * Test function for plan test.
   */
-class EmptyTableAggFuncWithoutEmit extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
+class EmptyTableAggFunc extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
 
   override def createAccumulator(): Top3Accum = new Top3Accum
 
@@ -283,9 +283,6 @@ class EmptyTableAggFuncWithoutEmit extends TableAggregateFunction[JTuple2[JInt, 
   def accumulate(acc: Top3Accum, category: Long, value: Int): Unit = {}
 
   def accumulate(acc: Top3Accum, value: Int): Unit = {}
-}
-
-class EmptyTableAggFunc extends EmptyTableAggFuncWithoutEmit {
 
   def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {}
 }

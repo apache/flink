@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.FileSystem;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import net.jcip.annotations.NotThreadSafe;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Rule;
@@ -41,6 +41,7 @@ import org.junit.rules.TemporaryFolder;
 import sun.net.util.IPAddressUtil;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.File;
 import java.io.IOException;
@@ -185,7 +186,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 			"-D" + JobManagerOptions.PORT.key() + "=" + jmPort
 		};
 		Configuration configuration = TaskManagerRunner.loadConfiguration(args);
-		assertEquals(managedMemory + "b", configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
+		assertEquals(MemorySize.parse(managedMemory + "b"), configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
 		assertEquals(jmHost, configuration.get(JobManagerOptions.ADDRESS));
 		assertEquals(jmPort, configuration.getInteger(JobManagerOptions.PORT));
 	}

@@ -99,8 +99,10 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		@Override
 		protected CheckpointIDCounter createCompletedCheckpoints() throws Exception {
-			return new ZooKeeperCheckpointIDCounter(ZooKeeper.getClient(),
-					"/checkpoint-id-counter");
+			return new ZooKeeperCheckpointIDCounter(
+				ZooKeeper.getClient(),
+				"/checkpoint-id-counter",
+				new DefaultLastStateConnectionStateListener());
 		}
 	}
 

@@ -24,10 +24,14 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.OperatingSystem;
 
+import org.apache.flink.shaded.guava18.com.google.common.escape.Escaper;
+import org.apache.flink.shaded.guava18.com.google.common.escape.Escapers;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 
 import akka.actor.ActorSystem;
@@ -67,6 +71,15 @@ public class BootstrapTools {
 		.defaultValue(false);
 
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
+
+	private static final Escaper UNIX_SINGLE_QUOTE_ESCAPER = Escapers.builder()
+		.addEscape('\'', "'\\''")
+		.build();
+
+	private static final Escaper WINDOWS_DOUBLE_QUOTE_ESCAPER = Escapers.builder()
+		.addEscape('"', "\\\"")
+		.addEscape('^', "\"^^\"")
+		.build();
 
 	/**
 	 * Starts an ActorSystem with the given configuration listening at the address/ports.
@@ -335,7 +348,7 @@ public class BootstrapTools {
 	 * Get an instance of the dynamic properties option.
 	 *
 	 * <p>Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.shuffle.min=536346624</tt>
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
 		return new Option(DYNAMIC_PROPERTIES_OPT, true, "Dynamic properties");
@@ -388,8 +401,8 @@ public class BootstrapTools {
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 
-		final TaskExecutorResourceSpec taskExecutorResourceSpec = tmParams.getTaskExecutorResourceSpec();
-		startCommandValues.put("jvmmem", TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec));
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = tmParams.getTaskExecutorProcessSpec();
+		startCommandValues.put("jvmmem", TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
@@ -422,7 +435,7 @@ public class BootstrapTools {
 			"1> " + logDirectory + "/taskmanager.out " +
 			"2> " + logDirectory + "/taskmanager.err");
 
-		String argsStr = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec) + " --configDir " + configDirectory;
+		String argsStr = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec) + " --configDir " + configDirectory;
 		if (!mainArgs.isEmpty()) {
 			argsStr += " " + mainArgs;
 		}
@@ -623,7 +636,7 @@ public class BootstrapTools {
 	 * @param targetConfig The target configuration.
 	 * @return Dynamic properties as string, separated by whitespace.
 	 */
-	public static String getDynamicProperties(Configuration baseConfig, Configuration targetConfig) {
+	public static String getDynamicPropertiesAsString(Configuration baseConfig, Configuration targetConfig) {
 
 		String[] newAddedConfigs = targetConfig.keySet().stream().flatMap(
 			(String key) -> {
@@ -632,12 +645,89 @@ public class BootstrapTools {
 
 				if (!baseConfig.keySet().contains(key) || !baseValue.equals(targetValue)) {
 					return Stream.of("-" + CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getOpt() + key +
-						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + targetValue);
+						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + escapeForDifferentOS(targetValue));
 				} else {
 					return Stream.empty();
 				}
 			})
 			.toArray(String[]::new);
 		return String.join(" ", newAddedConfigs);
+	}
+
+	/**
+	 * Escape all the dynamic property values.
+	 * For Unix-like OS(Linux, MacOS, FREE_BSD, etc.), each value will be surrounded with single quotes. This works for
+	 * all chars except single quote itself. To escape the single quote, close the quoting before it, insert the escaped
+	 * single quote, and then re-open the quoting. For example, the value is foo'bar and the escaped value is
+	 * 'foo'\''bar'. See <a href="https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-when-using-bash">https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-when-using-bash</a>
+	 * for more information about Unix escaping.
+	 *
+	 * <p>For Windows OS, each value will be surrounded with double quotes. The double quote itself needs to be escaped with
+	 * back slash. Also the caret symbol need to be escaped with double carets since Windows uses it to escape characters.
+	 * See <a href="https://en.wikibooks.org/wiki/Windows_Batch_Scripting">https://en.wikibooks.org/wiki/Windows_Batch_Scripting</a>
+	 * for more information about Windows escaping.
+	 *
+	 * @param value value to be escaped
+	 * @return escaped value
+	 */
+	public static String escapeForDifferentOS(String value) {
+		if (OperatingSystem.isWindows()) {
+			return escapeWithDoubleQuote(value);
+		} else {
+			return escapeWithSingleQuote(value);
+		}
+	}
+
+	public static String escapeWithSingleQuote(String value) {
+		return "'" + UNIX_SINGLE_QUOTE_ESCAPER.escape(value) + "'";
+	}
+
+	public static String escapeWithDoubleQuote(String value) {
+		return "\"" + WINDOWS_DOUBLE_QUOTE_ESCAPER.escape(value) + "\"";
+	}
+
+	/**
+	 * Calculate heap size after cut-off. The heap size after cut-off will be used to set -Xms and -Xmx for jobmanager
+	 * start command.
+	 */
+	public static int calculateHeapSize(int memory, Configuration conf) {
+
+		final float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
+		final int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
+
+		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
+				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
+		}
+		if (minCutoff > memory) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()
+				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
+		}
+
+		int heapLimit = (int) ((float) memory * memoryCutoffRatio);
+		if (heapLimit < minCutoff) {
+			heapLimit = minCutoff;
+		}
+		return memory - heapLimit;
+	}
+
+	/**
+	 * Method to extract environment variables from the flinkConfiguration based on the given prefix String.
+	 *
+	 * @param envPrefix Prefix for the environment variables key
+	 * @param flinkConfiguration The Flink config to get the environment variable definition from
+	 */
+	public static Map<String, String> getEnvironmentVariables(String envPrefix, Configuration flinkConfiguration) {
+		Map<String, String> result  = new HashMap<>();
+		for (Map.Entry<String, String> entry: flinkConfiguration.toMap().entrySet()) {
+			if (entry.getKey().startsWith(envPrefix) && entry.getKey().length() > envPrefix.length()) {
+				// remove prefix
+				String key = entry.getKey().substring(envPrefix.length());
+				result.put(key, entry.getValue());
+			}
+		}
+		return result;
 	}
 }

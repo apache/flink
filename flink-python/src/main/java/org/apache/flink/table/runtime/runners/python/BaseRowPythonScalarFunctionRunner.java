@@ -32,14 +32,14 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
- * It takes {@link BaseRow} as the input and output type.
+ * It takes {@link BaseRow} as the input and outputs a byte array.
  */
 @Internal
-public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> {
+public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<BaseRow> {
 
 	public BaseRowPythonScalarFunctionRunner(
 		String taskName,
-		FnDataReceiver<BaseRow> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
@@ -51,11 +51,5 @@ public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunct
 	@SuppressWarnings("unchecked")
 	public BaseRowSerializer getInputTypeSerializer() {
 		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public BaseRowSerializer getOutputTypeSerializer() {
-		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getOutputType());
 	}
 }

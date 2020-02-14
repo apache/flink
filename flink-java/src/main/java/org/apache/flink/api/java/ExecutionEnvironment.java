@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -50,15 +51,17 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.ExceptionUtils;
@@ -132,7 +135,7 @@ public class ExecutionEnvironment {
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
-	private final ExecutorServiceLoader executorServiceLoader;
+	private final PipelineExecutorServiceLoader executorServiceLoader;
 
 	private final Configuration configuration;
 
@@ -142,7 +145,7 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
-	 * configure the {@link org.apache.flink.core.execution.Executor}.
+	 * configure the {@link PipelineExecutor}.
 	 */
 	@PublicEvolving
 	public ExecutionEnvironment(final Configuration configuration) {
@@ -151,19 +154,30 @@ public class ExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 *
-	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * <p>In addition, this constructor allows specifying the {@link PipelineExecutorServiceLoader} and
 	 * user code {@link ClassLoader}.
 	 */
 	@PublicEvolving
 	public ExecutionEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+
+		// the configuration of a job or an operator can be specified at the following places:
+		//     i) at the operator level using e.g. parallelism using the SingleOutputStreamOperator.setParallelism().
+		//     ii) programmatically by using e.g. the env.setRestartStrategy() method
+		//     iii) in the configuration passed here
+		//
+		// if specified in multiple places, the priority order is the above.
+		//
+		// Given this, it is safe to overwrite the execution config default values here because all other ways assume
+		// that the env is already instantiated so they will overwrite the value passed here.
+		this.configure(this.configuration, this.userClassloader);
 	}
 
 	/**
@@ -179,7 +193,7 @@ public class ExecutionEnvironment {
 	}
 
 	@Internal
-	public ExecutorServiceLoader getExecutorServiceLoader() {
+	public PipelineExecutorServiceLoader getExecutorServiceLoader() {
 		return executorServiceLoader;
 	}
 
@@ -366,6 +380,28 @@ public class ExecutionEnvironment {
 		} else {
 			config.registerKryoType(type);
 		}
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link PipelineOptions#CACHED_FILES}. It will reconfigure
+	 * {@link ExecutionEnvironment} and {@link ExecutionConfig}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 * @param classLoader a class loader to use when loading classes
+	 */
+	@PublicEvolving
+	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+		configuration.getOptional(PipelineOptions.CACHED_FILES)
+			.ifPresent(f -> {
+				this.cacheFile.clear();
+				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
+			});
+		config.configure(configuration, classLoader);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -894,10 +930,8 @@ public class ExecutionEnvironment {
 	public JobClient executeAsync(String jobName) throws Exception {
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
-		consolidateParallelismDefinitionsInConfiguration();
-
 		final Plan plan = createProgramPlan(jobName);
-		final ExecutorFactory executorFactory =
+		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
 
 		checkNotNull(
@@ -919,12 +953,6 @@ public class ExecutionEnvironment {
 
 			// make javac happy, this code path will not be reached
 			return null;
-		}
-	}
-
-	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
 		}
 	}
 
@@ -993,7 +1021,7 @@ public class ExecutionEnvironment {
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
-	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -1008,7 +1036,7 @@ public class ExecutionEnvironment {
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
-	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -1024,7 +1052,7 @@ public class ExecutionEnvironment {
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with an
-	 * {@link org.apache.flink.core.execution.Executor}. Obtaining a plan and starting it with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 *

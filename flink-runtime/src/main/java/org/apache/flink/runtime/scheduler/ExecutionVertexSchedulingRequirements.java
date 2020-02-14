@@ -73,11 +73,6 @@ public class ExecutionVertexSchedulingRequirements {
 		this.preferredLocations = checkNotNull(preferredLocations);
 	}
 
-	/**
-	 * a {@link ExecutionVertex#MAX_DISTINCT_LOCATIONS_TO_CONSIDER} test.
-	 *
-	 * @return
-	 */
 	public ExecutionVertexID getExecutionVertexId() {
 		return executionVertexId;
 	}

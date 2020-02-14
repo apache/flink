@@ -62,6 +62,11 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
 		return delegate.cancel(executionVertex);
 	}
 
+	@Override
+	public void markFailed(ExecutionVertex executionVertex, Throwable cause) {
+		delegate.markFailed(executionVertex, cause);
+	}
+
 	public void enableFailDeploy() {
 		failDeploy = true;
 	}

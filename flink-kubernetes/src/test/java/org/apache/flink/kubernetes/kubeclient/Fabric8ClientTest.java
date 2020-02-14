@@ -26,6 +26,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
@@ -47,7 +48,10 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
@@ -185,6 +189,11 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 		assertEquals(new File(mountPath, FLINK_CONF_FILENAME).getPath(),
 			jmContainer.getVolumeMounts().get(0).getMountPath());
 		assertEquals(FLINK_CONF_FILENAME, jmContainer.getVolumeMounts().get(0).getSubPath());
+
+		EnvVar masterEnv = new EnvVar(FLINK_MASTER_ENV_KEY, FLINK_MASTER_ENV_VALUE, null);
+		assertTrue(
+			"Environment " + masterEnv.toString() + " should be set.",
+			jmContainer.getEnv().contains(masterEnv));
 	}
 
 	@Test
@@ -244,5 +253,37 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 		// Stop the pod
 		flinkKubeClient.stopPod(podName);
 		assertEquals(0, kubeClient.pods().list().getItems().size());
+	}
+
+	@Test
+	public void testServiceLoadBalancerWithNoIP() throws Exception {
+		final String hostName = "test-host-name";
+		final Endpoint endpoint = getRestEndpoint(hostName, "");
+		assertEquals(hostName, endpoint.getAddress());
+		assertEquals(8081, endpoint.getPort());
+	}
+
+	@Test
+	public void testServiceLoadBalancerEmptyHostAndIP() throws Exception {
+		final Endpoint endpoint1 = getRestEndpoint("", "");
+		assertNull(endpoint1);
+
+		final Endpoint endpoint2 = getRestEndpoint(null, null);
+		assertNull(endpoint2);
+	}
+
+	private Endpoint getRestEndpoint(String hostName, String ip) throws Exception {
+		final String clusterId = "flink-on-k8s-cluster-test";
+		mockRestServiceActionWatcher(clusterId);
+		mockGetRestService(clusterId, hostName, ip);
+
+		flinkKubeClient.createRestService(clusterId).get();
+
+		final Service services = kubeClient.services()
+			.withName(clusterId + Constants.FLINK_REST_SERVICE_SUFFIX)
+			.get();
+		assertNotNull(services);
+
+		return flinkKubeClient.getRestEndpoint(clusterId);
 	}
 }

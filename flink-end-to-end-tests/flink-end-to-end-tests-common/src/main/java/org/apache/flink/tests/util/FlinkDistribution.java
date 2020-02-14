@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.tests.util.flink.JobSubmission;
+import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -234,6 +235,28 @@ public final class FlinkDistribution implements ExternalResource {
 				}
 			}
 		}
+	}
+
+	public void submitSQLJob(SQLJobSubmission job) throws IOException {
+		final List<String> commands = new ArrayList<>();
+		commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
+		commands.add("embedded");
+		job.getDefaultEnvFile().ifPresent(defaultEnvFile -> {
+			commands.add("--defaults");
+			commands.add(defaultEnvFile);
+		});
+		job.getSessionEnvFile().ifPresent(sessionEnvFile -> {
+			commands.add("--environment");
+			commands.add(sessionEnvFile);
+		});
+		for (String jar : job.getJars()) {
+			commands.add("--jar");
+			commands.add(jar);
+		}
+		commands.add("--update");
+		commands.add("\"" + job.getSQL() + "\"");
+
+		AutoClosableProcess.runBlocking(commands.toArray(new String[0]));
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {

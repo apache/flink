@@ -35,14 +35,14 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.opencensus:opencensus-api:0.21.0
 - io.opencensus:opencensus-contrib-grpc-metrics:0.21.0
 - joda-time:joda-time:2.5
-- org.apache.beam:beam-model-fn-execution:2.15.0
-- org.apache.beam:beam-model-job-management:2.15.0
-- org.apache.beam:beam-model-pipeline:2.15.0
-- org.apache.beam:beam-runners-core-construction-java:2.15.0
-- org.apache.beam:beam-runners-java-fn-execution:2.15.0
-- org.apache.beam:beam-sdks-java-core:2.15.0
-- org.apache.beam:beam-sdks-java-fn-execution:2.15.0
-- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.15.0
+- org.apache.beam:beam-model-fn-execution:2.19.0
+- org.apache.beam:beam-model-job-management:2.19.0
+- org.apache.beam:beam-model-pipeline:2.19.0
+- org.apache.beam:beam-runners-core-construction-java:2.19.0
+- org.apache.beam:beam-runners-java-fn-execution:2.19.0
+- org.apache.beam:beam-sdks-java-core:2.19.0
+- org.apache.beam:beam-sdks-java-fn-execution:2.19.0
+- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.19.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_21_0:0.1
 

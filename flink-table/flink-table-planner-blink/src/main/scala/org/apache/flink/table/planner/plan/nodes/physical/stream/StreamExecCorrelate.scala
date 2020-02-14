@@ -17,23 +17,21 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
+import java.util
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
-
-import java.util
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
+import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 
 import scala.collection.JavaConversions._
 
@@ -92,11 +90,10 @@ class StreamExecCorrelate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
-        inputRel.getRowType, rexCall, sqlFunction, getExpressionString))
+        inputRel.getRowType, rexCall, getExpressionString))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

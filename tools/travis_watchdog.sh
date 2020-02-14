@@ -43,6 +43,13 @@ MAX_NO_OUTPUT=${1:-300}
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
 
+# Maximum times to retry uploading artifacts file to transfer.sh
+TRANSFER_UPLOAD_MAX_RETRIES=10
+
+# The delay between two retries to upload artifacts file to transfer.sh. The default exponential
+# backoff algorithm should be too long for the last several retries.
+TRANSFER_UPLOAD_RETRY_DELAY=15
+
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 PYTHON_TEST="./flink-python/dev/lint-python.sh"
@@ -61,7 +68,7 @@ MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 # Flink, which however should all be built locally. see FLINK-7230
 #
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -B -Pskip-webui-build $MVN_LOGGING_OPTIONS"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Dmaven.wagon.http.pool=false -B -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
 
@@ -69,7 +76,8 @@ e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml
 
 MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
 MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
-MVN_E2E="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -DincludeE2E="org.apache.flink.tests.util.categories.PreCommit" -pl ${e2e_modules},flink-dist verify"
+# don't move the e2e-pre-commit profile activation into the misc entry in .travis.yml, since it breaks caching
+MVN_E2E="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -Pe2e-pre-commit -pl ${e2e_modules},flink-dist verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -133,7 +141,7 @@ upload_artifacts_s3() {
 
 	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
-	curl --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
+	curl --retry ${TRANSFER_UPLOAD_MAX_RETRIES} --retry-delay ${TRANSFER_UPLOAD_RETRY_DELAY} --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
 }
 
 print_stacktraces () {
@@ -266,27 +274,27 @@ cd ../../
 case $TEST in
     (misc)
         if [ $EXIT_CODE == 0 ]; then
-            printf "\n\n==============================================================================\n"
-            printf "Running bash end-to-end tests\n"
-            printf "==============================================================================\n"
+            echo "\n\n==============================================================================\n"
+            echo "Running bash end-to-end tests\n"
+            echo "==============================================================================\n"
 
             FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
             EXIT_CODE=$?
         else
-            printf "\n==============================================================================\n"
-            printf "Previous build failure detected, skipping bash end-to-end tests.\n"
-            printf "==============================================================================\n"
+            echo "\n==============================================================================\n"
+            echo "Previous build failure detected, skipping bash end-to-end tests.\n"
+            echo "==============================================================================\n"
         fi
         if [ $EXIT_CODE == 0 ]; then
-            printf "\n\n==============================================================================\n"
-            printf "Running java end-to-end tests\n"
-            printf "==============================================================================\n"
+            echo "\n\n==============================================================================\n"
+            echo "Running java end-to-end tests\n"
+            echo "==============================================================================\n"
 
             run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
         else
-            printf "\n==============================================================================\n"
-            printf "Previous build failure detected, skipping java end-to-end tests.\n"
+            echo "\n==============================================================================\n"
+            echo "Previous build failure detected, skipping java end-to-end tests.\n"
         fi
     ;;
 esac

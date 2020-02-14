@@ -115,6 +115,21 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 				RelDataType decType = relBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
 						dt.getPrecision(), dt.getScale());
 				return relBuilder.getRexBuilder().makeExactLiteral(bigDecimal, decType);
+			case TINYINT:
+				return relBuilder.getRexBuilder().makeLiteral(
+						extractValue(valueLiteral, Object.class),
+						typeFactory.createSqlType(SqlTypeName.TINYINT),
+						true);
+			case SMALLINT:
+				return relBuilder.getRexBuilder().makeLiteral(
+						extractValue(valueLiteral, Object.class),
+						typeFactory.createSqlType(SqlTypeName.SMALLINT),
+						true);
+			case INTEGER:
+				return relBuilder.getRexBuilder().makeLiteral(
+						extractValue(valueLiteral, Object.class),
+						typeFactory.createSqlType(SqlTypeName.INTEGER),
+						true);
 			case BIGINT:
 				// create BIGINT literals for long type
 				BigDecimal bigint = extractValue(valueLiteral, BigDecimal.class);

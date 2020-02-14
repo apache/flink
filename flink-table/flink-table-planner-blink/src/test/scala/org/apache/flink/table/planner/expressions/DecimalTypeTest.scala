@@ -189,6 +189,12 @@ class DecimalTypeTest extends ExpressionTestBase {
       BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
       "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
+
+    // testing padding behaviour
+    testSqlApi(
+      "CAST(CAST(f67 AS DECIMAL(10, 5)) AS VARCHAR)",
+      "1.00000"
+    )
   }
 
   @Test

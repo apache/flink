@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
@@ -51,14 +53,18 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestBoundedTwoInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -616,6 +622,38 @@ public class TwoInputStreamTaskTest {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 			expectedOutput,
 			testHarness.getOutput());
+	}
+
+	/**
+	 * Tests the checkpoint related metrics are registered into {@link TaskIOMetricGroup}
+	 * correctly while generating the {@link TwoInputStreamTask}.
+	 */
+	@Test
+	public void testCheckpointBarrierMetrics() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
+			new TwoInputStreamTaskTestHarness<>(
+				TwoInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
+		final StreamConfig streamConfig = testHarness.getStreamConfig();
+		final CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new IdentityMap());
+		testHarness.setupOutputForSingletonOperatorChain();
+		streamConfig.setStreamOperator(coMapOperator);
+
+		final Map<String, Metric> metrics = new ConcurrentHashMap<>();
+		final TaskMetricGroup taskMetricGroup = new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+		final StreamMockEnvironment environment = testHarness.createEnvironment();
+		environment.setTaskMetricGroup(taskMetricGroup);
+
+		testHarness.invoke(environment);
+		testHarness.waitForTaskRunning();
+
+		assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME));
+		assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_START_DELAY_TIME));
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 	}
 
 	// This must only be used in one test, otherwise the static fields will be changed

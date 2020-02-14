@@ -74,7 +74,7 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		// nothing to do
 	}
 }

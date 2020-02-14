@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.experimental.CollectSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.net.InetAddress;
@@ -42,21 +43,32 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 	private final TypeSerializer<Tuple2<Boolean, Row>> serializer;
 	private final TableSchema tableSchema;
 
-	public CollectStreamTableSink(InetAddress targetAddress, int targetPort, TypeSerializer<Tuple2<Boolean, Row>> serializer, TableSchema tableSchema) {
+	public CollectStreamTableSink(
+			InetAddress targetAddress,
+			int targetPort,
+			TypeSerializer<Tuple2<Boolean, Row>> serializer,
+			TableSchema tableSchema) {
 		this.targetAddress = targetAddress;
 		this.targetPort = targetPort;
 		this.serializer = serializer;
-		this.tableSchema = tableSchema;
-	}
-
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
+		this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
 	}
 
 	@Override
 	public CollectStreamTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		return new CollectStreamTableSink(targetAddress, targetPort, serializer, tableSchema);
+	}
+
+	// Retract stream sinks work only with the old type system.
+	@Override
+	public String[] getFieldNames() {
+		return tableSchema.getFieldNames();
+	}
+
+	// Retract stream sinks work only with the old type system.
+	@Override
+	public TypeInformation<?>[] getFieldTypes() {
+		return tableSchema.getFieldTypes();
 	}
 
 	@Override

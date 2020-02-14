@@ -20,6 +20,7 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader.ColumnBatchGenerator;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
@@ -54,6 +55,7 @@ public class OrcSplitReaderUtil {
 	 * Util for generating partitioned {@link OrcColumnarRowSplitReader}.
 	 */
 	public static OrcColumnarRowSplitReader genPartColumnarRowReader(
+			String hiveVersion,
 			Configuration conf,
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
@@ -89,6 +91,7 @@ public class OrcSplitReaderUtil {
 		};
 
 		return new OrcColumnarRowSplitReader(
+				OrcShim.createShim(hiveVersion),
 				conf,
 				convertToOrcTypeWithPart(fullFieldNames, fullFieldTypes, partitionSpec.keySet()),
 				selectedOrcFields,

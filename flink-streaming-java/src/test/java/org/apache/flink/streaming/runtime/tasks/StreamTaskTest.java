@@ -427,6 +427,41 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 *  CancelTaskException can be thrown in a down stream task, for example if an upstream task
+	 *  was cancelled first and those two tasks were connected via
+	 *  {@link org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel}.
+	 *  {@link StreamTask} should be able to correctly handle such situation.
+	 */
+	@Test
+	public void testCancelTaskExceptionHandling() throws Exception {
+		StreamConfig cfg = new StreamConfig(new Configuration());
+		Task task = createTask(CancelThrowingTask.class, cfg, new Configuration());
+
+		task.startTaskThread();
+		task.getExecutingThread().join();
+
+		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+	}
+
+	/**
+	 * A task that throws {@link CancelTaskException}.
+	 */
+	public static class CancelThrowingTask extends StreamTask<String, AbstractStreamOperator<String>> {
+
+		public CancelThrowingTask(Environment env) {
+			super(env);
+		}
+
+		@Override
+		protected void init() {}
+
+		@Override
+		protected void processInput(MailboxDefaultAction.Controller controller) {
+			throw new CancelTaskException();
+		}
+	}
+
 	@Test
 	public void testDecliningCheckpointStreamOperator() throws Exception {
 		DeclineDummyEnvironment declineDummyEnvironment = new DeclineDummyEnvironment();
@@ -821,7 +856,7 @@ public class StreamTaskTest extends TestLogger {
 		try (MockEnvironment mockEnvironment =
 				new MockEnvironmentBuilder()
 					.setTaskName("Test Task")
-					.setMemorySize(32L * 1024L)
+					.setManagedMemorySize(32L * 1024L)
 					.setInputSplitProvider(new MockInputSplitProvider())
 					.setBufferSize(1)
 					.setTaskConfiguration(taskConfiguration)

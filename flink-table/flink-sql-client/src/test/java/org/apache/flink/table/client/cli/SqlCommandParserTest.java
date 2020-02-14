@@ -56,8 +56,17 @@ public class SqlCommandParserTest {
 			"   SELECT  complicated FROM table    ",
 			new SqlCommandCall(SqlCommand.SELECT, new String[]{"SELECT  complicated FROM table"}));
 		testValidSqlCommand(
+			"WITH t as (select complicated from table) select complicated from t",
+			new SqlCommandCall(SqlCommand.SELECT, new String[]{"WITH t as (select complicated from table) select complicated from t"}));
+		testValidSqlCommand(
+			"   WITH t as (select complicated from table) select complicated from t    ",
+			new SqlCommandCall(SqlCommand.SELECT, new String[]{"WITH t as (select complicated from table) select complicated from t"}));
+		testValidSqlCommand(
 			"INSERT INTO other SELECT 1+1",
 			new SqlCommandCall(SqlCommand.INSERT_INTO, new String[]{"INSERT INTO other SELECT 1+1"}));
+		testValidSqlCommand(
+			"INSERT OVERWRITE other SELECT 1+1",
+			new SqlCommandCall(SqlCommand.INSERT_OVERWRITE, new String[]{"INSERT OVERWRITE other SELECT 1+1"}));
 		testValidSqlCommand(
 			"CREATE VIEW x AS SELECT 1+1",
 			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"x", "SELECT 1+1"}));

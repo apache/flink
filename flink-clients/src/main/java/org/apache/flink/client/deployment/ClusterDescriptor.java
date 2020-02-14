@@ -73,4 +73,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @throws FlinkException if the cluster could not be terminated
 	 */
 	void killCluster(T clusterId) throws FlinkException;
+
+	@Override
+	void close();
 }

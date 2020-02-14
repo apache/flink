@@ -73,10 +73,6 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 	private static final int MIN_NUM_MEMORY_SEGMENTS = 33;
 	protected final int initPartitionFanOut;
 
-	/**
-	 * The owner to associate with the memory segment.
-	 */
-	private Object owner;
 	private final int avgRecordLen;
 	protected final long buildRowCount;
 
@@ -177,7 +173,6 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 		this.compressionBlockSize = (int) MemorySize.parse(
 			conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)).getBytes();
 
-		this.owner = owner;
 		this.avgRecordLen = avgRecordLen;
 		this.buildRowCount = buildRowCount;
 		this.tryDistinctBuildRow = tryDistinctBuildRow;
@@ -516,4 +511,10 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 		return code >= 0 ? code : -(code + 1);
 	}
 
+	/**
+	 * Partition level hash again, for avoid two layer hash conflict.
+	 */
+	static int partitionLevelHash(int hash) {
+		return hash ^ (hash >>> 16);
+	}
 }

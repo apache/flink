@@ -30,9 +30,7 @@ import org.junit.Test
 
 class PartitionableSinkTest extends TableTestBase {
 
-  val conf = new TableConfig
-  conf.setSqlDialect(SqlDialect.HIVE)
-  private val util = batchTestUtil(conf)
+  private val util = batchTestUtil()
   util.addTableSource[(Long, Long, Long)]("MyTable", 'a, 'b, 'c)
   PartitionableSinkITCase.registerTableSink(
     util.tableEnv,
@@ -66,5 +64,14 @@ class PartitionableSinkTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testWrongFields(): Unit = {
     util.verifySqlUpdate("INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable")
+  }
+
+  @Test
+  def testStaticWithValues(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
+          " 'VALUES ROW(5)' is not supported yet")
+    util.verifySqlUpdate("INSERT INTO sink PARTITION (b=1, c=1) VALUES (5)")
   }
 }

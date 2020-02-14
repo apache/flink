@@ -118,7 +118,30 @@ public class PendingCheckpoint {
 
 	private volatile ScheduledFuture<?> cancellerHandle;
 
+	private CheckpointException failureCause = null;
+
 	// --------------------------------------------------------------------------------------------
+	public PendingCheckpoint(
+		JobID jobId,
+		long checkpointId,
+		long checkpointTimestamp,
+		Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
+		Collection<String> masterStateIdentifiers,
+		CheckpointProperties props,
+		CheckpointStorageLocation targetLocation,
+		Executor executor) {
+
+		this(
+			jobId,
+			checkpointId,
+			checkpointTimestamp,
+			verticesToConfirm,
+			masterStateIdentifiers,
+			props,
+			targetLocation,
+			executor,
+			new CompletableFuture<>());
+	}
 
 	public PendingCheckpoint(
 			JobID jobId,
@@ -128,7 +151,8 @@ public class PendingCheckpoint {
 			Collection<String> masterStateIdentifiers,
 			CheckpointProperties props,
 			CheckpointStorageLocation targetLocation,
-			Executor executor) {
+			Executor executor,
+			CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
@@ -145,7 +169,7 @@ public class PendingCheckpoint {
 		this.masterStates = new ArrayList<>(masterStateIdentifiers.size());
 		this.notYetAcknowledgedMasterStates = new HashSet<>(masterStateIdentifiers);
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
-		this.onCompletionPromise = new CompletableFuture<>();
+		this.onCompletionPromise = checkNotNull(onCompletionPromise);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -160,6 +184,10 @@ public class PendingCheckpoint {
 
 	public long getCheckpointId() {
 		return checkpointId;
+	}
+
+	public CheckpointStorageLocation getCheckpointStorageLocation() {
+		return targetLocation;
 	}
 
 	public long getCheckpointTimestamp() {
@@ -242,6 +270,10 @@ public class PendingCheckpoint {
 				throw new IllegalStateException("A canceller handle was already set");
 			}
 		}
+	}
+
+	public CheckpointException getFailureCause() {
+		return failureCause;
 	}
 
 	// ------------------------------------------------------------------------
@@ -381,6 +413,7 @@ public class PendingCheckpoint {
 			if (statsCallback != null) {
 				// Do this in millis because the web frontend works with them
 				long alignmentDurationMillis = metrics.getAlignmentDurationNanos() / 1_000_000;
+				long checkpointStartDelayMillis = metrics.getCheckpointStartDelayNanos() / 1_000_000;
 
 				SubtaskStateStats subtaskStateStats = new SubtaskStateStats(
 					subtaskIndex,
@@ -389,7 +422,8 @@ public class PendingCheckpoint {
 					metrics.getSyncDurationMillis(),
 					metrics.getAsyncDurationMillis(),
 					metrics.getBytesBufferedInAlignment(),
-					alignmentDurationMillis);
+					alignmentDurationMillis,
+					checkpointStartDelayMillis);
 
 				statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
 			}
@@ -425,9 +459,9 @@ public class PendingCheckpoint {
 	 */
 	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause) {
 		try {
-			CheckpointException exception = new CheckpointException(reason, cause);
-			onCompletionPromise.completeExceptionally(exception);
-			reportFailedCheckpoint(exception);
+			failureCause = new CheckpointException(reason, cause);
+			onCompletionPromise.completeExceptionally(failureCause);
+			reportFailedCheckpoint(failureCause);
 			assertAbortSubsumedForced(reason);
 		} finally {
 			dispose(true);

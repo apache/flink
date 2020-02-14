@@ -180,7 +180,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 		isFinished = true;
 		flushCurrentBuffer();
-		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false));
+		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE));
 		data.finishWrite();
 	}
 

@@ -53,6 +53,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -83,7 +84,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -120,14 +120,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class Execution implements AccessExecution, Archiveable<ArchivedExecution>, LogicalSlot.Payload {
 
-	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
-
 	private static final Logger LOG = ExecutionGraph.LOG;
 
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
-
-	private static final int NUM_STOP_CALL_TRIES = 3;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -163,17 +158,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile ExecutionState state = CREATED;
 
-	private volatile LogicalSlot assignedResource;
+	private LogicalSlot assignedResource;
 
-	private volatile Throwable failureCause;          // once assigned, never changes
+	private Throwable failureCause;          // once assigned, never changes
 
 	/** Information to restore the task on recovery, such as checkpoint id and task state snapshot. */
 	@Nullable
-	private volatile JobManagerTaskRestore taskRestore;
+	private JobManagerTaskRestore taskRestore;
 
 	/** This field holds the allocation id once it was assigned successfully. */
 	@Nullable
-	private volatile AllocationID assignedAllocationID;
+	private AllocationID assignedAllocationID;
 
 	// ------------------------ Accumulators & Metrics ------------------------
 
@@ -182,9 +177,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
-	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
+	private Map<String, Accumulator<?, ?>> userAccumulators;
 
-	private volatile IOMetrics ioMetrics;
+	private IOMetrics ioMetrics;
 
 	private Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor> producedPartitions;
 
@@ -609,6 +604,26 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			});
 	}
 
+	/**
+	 * Register producedPartitions to {@link ShuffleMaster}
+	 *
+	 * <p>HACK: Please notice that this method simulates asynchronous registration in a synchronous way
+	 * by making sure the returned {@link CompletableFuture} from {@link ShuffleMaster#registerPartitionWithProducer}
+	 * is completed immediately.
+	 *
+	 * <p>{@link Execution#producedPartitions} are registered through an asynchronous interface
+	 * {@link ShuffleMaster#registerPartitionWithProducer} to {@link ShuffleMaster}, however they are not always
+	 * accessed through callbacks. So, it is possible that {@link Execution#producedPartitions}
+	 * have not been available yet when accessed (in {@link Execution#deploy} for example).
+	 *
+	 * <p>Since the only implementation of {@link ShuffleMaster} is {@link NettyShuffleMaster},
+	 * which indeed registers producedPartition in a synchronous way, this method enforces
+	 * synchronous registration under an asynchronous interface for now.
+	 *
+	 * <p>TODO: If asynchronous registration is needed in the future, use callbacks to access {@link Execution#producedPartitions}.
+	 *
+	 * @return completed future of partition deployment descriptors.
+	 */
 	@VisibleForTesting
 	static CompletableFuture<Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>> registerProducedPartitions(
 			ExecutionVertex vertex,
@@ -629,6 +644,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				.getExecutionGraph()
 				.getShuffleMaster()
 				.registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
+
+			// temporary hack; the scheduler does not handle incomplete futures properly
+			Preconditions.checkState(shuffleDescriptorFuture.isDone(), "ShuffleDescriptor future is incomplete.");
 
 			CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration = shuffleDescriptorFuture
 				.thenApply(shuffleDescriptor -> new ResultPartitionDeploymentDescriptor(
@@ -1521,7 +1539,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			throw new IllegalStateException("Cannot leave terminal state " + currentState + " to transition to " + targetState + '.');
 		}
 
-		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
+		if (state == currentState) {
+			state = targetState;
 			markTimestamp(targetState);
 
 			if (error == null) {

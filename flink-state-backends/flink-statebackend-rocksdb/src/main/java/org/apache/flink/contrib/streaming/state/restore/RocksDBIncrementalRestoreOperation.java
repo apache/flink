@@ -59,6 +59,7 @@ import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
@@ -77,6 +78,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Encapsulates the process of restoring a RocksDB instance from an incremental snapshot.
@@ -88,6 +90,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
 	private long lastCompletedCheckpointId;
 	private UUID backendUID;
+	private final long writeBatchSize;
 
 	public RocksDBIncrementalRestoreOperation(
 		String operatorIdentifier,
@@ -105,7 +108,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		@Nonnegative long writeBatchSize) {
 		super(keyGroupRange,
 			keyGroupPrefixBytes,
 			numberOfTransferringThreads,
@@ -125,6 +129,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		this.restoredSstFiles = new TreeMap<>();
 		this.lastCompletedCheckpointId = -1L;
 		this.backendUID = UUID.randomUUID();
+		checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
+		this.writeBatchSize = writeBatchSize;
 	}
 
 	/**
@@ -294,7 +300,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			try (RestoredDBInstance tmpRestoreDBInfo = restoreDBInstanceFromStateHandle(
 				(IncrementalRemoteKeyedStateHandle) rawStateHandle,
 				temporaryRestoreInstancePath);
-				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(this.db)) {
+				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(this.db, writeBatchSize)) {
 
 				List<ColumnFamilyDescriptor> tmpColumnFamilyDescriptors = tmpRestoreDBInfo.columnFamilyDescriptors;
 				List<ColumnFamilyHandle> tmpColumnFamilyHandles = tmpRestoreDBInfo.columnFamilyHandles;
@@ -345,7 +351,8 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 				columnFamilyHandles,
 				keyGroupRange,
 				initialHandle.getKeyGroupRange(),
-				keyGroupPrefixBytes);
+				keyGroupPrefixBytes,
+				writeBatchSize);
 		} catch (RocksDBException e) {
 			String errMsg = "Failed to clip DB after initialization.";
 			LOG.error(errMsg, e);

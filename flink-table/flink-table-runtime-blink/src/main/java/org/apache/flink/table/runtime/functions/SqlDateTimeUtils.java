@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -253,7 +254,13 @@ public class SqlDateTimeUtils {
 				return SqlTimestamp.fromLocalDateTime(ldt);
 			}
 		} catch (DateTimeParseException e) {
-			return null;
+			// fall back to support cases like '1999-9-10 05:20:10'
+			try {
+				Timestamp ts = Timestamp.valueOf(dateStr);
+				return SqlTimestamp.fromTimestamp(ts);
+			} catch (IllegalArgumentException ie) {
+				return null;
+			}
 		}
 	}
 
@@ -1384,11 +1391,11 @@ public class SqlDateTimeUtils {
 		return r;
 	}
 
-	public static String timestampToString(SqlTimestamp ts) {
+	public static String timestampToString(SqlTimestamp ts, int precision) {
 		LocalDateTime ldt = ts.toLocalDateTime();
 
 		String fraction = pad(9, (long) ldt.getNano());
-		while (fraction.endsWith("0")) {
+		while (fraction.length() > precision && fraction.endsWith("0")) {
 			fraction = fraction.substring(0, fraction.length() - 1);
 		}
 
@@ -1404,8 +1411,8 @@ public class SqlDateTimeUtils {
 		return ymdhms.toString();
 	}
 
-	public static String timestampToString(SqlTimestamp ts, TimeZone tz) {
-		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz));
+	public static String timestampToString(SqlTimestamp ts, TimeZone tz, int precision) {
+		return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz), precision);
 	}
 
 	private static String pad(int length, long v) {

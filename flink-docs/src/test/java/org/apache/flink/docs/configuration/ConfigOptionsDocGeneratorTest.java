@@ -34,9 +34,9 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,6 +51,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the {@link ConfigOptionsDocGenerator}.
  */
+@SuppressWarnings("unused")
 public class ConfigOptionsDocGeneratorTest {
 
 	@ClassRule
@@ -59,11 +60,13 @@ public class ConfigOptionsDocGeneratorTest {
 	static class TestConfigGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the second option.");
 	}
@@ -71,7 +74,7 @@ public class ConfigOptionsDocGeneratorTest {
 	private enum TestEnum {
 		VALUE_1,
 		VALUE_2,
-		VALUE_3;
+		VALUE_3
 	}
 
 	static class TypeTestConfigGroup {
@@ -129,7 +132,7 @@ public class ConfigOptionsDocGeneratorTest {
 				"    <tbody>\n" +
 				"        <tr>\n" +
 				"            <td><h5>option.duration</h5></td>\n" +
-				"            <td style=\"word-wrap: break-word;\">60000ms</td>\n" +
+				"            <td style=\"word-wrap: break-word;\">1 min</td>\n" +
 				"            <td>Duration</td>\n" +
 				"            <td>Description</td>\n" +
 				"        </tr>\n" +
@@ -159,7 +162,7 @@ public class ConfigOptionsDocGeneratorTest {
 				"        </tr>\n" +
 				"        <tr>\n" +
 				"            <td><h5>option.memory</h5></td>\n" +
-				"            <td style=\"word-wrap: break-word;\">1024 bytes</td>\n" +
+				"            <td style=\"word-wrap: break-word;\">1 kb</td>\n" +
 				"            <td>MemorySize</td>\n" +
 				"            <td>Description</td>\n" +
 				"        </tr>\n" +
@@ -209,34 +212,40 @@ public class ConfigOptionsDocGeneratorTest {
 		// should end up in the default group
 		public static ConfigOption<Integer> option1 = ConfigOptions
 			.key("a.option")
+			.intType()
 			.defaultValue(2);
 
 		// should end up in group1, perfect key-prefix match
 		public static ConfigOption<String> option2 = ConfigOptions
 			.key("a.b.option")
+			.stringType()
 			.noDefaultValue();
 
 		// should end up in group1, full key-prefix match
 		public static ConfigOption<Integer> option3 = ConfigOptions
 			.key("a.b.c.option")
+			.intType()
 			.defaultValue(2);
 
 		// should end up in group1, full key-prefix match for group 1, partial match for group 2
 		// checks that the generator remembers the last encountered root node
 		public static ConfigOption<Integer> option4 = ConfigOptions
 			.key("a.b.c.e.option")
+			.intType()
 			.defaultValue(2);
 
 		// should end up in the default group, since no group exists with prefix "a.c"
 		// checks that the generator does not ignore components (like ignoring "c" to find a match "a.b")
 		public static ConfigOption<String> option5 = ConfigOptions
 			.key("a.c.b.option")
+			.stringType()
 			.noDefaultValue();
 
 		// should end up in group2, full key-prefix match for group 2
 		// checks that the longest matching group is assigned
 		public static ConfigOption<Integer> option6 = ConfigOptions
 			.key("a.b.c.d.option")
+			.intType()
 			.defaultValue(2);
 	}
 
@@ -266,21 +275,25 @@ public class ConfigOptionsDocGeneratorTest {
 	static class TestConfigMultipleSubGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the second option.");
 
 		public static ConfigOption<Integer> thirdOption = ConfigOptions
 			.key("third.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the third option.");
 
 		public static ConfigOption<String> fourthOption = ConfigOptions
 			.key("fourth.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the fourth option.");
 	}
@@ -365,12 +378,14 @@ public class ConfigOptionsDocGeneratorTest {
 		@Documentation.OverrideDefault("default_1")
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		@Documentation.OverrideDefault("default_2")
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This is long example description for the second option.");
 	}
@@ -408,8 +423,8 @@ public class ConfigOptionsDocGeneratorTest {
 	}
 
 	@Test
-	public void testCommonOptions() throws IOException, ClassNotFoundException {
-		final String projectRootDir = System.getProperty("rootDir");
+	public void testSections() throws IOException, ClassNotFoundException {
+		final String projectRootDir = getProjectRootDir();
 		final String outputDirectory = TMP.newFolder().getAbsolutePath();
 
 		final OptionsClassLocation[] locations = new OptionsClassLocation[] {
@@ -419,7 +434,7 @@ public class ConfigOptionsDocGeneratorTest {
 		ConfigOptionsDocGenerator.generateCommonSection(projectRootDir, outputDirectory, locations, "src/test/java");
 		Formatter formatter = new HtmlFormatter();
 
-		String expected =
+		String expected1 =
 			"<table class=\"table table-bordered\">\n" +
 			"    <thead>\n" +
 			"        <tr>\n" +
@@ -445,20 +460,47 @@ public class ConfigOptionsDocGeneratorTest {
 			"    </tbody>\n" +
 			"</table>\n";
 
-		String output = FileUtils.readFile(Paths.get(outputDirectory, ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME).toFile(), StandardCharsets.UTF_8.name());
+		String expected2 =
+			"<table class=\"table table-bordered\">\n" +
+				"    <thead>\n" +
+				"        <tr>\n" +
+				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 10%\">Type</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 55%\">Description</th>\n" +
+				"        </tr>\n" +
+				"    </thead>\n" +
+				"    <tbody>\n" +
+				"        <tr>\n" +
+				"            <td><h5>" + TestCommonOptions.COMMON_OPTION.key() + "</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_OPTION.defaultValue() + "</td>\n" +
+				"            <td>Integer</td>\n" +
+				"            <td>" + formatter.format(TestCommonOptions.COMMON_OPTION.description()) + "</td>\n" +
+				"        </tr>\n" +
+				"    </tbody>\n" +
+				"</table>\n";
 
-		assertEquals(expected, output);
+		final String fileName1 = ConfigOptionsDocGenerator.getSectionFileName(TestCommonOptions.SECTION_1);
+		final String fileName2 = ConfigOptionsDocGenerator.getSectionFileName(TestCommonOptions.SECTION_2);
+
+		final String output1 = FileUtils.readFile(new File(outputDirectory, fileName1), StandardCharsets.UTF_8.name());
+		final String output2 = FileUtils.readFile(new File(outputDirectory, fileName2), StandardCharsets.UTF_8.name());
+
+		assertEquals(expected1, output1);
+		assertEquals(expected2, output2);
 	}
 
 	static class TestConfigGroupWithExclusion {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
+			.intType()
 			.defaultValue(2)
 			.withDescription("This is example description for the first option.");
 
 		@Documentation.ExcludeFromDocumentation
 		public static ConfigOption<String> excludedOption = ConfigOptions
 			.key("excluded.option.a")
+			.stringType()
 			.noDefaultValue()
 			.withDescription("This should not be documented.");
 	}
@@ -491,5 +533,16 @@ public class ConfigOptionsDocGeneratorTest {
 		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroupWithExclusion.class).get(0).f1;
 
 		assertEquals(expectedTable, htmlTable);
+	}
+
+	static String getProjectRootDir() {
+		final String dirFromProperty = System.getProperty("rootDir");
+		if (dirFromProperty != null) {
+			return dirFromProperty;
+		}
+
+		// to make this work in the IDE use a default fallback
+		final String currentDir = System.getProperty("user.dir");
+		return new File(currentDir).getParent();
 	}
 }
