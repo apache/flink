@@ -19,12 +19,15 @@
 import datetime
 from abc import abstractmethod, ABCMeta
 
+import cloudpickle
+from apache_beam.runners.common import _OutputProcessor
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker.operations import Operation
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
+from pyflink.table import Row
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 
@@ -179,7 +182,6 @@ def create_scalar_function_invoker(scalar_function_proto):
     :param scalar_function_proto: the proto representation of the Python :class:`ScalarFunction`
     :return: :class:`ScalarFunctionInvoker`.
     """
-    import cloudpickle
     scalar_function = cloudpickle.loads(scalar_function_proto.payload)
     return ScalarFunctionInvoker(scalar_function, scalar_function_proto.inputs)
 
@@ -203,7 +205,6 @@ class ScalarFunctionRunner(object):
         :param main_receivers: Receiver objects which is responsible for sending the execution
                                results back the the remote Java operator
         """
-        from apache_beam.runners.common import _OutputProcessor
         self.output_processor = _OutputProcessor(
             window_fn=None,
             main_receivers=main_receivers,
@@ -221,7 +222,6 @@ class ScalarFunctionRunner(object):
     def process(self, windowed_value):
         results = [invoker.invoke_eval(windowed_value.value) for invoker in
                    self.scalar_function_invokers]
-        from pyflink.table import Row
         result = Row(*results)
         # send the execution results back
         self.output_processor.process_outputs(windowed_value, [result])
