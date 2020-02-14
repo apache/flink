@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
@@ -117,7 +118,11 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			this.cache = cacheMaxSize == -1 || cacheExpireMs == -1 ? null : CacheBuilder.newBuilder()
 					.expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
 					.maximumSize(cacheMaxSize)
+					.recordStats()
 					.build();
+			if (cache != null) {
+				context.getMetricGroup().gauge("hitRate", (Gauge<Double>) () -> cache.stats().hitRate());
+			}
 		} catch (SQLException sqe) {
 			throw new IllegalArgumentException("open() failed.", sqe);
 		} catch (ClassNotFoundException cnfe) {
