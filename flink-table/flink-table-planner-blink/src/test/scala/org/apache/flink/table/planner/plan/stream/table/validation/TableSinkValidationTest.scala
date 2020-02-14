@@ -22,10 +22,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException, DataTypes, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink, TestingUpsertTableSink}
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.DataTypeOutputFormatTableSink
-import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
 import org.junit.Test
 
@@ -107,9 +106,9 @@ class TableSinkValidationTest extends TableTestBase {
       .field("c", DataTypes.STRING())
       .field("d", DataTypes.INT())
       .build()
-    val sink = new DataTypeOutputFormatTableSink(sinkSchema)
-    tEnv.registerTableSink("testSink", sink)
 
+    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+      tEnv, sinkSchema, "testSink")
     tEnv.insertInto(resultTable, "testSink")
 
     // must fail because query result table schema is different with sink table schema

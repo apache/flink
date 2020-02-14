@@ -19,14 +19,13 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.types.Row
 import org.apache.flink.util.ExceptionUtils
-
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -48,22 +47,11 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     (22, 2L, "Jark"),
     (33, 3L, "Fabian"))
 
-  val userTableSource = InMemoryLookupableTableSource.builder()
-    .data(userData)
+  val userSchema = TableSchema.builder()
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
-    .enableAsync()
     .build()
-
-  val userTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
-    .data(userData)
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .enableAsync()
-    .build()
-
 
   // TODO: remove this until [FLINK-12351] is fixed.
   //  currently AsyncWaitOperator doesn't copy input element which is a bug
@@ -71,6 +59,9 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   override def before(): Unit = {
     super.before()
     env.getConfig.disableObjectReuse()
+
+    InMemoryLookupableTableSource.createTemporaryTable(
+      tEnv, isAsync = true, userData, userSchema, "userTable")
   }
 
   @Test
@@ -78,9 +69,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = failingDataSource(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    // pk is (id: Long, name: String)
-    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
 
     // test left table's join key define order diffs from right's
     val sql =
@@ -99,7 +87,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "1,12,Julian",
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
   @Test
@@ -107,8 +94,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = failingDataSource(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -122,7 +107,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "2,15,Hello,Jark",
       "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -130,8 +114,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = env.fromCollection(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
@@ -144,7 +126,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "2,15,Hello,Jark",
       "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -152,8 +133,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = failingDataSource(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
 
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
@@ -166,7 +145,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "2,15,Hello,Jark,22",
       "3,15,Fabian,Fabian,33")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -174,8 +152,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = failingDataSource(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
 
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -192,7 +168,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "8,11,Hello world,null,null",
       "9,12,Hello world!,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -200,8 +175,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = failingDataSource(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
 
     val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
@@ -214,7 +187,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "1,12,Julian",
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -223,7 +195,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
     tEnv.registerFunction("mod1", TestMod)
     tEnv.registerFunction("wrapper1", TestWrapperUdf)
 
@@ -239,7 +210,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "1,12,Julian",
       "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -248,7 +218,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
     tEnv.registerFunction("add", new TestAddWithOpen)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
@@ -263,7 +232,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "2,15,Hello,Jark",
       "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
     assertEquals(0, TestAddWithOpen.aliveCounter.get())
   }
 
@@ -272,8 +240,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = failingDataSource(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
 
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime from T group by len"
 
@@ -301,8 +267,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
-    tEnv.registerTableSource("userTable", userTableSource)
-
     val sql = "SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
@@ -317,7 +281,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
       "8,11,null,null",
       "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, userTableSource.getResourceCounter)
   }
 
   @Test
@@ -326,8 +289,6 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
     val streamTable = env.fromCollection(data)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
-
-    tEnv.registerTableSource("userTable", userTableSource)
     tEnv.registerFunction("errorFunc", TestExceptionThrown)
 
     val sql = "SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +

@@ -23,7 +23,6 @@ import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.{DataTypeAppendStreamTableSink, DataTypeOutputFormatTableSink}
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit.Assert._
@@ -44,9 +43,9 @@ class TableSinkITCase extends BatchTestBase {
         .field("b", DataTypes.DECIMAL(10, 0))
         .field("d", DataTypes.CHAR(5))
         .build()
-    val sink = new DataTypeOutputFormatTableSink(schema)
-    tEnv.registerTableSink("testSink", sink)
 
+    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
+      tEnv, schema, "testSink")
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
     tEnv.scan("Table3")
@@ -71,8 +70,9 @@ class TableSinkITCase extends BatchTestBase {
         .field("b", DataTypes.DECIMAL(10, 0))
         .field("d", DataTypes.CHAR(5))
         .build()
-    val sink = new DataTypeAppendStreamTableSink(schema)
-    tEnv.registerTableSink("testSink", sink)
+
+    MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(
+      tEnv, schema, "testSink")
 
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
@@ -89,6 +89,7 @@ class TableSinkITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results, expected)
   }
 
+  @Ignore
   @Test
   def testDecimalForLegacyTypeTableSink(): Unit = {
     MemoryTableSourceSinkUtil.clear()
@@ -97,8 +98,11 @@ class TableSinkITCase extends BatchTestBase {
       .field("a", DataTypes.VARCHAR(5))
       .field("b", DataTypes.DECIMAL(10, 0))
       .build()
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
+
+    // TODO: should failed at TableSinkUtils::validateLogicalPhysicalTypesCompatible
+    // CatalogTable hold new type but sink hold legacy type
+    MemoryTableSourceSinkUtil.createLegacyUnsafeMemoryAppendTable(
+      tEnv, schema, "testSink")
 
     registerCollection("Table3", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
 

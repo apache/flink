@@ -26,53 +26,18 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.DataTypeAppendStreamTableSink
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
-
 import java.io.File
 import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
 class TableSinkITCase extends AbstractTestBase {
-
-  @Test
-  def testInsertIntoRegisteredTableSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    MemoryTableSourceSinkUtil.clear()
-
-    val input = env.fromCollection(tupleData3)
-      .assignAscendingTimestamps(r => r._2)
-    val fieldNames = Array("d", "e", "t")
-    val fieldTypes: Array[TypeInformation[_]] = Array(
-      Types.STRING, Types.SQL_TIMESTAMP, Types.DECIMAL())
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
-
-    input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
-      .where('a < 3 || 'a > 19)
-      .select('c, 't, 'b)
-      .insertInto("targetTable")
-    tEnv.execute("job name")
-
-    val expected = Seq(
-      "Hi,1970-01-01 00:00:00.001,1.000000000000000000",
-      "Hello,1970-01-01 00:00:00.002,2.000000000000000000",
-      "Comment#14,1970-01-01 00:00:00.006,6.000000000000000000",
-      "Comment#15,1970-01-01 00:00:00.006,6.000000000000000000").mkString("\n")
-
-    TestBaseUtils.compareResultAsText(MemoryTableSourceSinkUtil.tableData.asJava, expected)
-  }
 
   @Test
   def testStreamTableSink(): Unit = {
@@ -604,8 +569,9 @@ class TableSinkITCase extends AbstractTestBase {
         .field("b", DataTypes.DECIMAL(10, 0))
         .field("d", DataTypes.CHAR(5))
         .build()
-    val sink = new DataTypeAppendStreamTableSink(schema)
-    tEnv.registerTableSink("testSink", sink)
+
+    MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(
+      tEnv, schema, "testSink")
 
     env.fromCollection(tupleData3)
         .toTable(tEnv, 'a, 'b, 'c)

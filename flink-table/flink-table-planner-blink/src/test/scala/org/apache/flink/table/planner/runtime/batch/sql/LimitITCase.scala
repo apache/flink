@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -33,8 +33,8 @@ class LimitITCase extends BatchTestBase {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    val rowType = new RowTypeInfo(type3.getFieldTypes, Array("a", "b", "c"))
-    tEnv.registerTableSource("LimitTable", new TestLimitableTableSource(data3, rowType))
+    TestLimitableTableSource.createTemporaryTable(
+      tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
   }
 
   @Test

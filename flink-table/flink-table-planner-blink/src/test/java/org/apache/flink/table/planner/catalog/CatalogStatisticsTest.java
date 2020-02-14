@@ -143,7 +143,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsFromCatalog() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1);
 		createPartitionColumnStats("A", 1);
 		createPartitionStats("A", 2);
@@ -168,7 +168,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsWithUnknownRowCount() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1, TableStats.UNKNOWN.getRowCount());
 		createPartitionColumnStats("A", 1);
 		createPartitionStats("A", 2);
@@ -193,7 +193,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsWithUnknownColumnStats() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1);
 		createPartitionStats("A", 2);
 		createPartitionColumnStats("A", 2);
@@ -215,7 +215,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsWithSomeUnknownColumnStats() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1);
 		createPartitionColumnStats("A", 1, true);
 		createPartitionStats("A", 2);

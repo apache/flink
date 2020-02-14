@@ -18,16 +18,13 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, LocalTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Types, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
-import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableTestBase, TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSource}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
 
 class TableSourceTest extends TableTestBase {
@@ -47,36 +44,26 @@ class TableSourceTest extends TableTestBase {
         tableSchema.getFieldNames),
       Seq.empty[Row])
     )
-    util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
-    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "PartitionableTable", true)
+
+    TestFilterableTableSource.createTemporaryTable(
+      util.tableEnv,
+      TestFilterableTableSource.defaultSchema,
+      "FilterableTable",
+      isBounded = true)
+    TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "PartitionableTable", true)
   }
 
   @Test
   def testBoundedStreamTableSource(): Unit = {
-    util.tableEnv.registerTableSource("MyTable", new TestTableSource(true, tableSchema))
+    TestTableSource.createTemporaryTable(util.tableEnv, isBounded = true, tableSchema, "MyTable")
     util.verifyPlan("SELECT * FROM MyTable")
   }
 
   @Test
   def testUnboundedStreamTableSource(): Unit = {
-    util.tableEnv.registerTableSource("MyTable", new TestTableSource(false, tableSchema))
+    TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Only bounded StreamTableSource can be used in batch mode.")
-    util.verifyPlan("SELECT * FROM MyTable")
-  }
-
-  @Test
-  def testNonStreamTableSource(): Unit = {
-    val tableSource = new TableSource[Row]() {
-
-      override def getProducedDataType: DataType = tableSchema.toRowDataType
-
-      override def getTableSchema: TableSchema = tableSchema
-    }
-    util.tableEnv.registerTableSource("MyTable", tableSource)
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Only StreamTableSource and LookupableTableSource can be used in Blink planner.")
+    thrown.expectMessage("Cannot query on an unbounded source in batch mode")
     util.verifyPlan("SELECT * FROM MyTable")
   }
 
@@ -191,15 +178,12 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTimeLiteralExpressionPushDown(): Unit = {
-    val rowTypeInfo = new RowTypeInfo(
-      Array[TypeInformation[_]](
-        BasicTypeInfo.INT_TYPE_INFO,
-        LocalTimeTypeInfo.LOCAL_DATE,
-        LocalTimeTypeInfo.LOCAL_TIME,
-        LocalTimeTypeInfo.LOCAL_DATE_TIME
-      ),
-      Array("id", "dv", "tv", "tsv")
-    )
+    val schema = TableSchema.builder()
+      .field("id", DataTypes.INT)
+      .field("dv", DataTypes.DATE)
+      .field("tv", DataTypes.TIME)
+      .field("tsv", DataTypes.TIMESTAMP(3))
+      .build()
 
     val row = new Row(4)
     row.setField(0, 1)
@@ -207,9 +191,13 @@ class TableSourceTest extends TableTestBase {
     row.setField(2, DateTimeTestUtil.localTime("14:23:02"))
     row.setField(3, DateTimeTestUtil.localDateTime("2017-01-24 12:45:01.234"))
 
-    val tableSource = TestFilterableTableSource(
-      isBounded = true, rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
-    util.tableEnv.registerTableSource("FilterableTable1", tableSource)
+    TestFilterableTableSource.createTemporaryTable(
+      util.tableEnv,
+      schema,
+      "FilterableTable1",
+      isBounded = true,
+      List(row),
+      List("dv", "tv", "tsv"))
 
     val sqlQuery =
       s"""

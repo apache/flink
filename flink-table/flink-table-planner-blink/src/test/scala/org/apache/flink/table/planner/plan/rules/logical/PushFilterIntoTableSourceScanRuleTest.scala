@@ -17,15 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.expressions.utils.Func1
-import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestFilterableTableSource}
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule
 import org.apache.calcite.tools.RuleSets
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.planner.expressions.utils.Func1
+import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
 
@@ -50,7 +48,11 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
     )
 
     // name: STRING, id: LONG, amount: INT, price: DOUBLE
-    util.tableEnv.registerTableSource("MyTable", TestFilterableTableSource(true))
+    TestFilterableTableSource.createTemporaryTable(
+      util.tableEnv,
+      TestFilterableTableSource.defaultSchema,
+      "MyTable",
+      isBounded = true)
     val ddl =
       s"""
          |CREATE TABLE VirtualTable (
@@ -147,15 +149,20 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testLowerUpperPushdown(): Unit = {
-    val rti = new RowTypeInfo(Array[TypeInformation[_]](
-      Types.STRING, Types.STRING),
-      Array("a", "b"))
+    val schema = TableSchema
+      .builder()
+      .field("a", DataTypes.STRING)
+      .field("b", DataTypes.STRING)
+      .build()
+
     val data = List(Row.of("foo", "bar"))
-    util.tableEnv
-      .registerTableSource(
-        "MTable",
-        TestFilterableTableSource(true, rti, data, Set("a", "b"))
-      )
+    TestFilterableTableSource.createTemporaryTable(
+      util.tableEnv,
+      schema,
+      "MTable",
+      isBounded = true,
+      data,
+      List("a", "b"))
 
     util.verifyPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'")
   }

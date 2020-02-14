@@ -32,7 +32,6 @@ import org.junit.{Before, Test}
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
-import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
 
 import scala.collection.mutable
@@ -145,7 +144,11 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    tEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
+    TestFilterableTableSource.createTemporaryTable(
+      tEnv,
+      TestFilterableTableSource.defaultSchema,
+      "FilterableTable",
+      isBounded = true)
     checkResult(
       "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9",
       Seq(
@@ -158,13 +161,12 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithFunctionFilterable(): Unit = {
-    tEnv.registerTableSource(
+    TestFilterableTableSource.createTemporaryTable(
+      tEnv,
+      TestFilterableTableSource.defaultSchema,
       "FilterableTable",
-      TestFilterableTableSource(
-        true,
-        TestFilterableTableSource.defaultTypeInfo,
-        TestFilterableTableSource.defaultRows,
-        Set("amount", "name")))
+      isBounded = true,
+      filterableFields = List("amount", "name"))
     checkResult(
       "SELECT id, name FROM FilterableTable " +
         "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
@@ -175,7 +177,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithPartitionable(): Unit = {
-    TestPartitionableSourceFactory.registerTableSource(tEnv, "PartitionableTable", true)
+    TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartitionableTable", true)
     checkResult(
       "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'",
       Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2))
@@ -184,8 +186,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testCsvTableSource(): Unit = {
-    val csvTable = TestTableSourceSinks.getPersonCsvTableSource
-    tEnv.registerTableSource("csvTable", csvTable)
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "csvTable")
     checkResult(
       "SELECT id, `first`, `last`, score FROM csvTable",
       Seq(
@@ -203,10 +204,8 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testLookupJoinCsvTemporalTable(): Unit = {
-    val orders = TestTableSourceSinks.getOrdersCsvTableSource
-    val rates = TestTableSourceSinks.getRatesCsvTableSource
-    tEnv.registerTableSource("orders", orders)
-    tEnv.registerTableSource("rates", rates)
+    TestTableSourceSinks.createOrdersCsvTemporaryTable(tEnv, "orders")
+    TestTableSourceSinks.createRatesCsvTemporaryTable(tEnv, "rates")
 
     val sql =
       """
@@ -233,9 +232,8 @@ class TableSourceITCase extends BatchTestBase {
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    val tableSource = new TestInputFormatTableSource(
-      tableSchema, tableSchema.toRowType, TestData.smallData3)
-    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+    TestInputFormatTableSource.createTemporaryTable(
+      tEnv, tableSchema, TestData.smallData3, "MyInputFormatTable")
     checkResult(
       "SELECT a, c FROM MyInputFormatTable",
       Seq(
@@ -248,14 +246,13 @@ class TableSourceITCase extends BatchTestBase {
   @Test
   def testMultiTypeSource(): Unit = {
     val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d", "e", "f", "g"),
+      Array("a", "b", "c", "d", "e", "f"),
       Array(
         DataTypes.INT(),
         DataTypes.DECIMAL(5, 2),
         DataTypes.VARCHAR(5),
         DataTypes.CHAR(5),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
+        DataTypes.TIMESTAMP(9),
         DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
       )
     ).build()
@@ -271,13 +268,6 @@ class TableSourceITCase extends BatchTestBase {
       LocalDateTime.of(1971, 1, 1, 0, 0, 0, 123000000),
       LocalDateTime.of(1972, 1, 1, 0, 0, 0, 0),
       null)
-    val timestamps = List(
-      Timestamp.valueOf("1969-01-01 00:00:00.123456789"),
-      Timestamp.valueOf("1970-01-01 00:00:00.123456"),
-      Timestamp.valueOf("1971-01-01 00:00:00.123"),
-      Timestamp.valueOf("1972-01-01 00:00:00"),
-      null
-    )
 
     val instants = new mutable.MutableList[Instant]
     for (i <- datetimes.indices) {
@@ -293,33 +283,27 @@ class TableSourceITCase extends BatchTestBase {
 
     for (i <- ints.indices) {
       data += row(
-        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), timestamps(i), instants(i))
+        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), instants(i))
     }
 
-    val tableSource = new TestDataTypeTableSource(
-      tableSchema,
-      data.seq)
-    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
+
     checkResult(
-      "SELECT a, b, c, d, e, f, g FROM MyInputFormatTable",
+      "SELECT a, b, c, d, e, f FROM MyInputFormatTable",
       Seq(
         row(1, "5.10", "1", "1",
-          "1969-01-01T00:00:00.123456789",
           "1969-01-01T00:00:00.123456789",
           "1969-01-01T00:00:00.123456789Z"),
         row(2, "6.10", "12", "12",
           "1970-01-01T00:00:00.123456",
-          "1970-01-01T00:00:00.123456",
           "1970-01-01T00:00:00.123456Z"),
         row(3, "7.10", "123", "123",
-          "1971-01-01T00:00:00.123",
           "1971-01-01T00:00:00.123",
           "1971-01-01T00:00:00.123Z"),
         row(4, "8.12", "1234", "1234",
           "1972-01-01T00:00",
-          "1972-01-01T00:00",
           "1972-01-01T00:00:00Z"),
-        row(null, null, null, null, null, null, null))
+        row(null, null, null, null, null, null))
     )
   }
 
@@ -332,11 +316,9 @@ class TableSourceITCase extends BatchTestBase {
     new FileWriter(tmpFile2).append("t3\n").append("t4\n").close()
 
     val schema = new TableSchema(Array("a"), Array(Types.STRING))
+    val paths = Array(tmpFile1.getPath, tmpFile2.getPath)
 
-    val tableSource = new TestFileInputFormatTableSource(
-      Array(tmpFile1.getPath, tmpFile2.getPath), schema)
-    tEnv.registerTableSource("MyMultiPathTable", tableSource)
-
+    TestFileInputFormatTableSource.createTemporaryTable(tEnv, schema, "MyMultiPathTable", paths)
     checkResult(
       "select * from MyMultiPathTable",
       Seq(

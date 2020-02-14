@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.api
 
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
@@ -28,10 +30,7 @@ import org.apache.flink.table.planner.operations.SqlConversionException
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
-import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.types.Row
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.ExpectedException
@@ -94,9 +93,10 @@ class TableEnvironmentTest {
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
-    tEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
-    tEnv.registerTableSink("MySink",
-      new CsvTableSink("/tmp").configure(Array("first"), Array(STRING)))
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink")
@@ -384,7 +384,7 @@ class TableEnvironmentTest {
   def testExecuteSqlWithUnsupportedStmt(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(containsString("Unsupported SQL query!"))
-    tableEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tableEnv, "MyTable")
     // TODO supports select later
     tableEnv.executeSql("select * from MyTable")
   }
