@@ -1676,6 +1676,34 @@ under the License.
 							<version>1.11.1</version>
 						</dependency>
 					</dependencies>
+					<configuration>
+						<ignoredUnusedDeclaredDependencies combine.children="append">
+							<!-- build dependency, required for shading; does not contain any classes -->
+							<dependency>org.apache.flink:force-shading</dependency>
+							<!-- compile dependencies; defined in root pom for brevity -->
+							<dependency>com.google.code.findbugs:jsr305</dependency>
+							<dependency>org.scala-lang:scala-compiler</dependency>
+							<!-- logging dependencies; defined in root pom for brevity
+									some modules may not use any logging, but that's not a problem
+									implementations are loaded via reflection and are always detected as unused -->
+							<dependency>org.slf4j:slf4j-api</dependency>
+							<!-- log4j1 -->
+							<dependency>log4j:log4j</dependency>
+							<dependency>org.slf4j:slf4j-log4j12</dependency>
+							<!-- log4j2 -->
+							<dependency>org.apache.logging.log4j:log4j-slf4j-impl</dependency>
+							<dependency>org.apache.logging.log4j:log4j-api</dependency>
+							<dependency>org.apache.logging.log4j:log4j-core</dependency>
+							<dependency>org.apache.logging.log4j:log4j-1.2-api</dependency>
+							<!-- test dependencies; defined in root pom for brevity -->
+							<dependency>org.apache.flink:flink-test-utils-junit</dependency>
+							<dependency>junit:junit</dependency>
+							<dependency>org.mockito:mockito-core</dependency>
+							<dependency>org.powermock:powermock-api-mockito2</dependency>
+							<dependency>org.powermock:powermock-module-junit4</dependency>
+							<dependency>org.hamcrest:hamcrest-all</dependency>
+						</ignoredUnusedDeclaredDependencies>
+					</configuration>
 				</plugin>
 
 				<!-- Pin the version of the maven shade plugin -->
