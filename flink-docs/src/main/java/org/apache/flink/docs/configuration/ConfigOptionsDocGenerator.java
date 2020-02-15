@@ -29,6 +29,9 @@ import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -58,6 +61,8 @@ import static org.apache.flink.docs.util.Utils.escapeCharacters;
  * Class used for generating code based documentation of configuration parameters.
  */
 public class ConfigOptionsDocGenerator {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigOptionsDocGenerator.class);
 
 	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
