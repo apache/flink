@@ -116,6 +116,13 @@ public class ConfigOptionsDocGenerator {
 		String outputDirectory = args[0];
 		String rootDir = args[1];
 
+		LOG.info("Searching the following locations; configured via {}#LOCATIONS:{}",
+			ConfigOptionsDocGenerator.class.getCanonicalName(),
+			Arrays.stream(LOCATIONS).map(OptionsClassLocation::toString).collect(Collectors.joining("\n\t", "\n\t", "")));
+		LOG.info("Excluding the following classes; configured via {}#EXCLUSIONS:{}",
+			ConfigOptionsDocGenerator.class.getCanonicalName(),
+			EXCLUSIONS.stream().collect(Collectors.joining("\n\t", "\n\t", "")));
+
 		for (OptionsClassLocation location : LOCATIONS) {
 			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory, DEFAULT_PATH_PREFIX);
 		}
