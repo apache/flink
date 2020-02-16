@@ -114,16 +114,9 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
   }
 }
 
-class PythonTableFunction extends TableFunction[Row] with PythonFunction {
+class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
 
-  def eval(x: Int, y: Int): Unit = {
-    for (i <- 0 until y) {
-      val row = new Row(2)
-      row.setField(0, x)
-      row.setField(1, i * i)
-      collect(row)
-    }
-  }
+  def eval(x: Int, y: Int) = ???
 
   override def getResultType: TypeInformation[Row] =
     new RowTypeInfo(Types.INT, Types.INT)

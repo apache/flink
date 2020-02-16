@@ -55,15 +55,19 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 		RelNode right = ((RelSubset) join.getRight()).getOriginal();
 
 		if (right instanceof FlinkLogicalTableFunctionScan) {
-			// right node is a python table function
+			// right node is a table function
 			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
+			// return true if the table function is python table function
 			return PythonUtil.isPythonCall(scan.getCall());
 		} else if (right instanceof FlinkLogicalCalc) {
 			// a filter is pushed above the table function
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
-			RelSubset input = (RelSubset) calc.getInput();
-			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) input.getOriginal();
-			return PythonUtil.isPythonCall(scan.getCall());
+			RelNode input = ((RelSubset) calc.getInput()).getOriginal();
+			if (input instanceof FlinkLogicalTableFunctionScan) {
+				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) input;
+				// return true if the table function is python table function
+				return PythonUtil.isPythonCall(scan.getCall());
+			}
 		}
 		return false;
 	}
@@ -75,17 +79,15 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 	}
 
 	/**
-	 * The factory is responsible to creating {@link BatchExecPythonCorrelate}.
+	 * The factory is responsible for creating {@link BatchExecPythonCorrelate}.
 	 */
 	private static class BatchExecPythonCorrelateFactory {
-		private final RelNode correlateRel;
 		private final FlinkLogicalCorrelate correlate;
 		private final RelTraitSet traitSet;
 		private final RelNode convInput;
 		private final RelNode right;
 
 		BatchExecPythonCorrelateFactory(RelNode rel) {
-			this.correlateRel = rel;
 			this.correlate = (FlinkLogicalCorrelate) rel;
 			this.traitSet = rel.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
 			this.convInput = RelOptRule.convert(
@@ -111,13 +113,13 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 			} else {
 				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
 				return new BatchExecPythonCorrelate(
-					correlateRel.getCluster(),
+					correlate.getCluster(),
 					traitSet,
 					convInput,
 					scan,
 					condition,
 					null,
-					correlateRel.getRowType(),
+					correlate.getRowType(),
 					correlate.getJoinType());
 			}
 		}

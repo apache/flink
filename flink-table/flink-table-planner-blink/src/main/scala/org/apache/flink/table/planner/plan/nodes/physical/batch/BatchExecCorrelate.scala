@@ -30,7 +30,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
 
 /**
-  * Batch physical RelNode for [[Correlate]] (Java user defined table function).
+  * Batch physical RelNode for [[Correlate]] (Java/Scala user defined table function).
   */
 class BatchExecCorrelate(
     cluster: RelOptCluster,

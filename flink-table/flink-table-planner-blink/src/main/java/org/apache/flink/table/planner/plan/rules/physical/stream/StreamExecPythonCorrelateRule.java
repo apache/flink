@@ -67,8 +67,9 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 		FlinkLogicalCorrelate correlate = call.rel(0);
 		RelNode right = ((RelSubset) correlate.getRight()).getOriginal();
 		if (right instanceof FlinkLogicalTableFunctionScan) {
-			// right node is a python table function
+			// right node is a table function
 			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
+			// return true if the table function is python table function
 			return PythonUtil.isPythonCall(scan.getCall());
 		} else if (right instanceof FlinkLogicalCalc) {
 			// a filter is pushed above the table function
@@ -84,17 +85,15 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 	}
 
 	/**
-	 * The factory is responsible to creating {@link StreamExecPythonCorrelate}.
+	 * The factory is responsible for creating {@link StreamExecPythonCorrelate}.
 	 */
 	private static class StreamExecPythonCorrelateFactory {
-		private final RelNode correlateRel;
 		private final FlinkLogicalCorrelate correlate;
 		private final RelTraitSet traitSet;
 		private final RelNode convInput;
 		private final RelNode right;
 
 		StreamExecPythonCorrelateFactory(RelNode rel) {
-			this.correlateRel = rel;
 			this.correlate = (FlinkLogicalCorrelate) rel;
 			this.traitSet = rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
 			this.convInput = RelOptRule.convert(
@@ -122,13 +121,13 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 			} else {
 				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
 				return new StreamExecPythonCorrelate(
-					correlateRel.getCluster(),
+					correlate.getCluster(),
 					traitSet,
 					convInput,
 					null,
 					scan,
 					condition,
-					correlateRel.getRowType(),
+					correlate.getRowType(),
 					correlate.getJoinType());
 			}
 		}

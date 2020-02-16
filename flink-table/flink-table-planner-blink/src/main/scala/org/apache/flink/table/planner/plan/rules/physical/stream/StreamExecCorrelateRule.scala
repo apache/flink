@@ -52,7 +52,7 @@ class StreamExecCorrelateRule
     }
 
     right match {
-      // right node is a java table function
+      // right node is a table function
       case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
       // a filter is pushed above the table function
       case calc: FlinkLogicalCalc => findTableFunction(calc)
@@ -122,7 +122,7 @@ object StreamExecCorrelateRule {
     }
   }
 
-  def getTableScan(calc: FlinkLogicalCalc): RelNode = {
+  def getTableScan(calc: FlinkLogicalCalc): FlinkLogicalTableFunctionScan = {
     val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
     child match {
       case scan: FlinkLogicalTableFunctionScan => scan

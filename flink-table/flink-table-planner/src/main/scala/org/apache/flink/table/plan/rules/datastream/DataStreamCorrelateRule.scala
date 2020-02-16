@@ -40,11 +40,14 @@ class DataStreamCorrelateRule
     val right = join.getRight.asInstanceOf[RelSubset].getOriginal
 
     right match {
-      // right node is a java table function
+      // right node is a table function
+      // return true if right node is a non python table function
       case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
       // a filter is pushed above the table function
+      // return true if the table function is non python table function.
       case calc: FlinkLogicalCalc =>
-        PythonUtil.isNonPythonCall(CorrelateUtil.getTableFunctionScan(calc).get.getCall)
+        val scan = CorrelateUtil.getTableFunctionScan(calc)
+        scan.isDefined && PythonUtil.isNonPythonCall(scan.get.getCall)
       case _ => false
     }
   }

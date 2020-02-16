@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.CRow
 
 /**
-  * Flink RelNode which matches along with join a python user defined table function.
+  * Flink RelNode which matches along with join a Python user defined table function.
   */
 class DataStreamPythonCorrelate(
     cluster: RelOptCluster,
@@ -50,9 +50,7 @@ class DataStreamPythonCorrelate(
     scan,
     condition,
     schema,
-    joinSchema,
-    joinType,
-    ruleDescription) {
+    joinType) {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamPythonCorrelate(

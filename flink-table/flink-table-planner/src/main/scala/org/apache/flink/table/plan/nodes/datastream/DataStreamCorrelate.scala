@@ -34,7 +34,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
-  * Flink RelNode which matches along with join a user defined table function.
+  * Flink RelNode which matches along with join a Java/Scala user defined table function.
   */
 class DataStreamCorrelate(
     cluster: RelOptCluster,
@@ -55,9 +55,7 @@ class DataStreamCorrelate(
     scan,
     condition,
     schema,
-    joinSchema,
-    joinType,
-    ruleDescription) {
+    joinType) {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(

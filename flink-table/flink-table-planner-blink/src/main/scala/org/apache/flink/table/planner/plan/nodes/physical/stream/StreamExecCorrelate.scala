@@ -31,7 +31,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
 
 /**
-  * Flink RelNode which matches along with join a java user defined table function.
+  * Flink RelNode which matches along with join a Java/Scala user defined table function.
   */
 class StreamExecCorrelate(
     cluster: RelOptCluster,

@@ -370,7 +370,7 @@ class CorrelateTest extends TableTestBase {
   def testCorrelatePythonTableFunction(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
-    val func = new PythonTableFunction()
+    val func = new MockPythonTableFunction
 
     val resultTable = table.joinLateral(func('a, 'b) as('x, 'y))
 

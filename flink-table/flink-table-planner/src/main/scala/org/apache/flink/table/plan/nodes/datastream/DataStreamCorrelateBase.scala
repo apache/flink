@@ -37,9 +37,7 @@ abstract class DataStreamCorrelateBase(
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     schema: RowSchema,
-    joinSchema: RowSchema,
-    joinType: JoinRelType,
-    ruleDescription: String)
+    joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, input)
   with CommonCorrelate
   with DataStreamRel {

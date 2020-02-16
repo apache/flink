@@ -77,7 +77,7 @@ abstract class BatchExecCorrelateBase(
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
-        input.getRowType, rexCall, sqlFunction, getExpressionString))
+        input.getRowType, rexCall, getExpressionString))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

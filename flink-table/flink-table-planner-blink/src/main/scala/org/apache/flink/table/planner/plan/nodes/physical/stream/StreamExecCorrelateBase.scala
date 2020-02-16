@@ -83,7 +83,7 @@ abstract class StreamExecCorrelateBase(
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
-        inputRel.getRowType, rexCall, sqlFunction, getExpressionString))
+        inputRel.getRowType, rexCall, getExpressionString))
       .item("select", outputRowType.getFieldNames.mkString(","))
       .item("rowType", outputRowType)
       .item("joinType", joinType)

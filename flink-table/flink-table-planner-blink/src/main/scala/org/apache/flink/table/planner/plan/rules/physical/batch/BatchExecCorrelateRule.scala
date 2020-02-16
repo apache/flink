@@ -40,13 +40,17 @@ class BatchExecCorrelateRule extends ConverterRule(
     val right = join.getRight.asInstanceOf[RelSubset].getOriginal
 
     right match {
-      // right node is a java table function
+      // right node is a table function
+      // return true if it is a non python table function
       case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
       // a filter is pushed above the table function
+      // return true if it is a non python table function
       case calc: FlinkLogicalCalc =>
-        val scan = calc.getInput.asInstanceOf[RelSubset]
-          .getOriginal.asInstanceOf[FlinkLogicalTableFunctionScan]
-        PythonUtil.isNonPythonCall(scan.getCall)
+        calc.getInput.asInstanceOf[RelSubset].getOriginal match {
+          case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
+          case _ => false
+        }
+      case _ => false
     }
   }
 
