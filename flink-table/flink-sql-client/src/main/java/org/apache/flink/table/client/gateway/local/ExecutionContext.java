@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
@@ -32,7 +33,6 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.BatchQueryConfig;
@@ -96,6 +96,7 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -151,9 +152,11 @@ public class ExecutionContext<ClusterID> {
 		this.flinkConfig = flinkConfig;
 
 		// create class loader
-		classLoader = FlinkUserCodeClassLoaders.parentFirst(
-				dependencies.toArray(new URL[dependencies.size()]),
-				this.getClass().getClassLoader());
+		classLoader = ClientUtils.buildUserCodeClassLoader(
+			dependencies,
+			Collections.emptyList(),
+			this.getClass().getClassLoader(),
+			flinkConfig);
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
