@@ -113,6 +113,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Arrow dependencies -->
+
+		<dependency>
+			<groupId>org.apache.arrow</groupId>
+			<artifactId>arrow-vector</artifactId>
+			<version>${arrow.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
