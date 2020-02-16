@@ -1,7 +1,7 @@
 ---
 title: "User-defined Sources & Sinks"
 nav-parent_id: tableapi
-nav-pos: 40
+nav-pos: 130
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL](sql.html) queries.
+A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL]({{ site.baseurl }}/dev/table/sql/queries.html) queries.
 
 A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
 
@@ -71,7 +71,7 @@ TableSource[T] {
 </div>
 </div>
 
-* `getTableSchema()`: Returns the schema of the table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `TypeInformation` (see [Table API types](tableApi.html#data-types) and [SQL types](sql.html#data-types)).
+* `getTableSchema()`: Returns the schema of the produced table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `DataType` (see [Table API types]({{ site.baseurl }}/dev/table/types.html) and [SQL types]({{ site.baseurl }}/dev/table/sql/index.html#data-types)). Note that the returned `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSource`.
 
 * `getReturnType()`: Returns the physical type of the `DataStream` (`StreamTableSource`) or `DataSet` (`BatchTableSource`) and the records that are produced by the `TableSource`.
 
@@ -139,7 +139,7 @@ StreamTableSource[T] extends TableSource[T] {
 
 ### Defining a TableSource with Time Attributes
 
-Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
+Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
 
 A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
 
@@ -367,7 +367,7 @@ LookupableTableSource[T] extends TableSource[T] {
 </div>
 
 * `getLookupFunction(lookupkeys)`: Returns a `TableFunction` which used to lookup the matched row(s) via lookup keys. The lookupkeys are the field names of `LookupableTableSource` in the join equal conditions. The eval method parameters of the returned `TableFunction`'s should be in the order which `lookupkeys` defined. It is recommended to define the parameters in varargs (e.g. `eval(Object... lookupkeys)` to match all the cases). The return type of the `TableFunction` must be identical to the return type defined by the `TableSource.getReturnType()` method.
-* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O](/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
+* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O]({{ site.baseurl }}/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
 * `isAsyncEnabled()`: Returns true if async lookup is enabled. It requires `getAsyncLookupFunction(lookupkeys)` is implemented if `isAsyncEnabled` returns true.
 
 {% top %}
@@ -411,7 +411,7 @@ TableSink[T] {
 </div>
 </div>
 
-The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema.
+The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema. Note that the provided `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSink`.
 
 ### BatchTableSink
 
@@ -714,10 +714,11 @@ connector.debug=true
 
 For a type-safe, programmatic approach with explanatory Scaladoc/Javadoc, the Table & SQL API offers descriptors in `org.apache.flink.table.descriptors` that translate into string-based properties. See the [built-in descriptors](connect.html) for sources, sinks, and formats as a reference.
 
-A connector for `MySystem` in our example can extend `ConnectorDescriptor` as shown below:
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
+
+A custom descriptor can be defined by extending the `ConnectorDescriptor` class.
+
 {% highlight java %}
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import java.util.HashMap;
@@ -743,9 +744,25 @@ public class MySystemConnector extends ConnectorDescriptor {
   }
 }
 {% endhighlight %}
+
+The descriptor can then be used to create a table with the table environment.
+
+{% highlight java %}
+StreamTableEnvironment tableEnv = // ...
+
+tableEnv
+  .connect(new MySystemConnector(true))
+  .withSchema(...)
+  .inAppendMode()
+  .createTemporaryTable("MySystemTable");
+{% endhighlight %}
+
 </div>
 
 <div data-lang="scala" markdown="1">
+
+A custom descriptor can be defined by extending the `ConnectorDescriptor` class.
+
 {% highlight scala %}
 import org.apache.flink.table.descriptors.ConnectorDescriptor
 import java.util.HashMap
@@ -763,33 +780,38 @@ class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system
   }
 }
 {% endhighlight %}
-</div>
-</div>
 
-The descriptor can then be used in the API as follows:
+The descriptor can then be used to create a table with the table environment.
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-StreamTableEnvironment tableEnv = // ...
-
-tableEnv
-  .connect(new MySystemConnector(true))
-  .inAppendMode()
-  .registerTableSource("MySystemTable");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
 {% highlight scala %}
 val tableEnv: StreamTableEnvironment = // ...
 
 tableEnv
   .connect(new MySystemConnector(isDebug = true))
+  .withSchema(...)
   .inAppendMode()
-  .registerTableSource("MySystemTable")
+  .createTemporaryTable("MySystemTable")
+{% endhighlight %}
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+You can use a Java `TableFactory` from Python using the `CustomConnectorDescriptor`.
+
+{% highlight python %}
+s_env = StreamExecutionEnvironment.get_execution_environment()
+st_env = StreamTableEnvironment.create(s_env)
+
+custom_connector = CustomConnectorDescriptor('my-system', 1, False)
+st_env\
+    .connect(custom_connector.property("connector.debug", "true")) \
+    .with_schema(...) \
+    .in_append_mode()\
+    .create_temporary_table("MySystemTable")
 {% endhighlight %}
 </div>
+
 </div>
 
 {% top %}

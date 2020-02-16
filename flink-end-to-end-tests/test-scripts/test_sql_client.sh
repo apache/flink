@@ -101,7 +101,7 @@ echo "Preparing Elasticsearch..."
 ELASTICSEARCH_VERSION=6
 DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
 
-setup_elasticsearch $DOWNLOAD_URL
+setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
 wait_elasticsearch_working
 
 ################################################################################
@@ -139,18 +139,15 @@ cat >> $SQL_CONF << EOF
     update-mode: upsert
     schema:
       - name: user_id
-        type: INT
+        data-type: INT
       - name: user_name
-        type: VARCHAR
+        data-type: STRING
       - name: user_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: elasticsearch
       version: 6
-      hosts:
-        - hostname: "localhost"
-          port: 9200
-          protocol: "http"
+      hosts: "http://localhost:9200"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
       bulk-flush:
@@ -163,18 +160,15 @@ cat >> $SQL_CONF << EOF
     update-mode: append
     schema:
       - name: user_id
-        type: INT
+        data-type: INT
       - name: user_name
-        type: VARCHAR
+        data-type: STRING
       - name: user_count
-        type: BIGINT
+        data-type: BIGINT
     connector:
       type: elasticsearch
       version: 6
-      hosts:
-        - hostname: "localhost"
-          port: 9200
-          protocol: "http"
+      hosts: "http://localhost:9200"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
       bulk-flush:

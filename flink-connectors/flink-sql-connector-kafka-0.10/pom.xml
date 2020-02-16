@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -60,7 +60,6 @@ under the License.
 								<includes>
 									<include>org.apache.kafka:*</include>
 									<include>org.apache.flink:flink-connector-kafka-base_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-connector-kafka-0.9_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-connector-kafka-0.10_${scala.binary.version}</include>
 								</includes>
 							</artifactSet>

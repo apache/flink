@@ -27,7 +27,6 @@ import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -45,12 +44,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -546,35 +546,51 @@ public final class DataTypes {
 	 * Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
 	 * and is only deserialized at the edges.
 	 *
-	 * <p>The any type is an extension to the SQL standard.
+	 * <p>The raw type is an extension to the SQL standard.
 	 *
-	 * <p>This method assumes that a {@link TypeSerializer} instance is present. Use {@link #ANY(TypeInformation)}
+	 * <p>This method assumes that a {@link TypeSerializer} instance is present. Use {@link #RAW(TypeInformation)}
 	 * for generating a serializer from Flink's core type system automatically in subsequent layers.
 	 *
 	 * @param clazz originating value class
 	 * @param serializer type serializer
 	 *
-	 * @see AnyType
+	 * @see RawType
 	 */
+	public static <T> DataType RAW(Class<T> clazz, TypeSerializer<T> serializer) {
+		return new AtomicDataType(new RawType<>(clazz, serializer));
+	}
+
+	/**
+	 * @deprecated Use {@link #RAW(Class, TypeSerializer)} instead.
+	 */
+	@Deprecated
 	public static <T> DataType ANY(Class<T> clazz, TypeSerializer<T> serializer) {
-		return new AtomicDataType(new AnyType<>(clazz, serializer));
+		return RAW(clazz, serializer);
 	}
 
 	/**
 	 * Data type of an arbitrary serialized type backed by {@link TypeInformation}. This type is
 	 * a black box within the table ecosystem and is only deserialized at the edges.
 	 *
-	 * <p>The any type is an extension to the SQL standard.
+	 * <p>The raw type is an extension to the SQL standard.
 	 *
-	 * <p>Compared to an {@link #ANY(Class, TypeSerializer)}, this type does not contain a {@link TypeSerializer}
+	 * <p>Compared to an {@link #RAW(Class, TypeSerializer)}, this type does not contain a {@link TypeSerializer}
 	 * yet. The serializer will be generated from the enclosed {@link TypeInformation} but needs access
 	 * to the {@link ExecutionConfig} of the current execution environment. Thus, this type is just a
 	 * placeholder.
 	 *
-	 * @see TypeInformationAnyType
+	 * @see TypeInformationRawType
 	 */
+	public static <T> DataType RAW(TypeInformation<T> typeInformation) {
+		return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+	}
+
+	/**
+	 * @deprecated Use {@link #RAW(TypeInformation)} instead.
+	 */
+	@Deprecated
 	public static <T> DataType ANY(TypeInformation<T> typeInformation) {
-		return new AtomicDataType(new TypeInformationAnyType<>(typeInformation));
+		return RAW(typeInformation);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -18,17 +18,22 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import akka.actor.ActorSystem;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +43,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -143,13 +149,22 @@ public class BootstrapToolsTest extends TestLogger {
 	@Test
 	public void testGetTaskManagerShellCommand() {
 		final Configuration cfg = new Configuration();
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = new TaskExecutorProcessSpec(
+			new CPUResource(1.0),
+			new MemorySize(0), // frameworkHeapSize
+			new MemorySize(0), // frameworkOffHeapSize
+			new MemorySize(111), // taskHeapSize
+			new MemorySize(0), // taskOffHeapSize
+			new MemorySize(222), // networkMemSize
+			new MemorySize(0), // managedMemorySize
+			new MemorySize(333), // jvmMetaspaceSize
+			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(1024, 768, 256, 4,
-				new HashMap<String, String>());
+			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, 4, new HashMap<String, String>());
 
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m";
+		final String jvmmem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
 		final String jvmOpts = "-Djvm"; // if set
 		final String tmJvmOpts = "-DtmJvm"; // if set
 		final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
@@ -159,85 +174,97 @@ public class BootstrapToolsTest extends TestLogger {
 			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
 		final String mainClass =
 			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-		final String args = "--configDir ./conf";
+		final String dynamicConfigs = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();
+		final String basicArgs = "--configDir ./conf";
+		final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
+		final String args = dynamicConfigs + " " + basicArgs + " " + mainArgs;
 		final String redirects =
 			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + // logging
+				"" + // jvmOpts
+				"" + // logging
+				" " + mainClass + " " + dynamicConfigs + " " + basicArgs + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, false, false, this.getClass(), ""));
+
+		assertEquals(
+			java + " " + jvmmem +
+				"" + // jvmOpts
+				"" + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, false, false, this.getClass()));
+					false, false, false, this.getClass(), mainArgs));
 
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
-				" " + // logging
+				" " + krb5 + // jvmOpts
+				"" + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, false, true, this.getClass()));
+					false, false, true, this.getClass(), mainArgs));
 
 		// logback only, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				"" + // jvmOpts
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, false, false, this.getClass()));
+					true, false, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
+				" " + krb5 + // jvmOpts
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, false, true, this.getClass()));
+					true, false, true, this.getClass(), mainArgs));
 
 		// log4j, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				"" + // jvmOpts
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, true, false, this.getClass()));
+					false, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
+				" " + krb5 + // jvmOpts
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					false, true, true, this.getClass()));
+					false, true, true, this.getClass(), mainArgs));
 
 		// logback + log4j, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				"" + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, false, this.getClass()));
+					true, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
+				" " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		// logback + log4j, with/out krb5, different JVM opts
 		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
@@ -248,7 +275,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, false, this.getClass()));
+					true, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -257,7 +284,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		// logback + log4j, with/out krb5, different JVM opts
 		cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
@@ -268,7 +295,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, false, this.getClass()));
+					true, true, false, this.getClass(), mainArgs));
 
 		assertEquals(
 			java + " " + jvmmem +
@@ -277,7 +304,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		// now try some configurations with different yarn.container-start-command-template
 
@@ -290,7 +317,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
@@ -302,7 +329,7 @@ public class BootstrapToolsTest extends TestLogger {
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
-					true, true, true, this.getClass()));
+					true, true, true, this.getClass(), mainArgs));
 
 	}
 
@@ -385,5 +412,125 @@ public class BootstrapToolsTest extends TestLogger {
 		} finally {
 			portOccupier.close();
 		}
+	}
+
+	@Test
+	public void testGetDynamicPropertiesAsString() {
+		final Configuration baseConfig = new Configuration();
+		baseConfig.setString("key.a", "a");
+		baseConfig.setString("key.b", "b1");
+
+		final Configuration targetConfig = new Configuration();
+		targetConfig.setString("key.b", "b2");
+		targetConfig.setString("key.c", "c");
+
+		final String dynamicProperties = BootstrapTools.getDynamicPropertiesAsString(baseConfig, targetConfig);
+		if (OperatingSystem.isWindows()) {
+			assertEquals("-Dkey.b=\"b2\" -Dkey.c=\"c\"", dynamicProperties);
+		} else {
+			assertEquals("-Dkey.b='b2' -Dkey.c='c'", dynamicProperties);
+		}
+	}
+
+	@Test
+	public void testEscapeDynamicPropertyValueWithSingleQuote() {
+		final String value1 = "#a,b&c^d*e@f(g!h";
+		assertEquals("'" + value1 + "'", BootstrapTools.escapeWithSingleQuote(value1));
+
+		final String value2 = "'foobar";
+		assertEquals("''\\''foobar'", BootstrapTools.escapeWithSingleQuote(value2));
+
+		final String value3 = "foo''bar";
+		assertEquals("'foo'\\'''\\''bar'", BootstrapTools.escapeWithSingleQuote(value3));
+
+		final String value4 = "'foo' 'bar'";
+		assertEquals("''\\''foo'\\'' '\\''bar'\\'''", BootstrapTools.escapeWithSingleQuote(value4));
+	}
+
+	@Test
+	public void testEscapeDynamicPropertyValueWithDoubleQuote() {
+		final String value1 = "#a,b&c^d*e@f(g!h";
+		assertEquals("\"#a,b&c\"^^\"d*e@f(g!h\"", BootstrapTools.escapeWithDoubleQuote(value1));
+
+		final String value2 = "foo\"bar'";
+		assertEquals("\"foo\\\"bar'\"", BootstrapTools.escapeWithDoubleQuote(value2));
+
+		final String value3 = "\"foo\" \"bar\"";
+		assertEquals("\"\\\"foo\\\" \\\"bar\\\"\"", BootstrapTools.escapeWithDoubleQuote(value3));
+	}
+
+	@Test
+	public void testHeapCutoff() {
+		Configuration conf = new Configuration();
+		conf.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15F);
+		conf.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, BootstrapTools.calculateHeapSize(1000, conf));
+		Assert.assertEquals(8500, BootstrapTools.calculateHeapSize(10000, conf));
+
+		// test different configuration
+		Assert.assertEquals(3400, BootstrapTools.calculateHeapSize(4000, conf));
+
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key(), "1000");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.1");
+		Assert.assertEquals(3000, BootstrapTools.calculateHeapSize(4000, conf));
+
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.5");
+		Assert.assertEquals(2000, BootstrapTools.calculateHeapSize(4000, conf));
+
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1");
+		Assert.assertEquals(0, BootstrapTools.calculateHeapSize(4000, conf));
+
+		// test also deprecated keys
+		conf = new Configuration();
+		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
+		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, BootstrapTools.calculateHeapSize(1000, conf));
+		Assert.assertEquals(8500, BootstrapTools.calculateHeapSize(10000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgument() {
+		final Configuration conf = new Configuration();
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1.1");
+		BootstrapTools.calculateHeapSize(4000, conf);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgumentNegative() {
+		final Configuration conf = new Configuration();
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "-0.01");
+		BootstrapTools.calculateHeapSize(4000, conf);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void tooMuchCutoff() {
+		final Configuration conf = new Configuration();
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
+		BootstrapTools.calculateHeapSize(4000, conf);
+	}
+
+	@Test
+	public void testGetEnvironmentVariables() {
+		Configuration testConf = new Configuration();
+		testConf.setString("containerized.master.env.LD_LIBRARY_PATH", "/usr/lib/native");
+
+		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+
+		Assert.assertEquals(1, res.size());
+		Map.Entry<String, String> entry = res.entrySet().iterator().next();
+		Assert.assertEquals("LD_LIBRARY_PATH", entry.getKey());
+		Assert.assertEquals("/usr/lib/native", entry.getValue());
+	}
+
+	@Test
+	public void testGetEnvironmentVariablesErroneous() {
+		Configuration testConf = new Configuration();
+		testConf.setString("containerized.master.env.", "/usr/lib/native");
+
+		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+
+		Assert.assertEquals(0, res.size());
 	}
 }

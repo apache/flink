@@ -33,7 +33,7 @@ public class MeterViewTest extends TestLogger {
 	public void testGetCount() {
 		Counter c = new SimpleCounter();
 		c.inc(5);
-		Meter m = new MeterView(c, 60);
+		Meter m = new MeterView(c);
 
 		assertEquals(5, m.getCount());
 	}
@@ -41,7 +41,7 @@ public class MeterViewTest extends TestLogger {
 	@Test
 	public void testMarkEvent() {
 		Counter c = new SimpleCounter();
-		Meter m = new MeterView(c, 60);
+		Meter m = new MeterView(c);
 
 		assertEquals(0, m.getCount());
 		m.markEvent();
@@ -53,7 +53,7 @@ public class MeterViewTest extends TestLogger {
 	@Test
 	public void testGetRate() {
 		Counter c = new SimpleCounter();
-		MeterView m = new MeterView(c, 60);
+		MeterView m = new MeterView(c);
 
 		// values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		for (int x = 0; x < 12; x++) {

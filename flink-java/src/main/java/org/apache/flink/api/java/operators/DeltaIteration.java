@@ -27,11 +27,11 @@ import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.types.Value;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 
@@ -182,8 +182,7 @@ public class DeltaIteration<ST, WT> {
 	 * @return The iteration object, for function call chaining.
 	 */
 	public DeltaIteration<ST, WT> parallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
-			"The parallelism must be positive, or ExecutionConfig.PARALLELISM_DEFAULT (use default).");
+		OperatorValidationUtils.validateParallelism(parallelism);
 		this.parallelism = parallelism;
 		return this;
 	}
@@ -211,10 +210,7 @@ public class DeltaIteration<ST, WT> {
 	 * @return The iteration with set minimum and preferred resources.
 	 */
 	private DeltaIteration<ST, WT> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
-		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
-		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
-				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 
 		this.minResources = minResources;
 		this.preferredResources = preferredResources;
@@ -230,8 +226,7 @@ public class DeltaIteration<ST, WT> {
 	 * @return The iteration with set minimum and preferred resources.
 	 */
 	private DeltaIteration<ST, WT> setResources(ResourceSpec resources) {
-		Preconditions.checkNotNull(resources, "The resources must be not null.");
-		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+		OperatorValidationUtils.validateResources(resources);
 
 		this.minResources = resources;
 		this.preferredResources = resources;

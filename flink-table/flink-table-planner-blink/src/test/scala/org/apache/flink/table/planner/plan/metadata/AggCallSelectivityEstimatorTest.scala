@@ -48,6 +48,7 @@ import org.powermock.modules.junit4.PowerMockRunner
 import java.math.BigDecimal
 
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConversions._
 
@@ -82,22 +83,22 @@ class AggCallSelectivityEstimatorTest {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
-    val catalogManager = mock(classOf[CatalogManager])
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = mock(classOf[ModuleManager])
-    val functionCatalog = new FunctionCatalog(catalogManager, moduleManager)
-    val context = new FlinkContextImpl(new TableConfig, functionCatalog)
+    val config = new TableConfig
+    val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
+    val context = new FlinkContextImpl(new TableConfig, functionCatalog, catalogManager, null)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getTypeFactory").thenReturn(typeFactory)
     when(cluster, "getPlanner").thenReturn(planner)
     when(planner, "getContext").thenReturn(context)
     when(tableScan, "getRowType").thenReturn(relDataType)
-    val innerTable = mock(classOf[TableSourceTable[_]])
-    val flinkTable = mock(classOf[FlinkRelOptTable])
-    when(flinkTable, "unwrap", classOf[FlinkTable]).thenReturn(innerTable)
-    when(flinkTable, "getFlinkStatistic").thenReturn(statistic)
-    when(flinkTable, "getRowType").thenReturn(relDataType)
-    when(tableScan, "getTable").thenReturn(flinkTable)
+    val sourceTable = mock(classOf[TableSourceTable[_]])
+    when(sourceTable, "unwrap", classOf[TableSourceTable[_]]).thenReturn(sourceTable)
+    when(sourceTable, "getStatistic").thenReturn(statistic)
+    when(sourceTable, "getRowType").thenReturn(relDataType)
+    when(tableScan, "getTable").thenReturn(sourceTable)
     val rowCount: JDouble = if (statistic != null && statistic.getRowCount != null) {
       statistic.getRowCount
     } else {
@@ -170,14 +171,18 @@ class AggCallSelectivityEstimatorTest {
       nullCount: Option[JLong] = None,
       avgLen: Option[JDouble] = None,
       maxLen: Option[Integer] = None,
-      min: Option[Number] = None,
-      max: Option[Number] = None): ColumnStats = new ColumnStats(
-    ndv.getOrElse(null.asInstanceOf[JLong]),
-    nullCount.getOrElse(null.asInstanceOf[JLong]),
-    avgLen.getOrElse(null.asInstanceOf[JDouble]),
-    maxLen.getOrElse(null.asInstanceOf[Integer]),
-    max.orNull,
-    min.orNull)
+      min: Option[Comparable[_]] = None,
+      max: Option[Comparable[_]] = None): ColumnStats = {
+    ColumnStats.Builder
+      .builder
+      .setNdv(ndv.getOrElse(null.asInstanceOf[JLong]))
+      .setNullCount(nullCount.getOrElse(null.asInstanceOf[JLong]))
+      .setAvgLen(avgLen.getOrElse(null.asInstanceOf[JDouble]))
+      .setMaxLen(maxLen.getOrElse(null.asInstanceOf[Integer]))
+      .setMax(max.orNull)
+      .setMin(min.orNull)
+      .build
+  }
 
   private def createFlinkStatistic(
       rowCount: Option[JLong] = None,

@@ -62,7 +62,7 @@ Calc(select=[EXPR$0])
   </TestCase>
   <TestCase name="testFilteringOnRowtime">
     <Resource name="sql">
-      <![CDATA[SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP)]]>
+      <![CDATA[SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP(3))]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.utils;
 
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
@@ -49,9 +50,10 @@ public class HiveAggSqlFunction extends AggSqlFunction {
 
 	private final AggregateFunction aggregateFunction;
 
-	public HiveAggSqlFunction(String name, String displayName,
-			AggregateFunction aggregateFunction, FlinkTypeFactory typeFactory) {
-		super(name, displayName, aggregateFunction, fromLegacyInfoToDataType(new GenericTypeInfo<>(Object.class)),
+	public HiveAggSqlFunction(
+			FunctionIdentifier identifier, AggregateFunction aggregateFunction, FlinkTypeFactory typeFactory) {
+		super(identifier, identifier.toString(), aggregateFunction,
+				fromLegacyInfoToDataType(new GenericTypeInfo<>(Object.class)),
 				fromLegacyInfoToDataType(new GenericTypeInfo<>(Object.class)), typeFactory, false,
 				new Some<>(createReturnTypeInference(aggregateFunction, typeFactory)));
 		this.aggregateFunction = aggregateFunction;

@@ -47,6 +47,7 @@ mvn archetype:generate                                   \
     -DarchetypeGroupId=org.apache.flink                  \
     -DarchetypeArtifactId=flink-quickstart-${TEST_TYPE}  \
     -DarchetypeVersion=${FLINK_VERSION}                  \
+    -DarchetypeCatalog=local                             \
     -DgroupId=org.apache.flink.quickstart                \
     -DartifactId=${ARTIFACT_ID}                          \
     -Dversion=${ARTIFACT_VERSION}                        \

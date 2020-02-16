@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.CompilerException;
@@ -32,6 +31,10 @@ import javax.annotation.Nullable;
  * Utility class for {@link PackagedProgram} related operations.
  */
 public class PackagedProgramUtils {
+
+	private static final String PYTHON_DRIVER_CLASS_NAME = "org.apache.flink.client.python.PythonDriver";
+
+	private static final String PYTHON_GATEWAY_CLASS_NAME = "org.apache.flink.client.python.PythonGatewayServer";
 
 	/**
 	 * Creates a {@link JobGraph} with a specified {@link JobID}
@@ -48,20 +51,15 @@ public class PackagedProgramUtils {
 			PackagedProgram packagedProgram,
 			Configuration configuration,
 			int defaultParallelism,
-			@Nullable JobID jobID) throws ProgramInvocationException {
-
-		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
-
-		final OptimizerPlanEnvironment optimizerPlanEnvironment = new OptimizerPlanEnvironment();
-		optimizerPlanEnvironment.setParallelism(defaultParallelism);
-		final Pipeline pipeline = optimizerPlanEnvironment.getPipeline(packagedProgram);
-
+			@Nullable JobID jobID,
+			boolean suppressOutput) throws ProgramInvocationException {
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism, suppressOutput);
 		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
 
 		if (jobID != null) {
 			jobGraph.setJobID(jobID);
 		}
-		ClientUtils.addJarFiles(jobGraph, packagedProgram.getAllLibraries());
+		jobGraph.addJars(packagedProgram.getJobJarAndDependencies());
 		jobGraph.setClasspaths(packagedProgram.getClasspaths());
 		jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
 
@@ -75,18 +73,22 @@ public class PackagedProgramUtils {
 	 * @param packagedProgram to extract the JobGraph from
 	 * @param configuration to use for the optimizer and job graph generator
 	 * @param defaultParallelism for the JobGraph
+	 * @param suppressOutput Whether to suppress stdout/stderr during interactive JobGraph creation.
 	 * @return JobGraph extracted from the PackagedProgram
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
 	public static JobGraph createJobGraph(
-		PackagedProgram packagedProgram,
-		Configuration configuration,
-		int defaultParallelism) throws ProgramInvocationException {
-		return createJobGraph(packagedProgram, configuration, defaultParallelism, null);
+			PackagedProgram packagedProgram,
+			Configuration configuration,
+			int defaultParallelism,
+			boolean suppressOutput) throws ProgramInvocationException {
+		return createJobGraph(packagedProgram, configuration, defaultParallelism, null, suppressOutput);
 	}
 
-	public static Pipeline getPipelineFromProgram(PackagedProgram prog, int parallelism)
-			throws CompilerException, ProgramInvocationException {
+	public static Pipeline getPipelineFromProgram(
+			PackagedProgram prog,
+			int parallelism,
+			boolean suppressOutput) throws CompilerException, ProgramInvocationException {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
@@ -96,10 +98,15 @@ public class PackagedProgramUtils {
 			if (parallelism > 0) {
 				env.setParallelism(parallelism);
 			}
-			return env.getPipeline(prog);
+			return env.getPipeline(prog, suppressOutput);
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
+	}
+
+	public static Boolean isPython(String entryPointClassName) {
+		return (entryPointClassName != null) &&
+			(entryPointClassName.equals(PYTHON_DRIVER_CLASS_NAME) || entryPointClassName.equals(PYTHON_GATEWAY_CLASS_NAME));
 	}
 
 	private PackagedProgramUtils() {}

@@ -245,6 +245,9 @@ class StreamPlanner(
 
     logicalPlan match {
       case node: DataStreamRel =>
+        getExecutionEnvironment.configure(
+          config.getConfiguration,
+          Thread.currentThread().getContextClassLoader)
         node.translateToPlan(this, queryConfig)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
@@ -352,7 +355,9 @@ class StreamPlanner(
     val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
     sink.setIsAppendOnly(isAppendOnlyTable)
     // extract unique key fields
-    val tableKeys: Option[Array[String]] = UpdatingPlanChecker.getUniqueKeyFields(optimizedPlan)
+    val sinkFieldNames = sink.getTableSchema.getFieldNames
+    val tableKeys: Option[Array[String]] = UpdatingPlanChecker
+      .getUniqueKeyFields(optimizedPlan, sinkFieldNames)
     // check that we have keys if the table has changes (is not append-only)
     tableKeys match {
       case Some(keys) => sink.setKeyFields(keys)

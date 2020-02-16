@@ -71,7 +71,7 @@ public class ParquetSchemaConverter {
 		return (MessageType) convertField(null, typeInformation, Type.Repetition.OPTIONAL, legacyMode);
 	}
 
-	private static TypeInformation<?> convertFields(List<Type> parquetFields) {
+	public static TypeInformation<?> convertFields(List<Type> parquetFields) {
 		List<TypeInformation<?>> types = new ArrayList<>();
 		List<String> names = new ArrayList<>();
 		for (Type field : parquetFields) {
@@ -89,7 +89,7 @@ public class ParquetSchemaConverter {
 			names.toArray(new String[0]));
 	}
 
-	private static TypeInformation<?> convertParquetTypeToTypeInfo(final Type fieldType) {
+	public static TypeInformation<?> convertParquetTypeToTypeInfo(final Type fieldType) {
 		TypeInformation<?> typeInfo;
 		if (fieldType.isPrimitive()) {
 			OriginalType originalType = fieldType.getOriginalType();

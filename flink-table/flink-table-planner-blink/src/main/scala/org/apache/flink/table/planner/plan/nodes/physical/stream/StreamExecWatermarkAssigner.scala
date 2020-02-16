@@ -20,21 +20,21 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
-import org.apache.flink.table.runtime.operators.wmassigners.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
+import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rex.RexNode
 
 import java.util
 
@@ -47,9 +47,9 @@ class StreamExecWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     inputRel: RelNode,
-    rowtimeFieldIndex: Option[Int],
-    watermarkDelay: Option[Long])
-  extends WatermarkAssigner(cluster, traits, inputRel, rowtimeFieldIndex, watermarkDelay)
+    rowtimeFieldIndex: Int,
+    watermarkExpr: RexNode)
+  extends WatermarkAssigner(cluster, traits, inputRel, rowtimeFieldIndex, watermarkExpr)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
@@ -63,37 +63,27 @@ class StreamExecWatermarkAssigner(
 
   override def requireWatermark: Boolean = false
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecWatermarkAssigner(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      rowtimeFieldIndex,
-      watermarkDelay)
+  override def copy(
+      traitSet: RelTraitSet,
+      input: RelNode,
+      rowtime: Int,
+      watermark: RexNode): RelNode = {
+    new StreamExecWatermarkAssigner(cluster, traitSet, input, rowtime, watermark)
   }
 
+  /**
+    * Fully override this method to have a better display name of this RelNode.
+    */
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val miniBatchInterval = traits.getTrait(MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
-
-    val value = if (miniBatchInterval.mode == MiniBatchMode.None ||
-      miniBatchInterval.interval == 0) {
-      // 1. redundant watermark definition in DDL
-      // 2. existing window aggregate
-      // 3. operator requiring watermark, but minibatch is not enabled
-      "None"
-    } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
-      val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-      val miniBatchLatency = getMillisecondFromConfigDuration(tableConfig,
-        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
-      Preconditions.checkArgument(miniBatchLatency > 0,
-        "MiniBatch latency must be greater that 0 ms.", null)
-      s"Proctime, ${miniBatchLatency}ms"
-    } else if (miniBatchInterval.mode == MiniBatchMode.RowTime) {
-      s"Rowtime, ${miniBatchInterval.interval}ms"
-    } else {
-      throw new TableException(s"Unsupported mode: $miniBatchInterval")
-    }
-    super.explainTerms(pw).item("miniBatchInterval", value)
+    val inFieldNames = inputRel.getRowType.getFieldNames.toList
+    val rowtimeFieldName = inFieldNames(rowtimeFieldIndex)
+    pw.input("input", getInput())
+      .item("rowtime", rowtimeFieldName)
+      .item("watermark", getExpressionString(
+        watermarkExpr,
+        inFieldNames,
+        None,
+        preferExpressionFormat(pw)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------
@@ -114,64 +104,27 @@ class StreamExecWatermarkAssigner(
       .asInstanceOf[Transformation[BaseRow]]
 
     val config = planner.getTableConfig
-    val inferredInterval = getTraitSet.getTrait(
-      MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
     val idleTimeout = getMillisecondFromConfigDuration(config,
       ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT)
 
-    val operator = if (inferredInterval.mode == MiniBatchMode.None ||
-      inferredInterval.interval == 0) {
-      require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
-      require(watermarkDelay.isDefined, "watermarkDelay should not be None")
-      // 1. redundant watermark definition in DDL
-      // 2. existing window aggregate
-      // 3. operator requiring watermark, but minibatch is not enabled
-      new WatermarkAssignerOperator(rowtimeFieldIndex.get, watermarkDelay.get, idleTimeout)
-    } else if (inferredInterval.mode == MiniBatchMode.ProcTime) {
-      new MiniBatchAssignerOperator(inferredInterval.interval)
-    } else {
-      require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
-      require(watermarkDelay.isDefined, "watermarkDelay should not be None")
-      new MiniBatchedWatermarkAssignerOperator(
-        rowtimeFieldIndex.get,
-        watermarkDelay.get,
-        0,
+    val watermarkGenerator = WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
+      config,
+      FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
+      watermarkExpr)
+
+    val operatorFactory = new WatermarkAssignerOperatorFactory(
+        rowtimeFieldIndex,
         idleTimeout,
-        inferredInterval.interval)
-    }
+        watermarkGenerator)
 
     val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
     val transformation = new OneInputTransformation[BaseRow, BaseRow](
       inputTransformation,
       getRelDetailedDescription,
-      operator,
+      operatorFactory,
       outputRowTypeInfo,
       inputTransformation.getParallelism)
     transformation
   }
 
-}
-
-object StreamExecWatermarkAssigner {
-
-  def createRowTimeWatermarkAssigner(
-      cluster: RelOptCluster,
-      traits: RelTraitSet,
-      inputRel: RelNode,
-      rowtimeFieldIndex: Int,
-      watermarkDelay: Long): StreamExecWatermarkAssigner = {
-    new StreamExecWatermarkAssigner(
-      cluster,
-      traits,
-      inputRel,
-      Some(rowtimeFieldIndex),
-      Some(watermarkDelay))
-  }
-
-  def createIngestionTimeWatermarkAssigner(
-      cluster: RelOptCluster,
-      traits: RelTraitSet,
-      inputRel: RelNode): StreamExecWatermarkAssigner = {
-    new StreamExecWatermarkAssigner(cluster, traits, inputRel, None, None)
-  }
 }

@@ -27,9 +27,12 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Collection;
 import java.util.Set;
@@ -89,12 +92,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+	public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
 			ExecutionAttemptID executionAttemptID,
-			int sampleId,
-			int numSamples,
-			Time delayBetweenSamples,
-			int maxStackTraceDepth,
+			int requestId,
 			Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
@@ -144,6 +144,15 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			timestamp,
 			checkpointOptions,
 			advanceToEndOfEventTime);
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+			ExecutionAttemptID task,
+			OperatorID operator,
+			SerializedValue<OperatorEvent> evt) {
+
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

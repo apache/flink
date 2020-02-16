@@ -198,6 +198,11 @@ public class GenericArray implements BaseArray {
 	}
 
 	@Override
+	public SqlTimestamp getTimestamp(int pos, int precision) {
+		return (SqlTimestamp) getObject(pos);
+	}
+
+	@Override
 	public <T> BinaryGeneric<T> getGeneric(int pos) {
 		return (BinaryGeneric) getObject(pos);
 	}
@@ -282,6 +287,11 @@ public class GenericArray implements BaseArray {
 
 	@Override
 	public void setDecimal(int pos, Decimal value, int precision) {
+		setObject(pos, value);
+	}
+
+	@Override
+	public void setTimestamp(int pos, SqlTimestamp value, int precision) {
 		setObject(pos, value);
 	}
 

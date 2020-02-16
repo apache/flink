@@ -34,14 +34,17 @@ import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryStringSerializer;
 import org.apache.flink.table.runtime.typeutils.DecimalSerializer;
+import org.apache.flink.table.runtime.typeutils.SqlTimestampSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 
 /**
  * {@link TypeSerializer} of {@link LogicalType} for internal sql engine execution data formats.
@@ -62,10 +65,14 @@ public class InternalSerializers {
 			case INTERVAL_YEAR_MONTH:
 				return IntSerializer.INSTANCE;
 			case BIGINT:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return LongSerializer.INSTANCE;
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				TimestampType timestampType = (TimestampType) type;
+				return new SqlTimestampSerializer(timestampType.getPrecision());
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
+				return new SqlTimestampSerializer(lzTs.getPrecision());
 			case FLOAT:
 				return FloatSerializer.INSTANCE;
 			case DOUBLE:
@@ -89,9 +96,9 @@ public class InternalSerializers {
 			case BINARY:
 			case VARBINARY:
 				return BytePrimitiveArraySerializer.INSTANCE;
-			case ANY:
+			case RAW:
 				return new BinaryGenericSerializer(
-						((TypeInformationAnyType) type).getTypeInformation().createSerializer(config));
+						((TypeInformationRawType) type).getTypeInformation().createSerializer(config));
 			default:
 				throw new RuntimeException("Not support type: " + type);
 		}

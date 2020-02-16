@@ -62,7 +62,7 @@ public class BucketingSinkTestProgram {
 
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-				10,
+				Integer.MAX_VALUE,
 				Time.of(10, TimeUnit.SECONDS)
 			));
 		sEnv.enableCheckpointing(4000);
@@ -74,8 +74,8 @@ public class BucketingSinkTestProgram {
 				.setBucketer(new KeyBucketer())
 				.setBatchSize(Long.MAX_VALUE)
 				.setBatchRolloverInterval(Long.MAX_VALUE)
-				.setInactiveBucketCheckInterval(Long.MAX_VALUE)
-				.setInactiveBucketThreshold(Long.MAX_VALUE);
+				.setInactiveBucketCheckInterval(50)
+				.setInactiveBucketThreshold(1000);
 
 		// generate data, shuffle, perform stateful operation, sink
 		sEnv.addSource(new Generator(10, idlenessMs, 60))

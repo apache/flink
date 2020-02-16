@@ -30,6 +30,7 @@ import org.apache.flink.util.TestLogger;
 
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import org.influxdb.InfluxDB;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -66,7 +67,8 @@ public class InfluxdbReporterTest extends TestLogger {
 
 	@Test
 	public void testReporterRegistration() throws Exception {
-		MetricRegistryImpl metricRegistry = createMetricRegistry(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue());
+		MetricRegistryImpl metricRegistry = createMetricRegistry(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue(),
+			InfluxdbReporterOptions.CONSISTENCY.defaultValue());
 		try {
 			assertEquals(1, metricRegistry.getReporters().size());
 			MetricReporter reporter = metricRegistry.getReporters().get(0);
@@ -78,7 +80,8 @@ public class InfluxdbReporterTest extends TestLogger {
 
 	@Test
 	public void testMetricRegistration() throws Exception {
-		MetricRegistryImpl metricRegistry = createMetricRegistry(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue());
+		MetricRegistryImpl metricRegistry = createMetricRegistry(InfluxdbReporterOptions.RETENTION_POLICY.defaultValue(),
+			InfluxdbReporterOptions.CONSISTENCY.defaultValue());
 		try {
 			String metricName = "TestCounter";
 			Counter counter = registerTestMetric(metricName, metricRegistry);
@@ -97,7 +100,8 @@ public class InfluxdbReporterTest extends TestLogger {
 	@Test
 	public void testMetricReporting() throws Exception {
 		String retentionPolicy = "one_hour";
-		MetricRegistryImpl metricRegistry = createMetricRegistry(retentionPolicy);
+		InfluxDB.ConsistencyLevel consistencyLevel = InfluxDB.ConsistencyLevel.ANY;
+		MetricRegistryImpl metricRegistry = createMetricRegistry(retentionPolicy, consistencyLevel);
 		try {
 			String metricName = "TestCounter";
 			Counter counter = registerTestMetric(metricName, metricRegistry);
@@ -113,6 +117,7 @@ public class InfluxdbReporterTest extends TestLogger {
 			verify(postRequestedFor(urlPathEqualTo("/write"))
 				.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
 				.withQueryParam("rp", equalTo(retentionPolicy))
+				.withQueryParam("consistency", equalTo(consistencyLevel.name().toLowerCase()))
 				.withHeader("Content-Type", containing("text/plain"))
 				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
 		} finally {
@@ -120,12 +125,13 @@ public class InfluxdbReporterTest extends TestLogger {
 		}
 	}
 
-	private MetricRegistryImpl createMetricRegistry(String retentionPolicy) {
+	private MetricRegistryImpl createMetricRegistry(String retentionPolicy, InfluxDB.ConsistencyLevel consistencyLevel) {
 		MetricConfig metricConfig = new MetricConfig();
 		metricConfig.setProperty(InfluxdbReporterOptions.HOST.key(), "localhost");
 		metricConfig.setProperty(InfluxdbReporterOptions.PORT.key(), String.valueOf(wireMockRule.port()));
 		metricConfig.setProperty(InfluxdbReporterOptions.DB.key(), TEST_INFLUXDB_DB);
 		metricConfig.setProperty(InfluxdbReporterOptions.RETENTION_POLICY.key(), retentionPolicy);
+		metricConfig.setProperty(InfluxdbReporterOptions.CONSISTENCY.key(), consistencyLevel.name());
 
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),

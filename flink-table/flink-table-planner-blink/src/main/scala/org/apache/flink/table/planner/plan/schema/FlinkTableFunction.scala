@@ -55,8 +55,5 @@ abstract class FlinkTableFunction(
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): DataType
 
-  def getRowType(
-      typeFactory: RelDataTypeFactory,
-      arguments: Array[AnyRef],
-      argTypes: Array[Class[_]]): RelDataType
+  def getRowType(typeFactory: RelDataTypeFactory): RelDataType
 }

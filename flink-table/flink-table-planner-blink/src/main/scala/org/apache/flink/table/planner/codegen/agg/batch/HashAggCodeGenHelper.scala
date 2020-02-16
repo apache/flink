@@ -62,7 +62,6 @@ object HashAggCodeGenHelper {
 
   private[flink] def prepareHashAggMap(
       ctx: CodeGeneratorContext,
-      reservedManagedMemory: Long,
       groupKeyTypesTerm: String,
       aggBufferTypesTerm: String,
       aggregateMapTerm: String): Unit = {
@@ -73,7 +72,7 @@ object HashAggCodeGenHelper {
         s"= new $mapTypeTerm(" +
         s"this.getContainingTask()," +
         s"this.getContainingTask().getEnvironment().getMemoryManager()," +
-        s"${reservedManagedMemory}L," +
+        s"computeMemorySize()," +
         s" $groupKeyTypesTerm," +
         s" $aggBufferTypesTerm);")
     // close aggregate map and release memory segments
@@ -406,7 +405,8 @@ object HashAggCodeGenHelper {
       outRow = currentAggBufferTerm,
       outRowWriter = None,
       reusedOutRow = true,
-      outRowAlreadyExists = true
+      outRowAlreadyExists = true,
+      allowSplit = false
     )
   }
 

@@ -169,7 +169,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[MIN($3)], agg#1=[MAX($4)], agg#2=[SUM(
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleConcatAggWithDistinctAgg">
+  <TestCase name="testSingleListAggWithDistinctAgg">
     <Resource name="sql">
       <![CDATA[SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a]]>
     </Resource>

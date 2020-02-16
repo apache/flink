@@ -295,10 +295,11 @@ class StreamExecMatch(
         // copy the rowtime field into the StreamRecord timestamp field
         val timeIdx = timeOrderField.getIndex
         val inputTypeInfo = inputTransform.getOutputType
+        val precision = timeOrderField.getType.getPrecision
         val transformation = new OneInputTransformation(
           inputTransform,
           s"rowtime field: ($timeOrderField)",
-          new ProcessOperator(new RowtimeProcessFunction(timeIdx, inputTypeInfo)),
+          new ProcessOperator(new RowtimeProcessFunction(timeIdx, inputTypeInfo, precision)),
           inputTypeInfo,
           inputTransform.getParallelism)
         if (inputsContainSingleton()) {

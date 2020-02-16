@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.runners.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
@@ -32,31 +32,24 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
- * It takes {@link Row} as the input and output type.
+ * It takes {@link Row} as the input and outputs a byte array.
  */
 @Internal
-public class PythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<Row, Row> {
+public class PythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<Row> {
 
 	public PythonScalarFunctionRunner(
 		String taskName,
-		FnDataReceiver<Row> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
-		PythonEnv pythonEnv,
+		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType,
-		String[] tempDirs) {
-		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
+		RowType outputType) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public RowSerializer getInputTypeSerializer() {
 		return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public RowSerializer getOutputTypeSerializer() {
-		return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getOutputType());
 	}
 }

@@ -38,19 +38,21 @@
 
 (defn- default-flink-configuration
   [test node]
-  {:high-availability                  "zookeeper"
-   :high-availability.zookeeper.quorum (zookeeper-quorum test)
-   :high-availability.storageDir       "hdfs:///flink/ha"
-   :jobmanager.rpc.address             node
-   :state.savepoints.dir               "hdfs:///flink/savepoints"
-   :rest.address                       node
-   :rest.port                          8081
-   :rest.bind-address                  "0.0.0.0"
-   :taskmanager.numberOfTaskSlots      taskmanager-slots
-   :yarn.application-attempts          99999
-   :slotmanager.taskmanager-timeout    10000
-   :state.backend.local-recovery       "true"
-   :taskmanager.registration.timeout   "30 s"})
+  {:high-availability                     "zookeeper"
+   :high-availability.zookeeper.quorum    (zookeeper-quorum test)
+   :high-availability.storageDir          "hdfs:///flink/ha"
+   :jobmanager.heap.size                  "2048m"
+   :jobmanager.rpc.address                node
+   :state.savepoints.dir                  "hdfs:///flink/savepoints"
+   :rest.address                          node
+   :rest.port                             8081
+   :rest.bind-address                     "0.0.0.0"
+   :taskmanager.numberOfTaskSlots         taskmanager-slots
+   :yarn.application-attempts             99999
+   :slotmanager.taskmanager-timeout       10000
+   :state.backend.local-recovery          "true"
+   :taskmanager.memory.process.size "2048m"
+   :taskmanager.registration.timeout      "30 s"})
 
 (defn flink-configuration
   [test node]
@@ -87,7 +89,7 @@
     (info "Installing Flink from" url)
     (cu/install-archive! url install-dir)
     (info "Enable S3 FS")
-    (c/exec (c/lit (str "ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/lib")))
+    (c/exec (c/lit (str "mkdir " install-dir "/plugins/s3-fs-hadoop && ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/plugins/s3-fs-hadoop")))
     (upload-job-jars! (->> test :test-spec :jobs (map :job-jar)))
     (write-configuration! test node)))
 
@@ -254,9 +256,7 @@
   []
   (fu/join-space (hadoop-env-vars)
                  (str install-dir "/bin/yarn-session.sh")
-                 "-d"
-                 "-jm 2048m"
-                 "-tm 2048m"))
+                 "-d"))
 
 (defn- start-yarn-session!
   []
@@ -281,7 +281,7 @@
 (defn- start-yarn-job!
   [test]
   (c/su
-    (submit-job-with-retry! test ["-m yarn-cluster" "-yjm 2048m" "-ytm 2048m"])))
+    (submit-job-with-retry! test ["-m yarn-cluster"])))
 
 (defn yarn-job-db
   []
@@ -301,11 +301,9 @@
     (str install-dir "/bin/mesos-appmaster.sh")
     (str "-Dmesos.master=" (zookeeper-uri test mesos/zk-namespace))
     "-Djobmanager.rpc.address=$(hostname -f)"
-    "-Djobmanager.heap.size=2048m"
     "-Djobmanager.rpc.port=6123"
-    "-Dmesos.resourcemanager.tasks.mem=2048"
-    "-Dtaskmanager.heap.size=2048m"
     "-Dmesos.resourcemanager.tasks.cpus=1"
+    "-Dmesos.resourcemanager.tasks.mem=2048" ;; FLINK-15082: this option must be set instead of taskmanager.memory.process.size
     "-Drest.bind-address=$(hostname -f)"))
 
 (defn- start-mesos-session!

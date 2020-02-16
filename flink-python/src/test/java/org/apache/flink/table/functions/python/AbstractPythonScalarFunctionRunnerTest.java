@@ -29,11 +29,10 @@ import java.util.Collections;
  * Base class for PythonScalarFunctionRunner and BaseRowPythonScalarFunctionRunner test.
  *
  * @param <IN> Type of the input elements.
- * @param <OUT> Type of the output elements.
  */
-public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
+public abstract class AbstractPythonScalarFunctionRunnerTest<IN>  {
 
-	AbstractPythonScalarFunctionRunner<IN, OUT> createSingleUDFRunner() {
+	AbstractPythonScalarFunctionRunner<IN> createSingleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -44,7 +43,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, rowType, rowType);
 	}
 
-	AbstractPythonScalarFunctionRunner<IN, OUT> createMultipleUDFRunner() {
+	AbstractPythonScalarFunctionRunner<IN> createMultipleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -64,7 +63,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
-	AbstractPythonScalarFunctionRunner<IN, OUT> createChainedUDFRunner() {
+	AbstractPythonScalarFunctionRunner<IN> createChainedUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -102,8 +101,8 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
-	public abstract AbstractPythonScalarFunctionRunner<IN, OUT> createPythonScalarFunctionRunner(
-		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType);
+	public abstract AbstractPythonScalarFunctionRunner<IN> createPythonScalarFunctionRunner(
+		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType) throws Exception;
 
 	/**
 	 * Dummy PythonFunction.

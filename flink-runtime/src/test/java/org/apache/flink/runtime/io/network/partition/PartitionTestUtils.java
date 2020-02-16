@@ -22,8 +22,8 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
@@ -55,6 +55,19 @@ public enum PartitionTestUtils {
 		return new ResultPartitionBuilder()
 			.setResultPartitionType(type)
 			.setFileChannelManager(channelManager)
+			.build();
+	}
+
+	public static ResultPartition createPartition(
+			ResultPartitionType type,
+			FileChannelManager channelManager,
+			boolean compressionEnabled,
+			int networkBufferSize) {
+		return new ResultPartitionBuilder()
+			.setResultPartitionType(type)
+			.setFileChannelManager(channelManager)
+			.setBlockingShuffleCompressionEnabled(compressionEnabled)
+			.setNetworkBufferSize(networkBufferSize)
 			.build();
 	}
 
@@ -99,12 +112,11 @@ public enum PartitionTestUtils {
 	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
 		ResultPartitionType partitionType) {
 		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
-		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-			new IntermediateDataSetID(),
-			shuffleDescriptor.getResultPartitionID().getPartitionId(),
-			partitionType,
-			1,
-			0);
+		PartitionDescriptor partitionDescriptor = PartitionDescriptorBuilder
+			.newBuilder()
+			.setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
+			.setPartitionType(partitionType)
+			.build();
 		return new ResultPartitionDeploymentDescriptor(
 			partitionDescriptor,
 			shuffleDescriptor,

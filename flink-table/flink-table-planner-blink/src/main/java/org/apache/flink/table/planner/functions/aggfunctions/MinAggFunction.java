@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -212,9 +213,16 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Timestamp Min aggregate function.
 	 */
 	public static class TimestampMinAggFunction extends MinAggFunction {
+
+		private final TimestampType type;
+
+		public TimestampMinAggFunction(TimestampType type) {
+			this.type = type;
+		}
+
 		@Override
 		public DataType getResultType() {
-			return DataTypes.TIMESTAMP(3);
+			return DataTypes.TIMESTAMP(type.getPrecision());
 		}
 	}
 }

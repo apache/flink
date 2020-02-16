@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.StandaloneClientFactory;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.commons.cli.CommandLine;
@@ -28,6 +27,8 @@ import org.apache.commons.cli.Options;
  * The default CLI which is used for interaction with standalone clusters.
  */
 public class DefaultCLI extends AbstractCustomCommandLine {
+
+	public static final String ID = "default";
 
 	public DefaultCLI(Configuration configuration) {
 		super(configuration);
@@ -41,7 +42,7 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 
 	@Override
 	public String getId() {
-		return StandaloneClientFactory.ID;
+		return ID;
 	}
 
 	@Override

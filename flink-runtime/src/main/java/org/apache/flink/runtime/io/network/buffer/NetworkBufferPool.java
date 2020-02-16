@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
@@ -91,11 +92,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
 	public NetworkBufferPool(
-		int numberOfSegmentsToAllocate,
-		int segmentSize,
-		int numberOfSegmentsToRequest,
-		Duration requestSegmentsTimeout) {
-
+			int numberOfSegmentsToAllocate,
+			int segmentSize,
+			int numberOfSegmentsToRequest,
+			Duration requestSegmentsTimeout) {
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 
@@ -229,14 +229,14 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	private void recycleMemorySegments(Collection<MemorySegment> segments, int size) throws IOException {
+		internalRecycleMemorySegments(segments);
+
 		synchronized (factoryLock) {
 			numTotalRequiredBuffers -= size;
 
 			// note: if this fails, we're fine for the buffer pool since we already recycled the segments
 			redistributeBuffers();
 		}
-
-		internalRecycleMemorySegments(segments);
 	}
 
 	private void internalRecycleMemorySegments(Collection<MemorySegment> segments) {
@@ -304,8 +304,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	 * in this pool.
 	 */
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return availabilityHelper.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return availabilityHelper.getAvailableFuture();
 	}
 
 	// ------------------------------------------------------------------------
@@ -505,8 +505,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 						"You can increase this number by setting the configuration keys '%s', '%s', and '%s'",
 				totalNumberOfMemorySegments,
 				memorySegmentSize,
-				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
-				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
-				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key());
+				TaskManagerOptions.NETWORK_MEMORY_FRACTION.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MIN.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MAX.key());
 	}
 }

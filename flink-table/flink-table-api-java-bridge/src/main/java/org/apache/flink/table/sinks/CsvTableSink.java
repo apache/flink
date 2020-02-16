@@ -23,13 +23,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.MapOperator;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
+
+import java.util.Arrays;
 
 /**
  * A simple {@link TableSink} to emit data as CSV files.
@@ -41,7 +45,32 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	private FileSystem.WriteMode writeMode;
 
 	private String[] fieldNames;
-	private TypeInformation<?>[] fieldTypes;
+	private DataType[] fieldTypes;
+
+	/**
+	 * A simple {@link TableSink} to emit data as CSV files.
+	 *
+	 * @param path       The output path to write the Table to.
+	 * @param fieldDelim The field delimiter
+	 * @param numFiles   The number of files to write to
+	 * @param writeMode  The write mode to specify whether existing files are overwritten or not.
+	 * @param fieldNames The field names of the table to emit.
+	 * @param fieldTypes The field types of the table to emit.
+	 */
+	public CsvTableSink(
+			String path,
+			String fieldDelim,
+			int numFiles,
+			FileSystem.WriteMode writeMode,
+			String[] fieldNames,
+			DataType[] fieldTypes) {
+		this.path = path;
+		this.fieldDelim = fieldDelim;
+		this.numFiles = numFiles;
+		this.writeMode = writeMode;
+		this.fieldNames = fieldNames;
+		this.fieldTypes = fieldTypes;
+	}
 
 	/**
 	 * A simple {@link TableSink} to emit data as CSV files.
@@ -52,10 +81,10 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	 * @param writeMode  The write mode to specify whether existing files are overwritten or not.
 	 */
 	public CsvTableSink(
-		String path,
-		String fieldDelim,
-		int numFiles,
-		FileSystem.WriteMode writeMode) {
+			String path,
+			String fieldDelim,
+			int numFiles,
+			FileSystem.WriteMode writeMode) {
 		this.path = path;
 		this.fieldDelim = fieldDelim;
 		this.numFiles = numFiles;
@@ -135,25 +164,24 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		CsvTableSink configuredSink = new CsvTableSink(path, fieldDelim, numFiles, writeMode);
-		configuredSink.fieldNames = fieldNames;
-		configuredSink.fieldTypes = fieldTypes;
-		return configuredSink;
+		if (this.fieldNames != null || this.fieldTypes != null) {
+			throw new IllegalStateException(
+				"CsvTableSink has already been configured field names and field types.");
+		}
+		DataType[] dataTypes = Arrays.stream(fieldTypes)
+			.map(TypeConversions::fromLegacyInfoToDataType)
+			.toArray(DataType[]::new);
+		return new CsvTableSink(path, fieldDelim, numFiles, writeMode, fieldNames, dataTypes);
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return new RowTypeInfo(getFieldTypes(), getFieldNames());
+	public DataType getConsumedDataType() {
+		return getTableSchema().toRowDataType();
 	}
 
 	@Override
-	public String[] getFieldNames() {
-		return fieldNames;
-	}
-
-	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return fieldTypes;
+	public TableSchema getTableSchema() {
+		return TableSchema.builder().fields(fieldNames, fieldTypes).build();
 	}
 
 	/**
@@ -178,7 +206,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 			StringBuilder builder = new StringBuilder();
 			Object o;
 			for (int i = 0; i < row.getArity(); i++) {
-				if (builder.length() != 0) {
+				if (i > 0) {
 					builder.append(fieldDelim);
 				}
 				if ((o = row.getField(i)) != null) {

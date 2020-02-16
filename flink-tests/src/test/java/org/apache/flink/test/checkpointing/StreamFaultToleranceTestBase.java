@@ -28,7 +28,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -49,20 +49,20 @@ import static org.junit.Assert.fail;
  * Test base for fault tolerant streaming programs.
  */
 @RunWith(Parameterized.class)
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 	@Parameterized.Parameters(name = "FailoverStrategy: {0}")
 	public static Collection<FailoverStrategy> parameters() {
-		return Arrays.asList(FailoverStrategy.RestartAllStrategy, FailoverStrategy.RestartPipelinedRegionStrategy);
+		return Arrays.asList(FailoverStrategy.RestartAllFailoverStrategy, FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
 	}
 
 	/**
 	 * The failover strategy to use.
 	 */
 	public enum FailoverStrategy{
-		RestartAllStrategy,
-		RestartPipelinedRegionStrategy
+		RestartAllFailoverStrategy,
+		RestartPipelinedRegionFailoverStrategy
 	}
 
 	@Parameterized.Parameter
@@ -78,10 +78,10 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
 		switch (failoverStrategy) {
-			case RestartPipelinedRegionStrategy:
+			case RestartPipelinedRegionFailoverStrategy:
 				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
 				break;
-			case RestartAllStrategy:
+			case RestartAllFailoverStrategy:
 				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 		}
 

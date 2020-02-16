@@ -18,23 +18,24 @@
 
 package org.apache.flink.table.codegen
 
-import java.io.File
-import java.util
-
-import org.apache.calcite.plan.RelOptPlanner
-import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, PipelineOptions}
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.plan.util.PythonUtil.containsPythonCall
 import org.apache.flink.types.Row
+
+import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.rex.{RexBuilder, RexNode}
+import org.apache.calcite.sql.`type`.SqlTypeName
+
+import java.io.File
+import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -98,7 +99,6 @@ class ExpressionReducer(config: TableConfig)
     val literalTypes = literals.map(e => FlinkTypeFactory.toTypeInfo(e.getType))
     val resultType = new RowTypeInfo(literalTypes: _*)
 
-    val parameters = config.getConfiguration
     // generate MapFunction
     val generator = new ConstantFunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
 
@@ -123,7 +123,14 @@ class ExpressionReducer(config: TableConfig)
     val function = clazz.newInstance()
 
     val reduced = try {
-      FunctionUtils.openFunction(function, parameters)
+      val parameters = config.getConfiguration.getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+      val configuration = new Configuration()
+      if (parameters.isPresent) {
+        parameters.get().asScala.foreach(e =>
+          configuration.setString(e._1, e._2)
+        )
+      }
+      FunctionUtils.openFunction(function, configuration)
       function.map(EMPTY_ROW)
     } finally {
       FunctionUtils.closeFunction(function)

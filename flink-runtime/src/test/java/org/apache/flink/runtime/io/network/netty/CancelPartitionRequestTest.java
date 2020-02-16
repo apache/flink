@@ -92,8 +92,7 @@ public class CancelPartitionRequestTest {
 					}
 				});
 
-			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class), true);
+			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -142,8 +141,7 @@ public class CancelPartitionRequestTest {
 						}
 					});
 
-			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class), true);
+			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
 			serverAndClient = initServerAndClient(protocol);
 

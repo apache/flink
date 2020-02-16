@@ -18,23 +18,12 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.planner.sinks.CollectRowTableSink;
-import org.apache.flink.table.planner.sinks.CollectTableSink;
-import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.StringUtils;
 
 import com.klarna.hiverunner.HiveShell;
@@ -51,7 +40,6 @@ import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
@@ -122,28 +110,12 @@ public class HiveTestUtils {
 		throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
 	}
 
-	public static TableEnvironment createTableEnv() {
+	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
 		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
 		return tableEnv;
-	}
-
-	public static List<Row> collectTable(TableEnvironment tableEnv, Table table) throws Exception {
-		CollectTableSink sink = new CollectRowTableSink();
-		TableSchema tableSchema = table.getSchema();
-		sink = (CollectTableSink) sink.configure(tableSchema.getFieldNames(), tableSchema.getFieldTypes());
-		final String id = new AbstractID().toString();
-		TypeSerializer serializer = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType())
-				.createSerializer(new ExecutionConfig());
-		sink.init(serializer, id);
-		String sinkName = UUID.randomUUID().toString();
-		tableEnv.registerTableSink(sinkName, sink);
-		tableEnv.insertInto(table, sinkName);
-		JobExecutionResult result = tableEnv.execute("collect-table");
-		ArrayList<byte[]> data = result.getAccumulatorResult(id);
-		return SerializedListAccumulator.deserializeList(data, serializer);
 	}
 
 	// Insert into a single partition of a text table.
@@ -187,6 +159,8 @@ public class HiveTestUtils {
 						}
 						writer.write(toText(rows.get(i)));
 					}
+					// new line at the end of file
+					writer.newLine();
 				}
 				String load = String.format("load data local inpath '%s' into table %s.%s", file.getAbsolutePath(), dbName, tableName);
 				if (partitionSpec != null) {
@@ -206,7 +180,7 @@ public class HiveTestUtils {
 				}
 				String colStr = toText(col);
 				if (colStr != null) {
-					builder.append(toText(col));
+					builder.append(colStr);
 				}
 			}
 			return builder.toString();

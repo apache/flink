@@ -24,7 +24,6 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
 import org.slf4j.Logger;
@@ -95,14 +94,17 @@ public class SqlClient {
 				context = new SessionContext(options.getSessionId(), sessionEnv);
 			}
 
-			// validate the environment (defaults and session)
-			validateEnvironment(context, executor);
+			// Open an new session
+			String sessionId = executor.openSession(context);
+			try {
+				// add shutdown hook
+				Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(sessionId, executor));
 
-			// add shutdown hook
-			Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(context, executor));
-
-			// do the actual work
-			openCli(context, executor);
+				// do the actual work
+				openCli(sessionId, executor);
+			} finally {
+				executor.closeSession(sessionId);
+			}
 		} else {
 			throw new SqlClientException("Gateway mode is not supported yet.");
 		}
@@ -111,13 +113,13 @@ public class SqlClient {
 	/**
 	 * Opens the CLI client for executing SQL statements.
 	 *
-	 * @param context session context
+	 * @param sessionId session identifier for the current client.
 	 * @param executor executor
 	 */
-	private void openCli(SessionContext context, Executor executor) {
+	private void openCli(String sessionId, Executor executor) {
 		CliClient cli = null;
 		try {
-			cli = new CliClient(context, executor);
+			cli = new CliClient(sessionId, executor);
 			// interactive CLI mode
 			if (options.getUpdateStatement() == null) {
 				cli.open();
@@ -137,24 +139,6 @@ public class SqlClient {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	private static void validateEnvironment(SessionContext context, Executor executor) {
-		System.out.print("Validating current environment...");
-		try {
-			executor.validateSession(context);
-			System.out.println("done.");
-		} catch (SqlExecutionException e) {
-			throw new SqlClientException(
-				"The configured environment is invalid. Please check your environment files again.", e);
-		}
-	}
-
-	private static void shutdown(SessionContext context, Executor executor) {
-		System.out.println();
-		System.out.print("Shutting down executor...");
-		executor.stop(context);
-		System.out.println("done.");
-	}
 
 	private static Environment readSessionEnvironment(URL envUrl) {
 		// use an empty environment by default
@@ -218,19 +202,22 @@ public class SqlClient {
 
 	// --------------------------------------------------------------------------------------------
 
-	private class EmbeddedShutdownThread extends Thread {
+	private static class EmbeddedShutdownThread extends Thread {
 
-		private final SessionContext context;
+		private final String sessionId;
 		private final Executor executor;
 
-		public EmbeddedShutdownThread(SessionContext context, Executor executor) {
-			this.context = context;
+		public EmbeddedShutdownThread(String sessionId, Executor executor) {
+			this.sessionId = sessionId;
 			this.executor = executor;
 		}
 
 		@Override
 		public void run() {
-			shutdown(context, executor);
+			// Shutdown the executor
+			System.out.println("\nShutting down the session...");
+			executor.closeSession(sessionId);
+			System.out.println("done.");
 		}
 	}
 }

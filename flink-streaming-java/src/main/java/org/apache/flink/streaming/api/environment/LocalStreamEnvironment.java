@@ -20,14 +20,14 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collections;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The LocalStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
@@ -39,8 +39,6 @@ import java.util.Collections;
  */
 @Public
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
-
-	private final Configuration configuration;
 
 	/**
 	 * Creates a new mini cluster stream environment that uses the default configuration.
@@ -55,32 +53,24 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param configuration The configuration used to configure the local executor.
 	 */
 	public LocalStreamEnvironment(@Nonnull Configuration configuration) {
-		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
-			throw new InvalidProgramException(
-				"The LocalStreamEnvironment cannot be used when submitting a program through a client, " +
-					"or running in a TestEnvironment context.");
-		}
-		this.configuration = configuration;
+		super(validateAndGetConfiguration(configuration));
 		setParallelism(1);
 	}
 
-	protected Configuration getConfiguration() {
-		return configuration;
+	private static Configuration validateAndGetConfiguration(final Configuration configuration) {
+		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+			throw new InvalidProgramException(
+					"The LocalStreamEnvironment cannot be used when submitting a program through a client, " +
+							"or running in a TestEnvironment context.");
+		}
+		final Configuration effectiveConfiguration = new Configuration(checkNotNull(configuration));
+		effectiveConfiguration.set(DeploymentOptions.TARGET, "local");
+		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
+		return effectiveConfiguration;
 	}
 
-	/**
-	 * Executes the JobGraph of the on a mini cluster of ClusterUtil with a user
-	 * specified name.
-	 *
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		try {
-			final PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
-			return executor.executePlan(streamGraph, Collections.emptyList(), Collections.emptyList());
-		} finally {
-			transformations.clear();
-		}
+		return super.execute(streamGraph);
 	}
 }

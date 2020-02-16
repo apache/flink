@@ -28,7 +28,10 @@ import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepar
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils, GeneratedExpression}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.extraction.utils.ExtractionUtils
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
@@ -70,13 +73,24 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
       scalarFunction, arguments, operandTypes)
     val setResult = {
-      if (resultClass.isPrimitive) {
+      if (resultClass.isPrimitive && isInternalClass(resultExternalType)) {
         s"$resultTerm = $evalResult;"
       } else {
         val javaTerm = newName("javaResult")
         // it maybe a Internal class, so use resultClass is most safety.
-        val javaTypeTerm = resultClass.getCanonicalName
-        val internal = genToInternalIfNeeded(ctx, resultExternalType, javaTerm)
+        val boxedResultClass = ExtractionUtils.primitiveToWrapper(resultClass)
+        val javaTypeTerm = boxedResultClass.getCanonicalName
+        val resultExternalTypeWithResultClass =
+          if (LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(resultExternalType)
+            .supportsOutputConversion(boxedResultClass)) {
+            // resultClass of HiveScalarFunction is Object, which cannot be a valid
+            // conversion class
+            resultExternalType.bridgedTo(boxedResultClass)
+          } else {
+            resultExternalType
+          }
+        val internal = genToInternalIfNeeded(
+          ctx, resultExternalTypeWithResultClass, javaTerm)
         s"""
             |$javaTypeTerm $javaTerm = ($javaTypeTerm) $evalResult;
             |$resultTerm = $javaTerm == null ? null : ($internal);
@@ -94,7 +108,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val resultUnboxing = if (resultClass.isPrimitive) {
       GenerateUtils.generateNonNullField(returnType, resultTerm)
     } else {
-      GenerateUtils.generateInputFieldUnboxing(ctx, returnType, resultTerm)
+      GenerateUtils.generateInputFieldUnboxing(ctx, returnType, resultTerm, resultTerm)
     }
     resultUnboxing.copy(code =
       s"""
@@ -111,6 +125,17 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     // get the expanded parameter types
     var paramClasses = getEvalMethodSignature(func, operands.map(_.resultType).toArray)
     prepareFunctionArgs(ctx, operands, paramClasses, func.getParameterTypes(paramClasses))
+  }
+
+  def genToInternalIfNeeded(
+      ctx: CodeGeneratorContext,
+      t: DataType,
+      term: String): String = {
+    if (isInternalClass(t)) {
+      s"(${boxedTypeTermForType(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(t))}) $term"
+    } else {
+      genToInternal(ctx, t, term)
+    }
   }
 
 }
@@ -136,13 +161,20 @@ object ScalarFunctionCallGen {
     }
 
     parameterClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
-      if (paramClass.isPrimitive) {
+      if (paramClass.isPrimitive && isInternalClass(signatureTypes(i))) {
         operandExpr
       } else {
-        val externalResultTerm = genToExternalIfNeeded(
-          ctx, signatureTypes(i), operandExpr.resultTerm)
-        val exprOrNull = s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
-        operandExpr.copy(resultTerm = exprOrNull)
+        val boxedParamClass = ExtractionUtils.primitiveToWrapper(paramClass)
+        val signatureType =
+          if (signatureTypes(i)
+              .getLogicalType
+              .supportsOutputConversion(boxedParamClass)) {
+            signatureTypes(i).bridgedTo(boxedParamClass)
+          } else {
+            signatureTypes(i)
+          }
+        val externalResultTerm = genToExternalIfNeeded(ctx, signatureType, operandExpr)
+        operandExpr.copy(resultTerm = externalResultTerm)
       }
     }
   }

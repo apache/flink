@@ -18,22 +18,19 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.table.catalog.CatalogFunction;
-
 /**
  * A util to instantiate {@link FunctionDefinition} in the default way.
  */
 public class FunctionDefinitionUtil {
 
-	public static FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
+	public static FunctionDefinition createFunctionDefinition(String name, String className) {
 		// Currently only handles Java class-based functions
 		Object func;
 		try {
-			func = Thread.currentThread().getContextClassLoader().loadClass(catalogFunction.getClassName()).newInstance();
+			func = Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
 		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
 			throw new IllegalStateException(
-				String.format("Failed instantiating '%s'", catalogFunction.getClassName())
-			);
+				String.format("Failed instantiating '%s'", className), e);
 		}
 
 		UserDefinedFunction udf = (UserDefinedFunction) func;
@@ -70,7 +67,7 @@ public class FunctionDefinitionUtil {
 			);
 		} else {
 			throw new UnsupportedOperationException(
-				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or TableAggregateFunction", catalogFunction.getClassName())
+				String.format("Function %s should be of ScalarFunction, TableFunction, AggregateFunction, or TableAggregateFunction", className)
 			);
 		}
 	}

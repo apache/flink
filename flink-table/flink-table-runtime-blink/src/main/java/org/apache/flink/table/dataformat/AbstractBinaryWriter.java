@@ -17,20 +17,20 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-
-import static org.apache.flink.table.dataformat.BinaryFormat.MAX_FIX_PART_DATA_SIZE;
 
 /**
  * Use the special format to write data to a {@link MemorySegment} (its capacity grows
@@ -91,7 +91,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 
 	private void writeBytes(int pos, byte[] bytes) {
 		int len = bytes.length;
-		if (len <= MAX_FIX_PART_DATA_SIZE) {
+		if (len <= BinaryFormat.MAX_FIX_PART_DATA_SIZE) {
 			writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
 		} else {
 			writeBytesToVarLenPart(pos, bytes, len);
@@ -118,24 +118,11 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	}
 
 	@Override
-	public void writeGeneric(int pos, BinaryGeneric input) {
-		if (input.getSegments() == null) {
-			int beforeCursor = cursor;
-			try {
-				input.getJavaObjectSerializer().serialize(input.getJavaObject(), getOutputView());
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-			int size = cursor - beforeCursor;
-			final int roundedSize = roundNumberOfBytesToNearestWord(size);
-			int paddingBytes = roundedSize - size;
-			ensureCapacity(paddingBytes);
-			setOffsetAndSize(pos, beforeCursor, size);
-			zeroBytes(cursor, paddingBytes);
-			cursor += paddingBytes;
-		} else {
-			writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), input.getSizeInBytes());
-		}
+	@SuppressWarnings("unchecked")
+	public void writeGeneric(int pos, BinaryGeneric input, BinaryGenericSerializer serializer) {
+		TypeSerializer innerSerializer = serializer.getInnerSerializer();
+		input.ensureMaterialized(innerSerializer);
+		writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), input.getSizeInBytes());
 	}
 
 	@Override
@@ -152,7 +139,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	@Override
 	public void writeBinary(int pos, byte[] bytes) {
 		int len = bytes.length;
-		if (len <= MAX_FIX_PART_DATA_SIZE) {
+		if (len <= BinaryFormat.MAX_FIX_PART_DATA_SIZE) {
 			writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
 		} else {
 			writeBytesToVarLenPart(pos, bytes, len);
@@ -191,6 +178,28 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 
 			// move the cursor forward.
 			cursor += 16;
+		}
+	}
+
+	@Override
+	public void writeTimestamp(int pos, SqlTimestamp value, int precision) {
+		if (SqlTimestamp.isCompact(precision)) {
+			writeLong(pos, value.getMillisecond());
+		} else {
+			// store the nanoOfMillisecond in fixed-length part as offset and nanoOfMillisecond
+			ensureCapacity(8);
+
+			if (value == null) {
+				setNullBit(pos);
+				// zero-out the bytes
+				segment.putLong(cursor, 0L);
+				setOffsetAndSize(pos, cursor, 0);
+			} else {
+				segment.putLong(cursor, value.getMillisecond());
+				setOffsetAndSize(pos, cursor, value.getNanoOfMillisecond());
+			}
+
+			cursor += 8;
 		}
 	}
 

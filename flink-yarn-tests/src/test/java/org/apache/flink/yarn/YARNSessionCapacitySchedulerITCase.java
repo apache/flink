@@ -35,7 +35,6 @@ import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.ExceptionUtils;
@@ -203,15 +202,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 			// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
 			final long taskManagerMemoryMB = 1024;
-			//noinspection NumericOverflow if the calculation of the total Java memory size overflows, default configuration parameters are wrong in the first place, so we can ignore this inspection
-			final long networkBuffersMB = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
-				(taskManagerMemoryMB - ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()) << 20,
-				new Configuration()) >> 20;
-			final long offHeapMemory = taskManagerMemoryMB
-				- ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()
-				// cutoff memory (will be added automatically)
-				- networkBuffersMB // amount of memory used for network buffers
-				- 100; // reserve something for the Java heap space
 
 			runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 					"-yj", flinkUberjar.getAbsolutePath(),
@@ -220,8 +210,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-ys", "2", //test that the job is executed with a DOP of 2
 					"-yjm", "768m",
 					"-ytm", taskManagerMemoryMB + "m",
-					"-yD", "taskmanager.memory.off-heap=true",
-					"-yD", "taskmanager.memory.size=" + offHeapMemory + "m", exampleJarLocation.getAbsolutePath()},
+					exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 				"Program execution finished",
 				/* prohibited strings: (to verify the parallelism) */
@@ -259,7 +248,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-s", "3", // set the slots 3 to check if the vCores are set properly!
 					"-nm", "customName",
 					"-Dfancy-configuration-value=veryFancy",
-					"-Dyarn.maximum-failed-containers=3",
 					"-D" + YarnConfigOptions.VCORES.key() + "=2"},
 				"JobManager Web Interface:",
 				RunTypes.YARN_SESSION);
@@ -291,7 +279,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				// Assert dynamic properties
 				//
 				assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
-				assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
 
 				//
 				// FLINK-2213: assert that vcores are set

@@ -43,25 +43,21 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	private final StreamTaskInput<IN> input;
 	private final DataOutput<IN> output;
 
-	private final Object lock;
-
 	private final OperatorChain<?, ?> operatorChain;
 
 	public StreamOneInputProcessor(
 			StreamTaskInput<IN> input,
 			DataOutput<IN> output,
-			Object lock,
 			OperatorChain<?, ?> operatorChain) {
 
 		this.input = checkNotNull(input);
 		this.output = checkNotNull(output);
-		this.lock = checkNotNull(lock);
 		this.operatorChain = checkNotNull(operatorChain);
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return input.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return input.getAvailableFuture();
 	}
 
 	@Override
@@ -69,9 +65,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		InputStatus status = input.emitNext(output);
 
 		if (status == InputStatus.END_OF_INPUT) {
-			synchronized (lock) {
-				operatorChain.endHeadOperatorInput(1);
-			}
+			operatorChain.endHeadOperatorInput(1);
 		}
 
 		return status;

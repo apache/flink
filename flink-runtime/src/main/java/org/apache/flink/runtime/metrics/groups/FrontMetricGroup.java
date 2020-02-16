@@ -20,6 +20,8 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.CharacterFilter;
 
+import java.util.Map;
+
 /**
  * Metric group which forwards all registration calls to a variable parent metric group that injects a variable reporter
  * index into calls to {@link org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String)}
@@ -30,28 +32,33 @@ import org.apache.flink.metrics.CharacterFilter;
  */
 public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMetricGroup<P> {
 
-	protected int reporterIndex;
+	private final ReporterScopedSettings settings;
 
-	public FrontMetricGroup(int reporterIndex, P reference) {
+	public FrontMetricGroup(ReporterScopedSettings settings, P reference) {
 		super(reference);
-		this.reporterIndex = reporterIndex;
+		this.settings = settings;
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return parentMetricGroup.getMetricIdentifier(metricName, null, this.reporterIndex);
+		return parentMetricGroup.getMetricIdentifier(metricName, null, this.settings.getReporterIndex(), this.settings.getDelimiter());
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.reporterIndex);
+		return parentMetricGroup.getMetricIdentifier(metricName, filter, this.settings.getReporterIndex(), this.settings.getDelimiter());
+	}
+
+	@Override
+	public Map<String, String> getAllVariables() {
+		return parentMetricGroup.getAllVariables(this.settings.getReporterIndex(), this.settings.getExcludedVariables());
 	}
 
 	public String getLogicalScope(CharacterFilter filter) {
-		return parentMetricGroup.getLogicalScope(filter);
+		return parentMetricGroup.getLogicalScope(filter, this.settings.getDelimiter());
 	}
 
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return parentMetricGroup.getLogicalScope(filter, delimiter, this.reporterIndex);
+		return parentMetricGroup.getLogicalScope(filter, delimiter, this.settings.getReporterIndex());
 	}
 }

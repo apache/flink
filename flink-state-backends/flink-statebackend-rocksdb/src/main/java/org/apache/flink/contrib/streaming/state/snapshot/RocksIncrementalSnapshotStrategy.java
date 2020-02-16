@@ -190,7 +190,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
 			if (!directory.exists() && !directory.mkdirs()) {
 				throw new IOException("Local state base directory for checkpoint " + checkpointId +
-					" already exists: " + directory);
+					" does not exist and could not be created: " + directory);
 			}
 
 			// introduces an extra directory because RocksDB wants a non-existing directory for native checkpoints.

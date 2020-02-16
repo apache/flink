@@ -24,9 +24,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 
-import java.util.Optional;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -125,16 +127,6 @@ public abstract class AbstractInvokable {
 	 */
 	public boolean shouldInterruptOnCancel() {
 		return shouldInterruptOnCancel;
-	}
-
-	/**
-	 * If the invokable implementation executes user code in a thread other than,
-	 * {@link Task#getExecutingThread()}, this method returns that executing thread.
-	 *
-	 * @see Task#getStackTraceOfExecutingThread()
-	 */
-	public Optional<Thread> getExecutingThread() {
-		return Optional.empty();
 	}
 
 	// ------------------------------------------------------------------------
@@ -267,5 +259,9 @@ public abstract class AbstractInvokable {
 	 */
 	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 		throw new UnsupportedOperationException(String.format("notifyCheckpointCompleteAsync not supported by %s", this.getClass().getName()));
+	}
+
+	public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException {
+		throw new UnsupportedOperationException("dispatchOperatorEvent not supported by " + getClass().getName());
 	}
 }

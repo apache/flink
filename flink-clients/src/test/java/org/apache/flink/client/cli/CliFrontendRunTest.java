@@ -20,7 +20,6 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -55,10 +54,16 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 	@Test
 	public void testRun() throws Exception {
 		final Configuration configuration = getConfiguration();
-		// test without parallelism
+
+		// test without parallelism, should use parallelism default
 		{
-			String[] parameters = {"-v", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 1, false);
+			String[] parameters = {"-v",  getTestJarPath()};
+			verifyCliFrontend(getCli(configuration), parameters, 4, false);
+		}
+		//  test parallelism in detached mode, should use parallelism default
+		{
+			String[] parameters = {"-v", "-d", getTestJarPath()};
+			verifyCliFrontend(getCli(configuration), parameters, 4, true);
 		}
 
 		// test configure parallelism
@@ -85,7 +90,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
 			ProgramOptions programOptions = new ProgramOptions(commandLine);
-			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
+			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
 
 			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
 			assertTrue(savepointSettings.restoreSavepoint());
@@ -99,7 +104,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
 			ProgramOptions programOptions = new ProgramOptions(commandLine);
-			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions);
+			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
 
 			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
 			assertTrue(savepointSettings.restoreSavepoint());
@@ -120,6 +125,27 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertEquals("justavalue", programOptions.getProgramArgs()[2]);
 			assertEquals("--arg2", programOptions.getProgramArgs()[3]);
 			assertEquals("value2", programOptions.getProgramArgs()[4]);
+		}
+
+		// test python arguments
+		{
+			String[] parameters =
+				{
+					"-py", "test.py", "-pyfs", "test1.py,test2.zip,test3.egg,test4_dir", "-pyreq", "a.txt#b_dir",
+					"-pyarch", "c.zip#venv,d.zip", "-pyexec", "bin/python"
+				};
+			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			assertEquals("--python", programOptions.getProgramArgs()[0]);
+			assertEquals("test.py", programOptions.getProgramArgs()[1]);
+			assertEquals("--pyFiles", programOptions.getProgramArgs()[2]);
+			assertEquals("test1.py,test2.zip,test3.egg,test4_dir", programOptions.getProgramArgs()[3]);
+			assertEquals("--pyRequirements", programOptions.getProgramArgs()[4]);
+			assertEquals("a.txt#b_dir", programOptions.getProgramArgs()[5]);
+			assertEquals("--pyArchives", programOptions.getProgramArgs()[6]);
+			assertEquals("c.zip#venv,d.zip", programOptions.getProgramArgs()[7]);
+			assertEquals("--pyExecutable", programOptions.getProgramArgs()[8]);
+			assertEquals("bin/python", programOptions.getProgramArgs()[9]);
 		}
 	}
 
@@ -198,9 +224,10 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		}
 
 		@Override
-		protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism, boolean detached) {
-			assertEquals(isDetached, detached);
-			assertEquals(expectedParallelism, parallelism);
+		protected void executeProgram(Configuration configuration, PackagedProgram program) {
+			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
+			assertEquals(isDetached, executionConfigAccessor.getDetachedMode());
+			assertEquals(expectedParallelism, executionConfigAccessor.getParallelism());
 		}
 	}
 }

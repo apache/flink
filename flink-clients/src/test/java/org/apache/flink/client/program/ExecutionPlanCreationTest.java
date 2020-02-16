@@ -49,7 +49,10 @@ public class ExecutionPlanCreationTest {
 	@Test
 	public void testGetExecutionPlan() {
 		try {
-			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
+			PackagedProgram prg = PackagedProgram.newBuilder()
+				.setEntryPointClassName(TestOptimizerPlan.class.getName())
+				.setArguments("/dev/random", "/tmp")
+				.build();
 
 			InetAddress mockAddress = InetAddress.getLocalHost();
 			InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
@@ -60,7 +63,7 @@ public class ExecutionPlanCreationTest {
 			config.setInteger(JobManagerOptions.PORT, mockJmAddress.getPort());
 
 			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, -1);
+			Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, -1, true);
 			OptimizedPlan op = optimizer.compile(plan);
 			assertNotNull(op);
 

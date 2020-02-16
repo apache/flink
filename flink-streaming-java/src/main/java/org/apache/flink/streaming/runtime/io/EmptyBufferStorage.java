@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
-import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -29,7 +28,7 @@ import java.util.Optional;
 @Internal
 public class EmptyBufferStorage implements BufferStorage {
 	@Override
-	public void add(BufferOrEvent boe) throws IOException {
+	public void add(BufferOrEvent boe) {
 		throw new UnsupportedOperationException("Adding to EmptyBufferStorage is unsupported");
 	}
 
@@ -39,7 +38,7 @@ public class EmptyBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void rollOver() throws IOException {
+	public void rollOver() {
 	}
 
 	@Override
@@ -58,7 +57,7 @@ public class EmptyBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNext() throws IOException {
+	public Optional<BufferOrEvent> pollNext() {
 		return Optional.empty();
 	}
 
@@ -68,6 +67,6 @@ public class EmptyBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public void close() throws IOException {
+	public void close() {
 	}
 }

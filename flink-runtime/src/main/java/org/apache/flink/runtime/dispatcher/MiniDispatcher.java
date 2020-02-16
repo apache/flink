@@ -30,6 +30,9 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,6 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * terminate after job completion if its execution mode is {@link ClusterEntrypoint.ExecutionMode#DETACHED}.
  */
 public class MiniDispatcher extends Dispatcher {
+	private static final Logger LOG = LoggerFactory.getLogger(MiniDispatcher.class);
 
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
 
@@ -90,11 +94,27 @@ public class MiniDispatcher extends Dispatcher {
 				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
 						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
 
+				LOG.debug("Shutting down per-job cluster because someone retrieved the job result.");
 				shutDownFuture.complete(status);
 			});
+		} else {
+			LOG.debug("Not shutting down per-job cluster after someone retrieved the job result.");
 		}
 
 		return jobResultFuture;
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> cancelJob(
+			JobID jobId, Time timeout) {
+		CompletableFuture<Acknowledge> cancelFuture = super.cancelJob(jobId, timeout);
+
+		cancelFuture.thenAccept((ignored) -> {
+			LOG.debug("Shutting down per-job cluster because the job was canceled.");
+			shutDownFuture.complete(ApplicationStatus.CANCELED);
+		});
+
+		return cancelFuture;
 	}
 
 	@Override

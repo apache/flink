@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -85,16 +87,55 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 
 	@Override
 	public LogicalType visit(DistinctType distinctType) {
-		final DistinctType.Builder builder = new DistinctType.Builder(
+		final DistinctType.Builder builder = DistinctType.newBuilder(
 			distinctType.getObjectIdentifier(),
 			distinctType.getSourceType().accept(this));
-		distinctType.getDescription().ifPresent(builder::setDescription);
+		distinctType.getDescription().ifPresent(builder::description);
 		return builder.build();
 	}
 
 	@Override
 	public LogicalType visit(StructuredType structuredType) {
-		final List<StructuredAttribute> attributes = structuredType.getAttributes().stream()
+		final StructuredType.Builder builder = instantiateStructuredBuilder(structuredType);
+		builder.attributes(duplicateStructuredAttributes(structuredType));
+		builder.setNullable(structuredType.isNullable());
+		builder.setFinal(structuredType.isFinal());
+		builder.setInstantiable(structuredType.isInstantiable());
+		builder.comparision(structuredType.getComparision());
+		structuredType.getSuperType().ifPresent(st -> {
+			final LogicalType visited = st.accept(this);
+			if (!(visited instanceof StructuredType)) {
+				throw new TableException("Unexpected super type. Structured type expected but was: " + visited);
+			}
+			builder.superType((StructuredType) visited);
+		});
+		structuredType.getDescription().ifPresent(builder::description);
+		return builder.build();
+	}
+
+	@Override
+	protected LogicalType defaultMethod(LogicalType logicalType) {
+		return logicalType.copy();
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private StructuredType.Builder instantiateStructuredBuilder(StructuredType structuredType) {
+		final Optional<ObjectIdentifier> identifier = structuredType.getOptionalObjectIdentifier();
+		final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
+		if (identifier.isPresent() && implementationClass.isPresent()) {
+			return StructuredType.newBuilder(identifier.get(), implementationClass.get());
+		} else if (identifier.isPresent()) {
+			return StructuredType.newBuilder(identifier.get());
+		} else if (implementationClass.isPresent()) {
+			return StructuredType.newBuilder(implementationClass.get());
+		} else {
+			throw new TableException("Invalid structured type.");
+		}
+	}
+
+	private List<StructuredAttribute> duplicateStructuredAttributes(StructuredType structuredType) {
+		return structuredType.getAttributes().stream()
 			.map(a -> {
 				if (a.getDescription().isPresent()) {
 					return new StructuredAttribute(
@@ -107,27 +148,5 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 					a.getType().accept(this));
 			})
 			.collect(Collectors.toList());
-		final StructuredType.Builder builder = new StructuredType.Builder(
-			structuredType.getObjectIdentifier(),
-			attributes);
-		builder.setNullable(structuredType.isNullable());
-		builder.setFinal(structuredType.isFinal());
-		builder.setInstantiable(structuredType.isInstantiable());
-		builder.setComparision(structuredType.getComparision());
-		structuredType.getSuperType().ifPresent(st -> {
-			final LogicalType visited = st.accept(this);
-			if (!(visited instanceof StructuredType)) {
-				throw new TableException("Unexpected super type. Structured type expected but was: " + visited);
-			}
-			builder.setSuperType((StructuredType) visited);
-		});
-		structuredType.getDescription().ifPresent(builder::setDescription);
-		structuredType.getImplementationClass().ifPresent(builder::setImplementationClass);
-		return builder.build();
-	}
-
-	@Override
-	protected LogicalType defaultMethod(LogicalType logicalType) {
-		return logicalType.copy();
 	}
 }

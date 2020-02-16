@@ -55,7 +55,7 @@ object PlanUtil extends Logging {
       val op = graph.getStreamNode(id)
       val (nodeType, content) = if (isSource(id)) {
         tabs = 0
-        ("Data Source", "collect elements with CollectionInputFormat")
+        ("Data Source", op.getOperatorName)
       } else if (isSink(id)) {
         ("Data Sink", op.getOperatorName)
       } else {

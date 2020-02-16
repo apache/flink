@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalSort, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.LimitableTableSource
 
@@ -71,15 +71,15 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val sort = call.rel(0).asInstanceOf[Sort]
     val scan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    val relOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     val offset = if (sort.offset == null) 0 else RexLiteral.intValue(sort.offset)
     val limit = offset + RexLiteral.intValue(sort.fetch)
     val relBuilder = call.builder()
-    val newRelOptTable = applyLimit(limit, relOptTable, relBuilder)
+    val newRelOptTable = applyLimit(limit, tableSourceTable, relBuilder)
     val newScan = scan.copy(scan.getTraitSet, newRelOptTable)
 
     val newTableSource = newRelOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
-    val oldTableSource = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val oldTableSource = tableSourceTable.unwrap(classOf[TableSourceTable[_]]).tableSource
 
     if (newTableSource.asInstanceOf[LimitableTableSource[_]].isLimitPushedDown
         && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
@@ -93,13 +93,13 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
 
   private def applyLimit(
       limit: Long,
-      relOptTable: FlinkRelOptTable,
-      relBuilder: RelBuilder): FlinkRelOptTable = {
+      relOptTable: FlinkPreparingTableBase,
+      relBuilder: RelBuilder): TableSourceTable[_] = {
     val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[Any]])
     val limitedSource = tableSourceTable.tableSource.asInstanceOf[LimitableTableSource[Any]]
     val newTableSource = limitedSource.applyLimit(limit)
 
-    val statistic = relOptTable.getFlinkStatistic
+    val statistic = relOptTable.getStatistic
     val newRowCount = if (statistic.getRowCount != null) {
       Math.min(limit, statistic.getRowCount.toLong)
     } else {
@@ -111,8 +111,7 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
         .statistic(statistic)
         .tableStats(newTableStats)
         .build()
-    val newTableSourceTable = tableSourceTable.replaceTableSource(newTableSource).copy(newStatistic)
-    relOptTable.copy(newTableSourceTable, relOptTable.getRowType)
+    tableSourceTable.copy(newTableSource, newStatistic)
   }
 }
 

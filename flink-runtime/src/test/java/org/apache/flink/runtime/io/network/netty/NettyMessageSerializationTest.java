@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -30,7 +33,11 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -41,20 +48,47 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the serialization and deserialization of the various {@link NettyMessage} sub-classes.
  */
+@RunWith(Parameterized.class)
 public class NettyMessageSerializationTest {
 
-	public static final boolean RESTORE_OLD_NETTY_BEHAVIOUR = false;
+	private static final int BUFFER_SIZE = 1024;
+
+	private static final BufferCompressor COMPRESSOR = new BufferCompressor(BUFFER_SIZE, "LZ4");
+
+	private static final BufferDecompressor DECOMPRESSOR = new BufferDecompressor(BUFFER_SIZE, "LZ4");
 
 	private final EmbeddedChannel channel = new EmbeddedChannel(
 			new NettyMessage.NettyMessageEncoder(), // outbound messages
-			new NettyMessage.NettyMessageDecoder(RESTORE_OLD_NETTY_BEHAVIOUR)); // inbound messages
+			new NettyMessage.NettyMessageDecoder()); // inbound messages
 
 	private final Random random = new Random();
 
+	// ------------------------------------------------------------------------
+	//  parameters
+	// ------------------------------------------------------------------------
+
+	private final boolean testReadOnlyBuffer;
+
+	private final boolean testCompressedBuffer;
+
+	@Parameterized.Parameters(name = "testReadOnlyBuffer = {0}, testCompressedBuffer = {1}")
+	public static Collection<Object[]> testReadOnlyBuffer() {
+		return Arrays.asList(new Object[][] {
+			{false, false},
+			{true, false},
+			{false, true},
+			{true, true}
+		});
+	}
+
+	public NettyMessageSerializationTest(boolean testReadOnlyBuffer, boolean testCompressedBuffer) {
+		this.testReadOnlyBuffer = testReadOnlyBuffer;
+		this.testCompressedBuffer = testCompressedBuffer;
+	}
+
 	@Test
 	public void testEncodeDecode() {
-		testEncodeDecodeBuffer(false);
-		testEncodeDecodeBuffer(true);
+		testEncodeDecodeBuffer(testReadOnlyBuffer, testCompressedBuffer);
 
 		{
 			{
@@ -137,14 +171,17 @@ public class NettyMessageSerializationTest {
 		}
 	}
 
-	private void testEncodeDecodeBuffer(boolean testReadOnlyBuffer) {
-		NetworkBuffer buffer = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE);
+	private void testEncodeDecodeBuffer(boolean testReadOnlyBuffer, boolean testCompressedBuffer) {
+		NetworkBuffer buffer = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), FreeingBufferRecycler.INSTANCE);
 
-		for (int i = 0; i < 1024; i += 4) {
-			buffer.writeInt(i);
+		for (int i = 0; i < BUFFER_SIZE; i += 8) {
+			buffer.writeLong(i);
 		}
 
 		Buffer testBuffer = testReadOnlyBuffer ? buffer.readOnlySlice() : buffer;
+		if (testCompressedBuffer) {
+			testBuffer = COMPRESSOR.compressToOriginalBuffer(buffer);
+		}
 
 		NettyMessage.BufferResponse expected = new NettyMessage.BufferResponse(
 			testBuffer, random.nextInt(), new InputChannelID(), random.nextInt());
@@ -155,18 +192,25 @@ public class NettyMessageSerializationTest {
 		assertFalse(buffer.isRecycled());
 		assertFalse(testBuffer.isRecycled());
 
-		final ByteBuf retainedSlice = actual.getNettyBuffer();
+		ByteBuf retainedSlice = actual.getNettyBuffer();
+		if (testCompressedBuffer) {
+			assertTrue(actual.isCompressed);
+			retainedSlice = decompress(retainedSlice);
+		}
 
 		// Ensure not recycled and same size as original buffer
 		assertEquals(1, retainedSlice.refCnt());
-		assertEquals(1024, retainedSlice.readableBytes());
+		assertEquals(BUFFER_SIZE, retainedSlice.readableBytes());
 
-		for (int i = 0; i < 1024; i += 4) {
-			assertEquals(i, retainedSlice.readInt());
+		for (int i = 0; i < BUFFER_SIZE; i += 8) {
+			assertEquals(i, retainedSlice.readLong());
 		}
 
 		// Release the retained slice
 		actual.releaseBuffer();
+		if (testCompressedBuffer) {
+			retainedSlice.release();
+		}
 		assertEquals(0, retainedSlice.refCnt());
 		assertTrue(buffer.isRecycled());
 		assertTrue(testBuffer.isRecycled());
@@ -174,6 +218,14 @@ public class NettyMessageSerializationTest {
 		assertEquals(expected.sequenceNumber, actual.sequenceNumber);
 		assertEquals(expected.receiverId, actual.receiverId);
 		assertEquals(expected.backlog, actual.backlog);
+	}
+
+	private ByteBuf decompress(ByteBuf buffer) {
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
+		Buffer compressedBuffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+		buffer.readBytes(compressedBuffer.asByteBuf(), buffer.readableBytes());
+		compressedBuffer.setCompressed(true);
+		return DECOMPRESSOR.decompressToOriginalBuffer(compressedBuffer).asByteBuf();
 	}
 
 	@SuppressWarnings("unchecked")

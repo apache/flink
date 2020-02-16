@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
-import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
-
+import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, LogicalType, TimestampType}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 
@@ -41,9 +40,14 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     case SqlTypeName.VARCHAR | SqlTypeName.VARBINARY =>
       Int.MaxValue
 
-    // we currently support only timestamps with milliseconds precision
-    case SqlTypeName.TIMESTAMP | SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-      3
+    // by default we support timestamp with microseconds precision (Timestamp(6))
+    case SqlTypeName.TIMESTAMP =>
+      TimestampType.DEFAULT_PRECISION
+
+    // by default we support timestamp with local time zone with microseconds precision
+    // Timestamp(6) with local time zone
+    case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+      LocalZonedTimestampType.DEFAULT_PRECISION
 
     case _ =>
       super.getDefaultPrecision(typeName)
@@ -52,6 +56,14 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   override def getMaxPrecision(typeName: SqlTypeName): Int = typeName match {
     case SqlTypeName.VARCHAR | SqlTypeName.CHAR | SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
       Int.MaxValue
+
+    // The maximum precision of TIMESTAMP is 3 in Calcite,
+    // change it to 9 to support nanoseconds precision
+    case SqlTypeName.TIMESTAMP => TimestampType.MAX_PRECISION
+
+    // The maximum precision of TIMESTAMP_WITH_LOCAL_TIME_ZONE is 3 in Calcite,
+    // change it to 9 to support nanoseconds precision
+    case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE => LocalZonedTimestampType.MAX_PRECISION
 
     case _ =>
       super.getMaxPrecision(typeName)

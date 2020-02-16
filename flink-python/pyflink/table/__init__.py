@@ -61,6 +61,7 @@ Important classes of Flink Table API:
 from __future__ import absolute_import
 
 from pyflink.table.environment_settings import EnvironmentSettings
+from pyflink.table.sql_dialect import SqlDialect
 from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
     WindowGroupedTable
 from pyflink.table.table_config import TableConfig
@@ -93,5 +94,6 @@ __all__ = [
     'Row',
     'TableSchema',
     'FunctionContext',
-    'ScalarFunction'
+    'ScalarFunction',
+    'SqlDialect'
 ]

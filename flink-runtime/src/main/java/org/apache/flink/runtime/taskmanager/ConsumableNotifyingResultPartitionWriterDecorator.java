@@ -121,8 +121,8 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return partitionWriter.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return partitionWriter.getAvailableFuture();
 	}
 
 	@Override

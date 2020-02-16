@@ -21,6 +21,8 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
@@ -73,6 +75,13 @@ public final class ObjectIdentifier implements Serializable {
 	}
 
 	/**
+	 * List of the component names of this object identifier.
+	 */
+	public List<String> toList() {
+		return Arrays.asList(getCatalogName(), getDatabaseName(), getObjectName());
+	}
+
+	/**
 	 * Returns a string that fully serializes this instance. The serialized string can be used for
 	 * transmitting or persisting an object identifier.
 	 */
@@ -82,6 +91,13 @@ public final class ObjectIdentifier implements Serializable {
 			escapeIdentifier(catalogName),
 			escapeIdentifier(databaseName),
 			escapeIdentifier(objectName));
+	}
+
+	/**
+	 * Returns a string that summarizes this instance for printing to a console or log.
+	 */
+	public String asSummaryString() {
+		return String.join(".", catalogName, databaseName, objectName);
 	}
 
 	@Override

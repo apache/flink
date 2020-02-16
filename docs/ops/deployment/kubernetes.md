@@ -2,7 +2,7 @@
 title:  "Kubernetes Setup"
 nav-title: Kubernetes
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,6 +27,8 @@ This page describes how to deploy a Flink job and session cluster on [Kubernetes
 
 * This will be replaced by the TOC
 {:toc}
+
+{% info %} This page describes deploying a [standalone](#cluster_setup.html) Flink session on top of Kubernetes. For information on native Kubernetes deployments read [here]({{ site.baseurl }}/ops/deployment/native_kubernetes.html).
 
 ## Setup Kubernetes
 
@@ -129,7 +131,7 @@ data:
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
     jobmanager.heap.size: 1024m
-    taskmanager.heap.size: 1024m
+    taskmanager.memory.process.size: 1024m
   log4j.properties: |+
     log4j.rootLogger=INFO, file
     log4j.logger.akka=INFO
@@ -145,12 +147,16 @@ data:
 
 `jobmanager-deployment.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
   template:
     metadata:
       labels:
@@ -183,6 +189,8 @@ spec:
         volumeMounts:
         - name: flink-config-volume
           mountPath: /opt/flink/conf
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
       volumes:
       - name: flink-config-volume
         configMap:
@@ -196,12 +204,16 @@ spec:
 
 `taskmanager-deployment.yaml`
 {% highlight yaml %}
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-taskmanager
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
   template:
     metadata:
       labels:
@@ -230,6 +242,8 @@ spec:
         volumeMounts:
         - name: flink-config-volume
           mountPath: /opt/flink/conf/
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
       volumes:
       - name: flink-config-volume
         configMap:

@@ -205,12 +205,12 @@ object StringCallGen {
       case DATE_FORMAT if operands.size == 2 &&
           isTimestamp(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING)
+        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING)
 
       case DATE_FORMAT if operands.size == 2 &&
           isTimestampWithLocalZone(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING_TIME_ZONE)
+        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING_TIME_ZONE)
 
       case DATE_FORMAT if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&
@@ -636,7 +636,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new VarBinaryType(VarBinaryType.MAX_LENGTH), operands) {
+    generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
       terms => s"$className.fromBase64(${terms.head})"
     }
   }

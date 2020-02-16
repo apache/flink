@@ -40,6 +40,7 @@ import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.of
 import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofType;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -278,6 +279,39 @@ public class MemoryManagerTest {
 	}
 
 	@Test
+	public void testMemoryReleaseMultipleTimes() throws MemoryReservationException {
+		Object owner = new Object();
+		Object owner2 = new Object();
+		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
+		// to prevent memory size exceeding the limit, reserve some memory from another owner.
+		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
+
+		// reserve once but release twice
+		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
+		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
+	}
+
+	@Test
+	public void testMemoryReleaseMoreThanReserved() throws MemoryReservationException {
+		Object owner = new Object();
+		Object owner2 = new Object();
+		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
+		// to prevent memory size exceeding the limit, reserve some memory from another owner.
+		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
+
+		// release more than reserved size
+		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE * 2);
+		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
+		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
+	}
+
+	@Test
 	public void testMemoryAllocationAndReservation() throws MemoryAllocationException, MemoryReservationException {
 		MemoryType type = MemoryType.OFF_HEAP;
 		@SuppressWarnings("NumericCastThatLosesPrecision")
@@ -296,6 +330,30 @@ public class MemoryManagerTest {
 
 		memoryManager.releaseAll(owner1);
 		memoryManager.releaseAllMemory(owner2, type);
+	}
+
+	@Test
+	public void testComputeMemorySize() {
+		double fraction = 0.6;
+		assertEquals((long) (memoryManager.getMemorySize() * fraction), memoryManager.computeMemorySize(fraction));
+
+		fraction = 1.0;
+		assertEquals((long) (memoryManager.getMemorySize() * fraction), memoryManager.computeMemorySize(fraction));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testComputeMemorySizeFailForZeroFraction() {
+		memoryManager.computeMemorySize(0.0);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testComputeMemorySizeFailForTooLargeFraction() {
+		memoryManager.computeMemorySize(1.1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testComputeMemorySizeFailForNegativeFraction() {
+		memoryManager.computeMemorySize(-0.1);
 	}
 
 	private void testCannotAllocateAnymore(AllocationRequest request) {

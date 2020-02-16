@@ -29,7 +29,7 @@ public class DCounter extends DMetric {
 	private final Counter counter;
 
 	public DCounter(Counter c, String metricName, String host, List<String> tags) {
-		super(MetricType.counter, metricName, host, tags);
+		super(MetricType.count, metricName, host, tags);
 		counter = c;
 	}
 

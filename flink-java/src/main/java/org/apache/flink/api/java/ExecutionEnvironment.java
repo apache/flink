@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -50,9 +51,20 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
@@ -72,6 +84,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -94,7 +107,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see RemoteEnvironment
  */
 @Public
-public abstract class ExecutionEnvironment {
+public class ExecutionEnvironment {
 
 	/** The logger used by the environment and its subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
@@ -122,11 +135,71 @@ public abstract class ExecutionEnvironment {
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
+	private final PipelineExecutorServiceLoader executorServiceLoader;
+
+	private final Configuration configuration;
+
+	private final ClassLoader userClassloader;
+
+	private final List<JobListener> jobListeners = new ArrayList<>();
+
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link Configuration} to
+	 * configure the {@link PipelineExecutor}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(final Configuration configuration) {
+		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+	}
+
+	/**
+	 * Creates a new {@link ExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link PipelineExecutor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link PipelineExecutorServiceLoader} and
+	 * user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public ExecutionEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
+		this.executorServiceLoader = checkNotNull(executorServiceLoader);
+		this.configuration = checkNotNull(configuration);
+		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+
+		// the configuration of a job or an operator can be specified at the following places:
+		//     i) at the operator level using e.g. parallelism using the SingleOutputStreamOperator.setParallelism().
+		//     ii) programmatically by using e.g. the env.setRestartStrategy() method
+		//     iii) in the configuration passed here
+		//
+		// if specified in multiple places, the priority order is the above.
+		//
+		// Given this, it is safe to overwrite the execution config default values here because all other ways assume
+		// that the env is already instantiated so they will overwrite the value passed here.
+		this.configure(this.configuration, this.userClassloader);
+	}
+
 	/**
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
+		this(new Configuration());
+	}
 
+	@Internal
+	public ClassLoader getUserCodeClassLoader() {
+		return userClassloader;
+	}
+
+	@Internal
+	public PipelineExecutorServiceLoader getExecutorServiceLoader() {
+		return executorServiceLoader;
+	}
+
+	@Internal
+	public Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -307,6 +380,28 @@ public abstract class ExecutionEnvironment {
 		} else {
 			config.registerKryoType(type);
 		}
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link PipelineOptions#CACHED_FILES}. It will reconfigure
+	 * {@link ExecutionEnvironment} and {@link ExecutionConfig}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 * @param classLoader a class loader to use when loading classes
+	 */
+	@PublicEvolving
+	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+		configuration.getOptional(PipelineOptions.CACHED_FILES)
+			.ifPresent(f -> {
+				this.cacheFile.clear();
+				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
+			});
+		config.configure(configuration, classLoader);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -761,7 +856,105 @@ public abstract class ExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		final JobClient jobClient = executeAsync(jobName);
+
+		try {
+			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+			} else {
+				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+			}
+
+			jobListeners.forEach(
+					jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
+
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
+		}
+
+		return lastJobExecutionResult;
+	}
+
+	/**
+	 * Register a {@link JobListener} in this environment. The {@link JobListener} will be
+	 * notified on specific job status changed.
+	 */
+	@PublicEvolving
+	public void registerJobListener(JobListener jobListener) {
+		checkNotNull(jobListener, "JobListener cannot be null");
+		jobListeners.add(jobListener);
+	}
+
+	/**
+	 * Clear all registered {@link JobListener}s.
+	 */
+	@PublicEvolving
+	public void clearJobListeners() {
+		this.jobListeners.clear();
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated default name.
+	 *
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception Thrown, if the program submission fails.
+	 */
+	@PublicEvolving
+	public final JobClient executeAsync() throws Exception {
+		return executeAsync(getDefaultName());
+	}
+
+	/**
+	 * Triggers the program execution asynchronously. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with the given job name.
+	 *
+	 * @return A {@link JobClient} that can be used to communicate with the submitted job, completed on submission succeeded.
+	 * @throws Exception Thrown, if the program submission fails.
+	 */
+	@PublicEvolving
+	public JobClient executeAsync(String jobName) throws Exception {
+		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
+
+		final Plan plan = createProgramPlan(jobName);
+		final PipelineExecutorFactory executorFactory =
+			executorServiceLoader.getExecutorFactory(configuration);
+
+		checkNotNull(
+			executorFactory,
+			"Cannot find compatible factory for specified execution.target (=%s)",
+			configuration.get(DeploymentOptions.TARGET));
+
+		CompletableFuture<JobClient> jobClientFuture = executorFactory
+			.getExecutor(configuration)
+			.execute(plan, configuration);
+
+		try {
+			JobClient jobClient = jobClientFuture.get();
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+			return jobClient;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.rethrow(t);
+
+			// make javac happy, this code path will not be reached
+			return null;
+		}
+	}
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
@@ -827,8 +1020,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -842,8 +1035,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
@@ -858,8 +1051,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
-	 * and operations and how they interact, as an isolated unit that can be executed with a
-	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * and operations and how they interact, as an isolated unit that can be executed with an
+	 * {@link PipelineExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 *

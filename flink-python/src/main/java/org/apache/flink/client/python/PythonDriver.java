@@ -25,9 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A main class used to launch Python applications. It executes python as a
@@ -65,12 +67,14 @@ public final class PythonDriver {
 		final List<String> commands = constructPythonCommands(pythonDriverOptions);
 		try {
 			// prepare the exec environment of python progress.
-			PythonEnvUtils.PythonEnvironment pythonEnv = PythonEnvUtils.preparePythonEnvironment(
-				pythonDriverOptions.getPythonLibFiles());
+			String tmpDir = System.getProperty("java.io.tmpdir") +
+				File.separator + "pyflink" + File.separator + UUID.randomUUID();
+			PythonDriverEnvUtils.PythonEnvironment pythonEnv = PythonDriverEnvUtils.preparePythonEnvironment(
+				pythonDriverOptions, tmpDir);
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
-			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonDriverEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);

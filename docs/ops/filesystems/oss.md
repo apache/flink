@@ -77,4 +77,13 @@ fs.oss.accessKeyId: Aliyun access key ID
 fs.oss.accessKeySecret: Aliyun access key secret
 {% endhighlight %}
 
+An alternative `CredentialsProvider` can also be configured in the `flink-conf.yaml`, e.g. 
+{% highlight yaml %}
+# Read Credentials from OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET
+fs.oss.credentials.provider: com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider
+{% endhighlight %}
+Other credential providers can be found under https://github.com/aliyun/aliyun-oss-java-sdk/tree/master/src/main/java/com/aliyun/oss/common/auth. 
+
+ 
+
 {% top %}

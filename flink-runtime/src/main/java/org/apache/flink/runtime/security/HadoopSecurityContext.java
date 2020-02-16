@@ -25,7 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.Callable;
 
-/*
+/**
  * Hadoop security context which runs a Callable with the previously
  * initialized UGI and appropriate security credentials.
  */

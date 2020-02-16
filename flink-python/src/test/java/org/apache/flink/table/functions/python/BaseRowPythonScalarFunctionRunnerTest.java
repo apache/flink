@@ -19,6 +19,9 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.env.PythonDependencyInfo;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
@@ -28,6 +31,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.junit.Test;
 
+import java.util.HashMap;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -35,74 +40,62 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link BaseRowPythonScalarFunctionRunner}. These test that
  * the input data type and output data type are properly constructed.
  */
-public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFunctionRunnerTest<BaseRow, BaseRow> {
+public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFunctionRunnerTest<BaseRow> {
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() {
-		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createSingleUDFRunner();
+	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
+		final AbstractPythonScalarFunctionRunner<BaseRow> runner = createSingleUDFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
 		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
 
 		assertEquals(1, ((BaseRowSerializer) inputTypeSerializer).getArity());
-
-		// check output TypeSerializer
-		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
-		assertTrue(outputTypeSerializer instanceof BaseRowSerializer);
-		assertEquals(1, ((BaseRowSerializer) outputTypeSerializer).getArity());
 	}
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() {
-		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createMultipleUDFRunner();
+	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
+		final AbstractPythonScalarFunctionRunner<BaseRow> runner = createMultipleUDFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
 		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
 
 		assertEquals(3, ((BaseRowSerializer) inputTypeSerializer).getArity());
-
-		// check output TypeSerializer
-		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
-		assertTrue(outputTypeSerializer instanceof BaseRowSerializer);
-		assertEquals(2, ((BaseRowSerializer) outputTypeSerializer).getArity());
 	}
 
 	@Test
-	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() {
-		final AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> runner = createChainedUDFRunner();
+	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
+		final AbstractPythonScalarFunctionRunner<BaseRow> runner = createChainedUDFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
 		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
 
 		assertEquals(5, ((BaseRowSerializer) inputTypeSerializer).getArity());
-
-		// check output TypeSerializer
-		TypeSerializer outputTypeSerializer = runner.getOutputTypeSerializer();
-		assertTrue(outputTypeSerializer instanceof BaseRowSerializer);
-		assertEquals(3, ((BaseRowSerializer) outputTypeSerializer).getArity());
 	}
 
 	@Override
-	public AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> createPythonScalarFunctionRunner(
+	public AbstractPythonScalarFunctionRunner<BaseRow> createPythonScalarFunctionRunner(
 		final PythonFunctionInfo[] pythonFunctionInfos,
 		RowType inputType,
 		RowType outputType) {
-		final FnDataReceiver<BaseRow> dummyReceiver = input -> {
+		final FnDataReceiver<byte[]> dummyReceiver = input -> {
 			// ignore the execution results
 		};
 
-		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
+		final PythonEnvironmentManager environmentManager =
+			new ProcessPythonEnvironmentManager(
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new String[] {System.getProperty("java.io.tmpdir")},
+				new HashMap<>());
 
 		return new BaseRowPythonScalarFunctionRunner(
 			"testPythonRunner",
 			dummyReceiver,
 			pythonFunctionInfos,
-			pythonEnv,
+			environmentManager,
 			inputType,
-			outputType,
-			new String[] {System.getProperty("java.io.tmpdir")});
+			outputType);
 	}
 }

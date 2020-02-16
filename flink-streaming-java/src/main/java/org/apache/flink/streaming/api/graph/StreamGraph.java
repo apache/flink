@@ -100,6 +100,9 @@ public class StreamGraph implements Pipeline {
 	 */
 	private boolean blockingConnectionsBetweenChains;
 
+	/** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
+	private boolean allVerticesInSameSlotSharingGroupByDefault = true;
+
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
@@ -210,6 +213,25 @@ public class StreamGraph implements Pipeline {
 	 */
 	public void setBlockingConnectionsBetweenChains(boolean blockingConnectionsBetweenChains) {
 		this.blockingConnectionsBetweenChains = blockingConnectionsBetweenChains;
+	}
+
+	/**
+	 * Set whether to put all vertices into the same slot sharing group by default.
+	 *
+	 * @param allVerticesInSameSlotSharingGroupByDefault indicates whether to put all vertices
+	 *                                                   into the same slot sharing group by default.
+	 */
+	public void setAllVerticesInSameSlotSharingGroupByDefault(boolean allVerticesInSameSlotSharingGroupByDefault) {
+		this.allVerticesInSameSlotSharingGroupByDefault = allVerticesInSameSlotSharingGroupByDefault;
+	}
+
+	/**
+	 * Gets whether to put all vertices into the same slot sharing group by default.
+	 *
+	 * @return whether to put all vertices into the same slot sharing group by default.
+	 */
+	public boolean isAllVerticesInSameSlotSharingGroupByDefault() {
+		return allVerticesInSameSlotSharingGroupByDefault;
 	}
 
 	// Checkpointing
@@ -540,6 +562,12 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
+	public void setManagedMemoryWeight(int vertexID, int managedMemoryWeight) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setManagedMemoryWeight(managedMemoryWeight);
+		}
+	}
+
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
 		node.setStatePartitioner1(keySelector);
@@ -685,6 +713,16 @@ public class StreamGraph implements Pipeline {
 		sinks.add(sink.getId());
 		setParallelism(sink.getId(), parallelism);
 		setMaxParallelism(sink.getId(), parallelism);
+		// The tail node is always in the same slot sharing group with the head node
+		// so that they can share resources (they do not use non-sharable resources,
+		// i.e. managed memory). There is no contract on how the resources should be
+		// divided for head and tail nodes at the moment. To be simple, we assign all
+		// resources to the head node and set the tail node resources to be zero if
+		// resources are specified.
+		final ResourceSpec tailResources = minResources.equals(ResourceSpec.UNKNOWN)
+			? ResourceSpec.UNKNOWN
+			: ResourceSpec.ZERO;
+		setResources(sink.getId(), tailResources, tailResources);
 
 		iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
 

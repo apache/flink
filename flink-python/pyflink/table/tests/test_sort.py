@@ -28,7 +28,7 @@ class BatchTableSortTests(PyFlinkBatchTableTestCase):
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual(2, query_operation.getOffset())
         self.assertEqual(2, query_operation.getFetch())
-        self.assertEqual('[`desc`(a)]',
+        self.assertEqual('[desc(a)]',
                          query_operation.getOrder().toString())
 
 

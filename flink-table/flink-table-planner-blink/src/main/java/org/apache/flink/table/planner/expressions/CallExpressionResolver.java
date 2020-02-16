@@ -31,6 +31,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
+
 /**
  * Planner expression resolver for {@link UnresolvedCallExpression}.
  */
@@ -39,14 +41,13 @@ public class CallExpressionResolver {
 	private final ExpressionResolver resolver;
 
 	public CallExpressionResolver(RelBuilder relBuilder) {
-		// dummy way to get context
-		FlinkContext context = (FlinkContext) relBuilder
-			.values(new String[]{"dummyField"}, "dummyValue")
-			.build()
-			.getCluster().getPlanner().getContext();
+		FlinkContext context = unwrapContext(relBuilder.getCluster());
 		this.resolver = ExpressionResolver.resolverFor(
-			name -> Optional.empty(),
-			context.getFunctionCatalog()).build();
+				context.getTableConfig(),
+				name -> Optional.empty(),
+				context.getFunctionCatalog(),
+				context.getCatalogManager().getDataTypeFactory())
+			.build();
 	}
 
 	public ResolvedExpression resolve(Expression expression) {

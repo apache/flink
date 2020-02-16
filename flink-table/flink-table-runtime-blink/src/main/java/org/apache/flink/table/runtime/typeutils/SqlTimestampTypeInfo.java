@@ -30,6 +30,8 @@ import java.util.Objects;
  */
 public class SqlTimestampTypeInfo extends TypeInformation<SqlTimestamp> {
 
+	private static final long serialVersionUID = 1L;
+
 	private final int precision;
 
 	public SqlTimestampTypeInfo(int precision) {

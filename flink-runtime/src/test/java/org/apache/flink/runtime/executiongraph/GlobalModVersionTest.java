@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -27,9 +27,7 @@ import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -154,32 +152,27 @@ public class GlobalModVersionTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private ExecutionGraph createSampleGraph(FailoverStrategy failoverStrategy) throws Exception {
-
 		final JobID jid = new JobID();
 		final int parallelism = new Random().nextInt(10) + 1;
-
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
-
-		// build a simple execution graph with on job vertex, parallelism 2
-		final ExecutionGraph graph = new ExecutionGraph(
-			new DummyJobInformation(
-				jid,
-				"test job"),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			Time.seconds(10),
-			new InfiniteDelayRestartStrategy(),
-			new CustomStrategy(failoverStrategy),
-			slotProvider);
-
-		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);
 		jv.setParallelism(parallelism);
 
 		JobGraph jg = new JobGraph(jid, "testjob", jv);
-		graph.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
+
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+
+		// build a simple execution graph with on job vertex, parallelism 2
+		final ExecutionGraph graph = TestingExecutionGraphBuilder
+			.newBuilder()
+			.setJobGraph(jg)
+			.setRestartStrategy(new InfiniteDelayRestartStrategy())
+			.setFailoverStrategyFactory(new CustomStrategy(failoverStrategy))
+			.setSlotProvider(slotProvider)
+			.build();
+
+		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		return graph;
 	}

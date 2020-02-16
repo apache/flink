@@ -1,5 +1,5 @@
 ---
-title: "Hive Functions"
+title: "Hive functions"
 nav-parent_id: hive_tableapi
 nav-pos: 3
 ---
@@ -21,6 +21,46 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+## Use Hive Built-in Functions via HiveModule
+
+The `HiveModule` provides Hive built-in functions as Flink system (built-in) functions to Flink SQL and Table API users.
+
+For detailed information, please refer to [HiveModule]({{ site.baseurl }}/dev/table/modules.html#hivemodule).
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+
+String name            = "myhive";
+String version         = "2.3.4";
+
+tableEnv.loadModue(name, new HiveModule(version));
+{% endhighlight %}
+</div>
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+val name            = "myhive"
+val version         = "2.3.4"
+
+tableEnv.loadModue(name, new HiveModule(version));
+{% endhighlight %}
+</div>
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+modules:
+   - name: core
+     type: core
+   - name: myhive
+     type: hive
+     hive-version: 2.3.4
+{% endhighlight %}
+</div>
+</div>
+
+* NOTE that some Hive built-in functions in older versions have [thread safety issues](https://issues.apache.org/jira/browse/HIVE-16183).
+We recommend users patch their own Hive to fix them.
 
 ## Hive User Defined Functions
 
@@ -154,14 +194,3 @@ Then, users can use them in SQL as:
 Flink SQL> select mygenericudf(myudf(name), 1) as a, mygenericudf(myudf(age), 1) as b, s from mysourcetable, lateral table(myudtf(name, 1)) as T(s);
 
 {% endhighlight %}
-
-
-### Limitations
-
-Hive built-in functions are currently not supported out of box in Flink. To use Hive built-in functions, users must register them manually in Hive Metastore first.
-
-Support for Hive functions has only been tested for Flink batch in Blink planner.
-
-Hive functions currently cannot be used across catalogs in Flink.
-
-Please reference to [Hive]({{ site.baseurl }}/dev/table/hive/index.html) for data type limitations.

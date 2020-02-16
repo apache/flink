@@ -84,6 +84,11 @@ public final class FileUtils {
 
 	private static final String JAR_FILE_EXTENSION = "jar";
 
+	public static final String CLASS_FILE_EXTENSION = "class";
+
+	public static final String PACKAGE_SEPARATOR = ".";
+
+
 	// ------------------------------------------------------------------------
 
 	public static void writeCompletely(WritableByteChannel channel, ByteBuffer src) throws IOException {
@@ -337,6 +342,10 @@ public final class FileUtils {
 	}
 
 	private static void cleanDirectoryInternal(File directory) throws IOException {
+		if (Files.isSymbolicLink(directory.toPath())) {
+			// the user directories which symbolic links point to should not be cleaned.
+			return;
+		}
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
 
@@ -488,8 +497,9 @@ public final class FileUtils {
 		FileSystem sourceFs = directory.getFileSystem();
 		FileSystem targetFs = target.getFileSystem();
 
+		Path absolutePath = absolutizePath(directory);
 		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
-			addToZip(directory, sourceFs, directory.getParent(), out);
+			addToZip(absolutePath, sourceFs, absolutePath.getParent(), out);
 		}
 		return target;
 	}
@@ -572,6 +582,21 @@ public final class FileUtils {
 	}
 
 	/**
+	 * Absolutize the given path if it is relative.
+	 *
+	 * @param pathToAbsolutize path which is being absolutized if it is a relative path
+	 * @return the absolutized path
+	 */
+	public static Path absolutizePath(Path pathToAbsolutize) throws IOException {
+		if (!pathToAbsolutize.isAbsolute()) {
+			FileSystem fs = pathToAbsolutize.getFileSystem();
+			return new Path(fs.getWorkingDirectory(), pathToAbsolutize);
+		} else {
+			return pathToAbsolutize;
+		}
+	}
+
+	/**
 	 * Relativize the given path with respect to the given base path if it is absolute.
 	 *
 	 * @param basePath to relativize against
@@ -596,6 +621,16 @@ public final class FileUtils {
 	}
 
 	/**
+	 * Checks whether the given file has a class extension.
+	 *
+	 * @param file to check
+	 * @return true if the file has a class extension, otherwise false
+	 */
+	public static boolean isClassFile(java.nio.file.Path file) {
+		return CLASS_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
 	 * Checks whether the given file has a jar extension.
 	 *
 	 * @param file to check
@@ -603,6 +638,19 @@ public final class FileUtils {
 	 */
 	public static boolean isJarFile(java.nio.file.Path file) {
 		return JAR_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
+	 * Remove the extension of the file name.
+	 * @param fileName to strip
+	 * @return the file name without extension
+	 */
+	public static String stripFileExtension(String fileName) {
+		final String extension = org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(fileName);
+		if (!extension.isEmpty()) {
+			return fileName.substring(0, fileName.lastIndexOf(extension) - 1);
+		}
+		return fileName;
 	}
 
 	/**

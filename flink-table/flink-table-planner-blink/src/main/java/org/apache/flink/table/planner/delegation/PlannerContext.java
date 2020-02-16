@@ -24,31 +24,42 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.CalciteParser;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
+import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.Context;
+import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitDef;
+import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.schema.SchemaPlus;
@@ -63,6 +74,7 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to create {@link org.apache.calcite.tools.RelBuilder} or {@link FrameworkConfig} used to create
@@ -72,29 +84,36 @@ import static java.util.Collections.singletonList;
  */
 @Internal
 public class PlannerContext {
+
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
-	private final FunctionCatalog functionCatalog;
 	private final RelOptCluster cluster;
-	private final Context context;
+	private final FlinkContext context;
 	private final CalciteSchema rootSchema;
 	private final List<RelTraitDef> traitDefs;
+	private final FrameworkConfig frameworkConfig;
 
 	public PlannerContext(
 			TableConfig tableConfig,
 			FunctionCatalog functionCatalog,
+			CatalogManager catalogManager,
 			CalciteSchema rootSchema,
 			List<RelTraitDef> traitDefs) {
 		this.tableConfig = tableConfig;
-		this.functionCatalog = functionCatalog;
-		this.context = new FlinkContextImpl(tableConfig, functionCatalog);
+
+		this.context = new FlinkContextImpl(
+				tableConfig,
+				functionCatalog,
+				catalogManager,
+				this::createSqlExprToRexConverter);
+
 		this.rootSchema = rootSchema;
 		this.traitDefs = traitDefs;
 		// Make a framework config to initialize the RelOptCluster instance,
 		// caution that we can only use the attributes that can not be overwrite/configured
 		// by user.
-		final FrameworkConfig frameworkConfig = createFrameworkConfig();
+		this.frameworkConfig = createFrameworkConfig();
 
 		RelOptPlanner planner = new VolcanoPlanner(frameworkConfig.getCostFactory(), frameworkConfig.getContext());
 		planner.setExecutor(frameworkConfig.getExecutor());
@@ -104,6 +123,14 @@ public class PlannerContext {
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
 	}
 
+	private SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {
+		return new SqlExprToRexConverterImpl(
+				checkNotNull(frameworkConfig),
+				checkNotNull(typeFactory),
+				checkNotNull(cluster),
+				rowType);
+	}
+
 	private FrameworkConfig createFrameworkConfig() {
 		return Frameworks.newConfigBuilder()
 			.defaultSchema(rootSchema.plus())
@@ -111,7 +138,7 @@ public class PlannerContext {
 			.costFactory(new FlinkCostFactory())
 			.typeSystem(typeSystem)
 			.sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
-			.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig), functionCatalog))
+			.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig)))
 			// set the executor to evaluate constant expressions
 			.executor(new ExpressionReducer(tableConfig, false))
 			.context(context)
@@ -133,7 +160,37 @@ public class PlannerContext {
 	 */
 	public FlinkRelBuilder createRelBuilder(String currentCatalog, String currentDatabase) {
 		FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
-		return new FlinkRelBuilder(this.context, cluster, relOptSchema);
+
+		Context chain = Contexts.chain(
+			context,
+			// We need to overwrite the default scan factory, which does not
+			// expand views. The expandingScanFactory uses the FlinkPlanner to translate a view
+			// into a rel tree, before applying any subsequent rules.
+			Contexts.of(expandingScanFactory(
+					createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext()))
+		);
+		return new FlinkRelBuilder(chain, cluster, relOptSchema);
+	}
+
+	/**
+	 * Creates a {@link RelFactories.TableScanFactory} that uses a
+	 * {@link org.apache.calcite.plan.RelOptTable.ViewExpander} to handle
+	 * {@link ExpandingPreparingTable} instances, and falls back to a default
+	 * factory for other tables.
+	 *
+	 * @param viewExpander View expander
+	 * @return Table scan factory
+	 */
+	private static RelFactories.TableScanFactory expandingScanFactory(
+			RelOptTable.ViewExpander viewExpander) {
+		return (cluster, table) -> {
+			if (table instanceof ExpandingPreparingTable) {
+				final RelOptTable.ToRelContext toRelContext =
+					ViewExpanders.toRelContext(viewExpander, cluster);
+				return table.toRel(toRelContext);
+			}
+			return RelFactories.DEFAULT_TABLE_SCAN_FACTORY.createScan(cluster, table);
+		};
 	}
 
 	/**
@@ -236,9 +293,10 @@ public class PlannerContext {
 		return JavaScalaConversionUtil.toJava(calciteConfig.getSqlToRelConverterConfig()).orElseGet(
 				() -> SqlToRelConverter.configBuilder()
 						.withTrimUnusedFields(false)
-						.withConvertTableAccess(false)
+						.withConvertTableAccess(true)
 						.withInSubQueryThreshold(Integer.MAX_VALUE)
 						.withExpand(false)
+						.withRelBuilderFactory(FlinkRelFactories.FLINK_REL_BUILDER())
 						.build()
 		);
 	}
@@ -246,23 +304,26 @@ public class PlannerContext {
 	/**
 	 * Returns the operator table for this environment including a custom Calcite configuration.
 	 */
-	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig, FunctionCatalog functionCatalog) {
+	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig) {
 		return JavaScalaConversionUtil.toJava(calciteConfig.getSqlOperatorTable()).map(operatorTable -> {
 					if (calciteConfig.replacesSqlOperatorTable()) {
 						return operatorTable;
 					} else {
-						return ChainedSqlOperatorTable.of(getBuiltinSqlOperatorTable(functionCatalog), operatorTable);
+						return ChainedSqlOperatorTable.of(getBuiltinSqlOperatorTable(), operatorTable);
 					}
 				}
-		).orElseGet(() -> getBuiltinSqlOperatorTable(functionCatalog));
+		).orElseGet(this::getBuiltinSqlOperatorTable);
 	}
 
 	/**
 	 * Returns builtin the operator table and external the operator for this environment.
 	 */
-	private SqlOperatorTable getBuiltinSqlOperatorTable(FunctionCatalog functionCatalog) {
+	private SqlOperatorTable getBuiltinSqlOperatorTable() {
 		return ChainedSqlOperatorTable.of(
-				new FunctionCatalogOperatorTable(functionCatalog, typeFactory),
+				new FunctionCatalogOperatorTable(
+						context.getFunctionCatalog(),
+						context.getCatalogManager().getDataTypeFactory(),
+						typeFactory),
 				FlinkSqlOperatorTable.instance());
 	}
 

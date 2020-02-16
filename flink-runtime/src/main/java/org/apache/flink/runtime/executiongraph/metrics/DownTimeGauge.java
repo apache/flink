@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph.metrics;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

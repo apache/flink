@@ -503,8 +503,8 @@ public final class AggregateOperationFactory {
 
 		@Override
 		protected Boolean defaultMethod(LogicalType logicalType) {
-			if (logicalType.getTypeRoot() == LogicalTypeRoot.ANY) {
-				// we don't know anything about the ANY type, we don't know if it is comparable and hashable.
+			if (logicalType.getTypeRoot() == LogicalTypeRoot.RAW) {
+				// we don't know anything about the RAW type, we don't know if it is comparable and hashable.
 				return false;
 			} else if (logicalType instanceof LegacyTypeInformationType) {
 				return ((LegacyTypeInformationType) logicalType).getTypeInformation().isKeyType();

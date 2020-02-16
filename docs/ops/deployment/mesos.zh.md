@@ -2,7 +2,7 @@
 title:  "Mesos 安装"
 nav-title: Mesos
 nav-parent_id: deployment
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -201,8 +201,11 @@ try (FileOutputStream output = new FileOutputStream(jobGraphFile);
 }
 {% endhighlight %}
 
-Note:
-1. Make sure that all Mesos processes have the user code jar on the classpath (e.g. putting them in the lib directory)
+<span class="label label-info">Note</span> Make sure that all Mesos processes have the user code jar on the classpath. There are two ways:
+
+1. One way is putting them in the `lib/` directory, which will result in the user code jar being loaded by the system classloader.
+1. The other way is creating a `usrlib/` directory in the parent directory of `lib/` and putting the user code jar in the `usrlib/` directory.
+After launching a job cluster via `bin/mesos-appmaster-job.sh ...`, the user code jar will be loaded by the user code classloader.
 
 #### General configuration
 
@@ -216,7 +219,7 @@ For example:
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.heap.size=3500m \
+        -Dtaskmanager.memory.process.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
@@ -234,7 +237,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

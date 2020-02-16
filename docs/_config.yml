@@ -27,10 +27,10 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.10-SNAPSHOT"
+version: "1.11-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.10-SNAPSHOT"
+version_title: "1.11-SNAPSHOT"
 # Branch on Github for this version
 github_branch: "master"
 
@@ -64,6 +64,7 @@ is_stable: false
 show_outdated_warning: false
 
 previous_docs:
+  1.10: http://ci.apache.org/projects/flink/flink-docs-release-1.10
   1.9: http://ci.apache.org/projects/flink/flink-docs-release-1.9
   1.8: http://ci.apache.org/projects/flink/flink-docs-release-1.8
   1.7: http://ci.apache.org/projects/flink/flink-docs-release-1.7
@@ -81,6 +82,11 @@ previous_docs:
 # These variables configure the jekyll build (./build_docs.sh). You don't need
 # to change anything here.
 #------------------------------------------------------------------------------
+
+exclude:
+  - "build_docs.sh"
+  - "build_docs.bat"
+  - "check_links.sh"
 
 # Used in some documents to initialize arrays. Don't delete.
 array: []

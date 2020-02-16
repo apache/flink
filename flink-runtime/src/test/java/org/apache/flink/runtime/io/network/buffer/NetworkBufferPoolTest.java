@@ -541,26 +541,26 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 		try {
 			// the global pool should be in available state initially
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 			// request the first segment
 			final MemorySegment segment1 = checkNotNull(globalPool.requestMemorySegment());
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 			// request the second segment
 			final MemorySegment segment2 = checkNotNull(globalPool.requestMemorySegment());
-			assertFalse(globalPool.isAvailable().isDone());
+			assertFalse(globalPool.getAvailableFuture().isDone());
 
-			final CompletableFuture<?> availableFuture = globalPool.isAvailable();
+			final CompletableFuture<?> availableFuture = globalPool.getAvailableFuture();
 
 			// recycle the first segment
 			globalPool.recycle(segment1);
 			assertTrue(availableFuture.isDone());
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 			// recycle the second segment
 			globalPool.recycle(segment2);
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 		} finally {
 			globalPool.destroy();
@@ -581,16 +581,16 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 		try {
 			// the global pool should be in available state initially
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 			// request 5 segments
 			List<MemorySegment> segments1 = globalPool.requestMemorySegments();
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 			assertEquals(numberOfSegmentsToRequest, segments1.size());
 
 			// request another 5 segments
 			List<MemorySegment> segments2 = globalPool.requestMemorySegments();
-			assertFalse(globalPool.isAvailable().isDone());
+			assertFalse(globalPool.getAvailableFuture().isDone());
 			assertEquals(numberOfSegmentsToRequest, segments2.size());
 
 			// request another 5 segments
@@ -607,22 +607,22 @@ public class NetworkBufferPoolTest extends TestLogger {
 			asyncRequest.start();
 
 			// recycle 5 segments
-			CompletableFuture<?> availableFuture = globalPool.isAvailable();
+			CompletableFuture<?> availableFuture = globalPool.getAvailableFuture();
 			globalPool.recycleMemorySegments(segments1);
 			assertTrue(availableFuture.isDone());
 
 			// wait util the third request is fulfilled
 			latch.await();
-			assertFalse(globalPool.isAvailable().isDone());
+			assertFalse(globalPool.getAvailableFuture().isDone());
 			assertEquals(numberOfSegmentsToRequest, segments3.size());
 
 			// recycle another 5 segments
 			globalPool.recycleMemorySegments(segments2);
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 			// recycle the last 5 segments
 			globalPool.recycleMemorySegments(segments3);
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 
 		} finally {
 			globalPool.destroy();
@@ -650,7 +650,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			for (int i  = 0; i < numLocalBufferPool; ++i) {
 				final BufferPool localPool = globalPool.createBufferPool(localPoolRequiredSize, localPoolMaxSize);
 				localBufferPools.add(localPool);
-				assertTrue(localPool.isAvailable().isDone());
+				assertTrue(localPool.getAvailableFuture().isDone());
 			}
 
 			// request some segments from the global pool in two different ways
@@ -659,9 +659,9 @@ public class NetworkBufferPoolTest extends TestLogger {
 				segments.add(globalPool.requestMemorySegment());
 			}
 			final List<MemorySegment> exclusiveSegments = globalPool.requestMemorySegments();
-			assertTrue(globalPool.isAvailable().isDone());
+			assertTrue(globalPool.getAvailableFuture().isDone());
 			for (final BufferPool localPool: localBufferPools) {
-				assertTrue(localPool.isAvailable().isDone());
+				assertTrue(localPool.getAvailableFuture().isDone());
 			}
 
 			// blocking request buffers form local buffer pools
@@ -688,12 +688,12 @@ public class NetworkBufferPoolTest extends TestLogger {
 				assertNull(cause.get());
 			}
 
-			final CompletableFuture<?> globalPoolAvailableFuture = globalPool.isAvailable();
+			final CompletableFuture<?> globalPoolAvailableFuture = globalPool.getAvailableFuture();
 			assertFalse(globalPoolAvailableFuture.isDone());
 
 			final List<CompletableFuture<?>> localPoolAvailableFutures = new ArrayList<>(numLocalBufferPool);
 			for (BufferPool localPool: localBufferPools) {
-				CompletableFuture<?> localPoolAvailableFuture = localPool.isAvailable();
+				CompletableFuture<?> localPoolAvailableFuture = localPool.getAvailableFuture();
 				localPoolAvailableFutures.add(localPoolAvailableFuture);
 				assertFalse(localPoolAvailableFuture.isDone());
 			}
@@ -714,9 +714,9 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 			assertNull(cause.get());
 			assertEquals(0, globalPool.getNumberOfAvailableMemorySegments());
-			assertFalse(globalPool.isAvailable().isDone());
+			assertFalse(globalPool.getAvailableFuture().isDone());
 			for (BufferPool localPool: localBufferPools) {
-				assertFalse(localPool.isAvailable().isDone());
+				assertFalse(localPool.getAvailableFuture().isDone());
 				assertEquals(localPoolMaxSize, localPool.bestEffortGetNumOfUsedBuffers());
 			}
 

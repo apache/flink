@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -57,6 +58,8 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 	private static final String LOCAL_HOST = "localhost";
 
+	private static final int TOTAL_FLINK_MEMORY_MB = 1024;
+
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -87,7 +90,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			nonWritable.setWritable(false, false));
 
 		try {
-			Configuration cfg = new Configuration();
+			Configuration cfg = createFlinkConfiguration();
 			cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
 
 			try {
@@ -115,23 +118,17 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	/**
 	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
 	 */
-	@Test
+	@Test(expected = IllegalConfigurationException.class)
 	public void testMemoryConfigWrong() throws Exception {
-		Configuration cfg = new Configuration();
+		Configuration cfg = createFlinkConfiguration();
 
 		// something invalid
-		cfg.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "-42m");
-		try {
-
-			startTaskManager(
-				cfg,
-				rpcService,
-				highAvailabilityServices);
-
-			fail("Should fail synchronously with an exception");
-		} catch (IllegalConfigurationException e) {
-			// splendid!
-		}
+		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
+		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
+		startTaskManager(
+			cfg,
+			rpcService,
+			highAvailabilityServices);
 	}
 
 	/**
@@ -142,7 +139,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		final ServerSocket blocker = new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
 
 		try {
-			final Configuration cfg = new Configuration();
+			final Configuration cfg = createFlinkConfiguration();
 			cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
 
 			startTaskManager(
@@ -159,6 +156,10 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	}
 
 	//-----------------------------------------------------------------------------------------------
+
+	private static Configuration createFlinkConfiguration() {
+		return TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
+	}
 
 	private static RpcService createRpcService() {
 		final RpcService rpcService = mock(RpcService.class);

@@ -28,12 +28,13 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.utils.JobResultUtils;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -55,7 +56,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests which verify the cluster behaviour in case of leader changes.
  */
-@Category(AlsoRunWithSchedulerNG.class)
+@Category(AlsoRunWithLegacyScheduler.class)
 public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
@@ -128,7 +129,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		JobResult jobResult = jobResultFuture2.get();
 
-		assertThat(jobResult.isSuccess(), is(true));
+		JobResultUtils.assertSuccess(jobResult);
 	}
 
 	@Test
@@ -141,14 +142,14 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
 
-		assertThat(jobResultFuture.isDone(), is(false));
+		JobResultUtils.assertIncomplete(jobResultFuture);
 		BlockingOperator.isBlocking = false;
 
 		highAvailabilityServices.grantJobMasterLeadership(jobId);
 
 		JobResult jobResult = jobResultFuture.get();
 
-		assertThat(jobResult.isSuccess(), is(true));
+		JobResultUtils.assertSuccess(jobResult);
 	}
 
 	@Test

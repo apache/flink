@@ -23,21 +23,19 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
-import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
+import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow, SqlTimestamp}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
-
+import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.lang3.StringEscapeUtils
-
 import java.io.File
-import java.util.TimeZone
+import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -154,12 +152,13 @@ class ExpressionReducer(
             reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
             reducedIdx += 1
           case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-            val value = if (!reduced.isNullAt(reducedIdx)) {
-              val mills = reduced.getField(reducedIdx).asInstanceOf[Long]
-              Long.box(SqlDateTimeUtils.timestampWithLocalZoneToTimestamp(
-                mills, TimeZone.getTimeZone(config.getLocalTimeZone)))
+            val reducedValue = reduced.getField(reducedIdx)
+            val value = if (reducedValue != null) {
+              val ins = reducedValue.asInstanceOf[SqlTimestamp].toInstant
+              val dt = LocalDateTime.ofInstant(ins, config.getLocalTimeZone)
+              fromLocalDateTime(dt)
             } else {
-              null
+              reducedValue
             }
             reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
             reducedIdx += 1
@@ -167,6 +166,16 @@ class ExpressionReducer(
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
               reducedValue.asInstanceOf[Decimal].toBigDecimal
+            } else {
+              reducedValue
+            }
+            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+            reducedIdx += 1
+          case SqlTypeName.TIMESTAMP =>
+            val reducedValue = reduced.getField(reducedIdx)
+            val value = if (reducedValue != null) {
+              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
+              fromLocalDateTime(dt)
             } else {
               reducedValue
             }

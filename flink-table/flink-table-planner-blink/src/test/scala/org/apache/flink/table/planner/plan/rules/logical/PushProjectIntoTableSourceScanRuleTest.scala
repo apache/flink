@@ -20,11 +20,10 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
-import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
@@ -50,17 +49,32 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
         .build()
     )
 
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    util.tableEnv.registerTableSource("MyTable", new TestProjectableTableSource(
-      true,
-      tableSchema,
-      new RowTypeInfo(
-        tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
-        tableSchema.getFieldNames),
-      Seq.empty[Row])
-    )
+    val ddl1 =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b bigint,
+         |  c string
+         |) WITH (
+         |  'connector.type' = 'TestProjectableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.sqlUpdate(ddl1)
+
+    val ddl2 =
+      s"""
+         |CREATE TABLE VirtualTable (
+         |  a int,
+         |  b bigint,
+         |  c string,
+         |  d as a + 1
+         |) WITH (
+         |  'connector.type' = 'TestProjectableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.sqlUpdate(ddl2)
   }
 
   @Test
@@ -69,13 +83,29 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSimpleProjectWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT a, d FROM VirtualTable")
+  }
+
+  @Test
   def testCannotProject(): Unit = {
     util.verifyPlan("SELECT a, c, b + 1 FROM MyTable")
   }
 
   @Test
+  def testCannotProjectWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT a, c, d, b + 1 FROM VirtualTable")
+  }
+
+  @Test
   def testProjectWithUdf(): Unit = {
     util.verifyPlan("SELECT a, TRIM(c) FROM MyTable")
+  }
+
+  @Test
+  def testProjectWithUdfWithVirtualColumn(): Unit = {
+    util.tableEnv.registerFunction("my_udf", Func0)
+    util.verifyPlan("SELECT a, my_udf(d) FROM VirtualTable")
   }
 
   @Test

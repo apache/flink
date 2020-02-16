@@ -19,6 +19,8 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -36,9 +38,11 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
+import org.apache.calcite.schema.impl.ViewTable;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
@@ -91,6 +95,8 @@ class DatabaseCalciteSchema implements Schema {
 			return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
 		} else if (table instanceof CatalogTable) {
 			return convertCatalogTable(tablePath, (CatalogTable) table, tableFactory);
+		} else if (table instanceof CatalogView) {
+			return convertCatalogView(tablePath, (CatalogView) table);
 		} else {
 			throw new TableException("Unsupported table type: " + table);
 		}
@@ -99,6 +105,7 @@ class DatabaseCalciteSchema implements Schema {
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
 		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
 			.map(tableSource -> new TableSourceTable<>(
+				table.getSchema(),
 				tableSource,
 				!table.isBatch(),
 				FlinkStatistic.UNKNOWN()));
@@ -136,12 +143,24 @@ class DatabaseCalciteSchema implements Schema {
 		}
 
 		return new TableSourceTable<>(
+			table.getSchema(),
 			tableSource,
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
 			// itself to determine if it is a streaming or batch source.
 			isStreamingMode,
 			FlinkStatistic.UNKNOWN()
+		);
+	}
+
+	private Table convertCatalogView(ObjectPath tableName, CatalogView table) {
+		TableSchema schema = table.getSchema();
+		return new ViewTable(
+			null,
+			typeFactory -> ((FlinkTypeFactory) typeFactory).buildLogicalRowType(schema),
+			table.getExpandedQuery(),
+			Arrays.asList(catalogName, databaseName),
+			Arrays.asList(catalogName, databaseName, tableName.getObjectName())
 		);
 	}
 

@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef, MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -41,6 +42,7 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexBuilder
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -134,7 +136,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         val isAccRetract = optimizedPlan.getTraitSet
           .getTrait(AccModeTraitDef.INSTANCE).getAccMode == AccMode.AccRetract
         val name = createUniqueIntermediateRelTableName
-        val intermediateRelTable = createIntermediateRelTable(optimizedPlan, isAccRetract)
+        val intermediateRelTable = createIntermediateRelTable(name, optimizedPlan, isAccRetract)
         val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
         block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)
@@ -163,11 +165,18 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       .getOrElse(FlinkStreamProgram.buildProgram(config.getConfiguration))
     Preconditions.checkNotNull(programs)
 
+    val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+
     programs.optimize(relNode, new StreamOptimizeContext() {
 
       override def getTableConfig: TableConfig = config
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
+
+      override def getCatalogManager: CatalogManager = planner.catalogManager
+
+      override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
+        context.getSqlExprToRexConverterFactory
 
       override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
 
@@ -217,7 +226,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         val optimizedPlan = optimizeTree(
           o, retractionFromRoot, miniBatchInterval, isSinkBlock = isSinkBlock)
         val name = createUniqueIntermediateRelTableName
-        val intermediateRelTable = createIntermediateRelTable(optimizedPlan, isAccRetract = false)
+        val intermediateRelTable = createIntermediateRelTable(name, optimizedPlan,
+          isAccRetract = false)
         val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
         block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)
@@ -295,6 +305,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   }
 
   private def createIntermediateRelTable(
+      name: String,
       relNode: RelNode,
       isAccRetract: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
@@ -305,8 +316,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       .uniqueKeys(uniqueKeys)
       .relModifiedMonotonicity(monotonicity)
       .build()
-
-    new IntermediateRelTable(relNode, isAccRetract, statistic)
+    new IntermediateRelTable(Collections.singletonList(name), relNode, isAccRetract, statistic)
   }
 
   private def getUniqueKeys(relNode: RelNode): util.Set[_ <: util.Set[String]] = {

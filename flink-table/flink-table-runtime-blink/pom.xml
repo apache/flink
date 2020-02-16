@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -123,13 +123,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Lz4 compression library -->
-		<dependency>
-			<groupId>org.lz4</groupId>
-			<artifactId>lz4-java</artifactId>
-			<version>1.5.0</version>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>
@@ -158,30 +151,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<configuration>
-							<artifactSet>
-								<includes combine.children="append">
-									<include>org.lz4:lz4-java</include>
-								</includes>
-							</artifactSet>
-							<relocations>
-								<relocation>
-									<!-- Relocate org.lz4:lz4-java -->
-									<pattern>net.jpountz</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.net.jpountz</shadedPattern>
-								</relocation>
-							</relocations>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

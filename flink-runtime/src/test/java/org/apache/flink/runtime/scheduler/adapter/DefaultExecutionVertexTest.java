@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
@@ -58,7 +59,8 @@ public class DefaultExecutionVertexTest extends TestLogger {
 		DefaultResultPartition schedulingResultPartition = new DefaultResultPartition(
 			intermediateResultPartitionId,
 			new IntermediateDataSetID(),
-			BLOCKING);
+			BLOCKING,
+			() -> ResultPartitionState.CREATED);
 		producerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(schedulingResultPartition),
@@ -104,7 +106,7 @@ public class DefaultExecutionVertexTest extends TestLogger {
 	/**
 	 * A simple implementation of {@link Supplier} for testing.
 	 */
-	static class TestExecutionStateSupplier implements Supplier<ExecutionState> {
+	private static class TestExecutionStateSupplier implements Supplier<ExecutionState> {
 
 		private ExecutionState executionState;
 

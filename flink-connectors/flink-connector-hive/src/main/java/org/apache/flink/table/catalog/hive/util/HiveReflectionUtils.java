@@ -69,26 +69,19 @@ public class HiveReflectionUtils {
 			return (ObjectInspector) method.newInstance(value);
 		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
 				| InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantDateObjectInspector", e);
+			throw new FlinkHiveUDFException("Failed to instantiate java constant object inspector", e);
 		}
 	}
 
-	public static Object convertToHiveDate(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
+	public static Object invokeMethod(Class clz, Object obj, String methodName, Class[] argClz, Object[] args)
+			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+		Method method;
 		try {
-			Method method = hiveShim.getDateDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Date.valueOf()", e);
+			method = clz.getDeclaredMethod(methodName, argClz);
+		} catch (NoSuchMethodException e) {
+			method = clz.getMethod(methodName, argClz);
 		}
-	}
-
-	public static Object convertToHiveTimestamp(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
-		try {
-			Method method = hiveShim.getTimestampDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Timestamp.valueOf()", e);
-		}
+		return method.invoke(obj, args);
 	}
 
 }

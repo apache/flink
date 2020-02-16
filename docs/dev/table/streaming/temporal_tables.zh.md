@@ -119,7 +119,7 @@ Temporal Table Function
 ------------------------
 
 In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
-Flink uses the SQL syntax of [table functions](../udfs.html#table-functions) to provide a way to express it.
+Flink uses the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions) to provide a way to express it.
 
 Once defined, a *Temporal Table Function* takes a single time argument `timeAttribute` and returns a set of rows.
 This set contains the latest versions of the rows for all of the existing primary keys with respect to the given time attribute.
@@ -178,7 +178,7 @@ ratesHistoryData.add(Tuple2.of("Euro", 119L));
 DataStream<Tuple2<String, Long>> ratesHistoryStream = env.fromCollection(ratesHistoryData);
 Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, "r_currency, r_rate, r_proctime.proctime");
 
-tEnv.registerTable("RatesHistory", ratesHistory);
+tEnv.createTemporaryView("RatesHistory", ratesHistory);
 
 // Create and register a temporal table function.
 // Define "r_proctime" as the time attribute and "r_currency" as the primary key.
@@ -206,7 +206,7 @@ val ratesHistory = env
   .fromCollection(ratesHistoryData)
   .toTable(tEnv, 'r_currency, 'r_rate, 'r_proctime.proctime)
 
-tEnv.registerTable("RatesHistory", ratesHistory)
+tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
 // Create and register TemporalTableFunction.
 // Define "r_proctime" as the time attribute and "r_currency" as the primary key.
@@ -220,7 +220,7 @@ Line `(1)` creates a `rates` [temporal table function](#temporal-table-functions
 which allows us to use the function `rates` in the [Table API](../tableApi.html#joins).
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
-which allows us to use the `Rates` function in [SQL](../sql.html#joins).
+which allows us to use the `Rates` function in [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
 
 ## Temporal Table
 

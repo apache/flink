@@ -65,6 +65,8 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -79,11 +81,15 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory.SCHEDULER_TYPE_LEGACY;
+import static org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory.SCHEDULER_TYPE_NG;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for region failover with multi regions.
  */
+@RunWith(Parameterized.class)
 public class RegionFailoverITCase extends TestLogger {
 
 	private static final int FAIL_BASE = 1000;
@@ -110,15 +116,33 @@ public class RegionFailoverITCase extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
+	private final String schedulerType;
+
+	public RegionFailoverITCase(final String schedulerType) {
+		this.schedulerType = checkNotNull(schedulerType);
+	}
+
+	@Parameterized.Parameters(name = "scheduler = {0}")
+	public static Object[] testParameters() {
+		return new Object[]{SCHEDULER_TYPE_NG, SCHEDULER_TYPE_LEGACY};
+	}
+
 	@Before
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
 		configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
-		// global failover times: 3, region failover times: NUM_OF_RESTARTS
-		configuration.setInteger(FailingRestartStrategy.NUM_FAILURES_CONFIG_OPTION, 3);
-		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, FailingRestartStrategy.class.getName());
+		configuration.setString(JobManagerOptions.SCHEDULER, schedulerType);
+
+		// If the LegacyScheduler is configured, we will use a custom RestartStrategy
+		// (FailingRestartStrategy). This is done to test FLINK-13452. DefaultScheduler takes a
+		// different code path, and also cannot be configured with custom RestartStrategies.
+		if (SCHEDULER_TYPE_LEGACY.equals(schedulerType)) {
+			// global failover times: 3, region failover times: NUM_OF_RESTARTS
+			configuration.setInteger(FailingRestartStrategy.NUM_FAILURES_CONFIG_OPTION, 3);
+			configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, FailingRestartStrategy.class.getName());
+		}
 
 		cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()

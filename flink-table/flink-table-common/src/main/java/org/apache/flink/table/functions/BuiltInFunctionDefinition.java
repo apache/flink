@@ -19,13 +19,14 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.util.Preconditions;
 
-import java.util.List;
+import java.util.Arrays;
 
 /**
  * Definition of a built-in function. It enables unique identification across different
@@ -54,21 +55,25 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		this.typeInference = Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
 	}
 
-	public String getName() {
-		return name;
+	/**
+	 * Builder for configuring and creating instances of {@link BuiltInFunctionDefinition}.
+	 */
+	public static BuiltInFunctionDefinition.Builder newBuilder() {
+		return new BuiltInFunctionDefinition.Builder();
 	}
 
-	/**
-	 * Currently, the type inference is just exposed here. In the future, function definition will
-	 * require it.
-	 */
-	public TypeInference getTypeInference() {
-		return typeInference;
+	public String getName() {
+		return name;
 	}
 
 	@Override
 	public FunctionKind getKind() {
 		return kind;
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+		return typeInference;
 	}
 
 	@Override
@@ -81,13 +86,13 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 	/**
 	 * Builder for fluent definition of built-in functions.
 	 */
-	public static class Builder {
+	public static final class Builder {
 
 		private String name;
 
 		private FunctionKind kind;
 
-		private TypeInference.Builder typeInferenceBuilder = new TypeInference.Builder();
+		private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
 
 		public Builder() {
 			// default constructor to allow a fluent definition
@@ -103,8 +108,18 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 			return this;
 		}
 
-		public Builder inputTypeValidator(InputTypeValidator inputTypeValidator) {
-			this.typeInferenceBuilder.inputTypeValidator(inputTypeValidator);
+		public Builder namedArguments(String... argumentNames) {
+			this.typeInferenceBuilder.namedArguments(Arrays.asList(argumentNames));
+			return this;
+		}
+
+		public Builder typedArguments(DataType... argumentTypes) {
+			this.typeInferenceBuilder.typedArguments(Arrays.asList(argumentTypes));
+			return this;
+		}
+
+		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
+			this.typeInferenceBuilder.inputTypeStrategy(inputTypeStrategy);
 			return this;
 		}
 
@@ -115,16 +130,6 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 		public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
 			this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
-			return this;
-		}
-
-		public Builder namedArguments(List<String> argumentNames) {
-			this.typeInferenceBuilder.namedArguments(argumentNames);
-			return this;
-		}
-
-		public Builder typedArguments(List<DataType> argumentTypes) {
-			this.typeInferenceBuilder.typedArguments(argumentTypes);
 			return this;
 		}
 

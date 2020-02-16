@@ -41,10 +41,14 @@ import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -166,23 +170,24 @@ public class ContinuousFileProcessingTest {
 		final long watermarkInterval = 10;
 
 		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
-		final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
-			new OneInputStreamOperatorTestHarness<>(reader);
+		final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = new OneInputStreamOperatorTestHarness<>(reader);
+		SteppingMailboxProcessor localMailbox = createLocalMailbox(tester);
 
 		tester.getExecutionConfig().setAutoWatermarkInterval(watermarkInterval);
 		tester.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		reader.setOutputType(typeInfo, tester.getExecutionConfig());
 
 		tester.open();
-
 		Assert.assertEquals(TimeCharacteristic.IngestionTime, tester.getTimeCharacteristic());
 
-		// test that watermarks are correctly emitted
-
-		ConcurrentLinkedQueue<Object> output = tester.getOutput();
-
 		tester.setProcessingTime(201);
-		Assert.assertTrue(output.peek() instanceof Watermark);
+
+		// test that watermarks are correctly emitted
+		ConcurrentLinkedQueue<Object> output = tester.getOutput();
+		while (output.isEmpty()) {
+			localMailbox.runMailboxStep();
+		}
+		Assert.assertTrue(output.toString(), output.peek() instanceof Watermark);
 		Assert.assertEquals(200, ((Watermark) output.poll()).getTimestamp());
 
 		tester.setProcessingTime(301);
@@ -217,16 +222,17 @@ public class ContinuousFileProcessingTest {
 			tester.setProcessingTime(nextTimestamp);
 
 			// send the next split to be read and wait until it is fully read, the +1 is for the watermark.
-			tester.processElement(new StreamRecord<>(
-				new TimestampedFileInputSplit(modTimes.get(split.getPath().getName()),
-					split.getSplitNumber(), split.getPath(), split.getStart(),
-					split.getLength(), split.getHostnames())));
+			RunnableWithException runnableWithException = () -> tester.processElement(new StreamRecord<>(
+					new TimestampedFileInputSplit(modTimes.get(split.getPath().getName()),
+							split.getSplitNumber(), split.getPath(), split.getStart(),
+							split.getLength(), split.getHostnames())));
+			runnableWithException.run();
 
 			// NOTE: the following check works because each file fits in one split.
 			// In other case it would fail and wait forever.
 			// BUT THIS IS JUST FOR THIS TEST
 			while (tester.getOutput().isEmpty() || tester.getOutput().size() != (LINES_PER_FILE + 1)) {
-				Thread.sleep(10);
+				localMailbox.runMailboxStep();
 			}
 
 			// verify that the results are the expected
@@ -304,6 +310,10 @@ public class ContinuousFileProcessingTest {
 			}
 			Assert.assertEquals(expectedFileContents.get(fileIdx), cntntStr.toString());
 		}
+	}
+
+	private SteppingMailboxProcessor createLocalMailbox(OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness) {
+		return new SteppingMailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction, harness.getTaskMailbox(), StreamTaskActionExecutor.IMMEDIATE);
 	}
 
 	@Test

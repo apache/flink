@@ -20,9 +20,9 @@ package org.apache.flink.table.runtime.runners.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
@@ -32,31 +32,24 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
- * It takes {@link BaseRow} as the input and output type.
+ * It takes {@link BaseRow} as the input and outputs a byte array.
  */
 @Internal
-public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<BaseRow, BaseRow> {
+public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunctionRunner<BaseRow> {
 
 	public BaseRowPythonScalarFunctionRunner(
 		String taskName,
-		FnDataReceiver<BaseRow> resultReceiver,
+		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
-		PythonEnv pythonEnv,
+		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType,
-		String[] tempDirs) {
-		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
+		RowType outputType) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public BaseRowSerializer getInputTypeSerializer() {
 		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public BaseRowSerializer getOutputTypeSerializer() {
-		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getOutputType());
 	}
 }

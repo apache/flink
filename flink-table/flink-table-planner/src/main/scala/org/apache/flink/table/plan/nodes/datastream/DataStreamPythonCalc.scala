@@ -21,8 +21,9 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
+import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.StreamQueryConfig
@@ -70,30 +71,16 @@ class DataStreamPythonCalc(
       ruleDescription)
   }
 
-  private lazy val pythonRexCalls = calcProgram.getProjectList
-    .map(calcProgram.expandLocalRef)
-    .collect { case call: RexCall => call }
-    .toArray
-
-  private lazy val forwardedFields: Array[Int] = calcProgram.getProjectList
-    .map(calcProgram.expandLocalRef)
-    .collect { case inputRef: RexInputRef => inputRef.getIndex }
-    .toArray
-
-  private lazy val (pythonUdfInputOffsets, pythonFunctionInfos) =
-    extractPythonScalarFunctionInfos(pythonRexCalls)
-
   override def translateToPlan(
       planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
     val inputDataStream =
       getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
-
     val inputParallelism = inputDataStream.getParallelism
 
     val pythonOperatorResultTypeInfo = new RowTypeInfo(
-      forwardedFields.map(inputSchema.fieldTypeInfos.get(_)) ++
-        pythonRexCalls.map(node => FlinkTypeFactory.toTypeInfo(node.getType)): _*)
+      getForwardedFields(calcProgram).map(inputSchema.fieldTypeInfos.get(_)) ++
+        getPythonRexCalls(calcProgram).map(node => FlinkTypeFactory.toTypeInfo(node.getType)): _*)
 
     // construct the Python operator
     val pythonOperatorInputRowType = TypeConversions.fromLegacyInfoToDataType(
@@ -101,7 +88,10 @@ class DataStreamPythonCalc(
     val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
     val pythonOperator = getPythonScalarFunctionOperator(
-      pythonOperatorInputRowType, pythonOperatorOutputRowType, pythonUdfInputOffsets)
+      planner.getConfig.getConfiguration,
+      pythonOperatorInputRowType,
+      pythonOperatorOutputRowType,
+      calcProgram)
 
     inputDataStream
       .transform(
@@ -113,22 +103,27 @@ class DataStreamPythonCalc(
   }
 
   private[flink] def getPythonScalarFunctionOperator(
+      config: Configuration,
       inputRowType: RowType,
       outputRowType: RowType,
-      udfInputOffsets: Array[Int]) = {
+      calcProgram: RexProgram) = {
     val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
+      classOf[Configuration],
       classOf[Array[PythonFunctionInfo]],
       classOf[RowType],
       classOf[RowType],
       classOf[Array[Int]],
       classOf[Array[Int]])
+    val (udfInputOffsets, pythonFunctionInfos) =
+      extractPythonScalarFunctionInfos(getPythonRexCalls(calcProgram))
     ctor.newInstance(
+      config,
       pythonFunctionInfos,
       inputRowType,
       outputRowType,
       udfInputOffsets,
-      forwardedFields)
+      getForwardedFields(calcProgram))
       .asInstanceOf[OneInputStreamOperator[CRow, CRow]]
   }
 }

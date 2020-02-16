@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -27,7 +28,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -109,13 +110,16 @@ public class ExecutionGraphNotEnoughResourceTest extends TestLogger {
 			sink.setSlotSharingGroup(sharingGroup);
 			sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
 
-			TestRestartStrategy restartStrategy =
-				new TestRestartStrategy(numRestarts, false);
+			final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", source, sink);
+			jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
-			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
+			TestRestartStrategy restartStrategy = new TestRestartStrategy(numRestarts, false);
+
+			final ExecutionGraph eg = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(jobGraph)
 				.setSlotProvider(scheduler)
 				.setRestartStrategy(restartStrategy)
-				.setScheduleMode(ScheduleMode.EAGER)
 				.setAllocationTimeout(Time.milliseconds(1L))
 				.build();
 
@@ -150,7 +154,7 @@ public class ExecutionGraphNotEnoughResourceTest extends TestLogger {
 		final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
 		slotPool.connectToResourceManager(resourceManagerGateway);
-		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.INSTANCE, slotPool);
+		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
 		scheduler.start(mainThreadExecutor);
 
 		CompletableFuture.runAsync(() -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()), mainThreadExecutor).join();

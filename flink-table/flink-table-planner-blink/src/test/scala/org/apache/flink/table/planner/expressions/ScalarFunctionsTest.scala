@@ -893,6 +893,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64('aGVsbG8gd29ybGQ=')",
       "hello world")
 
+    testSqlApi(
+      "CONCAT(FROM_BASE64('5L2g5aW9'), ' flink')",
+      "你好 flink")
+
     //null test
     testSqlApi(
       "FROM_BASE64(f33)",
@@ -902,6 +906,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64('5L2g5aW9')",
       "你好"
     )
+
+    testSqlApi(
+      "FROM_BASE64(CAST(x'6147567362473867643239796247513D' AS VARBINARY))",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(x'6147567362473867643239796247513D')",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(f58)",
+      "你好")
   }
 
   @Test
@@ -3029,6 +3045,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996-11-10 00:00:00.000")
 
     testAllApis(
+      'f18.floor(TimeIntervalUnit.HOUR),
+      "f18.floor(HOUR)",
+      "FLOOR(f18 TO HOUR)",
+      "1996-11-10 06:00:00.000")
+
+    testAllApis(
       'f18.floor(TimeIntervalUnit.MINUTE),
       "f18.floor(MINUTE)",
       "FLOOR(f18 TO MINUTE)",
@@ -3087,6 +3109,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f18.ceil(DAY)",
       "CEIL(f18 TO DAY)",
       "1996-11-11 00:00:00.000")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.HOUR),
+      "f18.ceil(HOUR)",
+      "CEIL(f18 TO HOUR)",
+      "1996-11-10 07:00:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.MINUTE),
@@ -3522,25 +3550,38 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "timestampadd(DAY, 1, date '2016-06-15')",
       "2016-06-16")
 
-    testAllApis("2016-06-15".toTimestamp - 1.hour,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp - 1.hour,
       "'2016-06-15'.toTimestamp - 1.hour",
-      "timestampadd(HOUR, -1, date '2016-06-15')",
       "2016-06-14 23:00:00.000")
+    testSqlApi(
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.000000")
 
-    testAllApis("2016-06-15".toTimestamp + 1.minute,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp + 1.minute,
       "'2016-06-15'.toTimestamp + 1.minute",
-      "timestampadd(MINUTE, 1, date '2016-06-15')",
       "2016-06-15 00:01:00.000")
+    testSqlApi("timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.000000")
 
-    testAllApis("2016-06-15".toTimestamp - 1.second,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp - 1.second,
       "'2016-06-15'.toTimestamp - 1.second",
-      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
       "2016-06-14 23:59:59.000")
+    testSqlApi("timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.000000")
 
-    testAllApis("2016-06-15".toTimestamp + 1.second,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp + 1.second,
       "'2016-06-15'.toTimestamp + 1.second",
-      "timestampadd(SECOND, 1, date '2016-06-15')",
       "2016-06-15 00:00:01.000")
+    testSqlApi("timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.000000")
 
     testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
       "nullOf(SQL_TIMESTAMP) + 1.second",
@@ -3572,6 +3613,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-03-31'.toDate - 1.week",
       "timestampadd(WEEK, -1, date '2016-03-31')",
       "2016-03-24")
+
+    // test TIMESTAMPADD with positive time interval in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, 1, time '23:59:59')", "00:00:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '00:00:00')", "00:01:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '23:59:59')", "00:00:59")
+    testSqlApi("TIMESTAMPADD(HOUR, 1, time '23:59:59')", "00:59:59")
+    testSqlApi("TIMESTAMPADD(DAY, 15, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, 3, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, 6, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, 1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, 10, time '23:59:59')", "23:59:59")
+
+    // test TIMESTAMPADD with negative time interval in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, -1, time '00:00:00')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:00')", "23:59:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(HOUR, -1, time '00:00:00')", "23:00:00")
+    testSqlApi("TIMESTAMPADD(DAY, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, -1, time '23:59:59')", "23:59:59")
   }
 
   @Test
@@ -4120,5 +4183,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "IS_ALPHA(f33)",
       "false")
+  }
+
+  @Test
+  def testRawTypeEquality(): Unit = {
+    testSqlApi(
+      "f55=f56",
+      "false")
+
+    testSqlApi(
+      "f55=f57",
+      "true")
   }
 }

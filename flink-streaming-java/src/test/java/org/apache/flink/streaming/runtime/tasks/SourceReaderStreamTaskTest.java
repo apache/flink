@@ -106,7 +106,7 @@ public class SourceReaderStreamTaskTest {
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointId);
 
 		// wait with triggering the checkpoint until we emit all of the data
-		while (testHarness.getTask().inputProcessor.isAvailable().isDone()) {
+		while (testHarness.getTask().inputProcessor.getAvailableFuture().isDone()) {
 			Thread.sleep(1);
 		}
 
@@ -195,7 +195,7 @@ public class SourceReaderStreamTaskTest {
 		}
 
 		@Override
-		public CompletableFuture<?> isAvailable() {
+		public CompletableFuture<?> getAvailableFuture() {
 			if (hasEmittedEverything()) {
 				return new CompletableFuture<>();
 			}

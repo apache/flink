@@ -106,7 +106,12 @@ class StreamExecWindowJoinRule
     val newRight = RelOptRule.convert(right, rightRequiredTrait)
     val providedTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    val tableConfig = rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = rel
+      .getCluster
+      .getPlanner
+      .getContext
+      .unwrap(classOf[FlinkContext])
+      .getTableConfig
     val (windowBounds, remainCondition) = WindowJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       left.getRowType.getFieldCount,

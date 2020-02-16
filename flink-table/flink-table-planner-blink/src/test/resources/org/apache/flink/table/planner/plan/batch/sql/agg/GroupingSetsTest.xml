@@ -279,16 +279,18 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
-+- SortAggregate(isMerge=[false], groupBy=[deptno, gender, deptno0, $e], select=[deptno, gender, deptno0, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
++- SortAggregate(isMerge=[true], groupBy=[deptno, gender, deptno0, $e], select=[deptno, gender, deptno0, $e, Final_MIN(min$0) AS min_name, Final_COUNT(count1$1) AS $f5])
    +- Sort(orderBy=[deptno ASC, gender ASC, deptno0 ASC, $e ASC])
       +- Exchange(distribution=[hash[deptno, gender, deptno0, $e]])
-         +- Expand(projects=[{ename=[$0], deptno=[$1], gender=[$2], deptno0=[$3], $e=[0]}, {ename=[$0], deptno=[$1], gender=[$2], deptno0=[null], $e=[1]}, {ename=[$0], deptno=[$1], gender=[null], deptno0=[$3], $e=[2]}, {ename=[$0], deptno=[$1], gender=[null], deptno0=[null], $e=[3]}, {ename=[$0], deptno=[null], gender=[$2], deptno0=[$3], $e=[4]}, {ename=[$0], deptno=[null], gender=[$2], deptno0=[null], $e=[5]}, {ename=[$0], deptno=[null], gender=[null], deptno0=[$3], $e=[6]}, {ename=[$0], deptno=[null], gender=[null], deptno0=[null], $e=[7]}], projects=[{ename, deptno, gender, deptno0, 0 AS $e}, {ename, deptno, gender, null AS deptno0, 1 AS $e}, {ename, deptno, null AS gender, deptno0, 2 AS $e}, {ename, deptno, null AS gender, null AS deptno0, 3 AS $e}, {ename, null AS deptno, gender, deptno0, 4 AS $e}, {ename, null AS deptno, gender, null AS deptno0, 5 AS $e}, {ename, null AS deptno, null AS gender, deptno0, 6 AS $e}, {ename, null AS deptno, null AS gender, null AS deptno0, 7 AS $e}])
-            +- HashJoin(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0], build=[right])
-               :- Exchange(distribution=[hash[deptno]])
-               :  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
-               +- Exchange(distribution=[hash[deptno]])
-                  +- Calc(select=[deptno])
-                     +- TableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
+         +- LocalSortAggregate(groupBy=[deptno, gender, deptno0, $e], select=[deptno, gender, deptno0, $e, Partial_MIN(ename) AS min$0, Partial_COUNT(*) AS count1$1])
+            +- Sort(orderBy=[deptno ASC, gender ASC, deptno0 ASC, $e ASC])
+               +- Expand(projects=[{ename=[$0], deptno=[$1], gender=[$2], deptno0=[$3], $e=[0]}, {ename=[$0], deptno=[$1], gender=[$2], deptno0=[null], $e=[1]}, {ename=[$0], deptno=[$1], gender=[null], deptno0=[$3], $e=[2]}, {ename=[$0], deptno=[$1], gender=[null], deptno0=[null], $e=[3]}, {ename=[$0], deptno=[null], gender=[$2], deptno0=[$3], $e=[4]}, {ename=[$0], deptno=[null], gender=[$2], deptno0=[null], $e=[5]}, {ename=[$0], deptno=[null], gender=[null], deptno0=[$3], $e=[6]}, {ename=[$0], deptno=[null], gender=[null], deptno0=[null], $e=[7]}], projects=[{ename, deptno, gender, deptno0, 0 AS $e}, {ename, deptno, gender, null AS deptno0, 1 AS $e}, {ename, deptno, null AS gender, deptno0, 2 AS $e}, {ename, deptno, null AS gender, null AS deptno0, 3 AS $e}, {ename, null AS deptno, gender, deptno0, 4 AS $e}, {ename, null AS deptno, gender, null AS deptno0, 5 AS $e}, {ename, null AS deptno, null AS gender, deptno0, 6 AS $e}, {ename, null AS deptno, null AS gender, null AS deptno0, 7 AS $e}])
+                  +- HashJoin(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0], build=[right])
+                     :- Exchange(distribution=[hash[deptno]])
+                     :  +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+                     +- Exchange(distribution=[hash[deptno]])
+                        +- Calc(select=[deptno])
+                           +- TableSourceScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]], fields=[deptno, dname])
 ]]>
     </Resource>
   </TestCase>
@@ -406,9 +408,9 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS gr_text])
-+- Sort(orderBy=[deptno ASC, job ASC, empno ASC])
-   +- Exchange(distribution=[single])
+Sort(orderBy=[deptno ASC, job ASC, empno ASC])
++- Exchange(distribution=[single])
+   +- Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS gr_text])
       +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
          +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
             +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])

@@ -40,7 +40,6 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
 
-	private final long memorySize;
 	private final OverWindowFrame[] overWindowFrames;
 	private GeneratedRecordComparator genComparator;
 	private final boolean isRowAllInFixedPart;
@@ -53,16 +52,13 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 	private ResettableExternalBuffer currentData;
 
 	/**
-	 * @param memorySize           the memory is assigned to a resettable external buffer.
 	 * @param overWindowFrames     the window frames belong to this operator.
 	 * @param genComparator       the generated sort which is used for generating the comparator among
 	 */
 	public BufferDataOverWindowOperator(
-			long memorySize,
 			OverWindowFrame[] overWindowFrames,
 			GeneratedRecordComparator genComparator,
 			boolean isRowAllInFixedPart) {
-		this.memorySize = memorySize;
 		this.overWindowFrames = overWindowFrames;
 		this.genComparator = genComparator;
 		this.isRowAllInFixedPart = isRowAllInFixedPart;
@@ -81,7 +77,7 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		this.currentData = new ResettableExternalBuffer(
 				getContainingTask().getEnvironment().getMemoryManager(),
 				getContainingTask().getEnvironment().getIOManager(),
-				memManager.allocatePages(this, (int) (memorySize / memManager.getPageSize())),
+				memManager.allocatePages(this, (int) (computeMemorySize() / memManager.getPageSize())),
 				serializer, isRowAllInFixedPart);
 
 		collector = new StreamRecordCollector<>(output);

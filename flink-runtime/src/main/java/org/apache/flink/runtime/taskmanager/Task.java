@@ -57,18 +57,24 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
@@ -122,7 +128,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable, TaskActions, PartitionProducerStateProvider, CheckpointListener {
+public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionProducerStateProvider, CheckpointListener, BackPressureSampleableTask {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -203,6 +209,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 	/** Checkpoint notifier used to communicate with the CheckpointCoordinator. */
 	private final CheckpointResponder checkpointResponder;
+
+	/** The gateway for operators to send messages to the operator coordinators on the Job Manager. */
+	private final TaskOperatorEventGateway operatorCoordinatorEventGateway;
 
 	/** GlobalAggregateManager used to update aggregates on the JobMaster. */
 	private final GlobalAggregateManager aggregateManager;
@@ -290,6 +299,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
 		CheckpointResponder checkpointResponder,
+		TaskOperatorEventGateway operatorCoordinatorEventGateway,
 		GlobalAggregateManager aggregateManager,
 		BlobCacheService blobService,
 		LibraryCacheManager libraryCache,
@@ -309,7 +319,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 		this.taskInfo = new TaskInfo(
 				taskInformation.getTaskName(),
-				taskInformation.getMaxNumberOfSubtaks(),
+				taskInformation.getMaxNumberOfSubtasks(),
 				subtaskIndex,
 				taskInformation.getNumberOfSubtasks(),
 				attemptNumber,
@@ -340,6 +350,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 		this.inputSplitProvider = Preconditions.checkNotNull(inputSplitProvider);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
+		this.operatorCoordinatorEventGateway = Preconditions.checkNotNull(operatorCoordinatorEventGateway);
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
 
@@ -401,6 +412,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	//  Accessors
 	// ------------------------------------------------------------------------
 
+	@Override
 	public JobID getJobID() {
 		return jobId;
 	}
@@ -409,10 +421,12 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return vertexId;
 	}
 
+	@Override
 	public ExecutionAttemptID getExecutionId() {
 		return executionId;
 	}
 
+	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
 	}
@@ -441,6 +455,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return executingThread;
 	}
 
+	@Override
 	public CompletableFuture<ExecutionState> getTerminationFuture() {
 		return terminationFuture;
 	}
@@ -461,16 +476,16 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return invokable;
 	}
 
-	public StackTraceElement[] getStackTraceOfExecutingThread() {
-		final AbstractInvokable invokable = this.invokable;
-
-		if (invokable == null) {
-			return new StackTraceElement[0];
+	@Override
+	public boolean isBackPressured() {
+		if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
+			return false;
 		}
-
-		return invokable.getExecutingThread()
-			.orElse(executingThread)
-			.getStackTrace();
+		final CompletableFuture<?>[] outputFutures = new CompletableFuture[consumableNotifyingPartitionWriters.length];
+		for (int i = 0; i < outputFutures.length; ++i) {
+			outputFutures[i] = consumableNotifyingPartitionWriters[i].getAvailableFuture();
+		}
+		return !CompletableFuture.allOf(outputFutures).isDone();
 	}
 
 	// ------------------------------------------------------------------------
@@ -493,6 +508,11 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return executionState == ExecutionState.CANCELING ||
 				executionState == ExecutionState.CANCELED ||
 				executionState == ExecutionState.FAILED;
+	}
+
+	@Override
+	public boolean isRunning() {
+		return executionState == ExecutionState.RUNNING;
 	}
 
 	/**
@@ -661,6 +681,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				inputGates,
 				taskEventDispatcher,
 				checkpointResponder,
+				operatorCoordinatorEventGateway,
 				taskManagerConfig,
 				metrics,
 				this);
@@ -983,6 +1004,20 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	}
 
 	private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
+		try {
+			cancelOrFailAndCancelInvokableInternal(targetState, cause);
+		} catch (Throwable t) {
+			if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(t)) {
+				String message = String.format("FATAL - exception in cancelling task %s (%s).", taskNameWithSubtask, executionId);
+				notifyFatalError(message, t);
+			} else {
+				throw t;
+			}
+		}
+	}
+
+	@VisibleForTesting
+	void cancelOrFailAndCancelInvokableInternal(ExecutionState targetState, Throwable cause) {
 		while (true) {
 			ExecutionState current = executionState;
 
@@ -1177,6 +1212,36 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
+		}
+	}
+
+	/**
+	 * Dispatches an operator event to the invokable task.
+	 *
+	 * <p>If the event delivery did not succeed, this method throws an exception. Callers can use that
+	 * exception for error reporting, but need not react with failing this task (this method takes care
+	 * of that).
+	 *
+	 * @throws FlinkException This method throws exceptions indicating the reason why delivery did not succeed.
+	 */
+	public void deliverOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> evt) throws FlinkException {
+		final AbstractInvokable invokable = this.invokable;
+
+		if (invokable == null || executionState != ExecutionState.RUNNING) {
+			throw new TaskNotRunningException("Task is not yet running.");
+		}
+
+		try {
+			invokable.dispatchOperatorEvent(operator, evt);
+		}
+		catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+
+			if (getExecutionState() == ExecutionState.RUNNING) {
+				FlinkException e = new FlinkException("Error while handling operator event", t);
+				failExternally(e);
+				throw e;
+			}
 		}
 	}
 

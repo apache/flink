@@ -52,6 +52,7 @@ import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlOperatorTable;
@@ -91,8 +92,8 @@ public class PlanningConfigurationBuilder {
 		this.functionCatalog = functionCatalog;
 
 		// the converter is needed when calling temporal table functions from SQL, because
-		// they reference a history table represented with a tree of table operations
-		this.context = Contexts.of(expressionBridge);
+		// they reference a history table represented with a tree of table operations.
+		this.context = Contexts.of(expressionBridge, tableConfig);
 
 		this.planner = new VolcanoPlanner(costFactory, context);
 		planner.setExecutor(new ExpressionReducer(tableConfig));
@@ -115,8 +116,17 @@ public class PlanningConfigurationBuilder {
 			planner,
 			new RexBuilder(typeFactory));
 		RelOptSchema relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
+		Context chain = Contexts.chain(
+			context,
+			// We need to overwrite the default scan factory, which does not
+			// expand views. The expandingScanFactory uses the FlinkPlanner to translate a view
+			// into a rel tree, before applying any subsequent rules.
+			Contexts.of(RelFactories.expandingScanFactory(
+				createFlinkPlanner(currentCatalog, currentDatabase),
+				RelFactories.DEFAULT_TABLE_SCAN_FACTORY))
+		);
 
-		return new FlinkRelBuilder(context, cluster, relOptSchema, expressionBridge);
+		return new FlinkRelBuilder(chain, cluster, relOptSchema, expressionBridge);
 	}
 
 	/**
@@ -241,7 +251,7 @@ public class PlanningConfigurationBuilder {
 		return JavaScalaConversionUtil.toJava(calciteConfig.sqlToRelConverterConfig()).orElseGet(
 			() -> SqlToRelConverter.configBuilder()
 				.withTrimUnusedFields(false)
-				.withConvertTableAccess(false)
+				.withConvertTableAccess(true)
 				.withInSubQueryThreshold(Integer.MAX_VALUE)
 				.withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
 				.build()

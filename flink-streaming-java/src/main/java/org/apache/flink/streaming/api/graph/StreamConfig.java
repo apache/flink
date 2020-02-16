@@ -45,6 +45,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the
  * {@link StreamingJobGraphGenerator}.
@@ -94,8 +96,7 @@ public class StreamConfig implements Serializable {
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION_ON_HEAP = "managedMemFractionOnHeap";
-	private static final String MANAGED_MEMORY_FRACTION_OFF_HEAP = "managedMemFractionOffHeap";
+	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
 
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -132,20 +133,16 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFractionOnHeap(double managedMemFractionOnHeap) {
-		config.setDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, managedMemFractionOnHeap);
+	public void setManagedMemoryFraction(double managedMemFraction) {
+		checkArgument(
+			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
+			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
+
+		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
 	}
 
-	public double getManagedMemoryFractionOnHeap() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION_ON_HEAP, DEFAULT_MANAGED_MEMORY_FRACTION);
-	}
-
-	public void setManagedMemoryFractionOffHeap(double managedMemFractionOffHeap) {
-		config.setDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, managedMemFractionOffHeap);
-	}
-
-	public double getManagedMemoryFractionOffHeap() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION_OFF_HEAP, DEFAULT_MANAGED_MEMORY_FRACTION);
+	public double getManagedMemoryFraction() {
+		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {

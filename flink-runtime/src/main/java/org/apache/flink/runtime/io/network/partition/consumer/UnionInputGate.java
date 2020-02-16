@@ -108,7 +108,7 @@ public class UnionInputGate extends InputGate {
 
 				currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
 
-				CompletableFuture<?> available = inputGate.isAvailable();
+				CompletableFuture<?> available = inputGate.getAvailableFuture();
 
 				if (available.isDone()) {
 					inputGatesWithData.add(inputGate);
@@ -185,7 +185,7 @@ public class UnionInputGate extends InputGate {
 					// enqueue the inputGate at the end to avoid starvation
 					inputGatesWithData.add(inputGate.get());
 				} else if (!inputGate.get().isFinished()) {
-					inputGate.get().isAvailable().thenRun(() -> queueInputGate(inputGate.get()));
+					inputGate.get().getAvailableFuture().thenRun(() -> queueInputGate(inputGate.get()));
 				}
 
 				if (inputGatesWithData.isEmpty()) {

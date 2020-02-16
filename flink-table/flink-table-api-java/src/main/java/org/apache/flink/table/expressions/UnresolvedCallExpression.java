@@ -115,7 +115,7 @@ public final class UnresolvedCallExpression implements Expression {
 		if (functionIdentifier == null) {
 			functionName = functionDefinition.toString();
 		} else {
-			functionName = functionIdentifier.asSerializableString();
+			functionName = functionIdentifier.asSummaryString();
 		}
 
 		final String argList = args.stream()

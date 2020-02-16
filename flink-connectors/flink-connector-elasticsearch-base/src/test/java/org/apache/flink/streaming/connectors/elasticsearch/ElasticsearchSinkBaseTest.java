@@ -26,7 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionWriteResponse;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -510,7 +510,7 @@ public class ElasticsearchSinkBaseTest {
 
 								if (mockItemFailure == null) {
 									// the mock response for the item is success
-									mockResponses[i] = new BulkItemResponse(i, "opType", mock(ActionWriteResponse.class));
+									mockResponses[i] = new BulkItemResponse(i, "opType", mock(DocWriteResponse.class));
 								} else {
 									// the mock response for the item is failure
 									mockResponses[i] = new BulkItemResponse(i, "opType", new BulkItemResponse.Failure("index", "type", "id", mockItemFailure));
@@ -557,6 +557,11 @@ public class ElasticsearchSinkBaseTest {
 
 		@Override
 		public void configureBulkProcessorBackoff(BulkProcessor.Builder builder, @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+			// no need for this in the test cases here
+		}
+
+		@Override
+		public void verifyClientConnection(Client client) {
 			// no need for this in the test cases here
 		}
 	}

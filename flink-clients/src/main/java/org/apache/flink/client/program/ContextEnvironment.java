@@ -19,123 +19,78 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.FlinkPipelineTranslationUtil;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.ShutdownHookUtil;
 
-import java.net.URL;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	private final ClusterClient<?> client;
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final boolean detached;
-
-	private final List<URL> jarFilesToAttach;
-
-	private final List<URL> classpathsToAttach;
-
-	private final ClassLoader userCodeClassLoader;
-
-	private final SavepointRestoreSettings savepointSettings;
-
-	private final AtomicReference<JobExecutionResult> jobExecutionResult;
-
-	private boolean alreadyCalled;
-
-	public ContextEnvironment(
-		ClusterClient<?> remoteConnection,
-		List<URL> jarFiles,
-		List<URL> classpaths,
-		ClassLoader userCodeClassLoader,
-		SavepointRestoreSettings savepointSettings,
-		boolean detached,
-		AtomicReference<JobExecutionResult> jobExecutionResult) {
-		this.client = remoteConnection;
-		this.jarFilesToAttach = jarFiles;
-		this.classpathsToAttach = classpaths;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.savepointSettings = savepointSettings;
-
-		this.detached = detached;
-		this.alreadyCalled = false;
-
-		this.jobExecutionResult = jobExecutionResult;
+	ContextEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader) {
+		super(executorServiceLoader, configuration, userCodeClassLoader);
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		verifyExecuteIsCalledOnceWhenInDetachedMode();
+		JobClient jobClient = executeAsync(jobName);
 
-		Plan plan = createProgramPlan(jobName);
+		JobExecutionResult jobExecutionResult;
+		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+					jobClient.getJobExecutionResult(getUserCodeClassLoader());
 
-		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
-				plan,
-				client.getFlinkConfiguration(),
-				getParallelism());
+			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> {
+							// wait a smidgen to allow the async request to go through before
+							// the jvm exits
+							jobClient.cancel().get(1, TimeUnit.SECONDS);
+						},
+						ContextEnvironment.class.getSimpleName(),
+						LOG);
+				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+			}
 
-		ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
-		jobGraph.setClasspaths(this.classpathsToAttach);
-
-		if (detached) {
-			lastJobExecutionResult = ClientUtils.submitJob(client, jobGraph);
+			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
 		} else {
-			lastJobExecutionResult = ClientUtils.submitJobAndWaitForResult(client, jobGraph, userCodeClassLoader).getJobExecutionResult();
+			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 
-		setJobExecutionResult(lastJobExecutionResult);
-
-		return lastJobExecutionResult;
+		return jobExecutionResult;
 	}
 
-	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
-		if (alreadyCalled && detached) {
-			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
-		}
-		alreadyCalled = true;
-	}
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		final JobClient jobClient = super.executeAsync(jobName);
 
-	public void setJobExecutionResult(JobExecutionResult jobExecutionResult) {
-		this.jobExecutionResult.set(jobExecutionResult);
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return jobClient;
 	}
 
 	@Override
 	public String toString() {
 		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
-	}
-
-	public ClusterClient<?> getClient() {
-		return this.client;
-	}
-
-	public List<URL> getJars(){
-		return jarFilesToAttach;
-	}
-
-	public List<URL> getClasspaths(){
-		return classpathsToAttach;
-	}
-
-	public ClassLoader getUserCodeClassLoader() {
-		return userCodeClassLoader;
-	}
-
-	public SavepointRestoreSettings getSavepointRestoreSettings() {
-		return savepointSettings;
-	}
-
-	public boolean isDetached() {
-		return detached;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -40,7 +40,6 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,6 +47,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -475,34 +475,6 @@ public class CheckpointCoordinatorMasterHooksTest {
 		@SuppressWarnings("unchecked")
 		Class<T> typedClass = (Class<T>) clazz;
 		return mock(typedClass);
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A test implementation of {@link SimpleVersionedSerializer} for String type.
-	 */
-	public static final class StringSerializer implements SimpleVersionedSerializer<String> {
-
-		static final int VERSION = 77;
-
-		@Override
-		public int getVersion() {
-			return VERSION;
-		}
-
-		@Override
-		public byte[] serialize(String checkpointData) throws IOException {
-			return checkpointData.getBytes(StandardCharsets.UTF_8);
-		}
-
-		@Override
-		public String deserialize(int version, byte[] serialized) throws IOException {
-			if (version != VERSION) {
-				throw new IOException("version mismatch");
-			}
-			return new String(serialized, StandardCharsets.UTF_8);
-		}
 	}
 
 	// ------------------------------------------------------------------------

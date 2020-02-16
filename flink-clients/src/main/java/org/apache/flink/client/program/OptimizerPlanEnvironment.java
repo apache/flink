@@ -18,10 +18,13 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -39,22 +42,37 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobClient executeAsync(String jobName) throws Exception {
 		this.pipeline = createProgramPlan();
 
 		// do not go on with anything now!
 		throw new ProgramAbortException();
 	}
 
-	public Pipeline getPipeline(PackagedProgram prog) throws ProgramInvocationException {
+	/**
+	 * Retrieves the JobGraph from a PackagedProgram.
+	 * @param prog The program to run
+	 * @param suppressOutput Whether to suppress stdout/stderr. Output is always printed on errors.
+	 * @return The Flink batch or streaming plan
+	 * @throws ProgramInvocationException in case of errors.
+	 */
+	public Pipeline getPipeline(PackagedProgram prog, boolean suppressOutput) throws ProgramInvocationException {
 
-		// temporarily write syserr and sysout to a byte array.
-		PrintStream originalOut = System.out;
-		PrintStream originalErr = System.err;
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		System.setOut(new PrintStream(baos));
-		ByteArrayOutputStream baes = new ByteArrayOutputStream();
-		System.setErr(new PrintStream(baes));
+		final PrintStream originalOut = System.out;
+		final PrintStream originalErr = System.err;
+		final ByteArrayOutputStream stdOutBuffer;
+		final ByteArrayOutputStream stdErrBuffer;
+
+		if (suppressOutput) {
+			// temporarily write syserr and sysout to a byte array.
+			stdOutBuffer = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stdOutBuffer));
+			stdErrBuffer = new ByteArrayOutputStream();
+			System.setErr(new PrintStream(stdErrBuffer));
+		} else {
+			stdOutBuffer = null;
+			stdErrBuffer = null;
+		}
 
 		setAsContext();
 		try {
@@ -68,23 +86,20 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			if (pipeline != null) {
 				return pipeline;
 			} else {
-				throw new ProgramInvocationException("The program caused an error: ", t);
+				throw generateException(prog, "The program caused an error: ", t, stdOutBuffer, stdErrBuffer);
 			}
 		}
 		finally {
 			unsetAsContext();
-			System.setOut(originalOut);
-			System.setErr(originalErr);
+			if (suppressOutput) {
+				System.setOut(originalOut);
+				System.setErr(originalErr);
+			}
 		}
 
-		String stdout = baos.toString();
-		String stderr = baes.toString();
-
-		throw new ProgramInvocationException(
-				"The program plan could not be fetched - the program aborted pre-maturely."
-						+ "\n\nSystem.err: " + (stderr.length() == 0 ? "(none)" : stderr)
-						+ "\n\nSystem.out: " + (stdout.length() == 0 ? "(none)" : stdout));
+		throw generateException(prog, "The program plan could not be fetched - the program aborted pre-maturely.", stdOutBuffer, stdErrBuffer);
 	}
+
 	// ------------------------------------------------------------------------
 
 	private void setAsContext() {
@@ -106,6 +121,37 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	public void setPipeline(Pipeline pipeline){
 		this.pipeline = pipeline;
+	}
+
+	private static ProgramInvocationException generateException(
+			PackagedProgram prog,
+			String msg,
+			@Nullable ByteArrayOutputStream stdout,
+			@Nullable ByteArrayOutputStream stderr) {
+		return generateException(prog, msg, null, stdout, stderr);
+	}
+
+	private static ProgramInvocationException generateException(
+			PackagedProgram prog,
+			String msg,
+			@Nullable Throwable cause,
+			@Nullable ByteArrayOutputStream stdoutBuffer,
+			@Nullable ByteArrayOutputStream stderrBuffer) {
+		Preconditions.checkState((stdoutBuffer != null) == (stderrBuffer != null),
+				"Stderr/Stdout should either both be set or both be null.");
+		String stdout = "";
+		String stderr = "";
+		if (stdoutBuffer != null) {
+			stdout = stdoutBuffer.toString();
+			stderr = stderrBuffer.toString();
+		}
+		return new ProgramInvocationException(
+			String.format("%s\n\nClasspath: %s\n\nSystem.out: %s\n\nSystem.err: %s",
+				msg,
+				prog.getJobJarAndDependencies(),
+				stdout.length() == 0 ? "(none)" : stdout,
+				stderr.length() == 0 ? "(none)" : stderr),
+			cause);
 	}
 
 	/**

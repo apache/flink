@@ -73,18 +73,11 @@ abstract class BatchTableEnvImpl(
    * Provides necessary methods for [[ConnectTableDescriptor]].
    */
   private val registration = new Registration() {
+
     override def createTemporaryTable(path: String, table: CatalogBaseTable): Unit = {
       val unresolvedIdentifier = parseIdentifier(path)
       val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
       catalogManager.createTemporaryTable(table, objectIdentifier, false)
-    }
-
-    override def createTableSource(name: String, tableSource: TableSource[_]): Unit = {
-      registerTableSource(name, tableSource)
-    }
-
-    override def createTableSink(name: String, tableSource: TableSink[_]): Unit = {
-      registerTableSink(name, tableSource)
     }
   }
 
@@ -95,7 +88,7 @@ abstract class BatchTableEnvImpl(
     * @param tableSource The [[TableSource]] to register.
     */
   override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
-    TableSourceValidation.validateTableSource(tableSource)
+    TableSourceValidation.validateTableSource(tableSource, tableSource.getTableSchema)
 
     if (!tableSource.isInstanceOf[BatchTableSource[_]] &&
         !tableSource.isInstanceOf[InputFormatTableSource[_]]) {
@@ -300,6 +293,9 @@ abstract class BatchTableEnvImpl(
 
     logicalPlan match {
       case node: DataSetRel =>
+        execEnv.configure(
+          config.getConfiguration,
+          Thread.currentThread().getContextClassLoader)
         val plan = node.translateToPlan(this, new BatchQueryConfig)
         val conversion =
           getConversionMapper(

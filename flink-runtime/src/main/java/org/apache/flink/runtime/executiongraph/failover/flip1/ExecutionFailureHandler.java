@@ -44,6 +44,9 @@ public class ExecutionFailureHandler {
 	/** Strategy to judge whether and when a restarting should be done. */
 	private final RestartBackoffTimeStrategy restartBackoffTimeStrategy;
 
+	/** Number of all restarts happened since this job is submitted. */
+	private long numberOfRestarts;
+
 	/**
 	 * Creates the handler to deal with task failures.
 	 *
@@ -52,9 +55,9 @@ public class ExecutionFailureHandler {
 	 * @param restartBackoffTimeStrategy helps to decide whether to restart failed tasks and the restarting delay
 	 */
 	public ExecutionFailureHandler(
-		FailoverTopology<?, ?> failoverTopology,
-		FailoverStrategy failoverStrategy,
-		RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
+			final FailoverTopology<?, ?> failoverTopology,
+			final FailoverStrategy failoverStrategy,
+			final RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
 
 		this.failoverTopology = checkNotNull(failoverTopology);
 		this.failoverStrategy = checkNotNull(failoverStrategy);
@@ -98,6 +101,8 @@ public class ExecutionFailureHandler {
 
 		restartBackoffTimeStrategy.notifyFailure(cause);
 		if (restartBackoffTimeStrategy.canRestart()) {
+			numberOfRestarts++;
+
 			return FailureHandlingResult.restartable(
 				verticesToRestart,
 				restartBackoffTimeStrategy.getBackoffTime());
@@ -112,5 +117,9 @@ public class ExecutionFailureHandler {
 		Optional<Throwable> unrecoverableError = ThrowableClassifier.findThrowableOfThrowableType(
 			cause, ThrowableType.NonRecoverableError);
 		return unrecoverableError.isPresent();
+	}
+
+	public long getNumberOfRestarts() {
+		return numberOfRestarts;
 	}
 }

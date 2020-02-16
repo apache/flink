@@ -274,8 +274,7 @@ public class InputGateFairnessTest {
 			"Test Task Name",
 			new IntermediateDataSetID(),
 			0,
-			numberOfChannels,
-			true);
+			numberOfChannels);
 	}
 
 	private void fillRandom(PipelinedSubpartition[] partitions, int numPerPartition, BufferConsumer buffer) throws Exception {
@@ -330,8 +329,7 @@ public class InputGateFairnessTest {
 				String owningTaskName,
 				IntermediateDataSetID consumedResultId,
 				int consumedSubpartitionIndex,
-				int numberOfInputChannels,
-				boolean isCreditBased) {
+				int numberOfInputChannels) {
 
 			super(owningTaskName,
 				consumedResultId,
@@ -339,8 +337,8 @@ public class InputGateFairnessTest {
 				consumedSubpartitionIndex,
 				numberOfInputChannels,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-				isCreditBased,
-				STUB_BUFFER_POOL_FACTORY);
+				STUB_BUFFER_POOL_FACTORY,
+				null);
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");
