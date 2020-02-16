@@ -27,11 +27,15 @@ public interface SqlExprToRexConverter {
 
 	/**
 	 * Converts a SQL expression to a {@link RexNode} expression.
+	 *
+	 * @param expr It's caller's duty to ensure that the expression has been escaped correctly.
 	 */
 	RexNode convertToRexNode(String expr);
 
 	/**
 	 * Converts an array of SQL expressions to an array of {@link RexNode} expressions.
+	 *
+	 * @param exprs It's caller's duty to ensure that the expression has been escaped correctly.
 	 */
 	RexNode[] convertToRexNodes(String[] exprs);
 

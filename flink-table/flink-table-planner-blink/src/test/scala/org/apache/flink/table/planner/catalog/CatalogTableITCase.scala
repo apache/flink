@@ -449,6 +449,55 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
+  def testComputedColumnWithEscapedKeywordField(): Unit = {
+    val sourceData = List(
+      toRow(1, "1990-02-10 12:34:56"),
+      toRow(2, "2019-09-10 9:23:41"),
+      toRow(3, "2019-09-10 9:23:42"),
+      toRow(1, "2019-09-10 9:23:43"),
+      toRow(2, "2019-09-10 9:23:44")
+    )
+    val expected = List(
+      toRow(1, "1990-02-10 12:34:56", 1001),
+      toRow(2, "2019-09-10 9:23:41", 1002),
+      toRow(3, "2019-09-10 9:23:42", 1003),
+      toRow(1, "2019-09-10 9:23:43", 1001),
+      toRow(2, "2019-09-10 9:23:44", 1002)
+    )
+    TestCollectionTableFactory.initData(sourceData)
+    val sourceDDL =
+      """
+        |create table t1(
+        |  a int,
+        |  `time` varchar,
+        |  c as a + 1000
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val sinkDDL =
+      """
+        |create table t2(
+        |  a int,
+        |  `time` varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |insert into t2
+        |select * from t1
+      """.stripMargin
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
+    execJob("testJob")
+    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
   def testInsertSinkTableExpressionFields(): Unit = {
     val sourceData = List(
       toRow(1, "1000"),
