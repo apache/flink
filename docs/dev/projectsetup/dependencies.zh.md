@@ -94,10 +94,8 @@ under the License.
 我们强烈建议保持这些依赖的作用域为 *provided* 。 如果它们的作用域未设置为 *provided* ，则典型的情况是因为包含了 Flink 的核心依赖而导致生成的jar包变得过大。
 最糟糕的情况是添加到应用程序的 Flink 核心依赖项与你自己的一些依赖项版本冲突（通常通过反向类加载来避免）。
 
-**IntelliJ 上的一些注意事项:** 为了可以让 Flink 应用在 IntelliJ IDEA 中运行，这些 Flink 核心依赖的作用域需要设置为 *compile* 而不是 *provided* 。
-否则 IntelliJ 不会添加这些依赖到 classpath，会导致应用运行时抛出 `NoClassDefFountError` 异常。为了避免声明这些依赖的作用域为 *compile* (因为我们不推荐这样做)，
-上文给出的 Java 和 Scala 项目模板使用了一个小技巧：添加了一个 profile，仅当应用程序在 IntelliJ 中运行时该 profile 才会被激活，
-然后将依赖作用域设置为 *compile* ，从而不影响应用 jar 包。
+**IntelliJ 上的一些注意事项:** 为了可以让 Flink 应用在 IntelliJ IDEA 中运行，需要在 Run 配置界面将 `Include dependencies with "Provided" scope` 选项勾选上。
+如果这一选项还不可用（可能是因为你正在使用一个老版本的 IntelliJ IDEA），那么一个简单的解决方案是创建一个测试，并在测试中调用应用程序的 `main()` 方法。
 
 ## 添加连接器以及类库依赖
 

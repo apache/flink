@@ -1,5 +1,5 @@
 ---
-title: "Local Cluster"
+title: "本地集群"
 nav-title: 'Local Cluster'
 nav-parent_id: deployment
 nav-pos: 2

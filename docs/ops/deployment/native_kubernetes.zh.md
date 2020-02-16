@@ -1,5 +1,5 @@
 ---
-title:  "Native Kubernetes 安装"
+title:  "原生 Kubernetes 设置"
 nav-title: Native Kubernetes
 nav-parent_id: deployment
 is_beta: true

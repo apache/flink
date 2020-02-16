@@ -152,8 +152,7 @@ bin/pyflink-shell.sh remote <hostname> <portnumber>
 
 ### Yarn Python Shell cluster
 
-Python Shell可以运行在YARN集群之上。YARN的container的数量可以通过参数`-n <arg>`进行
-指定。Python shell在Yarn上部署一个新的Flink集群，并进行连接。除了指定container数量，你也
+Python Shell可以运行在YARN集群之上。Python shell在Yarn上部署一个新的Flink集群，并进行连接。除了指定container数量，你也
 可以指定JobManager的内存，YARN应用的名字等参数。
 例如，在一个部署了两个TaskManager的Yarn集群上运行Python Shell:
 
