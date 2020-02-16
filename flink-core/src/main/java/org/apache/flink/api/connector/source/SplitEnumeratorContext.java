@@ -52,7 +52,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	 *
 	 * @return the number of subtasks.
 	 */
-	int getNumSubtasks();
+	int numSubtasks();
 
 	/**
 	 * Get the currently registered readers. The mapping is from subtask id to the reader info.

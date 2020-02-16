@@ -42,14 +42,14 @@ public enum Boundedness {
 	BOUNDED,
 
 	/**
-	 * An UNBOUNDED stream is a stream with infinite records.
+	 * A CONTINUOUS_UNBOUNDED stream is a stream with infinite records.
 	 *
 	 * <p>In the context of sources, an infinite stream expects the source implementation to run
 	 * without an upfront indication to Flink that they will eventually stop. The sources may
 	 * eventually be terminated when users cancel the jobs or some source-specific condition is met.
 	 *
-	 * <p>An UNBOUNDED stream may also eventually stop at some point. But before that happens, Flink
-	 * always assumes the sources are going to run forever.
+	 * <p>A CONTINUOUS_UNBOUNDED stream may also eventually stop at some point. But before that
+	 * happens, Flink always assumes the sources are going to run forever.
 	 */
-	UNBOUNDED
+	CONTINUOUS_UNBOUNDED
 }

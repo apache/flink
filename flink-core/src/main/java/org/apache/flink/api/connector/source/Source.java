@@ -37,15 +37,11 @@ import java.io.Serializable;
 public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Serializable {
 
 	/**
-	 * Checks whether the source supports the given boundedness.
+	 * Get the boundedness of this source.
 	 *
-	 * <p>Some sources might only support either continuous unbounded streams, or
-	 * bounded streams.
-	 *
-	 * @param boundedness The boundedness to check.
-	 * @return <code>true</code> if the given boundedness is supported, <code>false</code> otherwise.
+	 * @return the boundedness of this source.
 	 */
-	boolean supportsBoundedness(Boundedness boundedness);
+	Boundedness getBoundedness();
 
 	/**
 	 * Creates a new reader to read data from the spits it gets assigned.
@@ -59,13 +55,10 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
 	/**
 	 * Creates a new SplitEnumerator for this source, starting a new input.
 	 *
-	 * @param boundedness The boundedness of this source.
 	 * @param enumContext The {@link SplitEnumeratorContext context} for the split enumerator.
 	 * @return A new SplitEnumerator.
 	 */
-	SplitEnumerator<SplitT, EnumChkT> createEnumerator(
-			Boundedness boundedness,
-			SplitEnumeratorContext<SplitT> enumContext);
+	SplitEnumerator<SplitT, EnumChkT> createEnumerator(SplitEnumeratorContext<SplitT> enumContext);
 
 	/**
 	 * Restores an enumerator from a checkpoint.
