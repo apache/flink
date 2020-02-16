@@ -99,7 +99,7 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	/**
 	 * The receiver which forwards the input elements to a remote environment for processing.
 	 */
-	protected transient FnDataReceiver<WindowedValue<?>> mainInputReceiver;
+	protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
 
 	/**
 	 * Reusable OutputStream used to holding the serialized input elements.

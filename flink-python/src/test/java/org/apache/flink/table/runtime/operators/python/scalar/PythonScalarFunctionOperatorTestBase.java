@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
@@ -229,6 +230,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
 		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		testHarness.setup(getOutputTypeSerializer(dataType));
 		return testHarness;
 	}
 
@@ -245,4 +247,6 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 	public abstract void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual);
 
 	public abstract StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env);
+
+	public abstract TypeSerializer<OUT> getOutputTypeSerializer(RowType dataType);
 }

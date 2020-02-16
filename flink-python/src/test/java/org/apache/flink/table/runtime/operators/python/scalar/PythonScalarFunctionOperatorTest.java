@@ -27,7 +27,7 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -68,6 +68,12 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		return StreamTableEnvironment.create(env);
 	}
 
+	@Override
+	public TypeSerializer<CRow> getOutputTypeSerializer(RowType dataType) {
+		// If set to null, PojoSerializer is used by default which works well here.
+		return null;
+	}
+
 	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {
 
 		PassThroughPythonScalarFunctionOperator(
@@ -84,18 +90,13 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
 				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonFunctionRunner<Row>(resultReceiver) {
-				@Override
-				public Row copy(Row element) {
-					return Row.copy(element);
-				}
-
-				@Override
-				@SuppressWarnings("unchecked")
-				public TypeSerializer<Row> getInputTypeSerializer() {
-					return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
-				}
-			};
+			return new PassThroughPythonScalarFunctionRunner(
+				getRuntimeContext().getTaskName(),
+				resultReceiver,
+				scalarFunctions,
+				pythonEnvironmentManager,
+				userDefinedFunctionInputType,
+				userDefinedFunctionOutputType);
 		}
 	}
 }

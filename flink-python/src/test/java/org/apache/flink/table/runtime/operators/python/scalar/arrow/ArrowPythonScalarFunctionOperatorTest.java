@@ -16,80 +16,86 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.python.table;
+package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
 import java.util.Queue;
 
 /**
- * Tests for {@link PythonTableFunctionOperator}.
+ * Tests for {@link ArrowPythonScalarFunctionOperator}.
  */
-public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row> {
-	@Override
-	public AbstractPythonTableFunctionOperator<CRow, CRow, Row> getTestOperator(
+public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
+
+	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row> getTestOperator(
 		Configuration config,
-		PythonFunctionInfo tableFunction,
+		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		JoinRelType joinRelType) {
-		return new PassThroughPythonTableFunctionOperator(
-			config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+		int[] forwardedFields) {
+		return new PassThroughArrowPythonScalarFunctionOperator(
+			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
-	@Override
 	public CRow newRow(boolean accumulateMsg, Object... fields) {
 		return new CRow(Row.of(fields), accumulateMsg);
 	}
 
-	@Override
 	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
 		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
 	}
 
-	private static class PassThroughPythonTableFunctionOperator extends PythonTableFunctionOperator {
+	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+		return StreamTableEnvironment.create(env);
+	}
 
-		PassThroughPythonTableFunctionOperator(
+	@Override
+	public TypeSerializer<CRow> getOutputTypeSerializer(RowType dataType) {
+		// If set to null, PojoSerializer is used by default which works well here.
+		return null;
+	}
+
+	private static class PassThroughArrowPythonScalarFunctionOperator extends ArrowPythonScalarFunctionOperator {
+
+		PassThroughArrowPythonScalarFunctionOperator(
 			Configuration config,
-			PythonFunctionInfo tableFunction,
+			PythonFunctionInfo[] scalarFunctions,
 			RowType inputType,
 			RowType outputType,
 			int[] udfInputOffsets,
-			JoinRelType joinRelType) {
-			super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+			int[] forwardedFields) {
+			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 		}
 
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonTableFunctionRunner<Row>(resultReceiver) {
-				@Override
-				public Row copy(Row element) {
-					return Row.copy(element);
-				}
-
-				@Override
-				@SuppressWarnings("unchecked")
-				public TypeSerializer<Row> getInputTypeSerializer() {
-					return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
-				}
-			};
+				FnDataReceiver<byte[]> resultReceiver,
+				PythonEnvironmentManager pythonEnvironmentManager) {
+			return new PassThroughArrowPythonScalarFunctionRunner(
+				getRuntimeContext().getTaskName(),
+				resultReceiver,
+				scalarFunctions,
+				pythonEnvironmentManager,
+				userDefinedFunctionInputType,
+				userDefinedFunctionOutputType,
+				getPythonConfig().getMaxArrowBatchSize());
 		}
 	}
 }

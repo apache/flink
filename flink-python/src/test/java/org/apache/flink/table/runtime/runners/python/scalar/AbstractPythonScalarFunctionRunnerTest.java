@@ -28,13 +28,13 @@ import java.util.Arrays;
 import java.util.Collections;
 
 /**
- * Base class for PythonScalarFunctionRunner and BaseRowPythonScalarFunctionRunner test.
+ * Base class for Python ScalarFunction runner tests.
  *
  * @param <IN> Type of the input elements.
  */
 public abstract class AbstractPythonScalarFunctionRunnerTest<IN>  {
 
-	AbstractGeneralPythonScalarFunctionRunner<IN> createSingleUDFRunner() throws Exception {
+	protected AbstractPythonScalarFunctionRunner<IN> createSingleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -45,7 +45,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, rowType, rowType);
 	}
 
-	AbstractGeneralPythonScalarFunctionRunner<IN> createMultipleUDFRunner() throws Exception {
+	protected AbstractPythonScalarFunctionRunner<IN> createMultipleUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -65,7 +65,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
-	AbstractGeneralPythonScalarFunctionRunner<IN> createChainedUDFRunner() throws Exception {
+	protected AbstractPythonScalarFunctionRunner<IN> createChainedUDFRunner() throws Exception {
 		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
 			new PythonFunctionInfo(
 				DummyPythonFunction.INSTANCE,
@@ -103,7 +103,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN>  {
 		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
 	}
 
-	public abstract AbstractGeneralPythonScalarFunctionRunner<IN> createPythonScalarFunctionRunner(
+	public abstract AbstractPythonScalarFunctionRunner<IN> createPythonScalarFunctionRunner(
 		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType) throws Exception;
 
 	/**

@@ -50,6 +50,15 @@ public class PythonOptions {
 			"buffered before being processed. Lower timeouts lead to lower tail latencies, but may affect throughput.");
 
 	/**
+	 * The maximum number of elements to include in an arrow batch.
+	 */
+	public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE = ConfigOptions
+		.key("python.fn-execution.arrow.batch.size")
+		.defaultValue(1000)
+		.withDescription("The maximum number of elements to include in an arrow batch for Python " +
+			"user-defined function execution.");
+
+	/**
 	 * The amount of memory to be allocated by the Python framework.
 	 */
 	public static final ConfigOption<String> PYTHON_FRAMEWORK_MEMORY_SIZE = ConfigOptions
