@@ -95,6 +95,11 @@ UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
 
 ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
 
+if [ ! -z "$TF_BUILD" ] ; then
+	# set proper artifacts file name on Azure Pipelines
+	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tar.gz
+fi
+
 if [ $TEST == $STAGE_PYTHON ]; then
 	CMD=$PYTHON_TEST
 	CMD_PID=$PYTHON_PID
@@ -273,18 +278,22 @@ cd ../../
 # only run end-to-end tests in misc because we only have flink-dist here
 case $TEST in
     (misc)
-        if [ $EXIT_CODE == 0 ]; then
-            echo "\n\n==============================================================================\n"
-            echo "Running bash end-to-end tests\n"
-            echo "==============================================================================\n"
+        # If we are not on Azure (we are on Travis) run precommit tests in misc stage.
+        # On Azure, we run them in a separate job
+        if [ -z "$TF_BUILD" ] ; then
+            if [ $EXIT_CODE == 0 ]; then
+                echo "\n\n==============================================================================\n"
+                echo "Running bash end-to-end tests\n"
+                echo "==============================================================================\n"
 
-            FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
+                FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
-            EXIT_CODE=$?
-        else
-            echo "\n==============================================================================\n"
-            echo "Previous build failure detected, skipping bash end-to-end tests.\n"
-            echo "==============================================================================\n"
+                EXIT_CODE=$?
+            else
+                echo "\n==============================================================================\n"
+                echo "Previous build failure detected, skipping bash end-to-end tests.\n"
+                echo "==============================================================================\n"
+            fi
         fi
         if [ $EXIT_CODE == 0 ]; then
             echo "\n\n==============================================================================\n"
