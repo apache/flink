@@ -101,12 +101,12 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		}
 
 		/**
-		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
-		 *
 		 * Creates a JSON serialization schema for the given type information.
 		 *
 		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
 		 *                 are used to parse the JSON properties.
+		 *
+		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
 		 */
 		@Deprecated
 		public Builder(TypeInformation<Row> typeInfo) {
@@ -115,13 +115,13 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		}
 
 		/**
-		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
-		 *
 		 * Creates a JSON serialization schema for the given JSON schema.
 		 *
 		 * @param jsonSchema JSON schema describing the result type
 		 *
 		 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+		 *
+		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
 		 */
 		@Deprecated
 		public Builder(String jsonSchema) {
@@ -150,6 +150,9 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		}
 	}
 
+	/**
+	 * Creates a builder for {@link JsonRowSerializationSchema.Builder}
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
