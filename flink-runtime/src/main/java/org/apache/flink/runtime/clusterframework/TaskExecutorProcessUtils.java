@@ -644,6 +644,11 @@ public class TaskExecutorProcessUtils {
 		return getCpuCoresWithFallback(config, -1.0);
 	}
 
+	public static double getCpuCoresWithFallbackConfigOption(final Configuration config, ConfigOption<Double> fallbackOption) {
+		double fallbackValue = config.getDouble(fallbackOption);
+		return TaskExecutorProcessUtils.getCpuCoresWithFallback(config, fallbackValue).getValue().doubleValue();
+	}
+
 	public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
 		final double cpuCores;
 		if (config.contains(TaskManagerOptions.CPU_CORES)) {
