@@ -232,6 +232,8 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	public void testConfigCpuCores() {
 		Configuration config = getConfiguration();
 		config.setDouble(TaskManagerOptions.CPU_CORES, 1.5);
+		config.setDouble(MesosTaskManagerParameters.MESOS_RM_TASKS_CPUS, 2.5);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(config);
 		assertThat(mesosTaskManagerParameters.cpus(), is(1.5));
 	}
@@ -240,6 +242,7 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	public void testLegacyConfigCpuCores() {
 		Configuration config = getConfiguration();
 		config.setDouble(MesosTaskManagerParameters.MESOS_RM_TASKS_CPUS, 1.5);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(config);
 		assertThat(mesosTaskManagerParameters.cpus(), is(1.5));
 	}
