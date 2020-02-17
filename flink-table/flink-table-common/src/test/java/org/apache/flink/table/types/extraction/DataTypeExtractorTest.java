@@ -32,7 +32,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeHintMock;
 import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
-import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
@@ -40,6 +39,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
 import org.hamcrest.Matcher;
@@ -402,16 +402,15 @@ public class DataTypeExtractorTest {
 	 */
 	static class TestSpec {
 
-		private final Function<DataTypeFactory, DataType> extractor;
+		private final DataTypeFactoryMock typeFactory = new DataTypeFactoryMock();
 
-		private DataTypeFactoryMock typeFactory;
+		private final Function<DataTypeFactory, DataType> extractor;
 
 		private @Nullable DataType expectedDataType;
 
 		private @Nullable String expectedErrorMessage;
 
 		private TestSpec(Function<DataTypeFactory, DataType> extractor) {
-			this.typeFactory = new DataTypeFactoryMock();
 			this.extractor = extractor;
 		}
 

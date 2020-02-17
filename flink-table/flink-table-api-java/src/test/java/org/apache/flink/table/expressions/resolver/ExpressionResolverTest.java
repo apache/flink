@@ -41,7 +41,7 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
-import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.junit.Test;
