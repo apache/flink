@@ -189,6 +189,10 @@ algorithm](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf
 for distributed snapshots and is specifically tailored to Flink's execution
 model.
 
+Keep in mind that everything to do with checkpointing can be done
+asynchronously. The checkpoint barriers don't travel in lock step and
+operations can asynchronously snapshot their state.
+
 
 ### Barriers
 
@@ -274,32 +278,6 @@ The resulting snapshot now contains:
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/fig/checkpointing.svg" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
-
-### Asynchronous State Snapshots
-
-Note that the above described mechanism implies that operators stop processing
-input records while they are storing a snapshot of their state in the *state
-backend*. This *synchronous* state snapshot introduces a delay every time a
-snapshot is taken.
-
-It is possible to let an operator continue processing while it stores its state
-snapshot, effectively letting the state snapshots happen *asynchronously* in
-the background. To do that, the operator must be able to produce a state object
-that should be stored in a way such that further modifications to the operator
-state do not affect that state object. For example, *copy-on-write* data
-structures, such as are used in RocksDB, have this behavior.
-
-After receiving the checkpoint barriers on its inputs, the operator starts the
-asynchronous snapshot copying of its state. It immediately emits the barrier to
-its outputs and continues with the regular stream processing. Once the
-background copy process has completed, it acknowledges the checkpoint to the
-checkpoint coordinator (the JobManager). The checkpoint is now only complete
-after all sinks have received the barriers and all stateful operators have
-acknowledged their completed backup (which may be after the barriers reach the
-sinks).
-
-See [State Backends]({{ site.baseurl }}{% link ops/state/state_backends.md %})
-for details on the state snapshots.
 
 ### Recovery
 
