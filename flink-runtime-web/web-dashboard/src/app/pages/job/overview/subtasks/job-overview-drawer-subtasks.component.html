@@ -43,7 +43,7 @@
   <tbody>
     <tr *ngFor="let task of listOfTask; trackBy:trackTaskBy;">
       <td nzLeft="0">
-        {{ task.subtask }}
+        {{ task.subtask + 1 }}
       </td>
       <td>
         <span *ngIf="task.metrics['read-bytes-complete'];else loadingTemplate">
