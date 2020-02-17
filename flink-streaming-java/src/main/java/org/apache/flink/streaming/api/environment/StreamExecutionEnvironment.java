@@ -56,6 +56,7 @@ import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.JobListenerFactory;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
@@ -761,6 +762,21 @@ public class StreamExecutionEnvironment {
 			});
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
+		configuration.getOptional(ExecutionOptions.JOB_LISTENERS)
+			.ifPresent(l -> {
+				for (String factoryClassName : l) {
+					try {
+						Class<? extends JobListenerFactory> clazz =
+							Class.forName(factoryClassName, false, classLoader)
+								.asSubclass(JobListenerFactory.class);
+
+						JobListenerFactory factory = clazz.newInstance();
+						JobListener listener = factory.createFromConfig(configuration, classLoader);
+					} catch (Throwable t) {
+						throw new RuntimeException("Could not load JobListener factory: " + factoryClassName, t);
+					}
+				}
+			});
 	}
 
 	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
