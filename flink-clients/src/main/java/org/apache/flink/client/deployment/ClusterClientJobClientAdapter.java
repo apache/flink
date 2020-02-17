@@ -21,6 +21,7 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -47,14 +48,23 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 
 	private final JobID jobID;
 
-	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID) {
+	private final Pipeline pipeline;
+
+	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID,
+		final Pipeline pipeline) {
 		this.jobID = checkNotNull(jobID);
 		this.clusterClientProvider = checkNotNull(clusterClientProvider);
+		this.pipeline = checkNotNull(pipeline);
 	}
 
 	@Override
 	public JobID getJobID() {
 		return jobID;
+	}
+
+	@Override
+	public Pipeline getPipeline() {
+		return pipeline;
 	}
 
 	@Override

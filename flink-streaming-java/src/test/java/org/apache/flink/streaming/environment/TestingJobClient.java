@@ -21,6 +21,7 @@ package org.apache.flink.streaming.environment;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.core.execution.JobClient;
 
 import javax.annotation.Nullable;
@@ -37,6 +38,11 @@ public class TestingJobClient implements JobClient {
 	@Override
 	public JobID getJobID() {
 		return new JobID();
+	}
+
+	@Override
+	public Pipeline getPipeline() {
+		return null;
 	}
 
 	@Override

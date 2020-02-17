@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.dag.Pipeline;
 
 import javax.annotation.Nullable;
 
@@ -38,6 +39,11 @@ public interface JobClient {
 	 * Returns the {@link JobID} that uniquely identifies the job this client is scoped to.
 	 */
 	JobID getJobID();
+
+	/**
+	 * Returns the {@link Pipeline} instance of the job.
+	 */
+	Pipeline getPipeline();
 
 	/**
 	 * Requests the {@link JobStatus} of the associated job.

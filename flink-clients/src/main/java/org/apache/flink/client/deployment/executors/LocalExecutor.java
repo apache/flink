@@ -70,7 +70,7 @@ public class LocalExecutor implements PipelineExecutor {
 				.thenAccept((jobResult) -> clusterClient.shutDownCluster());
 
 		return jobIdFuture.thenApply(jobID ->
-				new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
+				new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID, pipeline));
 	}
 
 	private JobGraph getJobGraph(Pipeline pipeline, Configuration configuration) {

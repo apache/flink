@@ -66,7 +66,8 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 					.submitJob(jobGraph)
 					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
 							clusterClientProvider,
-							jobID))
+							jobID,
+							pipeline))
 					.whenComplete((ignored1, ignored2) -> clusterClient.close());
 		}
 	}
