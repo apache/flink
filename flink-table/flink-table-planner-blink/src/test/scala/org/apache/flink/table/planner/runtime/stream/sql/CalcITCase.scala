@@ -284,4 +284,21 @@ class CalcITCase extends StreamingTestBase {
       assertEquals(expected, result)
     )
   }
+
+  @Test
+  def testFilterOnNonAsciiLiteral(): Unit = {
+    val data: Seq[(Int, Long, String)] = Seq(
+      (1, 1L, "你好"),
+      (2, 2L, "再见"),
+      (3, 2L, "你好"))
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+    val sqlQuery = s"SELECT a, b, c, TRIM(' 世界 ') FROM MyTable WHERE c = '你好'"
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+    val expected = Seq("1,1,你好,世界", "3,2,你好,世界")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }
