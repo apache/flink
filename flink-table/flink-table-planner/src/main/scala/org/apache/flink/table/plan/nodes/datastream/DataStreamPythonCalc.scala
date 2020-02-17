@@ -130,5 +130,5 @@ class DataStreamPythonCalc(
 
 object DataStreamPythonCalc {
   val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.PythonScalarFunctionOperator"
+    "org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperator"
 }

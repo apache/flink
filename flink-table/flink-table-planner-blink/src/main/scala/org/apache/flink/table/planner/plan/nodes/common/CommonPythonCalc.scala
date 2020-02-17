@@ -170,5 +170,5 @@ trait CommonPythonCalc {
 
 object CommonPythonCalc {
   val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.BaseRowPythonScalarFunctionOperator"
+    "org.apache.flink.table.runtime.operators.python.scalar.BaseRowPythonScalarFunctionOperator"
 }

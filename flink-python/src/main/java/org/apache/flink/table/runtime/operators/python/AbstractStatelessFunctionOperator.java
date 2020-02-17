@@ -192,7 +192,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	/**
 	 * The collector is used to convert a {@link Row} to a {@link CRow}.
 	 */
-	protected static class StreamRecordCRowWrappingCollector implements Collector<Row> {
+	public static class StreamRecordCRowWrappingCollector implements Collector<Row> {
 
 		private final Collector<StreamRecord<CRow>> out;
 		private final CRow reuseCRow = new CRow();
@@ -202,7 +202,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		 */
 		private final StreamRecord<CRow> reuseStreamRecord = new StreamRecord<>(reuseCRow);
 
-		StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
+		public StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
 			this.out = out;
 		}
 
@@ -225,7 +225,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	/**
 	 * The collector is used to convert a {@link BaseRow} to a {@link StreamRecord}.
 	 */
-	protected static class StreamRecordBaseRowWrappingCollector implements Collector<BaseRow> {
+	public static class StreamRecordBaseRowWrappingCollector implements Collector<BaseRow> {
 
 		private final Collector<StreamRecord<BaseRow>> out;
 
@@ -234,7 +234,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		 */
 		private final StreamRecord<BaseRow> reuseStreamRecord = new StreamRecord<>(null);
 
-		StreamRecordBaseRowWrappingCollector(Collector<StreamRecord<BaseRow>> out) {
+		public StreamRecordBaseRowWrappingCollector(Collector<StreamRecord<BaseRow>> out) {
 			this.out = out;
 		}
 
