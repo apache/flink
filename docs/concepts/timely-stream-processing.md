@@ -169,11 +169,6 @@ parallel streams, and operators tracking event time.
 
 <img src="{{ site.baseurl }}/fig/parallel_streams_watermarks.svg" alt="Parallel data streams and operators with events and watermarks" class="center" width="80%" />
 
-Note that the Kafka source supports per-partition watermarking, which you can
-read more about [here]({{ site.baseurl }}{% link
-dev/event_timestamps_watermarks.md %}#timestamps-per-kafka-partition).
-
-
 ## Lateness
 
 It is possible that certain elements will violate the watermark condition,
@@ -207,9 +202,10 @@ overlap), and *session windows* (punctuated by a gap of inactivity).
 
 <img src="{{ site.baseurl }}/fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" />
 
-More window examples can be found in this [blog
-post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html). More
-details are in the [window docs]({{ site.baseurl }}{% link
-dev/stream/operators/windows.md %}).
+Please check out this [blog
+post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) for
+additional examples of windows or take a look a [window documentation]({{
+site.baseurl }}{% link dev/stream/operators/windows.md %}) of the DataStream
+API.
 
 {% top %}
