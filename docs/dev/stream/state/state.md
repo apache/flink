@@ -496,10 +496,44 @@ val counts: DataStream[(String, Int)] = stream
     })
 {% endhighlight %}
 
+## Operator State
+
+*Operator State* (or *non-keyed state*) is state that is is bound to one
+parallel operator instance. The [Kafka Connector]({{ site.baseurl }}{% link
+dev/connectors/kafka.md %}) is a good motivating example for the use of
+Operator State in Flink. Each parallel instance of the Kafka consumer maintains
+a map of topic partitions and offsets as its Operator State.
+
+The Operator State interfaces support redistributing state among parallel
+operator instances when the parallelism is changed. There can be different
+schemes for doing this redistribution.
+
+In a typical stateful Flink Application you don't need operators state. It is
+mostly a special type of state that is used in source/sink implementations and
+scenarios where you don't have a key by which state can be partitioned.
+
+## Broadcast State
+
+*Broadcast State* is a special type of *Operator State*.  It was introduced to
+support use cases where some data coming from one stream is required to be
+broadcasted to all downstream tasks, where it is stored locally and is used to
+process all incoming elements on the other stream. As an example where
+broadcast state can emerge as a natural fit, one can imagine a low-throughput
+stream containing a set of rules which we want to evaluate against all elements
+coming from another stream. Having the above type of use cases in mind,
+broadcast state differs from the rest of operator states in that:
+ 1. it has a map format,
+ 2. it is only available to specific operators that have as inputs a
+    *broadcasted* stream and a *non-broadcasted* one, and
+ 3. such an operator can have *multiple broadcast states* with different names.
+
+{% top %}
+
 ## Using Operator State
 
 To use operator state, a stateful function can implement either the more general `CheckpointedFunction`
 interface, or the `ListCheckpointed<T extends Serializable>` interface.
+
 
 #### CheckpointedFunction
 
