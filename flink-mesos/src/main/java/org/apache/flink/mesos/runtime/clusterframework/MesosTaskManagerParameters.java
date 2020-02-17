@@ -75,6 +75,7 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
 		key("mesos.resourcemanager.tasks.cpus")
+		.doubleType()
 		.defaultValue(0.0)
 		.withDescription("CPUs to assign to the Mesos workers.");
 
@@ -424,8 +425,7 @@ public class MesosTaskManagerParameters {
 	}
 
 	private static double getCpuCores(final Configuration configuration) {
-		double fallback = configuration.getDouble(MESOS_RM_TASKS_CPUS);
-		return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
+		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(configuration, MESOS_RM_TASKS_CPUS);
 	}
 
 	private static MemorySize getTotalProcessMemory(final Configuration configuration) {
