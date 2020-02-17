@@ -43,7 +43,7 @@ import java.util.Set;
 @PublicEvolving
 public final class RawType<T> extends LogicalType {
 
-	private static final String FORMAT = "RAW('%s', '%s')";
+	public static final String FORMAT = "RAW('%s', '%s')";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),

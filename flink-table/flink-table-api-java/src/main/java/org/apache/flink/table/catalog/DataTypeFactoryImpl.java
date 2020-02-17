@@ -24,7 +24,10 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -34,7 +37,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import javax.annotation.Nullable;
 
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
@@ -61,19 +63,29 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 	}
 
 	@Override
-	public Optional<DataType> createDataType(String name) {
-		final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
-		final LogicalType resolvedType = parsedType.accept(resolver);
-		return Optional.of(fromLogicalToDataType(resolvedType));
+	public DataType createDataType(AbstractDataType<?> abstractDataType) {
+		if (abstractDataType instanceof DataType) {
+			return (DataType) abstractDataType;
+		} else if (abstractDataType instanceof UnresolvedDataType) {
+			return ((UnresolvedDataType) abstractDataType).toDataType(this);
+		}
+		throw new ValidationException("Unsupported abstract data type.");
 	}
 
 	@Override
-	public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
+	public DataType createDataType(String name) {
+		final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
+		final LogicalType resolvedType = parsedType.accept(resolver);
+		return fromLogicalToDataType(resolvedType);
+	}
+
+	@Override
+	public DataType createDataType(UnresolvedIdentifier identifier) {
 		if (!identifier.getDatabaseName().isPresent()) {
 			return createDataType(identifier.getObjectName());
 		}
 		final LogicalType resolvedType = resolveType(identifier);
-		return Optional.of(fromLogicalToDataType(resolvedType));
+		return fromLogicalToDataType(resolvedType);
 	}
 
 	@Override
