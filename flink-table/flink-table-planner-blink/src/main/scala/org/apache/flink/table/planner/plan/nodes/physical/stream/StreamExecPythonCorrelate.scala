@@ -68,6 +68,6 @@ class StreamExecPythonCorrelate(
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
-    throw new TableException("The implementation will be next commit.")
+    throw new TableException("The implementation will be FLINK-15972.")
   }
 }

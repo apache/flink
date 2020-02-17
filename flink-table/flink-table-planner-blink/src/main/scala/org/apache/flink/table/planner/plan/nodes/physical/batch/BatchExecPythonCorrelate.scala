@@ -68,6 +68,6 @@ class BatchExecPythonCorrelate(
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[BaseRow] = {
-    throw new TableException("The implementation will be next commit.")
+    throw new TableException("The implementation will be FLINK-15972.")
   }
 }

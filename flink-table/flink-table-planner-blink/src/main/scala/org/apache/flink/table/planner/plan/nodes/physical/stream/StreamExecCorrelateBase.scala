@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
@@ -79,7 +78,6 @@ abstract class StreamExecCorrelateBase(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
-    val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("correlate", RelExplainUtil.correlateToString(
