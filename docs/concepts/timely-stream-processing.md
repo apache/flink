@@ -37,7 +37,7 @@ under the License.
 
 {% top %}
 
-## Event Time, Processing Time, and Ingestion Time
+## Notions of Time: Event Time and Processing Time
 
 When referring to time in a streaming program (for example to define windows),
 one can refer to different notions of *time*:
@@ -87,33 +87,11 @@ one can refer to different notions of *time*:
   arrive, or when they are processed. (See the section on [late
   events](#late-elements) for more information.)
 
-
-
   Note that sometimes when event time programs are processing live data in
   real-time, they will use some *processing time* operations in order to
   guarantee that they are progressing in a timely fashion.
 
-- **Ingestion time:** Ingestion time is the time that events enter Flink. At
-  the source operator each record gets the source's current time as a
-  timestamp, and time-based operations (like time windows) refer to that
-  timestamp.
-
-  *Ingestion time* sits conceptually in between *event time* and *processing
-  time*. Compared to *processing time*, it is slightly more expensive, but
-  gives more predictable results. Because *ingestion time* uses stable
-  timestamps (assigned once at the source), different window operations over
-  the records will refer to the same timestamp, whereas in *processing time*
-  each window operator may assign the record to a different window (based on
-  the local system clock and any transport delay).
-
-  Compared to *event time*, *ingestion time* programs cannot handle any
-  out-of-order events or late data, but the programs don't have to specify how
-  to generate *watermarks*.
-
-  Internally, *ingestion time* is treated much like *event time*, but with
-  automatic timestamp assignment and automatic watermark generation.
-
-<img src="{{ site.baseurl }}/fig/event_ingestion_processing_time.svg" alt="Event Time, Ingestion Time, and Processing Time" class="offset" width="80%" />
+<img src="{{ site.baseurl }}/fig/event_processing_time.svg" alt="Event Time and Processing Time" class="offset" width="80%" />
 
 {% top %}
 
