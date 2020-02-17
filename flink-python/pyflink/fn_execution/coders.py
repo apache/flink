@@ -40,7 +40,8 @@ __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'Boolea
 
 class FlattenRowCoder(FastCoder):
     """
-    Coder for Row. The result of decode will be list for the performance.
+    Coder for Row. The decoded result will be flattened as a list of column values of a row instead
+    of a row object.
     """
 
     def __init__(self, field_coders):
@@ -54,6 +55,10 @@ class FlattenRowCoder(FastCoder):
 
     def to_type_hint(self):
         return typehints.List
+
+    @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields])
 
     def __repr__(self):
         return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -334,11 +339,6 @@ class TimestampCoder(DeterministicCoder):
 
     def to_type_hint(self):
         return datetime.datetime
-
-
-@Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
-def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
-    return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields])
 
 
 type_name = flink_fn_execution_pb2.Schema.TypeName
