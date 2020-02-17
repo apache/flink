@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
@@ -1033,5 +1034,30 @@ public class NotPatternITCase extends TestLogger {
 		NFA<Event> nfa = compile(pattern, false);
 
 		return feedNFA(inputEvents, nfa);
+	}
+
+	@Test
+	public void testAccessPreviousStageInNotFollowedBy() throws Exception {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+				.notFollowedBy("not").where(new IterativeCondition<Event>() {
+					private static final long serialVersionUID = -4702359359303151881L;
+
+					@Override
+					public boolean filter(Event value, Context<Event> ctx) throws Exception {
+						return value.getName().equals(ctx.getEventsForPattern("start").iterator().next().getName());
+					}
+				}).followedBy("end");
+
+		Event a = new Event(40, "a", 1.0);
+		Event b = new Event(41, "b", 2.0);
+
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+		inputEvents.add(new StreamRecord<>(a, 1));
+		inputEvents.add(new StreamRecord<>(b, 2));
+
+		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
+		List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
+
+		comparePatterns(resultingPatterns, Collections.singletonList(Lists.newArrayList(a, b)));
 	}
 }
