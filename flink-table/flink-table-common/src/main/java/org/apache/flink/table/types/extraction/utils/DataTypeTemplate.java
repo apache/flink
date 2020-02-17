@@ -35,7 +35,6 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 
 /**
  * Internal representation of a {@link DataTypeHint}.
@@ -315,14 +314,11 @@ public final class DataTypeTemplate {
 				return createRawType(typeFactory, template.rawSerializer, conversionClass);
 			}
 			// regular type that must be resolvable
-			return typeFactory.createDataType(typeName)
-				.map(dataType -> {
-					if (conversionClass != null) {
-						return dataType.bridgedTo(conversionClass);
-					}
-					return dataType;
-				})
-				.orElseThrow(() -> extractionError("Could not resolve type with name '%s'.", typeName));
+			final DataType resolvedDataType = typeFactory.createDataType(typeName);
+			if (conversionClass != null) {
+				return resolvedDataType.bridgedTo(conversionClass);
+			}
+			return resolvedDataType;
 		}
 		// extracted data type
 		else if (conversionClass != null) {
