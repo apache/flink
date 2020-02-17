@@ -151,7 +151,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	}
 
 	/**
-	 * Creates a builder for {@link JsonRowSerializationSchema.Builder}
+	 * Creates a builder for {@link JsonRowSerializationSchema.Builder}.
 	 */
 	public static Builder builder() {
 		return new Builder();
