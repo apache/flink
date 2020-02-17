@@ -26,7 +26,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-There are many ways to get started with Apache Flink. Which one is the best for you depends on your goal and prior experience.
+There are many ways to get started with Apache Flink. Which one is the best for
+you depends on your goal and prior experience:
+
+* take a look at the **Docker Playgrounds** for a docker-based introduction to
+  specific Flink concepts
+* explore on of the **Code Walkthroughs** if you want to get an end-to-end
+  introduction to using one of the Flink APIs
+* use **Project Setup** if you already know the basics of Flink but want to get a
+  project setup template for Java or Scala and need help setting up
+  dependencies
 
 ### Taking a first look at Flink
 

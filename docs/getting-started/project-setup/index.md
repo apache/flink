@@ -3,7 +3,7 @@ title: "Project Setup"
 nav-id: project-setup
 nav-title: 'Project Setup'
 nav-parent_id: getting-started
-nav-pos: 5
+nav-pos: 30
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
