@@ -121,7 +121,7 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 					.recordStats()
 					.build();
 			if (cache != null) {
-				context.getMetricGroup().gauge("hitRate", (Gauge<Double>) () -> cache.stats().hitRate());
+				context.getMetricGroup().gauge("cacheHitRate", (Gauge<Double>) () -> cache.stats().hitRate());
 			}
 		} catch (SQLException sqe) {
 			throw new IllegalArgumentException("open() failed.", sqe);
