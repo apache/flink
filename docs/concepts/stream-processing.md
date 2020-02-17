@@ -52,7 +52,7 @@ gloss over this for simplicity.
 
 Often there is a one-to-one correspondence between the transformations in the
 programs and the operators in the dataflow. Sometimes, however, one
-transformation may consist of multiple transformation operators.
+transformation may consist of multiple operators.
 
 {% top %}
 

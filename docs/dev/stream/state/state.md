@@ -22,8 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In this section you will learn about the stateful abstractions that Flink
-offers and how to use them in practice. Please take a look at [Stateful Stream
+In this section you will learn about the APIs that Flink provides for writing
+stateful programs. Please take a look at [Stateful Stream
 Processing]({{site.baseurl}}{% link concepts/stateful-stream-processing.md %})
 to learn about the concepts behind stateful stream processing.
 
@@ -505,8 +505,8 @@ Operator State in Flink. Each parallel instance of the Kafka consumer maintains
 a map of topic partitions and offsets as its Operator State.
 
 The Operator State interfaces support redistributing state among parallel
-operator instances when the parallelism is changed. There can be different
-schemes for doing this redistribution.
+operator instances when the parallelism is changed. There are different schemes
+for doing this redistribution.
 
 In a typical stateful Flink Application you don't need operators state. It is
 mostly a special type of state that is used in source/sink implementations and
@@ -515,13 +515,15 @@ scenarios where you don't have a key by which state can be partitioned.
 ## Broadcast State
 
 *Broadcast State* is a special type of *Operator State*.  It was introduced to
-support use cases where some data coming from one stream is required to be
-broadcasted to all downstream tasks, where it is stored locally and is used to
-process all incoming elements on the other stream. As an example where
-broadcast state can emerge as a natural fit, one can imagine a low-throughput
-stream containing a set of rules which we want to evaluate against all elements
-coming from another stream. Having the above type of use cases in mind,
-broadcast state differs from the rest of operator states in that:
+support use cases where records of one stream need to be broadcasted to all
+downstream tasks, where they are used to maintain the same state among all
+subtasks. This state can then be accessed while processing records of a second
+stream. As an example where broadcast state can emerge as a natural fit, one
+can imagine a low-throughput stream containing a set of rules which we want to
+evaluate against all elements coming from another stream. Having the above type
+of use cases in mind, broadcast state differs from the rest of operator states
+in that:
+
  1. it has a map format,
  2. it is only available to specific operators that have as inputs a
     *broadcasted* stream and a *non-broadcasted* one, and

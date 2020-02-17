@@ -26,14 +26,10 @@ under the License.
 
 While many operations in a dataflow simply look at one individual *event at a
 time* (for example an event parser), some operations remember information
-across multiple events (for example window operators).  These operations are
+across multiple events (for example window operators). These operations are
 called **stateful**.
 
-Stateful functions and operators store data across the processing of individual
-elements/events, making state a critical building block for any type of more
-elaborate operation.
-
-For example:
+Some examples of stateful operations:
 
   - When an application searches for certain event patterns, the state will
     store the sequence of events encountered so far.
@@ -44,26 +40,19 @@ For example:
   - When historic data needs to be managed, the state allows efficient access
     to events that occurred in the past.
 
-Flink needs to be aware of the state in order to make state fault tolerant
-using [checkpoints]({{ site.baseurl}}{% link dev/stream/state/checkpointing.md
-%}) and to allow [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.md
-%}) of streaming applications.
+Flink needs to be aware of the state in order to make it fault tolerant using
+[checkpoints]({{ site.baseurl}}{% link dev/stream/state/checkpointing.md %})
+and [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.md %}).
 
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
 
-The [queryable state]({{ site.baseurl }}{% link
-dev/stream/state/queryable_state.md %}) feature of Flink allows you to access
-state from outside of Flink during runtime.
+[Queryable state]({{ site.baseurl }}{% link dev/stream/state/queryable_state.md
+%}) allows you to access state from outside of Flink during runtime.
 
 When working with state, it might also be useful to read about [Flink's state
 backends]({{ site.baseurl }}{% link ops/state/state_backends.md %}). Flink
 provides different state backends that specify how and where state is stored.
-State can be located on Java's heap or off-heap. Depending on your state
-backend, Flink can also *manage* the state for the application, meaning Flink
-deals with the memory management (possibly spilling to disk if necessary) to
-allow applications to hold very large state. State backends can be configured
-without changing your application logic.
 
 * This will be replaced by the TOC
 {:toc}
@@ -85,12 +74,12 @@ without changing your application logic.
 Keyed state is maintained in what can be thought of as an embedded key/value
 store.  The state is partitioned and distributed strictly together with the
 streams that are read by the stateful operators. Hence, access to the key/value
-state is only possible on *keyed streams*, after a *keyBy()* function, and is
-restricted to the values associated with the current event's key. Aligning the
-keys of streams and state makes sure that all state updates are local
-operations, guaranteeing consistency without transaction overhead.  This
-alignment also allows Flink to redistribute the state and adjust the stream
-partitioning transparently.
+state is only possible on *keyed streams*, i.e. after a keyed/partitioned data
+exchange, and is restricted to the values associated with the current event's
+key. Aligning the keys of streams and state makes sure that all state updates
+are local operations, guaranteeing consistency without transaction overhead.
+This alignment also allows Flink to redistribute the state and adjust the
+stream partitioning transparently.
 
 <img src="{{ site.baseurl }}/fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
 
@@ -103,28 +92,28 @@ Groups.
 ## State Persistence
 
 Flink implements fault tolerance using a combination of **stream replay** and
-**checkpointing**. A checkpoint is related to a specific point in each of the
+**checkpointing**. A checkpoint marks a specific point in each of the
 input streams along with the corresponding state for each of the operators. A
 streaming dataflow can be resumed from a checkpoint while maintaining
 consistency *(exactly-once processing semantics)* by restoring the state of the
-operators and replaying the events from the point of the checkpoint.
+operators and replaying the records from the point of the checkpoint.
 
 The checkpoint interval is a means of trading off the overhead of fault
-tolerance during execution with the recovery time (the number of events that
+tolerance during execution with the recovery time (the number of records that
 need to be replayed).
 
 The fault tolerance mechanism continuously draws snapshots of the distributed
 streaming data flow. For streaming applications with small state, these
 snapshots are very light-weight and can be drawn frequently without much impact
 on performance.  The state of the streaming applications is stored at a
-configurable place (such as the master node, or HDFS).
+configurable place, usually in a distributed file system.
 
 In case of a program failure (due to machine-, network-, or software failure),
 Flink stops the distributed streaming dataflow.  The system then restarts the
 operators and resets them to the latest successful checkpoint. The input
 streams are reset to the point of the state snapshot. Any records that are
 processed as part of the restarted parallel dataflow are guaranteed to not have
-been part of the previously checkpointed state.
+affected the previously checkpointed state.
 
 {% info Note %} By default, checkpointing is disabled. See [Checkpointing]({{
 site.baseurl }}{% link dev/stream/state/checkpointing.md %}) for details on how
@@ -133,13 +122,14 @@ to enable and configure checkpointing.
 {% info Note %} For this mechanism to realize its full guarantees, the data
 stream source (such as message queue or broker) needs to be able to rewind the
 stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has
-this ability and Flink's connector to Kafka exploits this ability. See [Fault
+this ability and Flink's connector to Kafka exploits this. See [Fault
 Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}{% link
 dev/connectors/guarantees.md %}) for more information about the guarantees
 provided by Flink's connectors.
 
 {% info Note %} Because Flink's checkpoints are realized through distributed
-snapshots, we use the words *snapshot* and *checkpoint* interchangeably.
+snapshots, we use the words *snapshot* and *checkpoint* interchangeably. Often
+we also use the term *snapshot* to mean either *checkpoint* or *savepoint*.
 
 ### Checkpointing
 
@@ -159,7 +149,7 @@ asynchronously. The checkpoint barriers don't travel in lock step and
 operations can asynchronously snapshot their state.
 
 
-### Barriers
+#### Barriers
 
 A core element in Flink's distributed snapshotting are the *stream barriers*.
 These barriers are injected into the data stream and flow with the records as
@@ -216,7 +206,7 @@ streams on the snapshot barriers. The figure above illustrates this:
     processing records from the input buffers before processing the records
     from the streams.
 
-### Snapshotting Operator State
+#### Snapshotting Operator State
 
 When operators contain any form of *state*, this state must be part of the
 snapshots as well.
@@ -244,7 +234,7 @@ The resulting snapshot now contains:
   <img src="{{ site.baseurl }}/fig/checkpointing.svg" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
-### Recovery
+#### Recovery
 
 Recovery under this mechanism is straightforward: Upon a failure, Flink selects
 the latest completed checkpoint *k*. The system then re-deploys the entire
@@ -271,7 +261,8 @@ hash map, another state backend uses [RocksDB](http://rocksdb.org) as the
 key/value store.  In addition to defining the data structure that holds the
 state, the state backends also implement the logic to take a point-in-time
 snapshot of the key/value state and store that snapshot as part of a
-checkpoint.
+checkpoint. State backends can be configured without changing your application
+logic.
 
 <img src="{{ site.baseurl }}/fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" />
 
@@ -281,24 +272,18 @@ checkpoint.
 
 `TODO: expand this section`
 
-Programs written in the Data Stream API can resume execution from a
-**savepoint**. Savepoints allow both updating your programs and your Flink
-cluster without losing any state. 
+All programs that use checkpointing can resume execution from a **savepoint**.
+Savepoints allow both updating your programs and your Flink cluster without
+losing any state.
 
 [Savepoints]({{ site.baseurl }}{% link ops/state/savepoints.md %}) are
 **manually triggered checkpoints**, which take a snapshot of the program and
 write it out to a state backend. They rely on the regular checkpointing
-mechanism for this. During execution programs are periodically snapshotted on
-the worker nodes and produce checkpoints. For recovery only the last completed
-checkpoint is needed and older checkpoints can be safely discarded as soon as a
-new one is completed.
+mechanism for this.
 
-Savepoints are similar to these periodic checkpoints except that they are
+Savepoints are similar to checkpoints except that they are
 **triggered by the user** and **don't automatically expire** when newer
-checkpoints are completed. Savepoints can be created from the [command line]({{
-site.baseurl }}{% link ops/cli.md %}#savepoints) or when cancelling a job via
-the [REST API]({{ site.baseurl }}{% link monitoring/rest_api.md
-%}#cancel-job-with-savepoint).
+checkpoints are completed.
 
 {% top %}
 

@@ -43,9 +43,9 @@ The Flink runtime consists of two types of processes:
   - The *Flink Master* coordinates the distributed execution. It schedules
     tasks, coordinates checkpoints, coordinates recovery on failures, etc.
 
-    There is always at least one *Flink Master*. A high-availability setup will
-    have multiple *Flink Masters*, one of which one is always the *leader*, and
-    the others are *standby*.
+    There is always at least one *Flink Master*. A high-availability setup
+    might have multiple *Flink Masters*, one of which one is always the
+    *leader*, and the others are *standby*.
 
   - The *TaskManagers* (also called *workers*) execute the *tasks* (or more
     specifically, the subtasks) of a dataflow, and buffer and exchange the data
@@ -128,13 +128,5 @@ two main benefits:
     distributed among the TaskManagers.
 
 <img src="{{ site.baseurl }}/fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
-
-The APIs also include a *[resource group]({{ site.baseurl }}{% link
-dev/stream/operators/index.md %}#task-chaining-and-resource-groups)* mechanism
-which can be used to prevent undesirable slot sharing. 
-
-As a rule-of-thumb, a good default number of task slots would be the number of
-CPU cores.  With hyper-threading, each slot then takes 2 or more hardware
-thread contexts.
 
 {% top %}
