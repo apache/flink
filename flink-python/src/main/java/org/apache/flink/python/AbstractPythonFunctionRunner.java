@@ -20,7 +20,6 @@ package org.apache.flink.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -61,7 +60,7 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	/**
 	 * The Python function execution result receiver.
 	 */
-	private final FnDataReceiver<byte[]> resultReceiver;
+	protected final FnDataReceiver<byte[]> resultReceiver;
 
 	/**
 	 * The Python execution environment manager.
@@ -100,22 +99,17 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	/**
 	 * The receiver which forwards the input elements to a remote environment for processing.
 	 */
-	private transient FnDataReceiver<WindowedValue<?>> mainInputReceiver;
-
-	/**
-	 * The TypeSerializer for input elements.
-	 */
-	private transient TypeSerializer<IN> inputTypeSerializer;
+	protected transient FnDataReceiver<WindowedValue<?>> mainInputReceiver;
 
 	/**
 	 * Reusable OutputStream used to holding the serialized input elements.
 	 */
-	private transient ByteArrayOutputStreamWithPos baos;
+	protected transient ByteArrayOutputStreamWithPos baos;
 
 	/**
 	 * OutputStream Wrapper.
 	 */
-	private transient DataOutputViewStreamWrapper baosWrapper;
+	protected transient DataOutputViewStreamWrapper baosWrapper;
 
 	/**
 	 * Python libraries and shell script extracted from resource of flink-python jar.
@@ -138,7 +132,6 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	public void open() throws Exception {
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
-		inputTypeSerializer = getInputTypeSerializer();
 
 		// The creation of stageBundleFactory depends on the initialized environment manager.
 		environmentManager.open();
@@ -189,19 +182,8 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 
 	@Override
 	public void startBundle() {
-		OutputReceiverFactory receiverFactory =
-			new OutputReceiverFactory() {
-
-				// the input value type is always byte array
-				@SuppressWarnings("unchecked")
-				@Override
-				public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-					return input -> resultReceiver.accept(input.getValue());
-				}
-			};
-
 		try {
-			remoteBundle = stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
+			remoteBundle = stageBundleFactory.getBundle(createOutputReceiverFactory(), stateRequestHandler, progressHandler);
 			mainInputReceiver =
 				Preconditions.checkNotNull(
 					remoteBundle.getInputReceivers().get(MAIN_INPUT_ID),
@@ -212,24 +194,13 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	}
 
 	@Override
-	public void finishBundle() {
+	public void finishBundle() throws Exception {
 		try {
 			remoteBundle.close();
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to close remote bundle", t);
 		} finally {
 			remoteBundle = null;
-		}
-	}
-
-	@Override
-	public void processElement(IN element) {
-		try {
-			baos.reset();
-			inputTypeSerializer.serialize(element, baosWrapper);
-			mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to process element when sending data to Python SDK harness.", t);
 		}
 	}
 
@@ -254,8 +225,5 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	 */
 	public abstract ExecutableStage createExecutableStage() throws Exception;
 
-	/**
-	 * Returns the TypeSerializer for input elements.
-	 */
-	public abstract TypeSerializer<IN> getInputTypeSerializer();
+	public abstract OutputReceiverFactory createOutputReceiverFactory();
 }
