@@ -88,11 +88,8 @@ run_test "Resuming Externalized Checkpoint after terminal failure (rocks, increm
 # Docker
 ################################################################################
 
-# Ignore these tests on Azure: In these tests, the TaskManagers are not starting on YARN, probably due to memory constraints.
-if [ -z "$TF_BUILD" ] ; then
-	run_test "Running Kerberized YARN on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
-	run_test "Running Kerberized YARN on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh dummy-fs"
-fi
+run_test "Running Kerberized YARN on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
+run_test "Running Kerberized YARN on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh dummy-fs"
 
 ################################################################################
 # High Availability

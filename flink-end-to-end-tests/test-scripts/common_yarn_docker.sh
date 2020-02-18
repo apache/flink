@@ -79,9 +79,9 @@ function start_hadoop_cluster() {
             sleep 1
         fi
 
-        docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
-        nm_running=`docker exec -it master bash -c "yarn node -list" | grep RUNNING | wc -l`
-        docker exec -it master bash -c "kdestroy"
+        docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+        nm_running=`docker exec master bash -c "yarn node -list" | grep RUNNING | wc -l`
+        docker exec master bash -c "kdestroy"
     done
 
     echo "We now have $nm_running NodeManagers up."
@@ -113,7 +113,7 @@ function start_hadoop_cluster_and_prepare_flink() {
     docker cp $FLINK_TARBALL_DIR/$FLINK_TARBALL master:/home/hadoop-user/
 
     # now, at least the container is ready
-    docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --directory /home/hadoop-user/"
+    docker exec master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --directory /home/hadoop-user/"
 
     # minimal Flink config, bebe
     FLINK_CONFIG=$(cat << END
@@ -123,10 +123,10 @@ slot.request.timeout: 120000
 containerized.heap-cutoff-min: 100
 END
 )
-    docker exec -it master bash -c "echo \"$FLINK_CONFIG\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+    docker exec master bash -c "echo \"$FLINK_CONFIG\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 
     echo "Flink config:"
-    docker exec -it master bash -c "cat /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+    docker exec master bash -c "cat /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 }
 
 function copy_and_show_logs {
@@ -141,18 +141,18 @@ function copy_and_show_logs {
     docker logs master
 
     echo "Flink logs:"
-    docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
-    docker exec -it master bash -c "yarn application -list -appStates ALL"
-    application_id=`docker exec -it master bash -c "yarn application -list -appStates ALL" | grep "Flink" | grep "cluster" | awk '{print \$1}'`
+    docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+    docker exec master bash -c "yarn application -list -appStates ALL"
+    application_id=`docker exec master bash -c "yarn application -list -appStates ALL" | grep "Flink" | grep "cluster" | awk '{print \$1}'`
     echo "Application ID: $application_id"
-    docker exec -it master bash -c "yarn logs -applicationId $application_id"
-    docker exec -it master bash -c "kdestroy"
+    docker exec master bash -c "yarn logs -applicationId $application_id"
+    docker exec master bash -c "kdestroy"
 }
 
 function get_output {
-    docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
-        docker exec -it master bash -c "hdfs dfs -ls $1"
-        OUTPUT=$(docker exec -it master bash -c "hdfs dfs -cat $1")
-        docker exec -it master bash -c "kdestroy"
+    docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+        docker exec master bash -c "hdfs dfs -ls $1"
+        OUTPUT=$(docker exec master bash -c "hdfs dfs -cat $1")
+        docker exec master bash -c "kdestroy"
         echo "$OUTPUT"
 }
