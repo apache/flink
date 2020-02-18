@@ -376,6 +376,9 @@ class TestProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
   *
+  * <p>NOTE: Currently, only `>, >=, &lt;, <=, =, &lt;>` operators and UPPER and LOWER functions
+  * are allowed to be pushed down into this source.
+  *
   * @param isBounded whether this is a bounded source
   * @param rowTypeInfo The type info for the rows.
   * @param data The data that filtering is applied to in order to get the final dataset.
