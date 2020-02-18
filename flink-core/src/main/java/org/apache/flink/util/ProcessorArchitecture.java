@@ -19,79 +19,133 @@
 package org.apache.flink.util;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * The memory architecture (32 bit / 64 bit) of the current process.
- * Note that this might be different than the actual operating system's architecture, for example
- * when installing a 32 bit JRE in a 64 bit OS.
+ * The processor architecture of the this system.
+ *
+ * <p>Note that the memory address size might be different than the actual hardware architecture,
+ * due to the installed OS (32bit OS) or when installing a 32 bit JRE in a 64 bit OS.
  */
 public enum ProcessorArchitecture {
-	/**
-	 * X86 platform.
-	 */
-	X86,
 
 	/**
-	 * arm platform.
+	 * The Intel x86 processor architecture.
 	 */
-	ARM,
+	X86(MemoryAddressSize._32_BIT, "x86", "i386", "i486", "i586", "i686"),
 
 	/**
-	 * 32 bit memory address size.
+	 * The AMD 64 bit processor architecture.
 	 */
-	_32_BIT,
+	AMD64(MemoryAddressSize._64_BIT, "amd64", "x86_64"),
 
 	/**
-	 * 64 bit memory address size.
+	 * The ARM 32 bit processor architecture.
 	 */
-	_64_BIT,
+	ARMv7(MemoryAddressSize._32_BIT, "armv7", "arm"),
 
 	/**
-	 * Unknown architecture, could not be determined.
+	 * The 64 bit ARM processor architecture.
 	 */
-	UNKNOWN;
+	AARCH64(MemoryAddressSize._64_BIT, "aarch64"),
 
+	/**
+	 * Unknown architecture, could not be determined. This one conservatively assumes 32 bit,
+	 * because 64 bit platforms typically support 32 bit memory spaces.
+	 */
+	UNKNOWN(MemoryAddressSize._32_BIT, "unknown");
 
-	private static final ProcessorArchitecture arch = readArchFromSystemProperties();
-	private static final ProcessorArchitecture size = readSizeFromSystemProperties();
+	// ------------------------------------------------------------------------
+
+	private static final ProcessorArchitecture CURRENT = readArchFromSystemProperties();
+
+	private final MemoryAddressSize addressSize;
+
+	private final String name;
+
+	private final List<String> alternativeNames;
+
+	ProcessorArchitecture(MemoryAddressSize addressSize, String name, String... alternativeNames) {
+		this.addressSize = addressSize;
+		this.name = name;
+		this.alternativeNames = Collections.unmodifiableList(Arrays.asList(alternativeNames));
+	}
+
+	/**
+	 * Gets the address size of the memory (32 bit, 64 bit).
+	 */
+	public MemoryAddressSize getAddressSize() {
+		return addressSize;
+	}
+
+	/**
+	 * Gets the primary name of the processor architecture.
+	 * The primary name would for example be "x86" or "amd64".
+	 */
+	public String getArchitectureName() {
+		return name;
+	}
+
+	/**
+	 * Gets the alternative names for the processor architecture.
+	 * Alternative names are for example "i586" for "x86", or "x86_64" for "amd64".
+	 */
+	public List<String> getAlternativeNames() {
+		return alternativeNames;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the ProcessorArchitecture of the system running this process.
+	 */
+	public static ProcessorArchitecture getProcessorArchitecture() {
+		return CURRENT;
+	}
+
+	/**
+	 * Gets the MemorySize of the ProcessorArchitecture of this process.
+	 *
+	 * <p>Note that the memory address size might be different than the actual hardware architecture,
+	 * due to the installed OS (32bit OS) or when installing a 32 bit JRE in a 64 bit OS.
+	 */
+	public static MemoryAddressSize getMemoryAddressSize() {
+		return getProcessorArchitecture().getAddressSize();
+	}
 
 	private static ProcessorArchitecture readArchFromSystemProperties() {
-		final List<String> namesX86 = Arrays.asList("amd64", "x86_64", "x86", "i386", "i486", "i586", "i686");
-		final List<String> namesArm = Arrays.asList("arm", "aarch64");
-		final String arch = System.getProperty("os.arch");
-
-		if (namesX86.contains(arch)) {
-			return X86;
-		} else if (namesArm.contains(arch)) {
-			return ARM;
-		} else {
+		final String sysArchName = System.getProperty("os.arch");
+		if (sysArchName == null) {
 			return UNKNOWN;
 		}
-	}
 
-	private static ProcessorArchitecture readSizeFromSystemProperties() {
-		// putting these into the method to avoid having objects on the heap that are not needed
-		// any more after initialization
-		final List<String> names64bit = Arrays.asList("amd64", "x86_64", "aarch64");
-		final List<String> names32bit = Arrays.asList("x86", "i386", "i486", "i586", "i686");
-		final String arch = System.getProperty("os.arch");
+		for (ProcessorArchitecture arch : values()) {
+			if (sysArchName.equalsIgnoreCase(arch.name)) {
+				return arch;
+			}
 
-		if (names64bit.contains(arch)) {
-			return _64_BIT;
-		} else if (names32bit.contains(arch)) {
-			return _32_BIT;
-		} else {
-			return UNKNOWN;
+			for (String altName : arch.alternativeNames) {
+				if (sysArchName.equalsIgnoreCase(altName)) {
+					return arch;
+				}
+			}
 		}
+
+		return UNKNOWN;
 	}
 
-	public static ProcessorArchitecture getCurrentOperatingSystemArch() {
-		return arch;
-	}
+	// ------------------------------------------------------------------------
 
-	public static ProcessorArchitecture getCurrentOperatingSystemSize() {
-		return size;
-	}
+	/**
+	 * The memory address size of the processor.
+	 */
+	public enum MemoryAddressSize {
 
+		/** 32 bit memory address size. */
+		_32_BIT,
+
+		/** 64 bit memory address size. */
+		_64_BIT,
+	}
 }

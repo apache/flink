@@ -82,32 +82,18 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				os = "linux";
 				break;
 		}
-		switch (ProcessorArchitecture.getCurrentOperatingSystemArch()) {
+		switch (ProcessorArchitecture.getProcessorArchitecture()) {
 			case X86:
-				switch (ProcessorArchitecture.getCurrentOperatingSystemSize()) {
-					case _32_BIT:
-						platform = "386";
-						break;
-					case _64_BIT:
-						platform = "amd64";
-						break;
-					default:
-						platform = "Unknown";
-						break;
-				}
+				platform = "386";
 				break;
-			case ARM:
-				switch (ProcessorArchitecture.getCurrentOperatingSystemSize()) {
-					case _32_BIT:
-						platform = "armv7";
-						break;
-					case _64_BIT:
-						platform = "arm64";
-						break;
-					default:
-						platform = "Unknown";
-						break;
-				}
+			case AMD64:
+				platform = "amd64";
+				break;
+			case ARMv7:
+				platform = "armv7";
+				break;
+			case AARCH64:
+				platform = "arm64";
 				break;
 			default:
 				platform = "Unknown";

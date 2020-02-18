@@ -220,12 +220,11 @@ public class ResultPartitionFactory {
 	}
 
 	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
-		switch (ProcessorArchitecture.getCurrentOperatingSystemSize()) {
+		switch (ProcessorArchitecture.getMemoryAddressSize()) {
 			case _64_BIT:
 				return BoundedBlockingSubpartitionType.FILE_MMAP;
 			case _32_BIT:
 				return BoundedBlockingSubpartitionType.FILE;
-			case UNKNOWN:
 			default:
 				LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
 				return BoundedBlockingSubpartitionType.FILE;
