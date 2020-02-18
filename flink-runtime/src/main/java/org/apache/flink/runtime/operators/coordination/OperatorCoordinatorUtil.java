@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.util.AutoContextClassLoader;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -38,7 +38,7 @@ public final class OperatorCoordinatorUtil {
 			ClassLoader classLoader,
 			Function<OperatorID, OperatorCoordinator.Context> contextFactory) throws IOException, ClassNotFoundException {
 
-		try (AutoContextClassLoader ignored = AutoContextClassLoader.of(classLoader)) {
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 
 			final HashMap<OperatorID, OperatorCoordinator> coordinators = new HashMap<>();
 
