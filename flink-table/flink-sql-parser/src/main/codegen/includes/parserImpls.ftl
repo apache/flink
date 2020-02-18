@@ -56,6 +56,31 @@ SqlUseCatalog SqlUseCatalog() :
 }
 
 /**
+* Parses a create catalog statement.
+* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <CATALOG> { startPos = getPos(); }
+    catalogName = CompoundIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlCreateCatalog(startPos.plus(getPos()),
+            catalogName,
+            propertyList);
+    }
+}
+
+
+                                            /**
 * Parse a "Show Catalogs" metadata query command.
 */
 SqlShowDatabases SqlShowDatabases() :
