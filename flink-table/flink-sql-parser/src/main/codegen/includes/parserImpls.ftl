@@ -79,8 +79,7 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     }
 }
 
-
-                                            /**
+/**
 * Parse a "Show Catalogs" metadata query command.
 */
 SqlShowDatabases SqlShowDatabases() :
