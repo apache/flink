@@ -31,7 +31,7 @@ import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema, Typ
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSourceFactory}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.catalog.exceptions.{DatabaseAlreadyExistException, DatabaseNotEmptyException, DatabaseNotExistException, FunctionAlreadyExistException, FunctionNotExistException}
+import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
@@ -37,14 +37,16 @@ import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
+
 import _root_.java.util.function.{Supplier => JSupplier}
 import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
-import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
 import _root_.scala.util.Try
 
 /**
@@ -81,7 +83,7 @@ abstract class TableEnvImpl(
             Try({
               val unresolvedIdentifier = UnresolvedIdentifier.of(name)
               scanInternal(unresolvedIdentifier)
-                .map(t => new TableReferenceExpression(name, t))
+                .map(t => ApiExpressionUtils.tableRef(name, t))
             })
               .toOption
               .flatten)

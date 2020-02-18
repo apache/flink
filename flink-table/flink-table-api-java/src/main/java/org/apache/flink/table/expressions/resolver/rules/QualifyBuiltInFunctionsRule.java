@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions.resolver.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
@@ -55,7 +56,7 @@ class QualifyBuiltInFunctionsRule implements ResolverRule {
 					.functionLookup()
 					.lookupBuiltInFunction(((BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition()));
 
-				return new UnresolvedCallExpression(
+				return ApiExpressionUtils.unresolvedCall(
 					functionLookup.getFunctionIdentifier(),
 					functionLookup.getFunctionDefinition(),
 					unresolvedCall.getChildren().stream()

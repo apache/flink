@@ -16,27 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.utils;
+package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionUtils;
-import org.apache.flink.table.expressions.LookupCallExpression;
-import org.apache.flink.table.expressions.TableReferenceExpression;
-import org.apache.flink.table.expressions.TypeLiteralExpression;
-import org.apache.flink.table.expressions.UnresolvedCallExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Utilities for API-specific {@link Expression}s.
@@ -56,6 +50,10 @@ public final class ApiExpressionUtils {
 		// private
 	}
 
+	public static LocalReferenceExpression localRef(String name, DataType dataType) {
+		return new LocalReferenceExpression(name, dataType);
+	}
+
 	public static ValueLiteralExpression valueLiteral(Object value) {
 		return new ValueLiteralExpression(value);
 	}
@@ -72,12 +70,34 @@ public final class ApiExpressionUtils {
 		return new UnresolvedReferenceExpression(name);
 	}
 
+	public static UnresolvedCallExpression unresolvedCall(
+			FunctionIdentifier functionIdentifier,
+			FunctionDefinition functionDefinition,
+			Expression... args) {
+		return new UnresolvedCallExpression(functionIdentifier, functionDefinition, Arrays.asList(args));
+	}
+
+	public static UnresolvedCallExpression unresolvedCall(
+			FunctionIdentifier functionIdentifier,
+			FunctionDefinition functionDefinition,
+			List<Expression> args) {
+		return new UnresolvedCallExpression(functionIdentifier, functionDefinition, args);
+	}
+
 	public static UnresolvedCallExpression unresolvedCall(FunctionDefinition functionDefinition, Expression... args) {
-		return new UnresolvedCallExpression(functionDefinition, Arrays.asList(args));
+		return unresolvedCall(functionDefinition, Arrays.asList(args));
+	}
+
+	public static UnresolvedCallExpression unresolvedCall(FunctionDefinition functionDefinition, List<Expression> args) {
+		return new UnresolvedCallExpression(functionDefinition, args);
 	}
 
 	public static TableReferenceExpression tableRef(String name, Table table) {
-		return new TableReferenceExpression(name, table.getQueryOperation());
+		return tableRef(name, table.getQueryOperation());
+	}
+
+	public static TableReferenceExpression tableRef(String name, QueryOperation queryOperation) {
+		return new TableReferenceExpression(name, queryOperation);
 	}
 
 	public static LookupCallExpression lookupCall(String name, Expression... args) {

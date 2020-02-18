@@ -28,17 +28,15 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
-import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -74,9 +72,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.INTERSECT;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.MINUS;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
@@ -202,7 +201,7 @@ public final class OperationTreeBuilder {
 			newColumns = ColumnOperationUtils.addOrReplaceColumns(Arrays.asList(fieldNames), fieldLists);
 		} else {
 			newColumns = new ArrayList<>(fieldLists);
-			newColumns.add(0, new UnresolvedReferenceExpression("*"));
+			newColumns.add(0, unresolvedRef("*"));
 		}
 		return project(newColumns, child, false);
 	}
@@ -256,7 +255,7 @@ public final class OperationTreeBuilder {
 				typeFactory,
 				child)
 			.withLocalReferences(
-				new LocalReferenceExpression(
+				localRef(
 					resolvedWindow.getAlias(),
 					resolvedWindow.getTimeAttribute().getOutputDataType()))
 			.build();
@@ -307,7 +306,7 @@ public final class OperationTreeBuilder {
 				typeFactory,
 				child)
 			.withLocalReferences(
-				new LocalReferenceExpression(
+				localRef(
 					resolvedWindow.getAlias(),
 					resolvedWindow.getTimeAttribute().getOutputDataType()))
 			.build();
@@ -493,10 +492,10 @@ public final class OperationTreeBuilder {
 			args.toArray(new Expression[0]));
 		QueryOperation joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty());
 		QueryOperation rightNode = dropColumns(
-			childFields.stream().map(UnresolvedReferenceExpression::new).collect(Collectors.toList()),
+			childFields.stream().map(ApiExpressionUtils::unresolvedRef).collect(Collectors.toList()),
 			joinNode);
 		return alias(
-			originFieldNames.stream().map(UnresolvedReferenceExpression::new).collect(Collectors.toList()),
+			originFieldNames.stream().map(ApiExpressionUtils::unresolvedRef).collect(Collectors.toList()),
 			rightNode);
 	}
 
@@ -695,7 +694,7 @@ public final class OperationTreeBuilder {
 			typeFactory,
 			child)
 			.withLocalReferences(
-				new LocalReferenceExpression(
+				localRef(
 					resolvedWindow.getAlias(),
 					resolvedWindow.getTimeAttribute().getOutputDataType()))
 			.build();
@@ -738,7 +737,7 @@ public final class OperationTreeBuilder {
 			}
 
 			return this.alias(namesAfterAlias.stream()
-				.map(UnresolvedReferenceExpression::new)
+				.map(ApiExpressionUtils::unresolvedRef)
 				.collect(Collectors.toList()), inputOperation);
 		} else {
 			return inputOperation;
