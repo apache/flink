@@ -66,6 +66,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -313,8 +314,19 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
-		vertices.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
-			.resetForNewExecution());
+		final Set<CoLocationGroup> colGroups = new HashSet<>();
+		vertices.forEach(executionVertexId -> {
+			final ExecutionVertex ev = getExecutionVertex(executionVertexId);
+
+			final CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
+			if (cgroup != null && !colGroups.contains(cgroup)){
+				cgroup.resetConstraints();
+				colGroups.add(cgroup);
+			}
+
+			ev.resetForNewExecution();
+		});
+
 	}
 
 	protected void restoreState(final Set<ExecutionVertexID> vertices) throws Exception {
