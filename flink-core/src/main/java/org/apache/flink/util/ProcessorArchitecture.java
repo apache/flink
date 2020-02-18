@@ -51,6 +51,11 @@ public enum ProcessorArchitecture {
 	AARCH64(MemoryAddressSize._64_BIT, "aarch64"),
 
 	/**
+	 * The little-endian mode of the 64 bit Power-PC architecture.
+	 */
+	PPC64_LE(MemoryAddressSize._64_BIT, "ppc64le"),
+
+	/**
 	 * Unknown architecture, could not be determined. This one conservatively assumes 32 bit,
 	 * because 64 bit platforms typically support 32 bit memory spaces.
 	 */
