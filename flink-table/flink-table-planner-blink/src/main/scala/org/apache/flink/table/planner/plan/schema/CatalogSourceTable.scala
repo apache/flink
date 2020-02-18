@@ -105,7 +105,7 @@ class CatalogSourceTable[T](
             if (columnExprs.contains(name)) {
               columnExprs(name)
             } else {
-              name
+              s"`$name`"
             }
           }.toArray
       val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
