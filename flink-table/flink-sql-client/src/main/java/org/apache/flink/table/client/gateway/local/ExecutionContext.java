@@ -32,7 +32,6 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.BatchQueryConfig;
@@ -86,6 +85,7 @@ import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -230,7 +230,7 @@ public class ExecutionContext<ClusterID> {
 	 * Executes the given supplier using the execution context's classloader as thread classloader.
 	 */
 	public <R> R wrapClassLoader(Supplier<R> supplier) {
-		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)){
 			return supplier.get();
 		}
 	}
@@ -239,7 +239,7 @@ public class ExecutionContext<ClusterID> {
 	 * Executes the given Runnable using the execution context's classloader as thread classloader.
 	 */
 	void wrapClassLoader(Runnable runnable) {
-		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)){
 			runnable.run();
 		}
 	}

@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.plugin;
-
-import org.apache.flink.util.ChildFirstClassLoader;
+package org.apache.flink.util;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,7 +35,7 @@ public class TemporaryClassLoaderContextTest {
 		final ChildFirstClassLoader temporaryClassLoader =
 			new ChildFirstClassLoader(new URL[0], contextClassLoader, new String[0]);
 
-		try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(temporaryClassLoader)) {
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(temporaryClassLoader)) {
 			Assert.assertEquals(temporaryClassLoader, Thread.currentThread().getContextClassLoader());
 		}
 

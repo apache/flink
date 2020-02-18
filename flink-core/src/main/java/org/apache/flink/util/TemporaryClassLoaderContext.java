@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,12 +18,14 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Sets a context class loader in a "try-with-resources" pattern.
  *
  * <pre>
  * {@code
- * try (AutoContextClassLoader ignored = AutoContextClassLoader.of(classloader)) {
+ * try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classloader)) {
  *     // code that needs the context class loader
  * }
  * }
@@ -43,7 +45,8 @@ package org.apache.flink.util;
  * }
  * </pre>
  */
-public final class AutoContextClassLoader implements AutoCloseable {
+@Public
+public final class TemporaryClassLoaderContext implements AutoCloseable {
 
 	/**
 	 * Sets the context class loader to the given ClassLoader and returns a resource
@@ -55,13 +58,13 @@ public final class AutoContextClassLoader implements AutoCloseable {
 	 * }
 	 * }</pre>
 	 */
-	public static AutoContextClassLoader of(ClassLoader cl) {
+	public static TemporaryClassLoaderContext of(ClassLoader cl) {
 		final Thread t = Thread.currentThread();
 		final ClassLoader original = t.getContextClassLoader();
 
 		t.setContextClassLoader(cl);
 
-		return new AutoContextClassLoader(t, original);
+		return new TemporaryClassLoaderContext(t, original);
 	}
 
 	// ------------------------------------------------------------------------
@@ -70,7 +73,7 @@ public final class AutoContextClassLoader implements AutoCloseable {
 
 	private final ClassLoader originalContextClassLoader;
 
-	private AutoContextClassLoader(Thread thread, ClassLoader originalContextClassLoader) {
+	private TemporaryClassLoaderContext(Thread thread, ClassLoader originalContextClassLoader) {
 		this.thread = thread;
 		this.originalContextClassLoader = originalContextClassLoader;
 	}
