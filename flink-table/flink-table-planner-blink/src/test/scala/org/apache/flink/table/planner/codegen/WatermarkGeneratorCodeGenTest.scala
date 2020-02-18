@@ -74,10 +74,10 @@ class WatermarkGeneratorCodeGenTest {
     val expected = List(
       JLong.valueOf(999L),
       null,
-      JLong.valueOf(2999),
-      JLong.valueOf(4999),
-      JLong.valueOf(3999),
-      JLong.valueOf(5999))
+      JLong.valueOf(2999L),
+      JLong.valueOf(4999L),
+      JLong.valueOf(3999L),
+      JLong.valueOf(5999L))
     assertEquals(expected, results)
   }
 
