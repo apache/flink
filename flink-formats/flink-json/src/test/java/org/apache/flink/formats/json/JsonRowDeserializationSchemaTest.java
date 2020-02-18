@@ -28,6 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
@@ -211,6 +212,31 @@ public class JsonRowDeserializationSchemaTest {
 		assertThat(serializedJson,
 			whenDeserializedWith(deserializationSchema)
 				.failsWithException(hasCause(instanceOf(IllegalStateException.class))));
+	}
+
+	/**
+	 * Tests deserialization with invalid json string.
+	 */
+	@Test
+	public void testInvalidJson() {
+		byte[] invalidSerializedJson = "DDD".getBytes();
+
+		TypeInformation<Row> rowTypeInformation = Types.ROW();
+
+		JsonRowDeserializationSchema deserializationSchema =
+			new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+				.ignoreParseErrors()
+				.build();
+
+		assertThat(invalidSerializedJson,
+			whenDeserializedWith(deserializationSchema).equalsTo(null));
+
+		deserializationSchema = new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+			.build();
+
+		assertThat(invalidSerializedJson,
+			whenDeserializedWith(deserializationSchema)
+				.failsWithException(hasCause(instanceOf(IOException.class))));
 	}
 
 	/**

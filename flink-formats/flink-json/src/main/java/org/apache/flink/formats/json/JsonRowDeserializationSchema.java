@@ -88,14 +88,25 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 	private DeserializationRuntimeConverter runtimeConverter;
 
+	/** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
+	private final boolean ignoreParseErrors;
+
 	private JsonRowDeserializationSchema(
 			TypeInformation<Row> typeInfo,
-			boolean failOnMissingField) {
+			boolean failOnMissingField,
+			boolean ignoreParseErrors) {
 		checkNotNull(typeInfo, "Type information");
 		checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
 		this.typeInfo = (RowTypeInfo) typeInfo;
 		this.failOnMissingField = failOnMissingField;
 		this.runtimeConverter = createConverter(this.typeInfo);
+		this.ignoreParseErrors = ignoreParseErrors;
+	}
+
+	private JsonRowDeserializationSchema(
+		TypeInformation<Row> typeInfo,
+		boolean failOnMissingField) {
+		this(typeInfo, failOnMissingField, false);
 	}
 
 	/**
@@ -130,6 +141,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			final JsonNode root = objectMapper.readTree(message);
 			return (Row) runtimeConverter.convert(objectMapper, root);
 		} catch (Throwable t) {
+			if (ignoreParseErrors) {
+				return null;
+			}
 			throw new IOException("Failed to deserialize JSON object.", t);
 		}
 	}
@@ -151,6 +165,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 		private final RowTypeInfo typeInfo;
 		private boolean failOnMissingField = false;
+		private boolean ignoreParseErrors = false;
 
 		/**
 		 * Creates a JSON deserialization schema for the given type information.
@@ -184,8 +199,18 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			return this;
 		}
 
+		/**
+		 * Configures schema to fail when parse json failed.
+		 *
+		 * <p>By default, an exception will be thrown when parsing json fails.
+		 */
+		public Builder ignoreParseErrors() {
+			this.ignoreParseErrors = true;
+			return this;
+		}
+
 		public JsonRowDeserializationSchema build() {
-			return new JsonRowDeserializationSchema(typeInfo, failOnMissingField);
+			return new JsonRowDeserializationSchema(typeInfo, failOnMissingField, ignoreParseErrors);
 		}
 	}
 
