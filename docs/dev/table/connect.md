@@ -1586,9 +1586,10 @@ CREATE TABLE MyUserTable (
   ...
 ) WITH (
   'format.type' = 'json',                   -- required: specify the format type
-  'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not,
+  'format.fail-on-missing-field' = 'true',  -- optional: flag whether to fail if a field is missing or not,
                                             -- 'false' by default
-
+  'format.ignore-parse-errors' = 'true',    -- optional: skip fields and rows with parse errors instead of failing;
+                                            -- fields are set to null in case of errors
   -- deprecated: define the schema explicitly using JSON schema which parses to DECIMAL and TIMESTAMP.
   'format.json-schema' =
     '{
@@ -1612,7 +1613,8 @@ CREATE TABLE MyUserTable (
 .withFormat(
   new Json()
     .failOnMissingField(true)   // optional: flag whether to fail if a field is missing or not, false by default
-
+    .ignoreParseErrors(true)    // optional: skip fields and rows with parse errors instead of failing;
+                                //   fields are set to null in case of errors
     // deprecated: define the schema explicitly using JSON schema which parses to DECIMAL and TIMESTAMP.
     .jsonSchema(
       "{" +
