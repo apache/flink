@@ -27,51 +27,48 @@ from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
+TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
 
 
-class ScalarFunctionOperation(Operation):
+class StatelessFunctionOperation(Operation):
     """
-    An operation that will execute ScalarFunctions for each input element.
+    Base class of stateless function operation that will execute ScalarFunction or TableFunction for
+    each input element.
     """
 
     def __init__(self, name, spec, counter_factory, sampler, consumers):
-        super(ScalarFunctionOperation, self).__init__(name, spec, counter_factory, sampler)
+        super(StatelessFunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()
 
         self.variable_dict = {}
-        self.scalar_funcs = []
-        self.func = self._generate_func(self.spec.serialized_fn)
-        for scalar_func in self.scalar_funcs:
-            scalar_func.open(None)
+        self.user_defined_funcs = []
+        self.func = self.generate_func(self.spec.serialized_fn)
+        for user_defined_func in self.user_defined_funcs:
+            user_defined_func.open(None)
 
     def setup(self):
-        super(ScalarFunctionOperation, self).setup()
+        super(StatelessFunctionOperation, self).setup()
 
     def start(self):
         with self.scoped_start_state:
-            super(ScalarFunctionOperation, self).start()
-
-    def process(self, o):
-        output_stream = self.consumer.output_stream
-        self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
-        output_stream.maybe_flush()
+            super(StatelessFunctionOperation, self).start()
 
     def finish(self):
-        super(ScalarFunctionOperation, self).finish()
+        super(StatelessFunctionOperation, self).finish()
 
     def needs_finalization(self):
         return False
 
     def reset(self):
-        super(ScalarFunctionOperation, self).reset()
+        super(StatelessFunctionOperation, self).reset()
 
     def teardown(self):
-        for scalar_func in self.scalar_funcs:
-            scalar_func.close(None)
+        for user_defined_func in self.user_defined_funcs:
+            user_defined_func.close(None)
 
     def progress_metrics(self):
-        metrics = super(ScalarFunctionOperation, self).progress_metrics()
+        metrics = super(StatelessFunctionOperation, self).progress_metrics()
         metrics.processed_elements.measured.output_element_counts.clear()
         tag = None
         receiver = self.receivers[0]
@@ -79,21 +76,16 @@ class ScalarFunctionOperation(Operation):
             str(tag)] = receiver.opcounter.element_counter.value()
         return metrics
 
-    def _generate_func(self, udfs):
-        """
-        Generates a lambda function based on udfs.
-        :param udfs: a list of the proto representation of the Python :class:`ScalarFunction`
-        :return: the generated lambda function
-        """
-        scalar_functions = [self._extract_scalar_function(udf) for udf in udfs]
-        return eval('lambda value: [%s]' % ','.join(scalar_functions), self.variable_dict)
+    def generate_func(self, udfs):
+        pass
 
-    def _extract_scalar_function(self, scalar_function_proto):
+    def _extract_user_defined_function(self, user_defined_function_proto):
         """
-        Extracts scalar_function from the proto representation of a
-        :class:`ScalarFunction`.
+        Extracts user-defined-function from the proto representation of a
+        :class:`UserDefinedFunction`.
 
-        :param scalar_function_proto: the proto representation of the Python :class:`ScalarFunction`
+        :param user_defined_function_proto: the proto representation of the Python
+        :class:`UserDefinedFunction`
         """
         def _next_func_num():
             if not hasattr(self, "_func_num"):
@@ -102,19 +94,19 @@ class ScalarFunctionOperation(Operation):
                 self._func_num += 1
             return self._func_num
 
-        scalar_func = cloudpickle.loads(scalar_function_proto.payload)
+        user_defined_func = cloudpickle.loads(user_defined_function_proto.payload)
         func_name = 'f%s' % _next_func_num()
-        self.variable_dict[func_name] = scalar_func.eval
-        self.scalar_funcs.append(scalar_func)
-        func_args = self._extract_scalar_function_args(scalar_function_proto.inputs)
+        self.variable_dict[func_name] = user_defined_func.eval
+        self.user_defined_funcs.append(user_defined_func)
+        func_args = self._extract_user_defined_function_args(user_defined_function_proto.inputs)
         return "%s(%s)" % (func_name, func_args)
 
-    def _extract_scalar_function_args(self, args):
+    def _extract_user_defined_function_args(self, args):
         args_str = []
         for arg in args:
             if arg.HasField("udf"):
                 # for chaining Python UDF input: the input argument is a Python ScalarFunction
-                args_str.append(self._extract_scalar_function(arg.udf))
+                args_str.append(self._extract_user_defined_function(arg.udf))
             elif arg.HasField("inputOffset"):
                 # the input argument is a column of the input row
                 args_str.append("value[%s]" % arg.inputOffset)
@@ -162,15 +154,69 @@ class ScalarFunctionOperation(Operation):
         return constant_value_name
 
 
+class ScalarFunctionOperation(StatelessFunctionOperation):
+    def __init__(self, name, spec, counter_factory, sampler, consumers):
+        super(ScalarFunctionOperation, self).__init__(
+            name, spec, counter_factory, sampler, consumers)
+
+    def generate_func(self, udfs):
+        """
+        Generates a lambda function based on udfs.
+        :param udfs: a list of the proto representation of the Python :class:`ScalarFunction`
+        :return: the generated lambda function
+        """
+        scalar_functions = [self._extract_user_defined_function(udf) for udf in udfs]
+        return eval('lambda value: [%s]' % ','.join(scalar_functions), self.variable_dict)
+
+    def process(self, o):
+        output_stream = self.consumer.output_stream
+        self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
+        output_stream.maybe_flush()
+
+
+class TableFunctionOperation(StatelessFunctionOperation):
+    def __init__(self, name, spec, counter_factory, sampler, consumers):
+        super(TableFunctionOperation, self).__init__(
+            name, spec, counter_factory, sampler, consumers)
+
+    def generate_func(self, udtfs):
+        """
+        Generates a lambda function based on udtfs.
+        :param udtfs: a list of the proto representation of the Python :class:`TableFunction`
+        :return: the generated lambda function
+        """
+        table_function = self._extract_user_defined_function(udtfs[0])
+        return eval('lambda value: %s' % table_function, self.variable_dict)
+
+    def process(self, o):
+        output_stream = self.consumer.output_stream
+        for result in self._create_result(o.value):
+            self._value_coder_impl.encode_to_stream(result, output_stream, True)
+        output_stream.maybe_flush()
+
+    def _create_result(self, value):
+        result = self.func(value)
+        if result is not None:
+            yield from result
+        yield None
+
+
 @bundle_processor.BeamTransformFactory.register_urn(
     SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
-def create(factory, transform_id, transform_proto, parameter, consumers):
+def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter.udfs)
+        factory, transform_proto, consumers, parameter.udfs, ScalarFunctionOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter.udfs, TableFunctionOperation)
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
-                                            operation_cls=ScalarFunctionOperation):
+                                            operation_cls):
     output_tags = list(transform_proto.outputs.keys())
     output_coders = factory.get_output_coders(transform_proto)
     spec = operation_specs.WorkerDoFn(

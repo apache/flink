@@ -33,6 +33,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
+from pyflink.table.udf import UserDefinedScalarFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.util import utils
 
 __all__ = [
@@ -766,8 +767,12 @@ class TableEnvironment(object):
         :param function: The python user-defined function to register.
         :type function: pyflink.table.udf.UserDefinedFunctionWrapper
         """
-        self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
-                                                           self.get_config()._j_table_config))
+        if isinstance(function, UserDefinedScalarFunctionWrapper):
+            self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
+                                                               self.get_config()._j_table_config))
+        elif isinstance(function, UserDefinedTableFunctionWrapper):
+            self._j_tenv.registerFunction(name, function._judtf(self._is_blink_planner,
+                                                                self.get_config()._j_table_config))
 
     @since("1.10.0")
     def create_temporary_view(self, view_path, table):
