@@ -1677,6 +1677,16 @@ under the License.
 						</dependency>
 					</dependencies>
 					<configuration>
+						<ignoredUsedUndeclaredDependencies combine.children="append">
+							<!-- allow using transitive Flink dependencies for brevity -->
+							<dependency>org.apache.flink:*</dependency>
+							<!-- False positive since we use hamcrest-all -->
+							<dependency>org.hamcrest:hamcrest-core</dependency>
+							<!-- transitive powermock test dependencies; excluded for brevity -->
+							<dependency>org.powermock:powermock-core</dependency>
+							<dependency>org.powermock:powermock-reflect</dependency>
+							<dependency>org.powermock:powermock-api-support</dependency>
+						</ignoredUsedUndeclaredDependencies>
 						<ignoredUnusedDeclaredDependencies combine.children="append">
 							<!-- build dependency, required for shading; does not contain any classes -->
 							<dependency>org.apache.flink:force-shading</dependency>
