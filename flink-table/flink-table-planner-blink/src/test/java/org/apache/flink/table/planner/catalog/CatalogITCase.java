@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 
 import org.junit.Test;
 
@@ -32,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * IT Case for catalog ddl.
  */
-public class CatalogITCase extends AbstractTestBase {
+public class CatalogITCase {
 
 	@Test
 	public void testCreateCatalog() {
@@ -47,7 +47,7 @@ public class CatalogITCase extends AbstractTestBase {
 	}
 
 	private TableEnvironment getTableEnvironment() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		return StreamTableEnvironment.create(env, settings);
 	}
