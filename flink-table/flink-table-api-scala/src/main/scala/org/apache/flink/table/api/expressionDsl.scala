@@ -25,7 +25,7 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
+import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType

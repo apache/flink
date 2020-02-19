@@ -21,7 +21,7 @@ package org.apache.flink.table.sources
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{DataTypes, Types, ValidationException}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, unresolvedCall}
 import org.apache.flink.table.expressions.{Expression, PlannerExpressionConverter, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST
 import org.apache.flink.table.sources.tsextractors.{TimestampExtractor, TimestampExtractorUtils}
