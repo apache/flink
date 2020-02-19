@@ -35,6 +35,11 @@ import java.util.Optional;
 public interface FunctionLookup {
 
 	/**
+	 * Lookup a function by function identifier. The identifier is parsed The lookup is case insensitive.
+	 */
+	Optional<Result> lookupFunction(String stringIdentifier);
+
+	/**
 	 * Lookup a function by function identifier. The lookup is case insensitive.
 	 */
 	Optional<Result> lookupFunction(UnresolvedIdentifier identifier);

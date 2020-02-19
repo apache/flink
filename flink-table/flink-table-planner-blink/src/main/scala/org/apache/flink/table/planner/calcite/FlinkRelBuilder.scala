@@ -59,7 +59,7 @@ class FlinkRelBuilder(
 
   private val toRelNodeConverter = {
     val functionCatalog = context.unwrap(classOf[FlinkContext]).getFunctionCatalog
-    new QueryOperationConverter(this, functionCatalog)
+    new QueryOperationConverter(this)
   }
 
   private val expandFactory: ExpandFactory = {
