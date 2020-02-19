@@ -1700,7 +1700,7 @@ under the License.
 				</plugin>
 
 				<plugin>
-					<!-- Imherited from Apache parent, but not actually used. Disable to reduce noise. -->
+					<!-- Inherited from Apache parent, but not actually used. Disable to reduce noise. -->
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-site-plugin</artifactId>
 					<executions>
