@@ -1699,6 +1699,18 @@ under the License.
 					</configuration>
 				</plugin>
 
+				<plugin>
+					<!-- Imherited from Apache parent, but not actually used. Disable to reduce noise. -->
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-site-plugin</artifactId>
+					<executions>
+						<execution>
+							<id>attach-descriptor</id>
+							<phase>none</phase>
+						</execution>
+					</executions>
+				</plugin>
+
 				<!-- Disable certain plugins in Eclipse -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
