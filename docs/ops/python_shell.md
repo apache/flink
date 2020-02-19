@@ -43,7 +43,7 @@ $ python -m pip install apache-beam==2.19.0
 To use the shell with an integrated Flink cluster just execute:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+pyflink-shell.sh local
 {% endhighlight %}
 
 in the root directory of your binary Flink directory. To run the Shell on a
