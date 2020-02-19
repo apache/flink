@@ -20,7 +20,9 @@ package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.contexts.AnotherCompatibleTestSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.HadoopSecurityContextFactory;
+import org.apache.flink.runtime.security.contexts.IncompatibleTestSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.NoOpSecurityContext;
 import org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.TestSecurityContextFactory;
