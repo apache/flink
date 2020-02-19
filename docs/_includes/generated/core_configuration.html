@@ -51,6 +51,24 @@
             <td>Directories for temporary files, separated by",", "|", or the system's java.io.File.pathSeparator.</td>
         </tr>
         <tr>
+            <td><h5>jvm.gc-logging</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When enabled, jvm will be launched with default gc options which will log gc infos under log directory</td>
+        </tr>
+        <tr>
+            <td><h5>jvm.heapdump-on-oom</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When enabled, jvm will save heapdump files when OOMs happen.</td>
+        </tr>
+        <tr>
+            <td><h5>jvm.heapdump.directory</h5></td>
+            <td style="word-wrap: break-word;">"/var/folders/ck/2gym0wnn4cg48v53_t2slm4r0000gn/T/"</td>
+            <td>String</td>
+            <td>The directory to save heap dump file when OOMs happen.</td>
+        </tr>
+        <tr>
             <td><h5>parallelism.default</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
