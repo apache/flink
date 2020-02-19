@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileIn
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
+
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
@@ -152,6 +153,23 @@ class TableSourceITCase extends BatchTestBase {
         row(6, "Record_6"),
         row(7, "Record_7"),
         row(8, "Record_8"))
+    )
+  }
+
+  @Test
+  def testTableSourceWithFunctionFilterable(): Unit = {
+    tEnv.registerTableSource(
+      "FilterableTable",
+      TestFilterableTableSource(
+        true,
+        TestFilterableTableSource.defaultTypeInfo,
+        TestFilterableTableSource.defaultRows,
+        Set("amount", "name")))
+    checkResult(
+      "SELECT id, name FROM FilterableTable " +
+        "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
+      Seq(
+        row(5, "Record_5"))
     )
   }
 
