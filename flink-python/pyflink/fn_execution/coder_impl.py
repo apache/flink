@@ -24,263 +24,23 @@ from apache_beam.coders.coder_impl import StreamCoderImpl
 from pyflink.table import Row
 
 
+def generate_null_mask_search_table():
+    """
+    Each bit of one byte represents if the column at the specified position is None or not, e.g.
+    0x84 represents the first column and the sixth column are None.
+    """
+    num = 256
+    null_mask = []
+    for b in range(num):
+        every_num_null_mask = [(b & 0x80) > 0, (b & 0x40) > 0, (b & 0x20) > 0, (b & 0x10) > 0,
+                               (b & 0x08) > 0, (b & 0x04) > 0, (b & 0x02) > 0, (b & 0x01) > 0]
+        null_mask.append(tuple(every_num_null_mask))
+
+    return tuple(null_mask)
+
+
 class FlattenRowCoderImpl(StreamCoderImpl):
-    null_mask_search_table = ((False, False, False, False, False, False, False, False),
-                              (False, False, False, False, False, False, False, True),
-                              (False, False, False, False, False, False, True, False),
-                              (False, False, False, False, False, False, True, True),
-                              (False, False, False, False, False, True, False, False),
-                              (False, False, False, False, False, True, False, True),
-                              (False, False, False, False, False, True, True, False),
-                              (False, False, False, False, False, True, True, True),
-                              (False, False, False, False, True, False, False, False),
-                              (False, False, False, False, True, False, False, True),
-                              (False, False, False, False, True, False, True, False),
-                              (False, False, False, False, True, False, True, True),
-                              (False, False, False, False, True, True, False, False),
-                              (False, False, False, False, True, True, False, True),
-                              (False, False, False, False, True, True, True, False),
-                              (False, False, False, False, True, True, True, True),
-                              (False, False, False, True, False, False, False, False),
-                              (False, False, False, True, False, False, False, True),
-                              (False, False, False, True, False, False, True, False),
-                              (False, False, False, True, False, False, True, True),
-                              (False, False, False, True, False, True, False, False),
-                              (False, False, False, True, False, True, False, True),
-                              (False, False, False, True, False, True, True, False),
-                              (False, False, False, True, False, True, True, True),
-                              (False, False, False, True, True, False, False, False),
-                              (False, False, False, True, True, False, False, True),
-                              (False, False, False, True, True, False, True, False),
-                              (False, False, False, True, True, False, True, True),
-                              (False, False, False, True, True, True, False, False),
-                              (False, False, False, True, True, True, False, True),
-                              (False, False, False, True, True, True, True, False),
-                              (False, False, False, True, True, True, True, True),
-                              (False, False, True, False, False, False, False, False),
-                              (False, False, True, False, False, False, False, True),
-                              (False, False, True, False, False, False, True, False),
-                              (False, False, True, False, False, False, True, True),
-                              (False, False, True, False, False, True, False, False),
-                              (False, False, True, False, False, True, False, True),
-                              (False, False, True, False, False, True, True, False),
-                              (False, False, True, False, False, True, True, True),
-                              (False, False, True, False, True, False, False, False),
-                              (False, False, True, False, True, False, False, True),
-                              (False, False, True, False, True, False, True, False),
-                              (False, False, True, False, True, False, True, True),
-                              (False, False, True, False, True, True, False, False),
-                              (False, False, True, False, True, True, False, True),
-                              (False, False, True, False, True, True, True, False),
-                              (False, False, True, False, True, True, True, True),
-                              (False, False, True, True, False, False, False, False),
-                              (False, False, True, True, False, False, False, True),
-                              (False, False, True, True, False, False, True, False),
-                              (False, False, True, True, False, False, True, True),
-                              (False, False, True, True, False, True, False, False),
-                              (False, False, True, True, False, True, False, True),
-                              (False, False, True, True, False, True, True, False),
-                              (False, False, True, True, False, True, True, True),
-                              (False, False, True, True, True, False, False, False),
-                              (False, False, True, True, True, False, False, True),
-                              (False, False, True, True, True, False, True, False),
-                              (False, False, True, True, True, False, True, True),
-                              (False, False, True, True, True, True, False, False),
-                              (False, False, True, True, True, True, False, True),
-                              (False, False, True, True, True, True, True, False),
-                              (False, False, True, True, True, True, True, True),
-                              (False, True, False, False, False, False, False, False),
-                              (False, True, False, False, False, False, False, True),
-                              (False, True, False, False, False, False, True, False),
-                              (False, True, False, False, False, False, True, True),
-                              (False, True, False, False, False, True, False, False),
-                              (False, True, False, False, False, True, False, True),
-                              (False, True, False, False, False, True, True, False),
-                              (False, True, False, False, False, True, True, True),
-                              (False, True, False, False, True, False, False, False),
-                              (False, True, False, False, True, False, False, True),
-                              (False, True, False, False, True, False, True, False),
-                              (False, True, False, False, True, False, True, True),
-                              (False, True, False, False, True, True, False, False),
-                              (False, True, False, False, True, True, False, True),
-                              (False, True, False, False, True, True, True, False),
-                              (False, True, False, False, True, True, True, True),
-                              (False, True, False, True, False, False, False, False),
-                              (False, True, False, True, False, False, False, True),
-                              (False, True, False, True, False, False, True, False),
-                              (False, True, False, True, False, False, True, True),
-                              (False, True, False, True, False, True, False, False),
-                              (False, True, False, True, False, True, False, True),
-                              (False, True, False, True, False, True, True, False),
-                              (False, True, False, True, False, True, True, True),
-                              (False, True, False, True, True, False, False, False),
-                              (False, True, False, True, True, False, False, True),
-                              (False, True, False, True, True, False, True, False),
-                              (False, True, False, True, True, False, True, True),
-                              (False, True, False, True, True, True, False, False),
-                              (False, True, False, True, True, True, False, True),
-                              (False, True, False, True, True, True, True, False),
-                              (False, True, False, True, True, True, True, True),
-                              (False, True, True, False, False, False, False, False),
-                              (False, True, True, False, False, False, False, True),
-                              (False, True, True, False, False, False, True, False),
-                              (False, True, True, False, False, False, True, True),
-                              (False, True, True, False, False, True, False, False),
-                              (False, True, True, False, False, True, False, True),
-                              (False, True, True, False, False, True, True, False),
-                              (False, True, True, False, False, True, True, True),
-                              (False, True, True, False, True, False, False, False),
-                              (False, True, True, False, True, False, False, True),
-                              (False, True, True, False, True, False, True, False),
-                              (False, True, True, False, True, False, True, True),
-                              (False, True, True, False, True, True, False, False),
-                              (False, True, True, False, True, True, False, True),
-                              (False, True, True, False, True, True, True, False),
-                              (False, True, True, False, True, True, True, True),
-                              (False, True, True, True, False, False, False, False),
-                              (False, True, True, True, False, False, False, True),
-                              (False, True, True, True, False, False, True, False),
-                              (False, True, True, True, False, False, True, True),
-                              (False, True, True, True, False, True, False, False),
-                              (False, True, True, True, False, True, False, True),
-                              (False, True, True, True, False, True, True, False),
-                              (False, True, True, True, False, True, True, True),
-                              (False, True, True, True, True, False, False, False),
-                              (False, True, True, True, True, False, False, True),
-                              (False, True, True, True, True, False, True, False),
-                              (False, True, True, True, True, False, True, True),
-                              (False, True, True, True, True, True, False, False),
-                              (False, True, True, True, True, True, False, True),
-                              (False, True, True, True, True, True, True, False),
-                              (False, True, True, True, True, True, True, True),
-                              (True, False, False, False, False, False, False, False),
-                              (True, False, False, False, False, False, False, True),
-                              (True, False, False, False, False, False, True, False),
-                              (True, False, False, False, False, False, True, True),
-                              (True, False, False, False, False, True, False, False),
-                              (True, False, False, False, False, True, False, True),
-                              (True, False, False, False, False, True, True, False),
-                              (True, False, False, False, False, True, True, True),
-                              (True, False, False, False, True, False, False, False),
-                              (True, False, False, False, True, False, False, True),
-                              (True, False, False, False, True, False, True, False),
-                              (True, False, False, False, True, False, True, True),
-                              (True, False, False, False, True, True, False, False),
-                              (True, False, False, False, True, True, False, True),
-                              (True, False, False, False, True, True, True, False),
-                              (True, False, False, False, True, True, True, True),
-                              (True, False, False, True, False, False, False, False),
-                              (True, False, False, True, False, False, False, True),
-                              (True, False, False, True, False, False, True, False),
-                              (True, False, False, True, False, False, True, True),
-                              (True, False, False, True, False, True, False, False),
-                              (True, False, False, True, False, True, False, True),
-                              (True, False, False, True, False, True, True, False),
-                              (True, False, False, True, False, True, True, True),
-                              (True, False, False, True, True, False, False, False),
-                              (True, False, False, True, True, False, False, True),
-                              (True, False, False, True, True, False, True, False),
-                              (True, False, False, True, True, False, True, True),
-                              (True, False, False, True, True, True, False, False),
-                              (True, False, False, True, True, True, False, True),
-                              (True, False, False, True, True, True, True, False),
-                              (True, False, False, True, True, True, True, True),
-                              (True, False, True, False, False, False, False, False),
-                              (True, False, True, False, False, False, False, True),
-                              (True, False, True, False, False, False, True, False),
-                              (True, False, True, False, False, False, True, True),
-                              (True, False, True, False, False, True, False, False),
-                              (True, False, True, False, False, True, False, True),
-                              (True, False, True, False, False, True, True, False),
-                              (True, False, True, False, False, True, True, True),
-                              (True, False, True, False, True, False, False, False),
-                              (True, False, True, False, True, False, False, True),
-                              (True, False, True, False, True, False, True, False),
-                              (True, False, True, False, True, False, True, True),
-                              (True, False, True, False, True, True, False, False),
-                              (True, False, True, False, True, True, False, True),
-                              (True, False, True, False, True, True, True, False),
-                              (True, False, True, False, True, True, True, True),
-                              (True, False, True, True, False, False, False, False),
-                              (True, False, True, True, False, False, False, True),
-                              (True, False, True, True, False, False, True, False),
-                              (True, False, True, True, False, False, True, True),
-                              (True, False, True, True, False, True, False, False),
-                              (True, False, True, True, False, True, False, True),
-                              (True, False, True, True, False, True, True, False),
-                              (True, False, True, True, False, True, True, True),
-                              (True, False, True, True, True, False, False, False),
-                              (True, False, True, True, True, False, False, True),
-                              (True, False, True, True, True, False, True, False),
-                              (True, False, True, True, True, False, True, True),
-                              (True, False, True, True, True, True, False, False),
-                              (True, False, True, True, True, True, False, True),
-                              (True, False, True, True, True, True, True, False),
-                              (True, False, True, True, True, True, True, True),
-                              (True, True, False, False, False, False, False, False),
-                              (True, True, False, False, False, False, False, True),
-                              (True, True, False, False, False, False, True, False),
-                              (True, True, False, False, False, False, True, True),
-                              (True, True, False, False, False, True, False, False),
-                              (True, True, False, False, False, True, False, True),
-                              (True, True, False, False, False, True, True, False),
-                              (True, True, False, False, False, True, True, True),
-                              (True, True, False, False, True, False, False, False),
-                              (True, True, False, False, True, False, False, True),
-                              (True, True, False, False, True, False, True, False),
-                              (True, True, False, False, True, False, True, True),
-                              (True, True, False, False, True, True, False, False),
-                              (True, True, False, False, True, True, False, True),
-                              (True, True, False, False, True, True, True, False),
-                              (True, True, False, False, True, True, True, True),
-                              (True, True, False, True, False, False, False, False),
-                              (True, True, False, True, False, False, False, True),
-                              (True, True, False, True, False, False, True, False),
-                              (True, True, False, True, False, False, True, True),
-                              (True, True, False, True, False, True, False, False),
-                              (True, True, False, True, False, True, False, True),
-                              (True, True, False, True, False, True, True, False),
-                              (True, True, False, True, False, True, True, True),
-                              (True, True, False, True, True, False, False, False),
-                              (True, True, False, True, True, False, False, True),
-                              (True, True, False, True, True, False, True, False),
-                              (True, True, False, True, True, False, True, True),
-                              (True, True, False, True, True, True, False, False),
-                              (True, True, False, True, True, True, False, True),
-                              (True, True, False, True, True, True, True, False),
-                              (True, True, False, True, True, True, True, True),
-                              (True, True, True, False, False, False, False, False),
-                              (True, True, True, False, False, False, False, True),
-                              (True, True, True, False, False, False, True, False),
-                              (True, True, True, False, False, False, True, True),
-                              (True, True, True, False, False, True, False, False),
-                              (True, True, True, False, False, True, False, True),
-                              (True, True, True, False, False, True, True, False),
-                              (True, True, True, False, False, True, True, True),
-                              (True, True, True, False, True, False, False, False),
-                              (True, True, True, False, True, False, False, True),
-                              (True, True, True, False, True, False, True, False),
-                              (True, True, True, False, True, False, True, True),
-                              (True, True, True, False, True, True, False, False),
-                              (True, True, True, False, True, True, False, True),
-                              (True, True, True, False, True, True, True, False),
-                              (True, True, True, False, True, True, True, True),
-                              (True, True, True, True, False, False, False, False),
-                              (True, True, True, True, False, False, False, True),
-                              (True, True, True, True, False, False, True, False),
-                              (True, True, True, True, False, False, True, True),
-                              (True, True, True, True, False, True, False, False),
-                              (True, True, True, True, False, True, False, True),
-                              (True, True, True, True, False, True, True, False),
-                              (True, True, True, True, False, True, True, True),
-                              (True, True, True, True, True, False, False, False),
-                              (True, True, True, True, True, False, False, True),
-                              (True, True, True, True, True, False, True, False),
-                              (True, True, True, True, True, False, True, True),
-                              (True, True, True, True, True, True, False, False),
-                              (True, True, True, True, True, True, False, True),
-                              (True, True, True, True, True, True, True, False),
-                              (True, True, True, True, True, True, True, True))
+    null_mask_search_table = generate_null_mask_search_table()
 
     null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
 
@@ -288,68 +48,47 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         self._field_coders = field_coders
         self._filed_count = len(field_coders)
         self._complete_byte_num = self._filed_count // 8
-        self._remaining_bit_num = self._filed_count % 8
+        self._leading_bytes_num = self._filed_count % 8
 
     def encode_to_stream(self, value, out_stream, nested):
-        self.write_null_mask(value, self._complete_byte_num, self._remaining_bit_num, out_stream)
+        self.write_null_mask(value, out_stream)
         for i in range(self._filed_count):
             item = value[i]
             if item is not None:
                 self._field_coders[i].encode_to_stream(item, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
-        null_mask = self.read_null_mask(self._complete_byte_num, self._remaining_bit_num, in_stream)
+        null_mask = self.read_null_mask(in_stream)
         return [None if null_mask[idx] else self._field_coders[idx].decode_from_stream(
             in_stream, nested) for idx in range(0, self._filed_count)]
 
-    @staticmethod
-    def write_null_mask(value, complete_byte_num, remaining_bit_num, out_stream):
+    def write_null_mask(self, value, out_stream):
         field_pos = 0
-        for _ in range(complete_byte_num):
+        for _ in range(self._complete_byte_num):
             b = 0x00
-            if value[field_pos] is None:
-                b |= 0x80
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x40
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x20
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x10
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x08
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x04
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x02
-            field_pos += 1
-            if value[field_pos] is None:
-                b |= 0x01
-            field_pos += 1
+            for i in range(0, 8):
+                if value[field_pos + i] is None:
+                    b |= FlattenRowCoderImpl.null_byte_search_table[i]
+            field_pos += 8
             out_stream.write_byte(b)
 
-        if remaining_bit_num != 0:
+        if self._leading_bytes_num != 0:
             b = 0x00
-            for i in range(remaining_bit_num):
+            for i in range(self._leading_bytes_num):
                 if value[field_pos + i] is None:
                     b |= FlattenRowCoderImpl.null_byte_search_table[i]
             out_stream.write_byte(b)
 
-    @staticmethod
-    def read_null_mask(complete_byte_num, remaining_bit_num, in_stream):
+    def read_null_mask(self, in_stream):
         null_mask = []
-        for _ in range(complete_byte_num):
+        for _ in range(self._complete_byte_num):
             b = in_stream.read_byte()
             null_mask.extend(FlattenRowCoderImpl.null_mask_search_table[b])
 
-        if remaining_bit_num != 0:
+        if self._leading_bytes_num != 0:
             b = in_stream.read_byte()
-            null_mask.extend(FlattenRowCoderImpl.null_mask_search_table[b][0:remaining_bit_num])
+            null_mask.extend(
+                FlattenRowCoderImpl.null_mask_search_table[b][0:self._leading_bytes_num])
         return null_mask
 
     def __repr__(self):
