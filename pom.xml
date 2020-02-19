@@ -1137,7 +1137,6 @@ under the License.
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 						<configuration>
 							<quiet>true</quiet>
 						</configuration>
@@ -1221,7 +1220,6 @@ under the License.
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
