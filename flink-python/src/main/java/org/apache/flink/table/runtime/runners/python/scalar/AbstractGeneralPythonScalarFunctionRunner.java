@@ -38,7 +38,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 @Internal
 public abstract class AbstractGeneralPythonScalarFunctionRunner<IN> extends AbstractPythonScalarFunctionRunner<IN> {
 
-	private static final String SCHEMA_CODER_URN = "flink:coder:schema:v1";
+	private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1";
 
 	/**
 	 * The TypeSerializer for input elements.
@@ -89,7 +89,7 @@ public abstract class AbstractGeneralPythonScalarFunctionRunner<IN> extends Abst
 
 	@Override
 	public String getInputOutputCoderUrn() {
-		return SCHEMA_CODER_URN;
+		return SCALAR_FUNCTION_SCHEMA_CODER_URN;
 	}
 
 	/**

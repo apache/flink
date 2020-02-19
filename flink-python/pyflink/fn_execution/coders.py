@@ -29,13 +29,46 @@ from pyflink.fn_execution import coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.table import Row
 
-FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
+FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
+FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
 
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
            'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
            'TimestampCoder', 'ArrayCoder', 'MapCoder', 'DecimalCoder']
+
+
+class TableFunctionRowCoder(FastCoder):
+    """
+    Coder for Table Function Row.
+    """
+    def __init__(self, row_coder):
+        self._row_coder = row_coder
+
+    def _create_impl(self):
+        return coder_impl.TableFunctionRowCoderImpl(self._row_coder.get_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return TableFunctionRowCoder(FlattenRowCoder([from_proto(f.type)
+                                                      for f in schema_proto.fields]))
+
+    def __repr__(self):
+        return 'TableFunctionRowCoder[%s]' % repr(self._row_coder)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._row_coder == other._row_coder)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._row_coder)
 
 
 class FlattenRowCoder(FastCoder):
@@ -56,7 +89,7 @@ class FlattenRowCoder(FastCoder):
     def to_type_hint(self):
         return typehints.List
 
-    @Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
+    @Coder.register_urn(FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
     def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
         return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields])
 
