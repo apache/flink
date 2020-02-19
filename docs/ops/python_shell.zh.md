@@ -28,7 +28,7 @@ Flink附带了一个集成的交互式Python Shell。
 为了使用Flink的Python Shell，你只需要在Flink的binary目录下执行:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+pyflink-shell.sh local
 {% endhighlight %}
 
 关于如何在一个Cluster集群上运行Python shell，可以参考启动章节介绍。

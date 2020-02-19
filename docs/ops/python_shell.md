@@ -28,7 +28,7 @@ It can be used in a local setup as well as in a cluster setup.
 To use the shell with an integrated Flink cluster just execute:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+pyflink-shell.sh local
 {% endhighlight %}
 
 in the root directory of your binary Flink directory. To run the Shell on a
