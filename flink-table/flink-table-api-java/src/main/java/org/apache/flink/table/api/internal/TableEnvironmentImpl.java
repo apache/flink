@@ -162,7 +162,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.parser = planner.getParser();
 		this.operationTreeBuilder = OperationTreeBuilder.create(
 			tableConfig,
-			functionCatalog,
+			functionCatalog.asLookup(parser::parseIdentifier),
 			catalogManager.getDataTypeFactory(),
 			path -> {
 				try {
@@ -1012,6 +1012,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			this,
 			tableOperation,
 			operationTreeBuilder,
-			functionCatalog);
+			functionCatalog.asLookup(parser::parseIdentifier));
 	}
 }

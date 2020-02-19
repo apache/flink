@@ -96,8 +96,7 @@ public class SqlToOperationConverterTest {
 		new PlanningConfigurationBuilder(tableConfig,
 			functionCatalog,
 			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, tableConfig, false)),
-			new ExpressionBridge<>(functionCatalog,
-				PlannerExpressionConverter.INSTANCE()));
+			new ExpressionBridge<>(PlannerExpressionConverter.INSTANCE()));
 
 	@Rule
 	public ExpectedException expectedEx = ExpectedException.none();

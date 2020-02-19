@@ -80,7 +80,7 @@ class StreamPlanner(
 
   // temporary bridge between API and planner
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   private val planningConfigurationBuilder: PlanningConfigurationBuilder =
     new PlanningConfigurationBuilder(
