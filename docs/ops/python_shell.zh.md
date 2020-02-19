@@ -25,10 +25,13 @@ under the License.
 Flink附带了一个集成的交互式Python Shell。
 它既能够运行在本地启动的local模式，也能够运行在集群启动的cluster模式下。
 
-为了使用Flink的Python Shell，你只需要在Flink的binary目录下执行:
+你可以通过PyPi安装PyFlink，然后使用Python Shell:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+# 安装 PyFlink
+$ python -m pip install apache-flink==1.9.*
+# 执行脚本
+$ pyflink-shell.sh local
 {% endhighlight %}
 
 关于如何在一个Cluster集群上运行Python shell，可以参考启动章节介绍。
@@ -114,7 +117,7 @@ bin/pyflink-shell.sh local
 查看Python Shell提供的可选参数，可以使用:
 
 {% highlight bash %}
-bin/pyflink-shell.sh --help
+pyflink-shell.sh --help
 {% endhighlight %}
 
 ### Local
@@ -122,7 +125,7 @@ bin/pyflink-shell.sh --help
 Python Shell运行在local模式下，只需要执行:
 
 {% highlight bash %}
-bin/pyflink-shell.sh local
+pyflink-shell.sh local
 {% endhighlight %}
 
 
@@ -132,7 +135,7 @@ Python Shell运行在一个指定的JobManager上，通过关键字`remote`和�
 的地址和端口号来进行指定:
 
 {% highlight bash %}
-bin/pyflink-shell.sh remote <hostname> <portnumber>
+pyflink-shell.sh remote <hostname> <portnumber>
 {% endhighlight %}
 
 ### Yarn Python Shell cluster
@@ -143,7 +146,7 @@ Python Shell可以运行在YARN集群之上。YARN的container的数量可以通
 例如，在一个部署了两个TaskManager的Yarn集群上运行Python Shell:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn -n 2
+pyflink-shell.sh yarn -n 2
 {% endhighlight %}
 
 关于所有可选的参数，可以查看本页面底部的完整说明。
@@ -154,7 +157,7 @@ Python Shell可以运行在YARN集群之上。YARN的container的数量可以通
 如果你已经通过Flink Yarn Session部署了一个Flink集群，能够通过以下的命令连接到这个集群:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn
+pyflink-shell.sh yarn
 {% endhighlight %}
 
 
