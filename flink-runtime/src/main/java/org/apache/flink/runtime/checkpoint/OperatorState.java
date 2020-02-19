@@ -50,9 +50,10 @@ public class OperatorState implements CompositeStateHandle {
 	private final int maxParallelism;
 
 	public OperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
-		Preconditions.checkArgument(
-			parallelism <= maxParallelism,
-			"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
+		if (parallelism > maxParallelism) {
+			throw new IllegalArgumentException(String.format(
+				"Parallelism %s is not smaller or equal to max parallelism %s.", parallelism, maxParallelism));
+		}
 
 		this.operatorID = operatorID;
 
