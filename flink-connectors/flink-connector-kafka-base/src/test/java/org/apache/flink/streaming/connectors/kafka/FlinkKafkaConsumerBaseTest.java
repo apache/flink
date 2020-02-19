@@ -18,14 +18,21 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
@@ -65,6 +72,8 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -664,6 +673,42 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			false,
 			0,
 			1);
+	}
+
+	@Test
+	public void testStateSerializerVsTypeInfo() throws Exception {
+		ExecutionConfig executionConfig = new ExecutionConfig();
+
+		TypeInformation<Tuple2<KafkaTopicPartition, Long>> typeInformation = new TypeHint<Tuple2<KafkaTopicPartition, Long>>() {}.getTypeInfo();
+
+		Tuple2<KafkaTopicPartition, Long> tuple = new Tuple2<>(new KafkaTopicPartition("dummy", 0), 42L);
+
+		Tuple2<KafkaTopicPartition, Long> expectedTuple;
+		{
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream(32);
+			DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
+			TypeSerializer<Tuple2<KafkaTopicPartition, Long>> typeInfoSerializer = typeInformation.createSerializer(executionConfig);
+			typeInfoSerializer.serialize(tuple, outputView);
+			ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+			DataInputView inputView = new DataInputViewStreamWrapper(inputStream);
+			expectedTuple = typeInfoSerializer.deserialize(inputView);
+		}
+
+		Tuple2<KafkaTopicPartition, Long> actualTuple;
+		{
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream(32);
+			DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
+			typeInformation.createSerializer(executionConfig).serialize(tuple, outputView);
+			ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+			DataInputView inputView = new DataInputViewStreamWrapper(inputStream);
+			actualTuple = FlinkKafkaConsumerBase.createStateSerializer(executionConfig).deserialize(inputView);
+		}
+
+		Assert.assertEquals(
+			"Explicit KryoSerializer for Tuple2<KafkaTopicPartition, Long> in not compatible with TypeHint based serializer",
+			expectedTuple,
+			actualTuple
+		);
 	}
 
 	@Test
