@@ -272,6 +272,14 @@ public class CoreOptions {
 			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
 				" May contain an authority, e.g. host:port in case of an HDFS NameNode.");
 
+	@Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
+	public static final ConfigOption<String> ALLOWED_FALLBACK_FILESYSTEMS = ConfigOptions
+			.key("fs.allowed-fallback-filesystems")
+			.stringType()
+			.defaultValue("")
+			.withDescription("A (semicolon-separated) list of file schemes, for which Hadoop can be used instead " +
+				"of an appropriate Flink plugin. (example: s3;wasb)");
+
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.
 	 */
