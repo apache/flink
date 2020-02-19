@@ -53,7 +53,6 @@ under the License.
 		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
-		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -305,6 +304,12 @@ under the License.
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-hadoop-2-uber</artifactId>
 				<version>${hadoop.version}-${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-zookeeper-3</artifactId>
+				<version>${zookeeper.version}-${flink.shaded.version}</version>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
