@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>security.context.factory.classes</h5></td>
+            <td style="word-wrap: break-word;">"org.apache.flink.runtime.security.contexts.HadoopSecurityContextFactory";<wbr>"org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory"</td>
+            <td>List&lt;String&gt;</td>
+            <td>List of factories that should be used to instantiate a security context. If multiple are configured, Flink will use the first compatible factory. You should have a NoOpSecurityContextFactory in this list as a fallback.</td>
+        </tr>
+        <tr>
             <td><h5>security.kerberos.login.contexts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -31,6 +37,12 @@
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Indicates whether to read from your Kerberos ticket cache.</td>
+        </tr>
+        <tr>
+            <td><h5>security.module.factory.classes</h5></td>
+            <td style="word-wrap: break-word;">"org.apache.flink.runtime.security.modules.HadoopModuleFactory";<wbr>"org.apache.flink.runtime.security.modules.JaasModuleFactory";<wbr>"org.apache.flink.runtime.security.modules.ZookeeperModuleFactory"</td>
+            <td>List&lt;String&gt;</td>
+            <td>List of factories that should be used to instantiate security modules. All listed modules will be installed. Keep in mind that the configured security context might rely on some modules being present.</td>
         </tr>
         <tr>
             <td><h5>security.ssl.algorithms</h5></td>
