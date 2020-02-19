@@ -26,6 +26,8 @@ import org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.TestSecurityContextFactory;
 import org.apache.flink.runtime.security.modules.TestSecurityModuleFactory;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -75,6 +77,70 @@ public class SecurityUtilsTest {
 
 		SecurityUtils.install(sc);
 		assertEquals(TestSecurityContextFactory.TestSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+
+		SecurityUtils.uninstall();
+		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+	}
+
+	/**
+	 * Verify that we fall back to a second configuration if the first one is incompatible.
+	 */
+	@Test
+	public void testSecurityContextShouldFallbackToSecond() throws Exception {
+		Configuration testFlinkConf = new Configuration();
+
+		testFlinkConf.set(
+				SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
+				Lists.newArrayList(
+						IncompatibleTestSecurityContextFactory.class.getCanonicalName(),
+						TestSecurityContextFactory.class.getCanonicalName()));
+
+		SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
+
+		SecurityUtils.install(testSecurityConf);
+		assertEquals(
+				TestSecurityContextFactory.TestSecurityContext.class,
+				SecurityUtils.getInstalledContext().getClass());
+
+		SecurityUtils.uninstall();
+		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+	}
+
+	/**
+	 * Verify that we pick the first valid security context.
+	 */
+	@Test
+	public void testSecurityContextShouldPickFirstIfBothCompatible() throws Exception {
+		Configuration testFlinkConf = new Configuration();
+
+		testFlinkConf.set(
+				SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
+				Lists.newArrayList(
+						AnotherCompatibleTestSecurityContextFactory.class.getCanonicalName(),
+						TestSecurityContextFactory.class.getCanonicalName()));
+
+		SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
+
+		SecurityUtils.install(testSecurityConf);
+		assertEquals(
+				AnotherCompatibleTestSecurityContextFactory.TestSecurityContext.class,
+				SecurityUtils.getInstalledContext().getClass());
+
+		SecurityUtils.uninstall();
+		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+
+		testFlinkConf.set(
+				SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
+				Lists.newArrayList(
+						TestSecurityContextFactory.class.getCanonicalName(),
+						AnotherCompatibleTestSecurityContextFactory.class.getCanonicalName()));
+
+		testSecurityConf = new SecurityConfiguration(testFlinkConf);
+
+		SecurityUtils.install(testSecurityConf);
+		assertEquals(
+				TestSecurityContextFactory.TestSecurityContext.class,
+				SecurityUtils.getInstalledContext().getClass());
 
 		SecurityUtils.uninstall();
 		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
