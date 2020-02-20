@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.calcite;
 
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.table.api.SqlParserException;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.util.SourceStringReader;
 
 /**
  * Thin wrapper around {@link SqlParser} that does exception conversion and {@link SqlNode} casting.
@@ -60,12 +62,33 @@ public class CalciteParser {
 	 */
 	public SqlIdentifier parseIdentifier(String identifier) {
 		try {
-			SqlParser parser = SqlParser.create(identifier, config);
-			SqlNode sqlNode = parser.parseExpression();
-			return (SqlIdentifier) sqlNode;
+			return createFlinkParser(identifier).TableApiIdentifier();
 		} catch (Exception e) {
 			throw new SqlParserException(String.format(
-				"Invalid SQL identifier %s. All SQL keywords must be escaped.", identifier));
+				"Invalid SQL identifier %s.", identifier));
 		}
+	}
+
+	private FlinkSqlParserImpl createFlinkParser(String expr) {
+		SourceStringReader reader = new SourceStringReader(expr);
+		FlinkSqlParserImpl parser = (FlinkSqlParserImpl) config.parserFactory().getParser(reader);
+		parser.setTabSize(1);
+		parser.setQuotedCasing(config.quotedCasing());
+		parser.setUnquotedCasing(config.unquotedCasing());
+		parser.setIdentifierMaxLength(config.identifierMaxLength());
+		parser.setConformance(config.conformance());
+		switch (config.quoting()) {
+			case DOUBLE_QUOTE:
+				parser.switchTo("DQID");
+				break;
+			case BACK_TICK:
+				parser.switchTo("BTID");
+				break;
+			case BRACKET:
+				parser.switchTo("DEFAULT");
+				break;
+		}
+
+		return parser;
 	}
 }
