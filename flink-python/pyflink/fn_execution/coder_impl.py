@@ -24,71 +24,74 @@ from apache_beam.coders.coder_impl import StreamCoderImpl
 from pyflink.table import Row
 
 
-def generate_null_mask_search_table():
-    """
-    Each bit of one byte represents if the column at the specified position is None or not, e.g.
-    0x84 represents the first column and the sixth column are None.
-    """
-    num = 256
-    null_mask = []
-    for b in range(num):
-        every_num_null_mask = [(b & 0x80) > 0, (b & 0x40) > 0, (b & 0x20) > 0, (b & 0x10) > 0,
-                               (b & 0x08) > 0, (b & 0x04) > 0, (b & 0x02) > 0, (b & 0x01) > 0]
-        null_mask.append(tuple(every_num_null_mask))
-
-    return tuple(null_mask)
-
-
 class FlattenRowCoderImpl(StreamCoderImpl):
-    null_mask_search_table = generate_null_mask_search_table()
-
-    null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
         self._filed_count = len(field_coders)
-        self._complete_byte_num = self._filed_count // 8
-        self._leading_bytes_num = self._filed_count % 8
+        self._leading_complete_bytes_num = self._filed_count // 8
+        self._remaining_bits_num = self._filed_count % 8
+        self.null_mask_search_table = self.generate_null_mask_search_table()
+        self.null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
+
+    @staticmethod
+    def generate_null_mask_search_table():
+        """
+        Each bit of one byte represents if the column at the corresponding position is None or not,
+        e.g. 0x84 represents the first column and the sixth column are None.
+        """
+        null_mask = []
+        for b in range(256):
+            every_num_null_mask = [(b & 0x80) > 0, (b & 0x40) > 0, (b & 0x20) > 0, (b & 0x10) > 0,
+                                   (b & 0x08) > 0, (b & 0x04) > 0, (b & 0x02) > 0, (b & 0x01) > 0]
+            null_mask.append(tuple(every_num_null_mask))
+
+        return tuple(null_mask)
 
     def encode_to_stream(self, value, out_stream, nested):
         self.write_null_mask(value, out_stream)
+        field_coders = self._field_coders
         for i in range(self._filed_count):
             item = value[i]
             if item is not None:
-                self._field_coders[i].encode_to_stream(item, out_stream, nested)
+                field_coders[i].encode_to_stream(item, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
         null_mask = self.read_null_mask(in_stream)
-        return [None if null_mask[idx] else self._field_coders[idx].decode_from_stream(
+        field_coders = self._field_coders
+        return [None if null_mask[idx] else field_coders[idx].decode_from_stream(
             in_stream, nested) for idx in range(0, self._filed_count)]
 
     def write_null_mask(self, value, out_stream):
         field_pos = 0
-        for _ in range(self._complete_byte_num):
+        null_byte_search_table = self.null_byte_search_table
+        remaining_bits_num = self._remaining_bits_num
+        for _ in range(self._leading_complete_bytes_num):
             b = 0x00
             for i in range(0, 8):
                 if value[field_pos + i] is None:
-                    b |= FlattenRowCoderImpl.null_byte_search_table[i]
+                    b |= null_byte_search_table[i]
             field_pos += 8
             out_stream.write_byte(b)
 
-        if self._leading_bytes_num != 0:
+        if remaining_bits_num:
             b = 0x00
-            for i in range(self._leading_bytes_num):
+            for i in range(remaining_bits_num):
                 if value[field_pos + i] is None:
-                    b |= FlattenRowCoderImpl.null_byte_search_table[i]
+                    b |= null_byte_search_table[i]
             out_stream.write_byte(b)
 
     def read_null_mask(self, in_stream):
         null_mask = []
-        for _ in range(self._complete_byte_num):
+        null_mask_search_table = self.null_mask_search_table
+        remaining_bits_num = self._remaining_bits_num
+        for _ in range(self._leading_complete_bytes_num):
             b = in_stream.read_byte()
-            null_mask.extend(FlattenRowCoderImpl.null_mask_search_table[b])
+            null_mask.extend(null_mask_search_table[b])
 
-        if self._leading_bytes_num != 0:
+        if remaining_bits_num:
             b = in_stream.read_byte()
-            null_mask.extend(
-                FlattenRowCoderImpl.null_mask_search_table[b][0:self._leading_bytes_num])
+            null_mask.extend(null_mask_search_table[b][0:remaining_bits_num])
         return null_mask
 
     def __repr__(self):
