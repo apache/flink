@@ -85,7 +85,7 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 					if (throwable != null) {
 						executionException.compareAndSet(null,
 								new SqlExecutionException(
-										"Error while submitting job.",
+										"Error while retrieving result.",
 										throwable));
 					}
 				});

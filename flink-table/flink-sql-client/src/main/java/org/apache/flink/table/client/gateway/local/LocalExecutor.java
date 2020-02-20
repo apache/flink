@@ -656,7 +656,7 @@ public class LocalExecutor implements Executor {
 		try {
 			jobClient = deployer.deploy().get();
 		} catch (Exception e) {
-			throw new SqlExecutionException("Error running SQL job.", e);
+			throw new SqlExecutionException("Error while submitting job.", e);
 		}
 
 		String jobId = jobClient.getJobID().toString();

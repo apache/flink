@@ -1403,7 +1403,6 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private <T> JobStatus getJobStatusInternal(ExecutionContext<T> context, JobID jobId) {
-		// stop Flink job
 		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
 			// retrieve existing cluster
 			ClusterClient<T> clusterClient = clusterDescriptor.retrieve(context.getClusterId()).getClusterClient();

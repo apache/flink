@@ -96,7 +96,7 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 					if (throwable != null) {
 						executionException.compareAndSet(
 								null,
-								new SqlExecutionException("Error while submitting job.", throwable));
+								new SqlExecutionException("Error while retrieving result.", throwable));
 					}
 				});
 	}
