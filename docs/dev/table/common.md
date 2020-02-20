@@ -441,7 +441,6 @@ the current catalog and current database will be referred. Users can switch the 
 table API or SQL.
 
 Identifiers follow SQL requirements which means that they can be escaped with a backtick character (`` ` ``).
-Additionally all SQL reserved keywords must be escaped.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -459,10 +458,6 @@ tableEnv.createTemporaryView("exampleView", table);
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table);
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -491,10 +486,6 @@ tableEnv.createTemporaryView("exampleView", table)
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table)
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table)
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
