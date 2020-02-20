@@ -35,7 +35,7 @@ import java.util.stream.StreamSupport;
  * A reducer that aggregates multiple {@link OperatorState}'s into a single {@link Savepoint}.
  */
 @Internal
-public class MergeOperatorStates implements GroupReduceFunction<OperatorState, Savepoint> {
+public class MergeOperatorStates implements GroupReduceFunction<OperatorState, SavepointV2> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -48,8 +48,8 @@ public class MergeOperatorStates implements GroupReduceFunction<OperatorState, S
 	}
 
 	@Override
-	public void reduce(Iterable<OperatorState> values, Collector<Savepoint> out) {
-		Savepoint savepoint =
+	public void reduce(Iterable<OperatorState> values, Collector<SavepointV2> out) {
+		SavepointV2 savepoint =
 			new SavepointV2(
 				SnapshotUtils.CHECKPOINT_ID,
 				StreamSupport.stream(values.spliterator(), false).collect(Collectors.toList()),

@@ -56,7 +56,7 @@ public class SavepointOutputFormatTest {
 		Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
 		SavepointOutputFormat format = createSavepointOutputFormat(path);
 
-		Savepoint savepoint = createSavepoint();
+		SavepointV2 savepoint = createSavepoint();
 
 		format.open(0, 1);
 		format.writeRecord(savepoint);

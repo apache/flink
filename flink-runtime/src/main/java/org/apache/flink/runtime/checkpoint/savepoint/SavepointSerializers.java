@@ -19,20 +19,21 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Helper to access {@link SavepointSerializer} for a specific savepoint version.
+ * Helper to access {@link SavepointSerializer}s for specific format versions.
+ *
+ * <p>The serializer for a specific version can be obtained via {@link #getSerializer(int)}.
  */
 public class SavepointSerializers {
 
 	/** If this flag is true, restoring a savepoint fails if it contains legacy state (<= Flink 1.1 format). */
 	static boolean failWhenLegacyStateDetected = true;
 
-	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(2);
+	private static final Map<Integer, SavepointSerializer> SERIALIZERS = new HashMap<>(2);
 
 	static {
 		SERIALIZERS.put(SavepointV1Serializer.VERSION, SavepointV1Serializer.INSTANCE);
@@ -46,33 +47,14 @@ public class SavepointSerializers {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns the {@link SavepointSerializer} for the given savepoint.
-	 *
-	 * @param savepoint Savepoint to get serializer for
-	 * @param <T>       Type of savepoint
-	 * @return Savepoint serializer for the savepoint
-	 * @throws IllegalArgumentException If unknown savepoint version
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends Savepoint> SavepointSerializer<T> getSerializer(T savepoint) {
-		Preconditions.checkNotNull(savepoint, "Savepoint");
-		SavepointSerializer<T> serializer = (SavepointSerializer<T>) SERIALIZERS.get(savepoint.getVersion());
-		if (serializer != null) {
-			return serializer;
-		} else {
-			throw new IllegalArgumentException("Unknown savepoint version " + savepoint.getVersion() + ".");
-		}
-	}
-
-	/**
 	 * Returns the {@link SavepointSerializer} for the given savepoint version.
 	 *
 	 * @param version Savepoint version to get serializer for
 	 * @return Savepoint for the given version
 	 * @throws IllegalArgumentException If unknown savepoint version
 	 */
-	public static SavepointSerializer<?> getSerializer(int version) {
-		SavepointSerializer<?> serializer = SERIALIZERS.get(version);
+	public static SavepointSerializer getSerializer(int version) {
+		SavepointSerializer serializer = SERIALIZERS.get(version);
 		if (serializer != null) {
 			return serializer;
 		} else {
