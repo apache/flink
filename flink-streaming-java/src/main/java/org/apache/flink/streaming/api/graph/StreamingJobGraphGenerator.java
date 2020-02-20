@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -52,6 +53,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
@@ -595,20 +597,47 @@ public class StreamingJobGraphGenerator {
 		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
 		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
-		StreamOperatorFactory<?> upStreamOperator = upStreamVertex.getOperatorFactory();
-		StreamOperatorFactory<?> downStreamOperator = downStreamVertex.getOperatorFactory();
-
 		return downStreamVertex.getInEdges().size() == 1
-				&& downStreamOperator != null
-				&& upStreamOperator != null
 				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& downStreamOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (upStreamOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
-					upStreamOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				&& areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& edge.getShuffleMode() != ShuffleMode.BATCH
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
 				&& streamGraph.isChainingEnabled();
+	}
+
+	@VisibleForTesting
+	static boolean areOperatorsChainable(
+			StreamNode upStreamVertex,
+			StreamNode downStreamVertex,
+			StreamGraph streamGraph) {
+		StreamOperatorFactory<?> upStreamOperator = upStreamVertex.getOperatorFactory();
+		StreamOperatorFactory<?> downStreamOperator = downStreamVertex.getOperatorFactory();
+		if (downStreamOperator == null || upStreamOperator == null) {
+			return false;
+		}
+
+		if (upStreamOperator.getChainingStrategy() == ChainingStrategy.NEVER ||
+			downStreamOperator.getChainingStrategy() != ChainingStrategy.ALWAYS) {
+			return false;
+		}
+
+		// yielding operators cannot be chained to legacy sources
+		if (downStreamOperator instanceof YieldingOperatorFactory) {
+			// unfortunately the information that vertices have been chained is not preserved at this point
+			return !getHeadOperator(upStreamVertex, streamGraph).isStreamSource();
+		}
+		return true;
+	}
+
+	/**
+	 * Backtraces the head of an operator chain.
+	 */
+	private static StreamOperatorFactory<?> getHeadOperator(StreamNode upStreamVertex, StreamGraph streamGraph) {
+		if (upStreamVertex.getInEdges().size() == 1 && isChainable(upStreamVertex.getInEdges().get(0), streamGraph)) {
+			return getHeadOperator(streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
+		}
+		return upStreamVertex.getOperatorFactory();
 	}
 
 	private void setSlotSharingAndCoLocation() {
