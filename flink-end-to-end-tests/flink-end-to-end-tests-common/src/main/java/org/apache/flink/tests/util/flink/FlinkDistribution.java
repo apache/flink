@@ -25,7 +25,6 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.ExternalResource;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,8 +32,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.junit.Assert;
-import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +43,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -65,78 +60,28 @@ import java.util.stream.Stream;
 /**
  * A wrapper around a Flink distribution.
  */
-final class FlinkDistribution implements ExternalResource {
+final class FlinkDistribution {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkDistribution.class);
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final Path logBackupDir;
+	private final Path opt;
+	private final Path lib;
+	private final Path conf;
+	private final Path log;
+	private final Path bin;
 
-	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	private final Configuration defaultConfig;
 
-	private final Path originalFlinkDir;
-	private Path opt;
-	private Path lib;
-	private Path conf;
-	private Path log;
-	private Path bin;
-
-	private Configuration defaultConfig;
-
-	FlinkDistribution() {
-		final String distDirProperty = System.getProperty("distDir");
-		if (distDirProperty == null) {
-			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
-		}
-		final String backupDirProperty = System.getProperty("logBackupDir");
-		logBackupDir = backupDirProperty == null ? null : Paths.get(backupDirProperty);
-		originalFlinkDir = Paths.get(distDirProperty);
-	}
-
-	@Override
-	public void before() throws IOException {
-		temporaryFolder.create();
-
-		final Path flinkDir = temporaryFolder.newFolder().toPath();
-
-		LOG.info("Copying distribution to {}.", flinkDir);
-		TestUtils.copyDirectory(originalFlinkDir, flinkDir);
-
-		bin = flinkDir.resolve("bin");
-		opt = flinkDir.resolve("opt");
-		lib = flinkDir.resolve("lib");
-		conf = flinkDir.resolve("conf");
-		log = flinkDir.resolve("log");
+	FlinkDistribution(Path distributionDir) {
+		bin = distributionDir.resolve("bin");
+		opt = distributionDir.resolve("opt");
+		lib = distributionDir.resolve("lib");
+		conf = distributionDir.resolve("conf");
+		log = distributionDir.resolve("log");
 
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
-	}
-
-	@Override
-	public void afterTestSuccess() {
-		try {
-			stopFlinkCluster();
-		} catch (IOException e) {
-			LOG.error("Failure while shutting down Flink cluster.", e);
-		}
-
-		temporaryFolder.delete();
-	}
-
-	@Override
-	public void afterTestFailure() {
-		if (logBackupDir != null) {
-			final UUID id = UUID.randomUUID();
-			LOG.info("Backing up logs to {}/{}.", logBackupDir, id);
-			try {
-				Files.createDirectories(logBackupDir);
-				TestUtils.copyDirectory(log, logBackupDir.resolve(id.toString()));
-			} catch (IOException e) {
-				LOG.warn("An error occurred while backing up logs.", e);
-			}
-		}
-
-		afterTestSuccess();
 	}
 
 	public void startJobManager() throws IOException {
@@ -330,5 +275,10 @@ final class FlinkDistribution implements ExternalResource {
 			}
 		}
 		return matches.stream();
+	}
+
+	public void copyLogsTo(Path targetDirectory) throws IOException {
+		Files.createDirectories(targetDirectory);
+		TestUtils.copyDirectory(log, targetDirectory);
 	}
 }

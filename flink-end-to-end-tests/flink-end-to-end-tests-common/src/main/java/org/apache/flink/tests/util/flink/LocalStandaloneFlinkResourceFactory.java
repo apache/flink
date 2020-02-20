@@ -18,9 +18,13 @@
 
 package org.apache.flink.tests.util.flink;
 
+import org.apache.flink.tests.util.parameters.ParameterProperty;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
@@ -29,9 +33,21 @@ import java.util.Optional;
 public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResourceFactory.class);
 
+	private static final ParameterProperty<Path> DISTRIBUTION_DIRECTORY = new ParameterProperty<>("distDir", Paths::get);
+	private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY = new ParameterProperty<>("logBackupDir", Paths::get);
+
 	@Override
 	public Optional<FlinkResource> create(FlinkResourceSetup setup) {
+		Optional<Path> distributionDirectory = DISTRIBUTION_DIRECTORY.get();
+		if (!distributionDirectory.isPresent()) {
+			LOG.warn("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
+			return Optional.empty();
+		}
+		Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
+		if (!logBackupDirectory.isPresent()) {
+			LOG.warn("Property {} not set, logs will not be backed up in case of test failures.", DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
+		}
 		LOG.info("Created {}.", LocalStandaloneFlinkResource.class.getSimpleName());
-		return Optional.of(new LocalStandaloneFlinkResource(setup));
+		return Optional.of(new LocalStandaloneFlinkResource(distributionDirectory.get(), logBackupDirectory, setup));
 	}
 }
