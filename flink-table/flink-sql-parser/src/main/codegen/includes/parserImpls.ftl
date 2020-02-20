@@ -67,7 +67,7 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 }
 {
     <CATALOG> { startPos = getPos(); }
-    catalogName = CompoundIdentifier()
+    catalogName = SimpleIdentifier()
     [
         <WITH>
         propertyList = TableProperties()
