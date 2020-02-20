@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,9 +27,6 @@ import java.util.Map;
  * <p>The serializer for a specific version can be obtained via {@link #getSerializer(int)}.
  */
 public class SavepointSerializers {
-
-	/** If this flag is true, restoring a savepoint fails if it contains legacy state (<= Flink 1.1 format). */
-	static boolean failWhenLegacyStateDetected = true;
 
 	private static final Map<Integer, SavepointSerializer> SERIALIZERS = new HashMap<>(2);
 
@@ -60,14 +55,5 @@ public class SavepointSerializers {
 		} else {
 			throw new IllegalArgumentException("Unrecognized checkpoint version number: " + version);
 		}
-	}
-
-	/**
-	 * This is only visible as a temporary solution to keep the stateful job migration it cases working from binary
-	 * savepoints that still contain legacy state (<= Flink 1.1).
-	 */
-	@VisibleForTesting
-	public static void setFailWhenLegacyStateDetected(boolean fail) {
-		failWhenLegacyStateDetected = fail;
 	}
 }

@@ -36,7 +36,6 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -290,22 +289,14 @@ public class SavepointV2Serializer implements SavepointSerializer {
 		// Duration field has been removed from SubtaskState, do not remove
 		long ignoredDuration = dis.readLong();
 
-		// for compatibility, do not remove
-		int len = dis.readInt();
-
-		if (SavepointSerializers.failWhenLegacyStateDetected) {
-			Preconditions.checkState(len == 0,
+		final int numLegacyTaskStates = dis.readInt();
+		if (numLegacyTaskStates > 0) {
+			throw new IOException(
 				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
-					"no longer supported starting from Flink 1.4. Please rewrite your job to use " +
-					"'CheckpointedFunction' instead!");
-		} else {
-			for (int i = 0; i < len; ++i) {
-				// absorb bytes from stream and ignore result
-				deserializeStreamStateHandle(dis);
-			}
+				"no longer supported.");
 		}
 
-		len = dis.readInt();
+		int len = dis.readInt();
 		OperatorStateHandle operatorStateBackend = len == 0 ? null : deserializeOperatorStateHandle(dis);
 
 		len = dis.readInt();

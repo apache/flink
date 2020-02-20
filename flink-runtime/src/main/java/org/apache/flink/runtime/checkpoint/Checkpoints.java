@@ -113,7 +113,6 @@ public class Checkpoints {
 		}
 	}
 
-	@SuppressWarnings("deprecation")
 	public static CompletedCheckpoint loadAndValidateCheckpoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
@@ -130,15 +129,11 @@ public class Checkpoints {
 		final String checkpointPointer = location.getExternalPointer();
 
 		// (1) load the savepoint
-		final Savepoint rawCheckpointMetadata;
+		final Savepoint checkpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
-			rawCheckpointMetadata = loadCheckpointMetadata(dis, classLoader);
+			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
 		}
-
-		final Savepoint checkpointMetadata = rawCheckpointMetadata.getTaskStates() == null ?
-				rawCheckpointMetadata :
-				SavepointV2.convertToOperatorStateSavepointV2(tasks, rawCheckpointMetadata);
 
 		// generate mapping from operator to task
 		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
