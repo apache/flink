@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -25,9 +25,9 @@ import java.io.IOException;
  * Deserializer for checkpoint metadata. Different deserializers exist to deserialize from different
  * format versions.
  *
- * <p>Version-specific serializers are accessed via the {@link SavepointSerializers} helper.
+ * <p>Version-specific serializers are accessed via the {@link MetadataSerializers} helper.
  */
-public interface SavepointSerializer {
+public interface MetadataSerializer {
 
 	/**
 	 * Deserializes a savepoint from an input stream.
@@ -37,5 +37,5 @@ public interface SavepointSerializer {
 	 * @return The deserialized savepoint
 	 * @throws IOException Serialization failures are forwarded
 	 */
-	SavepointV2 deserialize(DataInputStream dis, ClassLoader userCodeClassLoader) throws IOException;
+	MetadataV2 deserialize(DataInputStream dis, ClassLoader userCodeClassLoader) throws IOException;
 }

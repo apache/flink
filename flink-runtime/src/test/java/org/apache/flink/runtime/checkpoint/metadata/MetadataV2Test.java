@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -30,7 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class SavepointV2Test {
+public class MetadataV2Test {
 
 	/**
 	 * Simple test of savepoint methods.
@@ -50,7 +50,7 @@ public class SavepointV2Test {
 		Collection<MasterState> masterStates =
 				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-		SavepointV2 checkpoint = new SavepointV2(checkpointId, taskStates, masterStates);
+		MetadataV2 checkpoint = new MetadataV2(checkpointId, taskStates, masterStates);
 
 		assertEquals(2, checkpoint.getVersion());
 		assertEquals(checkpointId, checkpoint.getCheckpointId());

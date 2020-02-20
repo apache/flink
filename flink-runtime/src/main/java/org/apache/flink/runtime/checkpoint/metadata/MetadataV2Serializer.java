@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -69,7 +69,7 @@ import java.util.UUID;
  * </pre>
  */
 @Internal
-public class SavepointV2Serializer implements SavepointSerializer {
+public class MetadataV2Serializer implements MetadataSerializer {
 
 	/** Random magic number for consistency checks. */
 	private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
@@ -82,18 +82,18 @@ public class SavepointV2Serializer implements SavepointSerializer {
 	private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
 
 	/** The singleton instance of the serializer. */
-	public static final SavepointV2Serializer INSTANCE = new SavepointV2Serializer();
+	public static final MetadataV2Serializer INSTANCE = new MetadataV2Serializer();
 
 	// ------------------------------------------------------------------------
 
 	/** Singleton, not meant to be instantiated. */
-	private SavepointV2Serializer() {}
+	private MetadataV2Serializer() {}
 
 	// ------------------------------------------------------------------------
 	//  (De)serialization entry points
 	// ------------------------------------------------------------------------
 
-	public static void serialize(SavepointV2 checkpointMetadata, DataOutputStream dos) throws IOException {
+	public static void serialize(MetadataV2 checkpointMetadata, DataOutputStream dos) throws IOException {
 		// first: checkpoint ID
 		dos.writeLong(checkpointMetadata.getCheckpointId());
 
@@ -130,7 +130,7 @@ public class SavepointV2Serializer implements SavepointSerializer {
 	}
 
 	@Override
-	public SavepointV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
+	public MetadataV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
 		// first: checkpoint ID
 		final long checkpointId = dis.readLong();
 		if (checkpointId < 0) {
@@ -179,7 +179,7 @@ public class SavepointV2Serializer implements SavepointSerializer {
 			}
 		}
 
-		return new SavepointV2(checkpointId, operatorStates, masterStates);
+		return new MetadataV2(checkpointId, operatorStates, masterStates);
 	}
 
 	// ------------------------------------------------------------------------

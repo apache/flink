@@ -20,11 +20,11 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializer;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.Metadata;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV2;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV2Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -58,7 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Stored checkpoint metadata files have the following format:
  * <pre>[MagicNumber (int) | Format Version (int) | Checkpoint Metadata (variable)]</pre>
  *
- * <p>The actual savepoint serialization is version-specific via the {@link SavepointSerializer}.
+ * <p>The actual savepoint serialization is version-specific via the {@link MetadataSerializer}.
  */
 public class Checkpoints {
 
@@ -72,7 +72,7 @@ public class Checkpoints {
 	// ------------------------------------------------------------------------
 
 	public static void storeCheckpointMetadata(
-			SavepointV2 checkpointMetadata,
+			MetadataV2 checkpointMetadata,
 			OutputStream out) throws IOException {
 
 		DataOutputStream dos = new DataOutputStream(out);
@@ -80,21 +80,21 @@ public class Checkpoints {
 	}
 
 	public static void storeCheckpointMetadata(
-			SavepointV2 checkpointMetadata,
+			MetadataV2 checkpointMetadata,
 			DataOutputStream out) throws IOException {
 
 		// write generic header
 		out.writeInt(HEADER_MAGIC_NUMBER);
-		out.writeInt(SavepointV2.VERSION);
+		out.writeInt(MetadataV2.VERSION);
 
-		SavepointV2Serializer.serialize(checkpointMetadata, out);
+		MetadataV2Serializer.serialize(checkpointMetadata, out);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Reading and validating checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static Savepoint loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
+	public static Metadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
 		checkNotNull(in, "input stream");
 		checkNotNull(classLoader, "classLoader");
 
@@ -102,7 +102,7 @@ public class Checkpoints {
 
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
-			final SavepointSerializer serializer = SavepointSerializers.getSerializer(version);
+			final MetadataSerializer serializer = MetadataSerializers.getSerializer(version);
 			return serializer.deserialize(in, classLoader);
 		}
 		else {
@@ -129,7 +129,7 @@ public class Checkpoints {
 		final String checkpointPointer = location.getExternalPointer();
 
 		// (1) load the savepoint
-		final Savepoint checkpointMetadata;
+		final Metadata checkpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
 			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
@@ -231,11 +231,11 @@ public class Checkpoints {
 
 		// load the savepoint object (the metadata) to have all the state handles that we need
 		// to dispose of all state
-		final Savepoint savepoint;
+		final Metadata metadata;
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-			savepoint = loadCheckpointMetadata(dis, classLoader);
+			metadata = loadCheckpointMetadata(dis, classLoader);
 		}
 
 		Exception exception = null;
@@ -251,7 +251,7 @@ public class Checkpoints {
 
 		// now dispose the savepoint data
 		try {
-			savepoint.dispose();
+			metadata.dispose();
 		}
 		catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
