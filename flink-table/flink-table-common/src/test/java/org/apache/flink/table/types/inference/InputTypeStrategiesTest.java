@@ -352,6 +352,14 @@ public class InputTypeStrategiesTest {
 				.expectSignature("f([<OUTPUT> | INT])")
 				.expectArgumentTypes(DataTypes.BOOLEAN()),
 
+			// surrounding info can not infer input type and does not help inferring a type
+			TestSpec
+				.forStrategy(explicitSequence(DataTypes.BOOLEAN()))
+				.surroundingStrategy(WILDCARD)
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectSignature("f(BOOLEAN)")
+				.expectArgumentTypes(DataTypes.BOOLEAN()),
+
 			// surrounding function does not help inferring a type
 			TestSpec
 				.forStrategy(sequence(or(OUTPUT_IF_NULL, explicit(DataTypes.INT()))))
