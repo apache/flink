@@ -52,7 +52,7 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
 		this.timeout = timeout;
 		this.capacity = capacity;
 		this.outputMode = outputMode;
-		this.chainingStrategy = ChainingStrategy.HEAD;
+		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override

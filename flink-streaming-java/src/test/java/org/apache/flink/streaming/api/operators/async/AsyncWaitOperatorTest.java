@@ -365,32 +365,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	/**
-	 * Test for the temporary fix to FLINK-13063.
-	 */
-	@Test
-	public void testAsyncOperatorIsNeverChained() {
-		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> input = chainEnv.fromElements(1);
-		input = AsyncDataStream.orderedWait(
-			input,
-			new LazyAsyncFunction(),
-			TIMEOUT,
-			TimeUnit.MILLISECONDS,
-			6).map((x) -> x);
-		AsyncDataStream.unorderedWait(
-			input,
-			new MyAsyncFunction(),
-			TIMEOUT,
-			TimeUnit.MILLISECONDS,
-			3).map((x) -> x).addSink(new DiscardingSink<>());
-
-		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
-
-		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
-	}
-
-	/**
 	 *	Tests that the AsyncWaitOperator works together with chaining.
 	 */
 	@Test
