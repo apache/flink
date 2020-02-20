@@ -100,7 +100,6 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
 		return Arrays.asList(
-			MigrationVersion.v1_2,
 			MigrationVersion.v1_3,
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
@@ -260,7 +259,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 		testHarness.open();
 
-		// the expected state in "kafka-consumer-migration-test-flink1.2-snapshot-empty-state";
+		// the expected state in "kafka-consumer-migration-test-flink1.x-snapshot-empty-state";
 		// all new partitions after the snapshot are considered as partitions that were created while the
 		// consumer wasn't running, and should start from the earliest offset.
 		final HashMap<KafkaTopicPartition, Long> expectedSubscribedPartitionsWithStartOffsets = new HashMap<>();
@@ -332,7 +331,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	 */
 	@Test
 	public void testRestoreFailsWithNonEmptyPreFlink13StatesIfDiscoveryEnabled() throws Exception {
-		assumeTrue(testMigrateVersion == MigrationVersion.v1_3 || testMigrateVersion == MigrationVersion.v1_2);
+		assumeTrue(testMigrateVersion == MigrationVersion.v1_3);
 
 		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
 
