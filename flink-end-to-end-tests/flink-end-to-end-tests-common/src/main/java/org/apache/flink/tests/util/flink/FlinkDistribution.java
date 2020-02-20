@@ -16,16 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util;
+package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.tests.util.flink.JarLocation;
-import org.apache.flink.tests.util.flink.JarMove;
-import org.apache.flink.tests.util.flink.JobSubmission;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.tests.util.AutoClosableProcess;
+import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -67,7 +65,7 @@ import java.util.stream.Stream;
 /**
  * A wrapper around a Flink distribution.
  */
-public final class FlinkDistribution implements ExternalResource {
+final class FlinkDistribution implements ExternalResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkDistribution.class);
 
@@ -86,7 +84,7 @@ public final class FlinkDistribution implements ExternalResource {
 
 	private Configuration defaultConfig;
 
-	public FlinkDistribution() {
+	FlinkDistribution() {
 		final String distDirProperty = System.getProperty("distDir");
 		if (distDirProperty == null) {
 			Assert.fail("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
