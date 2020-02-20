@@ -104,13 +104,7 @@ public class Checkpoints {
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
 			final SavepointSerializer<?> serializer = SavepointSerializers.getSerializer(version);
-
-			if (serializer != null) {
-				return serializer.deserialize(in, classLoader);
-			}
-			else {
-				throw new IOException("Unrecognized checkpoint version number: " + version);
-			}
+			return serializer.deserialize(in, classLoader);
 		}
 		else {
 			throw new IOException("Unexpected magic number. This can have multiple reasons: " +

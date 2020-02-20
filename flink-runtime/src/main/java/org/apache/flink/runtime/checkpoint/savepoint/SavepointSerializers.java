@@ -76,7 +76,7 @@ public class SavepointSerializers {
 		if (serializer != null) {
 			return serializer;
 		} else {
-			throw new IllegalArgumentException("Cannot restore savepoint version " + version + ".");
+			throw new IllegalArgumentException("Unrecognized checkpoint version number: " + version);
 		}
 	}
 
