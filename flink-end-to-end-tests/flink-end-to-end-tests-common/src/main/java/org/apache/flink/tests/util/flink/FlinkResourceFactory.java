@@ -30,7 +30,8 @@ public interface FlinkResourceFactory {
 	 * Returns a {@link FlinkResource} instance. If the instance could not be instantiated (for example, because a
 	 * mandatory parameter was missing), then an empty {@link Optional} should be returned.
 	 *
+	 * @param setup setup instructions for the FlinkResource
 	 * @return FlinkResource instance, or an empty Optional if the instance could not be instantiated
 	 */
-	Optional<FlinkResource> create();
+	Optional<FlinkResource> create(FlinkResourceSetup setup);
 }

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.tests.util.flink.JarLocation;
+import org.apache.flink.tests.util.flink.JarMove;
 import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.ExceptionUtils;
@@ -261,19 +263,33 @@ public final class FlinkDistribution implements ExternalResource {
 		AutoClosableProcess.runBlocking(commands.toArray(new String[0]));
 	}
 
-	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
-		final Optional<Path> reporterJarOptional;
-		try (Stream<Path> logFiles = Files.walk(opt)) {
-			reporterJarOptional = logFiles
-				.filter(path -> path.getFileName().toString().startsWith(jarNamePrefix))
+	public void moveJar(JarMove move) throws IOException {
+		final Path source = mapJarLocationToPath(move.getSource());
+		final Path target = mapJarLocationToPath(move.getTarget());
+
+		final Optional<Path> jarOptional;
+		try (Stream<Path> files = Files.walk(source)) {
+			jarOptional = files
+				.filter(path -> path.getFileName().toString().startsWith(move.getJarNamePrefix()))
 				.findFirst();
 		}
-		if (reporterJarOptional.isPresent()) {
-			final Path optReporterJar = reporterJarOptional.get();
-			final Path libReporterJar = lib.resolve(optReporterJar.getFileName());
-			Files.copy(optReporterJar, libReporterJar);
+		if (jarOptional.isPresent()) {
+			final Path sourceJar = jarOptional.get();
+			final Path targetJar = target.resolve(sourceJar.getFileName());
+			Files.move(sourceJar, targetJar);
 		} else {
-			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + ".");
+			throw new FileNotFoundException("No jar could be found matching the pattern " + move.getJarNamePrefix() + ".");
+		}
+	}
+
+	private Path mapJarLocationToPath(JarLocation location) {
+		switch (location) {
+			case LIB:
+				return lib;
+			case OPT:
+				return opt;
+			default:
+				throw new IllegalStateException();
 		}
 	}
 

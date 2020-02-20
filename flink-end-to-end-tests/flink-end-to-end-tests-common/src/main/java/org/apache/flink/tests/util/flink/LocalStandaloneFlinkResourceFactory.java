@@ -30,8 +30,8 @@ public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceF
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResourceFactory.class);
 
 	@Override
-	public Optional<FlinkResource> create() {
+	public Optional<FlinkResource> create(FlinkResourceSetup setup) {
 		LOG.info("Created {}.", LocalStandaloneFlinkResource.class.getSimpleName());
-		return Optional.of(new LocalStandaloneFlinkResource());
+		return Optional.of(new LocalStandaloneFlinkResource(setup));
 	}
 }
