@@ -33,7 +33,7 @@ import java.nio.ByteOrder;
 public class MemoryUtils {
 
 	/** The "unsafe", which can be used to perform native memory accesses. */
-	@SuppressWarnings("restriction")
+	@SuppressWarnings({"restriction", "UseOfSunClasses"})
 	public static final sun.misc.Unsafe UNSAFE = getUnsafe();
 
 	/** The native byte order of the platform on which the system currently runs. */
@@ -50,7 +50,7 @@ public class MemoryUtils {
 		} catch (SecurityException e) {
 			throw new Error("Could not access the sun.misc.Unsafe handle, permission denied by security manager.", e);
 		} catch (NoSuchFieldException e) {
-			throw new Error("The static handle field in sun.misc.Unsafe was not found.");
+			throw new Error("The static handle field in sun.misc.Unsafe was not found.", e);
 		} catch (IllegalArgumentException e) {
 			throw new Error("Bug: Illegal argument reflection access for static field.", e);
 		} catch (IllegalAccessException e) {
@@ -64,7 +64,6 @@ public class MemoryUtils {
 	private MemoryUtils() {}
 
 	private static Constructor<? extends ByteBuffer> getDirectBufferPrivateConstructor() {
-		//noinspection OverlyBroadCatchBlock
 		try {
 			Constructor<? extends ByteBuffer> constructor =
 				ByteBuffer.allocateDirect(1).getClass().getDeclaredConstructor(long.class, int.class);
@@ -107,7 +106,6 @@ public class MemoryUtils {
 	 * @param address address of the unsafe memory to release
 	 * @return action to run to release the unsafe memory manually
 	 */
-	@SuppressWarnings("UseOfSunClasses")
 	static Runnable createMemoryGcCleaner(Object owner, long address) {
 		return JavaGcCleanerWrapper.create(owner, () -> releaseUnsafe(address));
 	}
