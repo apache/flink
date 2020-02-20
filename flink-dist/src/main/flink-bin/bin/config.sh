@@ -115,6 +115,7 @@ DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directo
 DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
 DEFAULT_JVM_CRASH_ON_OOM="true"                  # Whether enable heap dump on ooms
 DEFAULT_JVM_HEAPDUMP_DIRECTORY="."               # Heap dump directory
+DEFAULT_JVM_HEAPDUMP_ON_OOM="true"
 DEFAULT_JVM_GC_LOGGING="false"                      # Whether enable gc logging
 
 ########################################################################################################################
@@ -141,7 +142,8 @@ KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 KEY_JVM_GC_LOGGING="jvm.gc-logging"
 KEY_JVM_CRASH_ON_OOM="jvm.crash-on-oom"
-KEY_JVM_HEAPDUMP_DIRECTORY="jvm.heapdump-directory"
+KEY_JVM_HEAPDUMP_ON_OOM="jvm.heap-dump-on-oom"
+KEY_JVM_HEAPDUMP_DIRECTORY="jvm.heap-dump-directory"
 
 ########################################################################################################################
 # MEMORY SIZE UNIT
@@ -448,6 +450,12 @@ if [ -z "${FLINK_JVM_CRASH_ON_OOM}" ];then
     FLINK_JVM_CRASH_ON_OOM="$( echo "${FLINK_JVM_CRASH_ON_OOM}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
+if [ -z "${FLINK_JVM_HEAPDUMP_ON_OOM}" ];then
+    FLINK_JVM_HEAPDUMP_ON_OOM=$(readFromConfig ${KEY_JVM_HEAPDUMP_ON_OOM} "${DEFAULT_JVM_HEAPDUMP_ON_OOM}" "${YAML_CONF}")
+    # Remove leading and ending double quotes (if present) of value
+    FLINK_JVM_HEAPDUMP_ON_OOM="$( echo "${FLINK_JVM_HEAPDUMP_ON_OOM}" | sed -e 's/^"//'  -e 's/"$//' )"
+fi
+
 if [ -z "${FLINK_JVM_HEAPDUMP_DIRECTORY}" ];then
     FLINK_JVM_HEAPDUMP_DIRECTORY=$(readFromConfig ${KEY_JVM_HEAPDUMP_DIRECTORY} "${DEFAULT_JVM_HEAPDUMP_DIRECTORY}" "${YAML_CONF}")
     # Remove leading and ending double quotes (if present) of value
@@ -688,22 +696,39 @@ getGCLoggingOpts() {
           "-XX:+PrintGCCause")
     fi
 
-    echo ${gc_logging_opts}
+    echo ${gc_logging_opts[*]}
+}
+
+getCrashOnOOMOpts() {
+    if [ ${FLINK_JVM_CRASH_ON_OOM} = true ]; then
+      echo "-XX:+CrashOnOutOfMemoryError"
+    fi
 }
 
 # Format default heap dump options
-getCrashOnOOMOpts() {
+getHeapDumpOnOOMOpts() {
     local heap_dump_file_path=$1
-    local crash_on_oom_opts=()
+    local head_dump_on_oom_opts=()
 
-    if [ ${FLINK_JVM_CRASH_ON_OOM} = true ]; then
+    if [ ${FLINK_JVM_HEAPDUMP_ON_OOM} = true ]; then
       rm -rf ${heap_dump_file_path}
 
-      crash_on_oom_opts=(
+      heap_dump_on_oom_opts=(
         "-XX:+HeapDumpOnOutOfMemoryError"
-        "-XX:HeapDumpPath=${heap_dump_file_path}"
-        "-XX:+CrashOnOutOfMemoryError")
+        "-XX:HeapDumpPath=${heap_dump_file_path}")
     fi
 
-    echo ${crash_on_oom_opts}
+    echo ${heap_dump_on_oom_opts[*]}
+}
+
+getJvmArgs() {
+  local flink_filename=$1
+  local gc_logging_file_path="${FLINK_LOG_DIR}/${flink_filename}.gc.log"
+  local heap_dump_file_path="${FLINK_JVM_HEAPDUMP_DIRECTORY}/${flink_filename}.hprof"
+
+  local gc_logging_opts=$(getGCLoggingOpts ${gc_logging_file_path})
+  local crash_on_oom_opts=$(getCrashOnOOMOpts)
+  local heap_dump_on_oom_opts=$(getHeapDumpOnOOMOpts ${heap_dump_file_path})
+
+  echo "${gc_logging_opts} ${crash_on_oom_opts} ${heap_dump_on_oom_opts} ${JVM_ARGS}"
 }

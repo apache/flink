@@ -309,18 +309,27 @@ public class CoreOptions {
 			.defaultValue(true)
 			.withDescription(
 				Description.builder()
-					.text("Flag to activate crashing the JVM on OOMs. If enabled, a heap dump will be created as well. The directory for the heap dump can be configured via %s.",
-						TextElement.code("jvm.heapdump-directory"))
+					.text("Flag to activate crashing the JVM on OOMs.")
 					.build());
 
-	public static final ConfigOption<String> JVM_HEAPDUMP_DIRECTORY =
-		key("jvm.heapdump-directory")
+	public static final ConfigOption<Boolean> JVM_HEAP_DUMP_ON_OOM =
+		key("jvm.heapdump-on-oom")
+			.booleanType()
+			.defaultValue(true)
+			.withDescription(
+				Description.builder()
+					.text("Flag to activate creating a heap dump in case of OOMs. The directory for the heap dump can be configured via %s.",
+						TextElement.code("jvm.heap-dump-directory"))
+					.build());
+
+	public static final ConfigOption<String> JVM_HEAP_DUMP_DIRECTORY =
+		key("jvm.heap-dump-directory")
 			.stringType()
 			.defaultValue(".")
 			.withDescription(
 				Description.builder()
 					.text("The directory to save the heap dump file when OOMs happen. This option is only relevant if %s has been activated.",
-						TextElement.code(JVM_CRASH_ON_OOM.key()))
+						TextElement.code(JVM_HEAP_DUMP_ON_OOM.key()))
 					.build());
 
 	/**

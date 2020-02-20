@@ -168,7 +168,7 @@ public class BootstrapToolsTest extends TestLogger {
 		final String jvmmem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
 		final String identifier = "taskmanager";
 		final String defaultGCLoggingOpts = BootstrapTools.getGCLoggingOpts("./logs", identifier);
-		final String heapdumpOpts = BootstrapTools.getCrashOnOOMOpts("test", identifier, cfg.getString(CoreOptions.JVM_HEAPDUMP_DIRECTORY));
+		final String crashHeapDumpOnOOMOpts = BootstrapTools.getCrashOnOOMOpts() + " " + BootstrapTools.getHeapDumpOnOOMOpts("test", identifier, cfg.getString(CoreOptions.JVM_HEAP_DUMP_DIRECTORY));
 		final String jvmOpts = "-Djvm"; // if set
 		final String tmJvmOpts = "-DtmJvm"; // if set
 		final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
@@ -188,7 +188,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + mainClass + " " + dynamicConfigs + " " + basicArgs + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "test", "./conf", "./logs",
@@ -197,7 +197,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "test", "./conf", "./logs",
@@ -207,7 +207,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + krb5 +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -218,7 +218,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -228,7 +228,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + krb5 +
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
@@ -240,7 +240,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -250,7 +250,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + krb5 +
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
@@ -262,7 +262,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -272,7 +272,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java + " " + jvmmem +
 				" " + defaultGCLoggingOpts +
-				" " + heapdumpOpts +
+				" " + crashHeapDumpOnOOMOpts +
 				" " + krb5 +
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
@@ -284,7 +284,7 @@ public class BootstrapToolsTest extends TestLogger {
 		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
-				" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts +
+				" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMOpts + " " + jvmOpts +
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -293,7 +293,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + krb5 + // jvmOpts
+				" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMOpts + " " + jvmOpts + " " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -304,7 +304,7 @@ public class BootstrapToolsTest extends TestLogger {
 		cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
-				" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + tmJvmOpts +
+				" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMOpts + " " + jvmOpts + " " + tmJvmOpts +
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -313,7 +313,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
+				" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMOpts + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -326,7 +326,7 @@ public class BootstrapToolsTest extends TestLogger {
 			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 		assertEquals(
 			java + " 1 " + jvmmem +
-				" 2 " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
+				" 2 " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMOpts + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
 				" 3 " + logfile + " " + logback + " " + log4j +
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			BootstrapTools
@@ -338,7 +338,7 @@ public class BootstrapToolsTest extends TestLogger {
 		assertEquals(
 			java +
 				" " + logfile + " " + logback + " " + log4j +
-				" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
+				" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMOpts + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
 				" " + jvmmem +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools

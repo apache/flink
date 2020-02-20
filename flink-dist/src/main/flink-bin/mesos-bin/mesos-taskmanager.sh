@@ -25,15 +25,11 @@ bin=`cd "$bin"; pwd`
 
 CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
 
-local filename="flink-taskmanager"
+filename="flink-taskmanager"
 log="${filename}.log"
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
-gclog="${filename}-gc.log"
 
-local heap_dump_file_path="${FLINK_JVM_HEAPDUMP_DIRECTORY}/${filename}.hprof"
-local gc_logging_opts=$(getGCLoggingOpts ${gclog})
-local crash_on_oom_opts=$(getCrashOnOOMOpts ${heap_dump_file_path})
-JVM_ARGS=("${gc_logging_opts[@]}" "${crash_on_oom_opts[@]}" "${JVM_ARGS[@]}")s
+JVM_ARGS=$(getJvmArgs "${filename}")
 
 # Add precomputed memory JVM options
 if [ -z "${FLINK_ENV_JAVA_OPTS_MEM}" ]; then

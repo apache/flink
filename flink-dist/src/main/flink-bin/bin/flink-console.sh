@@ -62,14 +62,10 @@ fi
 
 FLINK_TM_CLASSPATH=`constructFlinkClassPath`
 
-local filename="flink-${FLINK_IDENT_STRING}-${SERVICE}"
+filename="flink-${FLINK_IDENT_STRING}-${SERVICE}"
 FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/${filename}"
-gclog="${FLINK_LOG_PREFIX}-gc.log"
 
-local heap_dump_file_path="${FLINK_JVM_HEAPDUMP_DIRECTORY}/${filename}.hprof"
-local gc_logging_opts=$(getGCLoggingOpts $gclog)
-local crash_on_oom_opts=$(getCrashOnOOMOpts $heap_dump_file_path)
-JVM_ARGS=("${gc_logging_opts[@]}" "${crash_on_oom_opts[@]}" "${JVM_ARGS[@]}")
+JVM_ARGS=$(getJvmArgs "${filename}")
 
 log_setting=("-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j-console.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback-console.xml")
 
@@ -78,9 +74,9 @@ JAVA_VERSION=$(${JAVA_RUN} -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"
 # Only set JVM 8 arguments if we have correctly extracted the version
 if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
     if [ "$JAVA_VERSION" -lt 18 ]; then
-        JVM_ARGS=("${JVM_ARGS[@]}" "-XX:MaxPermSize=256m")
+      JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
     fi
 fi
 
 echo "Starting $SERVICE as a console application on host $HOSTNAME."
-exec $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"
+exec $JAVA_RUN ${JVM_ARGS} ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"

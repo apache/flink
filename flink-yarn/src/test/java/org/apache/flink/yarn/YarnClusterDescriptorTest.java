@@ -163,8 +163,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final String identifier = "jobmanager";
 		final String defaultGCLoggingOpts =
 			BootstrapTools.getGCLoggingOpts(ApplicationConstants.LOG_DIR_EXPANSION_VAR, identifier);
-		final String heapdumpOpts =
-			BootstrapTools.getCrashOnOOMOpts("test", identifier, cfg.getString(CoreOptions.JVM_HEAPDUMP_DIRECTORY));
+		final String crashHeapDumpOnOOMsOpts =
+			BootstrapTools.getCrashOnOOMOpts() + " " + BootstrapTools.getHeapDumpOnOOMOpts("test", identifier, cfg.getString(CoreOptions.JVM_HEAP_DUMP_DIRECTORY));
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
@@ -186,7 +186,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
@@ -201,7 +201,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + krb5 +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -218,7 +218,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -234,7 +234,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + krb5 +
 					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
@@ -252,7 +252,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + logfile + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -268,7 +268,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + krb5 +
 					" " + logfile + " " + log4j +
 					" " + mainClass + " " + redirects,
@@ -286,7 +286,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -302,7 +302,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java + " " + jvmmem +
 					" " + defaultGCLoggingOpts +
-					" " + heapdumpOpts +
+					" " + crashHeapDumpOnOOMsOpts +
 					" " + krb5 +
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
@@ -322,7 +322,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts +
+					" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMsOpts + " " + jvmOpts +
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -337,7 +337,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + krb5 + // jvmOpts
+					" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMsOpts + " " + jvmOpts + " " + krb5 + // jvmOpts
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -355,7 +355,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + jmJvmOpts +
+					" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMsOpts + " " + jvmOpts + " " + jmJvmOpts +
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -370,7 +370,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMsOpts + " " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" " + logfile + " " + logback + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
@@ -389,7 +389,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 			assertEquals(
 				java + " 1 " + jvmmem +
-					" 2 " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" 2 " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMsOpts + " " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" 3 " + logfile + " " + logback + " " + log4j +
 					" 4 " + mainClass + " 5 6 " + redirects,
 				clusterDescriptor
@@ -408,7 +408,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			assertEquals(
 				java +
 					" " + logfile + " " + logback + " " + log4j +
-					" " + defaultGCLoggingOpts + " " + heapdumpOpts + " " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" " + defaultGCLoggingOpts + " " + crashHeapDumpOnOOMsOpts + " " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" " + jvmmem +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor

@@ -536,7 +536,7 @@ public class BootstrapTools {
 	 * @return the formatted gc logging options string
 	 */
 	public static String getGCLoggingOpts(String logDirectory, String identifier) {
-		final String gcLogFile = new File(logDirectory, identifier + "-gc.log").getPath();
+		final String gcLogFile = new File(logDirectory, identifier + ".gc.log").getPath();
 		return "-Xloggc:" + gcLogFile +
 			"-XX:+PrintGCApplicationStoppedTime " +
 			"-XX:+PrintGCDetails " +
@@ -551,16 +551,25 @@ public class BootstrapTools {
 	/**
 	 * Create the crash on OOM JVM opts.
 	 *
+	 * @return the formatted crash on OOM options string
+	 */
+	public static String getCrashOnOOMOpts() {
+		return "-XX:+CrashOnOutOfMemoryError";
+	}
+
+	/**
+	 * Create the crash on OOM JVM opts.
+	 *
 	 * @param appId application id
 	 * @param identifier the identifier of the process, taskmanager/jobmanager
 	 * @param heapDumpDir to save heap dump file
 	 * @return the formatted heapdump options string
 	 */
-	public static String getCrashOnOOMOpts(String appId, String identifier, String heapDumpDir) {
+	public static String getHeapDumpOnOOMOpts(String appId, String identifier, String heapDumpDir) {
 		final String dumpDestName = String.format("flink-%s.hprof", identifier);
 		String dumpFileDestPath = new File(heapDumpDir, appId + "-" + dumpDestName).getPath();
 
-		return String.format("-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=%s -XX:+CrashOnOutOfMemoryError",
+		return String.format("-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=%s",
 			dumpFileDestPath);
 	}
 
@@ -579,7 +588,8 @@ public class BootstrapTools {
 			Configuration conf) {
 		return Stream.of(
 				optionalGCLoggingOpts(conf, logDirectory, identifier),
-				optionalCrashOnOOMOpts(conf, appId, identifier),
+				optionalCrashOnOOMOpts(conf),
+				optionalHeapDumpOnOOMOpts(conf, appId, identifier),
 				optionalJvmOpts(conf))
 			.flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))
 			.collect(Collectors.joining(" "));
@@ -594,12 +604,10 @@ public class BootstrapTools {
 		}
 	}
 
-	private static Optional<String> optionalCrashOnOOMOpts(Configuration conf, String appId, String identifier) {
+	private static Optional<String> optionalCrashOnOOMOpts(Configuration conf) {
 		final boolean enableCrashOnOOM = conf.getBoolean(CoreOptions.JVM_CRASH_ON_OOM);
 		if (enableCrashOnOOM) {
-			// Add default heap dump options if enabled
-			String heapDumpDir = conf.getString(CoreOptions.JVM_HEAPDUMP_DIRECTORY);
-			return Optional.of(getCrashOnOOMOpts(appId, identifier, heapDumpDir));
+			return Optional.of(getCrashOnOOMOpts());
 		} else {
 			return Optional.empty();
 		}
@@ -610,6 +618,16 @@ public class BootstrapTools {
 			return Optional.empty();
 		} else {
 			return Optional.of(conf.getString(CoreOptions.FLINK_JVM_OPTIONS));
+		}
+	}
+
+	private static Optional<String> optionalHeapDumpOnOOMOpts(Configuration conf, String appId, String identifier) {
+		final boolean enableHeapDumpOnOOM = conf.getBoolean(CoreOptions.JVM_HEAP_DUMP_ON_OOM);
+		if (enableHeapDumpOnOOM) {
+			final String heapDumpDir = conf.getString(CoreOptions.JVM_HEAP_DUMP_DIRECTORY);
+			return Optional.of(getHeapDumpOnOOMOpts(appId, identifier, heapDumpDir));
+		} else {
+			return Optional.empty();
 		}
 	}
 

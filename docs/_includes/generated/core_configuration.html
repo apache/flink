@@ -51,22 +51,28 @@
             <td>Directories for temporary files, separated by",", "|", or the system's java.io.File.pathSeparator.</td>
         </tr>
         <tr>
+            <td><h5>jvm.crash-on-oom</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag to activate crashing the JVM on OOMs.</td>
+        </tr>
+        <tr>
             <td><h5>jvm.gc-logging</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>When enabled, jvm will be launched with default gc options which will log gc infos under log directory</td>
+            <td>Flag to activate the JVM's GC logging. The GC log file will be created in the log directory.</td>
+        </tr>
+        <tr>
+            <td><h5>jvm.heap-dump-directory</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The directory to save the heap dump file when OOMs happen. This option is only relevant if <span markdown="span">`jvm.heapdump-on-oom`</span> has been activated.</td>
         </tr>
         <tr>
             <td><h5>jvm.heapdump-on-oom</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>When enabled, jvm will save heapdump files when OOMs happen.</td>
-        </tr>
-        <tr>
-            <td><h5>jvm.heapdump.directory</h5></td>
-            <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
-            <td>String</td>
-            <td>The directory to save heap dump file when OOMs happen.</td>
+            <td>Flag to activate creating a heap dump in case of OOMs. The directory for the heap dump can be configured via <span markdown="span">`jvm.heap-dump-directory`</span>.</td>
         </tr>
         <tr>
             <td><h5>parallelism.default</h5></td>
