@@ -19,9 +19,9 @@
 package org.apache.flink.yarn.util;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.security.modules.SecurityModule;
+import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 
 import org.apache.hadoop.conf.Configuration;
 
