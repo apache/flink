@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -40,7 +40,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Various tests for the version 2 format serializer of a checkpoint.
  */
-public class SavepointV2SerializerTest {
+public class MetadataV2SerializerTest {
 
 	@Test
 	public void testCheckpointWithNoState() throws Exception {
@@ -122,18 +122,18 @@ public class SavepointV2SerializerTest {
 			Collection<OperatorState> operatorStates,
 			Collection<MasterState> masterStates) throws IOException {
 
-		SavepointV2Serializer serializer = SavepointV2Serializer.INSTANCE;
+		MetadataV2Serializer serializer = MetadataV2Serializer.INSTANCE;
 
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);
 
-		serializer.serialize(new SavepointV2(checkpointId, operatorStates, masterStates), out);
+		serializer.serialize(new MetadataV2(checkpointId, operatorStates, masterStates), out);
 		out.close();
 
 		byte[] bytes = baos.toByteArray();
 
 		DataInputStream in = new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(bytes));
-		SavepointV2 deserialized = serializer.deserialize(in, getClass().getClassLoader());
+		MetadataV2 deserialized = serializer.deserialize(in, getClass().getClassLoader());
 
 		assertEquals(checkpointId, deserialized.getCheckpointId());
 		assertEquals(operatorStates, deserialized.getOperatorStates());

@@ -24,8 +24,8 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
+import org.apache.flink.runtime.checkpoint.metadata.Metadata;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV2;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -41,12 +41,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * An output format to serialize {@link Savepoint} metadata to distributed storage.
+ * An output format to serialize {@link Metadata} metadata to distributed storage.
  *
  * <p>This format may only be executed with parallelism 1.
  */
 @Internal
-public class SavepointOutputFormat extends RichOutputFormat<SavepointV2> {
+public class SavepointOutputFormat extends RichOutputFormat<MetadataV2> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -71,10 +71,10 @@ public class SavepointOutputFormat extends RichOutputFormat<SavepointV2> {
 	}
 
 	@Override
-	public void writeRecord(SavepointV2 savepoint) throws IOException {
+	public void writeRecord(MetadataV2 metadata) throws IOException {
 		String path = LambdaUtil.withContextClassLoader(getRuntimeContext().getUserCodeClassLoader(), () -> {
 				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
-					Checkpoints.storeCheckpointMetadata(savepoint, out);
+					Checkpoints.storeCheckpointMetadata(metadata, out);
 					CompletedCheckpointStorageLocation finalizedLocation = out.closeAndFinalizeCheckpoint();
 					return finalizedLocation.getExternalPointer();
 				}

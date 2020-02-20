@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
 
@@ -29,17 +29,17 @@ import java.io.IOException;
  * the user gets a "version no longer supported".
  */
 @Internal
-public class SavepointV1Serializer implements SavepointSerializer {
+public class MetadataV1Serializer implements MetadataSerializer {
 
 	/** The savepoint version. */
 	public static final int VERSION = 1;
 
-	public static final SavepointV1Serializer INSTANCE = new SavepointV1Serializer();
+	public static final MetadataV1Serializer INSTANCE = new MetadataV1Serializer();
 
-	private SavepointV1Serializer() {}
+	private MetadataV1Serializer() {}
 
 	@Override
-	public SavepointV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
+	public MetadataV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
 		throw new IOException("This savepoint / checkpoint version (Flink 1.1 / 1.2) is no longer supported.");
 	}
 }

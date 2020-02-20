@@ -16,40 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Helper to access {@link SavepointSerializer}s for specific format versions.
+ * Helper to access {@link MetadataSerializer}s for specific format versions.
  *
  * <p>The serializer for a specific version can be obtained via {@link #getSerializer(int)}.
  */
-public class SavepointSerializers {
+public class MetadataSerializers {
 
-	private static final Map<Integer, SavepointSerializer> SERIALIZERS = new HashMap<>(2);
+	private static final Map<Integer, MetadataSerializer> SERIALIZERS = new HashMap<>(2);
 
 	static {
-		SERIALIZERS.put(SavepointV1Serializer.VERSION, SavepointV1Serializer.INSTANCE);
-		SERIALIZERS.put(SavepointV2.VERSION, SavepointV2Serializer.INSTANCE);
+		SERIALIZERS.put(MetadataV1Serializer.VERSION, MetadataV1Serializer.INSTANCE);
+		SERIALIZERS.put(MetadataV2.VERSION, MetadataV2Serializer.INSTANCE);
 	}
 
-	private SavepointSerializers() {
+	private MetadataSerializers() {
 		throw new AssertionError();
 	}
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns the {@link SavepointSerializer} for the given savepoint version.
+	 * Returns the {@link MetadataSerializer} for the given savepoint version.
 	 *
 	 * @param version Savepoint version to get serializer for
 	 * @return Savepoint for the given version
 	 * @throws IllegalArgumentException If unknown savepoint version
 	 */
-	public static SavepointSerializer getSerializer(int version) {
-		SavepointSerializer serializer = SERIALIZERS.get(version);
+	public static MetadataSerializer getSerializer(int version) {
+		MetadataSerializer serializer = SERIALIZERS.get(version);
 		if (serializer != null) {
 			return serializer;
 		} else {

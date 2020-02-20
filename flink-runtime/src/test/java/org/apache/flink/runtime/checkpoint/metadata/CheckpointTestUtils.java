@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.checkpoint.MasterState;

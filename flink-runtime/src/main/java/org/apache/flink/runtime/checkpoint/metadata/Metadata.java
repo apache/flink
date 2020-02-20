@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.core.io.Versioned;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -34,9 +34,9 @@ import java.util.Collection;
  * we allow different savepoint implementations (see subclasses of this
  * interface).
  *
- * <p>Savepoints are serialized via a {@link SavepointSerializer}.
+ * <p>Savepoints are serialized via a {@link MetadataSerializer}.
  */
-public interface Savepoint extends Disposable, Versioned {
+public interface Metadata extends Disposable, Versioned {
 
 	/**
 	 * Returns the checkpoint ID of the savepoint.
