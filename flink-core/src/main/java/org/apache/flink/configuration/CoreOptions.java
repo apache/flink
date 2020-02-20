@@ -298,17 +298,21 @@ public class CoreOptions {
 
 	public static final ConfigOption<Boolean> FLINK_JVM_DEFAULT_GC_LOGGING =
 		key("jvm.gc-logging")
+			.booleanType()
 			.defaultValue(false)
 			.withDescription("When enabled, jvm will be launched with default gc options which will log gc infos" +
 				" under log directory");
 
 	public static final ConfigOption<Boolean> FLINK_JVM_HEAPDUMP_ON_OOM =
 		key("jvm.heapdump-on-oom")
+			.booleanType()
 			.defaultValue(true)
 			.withDescription("When enabled, jvm will save heapdump files when OOMs happen.");
 
+	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
 	public static final ConfigOption<String> FLINK_JVM_HEAPDUMP_DIRECTORY =
 		key("jvm.heapdump.directory")
+			.stringType()
 			.defaultValue(System.getProperty("java.io.tmpdir"))
 			.withDescription("The directory to save heap dump file when OOMs happen.");
 
