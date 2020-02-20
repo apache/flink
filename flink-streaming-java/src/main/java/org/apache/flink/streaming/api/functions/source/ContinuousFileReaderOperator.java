@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -428,7 +427,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		cleanUp();
 	}
 
-	private void cleanUp() {
+	private void cleanUp() throws Exception {
 		LOG.debug("cleanup, state={}", state);
 
 		RunnableWithException[] runClose = {
@@ -447,7 +446,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 		}
 		currentSplit = null;
 		if (firstException != null) {
-			throw new FlinkRuntimeException("Unable to properly cleanup ContinuousFileReaderOperator", firstException);
+			throw firstException;
 		}
 	}
 
