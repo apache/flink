@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  * Looks up built-in functions in a catalog for retrieving a fully qualified {@link ObjectIdentifier}.
  */
 @Internal
-class QualifyBuiltInFunctionsRule implements ResolverRule {
+final class QualifyBuiltInFunctionsRule implements ResolverRule {
 
 	@Override
 	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
@@ -42,7 +42,7 @@ class QualifyBuiltInFunctionsRule implements ResolverRule {
 			.collect(Collectors.toList());
 	}
 
-	private class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
+	private static class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
 
 		QualifyBuiltInFunctionVisitor(ResolutionContext resolutionContext) {
 			super(resolutionContext);
