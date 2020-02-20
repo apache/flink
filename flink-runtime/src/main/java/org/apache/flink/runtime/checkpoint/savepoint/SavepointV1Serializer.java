@@ -56,6 +56,9 @@ import java.util.Map;
 @SuppressWarnings("deprecation")
 public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
+	/** The savepoint version. */
+	public static final int VERSION = 1;
+
 	private static final byte NULL_HANDLE = 0;
 	private static final byte BYTE_STREAM_STATE_HANDLE = 1;
 	private static final byte FILE_STREAM_STATE_HANDLE = 2;
@@ -101,66 +104,6 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		}
 
 		return new SavepointV2(checkpointId, taskStates);
-	}
-
-	public void serializeOld(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
-		dos.writeLong(savepoint.getCheckpointId());
-
-		Collection<TaskState> taskStates = savepoint.getTaskStates();
-		dos.writeInt(taskStates.size());
-
-		for (TaskState taskState : savepoint.getTaskStates()) {
-			// Vertex ID
-			dos.writeLong(taskState.getJobVertexID().getLowerPart());
-			dos.writeLong(taskState.getJobVertexID().getUpperPart());
-
-			// Parallelism
-			int parallelism = taskState.getParallelism();
-			dos.writeInt(parallelism);
-			dos.writeInt(taskState.getMaxParallelism());
-			dos.writeInt(taskState.getChainLength());
-
-			// Sub task states
-			Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
-			dos.writeInt(subtaskStateMap.size());
-			for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
-				dos.writeInt(entry.getKey());
-				serializeSubtaskState(entry.getValue(), dos);
-			}
-		}
-	}
-
-	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
-
-		//backwards compatibility, do not remove
-		dos.writeLong(-1L);
-
-		//backwards compatibility (number of legacy state handles), do not remove
-		dos.writeInt(0);
-
-		ChainedStateHandle<OperatorStateHandle> operatorStateBackend = subtaskState.getManagedOperatorState();
-
-		int len = operatorStateBackend != null ? operatorStateBackend.getLength() : 0;
-		dos.writeInt(len);
-		for (int i = 0; i < len; ++i) {
-			OperatorStateHandle stateHandle = operatorStateBackend.get(i);
-			serializeOperatorStateHandle(stateHandle, dos);
-		}
-
-		ChainedStateHandle<OperatorStateHandle> operatorStateFromStream = subtaskState.getRawOperatorState();
-
-		len = operatorStateFromStream != null ? operatorStateFromStream.getLength() : 0;
-		dos.writeInt(len);
-		for (int i = 0; i < len; ++i) {
-			OperatorStateHandle stateHandle = operatorStateFromStream.get(i);
-			serializeOperatorStateHandle(stateHandle, dos);
-		}
-
-		KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
-		serializeKeyedStateHandle(keyedStateBackend, dos);
-
-		KeyedStateHandle keyedStateStream = subtaskState.getRawKeyedState();
-		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
 	private static SubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
@@ -213,29 +156,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 				keyedStateStream);
 	}
 
-	@VisibleForTesting
-	public static void serializeKeyedStateHandle(
-			KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
-
-		if (stateHandle == null) {
-			dos.writeByte(NULL_HANDLE);
-		} else if (stateHandle instanceof KeyGroupsStateHandle) {
-			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) stateHandle;
-
-			dos.writeByte(KEY_GROUPS_HANDLE);
-			dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getStartKeyGroup());
-			dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
-			for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
-				dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
-			}
-			serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
-		} else {
-			throw new IllegalStateException("Unknown KeyedStateHandle type: " + stateHandle.getClass());
-		}
-	}
-
-	@VisibleForTesting
-	public static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
+	private static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 			return null;
@@ -256,39 +177,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		}
 	}
 
-	@VisibleForTesting
-	public static void serializeOperatorStateHandle(
-		OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
-
-		if (stateHandle != null) {
-			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
-			Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsetsMap =
-					stateHandle.getStateNameToPartitionOffsets();
-			dos.writeInt(partitionOffsetsMap.size());
-			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : partitionOffsetsMap.entrySet()) {
-				dos.writeUTF(entry.getKey());
-
-				OperatorStateHandle.StateMetaInfo stateMetaInfo = entry.getValue();
-
-				int mode = stateMetaInfo.getDistributionMode().ordinal();
-				dos.writeByte(mode);
-
-				long[] offsets = stateMetaInfo.getOffsets();
-				dos.writeInt(offsets.length);
-				for (long offset : offsets) {
-					dos.writeLong(offset);
-				}
-			}
-			serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
-		} else {
-			dos.writeByte(NULL_HANDLE);
-		}
-	}
-
-	@VisibleForTesting
-	public static OperatorStateHandle deserializeOperatorStateHandle(
-			DataInputStream dis) throws IOException {
-
+	private static OperatorStateHandle deserializeOperatorStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 			return null;
@@ -317,9 +206,90 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		}
 	}
 
+	private static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
+		int type = dis.read();
+		if (NULL_HANDLE == type) {
+			return null;
+		} else if (FILE_STREAM_STATE_HANDLE == type) {
+			long size = dis.readLong();
+			String pathString = dis.readUTF();
+			return new FileStateHandle(new Path(pathString), size);
+		} else if (BYTE_STREAM_STATE_HANDLE == type) {
+			String handleName = dis.readUTF();
+			int numBytes = dis.readInt();
+			byte[] data = new byte[numBytes];
+			dis.readFully(data);
+			return new ByteStreamStateHandle(handleName, data);
+		} else {
+			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  old format serialization, for testing
+	// ------------------------------------------------------------------------
+
 	@VisibleForTesting
-	public static void serializeStreamStateHandle(
-			StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
+	public static void serializeVersion1(long checkpointId, Collection<TaskState> taskStates, DataOutputStream dos) throws IOException {
+		dos.writeLong(checkpointId);
+
+		dos.writeInt(taskStates.size());
+
+		for (TaskState taskState : taskStates) {
+			// Vertex ID
+			dos.writeLong(taskState.getJobVertexID().getLowerPart());
+			dos.writeLong(taskState.getJobVertexID().getUpperPart());
+
+			// Parallelism
+			int parallelism = taskState.getParallelism();
+			dos.writeInt(parallelism);
+			dos.writeInt(taskState.getMaxParallelism());
+			dos.writeInt(taskState.getChainLength());
+
+			// Sub task states
+			Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
+			dos.writeInt(subtaskStateMap.size());
+			for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
+				dos.writeInt(entry.getKey());
+				serializeSubtaskState(entry.getValue(), dos);
+			}
+		}
+	}
+
+	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
+		//backwards compatibility, do not remove
+		dos.writeLong(-1L);
+
+		//backwards compatibility (number of legacy state handles), do not remove
+		dos.writeInt(0);
+
+		ChainedStateHandle<OperatorStateHandle> operatorStateBackend = subtaskState.getManagedOperatorState();
+
+		int len = operatorStateBackend != null ? operatorStateBackend.getLength() : 0;
+		dos.writeInt(len);
+		for (int i = 0; i < len; ++i) {
+			OperatorStateHandle stateHandle = operatorStateBackend.get(i);
+			serializeOperatorStateHandle(stateHandle, dos);
+		}
+
+		ChainedStateHandle<OperatorStateHandle> operatorStateFromStream = subtaskState.getRawOperatorState();
+
+		len = operatorStateFromStream != null ? operatorStateFromStream.getLength() : 0;
+		dos.writeInt(len);
+		for (int i = 0; i < len; ++i) {
+			OperatorStateHandle stateHandle = operatorStateFromStream.get(i);
+			serializeOperatorStateHandle(stateHandle, dos);
+		}
+
+		KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
+		serializeKeyedStateHandle(keyedStateBackend, dos);
+
+		KeyedStateHandle keyedStateStream = subtaskState.getRawKeyedState();
+		serializeKeyedStateHandle(keyedStateStream, dos);
+	}
+
+	private static void serializeStreamStateHandle(
+		StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);
@@ -345,23 +315,51 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		dos.flush();
 	}
 
-	@VisibleForTesting
-	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
-		int type = dis.read();
-		if (NULL_HANDLE == type) {
-			return null;
-		} else if (FILE_STREAM_STATE_HANDLE == type) {
-			long size = dis.readLong();
-			String pathString = dis.readUTF();
-			return new FileStateHandle(new Path(pathString), size);
-		} else if (BYTE_STREAM_STATE_HANDLE == type) {
-			String handleName = dis.readUTF();
-			int numBytes = dis.readInt();
-			byte[] data = new byte[numBytes];
-			dis.readFully(data);
-			return new ByteStreamStateHandle(handleName, data);
+	private static void serializeKeyedStateHandle(
+		KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
+
+		if (stateHandle == null) {
+			dos.writeByte(NULL_HANDLE);
+		} else if (stateHandle instanceof KeyGroupsStateHandle) {
+			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) stateHandle;
+
+			dos.writeByte(KEY_GROUPS_HANDLE);
+			dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getStartKeyGroup());
+			dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
+			for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
+				dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
+			}
+			serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
 		} else {
-			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
+			throw new IllegalStateException("Unknown KeyedStateHandle type: " + stateHandle.getClass());
+		}
+	}
+
+	private static void serializeOperatorStateHandle(
+		OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
+
+		if (stateHandle != null) {
+			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
+			Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsetsMap =
+				stateHandle.getStateNameToPartitionOffsets();
+			dos.writeInt(partitionOffsetsMap.size());
+			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : partitionOffsetsMap.entrySet()) {
+				dos.writeUTF(entry.getKey());
+
+				OperatorStateHandle.StateMetaInfo stateMetaInfo = entry.getValue();
+
+				int mode = stateMetaInfo.getDistributionMode().ordinal();
+				dos.writeByte(mode);
+
+				long[] offsets = stateMetaInfo.getOffsets();
+				dos.writeInt(offsets.length);
+				for (long offset : offsets) {
+					dos.writeLong(offset);
+				}
+			}
+			serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
+		} else {
+			dos.writeByte(NULL_HANDLE);
 		}
 	}
 }

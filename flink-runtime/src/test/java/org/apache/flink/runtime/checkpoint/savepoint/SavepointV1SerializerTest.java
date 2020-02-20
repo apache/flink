@@ -21,43 +21,43 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.TaskState;
+
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.util.Collection;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Test that the Checkpoint Metadata V1 deserializer can deserialize a the metadata correctly
+ * into the latest format.
+ */
 public class SavepointV1SerializerTest {
 
-	/**
-	 * Test serialization of {@link SavepointV1} instance.
-	 */
 	@Test
 	public void testSerializeDeserializeV1() throws Exception {
 		final Random r = new Random(42);
 
 		for (int i = 0; i < 50; ++i) {
-			SavepointV1 expected =
-					new SavepointV1(i+ 123123, CheckpointTestUtils.createTaskStates(r, 1 + r.nextInt(64), 1 + r.nextInt(64)));
-
-			SavepointV1Serializer serializer = SavepointV1Serializer.INSTANCE;
+			final long checkpointId = i + 123123;
+			final Collection<TaskState> taskStates = CheckpointTestUtils.createTaskStates(r, 1 + r.nextInt(64), 1 + r.nextInt(64));
 
 			// Serialize
-			ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
-			serializer.serializeOld(expected, new DataOutputViewStreamWrapper(baos));
-			byte[] bytes = baos.toByteArray();
+			final ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
+			SavepointV1Serializer.serializeVersion1(checkpointId, taskStates, new DataOutputViewStreamWrapper(baos));
+			final byte[] bytes = baos.toByteArray();
 
 			// Deserialize
-			ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-			SavepointV2 actual = serializer.deserialize(
-					new DataInputViewStreamWrapper(bais),
+			final SavepointV2 actual = SavepointV1Serializer.INSTANCE.deserialize(
+					new DataInputViewStreamWrapper(new ByteArrayInputStream(bytes)),
 					Thread.currentThread().getContextClassLoader());
 
-
-			assertEquals(expected.getCheckpointId(), actual.getCheckpointId());
-			assertEquals(expected.getTaskStates(), actual.getTaskStates());
+			assertEquals(checkpointId, actual.getCheckpointId());
+			assertEquals(taskStates, actual.getTaskStates());
 			assertTrue(actual.getMasterStates().isEmpty());
 		}
 	}

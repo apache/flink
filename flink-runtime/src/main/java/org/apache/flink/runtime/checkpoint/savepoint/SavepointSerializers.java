@@ -35,7 +35,7 @@ public class SavepointSerializers {
 	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(2);
 
 	static {
-		SERIALIZERS.put(SavepointV1.VERSION, SavepointV1Serializer.INSTANCE);
+		SERIALIZERS.put(SavepointV1Serializer.VERSION, SavepointV1Serializer.INSTANCE);
 		SERIALIZERS.put(SavepointV2.VERSION, SavepointV2Serializer.INSTANCE);
 	}
 
@@ -71,7 +71,6 @@ public class SavepointSerializers {
 	 * @return Savepoint for the given version
 	 * @throws IllegalArgumentException If unknown savepoint version
 	 */
-	@SuppressWarnings("unchecked")
 	public static SavepointSerializer<?> getSerializer(int version) {
 		SavepointSerializer<?> serializer = SERIALIZERS.get(version);
 		if (serializer != null) {
