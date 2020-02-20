@@ -50,13 +50,12 @@ import java.util.Optional;
  *     <li>Offering further configuration options.</li>
  * </ul>
  *
- * <p>The path in methods such as {@link #createTemporaryView(String, Table)} should be a proper SQL identifier.
- * The syntax is following [[catalog-name.]database-name.]object-name, where the catalog name and database are
- * optional. For path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}. All keywords
- * or other special characters need to be escaped.
+ * <p>The syntax for path in methods such as {@link #createTemporaryView(String, Table)}is following
+ * [[catalog-name.]database-name.]object-name, where the catalog name and database are optional.
+ * For path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}.
  *
- * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' (table is a reserved keyword, thus must
- * be escaped) in a catalog named 'cat.1' and database named 'db'.
+ * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' in a catalog named 'cat.1' and
+ * database named 'db'.
  *
  * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
  * other Flink APIs, it might be necessary to use one of the available language-specific table environments
@@ -419,11 +418,11 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
-	 * <p>Reading a table from a registered catalog with escaping. ({@code Table} is a reserved keyword).
-	 * Dots in e.g. a database name also must be escaped.
+	 * <p>Reading a table from a registered catalog with escaping.
+	 * Dots in e.g. a database name must be escaped.
 	 * <pre>
 	 * {@code
-	 *   Table tab = tableEnv.from("catalogName.`db.Name`.`Table`");
+	 *   Table tab = tableEnv.from("catalogName.`db.Name`.Table");
 	 * }
 	 * </pre>
 	 *
