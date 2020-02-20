@@ -20,7 +20,7 @@ package org.apache.flink.tests.util.flink;
 /**
  * Represents a move operation for a jar.
  */
-public class JarMove {
+class JarMove {
 
 	private final String jarNamePrefix;
 	private final JarLocation source;

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.tests.util.FlinkDistribution;
 import org.apache.flink.util.ConfigurationException;
 
 import org.slf4j.Logger;
