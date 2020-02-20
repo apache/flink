@@ -56,12 +56,12 @@ final class ReferenceResolverRule implements ResolverRule {
 
 		@Override
 		public Expression visit(UnresolvedCallExpression unresolvedCall) {
-			final Expression[] resolvedArgs = unresolvedCall.getChildren()
+			final List<Expression> resolvedArgs = unresolvedCall.getChildren()
 				.stream()
 				.map(expr -> expr.accept(this))
-				.toArray(Expression[]::new);
+				.collect(Collectors.toList());
 
-			return unresolvedCall(unresolvedCall.getFunctionDefinition(), resolvedArgs);
+			return unresolvedCall.replaceArgs(resolvedArgs);
 		}
 
 		@Override
@@ -79,11 +79,9 @@ final class ReferenceResolverRule implements ResolverRule {
 		private ValidationException failForField(UnresolvedReferenceExpression fieldReference) {
 			return new ValidationException(format("Cannot resolve field [%s], input field list:[%s].",
 				fieldReference.getName(),
-				String.join(
-					", ",
-					resolutionContext.referenceLookup().getAllInputFields()
-						.stream().map(FieldReferenceExpression::getName)
-						.collect(Collectors.toList())))
+				resolutionContext.referenceLookup().getAllInputFields()
+					.stream().map(FieldReferenceExpression::getName)
+					.collect(Collectors.joining(", ")))
 			);
 		}
 
