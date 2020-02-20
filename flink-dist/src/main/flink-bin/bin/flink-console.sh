@@ -62,14 +62,14 @@ fi
 
 FLINK_TM_CLASSPATH=`constructFlinkClassPath`
 
-FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${SERVICE}"
-gclog="${FLINK_LOG_PREFIX}.gc_log"
+local filename="flink-${FLINK_IDENT_STRING}-${SERVICE}"
+FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/${filename}"
+gclog="${FLINK_LOG_PREFIX}-gc.log"
 
-FLINK_HEAPDUMP_NAME="flink-${FLINK_IDENT_STRING}-${SERVICE}.hprof"
-rm -rf ${FLINK_JVM_HEAPDUMP_DIRECTORY}/${FLINK_HEAPDUMP_NAME}
-setGCLoggingOpts $gclog
-setHeapdumpOpts $FLINK_HEAPDUMP_NAME $log
-JVM_ARGS=("${FLINK_JVM_GC_LOGGING_OPTS[@]}" "${FLINK_JVM_HEAPDUMP_OPTS[@]}" "${JVM_ARGS[@]}")
+local heap_dump_file_path="${FLINK_JVM_HEAPDUMP_DIRECTORY}/${filename}.hprof"
+local gc_logging_opts=$(getGCLoggingOpts $gclog)
+local crash_on_oom_opts=$(getCrashOnOOMOpts $heap_dump_file_path)
+JVM_ARGS=("${gc_logging_opts[@]}" "${crash_on_oom_opts[@]}" "${JVM_ARGS[@]}")
 
 log_setting=("-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j-console.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback-console.xml")
 

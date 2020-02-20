@@ -155,16 +155,16 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testSetupApplicationMasterContainer() {
 		Configuration cfg = new Configuration();
-		cfg.setBoolean(CoreOptions.FLINK_JVM_DEFAULT_GC_LOGGING, true);
-		cfg.setString(CoreOptions.FLINK_JVM_HEAPDUMP_DIRECTORY, "/tmp");
+		cfg.setBoolean(CoreOptions.JVM_GC_LOGGING, true);
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(cfg);
 
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xms424m -Xmx424m";
+		final String identifier = "jobmanager";
 		final String defaultGCLoggingOpts =
-			BootstrapTools.getGCLoggingOpts(ApplicationConstants.LOG_DIR_EXPANSION_VAR);
+			BootstrapTools.getGCLoggingOpts(ApplicationConstants.LOG_DIR_EXPANSION_VAR, identifier);
 		final String heapdumpOpts =
-			BootstrapTools.getHeapdumpOpts("test", "jobmanager", ApplicationConstants.LOG_DIR_EXPANSION_VAR, "/tmp");
+			BootstrapTools.getCrashOnOOMOpts("test", identifier, cfg.getString(CoreOptions.JVM_HEAPDUMP_DIRECTORY));
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";

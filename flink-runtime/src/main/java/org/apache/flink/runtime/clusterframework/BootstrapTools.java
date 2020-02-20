@@ -52,6 +52,8 @@ import java.net.BindException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import scala.Some;
@@ -451,7 +453,6 @@ public class BootstrapTools {
 		return startCommand;
 	}
 
-
 	// ------------------------------------------------------------------------
 
 	/** Private constructor to prevent instantiation. */
@@ -530,11 +531,13 @@ public class BootstrapTools {
 
 	/**
 	 * Format the default gc logging options.
+	 *
 	 * @param logDirectory to save the gc log
 	 * @return the formatted gc logging options string
 	 */
-	public static String getGCLoggingOpts(String logDirectory) {
-		return "-Xloggc:" + logDirectory + "/gc.log " +
+	public static String getGCLoggingOpts(String logDirectory, String identifier) {
+		final String gcLogFile = new File(logDirectory, identifier + "-gc.log").getPath();
+		return "-Xloggc:" + gcLogFile +
 			"-XX:+PrintGCApplicationStoppedTime " +
 			"-XX:+PrintGCDetails " +
 			"-XX:+PrintGCDateStamps " +
@@ -546,53 +549,68 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * Format the default heapdump options.
+	 * Create the crash on OOM JVM opts.
+	 *
 	 * @param appId application id
-	 * @param ident the ident of the process, taskmanager/jobmanager
-	 * @param logDirectory to print some logs
-	 * @param heapdumpDir to save heap dump file
+	 * @param identifier the identifier of the process, taskmanager/jobmanager
+	 * @param heapDumpDir to save heap dump file
 	 * @return the formatted heapdump options string
 	 */
-	public static String getHeapdumpOpts(String appId, String ident, String logDirectory, String heapdumpDir) {
-		String dumpDestName = String.format("flink-%s-heapdump.hprof", ident);
-		String dumpFileDestPath = new File(heapdumpDir, appId + "-" + dumpDestName).getAbsolutePath();
+	public static String getCrashOnOOMOpts(String appId, String identifier, String heapDumpDir) {
+		final String dumpDestName = String.format("flink-%s.hprof", identifier);
+		String dumpFileDestPath = new File(heapDumpDir, appId + "-" + dumpDestName).getPath();
 
-		String oomScript = String.format("printf '%%s\\n' 'OutOfMemoryError! Killing current process %%p...'" +
-				" 'Check gc logs and heapdump file(%s) for details.' > " + logDirectory + "/%s.err; kill -9 %%p",
-			dumpFileDestPath, ident);
-		return String.format("-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=%s -XX:OnOutOfMemoryError=\\\"%s\\\"",
-			dumpFileDestPath,
-			oomScript);
+		return String.format("-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=%s -XX:+CrashOnOutOfMemoryError",
+			dumpFileDestPath);
 	}
 
 	/**
 	 * Get the jvm options.
+	 *
 	 * @param appId application id
-	 * @param ident the ident of the process, taskmanager/jobmanager
+	 * @param identifier the identifier of the process, taskmanager/jobmanager
 	 * @param logDirectory to print some logs
 	 * @param conf flink configuration
 	 */
 	public static String getJvmOpts(
-		String appId,
-		String ident,
-		String logDirectory,
-		Configuration conf) {
-		String commonOpts = "";
-		boolean enableGCLogging = conf.getBoolean(CoreOptions.FLINK_JVM_DEFAULT_GC_LOGGING);
+			String appId,
+			String identifier,
+			String logDirectory,
+			Configuration conf) {
+		return Stream.of(
+				optionalGCLoggingOpts(conf, logDirectory, identifier),
+				optionalCrashOnOOMOpts(conf, appId, identifier),
+				optionalJvmOpts(conf))
+			.flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))
+			.collect(Collectors.joining(" "));
+	}
+
+	private static Optional<String> optionalGCLoggingOpts(Configuration conf, String logDirectory, String identifier) {
+		boolean enableGCLogging = conf.getBoolean(CoreOptions.JVM_GC_LOGGING);
 		if (enableGCLogging) {
-			// Add default gc logging options if enabled
-			commonOpts += getGCLoggingOpts(logDirectory);
+			return Optional.of(getGCLoggingOpts(logDirectory, identifier));
+		} else {
+			return Optional.empty();
 		}
-		boolean enableHeapDump = conf.getBoolean(CoreOptions.FLINK_JVM_HEAPDUMP_ON_OOM);
-		if (enableHeapDump) {
+	}
+
+	private static Optional<String> optionalCrashOnOOMOpts(Configuration conf, String appId, String identifier) {
+		final boolean enableCrashOnOOM = conf.getBoolean(CoreOptions.JVM_CRASH_ON_OOM);
+		if (enableCrashOnOOM) {
 			// Add default heap dump options if enabled
-			String heapdumpDir = conf.getString(CoreOptions.FLINK_JVM_HEAPDUMP_DIRECTORY);
-			commonOpts += " " + getHeapdumpOpts(appId, ident, logDirectory, heapdumpDir);
+			String heapDumpDir = conf.getString(CoreOptions.JVM_HEAPDUMP_DIRECTORY);
+			return Optional.of(getCrashOnOOMOpts(appId, identifier, heapDumpDir));
+		} else {
+			return Optional.empty();
 		}
-		if (!conf.getString(CoreOptions.FLINK_JVM_OPTIONS).isEmpty()) {
-			commonOpts += " " + conf.getString(CoreOptions.FLINK_JVM_OPTIONS);
+	}
+
+	private static Optional<String> optionalJvmOpts(Configuration conf) {
+		if (conf.getString(CoreOptions.FLINK_JVM_OPTIONS).isEmpty()) {
+			return Optional.empty();
+		} else {
+			return Optional.of(conf.getString(CoreOptions.FLINK_JVM_OPTIONS));
 		}
-		return commonOpts;
 	}
 
 	/**

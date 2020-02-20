@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -296,25 +297,31 @@ public class CoreOptions {
 				" the writer will directly create the file directly at the output path, without creating a containing" +
 				" directory.");
 
-	public static final ConfigOption<Boolean> FLINK_JVM_DEFAULT_GC_LOGGING =
+	public static final ConfigOption<Boolean> JVM_GC_LOGGING =
 		key("jvm.gc-logging")
 			.booleanType()
 			.defaultValue(false)
-			.withDescription("When enabled, jvm will be launched with default gc options which will log gc infos" +
-				" under log directory");
+			.withDescription("Flag to activate the JVM's GC logging. The GC log file will be created in the log directory.");
 
-	public static final ConfigOption<Boolean> FLINK_JVM_HEAPDUMP_ON_OOM =
-		key("jvm.heapdump-on-oom")
+	public static final ConfigOption<Boolean> JVM_CRASH_ON_OOM =
+		key("jvm.crash-on-oom")
 			.booleanType()
 			.defaultValue(true)
-			.withDescription("When enabled, jvm will save heapdump files when OOMs happen.");
+			.withDescription(
+				Description.builder()
+					.text("Flag to activate crashing the JVM on OOMs. If enabled, a heap dump will be created as well. The directory for the heap dump can be configured via %s.",
+						TextElement.code("jvm.heapdump-directory"))
+					.build());
 
-	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
-	public static final ConfigOption<String> FLINK_JVM_HEAPDUMP_DIRECTORY =
-		key("jvm.heapdump.directory")
+	public static final ConfigOption<String> JVM_HEAPDUMP_DIRECTORY =
+		key("jvm.heapdump-directory")
 			.stringType()
-			.defaultValue(System.getProperty("java.io.tmpdir"))
-			.withDescription("The directory to save heap dump file when OOMs happen.");
+			.defaultValue(".")
+			.withDescription(
+				Description.builder()
+					.text("The directory to save the heap dump file when OOMs happen. This option is only relevant if %s has been activated.",
+						TextElement.code(JVM_CRASH_ON_OOM.key()))
+					.build());
 
 	/**
 	 * The total number of input plus output connections that a file system for the given scheme may open.

@@ -149,8 +149,7 @@ public class BootstrapToolsTest extends TestLogger {
 	@Test
 	public void testGetTaskManagerShellCommand() {
 		final Configuration cfg = new Configuration();
-		cfg.setBoolean(CoreOptions.FLINK_JVM_DEFAULT_GC_LOGGING, true);
-		cfg.setString(CoreOptions.FLINK_JVM_HEAPDUMP_DIRECTORY, "/tmp");
+		cfg.setBoolean(CoreOptions.JVM_GC_LOGGING, true);
 		final TaskExecutorProcessSpec taskExecutorProcessSpec = new TaskExecutorProcessSpec(
 			new CPUResource(1.0),
 			new MemorySize(0), // frameworkHeapSize
@@ -167,8 +166,9 @@ public class BootstrapToolsTest extends TestLogger {
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
-		final String defaultGCLoggingOpts = BootstrapTools.getGCLoggingOpts("./logs");
-		final String heapdumpOpts = BootstrapTools.getHeapdumpOpts("test", "taskmanager", "./logs", "/tmp");
+		final String identifier = "taskmanager";
+		final String defaultGCLoggingOpts = BootstrapTools.getGCLoggingOpts("./logs", identifier);
+		final String heapdumpOpts = BootstrapTools.getCrashOnOOMOpts("test", identifier, cfg.getString(CoreOptions.JVM_HEAPDUMP_DIRECTORY));
 		final String jvmOpts = "-Djvm"; // if set
 		final String tmJvmOpts = "-DtmJvm"; // if set
 		final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set

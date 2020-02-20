@@ -113,8 +113,8 @@ DEFAULT_ENV_JAVA_OPTS_HS=""                         # Optional JVM args (History
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directory, if necessary
 DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
-DEFAULT_JVM_HEAPDUMP_ON_OOM="true"                  # Whether enable heap dump on ooms
-DEFAULT_JVM_HEAPDUMP_DIRECTORY="/tmp"               # Heap dump directory
+DEFAULT_JVM_CRASH_ON_OOM="true"                  # Whether enable heap dump on ooms
+DEFAULT_JVM_HEAPDUMP_DIRECTORY="."               # Heap dump directory
 DEFAULT_JVM_GC_LOGGING="false"                      # Whether enable gc logging
 
 ########################################################################################################################
@@ -140,8 +140,8 @@ KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 KEY_JVM_GC_LOGGING="jvm.gc-logging"
-KEY_JVM_HEAPDUMP_ON_OOM="jvm.heapdump-on-oom"
-KEY_JVM_HEAPDUMP_DIRECTORY="jvm.heapdump.directory"
+KEY_JVM_CRASH_ON_OOM="jvm.crash-on-oom"
+KEY_JVM_HEAPDUMP_DIRECTORY="jvm.heapdump-directory"
 
 ########################################################################################################################
 # MEMORY SIZE UNIT
@@ -442,10 +442,10 @@ if [ -z "${FLINK_JVM_GC_LOGGING}" ];then
     FLINK_JVM_GC_LOGGING="$( echo "${FLINK_JVM_GC_LOGGING}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
-if [ -z "${FLINK_JVM_HEAPDUMP_ON_OOM}" ];then
-    FLINK_JVM_HEAPDUMP_ON_OOM=$(readFromConfig ${KEY_JVM_HEAPDUMP_ON_OOM} "${DEFAULT_JVM_HEAPDUMP_ON_OOM}" "${YAML_CONF}")
+if [ -z "${FLINK_JVM_CRASH_ON_OOM}" ];then
+    FLINK_JVM_CRASH_ON_OOM=$(readFromConfig ${KEY_JVM_CRASH_ON_OOM} "${DEFAULT_JVM_CRASH_ON_OOM}" "${YAML_CONF}")
     # Remove leading and ending double quotes (if present) of value
-    FLINK_JVM_HEAPDUMP_ON_OOM="$( echo "${FLINK_JVM_HEAPDUMP_ON_OOM}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_JVM_CRASH_ON_OOM="$( echo "${FLINK_JVM_CRASH_ON_OOM}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_JVM_HEAPDUMP_DIRECTORY}" ];then
@@ -672,11 +672,11 @@ extractExecutionParams() {
 }
 
 # Format default gc logging options
-setGCLoggingOpts() {
+getGCLoggingOpts() {
     local gclog=$1
-    FLINK_JVM_GC_LOGGING_OPTS=()
-    if [ ${FLINK_JVM_GC_LOGGING} = true ];then
-        FLINK_JVM_GC_LOGGING_OPTS=(
+    local gc_logging_opts=()
+    if [ ${FLINK_JVM_GC_LOGGING} = true ]; then
+        gc_logging_opts=(
           "-Xloggc:${gclog}"
           "-XX:+PrintGCApplicationStoppedTime"
           "-XX:+PrintGCDetails"
@@ -687,17 +687,23 @@ setGCLoggingOpts() {
           "-XX:+PrintPromotionFailure"
           "-XX:+PrintGCCause")
     fi
+
+    echo ${gc_logging_opts}
 }
 
-# Format default heapdump options
-setHeapdumpOpts() {
-    local dump_dest_name=$1
-    local log=$2
-    FLINK_JVM_HEAPDUMP_OPTS=()
-    if [ ${FLINK_JVM_HEAPDUMP_ON_OOM} = true ];then
-        FLINK_JVM_HEAPDUMP_OPTS=(
-          "-XX:+HeapDumpOnOutOfMemoryError"
-          "-XX:HeapDumpPath=${FLINK_JVM_HEAPDUMP_DIRECTORY}/$dump_dest_name"
-          "-XX:OnOutOfMemoryError=printf '%s\n' 'OutOfMemoryError! Killing current process %p...' 'Check gc logs and heapdump file(${FLINK_JVM_HEAPDUMP_DIRECTORY}/$dump_dest_name) for details.' > ${log}; kill -9 %p")
+# Format default heap dump options
+getCrashOnOOMOpts() {
+    local heap_dump_file_path=$1
+    local crash_on_oom_opts=()
+
+    if [ ${FLINK_JVM_CRASH_ON_OOM} = true ]; then
+      rm -rf ${heap_dump_file_path}
+
+      crash_on_oom_opts=(
+        "-XX:+HeapDumpOnOutOfMemoryError"
+        "-XX:HeapDumpPath=${heap_dump_file_path}"
+        "-XX:+CrashOnOutOfMemoryError")
     fi
+
+    echo ${crash_on_oom_opts}
 }
