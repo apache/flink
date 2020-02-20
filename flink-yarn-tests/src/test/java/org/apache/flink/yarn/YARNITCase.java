@@ -54,9 +54,8 @@ import static org.junit.Assert.assertThat;
  */
 public class YARNITCase extends YarnTestBase {
 
-	private final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
-
-	private final int sleepIntervalInMS = 100;
+	private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
+	private static final int sleepIntervalInMS = 100;
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -69,27 +68,26 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(
+		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.FIRST),
 			getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(
+		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
 			getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDistributedCache() throws Exception {
-		runTest(() -> deployPerjob(
+		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
 			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
 	}
 
-	protected void deployPerjob(Configuration configuration, JobGraph jobGraph) throws Exception {
-
+	private void deployPerJob(Configuration configuration, JobGraph jobGraph) throws Exception {
 		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
 
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
@@ -121,15 +119,13 @@ public class YARNITCase extends YarnTestBase {
 				assertThat(jobResult, is(notNullValue()));
 				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
-				extraVerification(configuration, applicationId);
-
 				waitApplicationFinishedElseKillIt(
 					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
 			}
 		}
 	}
 
-	protected JobGraph getTestingJobGraph() {
+	private JobGraph getTestingJobGraph() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(2);
 
@@ -140,7 +136,7 @@ public class YARNITCase extends YarnTestBase {
 		return env.getStreamGraph().getJobGraph();
 	}
 
-	protected Configuration createDefaultConfiguration(YarnConfigOptions.UserJarInclusion userJarInclusion) {
+	private Configuration createDefaultConfiguration(YarnConfigOptions.UserJarInclusion userJarInclusion) {
 		Configuration configuration = new Configuration();
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
@@ -148,6 +144,4 @@ public class YARNITCase extends YarnTestBase {
 
 		return configuration;
 	}
-
-	protected void extraVerification(Configuration configuration, ApplicationId applicationId) throws Exception { }
 }
