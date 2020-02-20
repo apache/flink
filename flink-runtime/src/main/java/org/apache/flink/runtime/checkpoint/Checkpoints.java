@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializer;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -70,25 +71,23 @@ public class Checkpoints {
 	//  Writing out checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static <T extends Savepoint> void storeCheckpointMetadata(
-			T checkpointMetadata,
+	public static void storeCheckpointMetadata(
+			SavepointV2 checkpointMetadata,
 			OutputStream out) throws IOException {
 
 		DataOutputStream dos = new DataOutputStream(out);
 		storeCheckpointMetadata(checkpointMetadata, dos);
 	}
 
-	public static <T extends Savepoint> void storeCheckpointMetadata(
-			T checkpointMetadata,
+	public static void storeCheckpointMetadata(
+			SavepointV2 checkpointMetadata,
 			DataOutputStream out) throws IOException {
 
 		// write generic header
 		out.writeInt(HEADER_MAGIC_NUMBER);
-		out.writeInt(checkpointMetadata.getVersion());
+		out.writeInt(SavepointV2.VERSION);
 
-		// write checkpoint metadata
-		SavepointSerializer<T> serializer = SavepointSerializers.getSerializer(checkpointMetadata);
-		serializer.serialize(checkpointMetadata, out);
+		SavepointV2Serializer.serialize(checkpointMetadata, out);
 	}
 
 	// ------------------------------------------------------------------------
@@ -103,7 +102,7 @@ public class Checkpoints {
 
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
-			final SavepointSerializer<?> serializer = SavepointSerializers.getSerializer(version);
+			final SavepointSerializer serializer = SavepointSerializers.getSerializer(version);
 			return serializer.deserialize(in, classLoader);
 		}
 		else {

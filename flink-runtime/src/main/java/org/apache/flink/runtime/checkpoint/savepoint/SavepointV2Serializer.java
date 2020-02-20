@@ -70,8 +70,7 @@ import java.util.UUID;
  * </pre>
  */
 @Internal
-@VisibleForTesting
-public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
+public class SavepointV2Serializer implements SavepointSerializer {
 
 	/** Random magic number for consistency checks. */
 	private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
@@ -95,8 +94,7 @@ public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	//  (De)serialization entry points
 	// ------------------------------------------------------------------------
 
-	@Override
-	public void serialize(SavepointV2 checkpointMetadata, DataOutputStream dos) throws IOException {
+	public static void serialize(SavepointV2 checkpointMetadata, DataOutputStream dos) throws IOException {
 		// first: checkpoint ID
 		dos.writeLong(checkpointMetadata.getCheckpointId());
 
@@ -189,7 +187,7 @@ public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	//  master state (de)serialization methods
 	// ------------------------------------------------------------------------
 
-	private void serializeMasterState(MasterState state, DataOutputStream dos) throws IOException {
+	private static void serializeMasterState(MasterState state, DataOutputStream dos) throws IOException {
 		// magic number for error detection
 		dos.writeInt(MASTER_STATE_MAGIC_NUMBER);
 

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -45,7 +46,7 @@ import java.io.IOException;
  * <p>This format may only be executed with parallelism 1.
  */
 @Internal
-public class SavepointOutputFormat extends RichOutputFormat<Savepoint> {
+public class SavepointOutputFormat extends RichOutputFormat<SavepointV2> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -70,7 +71,7 @@ public class SavepointOutputFormat extends RichOutputFormat<Savepoint> {
 	}
 
 	@Override
-	public void writeRecord(Savepoint savepoint) throws IOException {
+	public void writeRecord(SavepointV2 savepoint) throws IOException {
 		String path = LambdaUtil.withContextClassLoader(getRuntimeContext().getUserCodeClassLoader(), () -> {
 				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
 					Checkpoints.storeCheckpointMetadata(savepoint, out);

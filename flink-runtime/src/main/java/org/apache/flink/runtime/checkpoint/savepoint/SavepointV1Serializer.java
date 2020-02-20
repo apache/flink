@@ -54,7 +54,7 @@ import java.util.Map;
  */
 @Internal
 @SuppressWarnings("deprecation")
-public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
+public class SavepointV1Serializer implements SavepointSerializer {
 
 	/** The savepoint version. */
 	public static final int VERSION = 1;
@@ -67,13 +67,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 	public static final SavepointV1Serializer INSTANCE = new SavepointV1Serializer();
 
-	private SavepointV1Serializer() {
-	}
-
-	@Override
-	public void serialize(SavepointV2 savepoint, DataOutputStream dos) throws IOException {
-		throw new UnsupportedOperationException("This serializer is read-only and only exists for backwards compatibility");
-	}
+	private SavepointV1Serializer() {}
 
 	@Override
 	public SavepointV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
