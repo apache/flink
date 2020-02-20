@@ -80,13 +80,12 @@ final class OverWindowResolverRule implements ResolverRule {
 
 				newArgs.addAll(referenceWindow.getPartitionBy());
 
-				return unresolvedCall(unresolvedCall.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
+				return unresolvedCall.replaceArgs(newArgs);
 			} else {
-				return unresolvedCall(
-					unresolvedCall.getFunctionDefinition(),
+				return unresolvedCall.replaceArgs(
 					unresolvedCall.getChildren().stream()
 						.map(expr -> expr.accept(this))
-						.toArray(Expression[]::new));
+						.collect(Collectors.toList()));
 			}
 		}
 
