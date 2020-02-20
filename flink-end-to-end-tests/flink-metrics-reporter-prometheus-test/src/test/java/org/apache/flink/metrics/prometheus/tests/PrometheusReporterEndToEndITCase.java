@@ -23,9 +23,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
-import org.apache.flink.tests.util.FlinkDistribution;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
+import org.apache.flink.tests.util.flink.ClusterController;
+import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
+import org.apache.flink.tests.util.flink.JarLocation;
+import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ProcessorArchitecture;
@@ -111,7 +115,12 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	}
 
 	@Rule
-	public final FlinkDistribution dist = new FlinkDistribution();
+	public final FlinkResource dist = new LocalStandaloneFlinkResourceFactory()
+		.create(FlinkResourceSetup.builder()
+			.moveJar("flink-metrics-prometheus", JarLocation.OPT, JarLocation.LIB)
+			.addConfiguration(getFlinkConfig())
+			.build())
+		.get();
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
@@ -119,16 +128,16 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	@Rule
 	public final DownloadCache downloadCache = DownloadCache.get();
 
-	@Test
-	public void testReporter() throws Exception {
-		dist.copyOptJarsToLib("flink-metrics-prometheus");
-
+	private static Configuration getFlinkConfig() {
 		final Configuration config = new Configuration();
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "prom." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getCanonicalName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "prom.port", "9000-9100");
 
-		dist.appendConfiguration(config);
+		return config;
+	}
 
+	@Test
+	public void testReporter() throws Exception {
 		final Path tmpPrometheusDir = tmp.newFolder().toPath().resolve("prometheus");
 		final Path prometheusArchive = tmpPrometheusDir.resolve(PROMETHEUS_FILE_NAME + ".tar.gz");
 		final Path prometheusBinDir = tmpPrometheusDir.resolve(PROMETHEUS_FILE_NAME);
@@ -157,34 +166,35 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				.inPlace()
 				.build());
 
-		dist.startFlinkCluster();
+		try (ClusterController ignored = dist.startCluster(1)) {
 
-		final List<Integer> ports = dist
-			.searchAllLogs(LOG_REPORTER_PORT_PATTERN, matcher -> matcher.group(1))
-			.map(Integer::valueOf)
-			.collect(Collectors.toList());
+			final List<Integer> ports = dist
+				.searchAllLogs(LOG_REPORTER_PORT_PATTERN, matcher -> matcher.group(1))
+				.map(Integer::valueOf)
+				.collect(Collectors.toList());
 
-		final String scrapeTargets = ports.stream()
-			.map(port -> "'localhost:" + port + "'")
-			.collect(Collectors.joining(", "));
+			final String scrapeTargets = ports.stream()
+				.map(port -> "'localhost:" + port + "'")
+				.collect(Collectors.joining(", "));
 
-		LOG.info("Setting Prometheus scrape targets to {}.", scrapeTargets);
-		runBlocking(
-			CommandLineWrapper
-				.sed("s/\\(targets:\\).*/\\1 [" + scrapeTargets + "]/", prometheusConfig)
-				.inPlace()
-				.build());
+			LOG.info("Setting Prometheus scrape targets to {}.", scrapeTargets);
+			runBlocking(
+				CommandLineWrapper
+					.sed("s/\\(targets:\\).*/\\1 [" + scrapeTargets + "]/", prometheusConfig)
+					.inPlace()
+					.build());
 
-		LOG.info("Starting Prometheus server.");
-		try (AutoClosableProcess prometheus = runNonBlocking(
-			prometheusBinary.toAbsolutePath().toString(),
-			"--config.file=" + prometheusConfig.toAbsolutePath(),
-			"--storage.tsdb.path=" + prometheusBinDir.resolve("data").toAbsolutePath())) {
+			LOG.info("Starting Prometheus server.");
+			try (AutoClosableProcess prometheus = runNonBlocking(
+				prometheusBinary.toAbsolutePath().toString(),
+				"--config.file=" + prometheusConfig.toAbsolutePath(),
+				"--storage.tsdb.path=" + prometheusBinDir.resolve("data").toAbsolutePath())) {
 
-			final OkHttpClient client = new OkHttpClient();
+				final OkHttpClient client = new OkHttpClient();
 
-			checkMetricAvailability(client, "flink_jobmanager_numRegisteredTaskManagers");
-			checkMetricAvailability(client, "flink_taskmanager_Status_Network_TotalMemorySegments");
+				checkMetricAvailability(client, "flink_jobmanager_numRegisteredTaskManagers");
+				checkMetricAvailability(client, "flink_taskmanager_Status_Network_TotalMemorySegments");
+			}
 		}
 	}
 

@@ -23,7 +23,8 @@ import org.apache.flink.tests.util.categories.Hadoop;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
-import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
+import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.FileUtils;
@@ -76,7 +77,9 @@ public class SQLClientKafkaITCase extends TestLogger {
 	}
 
 	@Rule
-	public final FlinkResource flink = new LocalStandaloneFlinkResource();
+	public final FlinkResource flink = new LocalStandaloneFlinkResourceFactory()
+		.create(FlinkResourceSetup.builder().build())
+		.get();
 
 	@Rule
 	public final KafkaResource kafka;
