@@ -61,7 +61,7 @@ jobs:
 
 - job: test_${{parameters.stage_name}}
   dependsOn: compile_${{parameters.stage_name}}
-  condition: not(eq(variables['MODE'], 'e2e'))
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
   pool: ${{parameters.test_pool_definition}}
   container: flink-build-container
   timeoutInMinutes: 240
@@ -112,6 +112,7 @@ jobs:
 
 - job: precommit_${{parameters.stage_name}}
   dependsOn: compile_${{parameters.stage_name}}
+  condition: succeeded()
   # We are not running this job on a container, but in a VM.
   pool: ${{parameters.e2e_pool_definition}}
   timeoutInMinutes: 240
