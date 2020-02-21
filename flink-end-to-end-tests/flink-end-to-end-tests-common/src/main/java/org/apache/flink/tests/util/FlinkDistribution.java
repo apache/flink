@@ -205,7 +205,7 @@ public final class FlinkDistribution implements ExternalResource {
 
 		LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
 
-		try (AutoClosableProcess flink = AutoClosableProcess.runNonBlocking(commands.stream().toArray(String[]::new))) {
+		try (AutoClosableProcess flink = AutoClosableProcess.runNonBlocking(commands.toArray(new String[0]))) {
 
 			final Pattern pattern = jobSubmission.isDetached()
 				? Pattern.compile("Job has been submitted with JobID (.*)")
