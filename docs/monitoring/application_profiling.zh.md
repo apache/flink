@@ -62,7 +62,7 @@ env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PRE
 {% endhighlight %}
 
 The heap dump will allow you to analyze potential memory leaks in your user code.
-If the memory leak should be caused by Flink, then please reach out to the dev mailing list.
+If the memory leak should be caused by Flink, then please reach out to the [dev mailing list](mailto:dev@flink.apache.org).
 
 ## Analyzing Memory & Garbage Collection Behaviour
 
