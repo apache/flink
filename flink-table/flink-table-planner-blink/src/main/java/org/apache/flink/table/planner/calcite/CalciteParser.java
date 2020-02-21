@@ -47,7 +47,7 @@ public class CalciteParser {
 			SqlParser parser = SqlParser.create(sql, config);
 			return parser.parseStmt();
 		} catch (SqlParseException e) {
-			throw new SqlParserException("SQL parse failed. " + e.getMessage());
+			throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
 		}
 	}
 
