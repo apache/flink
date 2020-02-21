@@ -33,28 +33,27 @@ import java.util.Objects;
  * Simple container class which contains the task state and key-group state handles for the sub
  * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
  *
- * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
+ * <p>This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
  *
  * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
-@SuppressWarnings("deprecation")
 public class TaskState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
 	private final JobVertexID jobVertexID;
 
-	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
+	/** handles to non-partitioned states, subtaskindex -> subtaskstate. */
 	private final Map<Integer, SubtaskState> subtaskStates;
 
-	/** parallelism of the operator when it was checkpointed */
+	/** parallelism of the operator when it was checkpointed. */
 	private final int parallelism;
 
-	/** maximum parallelism of the operator when the job was first created */
+	/** maximum parallelism of the operator when the job was first created. */
 	private final int maxParallelism;
 
-	/** length of the operator chain */
+	/** length of the operator chain. */
 	private final int chainLength;
 
 	public TaskState(JobVertexID jobVertexID, int parallelism, int maxParallelism, int chainLength) {

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.MemoryArchitecture;
+import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -220,12 +220,11 @@ public class ResultPartitionFactory {
 	}
 
 	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
-		switch (MemoryArchitecture.get()) {
+		switch (ProcessorArchitecture.getMemoryAddressSize()) {
 			case _64_BIT:
 				return BoundedBlockingSubpartitionType.FILE_MMAP;
 			case _32_BIT:
 				return BoundedBlockingSubpartitionType.FILE;
-			case UNKNOWN:
 			default:
 				LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
 				return BoundedBlockingSubpartitionType.FILE;

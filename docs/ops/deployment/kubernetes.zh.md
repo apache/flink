@@ -1,5 +1,5 @@
 ---
-title:  "Kubernetes 安装"
+title:  "Kubernetes 设置"
 nav-title: Kubernetes
 nav-parent_id: deployment
 nav-pos: 7

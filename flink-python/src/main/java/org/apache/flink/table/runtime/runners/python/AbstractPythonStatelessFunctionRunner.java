@@ -152,7 +152,7 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
-	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
+	public FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		for (Object input : pythonFunctionInfo.getInputs()) {
@@ -201,12 +201,12 @@ public abstract class AbstractPythonStatelessFunctionRunner<IN> extends Abstract
 	/**
 	 * Gets the proto representation of the input coder.
 	 */
-	abstract RunnerApi.Coder getInputCoderProto();
+	public abstract RunnerApi.Coder getInputCoderProto();
 
 	/**
 	 * Gets the proto representation of the output coder.
 	 */
-	abstract RunnerApi.Coder getOutputCoderProto();
+	public abstract RunnerApi.Coder getOutputCoderProto();
 
 	/**
 	 * Gets the proto representation of the window coder.

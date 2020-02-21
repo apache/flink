@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Resolves {@link UnresolvedReferenceExpression} to either
@@ -48,7 +48,7 @@ final class ReferenceResolverRule implements ResolverRule {
 			.collect(Collectors.toList());
 	}
 
-	private class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
+	private static class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
 
 		ExpressionResolverVisitor(ResolutionContext resolutionContext) {
 			super(resolutionContext);

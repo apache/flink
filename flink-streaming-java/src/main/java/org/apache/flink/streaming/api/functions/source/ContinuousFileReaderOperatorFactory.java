@@ -34,14 +34,20 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  */
 public class ContinuousFileReaderOperatorFactory<OUT> implements YieldingOperatorFactory<OUT>, OneInputStreamOperatorFactory<TimestampedFileInputSplit, OUT> {
 
-	private ChainingStrategy strategy;
+	private ChainingStrategy strategy = ChainingStrategy.HEAD;
 	private final FileInputFormat<OUT> inputFormat;
 	private TypeInformation<OUT> type;
 	private ExecutionConfig executionConfig;
 	private transient MailboxExecutor mailboxExecutor;
 
 	public ContinuousFileReaderOperatorFactory(FileInputFormat<OUT> inputFormat) {
+		this(inputFormat, null, null);
+	}
+
+	public ContinuousFileReaderOperatorFactory(FileInputFormat<OUT> inputFormat, TypeInformation<OUT> type, ExecutionConfig executionConfig) {
 		this.inputFormat = inputFormat;
+		this.type = type;
+		this.executionConfig = executionConfig;
 	}
 
 	@Override

@@ -37,7 +37,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.scalar.PythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;

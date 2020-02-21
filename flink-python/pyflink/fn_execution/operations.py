@@ -27,7 +27,6 @@ from apache_beam.runners.worker.operations import Operation
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
-from pyflink.table import Row
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 
@@ -222,9 +221,8 @@ class ScalarFunctionRunner(object):
     def process(self, windowed_value):
         results = [invoker.invoke_eval(windowed_value.value) for invoker in
                    self.scalar_function_invokers]
-        result = Row(*results)
         # send the execution results back
-        self.output_processor.process_outputs(windowed_value, [result])
+        self.output_processor.process_outputs(windowed_value, [results])
 
 
 class ScalarFunctionOperation(Operation):

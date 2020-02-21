@@ -34,7 +34,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.typeLiteral;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.util.Preconditions.checkNotNull;

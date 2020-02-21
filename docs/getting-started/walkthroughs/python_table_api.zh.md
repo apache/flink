@@ -64,7 +64,6 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 {% highlight python %}
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
-                 .line_delimiter(' ')
                  .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())) \

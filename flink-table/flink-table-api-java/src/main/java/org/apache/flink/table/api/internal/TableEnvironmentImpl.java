@@ -55,7 +55,7 @@ import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
-import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -168,7 +168,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				try {
 					UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
 					Optional<CatalogQueryOperation> catalogQueryOperation = scanInternal(unresolvedIdentifier);
-					return catalogQueryOperation.map(t -> new TableReferenceExpression(path, t));
+					return catalogQueryOperation.map(t -> ApiExpressionUtils.tableRef(path, t));
 				} catch (SqlParserException ex) {
 					// The TableLookup is used during resolution of expressions and it actually might not be an
 					// identifier of a table. It might be a reference to some other object such as column, local

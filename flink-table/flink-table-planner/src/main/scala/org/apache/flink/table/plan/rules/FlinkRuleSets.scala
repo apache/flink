@@ -251,7 +251,8 @@ object FlinkRuleSets {
     DataStreamMatchRule.INSTANCE,
     DataStreamTableAggregateRule.INSTANCE,
     DataStreamGroupWindowTableAggregateRule.INSTANCE,
-    DataStreamPythonCalcRule.INSTANCE
+    DataStreamPythonCalcRule.INSTANCE,
+    DataStreamPythonCorrelateRule.INSTANCE
   )
 
   /**

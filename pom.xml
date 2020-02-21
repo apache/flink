@@ -103,7 +103,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
-		<flink.shaded.version>9.0</flink.shaded.version>
+		<flink.shaded.version>10.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
@@ -1697,6 +1697,18 @@ under the License.
 							<excludeProperty>git.remote.*</excludeProperty>
 						</excludeProperties>
 					</configuration>
+				</plugin>
+
+				<plugin>
+					<!-- Inherited from Apache parent, but not actually used. Disable to reduce noise. -->
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-site-plugin</artifactId>
+					<executions>
+						<execution>
+							<id>attach-descriptor</id>
+							<phase>none</phase>
+						</execution>
+					</executions>
 				</plugin>
 
 				<!-- Disable certain plugins in Eclipse -->

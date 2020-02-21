@@ -29,8 +29,8 @@ import java.util.Map;
  */
 public class SavepointSerializers {
 
-	/** If this flag is true, restoring a savepoint fails if it contains legacy state (<= Flink 1.1 format) */
-	static boolean FAIL_WHEN_LEGACY_STATE_DETECTED = true;
+	/** If this flag is true, restoring a savepoint fails if it contains legacy state (<= Flink 1.1 format). */
+	static boolean failWhenLegacyStateDetected = true;
 
 	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(2);
 
@@ -87,6 +87,6 @@ public class SavepointSerializers {
 	 */
 	@VisibleForTesting
 	public static void setFailWhenLegacyStateDetected(boolean fail) {
-		FAIL_WHEN_LEGACY_STATE_DETECTED = fail;
+		failWhenLegacyStateDetected = fail;
 	}
 }
