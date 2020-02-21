@@ -199,6 +199,14 @@ under the License.
 									<include>org.apache.httpcomponents:*</include>
 								</includes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>com/amazonaws/jmx/SdkMBeanRegistrySupport*</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<relocations combine.children="override">
 								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
 								<relocation>

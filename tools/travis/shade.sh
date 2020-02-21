@@ -181,3 +181,19 @@ check_shaded_artifacts_connector_elasticsearch() {
 
 	return 0
 }
+
+# Check the Kinesis connectors' fat jars for illegal or missing classes
+check_shaded_artifacts_connector_kinesis() {
+	find flink-connectors/flink-connector-kinesis/target/flink-connector-kinesis*.jar ! -name "*-tests.jar" -exec jar tf {} \; > allClasses
+
+	FOUND_AWS_METRICS_REG=`cat allClasses | grep 'SdkMBeanRegistrySupport' | wc -l`
+	if [ "$FOUND_AWS_METRICS_REG" != "0" ]; then
+		echo "=============================================================================="
+		echo "Found SdkMBeanRegistrySupport in Kinesis jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	return 0
+}
+
