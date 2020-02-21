@@ -98,10 +98,16 @@ jobs:
       path: $(CACHE_FLINK_DIR)
       artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
 
-  # recreate "build-target" symlink for python tests
-  - script: |
-      ln -snf $(CACHE_FLINK_DIR)/flink-dist/target/flink-*-SNAPSHOT-bin/flink-*-SNAPSHOT $(CACHE_FLINK_DIR)/build-target
-    displayName: Recreate 'build-target' symlink
+  # only for the python stage (which runs a full mvn install), download the cache
+  - task: Cache@2
+    condition: eq(variables['module'], 'python')
+    inputs:
+      key: $(CACHE_KEY)
+      restoreKeys: $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    displayName: Cache Maven local repo
+    
   # Test
   - script: STAGE=test ${{parameters.environment}} ./tools/azure_controller.sh $(module)
     displayName: Test - $(module)
