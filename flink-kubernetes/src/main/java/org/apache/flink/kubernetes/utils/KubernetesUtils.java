@@ -49,7 +49,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -290,14 +289,11 @@ public class KubernetesUtils {
 			.build();
 	}
 
-	/**
-	 * Parses comma-separated list of imagePullSecrets into K8s-understandable format.
-	 */
-	public static LocalObjectReference[] parseImagePullSecrets(@Nullable String imagePullSecrets) {
+	public static LocalObjectReference[] parseImagePullSecrets(List<String> imagePullSecrets) {
 		if (imagePullSecrets == null) {
 			return new LocalObjectReference[0];
 		} else {
-			return Arrays.stream(imagePullSecrets.split(","))
+			return imagePullSecrets.stream()
 				.map(String::trim)
 				.filter(secret -> !secret.isEmpty())
 				.map(LocalObjectReference::new)
