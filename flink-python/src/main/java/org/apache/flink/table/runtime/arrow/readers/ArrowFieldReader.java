@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.arrow;
+package org.apache.flink.table.runtime.arrow.readers;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
@@ -24,66 +24,31 @@ import org.apache.flink.util.Preconditions;
 import org.apache.arrow.vector.ValueVector;
 
 /**
- * Base class for arrow field writer.
+ * Base class for arrow field reader.
  *
- * @param <IN> Type of the row to write.
+ * @param <OUT> Type of the row to write.
  */
 @Internal
-public abstract class ArrowFieldWriter<IN> {
+public abstract class ArrowFieldReader<OUT> {
 
 	/**
-	 * Container which is used to store the written sequence of values of a column.
+	 * Container which is used to store the sequence of values of a column to read.
 	 */
 	private final ValueVector valueVector;
 
-	/**
-	 * The current count of elements written.
-	 */
-	private int count = 0;
-
-	public ArrowFieldWriter(ValueVector valueVector) {
+	public ArrowFieldReader(ValueVector valueVector) {
 		this.valueVector = Preconditions.checkNotNull(valueVector);
 	}
 
 	/**
-	 * Returns the underlying container which stores the sequence of values of a column.
+	 * Returns the underlying container which stores the sequence of values of a column to read.
 	 */
 	public ValueVector getValueVector() {
 		return valueVector;
 	}
 
 	/**
-	 * Returns the current count of elements written.
+	 * Sets the field value as the specified value.
 	 */
-	public int getCount() {
-		return count;
-	}
-
-	/**
-	 * Sets the field value as the field at the specified ordinal of the specified row.
-	 */
-	public abstract void doWrite(IN row, int ordinal);
-
-	/**
-	 * Writes the specified ordinal of the specified row.
-	 */
-	public void write(IN row, int ordinal) {
-		doWrite(row, ordinal);
-		count += 1;
-	}
-
-	/**
-	 * Finishes the writing of the current row batch.
-	 */
-	void finish() {
-		valueVector.setValueCount(count);
-	}
-
-	/**
-	 * Resets the state of the writer to write the next batch of fields.
-	 */
-	void reset() {
-		valueVector.reset();
-		count = 0;
-	}
+	public abstract OUT read(int index);
 }

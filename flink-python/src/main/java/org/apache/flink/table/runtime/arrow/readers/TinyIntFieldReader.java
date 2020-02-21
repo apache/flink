@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.arrow.readers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.arrow.ArrowFieldReader;
 
 import org.apache.arrow.vector.TinyIntVector;
 

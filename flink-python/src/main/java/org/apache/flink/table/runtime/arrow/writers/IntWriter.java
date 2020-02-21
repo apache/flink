@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.arrow.ArrowFieldWriter;
 import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.IntVector;
@@ -36,7 +35,7 @@ public final class IntWriter extends ArrowFieldWriter<Row> {
 
 	@Override
 	public void doWrite(Row value, int ordinal) {
-		if (value == null) {
+		if (value.getField(ordinal) == null) {
 			((IntVector) getValueVector()).setNull(getCount());
 		} else {
 			((IntVector) getValueVector()).setSafe(getCount(), (int) value.getField(ordinal));

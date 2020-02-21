@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.arrow.ArrowFieldWriter;
 
 import org.apache.arrow.vector.SmallIntVector;
 
@@ -36,7 +35,7 @@ public final class BaseRowSmallIntWriter extends ArrowFieldWriter<BaseRow> {
 
 	@Override
 	public void doWrite(BaseRow row, int ordinal) {
-		if (row == null) {
+		if (row.isNullAt(ordinal)) {
 			((SmallIntVector) getValueVector()).setNull(getCount());
 		} else {
 			((SmallIntVector) getValueVector()).setSafe(getCount(), row.getShort(ordinal));

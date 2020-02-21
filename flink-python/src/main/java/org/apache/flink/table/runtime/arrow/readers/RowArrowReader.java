@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.arrow;
+package org.apache.flink.table.runtime.arrow.readers;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -38,7 +39,7 @@ public final class RowArrowReader implements ArrowReader<Row> {
 	 */
 	private final Row reuseRow;
 
-	RowArrowReader(ArrowFieldReader[] fieldReaders) {
+	public RowArrowReader(ArrowFieldReader[] fieldReaders) {
 		this.fieldReaders = Preconditions.checkNotNull(fieldReaders);
 		this.reuseRow = new Row(fieldReaders.length);
 	}

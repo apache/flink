@@ -21,14 +21,18 @@ package org.apache.flink.table.runtime.arrow;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
+import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.IntFieldReader;
+import org.apache.flink.table.runtime.arrow.readers.RowArrowReader;
 import org.apache.flink.table.runtime.arrow.readers.SmallIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowSmallIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
+import org.apache.flink.table.runtime.arrow.vectors.BaseRowArrowReader;
+import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowBigIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.BaseRowSmallIntWriter;
@@ -101,14 +105,14 @@ public class ArrowUtilsTest {
 			assertEquals(testFields.get(i).f0, fields.get(i).getName());
 			assertEquals(testFields.get(i).f2, fields.get(i).getType());
 			// verify convert from ArrowType to LogicalType
-			assertEquals(testFields.get(i).f1, ArrowUtils.fromArrowField(fields.get(i)));
+			assertEquals(testFields.get(i).f1, ArrowUtils.fromArrowFieldToLogicalType(fields.get(i)));
 		}
 	}
 
 	@Test
-	public void testCreateArrowReader() {
+	public void testCreateRowArrowReader() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		RowArrowReader reader = ArrowUtils.createArrowReader(root);
+		RowArrowReader reader = ArrowUtils.createRowArrowReader(root);
 		ArrowFieldReader[] fieldReaders = reader.getFieldReaders();
 		for (int i = 0; i < fieldReaders.length; i++) {
 			assertEquals(testFields.get(i).f5, fieldReaders[i].getClass());
@@ -116,9 +120,9 @@ public class ArrowUtilsTest {
 	}
 
 	@Test
-	public void testCreateBlinkArrowReader() {
+	public void testCreateBaseRowArrowReader() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		BaseRowArrowReader reader = ArrowUtils.createBlinkArrowReader(root);
+		BaseRowArrowReader reader = ArrowUtils.createBaseRowArrowReader(root);
 		ColumnVector[] columnVectors = reader.getColumnVectors();
 		for (int i = 0; i < columnVectors.length; i++) {
 			assertEquals(testFields.get(i).f6, columnVectors[i].getClass());
@@ -126,9 +130,9 @@ public class ArrowUtilsTest {
 	}
 
 	@Test
-	public void testCreateArrowWriter() {
+	public void testCreateRowArrowWriter() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		ArrowWriter<Row> writer = ArrowUtils.createArrowWriter(root);
+		ArrowWriter<Row> writer = ArrowUtils.createRowArrowWriter(root);
 		ArrowFieldWriter<Row>[] fieldWriters = writer.getFieldWriters();
 		for (int i = 0; i < fieldWriters.length; i++) {
 			assertEquals(testFields.get(i).f3, fieldWriters[i].getClass());
@@ -136,9 +140,9 @@ public class ArrowUtilsTest {
 	}
 
 	@Test
-	public void testCreateBlinkArrowWriter() {
+	public void testCreateBaseRowArrowWriter() {
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
-		ArrowWriter<BaseRow> writer = ArrowUtils.createBlinkArrowWriter(root);
+		ArrowWriter<BaseRow> writer = ArrowUtils.createBaseRowArrowWriter(root);
 		ArrowFieldWriter<BaseRow>[] fieldWriters = writer.getFieldWriters();
 		for (int i = 0; i < fieldWriters.length; i++) {
 			assertEquals(testFields.get(i).f4, fieldWriters[i].getClass());

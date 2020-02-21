@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.arrow;
+package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.ColumnarRow;
 import org.apache.flink.table.dataformat.vector.ColumnVector;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -41,7 +42,7 @@ public final class BaseRowArrowReader implements ArrowReader<BaseRow> {
 	 */
 	private ColumnarRow reuseRow;
 
-	BaseRowArrowReader(ColumnVector[] columnVectors) {
+	public BaseRowArrowReader(ColumnVector[] columnVectors) {
 		this.columnVectors = Preconditions.checkNotNull(columnVectors);
 		this.reuseRow = new ColumnarRow();
 	}

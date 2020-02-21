@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -41,7 +42,7 @@ public final class ArrowWriter<IN> {
 	 */
 	private final ArrowFieldWriter<IN>[] fieldWriters;
 
-	ArrowWriter(VectorSchemaRoot root, ArrowFieldWriter<IN>[] fieldWriters) {
+	public ArrowWriter(VectorSchemaRoot root, ArrowFieldWriter<IN>[] fieldWriters) {
 		this.root = Preconditions.checkNotNull(root);
 		this.fieldWriters = Preconditions.checkNotNull(fieldWriters);
 	}

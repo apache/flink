@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.arrow.vectors;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.dataformat.vector.ShortColumnVector;
 import org.apache.flink.util.Preconditions;
 
@@ -26,6 +27,7 @@ import org.apache.arrow.vector.SmallIntVector;
 /**
  * Arrow column vector for Int.
  */
+@Internal
 public final class ArrowSmallIntColumnVector implements ShortColumnVector {
 
 	private final SmallIntVector smallIntVector;
