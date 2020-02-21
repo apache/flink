@@ -282,11 +282,7 @@ public class StreamGraph implements Pipeline {
 			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
 		}
 
-		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
-
-		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
-
-		setSerializers(vertexID, inSerializer, null, outSerializer);
+		setSerializers(vertexID, createSerializer(inTypeInfo), null, createSerializer(outTypeInfo));
 
 		if (operatorFactory.isOutputTypeConfigurable() && outTypeInfo != null) {
 			// sets the output type which must be know at StreamGraph creation time
@@ -316,8 +312,7 @@ public class StreamGraph implements Pipeline {
 
 		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, taskOperatorFactory, operatorName);
 
-		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
-				outTypeInfo.createSerializer(executionConfig) : null;
+		TypeSerializer<OUT> outSerializer = createSerializer(outTypeInfo);
 
 		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
 
@@ -790,5 +785,10 @@ public class StreamGraph implements Pipeline {
 		catch (Exception e) {
 			throw new RuntimeException("JSON plan creation failed", e);
 		}
+	}
+
+	private <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInfo) {
+		return typeInfo != null && !(typeInfo instanceof MissingTypeInfo) ?
+			typeInfo.createSerializer(executionConfig) : null;
 	}
 }
