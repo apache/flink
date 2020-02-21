@@ -262,7 +262,7 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testGroupByConstantKey(): Unit = {
+  def testGroupByWithConstantKey(): Unit = {
     val sql =
       """
         |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c

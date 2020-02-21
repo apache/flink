@@ -215,7 +215,7 @@ GroupAggregate(select=[AVG_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], ac
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupByConstantKey">
+  <TestCase name="testGroupByWithConstantKey">
     <Resource name="sql">
       <![CDATA[
 SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c

@@ -172,9 +172,9 @@ LogicalProject(four=[$1], EXPR$1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[4 AS four, EXPR$1])
-+- GlobalGroupAggregate(groupBy=[b, four], select=[b, four, SUM(sum$0) AS EXPR$1])
-   +- Exchange(distribution=[hash[b, four]])
-      +- LocalGroupAggregate(groupBy=[b, four], select=[b, four, SUM(a) AS sum$0])
++- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
          +- Calc(select=[b, 4 AS four, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
