@@ -1258,6 +1258,37 @@ trait ImplicitExpressionConversions {
   }
 
   // ----------------------------------------------------------------------------------------------
+  // Function calls
+  // ----------------------------------------------------------------------------------------------
+
+  /**
+   * A call to a function that will be looked up in a catalog. There are two kinds of functions:
+   *
+   *  - System functions - which are identified with one part names
+   *  - Catalog functions - which are identified always with three parts names
+   *    (catalog, database, function)
+   *
+   * Moreover each function can either be a temporary function or permanent one
+   * (which is stored in a catalog).
+   *
+   * Based on those two properties, the resolution order for looking up a function based on
+   * the provided path is as follows:
+   *
+   *  - Temporary system function
+   *  - System function
+   *  - Temporary catalog function
+   *  - Catalog function
+   *
+   * @see TableEnvironment#useCatalog(String)
+   * @see TableEnvironment#useDatabase(String)
+   * @see TableEnvironment#createTemporaryFunction
+   * @see TableEnvironment#createTemporarySystemFunction
+   */
+  def call(path: String, params: Expression*): Expression = {
+    lookupCall(path, params: _*)
+  }
+
+  // ----------------------------------------------------------------------------------------------
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------
 
