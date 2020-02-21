@@ -521,12 +521,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
 		final int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
 
-		if (jobManagerMemoryMb < yarnMinAllocationMB || taskManagerMemoryMb < yarnMinAllocationMB) {
-			LOG.warn("The JobManager or TaskManager memory is below the smallest possible YARN Container size. "
-					+ "The value of 'yarn.scheduler.minimum-allocation-mb' is '" + yarnMinAllocationMB + "'. Please increase the memory size." +
-					"YARN will allocate the smaller containers but the scheduler will account for the minimum-allocation-mb, maybe not all instances " +
-					"you requested will start.");
-		}
+		logIfComponentMemNotIntegerMultipleOfYarnMinAllocation("JobManager", jobManagerMemoryMb, yarnMinAllocationMB);
+		logIfComponentMemNotIntegerMultipleOfYarnMinAllocation("TaskManager", taskManagerMemoryMb, yarnMinAllocationMB);
 
 		// set the memory to minAllocationMB to do the next checks correctly
 		if (jobManagerMemoryMb < yarnMinAllocationMB) {
@@ -564,6 +560,22 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				.setSlotsPerTaskManager(clusterSpecification.getSlotsPerTaskManager())
 				.createClusterSpecification();
 
+	}
+
+	private void logIfComponentMemNotIntegerMultipleOfYarnMinAllocation(
+			String componentName,
+			int componentMemoryMB,
+			int yarnMinAllocationMB) {
+		int normalizedMemMB = (componentMemoryMB + (yarnMinAllocationMB - 1)) / yarnMinAllocationMB * yarnMinAllocationMB;
+		if (normalizedMemMB <= 0) {
+			normalizedMemMB = yarnMinAllocationMB;
+		}
+		if (componentMemoryMB != normalizedMemMB) {
+			LOG.info("The configured {} memory is {} MB. YARN will allocate {} MB to make up an integer multiple of its "
+				+ "minimum allocation memory ({} MB, configured via 'yarn.scheduler.minimum-allocation-mb'). The extra {} MB "
+				+ "may not be used by Flink.", componentName, componentMemoryMB, normalizedMemMB, yarnMinAllocationMB,
+				normalizedMemMB - componentMemoryMB);
+		}
 	}
 
 	private void checkYarnQueues(YarnClient yarnClient) {
