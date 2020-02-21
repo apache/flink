@@ -39,11 +39,12 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -658,10 +659,56 @@ public class AbstractStreamOperatorTest {
 	}
 
 	/**
+	 * Check the watermark in case that WatermarkOption is ALL,STREAM1,STREAM2.
+	 */
+	@Test
+	public void testWatermarkOption() throws Exception {
+		TestWatermarkOptionOperator testOperator = new TestWatermarkOptionOperator();
+
+		TwoInputStreamOperatorTestHarness<Object, Object, Long> testHarness =
+			new TwoInputStreamOperatorTestHarness<>(testOperator);
+
+		testHarness.open();
+
+		/////////////////////////////////////////////////////////////
+		// ALL
+		////////////////////////////////////////////////////////////
+		testOperator.setWatermarkOption(WatermarkOption.ALL);
+		testHarness.processWatermark1(new Watermark(0L));
+		testHarness.processWatermark2(new Watermark(1L));
+		assertThat(
+			extractResult(testHarness),
+			contains(0L)
+			);
+
+		/////////////////////////////////////////////////////////////
+		// STREAM1
+		////////////////////////////////////////////////////////////
+		testOperator.setWatermarkOption(WatermarkOption.STREAM1);
+		testHarness.processWatermark1(new Watermark(3L));
+		testHarness.processWatermark2(new Watermark(2L));
+		assertThat(
+			extractResult(testHarness),
+			contains(3L)
+		);
+
+		/////////////////////////////////////////////////////////////
+		// STREAM2
+		////////////////////////////////////////////////////////////
+		testOperator.setWatermarkOption(WatermarkOption.STREAM2);
+		testHarness.processWatermark1(new Watermark(4L));
+		testHarness.processWatermark2(new Watermark(5L));
+		assertThat(
+			extractResult(testHarness),
+			contains(5L)
+		);
+	}
+
+	/**
 	 * Extracts the result values form the test harness and clear the output queue.
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	private <T> List<T> extractResult(OneInputStreamOperatorTestHarness<?, T> testHarness) {
+	private <T> List<T> extractResult(AbstractStreamOperatorTestHarness<T> testHarness) {
 		List<StreamRecord<? extends T>> streamRecords = testHarness.extractOutputStreamRecords();
 		List<T> result = new ArrayList<>();
 		for (Object in : streamRecords) {
@@ -742,6 +789,29 @@ public class AbstractStreamOperatorTest {
 		public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
 			String stateValue = getPartitionedState(stateDescriptor).value();
 			output.collect(new StreamRecord<>("ON_PROC_TIME:" + stateValue));
+		}
+	}
+
+	/**
+	 *Testing TwoInputStreamOperator WatermarkOption.
+	 */
+	private static class TestWatermarkOptionOperator
+		extends AbstractStreamOperator<Long>
+		implements TwoInputStreamOperator<Object, Object, Long> {
+
+		@Override
+		public void processElement1(StreamRecord element) throws Exception {
+
+		}
+
+		@Override
+		public void processElement2(StreamRecord element) throws Exception {
+
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			output.collect(new StreamRecord<>(mark.getTimestamp()));
 		}
 	}
 

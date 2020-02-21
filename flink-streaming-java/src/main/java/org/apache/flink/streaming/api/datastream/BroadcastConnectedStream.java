@@ -27,7 +27,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.WatermarkOption;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -60,6 +62,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 	private final DataStream<IN1> inputStream1;
 	private final BroadcastStream<IN2> inputStream2;
 	private final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors;
+	private WatermarkOption watermarkOption;
 
 	protected BroadcastConnectedStream(
 			final StreamExecutionEnvironment env,
@@ -110,6 +113,16 @@ public class BroadcastConnectedStream<IN1, IN2> {
 	 */
 	public TypeInformation<IN2> getType2() {
 		return inputStream2.getType();
+	}
+
+	/**
+	 * Sets the watermarkOption of the stream.
+	 *
+	 * @param watermarkOption The WatermarkOption of the stream
+	 */
+	public BroadcastConnectedStream<IN1, IN2> watermarkOption(WatermarkOption watermarkOption){
+		this.watermarkOption = watermarkOption;
+		return this;
 	}
 
 	/**
@@ -221,6 +234,10 @@ public class BroadcastConnectedStream<IN1, IN2> {
 		// read the output type of the input Transforms to coax out errors about MissingTypeInfo
 		inputStream1.getType();
 		inputStream2.getType();
+
+		if (watermarkOption != null){
+			((AbstractStreamOperator) operator).setWatermarkOption(watermarkOption);
+		}
 
 		TwoInputTransformation<IN1, IN2, OUT> transform = new TwoInputTransformation<>(
 				inputStream1.getTransformation(),
