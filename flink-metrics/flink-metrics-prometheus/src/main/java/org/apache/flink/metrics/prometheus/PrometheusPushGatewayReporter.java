@@ -45,6 +45,7 @@ import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterO
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus {@link PushGateway}.
  */
 @PublicEvolving
+@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory")
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
 
 	private PushGateway pushGateway;
