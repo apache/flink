@@ -21,6 +21,8 @@ package org.apache.flink.kubernetes.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -71,11 +73,13 @@ public class KubernetesConfigOptions {
 		.withDescription("Kubernetes image pull policy. Valid values are Always, Never, and IfNotPresent. " +
 			"The default policy is IfNotPresent to avoid putting pressure to image repository.");
 
-	public static final ConfigOption<String> CONTAINER_IMAGE_PULL_SECRETS =
+	public static final ConfigOption<List<String>> CONTAINER_IMAGE_PULL_SECRETS =
 		key("kubernetes.container.image.pull-secrets")
 		.stringType()
+		.asList()
 		.noDefaultValue()
-		.withDescription("Comma separated list of the Kubernetes secrets used to access private image registries.");
+		.withDescription("A semicolon-separated list of the Kubernetes secrets used to access " +
+			"private image registries.");
 
 	public static final ConfigOption<String> KUBE_CONFIG_FILE =
 		key("kubernetes.config.file")
