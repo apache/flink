@@ -643,6 +643,12 @@ under the License.
 			<artifactId>hive-webhcat-java-client</artifactId>
 			<version>${hive.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
