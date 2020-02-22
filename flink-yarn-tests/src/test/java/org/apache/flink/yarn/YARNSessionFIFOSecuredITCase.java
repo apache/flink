@@ -79,6 +79,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		TestHadoopModuleFactory.hadoopConfiguration = YARN_CONFIGURATION;
 		flinkConfig.set(SecurityOptions.SECURITY_MODULE_FACTORY_CLASSES,
 			Collections.singletonList("org.apache.flink.yarn.util.TestHadoopModuleFactory"));
+		flinkConfig.set(SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
+			Collections.singletonList("org.apache.flink.yarn.util.TestHadoopSecurityContextFactory"));
 
 		SecurityConfiguration securityConfig =
 			new SecurityConfiguration(flinkConfig);
