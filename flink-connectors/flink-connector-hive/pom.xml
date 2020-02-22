@@ -192,14 +192,6 @@ under the License.
 					<artifactId>joda-time</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-1.2-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-slf4j-impl</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.apache.ant</groupId>
 					<artifactId>ant</artifactId>
 				</exclusion>
@@ -303,10 +295,6 @@ under the License.
 				<exclusion>
 					<groupId>commons-httpclient</groupId>
 					<artifactId>commons-httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-slf4j-impl</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.antlr</groupId>
