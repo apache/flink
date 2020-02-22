@@ -94,21 +94,28 @@ public class JsonRowSerializationSchemaTest {
 	@Test
 	public void testNestedSchema() {
 		final TypeInformation<Row> rowSchema = Types.ROW_NAMED(
-			new String[] {"f1", "f2", "f3"},
-			Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.DOUBLE));
+			new String[] {"f1", "f2", "f3", "f4"},
+			Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.DOUBLE), Types.PRIMITIVE_ARRAY(Types.INT));
 
-		final Row row = new Row(3);
+		final Row row = new Row(4);
 		row.setField(0, 42);
 		row.setField(1, false);
 		final Row nested = new Row(2);
 		nested.setField(0, 22);
 		nested.setField(1, 2.3);
 		row.setField(2, nested);
+		row.setField(3, null);
 
 		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
 			.build();
 		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(rowSchema)
 			.build();
+
+		assertThat(row, whenSerializedWith(serializationSchema)
+			.andDeserializedWith(deserializationSchema)
+			.equalsTo(row));
+
+		row.setField(3, new int[]{1, 2, 3});
 
 		assertThat(row, whenSerializedWith(serializationSchema)
 			.andDeserializedWith(deserializationSchema)
