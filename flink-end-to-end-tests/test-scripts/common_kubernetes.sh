@@ -51,10 +51,33 @@ function check_kubernetes_status {
 function start_kubernetes_if_not_running {
     if ! check_kubernetes_status; then
         echo "Starting minikube ..."
-        start_command="minikube start"
         # We need sudo permission to set vm-driver to none in linux os.
-        [[ "${OS_TYPE}" = "linux" ]] && start_command="sudo CHANGE_MINIKUBE_NONE_USER=true ${start_command} --vm-driver=none"
-        ${start_command}
+        if [[ "${OS_TYPE}" = "linux" ]] ; then
+            # tl;dr: Configure minikube for a low disk space environment
+            #
+            # The VMs provided by azure have ~100GB of disk space, out of which
+            # 85% are allocated, only 15GB are free. That's enough space
+            # for our purposes. However, the kubernetes nodes running during
+            # the k8s tests believe that 85% are not enough free disk space,
+            # so they start garbage collecting their host. During GCing, they
+            # are deleting all docker images currently not in use. 
+            # However, the k8s test is first building a flink image, then launching
+            # stuff on k8s. Sometimes, k8s deletes the new Flink images,
+            # thus it can not find them anymore, letting the test fail /
+            # timeout. That's why we have set the GC threshold to 98% and 99%
+            # here.
+            # Similarly, the kubelets are marking themself as "low disk space",
+            # causing Flink to avoid this node (again, failing the test)
+            sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
+                --extra-config=kubelet.image-gc-high-threshold=99 \
+                --extra-config=kubelet.image-gc-low-threshold=98 \
+                --extra-config=kubelet.minimum-container-ttl-duration=120m \
+                --extra-config=kubelet.eviction-hard="memory.available<5Mi,nodefs.available<1Mi,imagefs.available<1Mi" \
+                --extra-config=kubelet.eviction-soft="memory.available<5Mi,nodefs.available<2Mi,imagefs.available<2Mi" \
+                --extra-config=kubelet.eviction-soft-grace-period="memory.available=2h,nodefs.available=2h,imagefs.available=2h"
+        else
+            sudo minikube start
+        fi
         # Fix the kubectl context, as it's often stale.
         minikube update-context
     fi
