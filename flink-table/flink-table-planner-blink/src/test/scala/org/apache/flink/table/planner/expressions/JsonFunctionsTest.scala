@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -125,4 +126,47 @@ class JsonFunctionsTest extends ExpressionTestBase {
     }
   }
 
+  @Test
+  def testJsonExists(): Unit = {
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'strict $.foo' false on error)", "true")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'strict $.foo' true on error)", "true")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'strict $.foo' unknown on error)", "true")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo' false on error)", "true")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo' true on error)", "true")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo' unknown on error)", "true")
+    testSqlApi("json_exists('{}', "
+      + "'invalid $.foo' false on error)", "false")
+    testSqlApi("json_exists('{}', "
+      + "'invalid $.foo' true on error)", "true")
+    testSqlApi("json_exists('{}', "
+      + "'invalid $.foo' unknown on error)", "null")
+
+    // not exists
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'strict $.foo1' false on error)", "false")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'strict $.foo1' true on error)", "true")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'strict $.foo1' unknown on error)", "null")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo1' true on error)", "false")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo1' false on error)", "false")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo1' error on error)", "false")
+    testSqlApi("json_exists('{\"foo\":\"bar\"}', "
+      + "'lax $.foo1' unknown on error)", "false")
+
+    // nulls
+    testSqlApi("json_exists(cast(null as varchar), 'lax $' unknown on error)", "null")
+    // error types
+    expectedException.expect(classOf[CodeGenException])
+    testSqlApi("json_exists(f7, 'lax $' unknown on error)", "null")
+  }
 }

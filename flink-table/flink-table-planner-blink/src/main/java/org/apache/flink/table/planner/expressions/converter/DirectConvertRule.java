@@ -148,6 +148,9 @@ public class DirectConvertRule implements CallExpressionConvertRule {
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
 		DEFINITION_OPERATOR_MAP.put(
 			BuiltInFunctionDefinitions.STREAM_RECORD_TIMESTAMP, FlinkSqlOperatorTable.STREAMRECORD_TIMESTAMP);
+
+		// json functions
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.JSON_EXISTS, FlinkSqlOperatorTable.JSON_EXISTS);
 	}
 
 	@Override

@@ -801,6 +801,20 @@ object FunctionGenerator {
       new MethodCallGen(
         BuiltInMethod.IS_JSON_SCALAR.method)))
 
+  addSqlFunctionMethod(
+    JSON_EXISTS,
+    Seq(CHAR, CHAR),
+    BuiltInMethods.JSON_EXISTS)
+
+  addSqlFunctionMethod(
+    JSON_EXISTS,
+    Seq(CHAR, CHAR, RAW),
+    BuiltInMethods.JSON_EXISTS_ERROR_BEHAVIOR)
+
+  addSqlFunctionMethod(
+    JSON_EXISTS,
+    Seq(VARCHAR, CHAR, RAW),
+    BuiltInMethods.JSON_EXISTS_ERROR_BEHAVIOR)
 
   // ----------------------------------------------------------------------------------------------
 

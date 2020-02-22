@@ -641,6 +641,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.isEmpty)
             StreamRecordTimestamp()
 
+          case JSON_EXISTS =>
+            assert(args.size == 2)
+            JsonExists(args.head, args.last)
+
           case _ =>
             unknownFunctionHandler()
         }

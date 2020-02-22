@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -717,6 +718,14 @@ public final class BuiltInFunctionDefinitions {
 	public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
 		new BuiltInFunctionDefinition.Builder()
 			.name("timestampDiff")
+			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
+
+	// json functions
+	public static final BuiltInFunctionDefinition JSON_EXISTS =
+		new BuiltInFunctionDefinition.Builder()
+			.name("json_exists")
 			.kind(SCALAR)
 			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
