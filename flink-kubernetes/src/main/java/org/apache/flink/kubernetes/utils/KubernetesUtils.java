@@ -233,6 +233,20 @@ public class KubernetesUtils {
 	}
 
 	/**
+	 * Generate name of the internal Service.
+	 */
+	public static String getInternalServiceName(String clusterId) {
+		return clusterId;
+	}
+
+	/**
+	 * Generate name of the external Service.
+	 */
+	public static String getRestServiceName(String clusterId) {
+		return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
+	}
+
+	/**
 	 * Get task manager labels for the current Flink cluster. They could be used to watch the pods status.
 	 *
 	 * @return Task manager labels.
