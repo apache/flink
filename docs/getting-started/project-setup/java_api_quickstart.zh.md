@@ -99,7 +99,7 @@ quickstart/
         │               ├── BatchJob.java
         │               └── StreamingJob.java
         └── resources
-            └── log4j.properties
+            └── log4j2.properties
 {% endhighlight %}
 
 示例项目是一个 __Maven project__，它包含了两个类：_StreamingJob_ 和 _BatchJob_ 分别是 *DataStream* and *DataSet* 程序的基础骨架程序。
@@ -176,7 +176,7 @@ ext {
     flinkVersion = '{{ site.version }}'
     scalaBinaryVersion = '{{ site.scala_version }}'
     slf4jVersion = '1.7.7'
-    log4jVersion = '1.2.17'
+    log4jVersion = '2.12.1'
 }
 
 
@@ -186,7 +186,7 @@ tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 }
 
-applicationDefaultJvmArgs = ["-Dlog4j.configuration=log4j.properties"]
+applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
 
 task wrapper(type: Wrapper) {
     gradleVersion = '3.1'
@@ -208,7 +208,7 @@ configurations {
     flinkShadowJar.exclude group: 'org.apache.flink', module: 'force-shading'
     flinkShadowJar.exclude group: 'com.google.code.findbugs', module: 'jsr305'
     flinkShadowJar.exclude group: 'org.slf4j'
-    flinkShadowJar.exclude group: 'log4j'
+    flinkShadowJar.exclude group: 'org.apache.logging.log4j'
 }
 
 // declare the dependencies for your production and test code
@@ -226,7 +226,9 @@ dependencies {
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka-0.11_${scalaBinaryVersion}:${flinkVersion}"
 
-    compile "log4j:log4j:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-api:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-core:${log4jVersion}"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
     compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
 
     // Add test dependencies here.
@@ -293,7 +295,7 @@ quickstart/
         │               ├── BatchJob.java
         │               └── StreamingJob.java
         └── resources
-            └── log4j.properties
+            └── log4j2.properties
 {% endhighlight %}
 
 示例项目是一个 __Gradle 项目__，它包含了两个类：_StreamingJob_ 和 _BatchJob_ 是 *DataStream* 和 *DataSet* 程序的基础骨架程序。
