@@ -167,7 +167,7 @@ quickstart/
 └── src
     └── main
         ├── resources
-        │   └── log4j.properties
+        │   └── log4j2.properties
         └── scala
             └── org
                 └── myorg
