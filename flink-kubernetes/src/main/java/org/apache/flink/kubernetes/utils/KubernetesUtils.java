@@ -128,43 +128,6 @@ public class KubernetesUtils {
 	}
 
 	/**
-	 * Generates the shell command to start a job manager for kubernetes.
-	 *
-	 * @param flinkConfig The Flink configuration.
-	 * @param jobManagerMemoryMb JobManager heap size.
-	 * @param configDirectory The configuration directory for the flink-conf.yaml
-	 * @param logDirectory The log directory.
-	 * @param hasLogback Uses logback?
-	 * @param hasLog4j Uses log4j?
-	 * @param mainClass The main class to start with.
-	 * @param mainArgs The args for main class.
-	 * @return A String containing the job manager startup command.
-	 */
-	public static String getJobManagerStartCommand(
-			Configuration flinkConfig,
-			int jobManagerMemoryMb,
-			String configDirectory,
-			String logDirectory,
-			boolean hasLogback,
-			boolean hasLog4j,
-			String mainClass,
-			@Nullable String mainArgs) {
-		final int heapSize = BootstrapTools.calculateHeapSize(jobManagerMemoryMb, flinkConfig);
-		final String jvmMemOpts = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
-		return getCommonStartCommand(
-			flinkConfig,
-			ClusterComponent.JOB_MANAGER,
-			jvmMemOpts,
-			configDirectory,
-			logDirectory,
-			hasLogback,
-			hasLog4j,
-			mainClass,
-			mainArgs
-		);
-	}
-
-	/**
 	 * Generates the shell command to start a task manager for kubernetes.
 	 *
 	 * @param flinkConfig The Flink configuration.
@@ -301,32 +264,7 @@ public class KubernetesUtils {
 			.build();
 	}
 
-	private static String getJavaOpts(Configuration flinkConfig, ConfigOption<String> configOption) {
-		String baseJavaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
-
-		if (flinkConfig.getString(configOption).length() > 0) {
-			return baseJavaOpts + " " + flinkConfig.getString(configOption);
-		} else {
-			return baseJavaOpts;
-		}
-	}
-
-	private static String getLogging(String logFile, String confDir, boolean hasLogback, boolean hasLog4j) {
-		StringBuilder logging = new StringBuilder();
-		if (hasLogback || hasLog4j) {
-			logging.append("-Dlog.file=").append(logFile);
-			if (hasLogback) {
-				logging.append(" -Dlogback.configurationFile=file:").append(confDir).append("/logback.xml");
-			}
-			if (hasLog4j) {
-				logging.append(" -Dlog4j.configuration=file:").append(confDir).append("/log4j.properties");
-				logging.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/log4j.properties");
-			}
-		}
-		return logging.toString();
-	}
-
-	private static String getCommonStartCommand(
+	public static String getCommonStartCommand(
 			Configuration flinkConfig,
 			ClusterComponent mode,
 			String jvmMemOpts,
@@ -368,7 +306,34 @@ public class KubernetesUtils {
 		return BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
 	}
 
-	private enum ClusterComponent {
+	private static String getJavaOpts(Configuration flinkConfig, ConfigOption<String> configOption) {
+		String baseJavaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
+
+		if (flinkConfig.getString(configOption).length() > 0) {
+			return baseJavaOpts + " " + flinkConfig.getString(configOption);
+		} else {
+			return baseJavaOpts;
+		}
+	}
+
+	private static String getLogging(String logFile, String confDir, boolean hasLogback, boolean hasLog4j) {
+		StringBuilder logging = new StringBuilder();
+		if (hasLogback || hasLog4j) {
+			logging.append("-Dlog.file=").append(logFile);
+			if (hasLogback) {
+				logging.append(" -Dlogback.configurationFile=file:").append(confDir).append("/logback.xml");
+			}
+			if (hasLog4j) {
+				logging.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/log4j.properties");
+			}
+		}
+		return logging.toString();
+	}
+
+	/**
+	 * Cluster components.
+	 */
+	public enum ClusterComponent {
 		JOB_MANAGER,
 		TASK_MANAGER
 	}
