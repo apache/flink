@@ -36,7 +36,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -177,24 +176,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		}
 
 		try {
-			final KubernetesService internalSvc = client.createInternalService(clusterId).get();
-			// Update the service id in Flink config, it will be used for gc.
-			final String serviceId = internalSvc.getInternalResource().getMetadata().getUid();
-			if (serviceId != null) {
-				flinkConfig.setString(KubernetesConfigOptionsInternal.SERVICE_ID, serviceId);
-			} else {
-				throw new ClusterDeploymentException("Get service id failed.");
-			}
-
-			// Create the rest service when exposed type is not ClusterIp.
-			final String restSvcExposedType = flinkConfig.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
-			if (!restSvcExposedType.equals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.toString())) {
-				client.createRestService(clusterId).get();
-			}
-
-			client.createConfigMap();
-			client.createFlinkMasterDeployment(clusterSpecification);
-
+			// todo
 			return createClusterClientProvider(clusterId);
 		} catch (Exception e) {
 			client.handleException(e);
