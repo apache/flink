@@ -208,7 +208,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		final String confDirOption = "--configDir " + flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
 		assertTrue(tmContainer.getArgs().get(2).contains(confDirOption));
 
-		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
+		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(pod)));
 		final ResourceID resourceID = new ResourceID(podName);
 		assertThat(resourceManager.getWorkerNodes().keySet(), Matchers.contains(resourceID));
 
@@ -231,16 +231,16 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		final Pod pod1 = kubeClient.pods().list().getItems().get(0);
 		final String taskManagerPrefix = CLUSTER_ID + "-taskmanager-1-";
 
-		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod1)));
+		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(pod1)));
 
 		// General modification event
-		resourceManager.onModified(Collections.singletonList(new KubernetesPod(flinkConfig, pod1)));
+		resourceManager.onModified(Collections.singletonList(new KubernetesPod(pod1)));
 		assertEquals(1, kubeClient.pods().list().getItems().size());
 		assertEquals(taskManagerPrefix + 1, kubeClient.pods().list().getItems().get(0).getMetadata().getName());
 
 		// Terminate the pod.
 		terminatePod(pod1);
-		resourceManager.onModified(Collections.singletonList(new KubernetesPod(flinkConfig, pod1)));
+		resourceManager.onModified(Collections.singletonList(new KubernetesPod(pod1)));
 
 		// Old pod should be deleted and a new task manager should be created
 		assertEquals(1, kubeClient.pods().list().getItems().size());
@@ -248,16 +248,16 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		assertEquals(taskManagerPrefix + 2, pod2.getMetadata().getName());
 
 		// Error happens in the pod.
-		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod2)));
+		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(pod2)));
 		terminatePod(pod2);
-		resourceManager.onError(Collections.singletonList(new KubernetesPod(flinkConfig, pod2)));
+		resourceManager.onError(Collections.singletonList(new KubernetesPod(pod2)));
 		final Pod pod3 = kubeClient.pods().list().getItems().get(0);
 		assertEquals(taskManagerPrefix + 3, pod3.getMetadata().getName());
 
 		// Delete the pod.
-		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod3)));
+		resourceManager.onAdded(Collections.singletonList(new KubernetesPod(pod3)));
 		terminatePod(pod3);
-		resourceManager.onDeleted(Collections.singletonList(new KubernetesPod(flinkConfig, pod3)));
+		resourceManager.onDeleted(Collections.singletonList(new KubernetesPod(pod3)));
 		assertEquals(taskManagerPrefix + 4, kubeClient.pods().list().getItems().get(0).getMetadata().getName());
 	}
 
