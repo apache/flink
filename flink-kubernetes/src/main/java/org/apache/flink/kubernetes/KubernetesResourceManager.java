@@ -139,7 +139,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	protected void initialize() throws ResourceManagerException {
 		recoverWorkerNodesFromPreviousAttempts();
 
-		kubeClient.watchPodsAndDoCallback(getTaskManagerLabels(), this);
+		kubeClient.watchPodsAndDoCallback(KubernetesUtils.getTaskManagerLabels(clusterId), this);
 	}
 
 	@Override
@@ -230,7 +230,7 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 	}
 
 	private void recoverWorkerNodesFromPreviousAttempts() throws ResourceManagerException {
-		final List<KubernetesPod> podList = kubeClient.getPodsWithLabels(getTaskManagerLabels());
+		final List<KubernetesPod> podList = kubeClient.getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId));
 		for (KubernetesPod pod : podList) {
 			final KubernetesWorkerNode worker = new KubernetesWorkerNode(new ResourceID(pod.getName()));
 			workerNodes.put(worker.getResourceID(), worker);
@@ -318,19 +318,6 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 			mainClassArgs);
 
 		return Arrays.asList("/bin/bash", "-c", command);
-	}
-
-	/**
-	 * Get task manager labels for the current Flink cluster. They could be used to watch the pods status.
-	 *
-	 * @return Task manager labels.
-	 */
-	private Map<String, String> getTaskManagerLabels() {
-		final Map<String, String> labels = new HashMap<>();
-		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
-		labels.put(Constants.LABEL_APP_KEY, clusterId);
-		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
-		return labels;
 	}
 
 	protected FlinkKubeClient createFlinkKubeClient() {
