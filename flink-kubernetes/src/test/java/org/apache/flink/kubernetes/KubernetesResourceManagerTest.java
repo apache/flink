@@ -28,6 +28,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -110,8 +111,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 		final Deployment mockDeployment = new DeploymentBuilder()
 			.editOrNewMetadata()
-				.withName(CLUSTER_ID)
-				.withUid(CLUSTER_ID)
+				.withName(KubernetesUtils.getDeploymentName(CLUSTER_ID))
 				.endMetadata()
 			.build();
 		kubeClient.apps().deployments().inNamespace(NAMESPACE).create(mockDeployment);

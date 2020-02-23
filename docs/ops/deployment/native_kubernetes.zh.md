@@ -126,12 +126,12 @@ $ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=<ClusterId> 
 
 #### Manual Resource Cleanup
 
-Flink uses [Kubernetes ownerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
-All the Flink created resources, including `ConfigMap`, `Service`, `Deployment`, `Pod`, have been set the ownerReference to `service/<ClusterId>`. 
-When the service is deleted, all other resource will be deleted automatically. 
+Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
+All the Flink created resources, including `ConfigMap`, `Service`, `Pod`, have been set the OwnerReference to `deployment/<ClusterId>`. 
+When the deployment is deleted, all other resources will be deleted automatically. 
 
 {% highlight bash %}
-$ kubectl delete service/<ClusterID>
+$ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
 ## Log Files
