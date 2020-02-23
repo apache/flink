@@ -271,6 +271,19 @@ public class KubernetesUtils {
 	}
 
 	/**
+	 * Get task manager labels for the current Flink cluster. They could be used to watch the pods status.
+	 *
+	 * @return Task manager labels.
+	 */
+	public static Map<String, String> getTaskManagerLabels(String clusterId) {
+		final Map<String, String> labels = new HashMap<>();
+		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
+		labels.put(Constants.LABEL_APP_KEY, clusterId);
+		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
+		return labels;
+	}
+
+	/**
 	 * Get resource requirements from memory and cpu.
 	 *
 	 * @param mem Memory in mb.
