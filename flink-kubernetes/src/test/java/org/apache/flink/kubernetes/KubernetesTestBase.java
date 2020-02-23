@@ -54,7 +54,7 @@ public class KubernetesTestBase extends TestLogger {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private File flinkConfDir;
+	protected File flinkConfDir;
 
 	protected final Configuration flinkConfig = new Configuration();
 
