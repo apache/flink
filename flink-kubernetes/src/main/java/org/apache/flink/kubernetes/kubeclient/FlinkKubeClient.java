@@ -32,11 +32,15 @@ import java.util.Map;
 public interface FlinkKubeClient extends AutoCloseable {
 
 	/**
-	 * Create task manager pod.
+	 * Create the Master components, this can include the Deployment, the ConfigMap(s), and the Service(s).
 	 *
-	 * @param parameter {@link TaskManagerPodParameter} to create a taskmanager pod.
 	 */
-	void createTaskManagerPod(TaskManagerPodParameter parameter);
+	void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec);
+
+	/**
+	 * Create task manager pod.
+	 */
+	void createTaskManagerPod(KubernetesPod kubernetesPod);
 
 	/**
 	 * Stop a specified pod by name.

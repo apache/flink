@@ -34,7 +34,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
  */
 public class KubernetesTaskManagerFactory {
 
-	public static KubernetesPod buildTaskManagerComponent(KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
+	public static KubernetesPod createTaskManagerComponent(KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
 		FlinkPod flinkPod = new FlinkPod.Builder().build();
 
 		final KubernetesStepDecorator[] stepDecorators = new KubernetesStepDecorator[] {
