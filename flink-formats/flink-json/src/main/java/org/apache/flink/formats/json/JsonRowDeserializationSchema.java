@@ -103,18 +103,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		this.ignoreParseErrors = ignoreParseErrors;
 	}
 
-	private JsonRowDeserializationSchema(
-		TypeInformation<Row> typeInfo,
-		boolean failOnMissingField) {
-		this(typeInfo, failOnMissingField, false);
-	}
-
 	/**
 	 * @deprecated Use the provided {@link Builder} instead.
 	 */
 	@Deprecated
 	public JsonRowDeserializationSchema(TypeInformation<Row> typeInfo) {
-		this(typeInfo, false);
+		this(typeInfo, false, false);
 	}
 
 	/**
@@ -122,7 +116,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 */
 	@Deprecated
 	public JsonRowDeserializationSchema(String jsonSchema) {
-		this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false);
+		this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false, false);
 	}
 
 	/**
@@ -200,7 +194,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		}
 
 		/**
-		 * Configures schema to fail when parse json failed.
+		 * Configures schema to fail when parsing json failed.
 		 *
 		 * <p>By default, an exception will be thrown when parsing json fails.
 		 */
