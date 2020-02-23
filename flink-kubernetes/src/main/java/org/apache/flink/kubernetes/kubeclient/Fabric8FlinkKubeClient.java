@@ -18,48 +18,29 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.kubeclient.decorators.ConfigMapDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.Decorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.FlinkMasterDeploymentDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.InitializerDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.OwnerReferenceDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.ServiceDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.TaskManagerPodDecorator;
-import org.apache.flink.kubernetes.kubeclient.resources.ActionWatcher;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesDeployment;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.util.TimeUtils;
-import org.apache.flink.util.function.FunctionUtils;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
-import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -76,100 +57,17 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	private final String clusterId;
 	private final String nameSpace;
 
-	private final List<Decorator<ConfigMap, KubernetesConfigMap>> configMapDecorators = new ArrayList<>();
-	private final List<Decorator<Service, KubernetesService>> internalServiceDecorators = new ArrayList<>();
-	private final List<Decorator<Service, KubernetesService>> restServiceDecorators = new ArrayList<>();
-	private final List<Decorator<Deployment, KubernetesDeployment>> flinkMasterDeploymentDecorators = new ArrayList<>();
-	private final List<Decorator<Pod, KubernetesPod>> taskManagerPodDecorators = new ArrayList<>();
-
 	public Fabric8FlinkKubeClient(Configuration flinkConfig, KubernetesClient client) {
 		this.flinkConfig = checkNotNull(flinkConfig);
 		this.internalClient = checkNotNull(client);
 		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
 		this.nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
-
-		initialize();
-	}
-
-	private void initialize() {
-		this.configMapDecorators.add(new InitializerDecorator<>(Constants.CONFIG_MAP_PREFIX + clusterId));
-		this.configMapDecorators.add(new OwnerReferenceDecorator<>());
-		this.configMapDecorators.add(new ConfigMapDecorator());
-
-		this.internalServiceDecorators.add(new InitializerDecorator<>(clusterId));
-		this.internalServiceDecorators.add(new ServiceDecorator(
-			KubernetesConfigOptions.ServiceExposedType.ClusterIP,
-			false));
-
-		this.restServiceDecorators.add(new InitializerDecorator<>(clusterId + Constants.FLINK_REST_SERVICE_SUFFIX));
-		final String exposedType = flinkConfig.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
-		this.restServiceDecorators.add(new ServiceDecorator(
-			KubernetesConfigOptions.ServiceExposedType.valueOf(exposedType),
-			true));
-		this.restServiceDecorators.add(new OwnerReferenceDecorator<>());
-
-		this.flinkMasterDeploymentDecorators.add(new InitializerDecorator<>(clusterId, Constants.APPS_API_VERSION));
-		this.flinkMasterDeploymentDecorators.add(new OwnerReferenceDecorator<>(Constants.APPS_API_VERSION));
-
-		this.taskManagerPodDecorators.add(new InitializerDecorator<>());
-		this.taskManagerPodDecorators.add(new OwnerReferenceDecorator<>());
-	}
-
-	@Override
-	public void createConfigMap() {
-		KubernetesConfigMap configMap = new KubernetesConfigMap(this.flinkConfig);
-
-		for (Decorator<ConfigMap, KubernetesConfigMap> c : this.configMapDecorators) {
-			configMap = c.decorate(configMap);
-		}
-
-		LOG.debug("Create config map with data size {}", configMap.getInternalResource().getData().size());
-		this.internalClient.configMaps().create(configMap.getInternalResource());
-	}
-
-	@Override
-	public CompletableFuture<KubernetesService> createInternalService(String clusterId) {
-		return createService(clusterId, this.internalServiceDecorators);
-	}
-
-	@Override
-	public CompletableFuture<KubernetesService> createRestService(String clusterId) {
-		return createService(clusterId + Constants.FLINK_REST_SERVICE_SUFFIX, this.restServiceDecorators);
-	}
-
-	@Override
-	public void createFlinkMasterDeployment(ClusterSpecification clusterSpecification) {
-		KubernetesDeployment deployment = new KubernetesDeployment(this.flinkConfig);
-
-		for (Decorator<Deployment, KubernetesDeployment> d : this.flinkMasterDeploymentDecorators) {
-			deployment = d.decorate(deployment);
-		}
-
-		deployment = new FlinkMasterDeploymentDecorator(clusterSpecification).decorate(deployment);
-
-		LOG.debug("Create Flink Master deployment with spec: {}", deployment.getInternalResource().getSpec());
-
-		this.internalClient
-			.apps()
-			.deployments()
-			.inNamespace(this.nameSpace)
-			.create(deployment.getInternalResource());
 	}
 
 	@Override
 	public void createTaskManagerPod(TaskManagerPodParameter parameter) {
-		KubernetesPod pod = new KubernetesPod(this.flinkConfig);
-
-		for (Decorator<Pod, KubernetesPod> d : this.taskManagerPodDecorators) {
-			pod = d.decorate(pod);
-		}
-
-		pod = new TaskManagerPodDecorator(parameter).decorate(pod);
-
-		LOG.debug("Create TaskManager pod with spec: {}", pod.getInternalResource().getSpec());
-
-		this.internalClient.pods().inNamespace(this.nameSpace).create(pod.getInternalResource());
+		// todo
 	}
 
 	@Override
@@ -288,40 +186,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Override
 	public void close() {
 		this.internalClient.close();
-	}
-
-	private CompletableFuture<KubernetesService> createService(
-			String serviceName,
-			List<Decorator<Service, KubernetesService>> serviceDecorators) {
-		KubernetesService kubernetesService = new KubernetesService(this.flinkConfig);
-		for (Decorator<Service, KubernetesService> d : serviceDecorators) {
-			kubernetesService = d.decorate(kubernetesService);
-		}
-
-		LOG.debug("Create service {} with spec: {}", serviceName, kubernetesService.getInternalResource().getSpec());
-
-		this.internalClient.services().create(kubernetesService.getInternalResource());
-
-		final ActionWatcher<Service> watcher = new ActionWatcher<>(
-			Watcher.Action.ADDED,
-			kubernetesService.getInternalResource());
-
-		final Watch watchConnectionManager = this.internalClient
-			.services()
-			.inNamespace(this.nameSpace)
-			.withName(serviceName)
-			.watch(watcher);
-
-		final Duration timeout = TimeUtils.parseDuration(
-			flinkConfig.get(KubernetesConfigOptions.SERVICE_CREATE_TIMEOUT));
-
-		return CompletableFuture.supplyAsync(
-			FunctionUtils.uncheckedSupplier(() -> {
-				final Service createdService = watcher.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
-				watchConnectionManager.close();
-
-				return new KubernetesService(this.flinkConfig, createdService);
-			}));
 	}
 
 	private KubernetesService getService(String serviceName) {
