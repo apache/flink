@@ -124,7 +124,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		return podList
 			.stream()
-			.map(e -> new KubernetesPod(flinkConfig, e))
+			.map(KubernetesPod::new)
 			.collect(Collectors.toList());
 	}
 
@@ -158,16 +158,16 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 				LOG.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
 				switch (action) {
 					case ADDED:
-						callbackHandler.onAdded(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
+						callbackHandler.onAdded(Collections.singletonList(new KubernetesPod(pod)));
 						break;
 					case MODIFIED:
-						callbackHandler.onModified(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
+						callbackHandler.onModified(Collections.singletonList(new KubernetesPod(pod)));
 						break;
 					case ERROR:
-						callbackHandler.onError(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
+						callbackHandler.onError(Collections.singletonList(new KubernetesPod(pod)));
 						break;
 					case DELETED:
-						callbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(flinkConfig, pod)));
+						callbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(pod)));
 						break;
 					default:
 						LOG.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
@@ -202,7 +202,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 			return null;
 		}
 
-		return new KubernetesService(this.flinkConfig, service);
+		return new KubernetesService(service);
 	}
 
 	/**
