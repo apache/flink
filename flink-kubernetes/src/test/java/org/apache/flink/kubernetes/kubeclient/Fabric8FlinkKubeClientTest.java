@@ -56,7 +56,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
  */
-public class Fabric8ClientTest extends KubernetesTestBase {
+public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 
 	private FlinkKubeClient flinkKubeClient;
 
