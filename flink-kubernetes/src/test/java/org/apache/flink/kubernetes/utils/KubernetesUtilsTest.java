@@ -33,20 +33,13 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
-import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.stream.IntStream;
 
-import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS;
-import static org.apache.flink.kubernetes.utils.KubernetesUtils.parseImagePullSecrets;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -243,23 +236,6 @@ public class KubernetesUtilsTest extends TestLogger {
 				e.getMessage(),
 				containsString(testingPort.key() + " should not be null."));
 		}
-	}
-
-	@Test
-	public void testParseImagePullSecrets() {
-		final Configuration cfg = new Configuration();
-		final LocalObjectReference[] noSecrets = parseImagePullSecrets(cfg.get(CONTAINER_IMAGE_PULL_SECRETS));
-		assertEquals(0, noSecrets.length);
-
-		cfg.set(CONTAINER_IMAGE_PULL_SECRETS, Collections.singletonList("s1"));
-		final LocalObjectReference[] oneSecret = parseImagePullSecrets(cfg.get(CONTAINER_IMAGE_PULL_SECRETS));
-		assertTrue(oneSecret.length == 1 && oneSecret[0].getName().equals("s1"));
-
-		cfg.set(CONTAINER_IMAGE_PULL_SECRETS, Arrays.asList("s1", "s2", "s3", "s4"));
-		final LocalObjectReference[] commonSeparatedSecrets = parseImagePullSecrets(cfg.get(CONTAINER_IMAGE_PULL_SECRETS));
-		final String[] expectedSecrets = new String[]{"s1", "s2", "s3", "s4"};
-		assertEquals(4, commonSeparatedSecrets.length);
-		IntStream.range(0, 3).forEach(i -> assertEquals(expectedSecrets[i], commonSeparatedSecrets[i].getName()));
 	}
 
 	@Test

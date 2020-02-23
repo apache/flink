@@ -30,7 +30,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.KeyToPath;
-import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -300,18 +299,6 @@ public class KubernetesUtils {
 			.addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
 			.addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity)
 			.build();
-	}
-
-	public static LocalObjectReference[] parseImagePullSecrets(List<String> imagePullSecrets) {
-		if (imagePullSecrets == null) {
-			return new LocalObjectReference[0];
-		} else {
-			return imagePullSecrets.stream()
-				.map(String::trim)
-				.filter(secret -> !secret.isEmpty())
-				.map(LocalObjectReference::new)
-				.toArray(LocalObjectReference[]::new);
-		}
 	}
 
 	private static String getJavaOpts(Configuration flinkConfig, ConfigOption<String> configOption) {
