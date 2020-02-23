@@ -140,6 +140,10 @@ public enum LogicalTypeRoot {
 		LogicalTypeFamily.CONSTRUCTED,
 		LogicalTypeFamily.EXTENSION),
 
+	OBJECT(
+		LogicalTypeFamily.CONSTRUCTED,
+		LogicalTypeFamily.EXTENSION),
+
 	ROW(
 		LogicalTypeFamily.CONSTRUCTED),
 
