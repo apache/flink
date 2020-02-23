@@ -125,4 +125,71 @@ class JsonFunctionsTest extends ExpressionTestBase {
     }
   }
 
+  @Test
+  def testJsonQuery(): Unit = {
+    // lax test
+    testSqlApi("json_query('{\"foo\":100}', 'lax $' null on empty)", "{\"foo\":100}")
+    testSqlApi("json_query('{\"foo\":100}', 'lax $' error on empty)", "{\"foo\":100}")
+    testSqlApi("json_query('{\"foo\":100}', 'lax $' empty array on empty)", "{\"foo\":100}");
+    testSqlApi("json_query('{\"foo\":100}', 'lax $' empty object on empty)", "{\"foo\":100}");
+    testSqlApi("json_query('{\"foo\":100}', 'lax $.foo' null on empty)", "null");
+    testSqlApi("json_query('{\"foo\":100}', 'lax $.foo' empty array on empty)", "[]");
+    testSqlApi("json_query('{\"foo\":100}', 'lax $.foo' empty object on empty)", "{}");
+
+    // path error test
+    testSqlApi("json_query('{\"foo\":100}', 'invalid $.foo' null on error)", "null");
+    testSqlApi("json_query('{\"foo\":100}', 'invalid $.foo' empty array on error)", "[]");
+    testSqlApi("json_query('{\"foo\":100}', 'invalid $.foo' empty object on error)", "{}");
+
+    // strict test
+    testSqlApi("json_query('{\"foo\":100}', 'strict $' null on empty)", "{\"foo\":100}");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $' error on empty)", "{\"foo\":100}");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $' empty array on error)", "{\"foo\":100}");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $' empty object on error)", "{\"foo\":100}");
+
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo1' null on error)", "null");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo1' empty array on error)", "[]");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo1' empty object on error)", "{}");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' null on error)", "null");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' empty array on error)", "[]");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' empty object on error)", "{}");
+
+    // array wrapper test
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' without wrapper)", "null");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' without array wrapper)", "null");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' with wrapper)", "[100]");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' with unconditional wrapper)", "[100]");
+    testSqlApi("json_query('{\"foo\":100}', 'strict $.foo' with conditional wrapper)", "[100]");
+    testSqlApi("json_query('{\"foo\":[100]}', 'strict $.foo' without wrapper)", "[100]");
+    testSqlApi("json_query('{\"foo\":[100]}', 'strict $.foo' without array wrapper)", "[100]");
+    testSqlApi("json_query('{\"foo\":[100]}', 'strict $.foo' with wrapper)", "[[100]]");
+    testSqlApi("json_query('{\"foo\":[100]}', 'strict $.foo' with unconditional wrapper)",
+      "[[100]]");
+    testSqlApi("json_query('{\"foo\":[100]}', 'strict $.foo' with conditional wrapper)", "[100]");
+
+    // without on err test
+    testSqlApi("json_query('{\"foo\":100}', " +
+      "'strict $.foo' without wrapper null on error)", "null");
+    testSqlApi("json_query('{\"foo\":100}', " +
+      "'strict $.foo' without wrapper empty array on error)", "[]");
+    testSqlApi("json_query('{\"foo\":100}', " +
+      "'strict $.foo' without wrapper empty object on error)", "{}");
+    testSqlApi("json_query('{\"foo\":100}', " +
+      "'strict $.foo' without wrapper null on error)", "null");
+
+    // with on err test
+    testSqlApi("json_query('{\"foo\":100}', " +
+      "'strict $.foo' with wrapper null on error)", "[100]");
+    testSqlApi("json_query('{\"foo\":100}', " +
+      "'strict $.foo' with unconditional wrapper null on error)", "[100]");
+
+    // nulls
+    testSqlApi("json_query(cast(null as varchar), 'lax $')", "null")
+
+    testSqlApi("json_query(f8, 'lax $' null on empty)", "{\"name\":\"flink\"}")
+    testSqlApi("json_query(f8, 'invalid $.name' null on error)", "null")
+    testSqlApi("json_query(f8, 'strict $.name1' null on error)", "null")
+    testSqlApi("json_query(f8, 'strict $' null on empty)", "{\"name\":\"flink\"}")
+    testSqlApi("json_query(cast(f2 as varchar), 'lax $' null on empty)", "null")
+  }
 }
