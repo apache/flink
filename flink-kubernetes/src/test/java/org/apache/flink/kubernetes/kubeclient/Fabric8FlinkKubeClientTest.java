@@ -20,26 +20,17 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.kubernetes.KubernetesTestBase;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.io.IOException;
 
 /**
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
  */
 public class Fabric8FlinkKubeClientTest extends KubernetesTestBase {
 
-	private FlinkKubeClient flinkKubeClient;
-
-	private KubernetesClient kubeClient;
-
 	@Before
-	public void setUp() throws IOException {
-		super.setUp();
-		flinkKubeClient = getFabric8FlinkKubeClient();
-		kubeClient = getKubeClient();
+	public void setup() throws Exception {
+		super.setup();
 	}
 
 	@Test
