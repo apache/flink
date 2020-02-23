@@ -24,11 +24,15 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
-import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watcher;
@@ -66,8 +70,52 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	}
 
 	@Override
-	public void createTaskManagerPod(TaskManagerPodParameter parameter) {
-		// todo
+	public void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec) {
+		final Deployment deployment = kubernetesJMSpec.getDeployment();
+		final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
+
+		// create Deployment
+		LOG.debug("Start to create deployment with spec {}", deployment.getSpec().toString());
+		final Deployment createdDeployment = this.internalClient
+			.apps()
+			.deployments()
+			.inNamespace(this.nameSpace)
+			.create(deployment);
+
+		// Note that we should use the uid of the created Deployment for the OwnerReference.
+		setOwnerReference(createdDeployment, accompanyingResources);
+
+		this.internalClient
+			.resourceList(accompanyingResources)
+			.inNamespace(this.nameSpace)
+			.createOrReplace();
+	}
+
+	@Override
+	public void createTaskManagerPod(KubernetesPod kubernetesPod) {
+		final Deployment masterDeployment = this.internalClient
+			.apps()
+			.deployments()
+			.inNamespace(this.nameSpace)
+			.withName(KubernetesUtils.getDeploymentName(clusterId))
+			.get();
+
+		if (masterDeployment == null) {
+			throw new RuntimeException(
+				"Failed to find Deployment named " + clusterId + " in namespace " + this.nameSpace);
+		}
+
+		// Note that we should use the uid of the master Deployment for the OwnerReference.
+		setOwnerReference(masterDeployment, Collections.singletonList(kubernetesPod.getInternalResource()));
+
+		LOG.debug("Start to create pod with metadata {}, spec {}",
+			kubernetesPod.getInternalResource().getMetadata(),
+			kubernetesPod.getInternalResource().getSpec());
+
+		this.internalClient
+			.pods()
+			.inNamespace(this.nameSpace)
+			.create(kubernetesPod.getInternalResource());
 	}
 
 	@Override
@@ -83,7 +131,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		// Return the service.namespace directly when use ClusterIP.
 		if (serviceExposedType.equals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.toString())) {
-			return new Endpoint(clusterId + "." + nameSpace, restPort);
+			return new Endpoint(KubernetesUtils.getInternalServiceName(clusterId) + "." + nameSpace, restPort);
 		}
 
 		KubernetesService restService = getRestService(clusterId);
@@ -130,7 +178,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 	@Override
 	public void stopAndCleanupCluster(String clusterId) {
-		this.internalClient.services().inNamespace(this.nameSpace).withName(clusterId).cascading(true).delete();
+		this.internalClient
+			.apps()
+			.deployments()
+			.inNamespace(this.nameSpace)
+			.withName(KubernetesUtils.getDeploymentName(clusterId))
+			.cascading(true)
+			.delete();
 	}
 
 	@Override
@@ -138,16 +192,16 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		LOG.error("A Kubernetes exception occurred.", e);
 	}
 
-	@Override
 	@Nullable
+	@Override
 	public KubernetesService getInternalService(String clusterId) {
-		return getService(clusterId);
+		return getService(KubernetesUtils.getInternalServiceName(clusterId));
 	}
 
 	@Override
 	@Nullable
 	public KubernetesService getRestService(String clusterId) {
-		return getService(clusterId + Constants.FLINK_REST_SERVICE_SUFFIX);
+		return getService(KubernetesUtils.getRestServiceName(clusterId));
 	}
 
 	@Override
@@ -186,6 +240,19 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Override
 	public void close() {
 		this.internalClient.close();
+	}
+
+	private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {
+		final OwnerReference deploymentOwnerReference = new OwnerReferenceBuilder()
+			.withName(deployment.getMetadata().getName())
+			.withApiVersion(deployment.getApiVersion())
+			.withUid(deployment.getMetadata().getUid())
+			.withKind(deployment.getKind())
+			.withController(true)
+			.withBlockOwnerDeletion(true)
+			.build();
+		resources.forEach(resource ->
+			resource.getMetadata().setOwnerReferences(Collections.singletonList(deploymentOwnerReference)));
 	}
 
 	private KubernetesService getService(String serviceName) {

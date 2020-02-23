@@ -25,7 +25,6 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.TaskManagerPodParameter;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -62,6 +61,7 @@ import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodStatusBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -72,9 +72,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -265,12 +263,17 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	public void testGetWorkerNodesFromPreviousAttempts() throws Exception {
 		// Prepare pod of previous attempt
 		final String previewPodName = CLUSTER_ID + "-taskmanager-1-1";
-		flinkKubeClient.createTaskManagerPod(new TaskManagerPodParameter(
-			previewPodName,
-			new ArrayList<>(),
-			1024,
-			1,
-			new HashMap<>()));
+
+		final Pod mockTaskManagerPod = new PodBuilder()
+			.editOrNewMetadata()
+				.withName(previewPodName)
+				.withLabels(KubernetesUtils.getTaskManagerLabels(CLUSTER_ID))
+				.endMetadata()
+			.editOrNewSpec()
+				.endSpec()
+			.build();
+
+		flinkKubeClient.createTaskManagerPod(new KubernetesPod(mockTaskManagerPod));
 		assertEquals(1, kubeClient.pods().list().getItems().size());
 
 		// Call initialize method to recover worker nodes from previous attempt.

@@ -46,7 +46,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
 		this.resultPod =
-			KubernetesTaskManagerFactory.buildTaskManagerComponent(kubernetesTaskManagerParameters).getInternalResource();
+			KubernetesTaskManagerFactory.createTaskManagerComponent(kubernetesTaskManagerParameters).getInternalResource();
 	}
 
 	@Test

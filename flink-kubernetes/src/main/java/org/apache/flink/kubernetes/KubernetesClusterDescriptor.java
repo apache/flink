@@ -36,6 +36,9 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
+import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
+import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -163,10 +166,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			TaskManagerOptions.RPC_PORT,
 			Constants.TASK_MANAGER_RPC_PORT);
 
-		// Set jobmanager address to namespaced service name
-		final String nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
-		flinkConfig.setString(JobManagerOptions.ADDRESS, clusterId + "." + nameSpace);
-
 		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
 			flinkConfig.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
 			KubernetesUtils.checkAndUpdatePortConfigOption(
@@ -176,7 +175,14 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		}
 
 		try {
-			// todo
+			final KubernetesJobManagerParameters kubernetesJobManagerParameters =
+				new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
+
+			final KubernetesJobManagerSpecification kubernetesJobManagerSpec =
+				KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+
+			client.createJobManagerComponent(kubernetesJobManagerSpec);
+
 			return createClusterClientProvider(clusterId);
 		} catch (Exception e) {
 			client.handleException(e);
