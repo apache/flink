@@ -18,9 +18,11 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import com.esotericsoftware.kryo.util.IdentityObjectIntMap;
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 
 public class DisjointSet<V> {
