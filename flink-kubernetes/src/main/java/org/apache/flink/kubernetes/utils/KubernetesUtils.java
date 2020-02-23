@@ -28,14 +28,9 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.KeyToPath;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeMount;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,16 +42,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_MAP_PREFIX;
-import static org.apache.flink.kubernetes.utils.Constants.FLINK_CONF_VOLUME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -166,70 +154,6 @@ public class KubernetesUtils {
 			mainClass,
 			args
 		);
-	}
-
-	/**
-	 * Get config map volume for job manager and task manager pod.
-	 *
-	 * @param clusterId Cluster id.
-	 * @param hasLogback Uses logback?
-	 * @param hasLog4j Uses log4j?
-	 * @return Config map volume.
-	 */
-	public static Volume getConfigMapVolume(String clusterId, boolean hasLogback, boolean hasLog4j) {
-		final Volume configMapVolume = new Volume();
-		configMapVolume.setName(FLINK_CONF_VOLUME);
-
-		final List<KeyToPath> items = new ArrayList<>();
-		items.add(new KeyToPath(FLINK_CONF_FILENAME, null, FLINK_CONF_FILENAME));
-
-		if (hasLogback) {
-			items.add(new KeyToPath(CONFIG_FILE_LOGBACK_NAME, null, CONFIG_FILE_LOGBACK_NAME));
-		}
-
-		if (hasLog4j) {
-			items.add(new KeyToPath(CONFIG_FILE_LOG4J_NAME, null, CONFIG_FILE_LOG4J_NAME));
-		}
-
-		configMapVolume.setConfigMap(new ConfigMapVolumeSourceBuilder()
-			.withName(CONFIG_MAP_PREFIX + clusterId)
-			.withItems(items)
-			.build());
-		return configMapVolume;
-	}
-
-	/**
-	 * Get config map volume for job manager and task manager pod.
-	 *
-	 * @param flinkConfDirInPod Flink conf directory that will be mounted in the pod.
-	 * @param hasLogback Uses logback?
-	 * @param hasLog4j Uses log4j?
-	 * @return Volume mount list.
-	 */
-	public static List<VolumeMount> getConfigMapVolumeMount(String flinkConfDirInPod, boolean hasLogback, boolean hasLog4j) {
-		final List<VolumeMount> volumeMounts = new ArrayList<>();
-		volumeMounts.add(new VolumeMountBuilder()
-			.withName(FLINK_CONF_VOLUME)
-			.withMountPath(new File(flinkConfDirInPod, FLINK_CONF_FILENAME).getPath())
-			.withSubPath(FLINK_CONF_FILENAME).build());
-
-		if (hasLogback) {
-			volumeMounts.add(new VolumeMountBuilder()
-				.withName(FLINK_CONF_VOLUME)
-				.withMountPath(new File(flinkConfDirInPod, CONFIG_FILE_LOGBACK_NAME).getPath())
-				.withSubPath(CONFIG_FILE_LOGBACK_NAME)
-				.build());
-		}
-
-		if (hasLog4j) {
-			volumeMounts.add(new VolumeMountBuilder()
-				.withName(FLINK_CONF_VOLUME)
-				.withMountPath(new File(flinkConfDirInPod, CONFIG_FILE_LOG4J_NAME).getPath())
-				.withSubPath(CONFIG_FILE_LOG4J_NAME)
-				.build());
-		}
-
-		return volumeMounts;
 	}
 
 	/**
