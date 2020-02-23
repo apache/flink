@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes;
+package org.apache.flink.kubernetes.utils;
 
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -27,7 +27,6 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -58,7 +57,7 @@ public class KubernetesUtilsTest extends TestLogger {
 	private static final String java = "$JAVA_HOME/bin/java";
 	private static final String classpath = "-classpath $FLINK_CLASSPATH";
 	private static final String jvmOpts = "-Djvm";
-	private static final String mainClass = "org.apache.flink.kubernetes.KubernetesUtilsTest";
+	private static final String mainClass = "org.apache.flink.kubernetes.utils.KubernetesUtilsTest";
 	private static final String mainClassArgs = "--job-id=1 -Dtest.key=value";
 
 	// Logging variables
