@@ -175,7 +175,7 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{ site.version }}'
     scalaBinaryVersion = '{{ site.scala_version }}'
-    slf4jVersion = '1.7.7'
+    slf4jVersion = '1.7.15'
     log4jVersion = '2.12.1'
 }
 
