@@ -119,6 +119,12 @@ under the License.
 			<groupId>org.apache.arrow</groupId>
 			<artifactId>arrow-vector</artifactId>
 			<version>${arrow.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -289,6 +295,9 @@ under the License.
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>joda-time:*</include>
 									<inculde>com.google.protobuf:*</inculde>
+									<include>org.apache.arrow:*</include>
+									<include>io.netty:*</include>
+									<include>com.google.flatbuffers:*</include>
 								</includes>
 							</artifactSet>
 							<filters>
@@ -327,6 +336,14 @@ under the License.
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google.flatbuffers</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.com.google.flatbuffers</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
