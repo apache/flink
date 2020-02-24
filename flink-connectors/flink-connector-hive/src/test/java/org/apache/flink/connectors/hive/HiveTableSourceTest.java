@@ -411,7 +411,7 @@ public class HiveTableSourceTest {
 	}
 
 	@Test
-	public void testVectorReaderSwitch() throws Exception {
+	public void testSourceConfig() throws Exception {
 		// vector reader not available for 1.x and we're not testing orc for 2.0.x
 		Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
 		Map<String, String> env = System.getenv();
