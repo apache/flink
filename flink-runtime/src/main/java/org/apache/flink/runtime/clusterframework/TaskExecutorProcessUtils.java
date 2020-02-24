@@ -640,15 +640,11 @@ public class TaskExecutorProcessUtils {
 		}
 	}
 
-	public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
-		return getCpuCores(config, fallback);
-	}
-
 	private static CPUResource getCpuCores(final Configuration config) {
-		return getCpuCores(config, -1.0);
+		return getCpuCoresWithFallback(config, -1.0);
 	}
 
-	private static CPUResource getCpuCores(final Configuration config, double fallback) {
+	public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
 		final double cpuCores;
 		if (config.contains(TaskManagerOptions.CPU_CORES)) {
 			cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
