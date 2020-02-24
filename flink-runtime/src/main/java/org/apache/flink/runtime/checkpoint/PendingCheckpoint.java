@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -46,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
@@ -111,6 +111,11 @@ public class PendingCheckpoint {
 	/** The executor for potentially blocking I/O operations, like state disposal. */
 	private final Executor executor;
 
+	/** The executor for non-blocking operations. */
+	private final Executor mainThreadExecutor;
+
+	private final CompletedCheckpointStore completedCheckpointStore;
+
 	private int numAcknowledgedTasks;
 
 	private boolean discarded;
@@ -135,7 +140,9 @@ public class PendingCheckpoint {
 			CheckpointProperties props,
 			CheckpointStorageLocation targetLocation,
 			Executor executor,
-			CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+			Executor mainThreadExecutor,
+			CompletableFuture<CompletedCheckpoint> onCompletionPromise,
+			CompletedCheckpointStore completedCheckpointStore) {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
@@ -147,6 +154,8 @@ public class PendingCheckpoint {
 		this.props = checkNotNull(props);
 		this.targetLocation = checkNotNull(targetLocation);
 		this.executor = Preconditions.checkNotNull(executor);
+		this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
+		this.completedCheckpointStore = Preconditions.checkNotNull(completedCheckpointStore);
 
 		this.operatorStates = new HashMap<>();
 		this.masterStates = new ArrayList<>(masterStateIdentifiers.size());
@@ -289,24 +298,37 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
-	public CompletedCheckpoint finalizeCheckpoint() throws IOException {
+	public CompletableFuture<CompletedCheckpoint> finalizeCheckpoint() {
 
 		synchronized (lock) {
-			checkState(!isDiscarded(), "checkpoint is discarded");
-			checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet");
+			if (isDiscarded()) {
+				return FutureUtils.completedExceptionally(new IllegalStateException(
+					"checkpoint is discarded"));
+			}
+			if (!isFullyAcknowledged()) {
+				return FutureUtils.completedExceptionally(new IllegalStateException(
+					"Pending checkpoint has not been fully acknowledged yet"));
+			}
+
+			// now we stop the canceller before finalization
+			// it simplifies the concurrent conflict issue here
+			cancelCanceller();
 
 			// make sure we fulfill the promise with an exception if something fails
-			try {
-				// write out the metadata
-				final CheckpointMetadata savepoint = new CheckpointMetadata(checkpointId, operatorStates.values(), masterStates);
-				final CompletedCheckpointStorageLocation finalizedLocation;
+			final CompletableFuture<CompletedCheckpoint> finalizingFuture =
+				CompletableFuture.supplyAsync(() -> {
+				try {
+					checkState(!isDiscarded(), "The checkpoint has been discarded");
+					// write out the metadata
+					final CheckpointMetadata savepoint = new CheckpointMetadata(checkpointId, operatorStates.values(), masterStates);
+					final CompletedCheckpointStorageLocation finalizedLocation;
 
-				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
-					Checkpoints.storeCheckpointMetadata(savepoint, out);
-					finalizedLocation = out.closeAndFinalizeCheckpoint();
-				}
+					try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
+						Checkpoints.storeCheckpointMetadata(savepoint, out);
+						finalizedLocation = out.closeAndFinalizeCheckpoint();
+					}
 
-				CompletedCheckpoint completed = new CompletedCheckpoint(
+					CompletedCheckpoint completed = new CompletedCheckpoint(
 						jobId,
 						checkpointId,
 						checkpointTimestamp,
@@ -316,6 +338,25 @@ public class PendingCheckpoint {
 						props,
 						finalizedLocation);
 
+					try {
+						completedCheckpointStore.addCheckpoint(completed);
+					} catch (Throwable t) {
+						completed.discardOnFailedStoring();
+					}
+					return completed;
+				} catch (Throwable t) {
+					LOG.warn("Could not finalize checkpoint {}.", checkpointId, t);
+					onCompletionPromise.completeExceptionally(t);
+					throw new CompletionException(t);
+				}
+			}, executor);
+
+			return finalizingFuture.thenApplyAsync((completed) -> {
+
+				// since canceller has been already cancelled, discarding means the coordinator must be shut down
+				// all the resources should be released properly when it's shutting down the coordinator
+				checkState(!isDiscarded(), "The checkpoint has been discarded");
+
 				onCompletionPromise.complete(completed);
 
 				// to prevent null-pointers from concurrent modification, copy reference onto stack
@@ -324,7 +365,7 @@ public class PendingCheckpoint {
 					// Finalize the statsCallback and give the completed checkpoint a
 					// callback for discards.
 					CompletedCheckpointStats.DiscardCallback discardCallback =
-							statsCallback.reportCompletedCheckpoint(finalizedLocation.getExternalPointer());
+						statsCallback.reportCompletedCheckpoint(completed.getExternalPointer());
 					completed.setDiscardCallback(discardCallback);
 				}
 
@@ -332,12 +373,7 @@ public class PendingCheckpoint {
 				dispose(false);
 
 				return completed;
-			}
-			catch (Throwable t) {
-				onCompletionPromise.completeExceptionally(t);
-				ExceptionUtils.rethrowIOException(t);
-				return null; // silence the compiler
-			}
+			}, mainThreadExecutor);
 		}
 	}
 
