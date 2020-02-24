@@ -65,7 +65,7 @@ public class KubernetesUtilsTest extends TestLogger {
 	private static final String confDirInPod = "/opt/flink/conf";
 	private static final String logDirInPod = "/opt/flink/log";
 	private static final String logback = String.format("-Dlogback.configurationFile=file:%s/logback.xml", confDirInPod);
-	private static final String log4j = String.format("-Dlog4j.configuration=file:%s/log4j.properties", confDirInPod);
+	private static final String log4j = String.format("-Dlog4j.configuration=file:%s/log4j.properties -Dlog4j.configurationFile=file:%s/log4j.properties", confDirInPod, confDirInPod);
 	private static final String jmLogfile = String.format("-Dlog.file=%s/jobmanager.log", logDirInPod);
 	private static final String jmLogRedirects = String.format("1> %s/jobmanager.out 2> %s/jobmanager.err", logDirInPod, logDirInPod);
 	private static final String tmLogfile = String.format("-Dlog.file=%s/taskmanager.log", logDirInPod);

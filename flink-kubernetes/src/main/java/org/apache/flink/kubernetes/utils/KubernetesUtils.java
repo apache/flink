@@ -320,6 +320,7 @@ public class KubernetesUtils {
 			}
 			if (hasLog4j) {
 				logging.append(" -Dlog4j.configuration=file:").append(confDir).append("/log4j.properties");
+				logging.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/log4j.properties");
 			}
 		}
 		return logging.toString();
