@@ -21,25 +21,29 @@ package org.apache.flink.runtime.checkpoint.metadata;
 import org.apache.flink.annotation.Internal;
 
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * (De)serializer for checkpoint metadata format version 2.
- * This format was introduced with Apache Flink 1.3.0.
+ * (De)serializer for checkpoint metadata format version 3.
+ * This format was introduced with Apache Flink 1.11.0.
+ *
+ * <p>Compared to format version 2, this drops some unused fields and introduces
+ * operator coordinator state.
  *
  * <p>See {@link MetadataV2V3SerializerBase} for a description of the format layout.
  */
 @Internal
-public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements MetadataSerializer{
+public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements MetadataSerializer {
 
 	/** The metadata format version. */
-	public static final int VERSION = 2;
+	public static final int VERSION = 3;
 
 	/** The singleton instance of the serializer. */
-	public static final MetadataV2Serializer INSTANCE = new MetadataV2Serializer();
+	public static final MetadataV3Serializer INSTANCE = new MetadataV3Serializer();
 
 	/** Singleton, not meant to be instantiated. */
-	private MetadataV2Serializer() {}
+	private MetadataV3Serializer() {}
 
 	@Override
 	public int getVersion() {
@@ -47,8 +51,12 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
 	}
 
 	// ------------------------------------------------------------------------
-	//  Deserialization entry point
+	//  (De)serialization entry points
 	// ------------------------------------------------------------------------
+
+	public static void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos) throws IOException {
+		INSTANCE.serializeMetadata(checkpointMetadata, dos);
+	}
 
 	@Override
 	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader) throws IOException {
