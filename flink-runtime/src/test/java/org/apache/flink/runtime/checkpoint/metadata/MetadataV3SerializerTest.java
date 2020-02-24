@@ -40,7 +40,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Various tests for the version 2 format serializer of a checkpoint.
  */
-public class MetadataV2SerializerTest {
+public class MetadataV3SerializerTest {
 
 	@Test
 	public void testCheckpointWithNoState() throws Exception {
@@ -122,7 +122,7 @@ public class MetadataV2SerializerTest {
 			Collection<OperatorState> operatorStates,
 			Collection<MasterState> masterStates) throws IOException {
 
-		MetadataV2Serializer serializer = MetadataV2Serializer.INSTANCE;
+		MetadataV3Serializer serializer = MetadataV3Serializer.INSTANCE;
 
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);

@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV2Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -85,8 +85,8 @@ public class Checkpoints {
 		// write generic header
 		out.writeInt(HEADER_MAGIC_NUMBER);
 
-		out.writeInt(MetadataV2Serializer.VERSION);
-		MetadataV2Serializer.serialize(checkpointMetadata, out);
+		out.writeInt(MetadataV3Serializer.VERSION);
+		MetadataV3Serializer.serialize(checkpointMetadata, out);
 	}
 
 	// ------------------------------------------------------------------------

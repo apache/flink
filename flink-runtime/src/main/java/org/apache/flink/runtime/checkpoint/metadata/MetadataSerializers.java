@@ -28,18 +28,17 @@ import java.util.Map;
  */
 public class MetadataSerializers {
 
-	private static final Map<Integer, MetadataSerializer> SERIALIZERS = new HashMap<>(2);
+	private static final Map<Integer, MetadataSerializer> SERIALIZERS = new HashMap<>(3);
 
 	static {
-		SERIALIZERS.put(MetadataV1Serializer.VERSION, MetadataV1Serializer.INSTANCE);
-		SERIALIZERS.put(MetadataV2Serializer.VERSION, MetadataV2Serializer.INSTANCE);
+		registerSerializer(MetadataV1Serializer.INSTANCE);
+		registerSerializer(MetadataV2Serializer.INSTANCE);
+		registerSerializer(MetadataV3Serializer.INSTANCE);
 	}
 
-	private MetadataSerializers() {
-		throw new AssertionError();
+	private static void registerSerializer(MetadataSerializer serializer) {
+		SERIALIZERS.put(serializer.getVersion(), serializer);
 	}
-
-	// ------------------------------------------------------------------------
 
 	/**
 	 * Returns the {@link MetadataSerializer} for the given savepoint version.
@@ -56,4 +55,9 @@ public class MetadataSerializers {
 			throw new IllegalArgumentException("Unrecognized checkpoint version number: " + version);
 		}
 	}
+
+	// ------------------------------------------------------------------------
+
+	/** Utility method class, not meant to be instantiated. */
+	private MetadataSerializers() {}
 }
