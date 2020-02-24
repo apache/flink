@@ -16,4 +16,4 @@ The auto-generated Python docs can be found at [https://ci.apache.org/projects/f
 
 ## Python Requirements
 
-Apache Flink Python API depends on Py4J (currently version 0.10.8.1) and python-dateutil(currently version 2.8.0).
+Apache Flink Python API depends on Py4J (currently version 0.10.8.1) and python-dateutil (latest version is recommended).
