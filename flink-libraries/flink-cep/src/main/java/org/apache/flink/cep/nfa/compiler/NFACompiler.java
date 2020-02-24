@@ -303,7 +303,7 @@ public class NFACompiler {
 				currentPattern = currentPattern.getPrevious();
 
 				final Time currentWindowTime = currentPattern.getWindowTime();
-				if (currentWindowTime != null && currentWindowTime.toMilliseconds() < windowTime) {
+				if (currentWindowTime != null && (windowTime == 0 || currentWindowTime.toMilliseconds() < windowTime)) {
 					// the window time is the global minimum of all window times of each state
 					windowTime = currentWindowTime.toMilliseconds();
 				}
