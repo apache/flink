@@ -27,6 +27,8 @@ import java.io.Serializable;
 @PublicEvolving
 public final class InputSelection implements Serializable {
 
+	public static final int NONE_AVAILABLE = -1;
+
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -88,13 +90,14 @@ public final class InputSelection implements Serializable {
 	/**
 	 * Fairly select one of the two inputs for reading. When {@code inputMask} includes two inputs and
 	 * both inputs are available, alternately select one of them. Otherwise, select the available one
-	 * of {@code inputMask}, or return -1 to indicate no input is selected.
+	 * of {@code inputMask}, or return {@link InputSelection#NONE_AVAILABLE} to indicate no input is
+	 * selected.
 	 *
 	 * <p>Note that this supports only two inputs for performance reasons.
 	 *
 	 * @param availableInputsMask The mask of all available inputs.
 	 * @param lastReadInputIndex The index of last read input.
-	 * @return the index of the input for reading or -1, and -1 indicates no input is selected (
+	 * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
 	 *         {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
 	 */
 	public int fairSelectNextIndexOutOf2(int availableInputsMask, int lastReadInputIndex) {

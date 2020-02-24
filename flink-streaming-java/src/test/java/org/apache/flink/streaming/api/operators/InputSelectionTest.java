@@ -61,18 +61,18 @@ public class InputSelectionTest {
 		assertEquals(1, InputSelection.ALL.fairSelectNextIndexOutOf2(2, 1));
 		assertEquals(0, InputSelection.ALL.fairSelectNextIndexOutOf2(1, 0));
 		assertEquals(0, InputSelection.ALL.fairSelectNextIndexOutOf2(1, 1));
-		assertEquals(-1, InputSelection.ALL.fairSelectNextIndexOutOf2(0, 0));
-		assertEquals(-1, InputSelection.ALL.fairSelectNextIndexOutOf2(0, 1));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.ALL.fairSelectNextIndexOutOf2(0, 0));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.ALL.fairSelectNextIndexOutOf2(0, 1));
 
 		assertEquals(0, InputSelection.FIRST.fairSelectNextIndexOutOf2(1, 0));
 		assertEquals(0, InputSelection.FIRST.fairSelectNextIndexOutOf2(3, 0));
-		assertEquals(-1, InputSelection.FIRST.fairSelectNextIndexOutOf2(2, 0));
-		assertEquals(-1, InputSelection.FIRST.fairSelectNextIndexOutOf2(0, 0));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.FIRST.fairSelectNextIndexOutOf2(2, 0));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.FIRST.fairSelectNextIndexOutOf2(0, 0));
 
 		assertEquals(1, InputSelection.SECOND.fairSelectNextIndexOutOf2(2, 1));
 		assertEquals(1, InputSelection.SECOND.fairSelectNextIndexOutOf2(3, 1));
-		assertEquals(-1, InputSelection.SECOND.fairSelectNextIndexOutOf2(1, 1));
-		assertEquals(-1, InputSelection.SECOND.fairSelectNextIndexOutOf2(0, 1));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.SECOND.fairSelectNextIndexOutOf2(1, 1));
+		assertEquals(InputSelection.NONE_AVAILABLE, InputSelection.SECOND.fairSelectNextIndexOutOf2(0, 1));
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
