@@ -71,6 +71,9 @@ import java.util.UUID;
 @Internal
 public class MetadataV2Serializer implements MetadataSerializer {
 
+	/** The metadata format version. */
+	public static final int VERSION = 2;
+
 	/** Random magic number for consistency checks. */
 	private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
 
@@ -89,11 +92,16 @@ public class MetadataV2Serializer implements MetadataSerializer {
 	/** Singleton, not meant to be instantiated. */
 	private MetadataV2Serializer() {}
 
+	@Override
+	public int getVersion() {
+		return VERSION;
+	}
+
 	// ------------------------------------------------------------------------
 	//  (De)serialization entry points
 	// ------------------------------------------------------------------------
 
-	public static void serialize(MetadataV2 checkpointMetadata, DataOutputStream dos) throws IOException {
+	public static void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos) throws IOException {
 		// first: checkpoint ID
 		dos.writeLong(checkpointMetadata.getCheckpointId());
 
@@ -130,7 +138,7 @@ public class MetadataV2Serializer implements MetadataSerializer {
 	}
 
 	@Override
-	public MetadataV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
+	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
 		// first: checkpoint ID
 		final long checkpointId = dis.readLong();
 		if (checkpointId < 0) {
@@ -179,7 +187,7 @@ public class MetadataV2Serializer implements MetadataSerializer {
 			}
 		}
 
-		return new MetadataV2(checkpointId, operatorStates, masterStates);
+		return new CheckpointMetadata(checkpointId, operatorStates, masterStates);
 	}
 
 	// ------------------------------------------------------------------------

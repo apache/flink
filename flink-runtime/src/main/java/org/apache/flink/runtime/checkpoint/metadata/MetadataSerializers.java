@@ -32,7 +32,7 @@ public class MetadataSerializers {
 
 	static {
 		SERIALIZERS.put(MetadataV1Serializer.VERSION, MetadataV1Serializer.INSTANCE);
-		SERIALIZERS.put(MetadataV2.VERSION, MetadataV2Serializer.INSTANCE);
+		SERIALIZERS.put(MetadataV2Serializer.VERSION, MetadataV2Serializer.INSTANCE);
 	}
 
 	private MetadataSerializers() {

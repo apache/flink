@@ -50,9 +50,8 @@ public class MetadataV2Test {
 		Collection<MasterState> masterStates =
 				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-		MetadataV2 checkpoint = new MetadataV2(checkpointId, taskStates, masterStates);
+		CheckpointMetadata checkpoint = new CheckpointMetadata(checkpointId, taskStates, masterStates);
 
-		assertEquals(2, checkpoint.getVersion());
 		assertEquals(checkpointId, checkpoint.getCheckpointId());
 		assertEquals(taskStates, checkpoint.getOperatorStates());
 		assertEquals(masterStates, checkpoint.getMasterStates());
