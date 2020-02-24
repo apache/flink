@@ -338,6 +338,10 @@ under the License.
 									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
 								<relocation>
+									<pattern>org.apache.arrow</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.org.apache.arrow</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>io.netty</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.io.netty</shadedPattern>
 								</relocation>
