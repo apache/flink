@@ -1,30 +1,19 @@
-# Apache Flink Python API
+# Apache Flink
 
-Apache Flink is an open source stream processing framework with the powerful stream- and batch-processing capabilities.
+Apache Flink is a framework and distributed processing engine for stateful computations over unbounded and bounded data streams. Flink has been designed to run in all common cluster environments, perform computations at in-memory speed and at any scale.
 
-Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
+Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
+
+## Python Packaging
 
 This packaging allows you to write Flink programs in Python, but it is currently a very initial version and will change in future versions.
 
-In this initial version only Table API is supported, you can find the documentation at [https://ci.apache.org/projects/flink/flink-docs-master/dev/table/tableApi.html](https://ci.apache.org/projects/flink/flink-docs-master/dev/table/tableApi.html)
+In this initial version only Table API is supported, you can find the documentation at [https://ci.apache.org/projects/flink/flink-docs-release-1.9/dev/table/tableApi.html](https://ci.apache.org/projects/flink/flink-docs-release-1.9/dev/table/tableApi.html)
 
-## Installation
+The tutorial can be found at [https://ci.apache.org/projects/flink/flink-docs-release-1.9/tutorials/python_table_api.html](https://ci.apache.org/projects/flink/flink-docs-release-1.9/tutorials/python_table_api.html)
 
-Currently, we can install PyFlink from Flink source code. Enter the directory where this README.md file is located and install PyFlink on your device by executing 
-
-```
-python setup.py install
-```
-
-## Running test cases 
-
-Currently, we use conda and tox to verify the compatibility of the Flink Python API for multiple versions of Python and will integrate some useful plugins with tox, such as flake8.
-We can enter the directory where this README.md file is located and run test cases by executing
-
-```
-./dev/lint-python.sh
-```
+The auto-generated Python docs can be found at [https://ci.apache.org/projects/flink/flink-docs-release-1.9/api/python/](https://ci.apache.org/projects/flink/flink-docs-release-1.9/api/python/)
 
 ## Python Requirements
 
-PyFlink depends on Py4J (currently version 0.10.8.1).
+Apache Flink Python API depends on Py4J (currently version 0.10.8.1) and python-dateutil (latest version is recommended).
