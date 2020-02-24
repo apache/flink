@@ -127,13 +127,13 @@ public class MetadataV2SerializerTest {
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);
 
-		serializer.serialize(new MetadataV2(checkpointId, operatorStates, masterStates), out);
+		serializer.serialize(new CheckpointMetadata(checkpointId, operatorStates, masterStates), out);
 		out.close();
 
 		byte[] bytes = baos.toByteArray();
 
 		DataInputStream in = new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(bytes));
-		MetadataV2 deserialized = serializer.deserialize(in, getClass().getClassLoader());
+		CheckpointMetadata deserialized = serializer.deserialize(in, getClass().getClassLoader());
 
 		assertEquals(checkpointId, deserialized.getCheckpointId());
 		assertEquals(operatorStates, deserialized.getOperatorStates());

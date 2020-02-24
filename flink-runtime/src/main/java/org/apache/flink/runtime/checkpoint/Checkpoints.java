@@ -20,10 +20,9 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.metadata.Metadata;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV2;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataV2Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -72,7 +71,7 @@ public class Checkpoints {
 	// ------------------------------------------------------------------------
 
 	public static void storeCheckpointMetadata(
-			MetadataV2 checkpointMetadata,
+			CheckpointMetadata checkpointMetadata,
 			OutputStream out) throws IOException {
 
 		DataOutputStream dos = new DataOutputStream(out);
@@ -80,13 +79,13 @@ public class Checkpoints {
 	}
 
 	public static void storeCheckpointMetadata(
-			MetadataV2 checkpointMetadata,
+			CheckpointMetadata checkpointMetadata,
 			DataOutputStream out) throws IOException {
 
 		// write generic header
 		out.writeInt(HEADER_MAGIC_NUMBER);
-		out.writeInt(MetadataV2.VERSION);
 
+		out.writeInt(MetadataV2Serializer.VERSION);
 		MetadataV2Serializer.serialize(checkpointMetadata, out);
 	}
 
@@ -94,7 +93,7 @@ public class Checkpoints {
 	//  Reading and validating checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static Metadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
+	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
 		checkNotNull(in, "input stream");
 		checkNotNull(classLoader, "classLoader");
 
@@ -129,7 +128,7 @@ public class Checkpoints {
 		final String checkpointPointer = location.getExternalPointer();
 
 		// (1) load the savepoint
-		final Metadata checkpointMetadata;
+		final CheckpointMetadata checkpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
 			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
@@ -231,7 +230,7 @@ public class Checkpoints {
 
 		// load the savepoint object (the metadata) to have all the state handles that we need
 		// to dispose of all state
-		final Metadata metadata;
+		final CheckpointMetadata metadata;
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 

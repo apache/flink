@@ -21,7 +21,7 @@ package org.apache.flink.state.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.metadata.Metadata;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
@@ -53,7 +53,7 @@ public final class Savepoint {
 	 * @param stateBackend The state backend of the savepoint.
 	 */
 	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
-		Metadata savepoint = SavepointLoader.loadSavepoint(path);
+		CheckpointMetadata savepoint = SavepointLoader.loadSavepoint(path);
 
 		int maxParallelism = savepoint
 			.getOperatorStates()

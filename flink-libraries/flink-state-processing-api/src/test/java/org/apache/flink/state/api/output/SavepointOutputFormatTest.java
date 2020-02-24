@@ -22,8 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.metadata.Metadata;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV2;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
@@ -56,13 +55,13 @@ public class SavepointOutputFormatTest {
 		Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
 		SavepointOutputFormat format = createSavepointOutputFormat(path);
 
-		MetadataV2 metadata = createSavepoint();
+		CheckpointMetadata metadata = createSavepoint();
 
 		format.open(0, 1);
 		format.writeRecord(metadata);
 		format.close();
 
-		Metadata metadataOnDisk = SavepointLoader.loadSavepoint(path.getPath());
+		CheckpointMetadata metadataOnDisk = SavepointLoader.loadSavepoint(path.getPath());
 
 		Assert.assertEquals(
 			"Incorrect checkpoint id",
@@ -80,11 +79,11 @@ public class SavepointOutputFormatTest {
 			metadataOnDisk.getOperatorStates().iterator().next());
 	}
 
-	private MetadataV2 createSavepoint() {
+	private CheckpointMetadata createSavepoint() {
 		OperatorState operatorState = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 128);
 
 		operatorState.putState(0, new OperatorSubtaskState());
-		return new MetadataV2(0, Collections.singleton(operatorState), Collections.emptyList());
+		return new CheckpointMetadata(0, Collections.singleton(operatorState), Collections.emptyList());
 	}
 
 	private SavepointOutputFormat createSavepointOutputFormat(Path path) throws Exception {
