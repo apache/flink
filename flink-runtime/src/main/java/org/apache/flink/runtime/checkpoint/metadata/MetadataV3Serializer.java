@@ -19,10 +19,14 @@
 package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * (De)serializer for checkpoint metadata format version 3.
@@ -61,5 +65,49 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 	@Override
 	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader) throws IOException {
 		return deserializeMetadata(dis);
+	}
+
+	// ------------------------------------------------------------------------
+	//  version-specific serialization formats
+	// ------------------------------------------------------------------------
+
+	@Override
+	protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos) throws IOException {
+		// Operator ID
+		dos.writeLong(operatorState.getOperatorID().getLowerPart());
+		dos.writeLong(operatorState.getOperatorID().getUpperPart());
+
+		// Parallelism
+		dos.writeInt(operatorState.getParallelism());
+		dos.writeInt(operatorState.getMaxParallelism());
+
+		// Sub task states
+		final Map<Integer, OperatorSubtaskState> subtaskStateMap = operatorState.getSubtaskStates();
+		dos.writeInt(subtaskStateMap.size());
+		for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
+			dos.writeInt(entry.getKey());
+			serializeSubtaskState(entry.getValue(), dos);
+		}
+	}
+
+	@Override
+	protected OperatorState deserializeOperatorState(DataInputStream dis) throws IOException {
+		final OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
+		final int parallelism = dis.readInt();
+		final int maxParallelism = dis.readInt();
+
+		// Add task state
+		final OperatorState operatorState = new OperatorState(jobVertexId, parallelism, maxParallelism);
+
+		// Sub task states
+		final int numSubTaskStates = dis.readInt();
+
+		for (int j = 0; j < numSubTaskStates; j++) {
+			final int subtaskIndex = dis.readInt();
+			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis);
+			operatorState.putState(subtaskIndex, subtaskState);
+		}
+
+		return operatorState;
 	}
 }

@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -204,113 +203,55 @@ public abstract class MetadataV2V3SerializerBase {
 	//  operator state (de)serialization methods
 	// ------------------------------------------------------------------------
 
-	protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos) throws IOException {
-		// Operator ID
-		dos.writeLong(operatorState.getOperatorID().getLowerPart());
-		dos.writeLong(operatorState.getOperatorID().getUpperPart());
+	protected abstract void serializeOperatorState(OperatorState operatorState, DataOutputStream dos) throws IOException;
 
-		// Parallelism
-		int parallelism = operatorState.getParallelism();
-		dos.writeInt(parallelism);
-		dos.writeInt(operatorState.getMaxParallelism());
-
-		// this field was "chain length" before Flink 1.3, and it is still part
-		// of the format, despite being unused
-		dos.writeInt(1);
-
-		// Sub task states
-		Map<Integer, OperatorSubtaskState> subtaskStateMap = operatorState.getSubtaskStates();
-		dos.writeInt(subtaskStateMap.size());
-		for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
-			dos.writeInt(entry.getKey());
-			serializeSubtaskState(entry.getValue(), dos);
-		}
-	}
-
-	protected OperatorState deserializeOperatorState(DataInputStream dis) throws IOException {
-		final OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
-		final int parallelism = dis.readInt();
-		final int maxParallelism = dis.readInt();
-
-		// this field was "chain length" before Flink 1.3, and it is still part
-		// of the format, despite being unused
-		dis.readInt();
-
-		// Add task state
-		final OperatorState taskState = new OperatorState(jobVertexId, parallelism, maxParallelism);
-
-		// Sub task states
-		final int numSubTaskStates = dis.readInt();
-
-		for (int j = 0; j < numSubTaskStates; j++) {
-			final int subtaskIndex = dis.readInt();
-			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis);
-			taskState.putState(subtaskIndex, subtaskState);
-		}
-
-		return taskState;
-	}
+	protected abstract OperatorState deserializeOperatorState(DataInputStream dis) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  operator subtask state (de)serialization methods
 	// ------------------------------------------------------------------------
 
 	protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
-
-		dos.writeLong(-1);
-
-		int len = 0;
-		dos.writeInt(len);
-
-		OperatorStateHandle operatorStateBackend = extractSingleton(subtaskState.getManagedOperatorState());
-
-		len = operatorStateBackend != null ? 1 : 0;
-		dos.writeInt(len);
-		if (len == 1) {
-			serializeOperatorStateHandle(operatorStateBackend, dos);
+		final OperatorStateHandle managedOperatorState = extractSingleton(subtaskState.getManagedOperatorState());
+		if (managedOperatorState != null) {
+			dos.writeInt(1);
+			serializeOperatorStateHandle(managedOperatorState, dos);
+		} else {
+			dos.writeInt(0);
 		}
 
-		OperatorStateHandle operatorStateFromStream = extractSingleton(subtaskState.getRawOperatorState());
-
-		len = operatorStateFromStream != null ? 1 : 0;
-		dos.writeInt(len);
-		if (len == 1) {
-			serializeOperatorStateHandle(operatorStateFromStream, dos);
+		final OperatorStateHandle rawOperatorState = extractSingleton(subtaskState.getRawOperatorState());
+		if (rawOperatorState != null) {
+			dos.writeInt(1);
+			serializeOperatorStateHandle(rawOperatorState, dos);
+		} else {
+			dos.writeInt(0);
 		}
 
-		KeyedStateHandle keyedStateBackend = extractSingleton(subtaskState.getManagedKeyedState());
+		final KeyedStateHandle keyedStateBackend = extractSingleton(subtaskState.getManagedKeyedState());
 		serializeKeyedStateHandle(keyedStateBackend, dos);
 
-		KeyedStateHandle keyedStateStream = extractSingleton(subtaskState.getRawKeyedState());
+		final KeyedStateHandle keyedStateStream = extractSingleton(subtaskState.getRawKeyedState());
 		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
 	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
-		// Duration field has been removed from SubtaskState, do not remove
-		long ignoredDuration = dis.readLong();
+		final int hasManagedOperatorState = dis.readInt();
+		final OperatorStateHandle managedOperatorState = hasManagedOperatorState == 0 ?
+				null : deserializeOperatorStateHandle(dis);
 
-		final int numLegacyTaskStates = dis.readInt();
-		if (numLegacyTaskStates > 0) {
-			throw new IOException(
-				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
-				"no longer supported.");
-		}
+		final int hasRawOperatorState = dis.readInt();
+		final OperatorStateHandle rawOperatorState = hasRawOperatorState == 0 ?
+				null : deserializeOperatorStateHandle(dis);
 
-		int len = dis.readInt();
-		OperatorStateHandle operatorStateBackend = len == 0 ? null : deserializeOperatorStateHandle(dis);
-
-		len = dis.readInt();
-		OperatorStateHandle operatorStateStream = len == 0 ? null : deserializeOperatorStateHandle(dis);
-
-		KeyedStateHandle keyedStateBackend = deserializeKeyedStateHandle(dis);
-
-		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
+		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis);
+		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis);
 
 		return new OperatorSubtaskState(
-				operatorStateBackend,
-				operatorStateStream,
-				keyedStateBackend,
-				keyedStateStream);
+				managedOperatorState,
+				rawOperatorState,
+				managedKeyedState,
+				rawKeyedState);
 	}
 
 	@VisibleForTesting
@@ -541,7 +482,7 @@ public abstract class MetadataV2V3SerializerBase {
 	// ------------------------------------------------------------------------
 
 	@Nullable
-	private static <T> T extractSingleton(Collection<T> collection) {
+	static <T> T extractSingleton(Collection<T> collection) {
 		if (collection == null || collection.isEmpty()) {
 			return null;
 		}
