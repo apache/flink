@@ -27,6 +27,8 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.util.SourceStringReader;
 
+import java.io.Reader;
+
 /**
  * Thin wrapper around {@link SqlParser} that does exception conversion and {@link SqlNode} casting.
  */
@@ -69,6 +71,12 @@ public class CalciteParser {
 		}
 	}
 
+	/**
+	 * Equivalent to {@link SqlParser#create(Reader, SqlParser.Config)}. The only
+	 * difference is we do not wrap the {@link FlinkSqlParserImpl} with {@link SqlParser}.
+	 *
+	 * <p>It is so that we can access specific parsing methods not accessible through the {@code SqlParser}.
+	 */
 	private FlinkSqlParserImpl createFlinkParser(String expr) {
 		SourceStringReader reader = new SourceStringReader(expr);
 		FlinkSqlParserImpl parser = (FlinkSqlParserImpl) config.parserFactory().getParser(reader);

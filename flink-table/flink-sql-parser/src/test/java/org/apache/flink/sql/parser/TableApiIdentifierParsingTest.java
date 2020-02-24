@@ -42,6 +42,9 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class TableApiIdentifierParsingTest {
 
+	private static final String ANTHROPOS_IN_GREEK_IN_UNICODE = "#03B1#03BD#03B8#03C1#03C9#03C0#03BF#03C2";
+	private static final String ANTHROPOS_IN_GREEK = "ανθρωπος";
+
 	@Parameterized.Parameters(name = "Parsing: {0}. Expected identifier: {1}")
 	public static Object[][] parameters() {
 		return new Object[][] {
@@ -68,6 +71,26 @@ public class TableApiIdentifierParsingTest {
 			new Object[] {
 				"db.table",
 				asList("db", "table")
+			},
+
+			new Object[] {
+				"`ta``ble`",
+				singletonList("ta`ble")
+			},
+
+			new Object[] {
+				"`c``at`.`d``b`.`ta``ble`",
+				asList("c`at", "d`b", "ta`ble")
+			},
+
+			new Object[] {
+				"db.U&\"" + ANTHROPOS_IN_GREEK_IN_UNICODE + "\" UESCAPE '#'",
+				asList("db", ANTHROPOS_IN_GREEK)
+			},
+
+			new Object[] {
+				"db.ανθρωπος",
+				asList("db", ANTHROPOS_IN_GREEK)
 			}
 		};
 	}
