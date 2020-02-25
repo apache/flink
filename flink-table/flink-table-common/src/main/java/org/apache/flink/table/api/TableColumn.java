@@ -93,13 +93,13 @@ public class TableColumn {
 		}
 		TableColumn that = (TableColumn) o;
 		return Objects.equals(this.name, that.name)
-			&& Objects.equals(this.type, that.type)
+			&& Objects.equals(this.type.getLogicalType(), that.type.getLogicalType())
 			&& Objects.equals(this.expr, that.expr);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.name, this.type, this.expr);
+		return Objects.hash(this.name, this.type.getLogicalType(), this.expr);
 	}
 
 	//~ Getter/Setter ----------------------------------------------------------
