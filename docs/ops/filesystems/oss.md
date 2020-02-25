@@ -52,7 +52,7 @@ env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));
 
 ### Shaded Hadoop OSS file system
 
-To use `flink-oss-fs-hadoop,` copy the respective JAR file from the `opt` directory to a directory in `plugins` directory of your Flink distribution before starting Flink, e.g.
+To use `flink-oss-fs-hadoop`, copy the respective JAR file from the `opt` directory to a directory in `plugins` directory of your Flink distribution before starting Flink, e.g.
 
 {% highlight bash %}
 mkdir ./plugins/oss-fs-hadoop
