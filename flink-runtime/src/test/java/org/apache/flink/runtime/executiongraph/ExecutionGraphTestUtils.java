@@ -398,13 +398,13 @@ public class ExecutionGraphTestUtils {
 		return groupVertex;
 	}
 
-	public static ExecutionJobVertex getExecutionVertex(
+	public static ExecutionJobVertex getExecutionJobVertex(
 			JobVertexID id,
 			ScheduledExecutorService executor) throws Exception {
-		return getExecutionVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
+		return getExecutionJobVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
 	}
 
-	public static ExecutionJobVertex getExecutionVertex(
+	public static ExecutionJobVertex getExecutionJobVertex(
 			JobVertexID id,
 			ScheduledExecutorService executor,
 			ScheduleMode scheduleMode) throws Exception {
@@ -427,8 +427,8 @@ public class ExecutionGraphTestUtils {
 		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}
 
-	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
-		return getExecutionVertex(id, new DirectScheduledExecutorService());
+	public static ExecutionJobVertex getExecutionJobVertex(JobVertexID id) throws Exception {
+		return getExecutionJobVertex(id, new DirectScheduledExecutorService());
 	}
 
 	// ------------------------------------------------------------------------
