@@ -28,6 +28,7 @@ import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
@@ -127,14 +128,8 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 			// the CsvTableSource needs some rework first
 			// for now the schema must be equal to the encoding
 			// Ignore conversion classes in DataType
-			if (!Arrays
-					.stream(formatSchema.getFieldDataTypes())
-					.map(DataType::getLogicalType)
-					.collect(Collectors.toList())
-					.equals(Arrays
-							.stream(tableSchema.getFieldDataTypes())
-							.map(DataType::getLogicalType)
-							.collect(Collectors.toList()))) {
+			if (!getFieldLogicalTypes(formatSchema)
+					.equals(getFieldLogicalTypes(tableSchema))) {
 				throw new TableException(
 					"Encodings that differ from the schema are not supported yet for CsvTableSources.");
 			}
@@ -164,4 +159,10 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		return csvTableSourceBuilder.build();
 	}
 
+	private static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
+		return Arrays
+				.stream(schema.getFieldDataTypes())
+				.map(DataType::getLogicalType)
+				.collect(Collectors.toList());
+	}
 }
