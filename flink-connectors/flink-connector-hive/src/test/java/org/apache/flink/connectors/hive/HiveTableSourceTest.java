@@ -19,18 +19,16 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.connectors.hive.read.HiveMapredSplitReader;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
-import org.apache.flink.connectors.hive.read.HiveTableInputSplit;
-import org.apache.flink.connectors.hive.read.HiveVectorizedOrcSplitReader;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -40,13 +38,13 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.FileUtils;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -63,11 +61,8 @@ import org.junit.runner.RunWith;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +74,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
@@ -415,7 +411,7 @@ public class HiveTableSourceTest {
 	}
 
 	@Test
-	public void testVectorReaderSwitch() throws Exception {
+	public void testSourceConfig() throws Exception {
 		// vector reader not available for 1.x and we're not testing orc for 2.0.x
 		Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
 		Map<String, String> env = System.getenv();
@@ -423,36 +419,38 @@ public class HiveTableSourceTest {
 		try {
 			hiveShell.execute("create table db1.src (x int,y string) stored as orc");
 			hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
-			testVectorReader(true);
-			testVectorReader(false);
+			testSourceConfig(true, true);
+			testSourceConfig(false, false);
 		} finally {
 			TestBaseUtils.setEnv(env);
 			hiveShell.execute("drop database db1 cascade");
 		}
 	}
 
-	private void testVectorReader(boolean fallback) throws Exception {
-		File tmpDir = Files.createTempDirectory(null).toFile();
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> FileUtils.deleteDirectoryQuietly(tmpDir)));
-
-		File flinkConf = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
-		Configuration conf = new Configuration();
-		conf.setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallback);
-		BootstrapTools.writeConfiguration(conf, flinkConf);
-		Map<String, String> map = new HashMap<>(System.getenv());
-		map.put(ConfigConstants.ENV_FLINK_CONF_DIR, tmpDir.getAbsolutePath());
-		TestBaseUtils.setEnv(map);
-
-		ObjectPath tablePath = new ObjectPath("db1", "src");
-		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
-
+	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
 		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
-		doReturn(new TestVectorReaderSource(new JobConf(hiveCatalog.getHiveConf()), tablePath, catalogTable))
-				.when(tableFactorySpy).createTableSource(any(TableSourceFactory.Context.class));
+
+		doAnswer(invocation -> {
+			TableSourceFactory.Context context = invocation.getArgument(0);
+			return new TestConfigSource(
+					new JobConf(hiveCatalog.getHiveConf()),
+					context.getConfiguration(),
+					context.getObjectIdentifier().toObjectPath(),
+					context.getTable(),
+					fallbackMR,
+					inferParallelism);
+		}).when(tableFactorySpy).createTableSource(any(TableSourceFactory.Context.class));
+
 		HiveCatalog catalogSpy = spy(hiveCatalog);
 		doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
 
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tableEnv.getConfig().getConfiguration().setBoolean(
+				HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallbackMR);
+		tableEnv.getConfig().getConfiguration().setBoolean(
+				HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, inferParallelism);
+		tableEnv.getConfig().getConfiguration().setInteger(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 2);
 		tableEnv.registerCatalog(catalogSpy.getName(), catalogSpy);
 		tableEnv.useCatalog(catalogSpy.getName());
 
@@ -460,39 +458,39 @@ public class HiveTableSourceTest {
 		assertEquals("[1,a, 2,b]", results.toString());
 	}
 
-	// A sub-class of HiveTableSource to test vector reader switch.
-	private static class TestVectorReaderSource extends HiveTableSource {
-		private final JobConf jobConf;
-		private final CatalogTable catalogTable;
+	/**
+	 * A sub-class of HiveTableSource to test vector reader switch.
+	 */
+	private static class TestConfigSource extends HiveTableSource {
+		private final boolean fallbackMR;
+		private final boolean inferParallelism;
 
-		TestVectorReaderSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
-			super(jobConf, tablePath, catalogTable);
-			this.jobConf = jobConf;
-			this.catalogTable = catalogTable;
+		TestConfigSource(
+				JobConf jobConf,
+				ReadableConfig flinkConf,
+				ObjectPath tablePath,
+				CatalogTable catalogTable,
+				boolean fallbackMR,
+				boolean inferParallelism) {
+			super(jobConf, flinkConf, tablePath, catalogTable);
+			this.fallbackMR = fallbackMR;
+			this.inferParallelism = inferParallelism;
 		}
 
 		@Override
-		HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
-			return new TestVectorReaderInputFormat(
-					jobConf, catalogTable, allHivePartitions, null, -1, hiveCatalog.getHiveVersion(), useMapRedReader);
-		}
-	}
-
-	// A sub-class of HiveTableInputFormat to test vector reader switch.
-	private static class TestVectorReaderInputFormat extends HiveTableInputFormat {
-
-		private static final long serialVersionUID = 1L;
-
-		TestVectorReaderInputFormat(JobConf jobConf, CatalogTable catalogTable, List<HiveTablePartition> partitions,
-				int[] projectedFields, long limit, String hiveVersion, boolean useMapRedReader) {
-			super(jobConf, catalogTable, partitions, projectedFields, limit, hiveVersion, useMapRedReader);
+		public DataStream<BaseRow> getDataStream(StreamExecutionEnvironment execEnv) {
+			DataStreamSource<BaseRow> dataStream = (DataStreamSource<BaseRow>) super.getDataStream(execEnv);
+			int parallelism = dataStream.getTransformation().getParallelism();
+			assertEquals(inferParallelism ? 1 : 2, parallelism);
+			return dataStream;
 		}
 
 		@Override
-		public void open(HiveTableInputSplit split) throws IOException {
-			super.open(split);
-			boolean fallback = GlobalConfiguration.loadConfiguration().getBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
-			assertTrue((fallback && reader instanceof HiveMapredSplitReader) || (!fallback && reader instanceof HiveVectorizedOrcSplitReader));
+		HiveTableInputFormat getInputFormat(
+				List<HiveTablePartition> allHivePartitions,
+				boolean useMapRedReader) {
+			assertEquals(useMapRedReader, fallbackMR);
+			return super.getInputFormat(allHivePartitions, useMapRedReader);
 		}
 	}
 

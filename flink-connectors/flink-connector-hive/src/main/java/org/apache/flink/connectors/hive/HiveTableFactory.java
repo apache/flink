@@ -28,7 +28,6 @@ import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -71,17 +70,14 @@ public class HiveTableFactory
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
 		if (!isGeneric) {
-			return createHiveTableSource(context.getObjectIdentifier().toObjectPath(), table);
+			return new HiveTableSource(
+					new JobConf(hiveConf),
+					context.getConfiguration(),
+					context.getObjectIdentifier().toObjectPath(),
+					table);
 		} else {
 			return TableFactoryUtil.findAndCreateTableSource(context);
 		}
-	}
-
-	/**
-	 * Creates and configures a {@link StreamTableSource} using the given {@link CatalogTable}.
-	 */
-	private StreamTableSource<BaseRow> createHiveTableSource(ObjectPath tablePath, CatalogTable table) {
-		return new HiveTableSource(new JobConf(hiveConf), tablePath, table);
 	}
 
 	@Override
