@@ -30,6 +30,8 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter}
 import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
+import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunctionDefinition}
+import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
@@ -47,6 +49,7 @@ import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util
+import java.util.{Collections, Optional}
 
 import scala.collection.Seq
 
@@ -1243,5 +1246,41 @@ class CalcITCase extends BatchTestBase {
       "select sum(sumA) from (select sum(a) as sumA, b, c from BinaryT2 group by c, b) group by b",
       Seq(row(1), row(111), row(15), row(34), row(5), row(65), row(null))
     )
+  }
+
+  @Test
+  def testRankWithCustomModule(): Unit = {
+    try {
+      tEnv.unloadModule("core")
+      tEnv.loadModule("test-module", new TestModule)
+      tEnv.loadModule("core", CoreModule.INSTANCE)
+      registerCollection("emp",
+        Seq(row("1", "A", 1), row("1", "B", 2), row("2", "C", 3)),
+        new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
+        "dep,name,salary")
+      checkResult(
+        "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
+        Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
+    } finally {
+      val modules = tEnv.listModules()
+      modules.foreach(m => tEnv.unloadModule(m))
+      tEnv.loadModule("core", CoreModule.INSTANCE)
+    }
+  }
+}
+
+private class TestModule extends Module {
+
+  private val funcName = "isnull"
+
+  override def listFunctions(): util.Set[String] =
+    new util.HashSet(Collections.singletonList(funcName))
+
+  override def getFunctionDefinition(name: String): Optional[FunctionDefinition] = {
+    if (name.equalsIgnoreCase(funcName)) {
+      Optional.of(new ScalarFunctionDefinition(name, MyIsNull))
+    } else {
+      Optional.empty()
+    }
   }
 }

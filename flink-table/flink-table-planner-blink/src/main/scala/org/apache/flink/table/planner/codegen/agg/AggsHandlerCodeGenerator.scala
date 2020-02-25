@@ -333,6 +333,10 @@ class AggsHandlerCodeGenerator(
 
     val functionName = newName(name)
 
+    // make sure we can get the RuntimeContext properly
+    val openCode = ctx.reuseOpenCode().replaceAll("\\(getRuntimeContext\\(\\)\\)",
+      "(store.getRuntimeContext())")
+
     val functionCode =
       j"""
         public final class $functionName implements $AGGS_HANDLER_FUNCTION {
@@ -345,7 +349,7 @@ class AggsHandlerCodeGenerator(
 
           @Override
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
-            ${ctx.reuseOpenCode()}
+            $openCode
           }
 
           @Override
