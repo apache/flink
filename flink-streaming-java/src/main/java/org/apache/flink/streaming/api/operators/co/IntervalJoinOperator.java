@@ -22,6 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
@@ -31,6 +35,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -41,6 +48,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
@@ -51,10 +59,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * An {@link TwoInputStreamOperator operator} to execute time-bounded stream inner joins.
@@ -112,6 +121,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 	private transient InternalTimerService<String> internalTimerService;
 
+	private transient ValueState<Boolean> isKeyedLeftProcessed;
+	private transient ExecutorService threadpool;
+	private transient List<Future> pendingTasks;
+
 	/**
 	 * Creates a new IntervalJoinOperator.
 	 *
@@ -155,6 +168,15 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		context = new ContextImpl(userFunction);
 		internalTimerService =
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
+
+		ValueStateDescriptor<Boolean> descriptor =
+			new ValueStateDescriptor<>(
+				"keyed-out-of-order-join", // the state name
+				TypeInformation.of(new TypeHint<Boolean>() {}), // type information
+				false); // default value of the state, if nothing was set
+		isKeyedLeftProcessed = getRuntimeContext().getState(descriptor);
+		threadpool = Executors.newFixedThreadPool(10);
+		pendingTasks = new LinkedList<>();
 	}
 
 	@Override
@@ -222,32 +244,74 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		if (isLate(ourTimestamp)) {
 			return;
 		}
+		Runnable t = new Runnable() {
+			@Override
+			public void run() {
+				try{
+					addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		addToBuffer(ourBuffer, ourValue, ourTimestamp);
+					for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+						final long timestamp  = bucket.getKey();
 
-		for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
-			final long timestamp  = bucket.getKey();
+						if (timestamp < ourTimestamp + relativeLowerBound ||
+							timestamp > ourTimestamp + relativeUpperBound) {
+							continue;
+						}
 
-			if (timestamp < ourTimestamp + relativeLowerBound ||
-					timestamp > ourTimestamp + relativeUpperBound) {
-				continue;
-			}
+						for (BufferEntry<OTHER> entry: bucket.getValue()) {
+							if (isLeft) {
+								collect((T1) ourValue, (T2) entry.element, ourTimestamp, timestamp);
+							} else {
+								collect((T1) entry.element, (T2) ourValue, timestamp, ourTimestamp);
+							}
+						}
+					}
 
-			for (BufferEntry<OTHER> entry: bucket.getValue()) {
-				if (isLeft) {
-					collect((T1) ourValue, (T2) entry.element, ourTimestamp, timestamp);
-				} else {
-					collect((T1) entry.element, (T2) ourValue, timestamp, ourTimestamp);
+					long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
+					if (isLeft) {
+						internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
+					} else {
+						internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
+					}
+				} catch (Exception e) {
+					logger.error("Fail to execute intervaljoin");
+					throw new RuntimeException(e);
 				}
 			}
-		}
+		};
 
-		long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
-		if (isLeft) {
-			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
+		Boolean isLeftProcessed = isKeyedLeftProcessed.value();
+
+		if (isLeft == isLeftProcessed) {
+			Future futureTask = threadpool.submit(t);
+			pendingTasks.add(futureTask);
 		} else {
-			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
+			waitForPendingTasks();
+			isKeyedLeftProcessed.update(isLeft);
+			t.run();
 		}
+	}
+
+	private void waitForPendingTasks() throws Exception {
+		for (Future task : pendingTasks) {
+			task.get();
+		}
+		pendingTasks.clear();
+	}
+	
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		waitForPendingTasks();
+		super.processWatermark(mark);
+	}
+
+	@Override
+	public void close() throws Exception {
+		for(Future task : pendingTasks) {
+			task.get();
+		}
+		threadpool.shutdown();
+		super.close();
 	}
 
 	private boolean isLate(long timestamp) {
@@ -255,7 +319,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		return currentWatermark != Long.MIN_VALUE && timestamp < currentWatermark;
 	}
 
-	private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp) throws Exception {
+	private synchronized void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp) throws Exception {
 		final long resultTimestamp = Math.max(leftTimestamp, rightTimestamp);
 
 		collector.setAbsoluteTimestamp(resultTimestamp);
@@ -264,7 +328,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		userFunction.processElement(left, right, context, collector);
 	}
 
-	private static <T> void addToBuffer(
+	private static synchronized <T> void addToBuffer(
 			final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
 			final T value,
 			final long timestamp) throws Exception {
