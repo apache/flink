@@ -145,24 +145,6 @@ public class DescriptorProperties {
 	}
 
 	/**
-	 * Removes the mapping for a key prefix from this properties if it is present.
-	 *
-	 * <p>For example: for prefix "flink", the kvs in properties like key "flink.k" and
-	 * value "v" will be removed.
-	 */
-	public void removeKeyPrefix(String prefix) {
-		checkNotNull(prefix);
-
-		Iterator<Map.Entry<String, String>> iterator = properties.entrySet().iterator();
-		while (iterator.hasNext()) {
-			String key = iterator.next().getKey();
-			if (key.startsWith(prefix)) {
-				iterator.remove();
-			}
-		}
-	}
-
-	/**
 	 * Adds a class under the given key.
 	 */
 	public void putClass(String key, Class<?> clazz) {

@@ -21,7 +21,6 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.Registration;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.util.Preconditions;
@@ -80,12 +79,6 @@ public abstract class ConnectTableDescriptor
 		}
 
 		registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
-	}
-
-	private TableSchema getTableSchema(Map<String, String> schemaProperties) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(schemaProperties);
-		return properties.getTableSchema(Schema.SCHEMA);
 	}
 
 	@Override
