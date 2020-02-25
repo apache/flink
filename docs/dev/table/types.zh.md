@@ -30,7 +30,7 @@ under the License.
 
 重新设计类型系统是一项涉及几乎所有的面向用户接口的重大工作。因此，它的引入跨越多个版本，社区的目标是在 Flink 1.10 完成这项工作。
 
-同时由于为 Table 编程添加了新的 Planner 详见（[FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)）, 并不是每种 Planner 都支持所有的数据类型。此外, Planner 对于数据类型的精度和参数化支持也可能是不完整的。
+同时由于为 Table 编程添加了新的 Planner 详见（[FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)）, 并不是每种 Planner 都支持所有的数据类型。此外,Planner 对于数据类型的精度和参数化支持也可能是不完整的。
 
 <span class="label label-danger">注意</span> 在使用数据类型之前请参阅 Planner 的兼容性表和局限性章节。
 
