@@ -29,12 +29,12 @@ import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
-import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
@@ -169,7 +169,7 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 		BinaryGenericSerializer<WrappedString> binaryGenericSerializer = new BinaryGenericSerializer<>(
 				new KryoSerializer<>(WrappedString.class, new ExecutionConfig()));
 		BaseRowSerializer serializer = new BaseRowSerializer(new LogicalType[]{
-				new RawType(BinaryGeneric.class, binaryGenericSerializer)},
+				new AnyType(BinaryGeneric.class, binaryGenericSerializer)},
 				new TypeSerializer[]{binaryGenericSerializer});
 
 		GenericRow row = new GenericRow(1);
