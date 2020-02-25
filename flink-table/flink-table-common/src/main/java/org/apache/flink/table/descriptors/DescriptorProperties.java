@@ -44,7 +44,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -141,24 +140,6 @@ public class DescriptorProperties {
 
 		for (Map.Entry<String, String> e : prop.entrySet()) {
 			put(String.format("%s.%s", prefix, e.getKey()), e.getValue());
-		}
-	}
-
-	/**
-	 * Removes the mapping for a key prefix from this properties if it is present.
-	 *
-	 * <p>For example: for prefix "flink", the kvs in properties like key "flink.k" and
-	 * value "v" will be removed.
-	 */
-	public void removeKeyPrefix(String prefix) {
-		checkNotNull(prefix);
-
-		Iterator<Map.Entry<String, String>> iterator = properties.entrySet().iterator();
-		while (iterator.hasNext()) {
-			String key = iterator.next().getKey();
-			if (key.startsWith(prefix)) {
-				iterator.remove();
-			}
 		}
 	}
 

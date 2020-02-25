@@ -100,7 +100,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 	public StreamTableSource<Row> createTableSource(TableSourceFactory.Context context) {
 		TableSchema schema = context.getTable().getSchema();
 		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(context.getTable().getProperties());
+		params.putProperties(context.getTable().toProperties());
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
