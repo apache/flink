@@ -380,8 +380,8 @@ public class LocalExecutorITCase extends TestLogger {
 		final TableSchema actualTableSchema = executor.getTableSchema(sessionId, "TableNumber2");
 
 		final TableSchema expectedTableSchema = new TableSchema(
-			new String[]{"IntegerField2", "StringField2"},
-			new TypeInformation[]{Types.INT, Types.STRING});
+			new String[]{"IntegerField2", "StringField2", "TimestampField3"},
+			new TypeInformation[]{Types.INT, Types.STRING, Types.SQL_TIMESTAMP});
 
 		assertEquals(expectedTableSchema, actualTableSchema);
 		executor.closeSession(sessionId);
