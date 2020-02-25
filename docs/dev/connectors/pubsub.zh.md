@@ -34,7 +34,7 @@ under the License.
 {% endhighlight %}
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>Note</b>: This connector has been added to Flink recently. It has not received widespread testing yet.
+<b>注意</b>：此连接器最近才加到 Flink 里，还未接受广泛测试。
 </p>
 
 注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考[这里]({{ site.baseurl }}/dev/projectsetup/dependencies.html)
@@ -47,7 +47,7 @@ under the License.
 
 `PubSubSource` 类的对象由构建类来构建: `PubSubSource.newBuilder(...)`
 
-除了 Google project，Pubsub subscription 和反序列化 PubSubMessage的方法是必须的，你有多种可选的方法来创建 PubSubSource。
+有多种可选的方法来创建 PubSubSource，但最低要求是要提供 Google Project、Pubsub 订阅和反序列化 PubSubMessages 的方法。
 
 Example:
 
@@ -68,7 +68,7 @@ streamExecEnv.addSource(source);
 </div>
 </div>
 
-当前还不支持 PubSub 的source functions [pulls](https://cloud.google.com/pubsub/docs/pull) messages和 [push endpoints](https://cloud.google.com/pubsub/docs/push)。
+当前还不支持 PubSub 的 source functions [pulls](https://cloud.google.com/pubsub/docs/pull) messages 和 [push endpoints](https://cloud.google.com/pubsub/docs/push)。
 
 ### PubSub Sink
 
@@ -97,7 +97,7 @@ dataStream.addSink(pubsubSink);
 
 ### Google Credentials
 
-应用程序需要使用 [Credentials](https://cloud.google.com/docs/authentication/production) 来通过认证和授权才能使用 Google Cloud Platform 的资源，例如PubSub。
+应用程序需要使用 [Credentials](https://cloud.google.com/docs/authentication/production) 来通过认证和授权才能使用 Google Cloud Platform 的资源，例如 PubSub。
 
 上述的两个构建类都允许你提供 Credentials, 但是连接器默认会通过环境变量: [GOOGLE_APPLICATION_CREDENTIALS](https://cloud.google.com/docs/authentication/production#obtaining_and_providing_service_account_credentials_manually) 来获取 Credentials 的路径。
 
@@ -141,16 +141,16 @@ env.addSource(pubsubSource)
 
 有很多原因导致会一个信息会被多次发出，例如 Google PubSub 的故障。
 
-另一个可能的原因是超过了确认的截止时间。这是收到信息的间隔和信息确认的间隔。PubSubSource 只有在信息被成功快照之后才会确认以保证至少一次的语义。这意味着，如果你的快照间隔大于信息确认的截止时间，那么你订阅的信息很有可能会被多次处理。
+另一个可能的原因是超过了确认的截止时间，即收到与确认信息之间的时间间隔。PubSubSource 只有在信息被成功快照之后才会确认以保证至少一次的语义。这意味着，如果你的快照间隔大于信息确认的截止时间，那么你订阅的信息很有可能会被多次处理。
 
 因此，我们建议把快照的间隔设置得比信息确认截止时间更短。
 
 参照 [PubSub](https://cloud.google.com/pubsub/docs/subscriber) 来增加信息确认截止时间。
 
-注意: `PubSubMessagesProcessedNotAcked` 显示了有多少信息正在等待下一个快照还没被确认。
+注意: `PubSubMessagesProcessedNotAcked` 显示了有多少信息正在等待下一个 checkpoint 还没被确认。
 
 #### SinkFunction
 
-Sink function 会把准备发到 PubSub 的信息短暂地缓存以提高性能。每次快照前，它会 flush 缓冲区，并且只有当所有信息成功发送到 PubSub 之后，快照才会成功完成。
+Sink function 会把准备发到 PubSub 的信息短暂地缓存以提高性能。每次 checkpoint 前，它会刷新缓冲区，并且只有当所有信息成功发送到 PubSub 之后，checkpoint 才会成功完成。
 
 {% top %}
