@@ -41,9 +41,9 @@ public class ScheduledUnit {
 
 	@Nullable
 	private final CoLocationConstraint coLocationConstraint;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public ScheduledUnit(Execution task) {
 		this(
 			Preconditions.checkNotNull(task),
@@ -51,7 +51,7 @@ public class ScheduledUnit {
 			null,
 			null);
 	}
-	
+
 	public ScheduledUnit(Execution task, @Nullable SlotSharingGroupId slotSharingGroupId) {
 		this(
 			Preconditions.checkNotNull(task),
@@ -59,7 +59,7 @@ public class ScheduledUnit {
 			slotSharingGroupId,
 			null);
 	}
-	
+
 	public ScheduledUnit(
 			Execution task,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
@@ -96,7 +96,7 @@ public class ScheduledUnit {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public JobVertexID getJobVertexId() {
 		return jobVertexId;
 	}
@@ -117,7 +117,7 @@ public class ScheduledUnit {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "{task=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + slotSharingGroupId +
