@@ -273,14 +273,14 @@ val esSinkBuilder = new ElasticsearchSink.Builder[String](
 esSinkBuilder.setBulkFlushMaxActions(1)
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-esSinkBuilder.setRestClientFactory(
-  restClientBuilder -> {
-    restClientBuilder.setDefaultHeaders(...)
-    restClientBuilder.setMaxRetryTimeoutMillis(...)
-    restClientBuilder.setPathPrefix(...)
-    restClientBuilder.setHttpClientConfigCallback(...)
+esSinkBuilder.setRestClientFactory(new RestClientFactory {
+  override def configureRestClientBuilder(restClientBuilder: RestClientBuilder): Unit = {
+       restClientBuilder.setDefaultHeaders(...)
+       restClientBuilder.setMaxRetryTimeoutMillis(...)
+       restClientBuilder.setPathPrefix(...)
+       restClientBuilder.setHttpClientConfigCallback(...)
   }
-)
+})
 
 // finally, build and add the sink to the job's pipeline
 input.addSink(esSinkBuilder.build)
