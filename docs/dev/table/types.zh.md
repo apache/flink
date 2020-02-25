@@ -22,15 +22,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-由于历史原因，在 Flink 1.9 之前，Flink Table & SQL API 的数据类型与 Flink 的 `TypeInformation` 耦合紧密。`TypeInformation` 在 DataStream 和 DataSet API 中被使用，并且大量地用于描述分布式环境中 JVM 对象的序列化和反序列化操作所需的全部信息。
+由于历史原因，在 Flink 1.9 之前，Flink Table & SQL API 的数据类型与 Flink 的 `TypeInformation` 耦合紧密。`TypeInformation` 在 DataStream 和 DataSet API 中被使用，并且足以用来用于描述分布式环境中 JVM 对象的序列化和反序列化操作所需的全部信息。
 
-然而,`TypeInformation` 并不是被设计为表示独立于 JVM 类型的逻辑类型。之前很难将 SQL 的标准类型和这种抽象逻辑类型之间建立映射。此外，有一些类型并不是兼容 SQL 的并且在没有更好的规划的时候被引进。
+然而,`TypeInformation` 并不是被设计为表示独立于 JVM class 的逻辑类型。之前很难将 SQL 的标准类型映射到 `TypeInformation` 抽象。此外，有一些类型并不是兼容 SQL 的并且在没有更好的规划的时候被引进。
 
-从 Flink 1.9 开始，Table & SQL API 将接收一种新的类型系统，作为维护 API 稳定性和标准符合性的长期解决方案。
+从 Flink 1.9 开始，Table & SQL API 将接收一种新的类型系统作为长期解决方案，用来保持 API 稳定性和 SQL 标准的兼容性。
 
 重新设计类型系统是一项涉及几乎所有的面向用户接口的重大工作。因此，它的引入跨越多个版本，社区的目标是在 Flink 1.10 完成这项工作。
 
-同时由于为 Table 编程添加了新的 Planner（见 [FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)）, 因此并不支持新旧 Planner 和数据类型的全部组合。此外，这些 Planner 可能不会支持每一个数据类型所需的精度或参数。
+同时由于为 Table 编程添加了新的 Planner 详见（[FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)）, 并不是每种 Planner 都支持所有的数据类型。此外, Planner 对于数据类型的精度和参数化支持也可能是不完整的。
 
 <span class="label label-danger">注意</span> 在使用数据类型之前请参阅 Planner 的兼容性表和局限性章节。
 
@@ -42,7 +42,7 @@ under the License.
 
 *数据类型* 描述 Table 编程环境中的值的逻辑类型。它可以被用来声明操作的输入输出类型。
 
-Flink 的数据类型和 SQL 标准的 *数据类型* 术语类似，但也包含有关可空值的信息，以便有效地处理标量表达式（Scalar Expressions）。
+Flink 的数据类型和 SQL 标准的 *数据类型* 术语类似，但也包含了 nullability 信息，可以被用于 scala expression 的优化。
 
 数据类型的示例:
 - `INT`
@@ -57,7 +57,7 @@ Flink 的数据类型和 SQL 标准的 *数据类型* 术语类似，但也包�
 JVM API 的用户可以在 Table API 中使用 `org.apache.flink.table.types.DataType` 的实例，以及定义连接器（Connector）、Catalog 或者用户自定义函数（User-Defined Function）。
 
 一个 `DataType` 实例有两个作用：
-- **逻辑类型的声明**，它并不表示传输或存储的具体物理含义，但是定义了基于 JVM 的语言和 Table 编程环境之间的边界。
+- **逻辑类型的声明**，它不表达具体物理类型的存储和转换，但是定义了基于 JVM 的语言和 Table 编程环境之间的边界。
 - *可选的：* **向 Planner 提供有关数据的物理表示的提示**，这对于其他 API 很有用。
 
 对于基于 JVM 的语言，所有预定义的数据类型都在 `org.apache.flink.table.api.DataTypes` 里提供。
@@ -162,7 +162,7 @@ Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Informat
 | `MAP(..., ...)` | `MAP<...,...>` | `MAP(...)` | |
 | 其他通用类型 | | `RAW(...)` | |
 
-<span class="label label-danger">注意</span> 如果对于新的类型系统有任何疑问，用户可以在任何时候针对类型信息的定义 `org.apache.flink.table.api.Types` 进行反馈。
+<span class="label label-danger">注意</span> 如果对于新的类型系统有任何疑问，用户可以随时切换到 `org.apache.flink.table.api.Types` 中定义的 type information。
 
 ### 新的 Blink Planner
 
@@ -383,7 +383,7 @@ DataTypes.DECIMAL(p, s)
 
 </div>
 
-此类型用 `DECIMAL(p, s)` 声明，其中 `p` 是数字的位数（*精度*），`s` 是数字中小数点右边的位数（*数量*）。`p` 的值必须介于 `1` 和 `38` 之间（含边界值）。`s` 的值必须介于 `0` 和 `p` 之间（含边界值）。其中 `p` 的缺省值是 `10`，`s` 的缺省值是 `0`。
+此类型用 `DECIMAL(p, s)` 声明，其中 `p` 是数字的位数（*精度*），`s` 是数字中小数点右边的位数（*尾数*）。`p` 的值必须介于 `1` 和 `38` 之间（含边界值）。`s` 的值必须介于 `0` 和 `p` 之间（含边界值）。其中 `p` 的缺省值是 `10`，`s` 的缺省值是 `0`。
 
 `NUMERIC(p, s)` 和 `DEC(p, s)` 都等价于这个类型。
 
@@ -809,7 +809,7 @@ DataTypes.INTERVAL(DataTypes.MONTH())
 
 </div>
 
-可以使用以上组合来声明类型，其中 `p` 是年数（*年精度*）的位数。`p` 的值必须介于 `1` 和之间 `4`（含边界值）。如果未指定年精度，`p` 则等于 `2`。
+可以使用以上组合来声明类型，其中 `p` 是年数（*年精度*）的位数。`p` 的值必须介于 `1` 和 `4` 之间（含边界值）。如果未指定年精度，`p` 则等于 `2`。
 
 **JVM 类型**
 
