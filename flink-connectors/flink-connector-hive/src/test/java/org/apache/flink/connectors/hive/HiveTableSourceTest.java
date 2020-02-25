@@ -428,7 +428,6 @@ public class HiveTableSourceTest {
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
-		ObjectPath tablePath = new ObjectPath("db1", "src");
 		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
 
 		doAnswer(invocation -> {
@@ -467,13 +466,13 @@ public class HiveTableSourceTest {
 		private final boolean inferParallelism;
 
 		TestConfigSource(
-				JobConf hiveConf,
+				JobConf jobConf,
 				ReadableConfig flinkConf,
 				ObjectPath tablePath,
 				CatalogTable catalogTable,
 				boolean fallbackMR,
 				boolean inferParallelism) {
-			super(hiveConf, flinkConf, tablePath, catalogTable);
+			super(jobConf, flinkConf, tablePath, catalogTable);
 			this.fallbackMR = fallbackMR;
 			this.inferParallelism = inferParallelism;
 		}

@@ -78,7 +78,7 @@ public class HiveTableSource implements
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
 
-	private final JobConf hiveConf;
+	private final JobConf jobConf;
 	private final ReadableConfig flinkConf;
 	private final ObjectPath tablePath;
 	private final CatalogTable catalogTable;
@@ -93,12 +93,12 @@ public class HiveTableSource implements
 	private long limit = -1L;
 
 	public HiveTableSource(
-			JobConf hiveConf, ReadableConfig flinkConf, ObjectPath tablePath, CatalogTable catalogTable) {
-		this.hiveConf = Preconditions.checkNotNull(hiveConf);
+			JobConf jobConf, ReadableConfig flinkConf, ObjectPath tablePath, CatalogTable catalogTable) {
+		this.jobConf = Preconditions.checkNotNull(jobConf);
 		this.flinkConf = Preconditions.checkNotNull(flinkConf);
 		this.tablePath = Preconditions.checkNotNull(tablePath);
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
-		this.hiveVersion = Preconditions.checkNotNull(hiveConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
+		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
 		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		partitionPruned = false;
@@ -106,7 +106,7 @@ public class HiveTableSource implements
 
 	// A constructor mainly used to create copies during optimizations like partition pruning and projection push down.
 	private HiveTableSource(
-			JobConf hiveConf,
+			JobConf jobConf,
 			ReadableConfig flinkConf,
 			ObjectPath tablePath,
 			CatalogTable catalogTable,
@@ -116,7 +116,7 @@ public class HiveTableSource implements
 			int[] projectedFields,
 			boolean isLimitPushDown,
 			long limit) {
-		this.hiveConf = Preconditions.checkNotNull(hiveConf);
+		this.jobConf = Preconditions.checkNotNull(jobConf);
 		this.flinkConf = Preconditions.checkNotNull(flinkConf);
 		this.tablePath = Preconditions.checkNotNull(tablePath);
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
@@ -176,7 +176,7 @@ public class HiveTableSource implements
 	@VisibleForTesting
 	HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
 		return new HiveTableInputFormat(
-				hiveConf,
+				jobConf,
 				catalogTable,
 				allHivePartitions,
 				projectedFields,
@@ -215,7 +215,7 @@ public class HiveTableSource implements
 	@Override
 	public TableSource<BaseRow> applyLimit(long limit) {
 		return new HiveTableSource(
-				hiveConf,
+				jobConf,
 				flinkConf,
 				tablePath,
 				catalogTable,
@@ -239,7 +239,7 @@ public class HiveTableSource implements
 			return this;
 		} else {
 			return new HiveTableSource(
-					hiveConf,
+					jobConf,
 					flinkConf,
 					tablePath,
 					catalogTable,
@@ -255,7 +255,7 @@ public class HiveTableSource implements
 	@Override
 	public TableSource<BaseRow> projectFields(int[] fields) {
 		return new HiveTableSource(
-				hiveConf,
+				jobConf,
 				flinkConf,
 				tablePath,
 				catalogTable,
@@ -272,12 +272,12 @@ public class HiveTableSource implements
 		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
 		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
 		// refactoring. We will postpone this until we merge Blink to Flink.
-		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(hiveConf, HiveConf.class), hiveVersion)) {
+		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			String dbName = tablePath.getDatabaseName();
 			String tableName = tablePath.getObjectName();
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
 			if (partitionColNames != null && partitionColNames.size() > 0) {
-				final String defaultPartitionName = hiveConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 				List<Partition> partitions = new ArrayList<>();
 				if (remainingPartitions != null) {
