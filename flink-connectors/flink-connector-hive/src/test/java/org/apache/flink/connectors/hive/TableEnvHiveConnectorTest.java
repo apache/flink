@@ -31,6 +31,8 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -509,6 +511,17 @@ public class TableEnvHiveConnectorTest {
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
+	}
+
+	@Test
+	public void testHiveModule() throws Exception {
+		hiveShell.execute("create table emp (dep string,name string,salary int)");
+		hiveShell.insertInto("default", "emp").addRow("1", "A", 1).addRow("1", "B", 2).addRow("2", "C", 3).commit();
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule(hiveCatalog.getHiveVersion()));
+		tableEnv.loadModule("core", CoreModule.INSTANCE);
+		List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select dep,name,rank() over (partition by dep order by salary) as rnk from emp"));
 	}
 
 	private TableEnvironment getTableEnvWithHiveCatalog() {

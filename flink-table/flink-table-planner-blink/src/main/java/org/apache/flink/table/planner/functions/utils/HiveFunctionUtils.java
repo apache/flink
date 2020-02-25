@@ -51,7 +51,7 @@ public class HiveFunctionUtils {
 
 	}
 
-	static Serializable invokeSetArgs(
+	public static Serializable invokeSetArgs(
 			Serializable function, Object[] constantArguments, LogicalType[] argTypes) {
 		try {
 			// See hive HiveFunction
