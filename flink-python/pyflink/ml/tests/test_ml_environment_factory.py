@@ -17,7 +17,7 @@
 ################################################################################
 
 from pyflink.ml.ml_environment_factory import MLEnvironmentFactory, MLEnvironment
-from pyflink.ml.tests import MLTestCase
+from pyflink.testing.test_case_utils import MLTestCase
 
 
 class MLEnvironmentFactoryTest(MLTestCase):

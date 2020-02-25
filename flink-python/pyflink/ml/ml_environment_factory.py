@@ -61,7 +61,8 @@ class MLEnvironmentFactory:
         """
         with MLEnvironmentFactory._lock:
             if MLEnvironmentFactory._map[MLEnvironmentFactory._default_ml_environment_id] is None:
-                j_ml_env = get_gateway().jvm.org.apache.flink.ml.common.MLEnvironmentFactory.getDefault()
+                j_ml_env = get_gateway().\
+                    jvm.org.apache.flink.ml.common.MLEnvironmentFactory.getDefault()
                 ml_env = MLEnvironment(
                     ExecutionEnvironment(j_ml_env.getExecutionEnvironment()),
                     StreamExecutionEnvironment(j_ml_env.getStreamExecutionEnvironment()),

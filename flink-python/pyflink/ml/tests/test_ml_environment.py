@@ -37,7 +37,9 @@ class MLEnvironmentTest(unittest.TestCase):
         execution_environment = ExecutionEnvironment.get_execution_environment()
         batch_table_environment = BatchTableEnvironment.create(execution_environment)
 
-        ml_environment = MLEnvironment(exe_env=execution_environment, batch_tab_env=batch_table_environment)
+        ml_environment = MLEnvironment(
+            exe_env=execution_environment,
+            batch_tab_env=batch_table_environment)
         self.assertEqual(ml_environment.get_execution_environment(), execution_environment)
         self.assertEqual(ml_environment.get_batch_table_environment(), batch_table_environment)
 
@@ -45,6 +47,10 @@ class MLEnvironmentTest(unittest.TestCase):
         stream_execution_environment = StreamExecutionEnvironment.get_execution_environment()
         stream_table_environment = StreamTableEnvironment.create(stream_execution_environment)
 
-        ml_environment = MLEnvironment(stream_exe_env=stream_execution_environment, stream_tab_env=stream_table_environment)
-        self.assertEqual(ml_environment.get_stream_execution_environment(), stream_execution_environment)
+        ml_environment = MLEnvironment(
+            stream_exe_env=stream_execution_environment,
+            stream_tab_env=stream_table_environment)
+        self.assertEqual(
+            ml_environment.get_stream_execution_environment(),
+            stream_execution_environment)
         self.assertEqual(ml_environment.get_stream_table_environment(), stream_table_environment)
