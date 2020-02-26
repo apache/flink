@@ -20,15 +20,20 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
+import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
@@ -80,7 +85,8 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 		return Arrays.asList(
 				testBaseRowSerializer(),
 				testLargeBaseRowSerializer(),
-				testBaseRowSerializerWithComplexTypes());
+				testBaseRowSerializerWithComplexTypes(),
+				testBaseRowSerializerWithKryo());
 	}
 
 	private static Object[] testBaseRowSerializer() {
@@ -157,6 +163,19 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 
 		BaseRowSerializer serializer = typeInfo.createSerializer(new ExecutionConfig());
 		return new Object[] {serializer, data};
+	}
+
+	private static Object[] testBaseRowSerializerWithKryo() {
+		BinaryGenericSerializer<WrappedString> binaryGenericSerializer = new BinaryGenericSerializer<>(
+				new KryoSerializer<>(WrappedString.class, new ExecutionConfig()));
+		BaseRowSerializer serializer = new BaseRowSerializer(new LogicalType[]{
+				new AnyType(BinaryGeneric.class, binaryGenericSerializer)},
+				new TypeSerializer[]{binaryGenericSerializer});
+
+		GenericRow row = new GenericRow(1);
+		row.setField(0, new BinaryGeneric<>(new WrappedString("a")));
+
+		return new Object[] {serializer, new GenericRow[]{row}};
 	}
 
 	// ----------------------------------------------------------------------------------------------
@@ -240,4 +259,17 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 			checkDeepEquals(row, serializer.copy(row, new GenericRow(row.getArity() + 1)));
 		}
 	}
+
+	/**
+	 * Class used for concurrent testing with KryoSerializer.
+	 */
+	private static class WrappedString {
+
+		private final String content;
+
+		WrappedString(String content) {
+			this.content = content;
+		}
+	}
+
 }
