@@ -39,9 +39,9 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.Collector
-
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.api.common.functions.RuntimeContext
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
@@ -333,9 +333,7 @@ class AggsHandlerCodeGenerator(
 
     val functionName = newName(name)
 
-    // make sure we can get the RuntimeContext properly
-    val openCode = ctx.reuseOpenCode().replaceAll("\\(getRuntimeContext\\(\\)\\)",
-      "(store.getRuntimeContext())")
+    val RUNTIME_CONTEXT = className[RuntimeContext]
 
     val functionCode =
       j"""
@@ -343,13 +341,20 @@ class AggsHandlerCodeGenerator(
 
           ${ctx.reuseMemberCode()}
 
+          private $STATE_DATA_VIEW_STORE store;
+
           public $functionName(java.lang.Object[] references) throws Exception {
             ${ctx.reuseInitCode()}
           }
 
+          private $RUNTIME_CONTEXT getRuntimeContext() {
+            return store.getRuntimeContext();
+          }
+
           @Override
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
-            $openCode
+            this.store = store;
+            ${ctx.reuseOpenCode()}
           }
 
           @Override
