@@ -542,10 +542,10 @@ public class StreamingJobGraphGenerator {
 
 		physicalEdgesInOrder.add(edge);
 
-		Integer downStreamvertexID = edge.getTargetId();
+		Integer downStreamVertexID = edge.getTargetId();
 
 		JobVertex headVertex = jobVertices.get(headOfChain);
-		JobVertex downStreamVertex = jobVertices.get(downStreamvertexID);
+		JobVertex downStreamVertex = jobVertices.get(downStreamVertexID);
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
 
@@ -587,7 +587,7 @@ public class StreamingJobGraphGenerator {
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),
-					headOfChain, downStreamvertexID);
+					headOfChain, downStreamVertexID);
 		}
 	}
 
@@ -595,16 +595,16 @@ public class StreamingJobGraphGenerator {
 		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
 		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
-		StreamOperatorFactory<?> headOperator = upStreamVertex.getOperatorFactory();
-		StreamOperatorFactory<?> outOperator = downStreamVertex.getOperatorFactory();
+		StreamOperatorFactory<?> upStreamOperator = upStreamVertex.getOperatorFactory();
+		StreamOperatorFactory<?> downStreamOperator = downStreamVertex.getOperatorFactory();
 
 		return downStreamVertex.getInEdges().size() == 1
-				&& outOperator != null
-				&& headOperator != null
+				&& downStreamOperator != null
+				&& upStreamOperator != null
 				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
-					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				&& downStreamOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
+				&& (upStreamOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
+					upStreamOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& edge.getShuffleMode() != ShuffleMode.BATCH
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
