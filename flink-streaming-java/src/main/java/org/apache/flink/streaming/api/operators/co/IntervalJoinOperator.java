@@ -260,6 +260,11 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		if (isLate(ourTimestamp)) {
 			return;
 		}
+
+		// Out of order join ensures per each key, otherBuffer is stable and collect is synchronized
+		// different keys join operation can be vectorized up to maxOutOfOrder threads
+		// same key records in same side will compete for entries found from other side and mark
+		// it hasBeenJoined in out of order fashion in synchronized collect
 		Runnable t = new Runnable() {
 			@Override
 			public void run() {
@@ -290,7 +295,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 						internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
 					}
 				} catch (Exception e) {
-					logger.error("Fail to execute intervaljoin");
+					logger.error("Fail to execute interval join");
 					throw new RuntimeException(e);
 				}
 			}
