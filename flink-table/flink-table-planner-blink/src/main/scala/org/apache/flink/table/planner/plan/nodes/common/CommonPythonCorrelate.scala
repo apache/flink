@@ -36,7 +36,7 @@ import org.apache.flink.table.types.logical.RowType
 import scala.collection.mutable
 
 trait CommonPythonCorrelate extends CommonPythonBase {
-  def getPythonTableFunctionOperator(
+  private def getPythonTableFunctionOperator(
       config: Configuration,
       inputRowType: BaseRowTypeInfo,
       outputRowType: BaseRowTypeInfo,
@@ -61,7 +61,7 @@ trait CommonPythonCorrelate extends CommonPythonBase {
       .asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]]
   }
 
-  private[flink] def extractPythonTableFunctionInfo(
+  private def extractPythonTableFunctionInfo(
       pythonRexCall: RexCall): (Array[Int], PythonFunctionInfo) = {
     val inputNodes = new mutable.LinkedHashMap[RexNode, Integer]()
     val pythonTableFunctionInfo = createPythonFunctionInfo(pythonRexCall, inputNodes)
@@ -71,7 +71,7 @@ trait CommonPythonCorrelate extends CommonPythonBase {
     (udtfInputOffsets, pythonTableFunctionInfo)
   }
 
-  def createPythonOneInputTransformation(
+  protected def createPythonOneInputTransformation(
       inputTransform: Transformation[BaseRow],
       scan: FlinkLogicalTableFunctionScan,
       name: String,
