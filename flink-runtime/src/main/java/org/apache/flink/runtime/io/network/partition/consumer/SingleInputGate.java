@@ -322,9 +322,11 @@ public class SingleInputGate extends InputGate {
 		}
 	}
 
-	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
+	public void setInputChannel(InputChannel inputChannel) {
+		checkNotNull(inputChannel);
+		IntermediateResultPartitionID partitionId = inputChannel.getPartitionId().getPartitionId();
 		synchronized (requestLock) {
-			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
+			if (inputChannels.put(partitionId, inputChannel) == null
 					&& inputChannel instanceof UnknownInputChannel) {
 
 				numberOfUninitializedChannels++;

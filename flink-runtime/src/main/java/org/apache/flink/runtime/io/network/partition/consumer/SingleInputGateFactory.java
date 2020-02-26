@@ -156,8 +156,7 @@ public class SingleInputGateFactory {
 				shuffleDescriptors[i],
 				channelStatistics,
 				metrics);
-			ResultPartitionID resultPartitionID = inputChannels[i].getPartitionId();
-			inputGate.setInputChannel(resultPartitionID.getPartitionId(), inputChannels[i]);
+			inputGate.setInputChannel(inputChannels[i]);
 		}
 
 		LOG.debug("{}: Created {} input channels ({}).",
