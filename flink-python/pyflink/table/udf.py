@@ -163,6 +163,9 @@ class UserDefinedFunctionWrapper(object):
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
 
+    def java_user_defined_function(self, is_blink_planner, table_config):
+        pass
+
 
 class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
     """
@@ -179,7 +182,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
         self._result_type = result_type
         self._judf_placeholder = None
 
-    def _judf(self, is_blink_planner, table_config):
+    def java_user_defined_function(self, is_blink_planner, table_config):
         if self._judf_placeholder is None:
             self._judf_placeholder = self._create_judf(is_blink_planner, table_config)
         return self._judf_placeholder
@@ -241,7 +244,7 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
         self._result_types = result_types
         self._judtf_placeholder = None
 
-    def _judtf(self, is_blink_planner, table_config):
+    def java_user_defined_function(self, is_blink_planner, table_config):
         if self._judtf_placeholder is None:
             self._judtf_placeholder = self._create_judtf(is_blink_planner, table_config)
         return self._judtf_placeholder
