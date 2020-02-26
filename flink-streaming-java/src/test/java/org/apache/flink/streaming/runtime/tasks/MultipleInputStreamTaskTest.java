@@ -30,9 +30,12 @@ import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.runtime.io.InputStatus;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
@@ -68,7 +71,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperator())
+				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
 				.build()) {
 
 			long initialTime = 0L;
@@ -98,7 +101,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperator())
+				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
 				.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 			long initialTime = 0L;
@@ -148,7 +151,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperator())
+				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
 				.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 			long initialTime = 0L;
@@ -217,7 +220,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.setupOperatorChain(new DuplicatingOperator())
+				.setupOperatorChain(new DuplicatingOperatorFactory())
 				.chain(new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 				.chain(new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 				.finish()
@@ -246,8 +249,12 @@ public class MultipleInputStreamTaskTest {
 		}
 	}
 
-	static class DuplicatingOperator extends AbstractStreamOperator<String>
+	static class DuplicatingOperator extends AbstractStreamOperatorV2<String>
 		implements MultipleInputStreamOperator<String> {
+
+		public DuplicatingOperator(StreamOperatorParameters<String> parameters) {
+			super(parameters, 3);
+		}
 
 		@Override
 		public List<Input> getInputs() {
@@ -270,7 +277,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.setupOperatorChain(new TestBoundedMultipleInputOperator("Operator0"))
+				.setupOperatorChain(new TestBoundedMultipleInputOperatorFactory())
 				.chain(new TestBoundedOneInputStreamOperator("Operator1"), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 				.finish()
 				.build();
@@ -317,7 +324,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperator())
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
 					.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -352,11 +359,15 @@ public class MultipleInputStreamTaskTest {
 	// This must only be used in one test, otherwise the static fields will be changed
 	// by several tests concurrently
 	private static class MapToStringMultipleInputOperator
-			extends AbstractStreamOperator<String> implements MultipleInputStreamOperator<String> {
+			extends AbstractStreamOperatorV2<String> implements MultipleInputStreamOperator<String> {
 		private static final long serialVersionUID = 1L;
 
 		private boolean openCalled;
 		private boolean closeCalled;
+
+		public MapToStringMultipleInputOperator(StreamOperatorParameters<String> parameters) {
+			super(parameters, 3);
+		}
 
 		@Override
 		public void open() throws Exception {
@@ -416,6 +427,42 @@ public class MultipleInputStreamTaskTest {
 		public String map2(Integer value) {
 
 			return value.toString();
+		}
+	}
+
+	private static class TestBoundedMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
+		@Override
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
+			return (T) new TestBoundedMultipleInputOperator("Operator0", parameters);
+		}
+
+		@Override
+		public Class<? extends StreamOperator<String>> getStreamOperatorClass(ClassLoader classLoader) {
+			return TestBoundedMultipleInputOperator.class;
+		}
+	}
+
+	private static class DuplicatingOperatorFactory extends AbstractStreamOperatorFactory<String> {
+		@Override
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
+			return (T) new DuplicatingOperator(parameters);
+		}
+
+		@Override
+		public Class<? extends StreamOperator<String>> getStreamOperatorClass(ClassLoader classLoader) {
+			return DuplicatingOperator.class;
+		}
+	}
+
+	private static class MapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
+		@Override
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
+			return (T) new MapToStringMultipleInputOperator(parameters);
+		}
+
+		@Override
+		public Class<? extends StreamOperator<String>> getStreamOperatorClass(ClassLoader classLoader) {
+			return MapToStringMultipleInputOperator.class;
 		}
 	}
 }
