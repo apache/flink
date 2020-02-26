@@ -15,3 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+from pyflink.ml.lib.param.colname import HasSelectedCols, HasOutputCol
+
+__all__ = ["HasSelectedCols", "HasOutputCol"]

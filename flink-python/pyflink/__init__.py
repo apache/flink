@@ -16,6 +16,7 @@
 # limitations under the License.
 #################################################################################
 import sys
+from functools import wraps
 
 if sys.version_info < (3, 5):
     raise RuntimeError(
@@ -37,3 +38,15 @@ def since(version):
         f.__doc__ = original_doc.rstrip() + "\n\n%s.. versionadded:: %s" % (indent, version)
         return f
     return deco
+
+
+def keyword(func):
+    """
+    A decorator that forces keyword arguments usage and store actual
+    input keyword arguments in `_input_kwargs`.
+    """
+    @wraps(func)
+    def wrapper(self, **kwargs):
+        self._input_kwargs = kwargs
+        return func(self, **kwargs)
+    return wrapper

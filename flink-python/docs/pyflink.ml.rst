@@ -16,28 +16,37 @@
     limitations under the License.
    ################################################################################
 
-Welcome to Flink Python API Docs!
-==================================================
+pyflink.ml package
+=====================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents
-
-   pyflink
-   pyflink.common
-   pyflink.table
-   pyflink.dataset
-   pyflink.datastream
-   pyflink.ml
-
-
-Core Classes:
+Module contents
 ---------------
 
-    :class:`pyflink.table.TableEnvironment`
+.. automodule:: pyflink.ml
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
-    Main entry point for Flink Table functionality.
+pyflink.ml.api module
+---------------------------
+.. automodule:: pyflink.ml.api
+    :members:
+    :undoc-members:
 
-    :class:`pyflink.table.Table`
+pyflink.ml.api.param module
+---------------------------
+.. automodule:: pyflink.ml.api.param
+    :members:
+    :undoc-members:
 
-    Core component of the Flink Table API. The Flink Table API is built around :class:`~pyflink.table.Table`.
+pyflink.ml.lib module
+-------------------------------------
+.. automodule:: pyflink.ml.lib
+    :members:
+    :undoc-members:
+
+pyflink.ml.lib.param module
+---------------------------
+.. automodule:: pyflink.ml.lib.param
+    :members:
+    :undoc-members:
