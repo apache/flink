@@ -136,7 +136,7 @@ public class StreamGraph implements Pipeline {
 		vertexIDtoBrokerID = new HashMap<>();
 		vertexIDtoLoopTimeout  = new HashMap<>();
 		iterationSourceSinkPairs = new HashSet<>();
-		sources = new LinkedHashSet<>();
+		sources = new HashSet<>();
 		sinks = new HashSet<>();
 	}
 
