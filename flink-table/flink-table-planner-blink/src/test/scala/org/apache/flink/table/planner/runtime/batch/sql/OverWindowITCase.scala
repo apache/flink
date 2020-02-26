@@ -28,14 +28,13 @@ import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.MyIsNull
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.IsNullUDF
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
 import java.lang.{Iterable => JIterable, Long => JLong}
-import java.util
 import java.util.{Collections, Optional}
 
 import scala.collection.Seq
@@ -2599,12 +2598,11 @@ private class TestModule extends Module {
 
   private val funcName = "isnull"
 
-  override def listFunctions(): util.Set[String] =
-    new util.HashSet(Collections.singletonList(funcName))
+  override def listFunctions(): java.util.Set[String] = Collections.singleton(funcName)
 
   override def getFunctionDefinition(name: String): Optional[FunctionDefinition] = {
     if (name.equalsIgnoreCase(funcName)) {
-      Optional.of(new ScalarFunctionDefinition(name, MyIsNull))
+      Optional.of(new ScalarFunctionDefinition(name, IsNullUDF))
     } else {
       Optional.empty()
     }

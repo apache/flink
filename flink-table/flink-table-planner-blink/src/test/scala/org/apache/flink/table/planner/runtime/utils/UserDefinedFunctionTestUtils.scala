@@ -378,7 +378,7 @@ object UserDefinedFunctionTestUtils {
   }
 
   @SerialVersionUID(1L)
-  object MyIsNull extends ScalarFunction {
+  object IsNullUDF extends ScalarFunction {
     def eval(v: Any): Boolean = v == null
 
     override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.BOOLEAN
