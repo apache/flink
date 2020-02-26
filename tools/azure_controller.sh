@@ -172,6 +172,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
         PY_MVN="${MVN// clean/}"
         PY_MVN="$PY_MVN -Drat.skip=true"
         ${PY_MVN}
+        EXIT_CODE=$?
 
         if [ $EXIT_CODE != 0 ]; then
             echo "=============================================================================="
