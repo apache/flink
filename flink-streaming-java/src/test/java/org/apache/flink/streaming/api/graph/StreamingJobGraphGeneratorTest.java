@@ -71,6 +71,7 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -785,19 +786,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(4, verticesSorted.size());
 
-		JobVertex source1Vertex = null, source2Vertex = null, map1Vertex = null, map2Vertex= null;
-		for (int i = 0; i < 4; i++)
-		{
-			JobVertex vertex = verticesSorted.get(i);
-			if (vertex.getName().equals("Source: source1"))
-				source1Vertex = vertex;
-			if (vertex.getName().equals("Source: source2"))
-				source2Vertex = vertex;
-			if (vertex.getName().equals("map1"))
-				map1Vertex = vertex;
-			if (vertex.getName().equals("map2"))
-				map2Vertex = vertex;
-		}
+		final List<JobVertex> verticesMatched = getExpectedVerticesList(verticesSorted);
+		final JobVertex source1Vertex = verticesMatched.get(0);
+		final JobVertex source2Vertex = verticesMatched.get(1);
+		final JobVertex map1Vertex = verticesMatched.get(2);
+		final JobVertex map2Vertex = verticesMatched.get(3);
 
 		// all vertices should be in the same default slot sharing group
 		// except for map1 which has a specified slot sharing group
@@ -814,19 +807,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(4, verticesSorted.size());
 
-		JobVertex source1Vertex = null, source2Vertex = null, map1Vertex = null, map2Vertex= null;
-		for (int i = 0; i < 4; i++)
-		{
-			JobVertex vertex = verticesSorted.get(i);
-			if (vertex.getName().equals("Source: source1"))
-				source1Vertex = vertex;
-			if (vertex.getName().equals("Source: source2"))
-				source2Vertex = vertex;
-			if (vertex.getName().equals("map1"))
-				map1Vertex = vertex;
-			if (vertex.getName().equals("map2"))
-				map2Vertex = vertex;
-		}
+		final List<JobVertex> verticesMatched = getExpectedVerticesList(verticesSorted);
+		final JobVertex source1Vertex = verticesMatched.get(0);
+		final JobVertex source2Vertex = verticesMatched.get(1);
+		final JobVertex map1Vertex = verticesMatched.get(2);
+		final JobVertex map2Vertex = verticesMatched.get(3);
 
 		// vertices in the same region should be in the same slot sharing group
 		assertSameSlotSharingGroup(source1Vertex, map1Vertex);
@@ -874,5 +859,18 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final Method setResourcesMethod = clazz.getDeclaredMethod("setResources", ResourceSpec.class);
 		setResourcesMethod.setAccessible(true);
 		return setResourcesMethod;
+	}
+
+	private List<JobVertex> getExpectedVerticesList(List<JobVertex> vertices) {
+		List<JobVertex> verticesMatched = new ArrayList<JobVertex>();
+		List<String> ExpectedOrder = Arrays.asList("source1", "source2", "map1", "map2");
+		for (int i = 0; i < ExpectedOrder.size(); i++) {
+			for (JobVertex vertex : vertices) {
+				if (vertex.getName().contains(ExpectedOrder.get(i))) {
+					verticesMatched.add(vertex);
+				}
+			}
+		}
+		return verticesMatched;
 	}
 }
