@@ -31,7 +31,9 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.MyIsNull
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Test}
+
 import java.lang.{Iterable => JIterable, Long => JLong}
 import java.util
 import java.util.{Collections, Optional}

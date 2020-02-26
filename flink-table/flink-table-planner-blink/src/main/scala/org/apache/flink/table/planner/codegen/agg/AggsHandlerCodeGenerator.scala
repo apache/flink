@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
+import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.dataformat.util.BaseRowUtil
@@ -39,9 +40,9 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.Collector
+
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.functions.RuntimeContext
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
