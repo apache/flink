@@ -21,6 +21,7 @@ from abc import ABC
 
 import datetime
 import decimal
+import pyarrow as pa
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder
 from apache_beam.typehints import typehints
@@ -31,12 +32,13 @@ from pyflink.table import Row
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
+FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1"
 
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
            'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
-           'TimestampCoder', 'ArrayCoder', 'MapCoder', 'DecimalCoder']
+           'TimestampCoder', 'ArrayCoder', 'MapCoder', 'DecimalCoder', 'ArrowCoder']
 
 
 class TableFunctionRowCoder(FastCoder):
@@ -372,6 +374,44 @@ class TimestampCoder(DeterministicCoder):
 
     def to_type_hint(self):
         return datetime.datetime
+
+
+class ArrowCoder(DeterministicCoder):
+    """
+    Coder for Arrow.
+    """
+    def __init__(self, schema):
+        self._schema = schema
+
+    def _create_impl(self):
+        return coder_impl.ArrowCoderImpl(self._schema)
+
+    def to_type_hint(self):
+        import pandas as pd
+        return pd.Series
+
+    @Coder.register_urn(FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN,
+                        flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        def _to_arrow_type(field):
+            if field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.TINYINT:
+                return pa.field(field.name, pa.int8(), field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.SMALLINT:
+                return pa.field(field.name, pa.int16(), field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.INT:
+                return pa.field(field.name, pa.int32(), field.type.nullable)
+            elif field.type.type_name == flink_fn_execution_pb2.Schema.TypeName.BIGINT:
+                return pa.field(field.name, pa.int64(), field.type.nullable)
+            else:
+                raise ValueError("field_type %s is not supported." % field.type)
+
+        def _to_arrow_schema(row_schema):
+            return pa.schema([_to_arrow_type(f) for f in row_schema.fields])
+
+        return ArrowCoder(_to_arrow_schema(schema_proto))
+
+    def __repr__(self):
+        return 'ArrowCoder[%s]' % self._schema
 
 
 type_name = flink_fn_execution_pb2.Schema.TypeName
