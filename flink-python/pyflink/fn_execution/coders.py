@@ -43,11 +43,11 @@ class TableFunctionRowCoder(FastCoder):
     """
     Coder for Table Function Row.
     """
-    def __init__(self, row_coder):
-        self._row_coder = row_coder
+    def __init__(self, flatten_row_coder):
+        self._flatten_row_coder = flatten_row_coder
 
     def _create_impl(self):
-        return coder_impl.TableFunctionRowCoderImpl(self._row_coder.get_impl())
+        return coder_impl.TableFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
 
     def to_type_hint(self):
         return typehints.List
@@ -58,17 +58,17 @@ class TableFunctionRowCoder(FastCoder):
                                                       for f in schema_proto.fields]))
 
     def __repr__(self):
-        return 'TableFunctionRowCoder[%s]' % repr(self._row_coder)
+        return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__
-                and self._row_coder == other._row_coder)
+                and self._flatten_row_coder == other._flatten_row_coder)
 
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self):
-        return hash(self._row_coder)
+        return hash(self._flatten_row_coder)
 
 
 class FlattenRowCoder(FastCoder):
