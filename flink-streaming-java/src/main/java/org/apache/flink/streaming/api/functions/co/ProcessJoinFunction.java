@@ -19,9 +19,11 @@
 package org.apache.flink.streaming.api.functions.co;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A function that processes two joined elements and produces a single output one.
@@ -38,7 +40,8 @@ import org.apache.flink.util.OutputTag;
 public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFunction {
 
 	private static final long serialVersionUID = -2444626938039012398L;
-
+	protected int maxOutOfOrder = 1;
+	protected boolean deduplication = false;
 	/**
 	 * This method is called for each joined pair of elements. It can output zero or more elements
 	 * through the provided {@link Collector} and has access to the timestamps of the joined elements
@@ -53,6 +56,23 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 	 * 					   fail and go in recovery mode.
 	 */
 	public abstract void processElement(IN1 left, IN2 right, Context ctx, Collector<OUT> out) throws Exception;
+
+	/**
+	 * The getter of maxOutOfOrder used in IntervalJoinProcessor
+	 * @return
+	 */
+	public int getMaxOutOfOrder() {
+		return maxOutOfOrder;
+	}
+
+	/**
+	 * Wether intervaljoin discard event with same timestamp and StreamRecord value on same key
+	 * before same event cleanup
+	 * @return
+	 */
+	public boolean enableDeduplication() {
+		return deduplication;
+	}
 
 	/**
 	 * The context that is available during an invocation of

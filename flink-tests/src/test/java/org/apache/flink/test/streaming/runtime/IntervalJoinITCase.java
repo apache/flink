@@ -19,6 +19,7 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -87,6 +88,7 @@ public class IntervalJoinITCase {
 			.intervalJoin(streamTwo)
 			.between(Time.milliseconds(0), Time.milliseconds(0))
 			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
+
 				@Override
 				public void processElement(Tuple2<String, Integer> left,
 					Tuple2<String, Integer> right, Context ctx,
@@ -108,146 +110,33 @@ public class IntervalJoinITCase {
 	}
 
 	@Test
-	public void testJoinsCorrectlyWithMultipleKeys() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
-
-		KeyedStream<Tuple2<String, Integer>, String> streamOne = env.fromElements(
-			Tuple2.of("key1", 0),
-			Tuple2.of("key2", 1),
-			Tuple2.of("key1", 2),
-			Tuple2.of("key2", 3),
-			Tuple2.of("key1", 4),
-			Tuple2.of("key2", 5)
-		)
-			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
-			.keyBy(new Tuple2KeyExtractor());
-
-		KeyedStream<Tuple2<String, Integer>, String> streamTwo = env.fromElements(
-			Tuple2.of("key1", 0),
-			Tuple2.of("key2", 1),
-			Tuple2.of("key1", 2),
-			Tuple2.of("key2", 3),
-			Tuple2.of("key1", 4),
-			Tuple2.of("key2", 5)
-		)
-			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
-			.keyBy(new Tuple2KeyExtractor());
-
-		streamOne
-			.intervalJoin(streamTwo)
-			// if it were not keyed then the boundaries [0; 1] would lead to the pairs (1, 1),
-			// (1, 2), (2, 2), (2, 3)..., so that this is not happening is what we are testing here
-			.between(Time.milliseconds(0), Time.milliseconds(1))
-			.process(new CombineToStringJoinFunction())
-			.addSink(new ResultSink());
-
-		env.execute();
-
-		expectInAnyOrder(
-			"(key1,0):(key1,0)",
-			"(key2,1):(key2,1)",
-			"(key1,2):(key1,2)",
-			"(key2,3):(key2,3)",
-			"(key1,4):(key1,4)",
-			"(key2,5):(key2,5)"
-		);
+	public void testJoinsCorrectlyWithMultipleKeysDefault() throws Exception {
+		testJoinsCorrectlyWithMultipleKeys(1, false);
 	}
 
 	@Test
-	public void testBoundedUnorderedStreamsStillJoinCorrectly() throws Exception {
+	public void testJoinsCorrectlyWithMultipleKeysOutOfOrder() throws Exception {
+		testJoinsCorrectlyWithMultipleKeys(5, false);
+	}
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
+	@Test
+	public void testJoinsCorrectlyWithMultipleKeysDeduplication() throws Exception {
+		testJoinsCorrectlyWithMultipleKeys(1, true);
+	}
 
-		DataStream<Tuple2<String, Integer>> streamOne = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-				ctx.collectWithTimestamp(Tuple2.of("key", 5), 5L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-				ctx.emitWatermark(new Watermark(5));
-				ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
-			}
+	@Test
+	public void testBoundedUnorderedStreamsStillJoinCorrectlyDefault() throws Exception {
+		testBoundedUnorderedStreamsStillJoinCorrectly(1, false);
+	}
 
-			@Override
-			public void cancel() {
-				// do nothing
-			}
-		});
+	@Test
+	public void testBoundedUnorderedStreamsStillJoinCorrectlyOutOfOrder() throws Exception {
+		testBoundedUnorderedStreamsStillJoinCorrectly(5, false);
+	}
 
-		DataStream<Tuple2<String, Integer>> streamTwo = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 5), 5L);
-				ctx.emitWatermark(new Watermark(5));
-				ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
-				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
-			}
-
-			@Override
-			public void cancel() {
-				// do nothing
-			}
-		});
-
-		streamOne
-			.keyBy(new Tuple2KeyExtractor())
-			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-			.between(Time.milliseconds(-1), Time.milliseconds(1))
-			.process(new CombineToStringJoinFunction())
-			.addSink(new ResultSink());
-
-		env.execute();
-
-		expectInAnyOrder(
-			"(key,1):(key,1)",
-			"(key,1):(key,2)",
-
-			"(key,2):(key,1)",
-			"(key,2):(key,2)",
-			"(key,2):(key,3)",
-
-			"(key,3):(key,2)",
-			"(key,3):(key,3)",
-			"(key,3):(key,4)",
-
-			"(key,4):(key,3)",
-			"(key,4):(key,4)",
-			"(key,4):(key,5)",
-
-			"(key,5):(key,4)",
-			"(key,5):(key,5)",
-			"(key,5):(key,6)",
-
-			"(key,6):(key,5)",
-			"(key,6):(key,6)",
-			"(key,6):(key,7)",
-
-			"(key,7):(key,6)",
-			"(key,7):(key,7)",
-			"(key,7):(key,8)",
-
-			"(key,8):(key,7)",
-			"(key,8):(key,8)",
-			"(key,8):(key,9)",
-
-			"(key,9):(key,8)",
-			"(key,9):(key,9)"
-		);
+	@Test
+	public void testBoundedUnorderedStreamsStillJoinCorrectlyDeduplication() throws Exception {
+		testBoundedUnorderedStreamsStillJoinCorrectly(1, true);
 	}
 
 	@Test(expected = NullPointerException.class)
@@ -303,7 +192,7 @@ public class IntervalJoinITCase {
 			.between(Time.milliseconds(0), Time.milliseconds(2))
 			.upperBoundExclusive()
 			.lowerBoundExclusive()
-			.process(new CombineToStringJoinFunction())
+			.process(new CombineToStringJoinFunction(1, false))
 			.addSink(new ResultSink());
 
 		env.execute();
@@ -335,7 +224,7 @@ public class IntervalJoinITCase {
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(0), Time.milliseconds(2))
-			.process(new CombineToStringJoinFunction())
+			.process(new CombineToStringJoinFunction(1, false))
 			.addSink(new ResultSink());
 
 		env.execute();
@@ -373,7 +262,7 @@ public class IntervalJoinITCase {
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(0), Time.milliseconds(2))
-			.process(new CombineToStringJoinFunction())
+			.process(new CombineToStringJoinFunction(1, false))
 			.addSink(new ResultSink());
 
 		env.execute();
@@ -412,6 +301,147 @@ public class IntervalJoinITCase {
 			});
 	}
 
+	private void testBoundedUnorderedStreamsStillJoinCorrectly(int maxOutOfOrder, boolean deDuplication)
+		throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		DataStream<Tuple2<String, Integer>> streamOne = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+				ctx.collectWithTimestamp(Tuple2.of("key", 5), 5L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+				ctx.emitWatermark(new Watermark(5));
+				ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
+			}
+
+			@Override
+			public void cancel() {
+				// do nothing
+			}
+		});
+
+		DataStream<Tuple2<String, Integer>> streamTwo = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+				ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 5), 5L);
+				ctx.emitWatermark(new Watermark(5));
+				ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
+				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
+			}
+
+			@Override
+			public void cancel() {
+				// do nothing
+			}
+		});
+
+		streamOne
+			.keyBy(new Tuple2KeyExtractor())
+			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+			.between(Time.milliseconds(-1), Time.milliseconds(1))
+			.process(new CombineToStringJoinFunction(maxOutOfOrder, deDuplication))
+			.addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key,1):(key,1)",
+			"(key,1):(key,2)",
+
+			"(key,2):(key,1)",
+			"(key,2):(key,2)",
+			"(key,2):(key,3)",
+
+			"(key,3):(key,2)",
+			"(key,3):(key,3)",
+			"(key,3):(key,4)",
+
+			"(key,4):(key,3)",
+			"(key,4):(key,4)",
+			"(key,4):(key,5)",
+
+			"(key,5):(key,4)",
+			"(key,5):(key,5)",
+			"(key,5):(key,6)",
+
+			"(key,6):(key,5)",
+			"(key,6):(key,6)",
+			"(key,6):(key,7)",
+
+			"(key,7):(key,6)",
+			"(key,7):(key,7)",
+			"(key,7):(key,8)",
+
+			"(key,8):(key,7)",
+			"(key,8):(key,8)",
+			"(key,8):(key,9)",
+
+			"(key,9):(key,8)",
+			"(key,9):(key,9)"
+		);
+	}
+
+	private void testJoinsCorrectlyWithMultipleKeys(int maxOutOfOrder, boolean deDuplication) throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> streamOne = env.fromElements(
+			Tuple2.of("key1", 0),
+			Tuple2.of("key2", 1),
+			Tuple2.of("key1", 2),
+			Tuple2.of("key2", 3),
+			Tuple2.of("key1", 4),
+			Tuple2.of("key2", 5)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> streamTwo = env.fromElements(
+			Tuple2.of("key1", 0),
+			Tuple2.of("key2", 1),
+			Tuple2.of("key1", 2),
+			Tuple2.of("key2", 3),
+			Tuple2.of("key1", 4),
+			Tuple2.of("key2", 5)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		streamOne
+			.intervalJoin(streamTwo)
+			// if it were not keyed then the boundaries [0; 1] would lead to the pairs (1, 1),
+			// (1, 2), (2, 2), (2, 3)..., so that this is not happening is what we are testing here
+			.between(Time.milliseconds(0), Time.milliseconds(1))
+			.process( new CombineToStringJoinFunction(maxOutOfOrder, deDuplication))
+			.addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key1,0):(key1,0)",
+			"(key2,1):(key2,1)",
+			"(key1,2):(key1,2)",
+			"(key2,3):(key2,3)",
+			"(key1,4):(key1,4)",
+			"(key2,5):(key2,5)"
+		);
+	}
+
 	private static void expectInAnyOrder(String... expected) {
 		List<String> listExpected = Lists.newArrayList(expected);
 		Collections.sort(listExpected);
@@ -434,6 +464,10 @@ public class IntervalJoinITCase {
 	}
 
 	private static class CombineToStringJoinFunction extends ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String> {
+		public CombineToStringJoinFunction(int maxOutOfOrder, boolean deduplication) {
+			this.maxOutOfOrder = maxOutOfOrder;
+			this.deduplication = deduplication;
+		}
 		@Override
 		public void processElement(Tuple2<String, Integer> left,
 			Tuple2<String, Integer> right, Context ctx, Collector<String> out) {

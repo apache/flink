@@ -24,8 +24,6 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
@@ -35,12 +33,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -60,7 +56,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -121,9 +116,22 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 	private transient InternalTimerService<String> internalTimerService;
 
-	private transient ValueState<Boolean> isKeyedLeftProcessed;
-	private transient ExecutorService threadpool;
+	/**
+	 * Allow one side ProcessElement out of order join other side
+	 * with exception of follow scenarios where flink needs to materialize in-flight tasks
+	 * to leftBuffer and rightBuffer
+	 * 1) watermark update triggered cleanup timers fire and interval shifts
+	 * 2) checkpoint barrier triggered processing records materialization
+	 * 3) different side processElement scans elements in current side with same key
+	 * 4) close triggered processing record drain
+	 * In those cases, isKeyedLeftProcessed is set to 0 to gate further out of order
+	 * until operator completes 1) - 3) or closed 4)
+	 */
+	private transient ValueState<Integer> isKeyedLeftProcessed;
+	private transient ExecutorService executor;
 	private transient List<Future> pendingTasks;
+	private transient final int maxOutOfOrder;
+	private transient final boolean deDuplication;
 
 	/**
 	 * Creates a new IntervalJoinOperator.
@@ -158,6 +166,10 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
+
+		this.maxOutOfOrder = udf.getMaxOutOfOrder();
+
+		this.deDuplication = udf.enableDeduplication();
 	}
 
 	@Override
@@ -169,13 +181,13 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		internalTimerService =
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
 
-		ValueStateDescriptor<Boolean> descriptor =
+		ValueStateDescriptor<Integer> descriptor =
 			new ValueStateDescriptor<>(
-				"keyed-out-of-order-join", // the state name
-				TypeInformation.of(new TypeHint<Boolean>() {}), // type information
-				false); // default value of the state, if nothing was set
+				"keyed-one-side-out-of-order-join", // the state name
+				Integer.class, // type information
+				0); // default value of the state, if nothing was set
 		isKeyedLeftProcessed = getRuntimeContext().getState(descriptor);
-		threadpool = Executors.newFixedThreadPool(10);
+		executor = Executors.newFixedThreadPool(maxOutOfOrder);
 		pendingTasks = new LinkedList<>();
 	}
 
@@ -248,7 +260,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			@Override
 			public void run() {
 				try{
-					addToBuffer(ourBuffer, ourValue, ourTimestamp);
+					addToBuffer(ourBuffer, ourValue, ourTimestamp, deDuplication);
 
 					for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
 						final long timestamp  = bucket.getKey();
@@ -280,37 +292,44 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			}
 		};
 
-		Boolean isLeftProcessed = isKeyedLeftProcessed.value();
+		Boolean isLeftProcessed = isKeyedLeftProcessed.value() == 1;
 
-		if (isLeft == isLeftProcessed) {
-			Future futureTask = threadpool.submit(t);
+		if (isLeft == isLeftProcessed && isKeyedLeftProcessed.value() != 0) {
+			Future futureTask = executor.submit(t);
 			pendingTasks.add(futureTask);
 		} else {
 			waitForPendingTasks();
-			isKeyedLeftProcessed.update(isLeft);
+			isKeyedLeftProcessed.update(isLeft ? 1 : -1);
 			t.run();
 		}
 	}
 
 	private void waitForPendingTasks() throws Exception {
+		isKeyedLeftProcessed.update(0);
 		for (Future task : pendingTasks) {
 			task.get();
 		}
 		pendingTasks.clear();
 	}
-	
+
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		waitForPendingTasks();
 		super.processWatermark(mark);
+		isKeyedLeftProcessed.update(-1);
+	}
+
+	@Override
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		waitForPendingTasks();
+		super.snapshotState(context);
+		isKeyedLeftProcessed.update(-1);
 	}
 
 	@Override
 	public void close() throws Exception {
-		for(Future task : pendingTasks) {
-			task.get();
-		}
-		threadpool.shutdown();
+		waitForPendingTasks();
+		executor.shutdown();
 		super.close();
 	}
 
@@ -331,13 +350,28 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private static synchronized <T> void addToBuffer(
 			final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
 			final T value,
-			final long timestamp) throws Exception {
+			final long timestamp,
+			boolean deDuplication) throws Exception {
 		List<BufferEntry<T>> elemsInBucket = buffer.get(timestamp);
 		if (elemsInBucket == null) {
 			elemsInBucket = new ArrayList<>();
 		}
-		elemsInBucket.add(new BufferEntry<>(value, false));
-		buffer.put(timestamp, elemsInBucket);
+
+		boolean duplicated = false;
+
+		if (deDuplication) {
+			for (BufferEntry<T> ele : elemsInBucket) {
+				if (ele.element.equals(value)) {
+					duplicated = true;
+					break;
+				}
+			}
+		}
+
+		if (!duplicated) {
+			elemsInBucket.add(new BufferEntry<>(value, false));
+			buffer.put(timestamp, elemsInBucket);
+		}
 	}
 
 	@Override
