@@ -40,11 +40,8 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utilities for checking {@link LogicalType} and avoiding a lot of type casting and repetitive work.
@@ -173,20 +170,6 @@ public final class LogicalTypeChecks {
 
 	public static boolean isSingleFieldInterval(LogicalType logicalType) {
 		return logicalType.accept(SINGLE_FIELD_INTERVAL_EXTRACTOR);
-	}
-
-	/**
-	 * Returns true if the two given types are compatible. Types are compatible is for atomic types
-	 * (VARCHAR, INT, BOOLEAN, etc..), they must be fully equal (i.e. {@link LogicalType#equals(Object)}),
-	 * for complex types (ARRAY, ROW, MAP, etc..), they must be in the same type but ignore field
-	 * names and other logical attributes, and all the children types ({@link LogicalType#getChildren()})
-	 * must be compatible too.
-	 */
-	public static boolean areTypesCompatible(LogicalType thisType, LogicalType thatType) {
-		checkNotNull(thisType);
-		checkNotNull(thatType);
-		TypeCompatibleVisitor visitor = new TypeCompatibleVisitor(thisType);
-		return thatType.accept(visitor);
 	}
 
 	private LogicalTypeChecks() {
@@ -373,49 +356,6 @@ public final class LogicalTypeChecks {
 					return true;
 				default:
 					return false;
-			}
-		}
-	}
-
-	private static class TypeCompatibleVisitor extends LogicalTypeDefaultVisitor<Boolean> {
-
-		private final LogicalType thisType;
-
-		private TypeCompatibleVisitor(LogicalType thisType) {
-			checkNotNull(thisType);
-			this.thisType = thisType;
-		}
-
-		@Override
-		protected Boolean defaultMethod(LogicalType thatType) {
-			checkNotNull(thatType);
-			if (thisType == thatType) {
-				return true;
-			}
-			if (thisType.getClass() != thatType.getClass() ||
-				thisType.isNullable() != thatType.isNullable() ||
-				thisType.getTypeRoot() != thatType.getTypeRoot()) {
-				return false;
-			}
-
-			List<LogicalType> thisChildren = thisType.getChildren();
-			List<LogicalType> thatChildren = thatType.getChildren();
-			if (thisChildren.size() != thatChildren.size()) {
-				return false;
-			}
-			if (thisChildren.isEmpty()) {
-				// if it is an atomic type, delegate to equals method.
-				return thisType.equals(thatType);
-			} else {
-				// if it is composite type, only need to check children types
-				for (int i = 0; i < thisChildren.size(); i++) {
-					LogicalType thisChild = thisChildren.get(i);
-					LogicalType thatChild = thatChildren.get(i);
-					if (!areTypesCompatible(thisChild, thatChild)) {
-						return false;
-					}
-				}
-				return true;
 			}
 		}
 	}

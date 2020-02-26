@@ -48,7 +48,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,18 +58,18 @@ import org.junit.runners.Parameterized.Parameters;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link LogicalTypeChecks#areTypesCompatible(LogicalType, LogicalType)}.
+ * Tests for {@link LogicalTypeCasts#supportsAvoidingCast(LogicalType, LogicalType)}.
  */
 @RunWith(Parameterized.class)
-public class LogicalTypeCompatibleCheckTest {
+public class LogicalTypeCastAvoidanceTest {
 
 	@Parameters(name = "{index}: [{0} COMPATIBLE {1} => {2}")
 	public static List<Object[]> testData() {
@@ -77,13 +77,29 @@ public class LogicalTypeCompatibleCheckTest {
 			new Object[][]{
 				{new CharType(), new CharType(5), false},
 
-				{new VarCharType(), new VarCharType(33), false},
+				{new VarCharType(30), new VarCharType(10), false},
+
+				{new VarCharType(10), new VarCharType(30), true},
+
+				{new CharType(10), new VarCharType(30), true},
+
+				{new BinaryType(10), new VarBinaryType(30), true},
+
+				{new CharType(false, 10), new VarCharType(30), true},
+
+				{new BinaryType(false, 10), new VarBinaryType(30), true},
+
+				{new VarCharType(30), new CharType(10), false},
+
+				{new VarBinaryType(30), new BinaryType(10), false},
 
 				{new BooleanType(), new BooleanType(false), false},
 
-				{new BinaryType(), new BinaryType(22), false},
+				{new BinaryType(10), new BinaryType(30), false},
 
-				{new VarBinaryType(), new VarBinaryType(44), false},
+				{new VarBinaryType(10), new VarBinaryType(30), true},
+
+				{new VarBinaryType(30), new VarBinaryType(10), false},
 
 				{new DecimalType(), new DecimalType(10, 2), false},
 
@@ -92,6 +108,8 @@ public class LogicalTypeCompatibleCheckTest {
 				{new SmallIntType(), new SmallIntType(false), false},
 
 				{new IntType(), new IntType(false), false},
+
+				{new IntType(false), new IntType(), true},
 
 				{new BigIntType(), new BigIntType(false), false},
 
@@ -134,8 +152,14 @@ public class LogicalTypeCompatibleCheckTest {
 				},
 
 				{
-					new MapType(new VarCharType(20), new TimestampType()),
-					new MapType(new VarCharType(99), new TimestampType()),
+					new MapType(new VarCharType(10), new TimestampType()),
+					new MapType(new VarCharType(30), new TimestampType()),
+					true
+				},
+
+				{
+					new MapType(new VarCharType(30), new TimestampType()),
+					new MapType(new VarCharType(10), new TimestampType()),
 					false
 				},
 
@@ -241,14 +265,26 @@ public class LogicalTypeCompatibleCheckTest {
 				},
 
 				{
-					createUserType(new IntType(), new VarCharType()),
-					createUserType(new IntType(), new VarCharType()),
+					createUserType("User", new IntType(), new VarCharType()),
+					createUserType("User", new IntType(), new VarCharType()),
 					true
 				},
 
 				{
-					createDistinctType(new DecimalType(10, 2)),
-					createDistinctType(new DecimalType(10, 2)),
+					createUserType("User", new IntType(), new VarCharType()),
+					createUserType("User2", new IntType(), new VarCharType()),
+					false
+				},
+
+				{
+					createDistinctType("Money", new DecimalType(10, 2)),
+					createDistinctType("Money", new DecimalType(10, 2)),
+					true
+				},
+
+				{
+					createDistinctType("Money", new DecimalType(10, 2)),
+					createDistinctType("Money2", new DecimalType(10, 2)),
 					true
 				}
 			}
@@ -265,27 +301,27 @@ public class LogicalTypeCompatibleCheckTest {
 	public boolean equals;
 
 	@Test
-	public void testAreTypesCompatible() {
+	public void testSupportsAvoidingCast() {
 		assertThat(
-			LogicalTypeChecks.areTypesCompatible(sourceType, targetType),
+			supportsAvoidingCast(sourceType, targetType),
 			equalTo(equals));
-		assertTrue(LogicalTypeChecks.areTypesCompatible(sourceType, sourceType.copy()));
-		assertTrue(LogicalTypeChecks.areTypesCompatible(targetType, targetType.copy()));
+		assertTrue(supportsAvoidingCast(sourceType, sourceType.copy()));
+		assertTrue(supportsAvoidingCast(targetType, targetType.copy()));
 	}
 
-	private static DistinctType createDistinctType(LogicalType sourceType) {
+	private static DistinctType createDistinctType(String name, LogicalType sourceType) {
 		return DistinctType.newBuilder(
-				ObjectIdentifier.of("cat", "db", UUID.randomUUID().toString()),
+				ObjectIdentifier.of("cat", "db", name),
 				sourceType)
 			.description("Money type desc.")
 			.build();
 	}
 
-	private static StructuredType createUserType(LogicalType... children) {
-		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class)
+	private static StructuredType createUserType(String name, LogicalType... children) {
+		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", name), User.class)
 			.attributes(
 				Arrays.stream(children)
-					.map(lt -> new StructuredType.StructuredAttribute(UUID.randomUUID().toString(), lt))
+					.map(lt -> new StructuredType.StructuredAttribute("field", lt))
 					.collect(Collectors.toList()))
 			.description("User type desc.")
 			.setFinal(true)

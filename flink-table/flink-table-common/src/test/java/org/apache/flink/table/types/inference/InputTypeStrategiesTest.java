@@ -89,6 +89,13 @@ public class InputTypeStrategiesTest {
 				.expectSignature("f(INT, BOOLEAN)")
 				.expectArgumentTypes(DataTypes.INT().bridgedTo(int.class), DataTypes.BOOLEAN()),
 
+			// explicit sequence with ROW ignoring field names
+			TestSpec
+				.forStrategy(explicitSequence(DataTypes.ROW(DataTypes.FIELD("expected", DataTypes.INT()))))
+				.calledWithArgumentTypes(DataTypes.ROW(DataTypes.FIELD("actual", DataTypes.INT())))
+				.expectSignature("f(ROW<`expected` INT>)")
+				.expectArgumentTypes(DataTypes.ROW(DataTypes.FIELD("expected", DataTypes.INT()))),
+
 			// invalid named sequence
 			TestSpec
 				.forStrategy(

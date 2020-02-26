@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.sinks
 
+import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -31,14 +32,14 @@ import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTy
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable, legacyRawToTypeInfoRaw}
-import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
-import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType, TypeInformationRawType}
+import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw, toNullable}
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.{supportsAvoidingCast, supportsImplicitCast}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.{LegacyTypeInformationType, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.{fromLegacyInfoToDataType, fromLogicalToDataType}
 import org.apache.flink.table.utils.{TableSchemaUtils, TypeMappingUtils}
 import org.apache.flink.types.Row
-import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
 
@@ -67,13 +68,10 @@ object TableSinkUtils {
       .transform(sinkSchema.toRowDataType, legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw)
       .getLogicalType
       .asInstanceOf[RowType]
-    if (LogicalTypeCasts.supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
+    if (supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
       // the query can be written into sink
       // but we may need to add a cast project if the types are not compatible
-      if (LogicalTypeChecks.areTypesCompatible(
-          nullableLogicalType(queryLogicalType), nullableLogicalType(sinkLogicalType))) {
-        // types are compatible excepts nullable, do not need cast project
-        // we ignores nullable to avoid cast project as cast non-null to nullable is redundant
+      if (supportsAvoidingCast(queryLogicalType, sinkLogicalType)) {
         query
       } else {
         // otherwise, add a cast project
@@ -98,13 +96,6 @@ object TableSinkUtils {
           s"Query schema: $srcSchema\n" +
           s"Sink schema: $sinkSchema")
     }
-  }
-
-  /**
-    * Make the logical type nullable recursively.
-    */
-  private def nullableLogicalType(logicalType: LogicalType): LogicalType = {
-    DataTypeUtils.transform(fromLogicalToDataType(logicalType), toNullable).getLogicalType
   }
 
   /**

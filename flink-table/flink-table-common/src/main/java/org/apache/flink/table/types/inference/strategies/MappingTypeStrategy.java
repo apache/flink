@@ -31,9 +31,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
+
 /**
  * Type strategy that maps an {@link InputTypeStrategy} to a {@link TypeStrategy} if the input strategy
- * infers identical types.
+ * infers compatible types.
  */
 @Internal
 public final class MappingTypeStrategy implements TypeStrategy {
@@ -64,7 +66,7 @@ public final class MappingTypeStrategy implements TypeStrategy {
 			final List<LogicalType> inferredTypes = inferredDataTypes.get().stream()
 				.map(DataType::getLogicalType)
 				.collect(Collectors.toList());
-			if (actualTypes.equals(inferredTypes)) {
+			if (supportsAvoidingCast(actualTypes, inferredTypes)) {
 				return strategy.inferType(callContext);
 			}
 		}
