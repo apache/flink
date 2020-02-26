@@ -121,7 +121,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private transient InternalTimerService<String> internalTimerService;
 
 	/**
-	 * Allow one side ProcessElement out of order join other side
+	 * Allow one side ProcessElement out of order join other side.
 	 * with exception of follow scenarios where flink needs to materialize in-flight tasks
 	 * to leftBuffer and rightBuffer
 	 * 1) watermark update triggered cleanup timers fire and interval shifts
@@ -134,6 +134,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private transient ValueState<Integer> isKeyedLeftProcessed;
 	private transient ExecutorService executor;
 	private transient List<Future> pendingTasks;
+
 	private transient final int maxOutOfOrder;
 	private transient final boolean deDuplication;
 
@@ -172,7 +173,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
 
 		this.maxOutOfOrder = udf.getMaxOutOfOrder();
-
 		this.deDuplication = udf.deduplicationEnabled();
 	}
 
@@ -268,7 +268,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		Runnable t = new Runnable() {
 			@Override
 			public void run() {
-				try{
+				try {
 					addToBuffer(ourBuffer, ourValue, ourTimestamp, deDuplication);
 
 					for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {

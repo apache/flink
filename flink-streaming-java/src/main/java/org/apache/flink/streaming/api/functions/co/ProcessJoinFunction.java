@@ -56,7 +56,7 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 	public abstract void processElement(IN1 left, IN2 right, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
-	 * The getter of maxOutOfOrder used in IntervalJoinProcessor
+	 * The getter of maxOutOfOrder used in IntervalJoinProcessor.
 	 * @return
 	 */
 	public int getMaxOutOfOrder() {
@@ -64,7 +64,7 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 	}
 
 	/**
-	 * If IntervalJoinProcessor discards event with same StreamRecord value on same key
+	 * If IntervalJoinProcessor discards event with same StreamRecord value on same key.
 	 * @return
 	 */
 	public boolean deduplicationEnabled() {
