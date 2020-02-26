@@ -94,7 +94,7 @@ public abstract class UpsertWriter implements JDBCWriter {
 		this.deleteStatement = connection.prepareStatement(deleteSQL);
 	}
 
-	public void addRecord(Tuple2<Boolean, Row> record) throws SQLException {
+	public void addRecord(Tuple2<Boolean, Row> record) {
 		// we don't need perform a deep copy, because jdbc field are immutable object.
 		Tuple2<Boolean, Row> tuple2 = objectReuse ? new Tuple2<>(record.f0, Row.copy(record.f1)) : record;
 		// add records to buffer

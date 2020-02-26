@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -52,6 +53,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:upsert";
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
+	public static final String NOT_EXISTS_TABLE = "notExistsTable";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
@@ -210,5 +212,32 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
 				Row.of(20, 6, Timestamp.valueOf("1970-01-01 00:00:00.02"))
 		}, DB_URL, OUTPUT_TABLE2, new String[]{"id", "num", "ts"});
+	}
+
+	@Test(expected = JobExecutionException.class)
+	public void testTableNotExists() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		env.getConfig().setParallelism(1);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+		Table t = tEnv.fromDataStream(get4TupleDataStream(env), "id, num, text, ts");
+
+		tEnv.registerTable("T", t);
+
+		tEnv.sqlUpdate(
+			"CREATE TABLE upsertSink (" +
+				"  id INT," +
+				"  num BIGINT," +
+				"  ts TIMESTAMP(3)" +
+				") WITH (" +
+				"  'connector.type'='jdbc'," +
+				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.table'='" + NOT_EXISTS_TABLE + "'," +
+				"  'connector.write.max-retries'='3'" +
+				")");
+
+		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
+		env.execute();
 	}
 }

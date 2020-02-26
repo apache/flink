@@ -38,7 +38,7 @@ public interface JDBCWriter extends Serializable {
 	/**
 	 * Add record to writer, the writer may cache the data.
 	 */
-	void addRecord(Tuple2<Boolean, Row> record) throws SQLException;
+	void addRecord(Tuple2<Boolean, Row> record);
 
 	/**
 	 * Submits a batch of commands to the database for execution.
