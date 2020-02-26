@@ -57,12 +57,18 @@ All the Kubernetes configuration options can be found in our [configuration guid
 
 **Example**: Issue the following command to start a session cluster with 4 GB of memory and 2 CPUs with 4 slots per TaskManager:
 
+In this example we override the `resourcemanager.taskmanager-timeout` setting to make
+the pods with task managers remain for a longer period than the default of 30 seconds.
+Although this setting may cause more cloud cost it has the effect that starting new jobs is in some scenarios
+faster and during development you have more time to inspect the logfiles of your job.
+
 {% highlight bash %}
 ./bin/kubernetes-session.sh \
   -Dkubernetes.cluster-id=<ClusterId> \
   -Dtaskmanager.memory.process.size=4096m \
   -Dkubernetes.taskmanager.cpu=2 \
-  -Dtaskmanager.numberOfTaskSlots=4
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000
 {% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`.
