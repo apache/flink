@@ -785,10 +785,19 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(4, verticesSorted.size());
 
-		final JobVertex source1Vertex = verticesSorted.get(0);
-		final JobVertex source2Vertex = verticesSorted.get(1);
-		final JobVertex map1Vertex = verticesSorted.get(2);
-		final JobVertex map2Vertex = verticesSorted.get(3);
+		JobVertex source1Vertex = null, source2Vertex = null, map1Vertex = null, map2Vertex= null;
+		for (int i = 0; i < 4; i++)
+		{
+			JobVertex vertex = verticesSorted.get(i);
+			if (vertex.getName().equals("Source: source1"))
+				source1Vertex = vertex;
+			if (vertex.getName().equals("Source: source2"))
+				source2Vertex = vertex;
+			if (vertex.getName().equals("map1"))
+				map1Vertex = vertex;
+			if (vertex.getName().equals("map2"))
+				map2Vertex = vertex;
+		}
 
 		// all vertices should be in the same default slot sharing group
 		// except for map1 which has a specified slot sharing group
@@ -805,10 +814,19 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(4, verticesSorted.size());
 
-		final JobVertex source1Vertex = verticesSorted.get(0);
-		final JobVertex source2Vertex = verticesSorted.get(1);
-		final JobVertex map1Vertex = verticesSorted.get(2);
-		final JobVertex map2Vertex = verticesSorted.get(3);
+		JobVertex source1Vertex = null, source2Vertex = null, map1Vertex = null, map2Vertex= null;
+		for (int i = 0; i < 4; i++)
+		{
+			JobVertex vertex = verticesSorted.get(i);
+			if (vertex.getName().equals("Source: source1"))
+				source1Vertex = vertex;
+			if (vertex.getName().equals("Source: source2"))
+				source2Vertex = vertex;
+			if (vertex.getName().equals("map1"))
+				map1Vertex = vertex;
+			if (vertex.getName().equals("map2"))
+				map2Vertex = vertex;
+		}
 
 		// vertices in the same region should be in the same slot sharing group
 		assertSameSlotSharingGroup(source1Vertex, map1Vertex);
