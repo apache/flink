@@ -93,6 +93,13 @@ public class TypeStrategiesTest {
 				.inputTypes(DataTypes.INT(), DataTypes.STRING())
 				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
 
+			// (INT, CHAR(10)) -> BOOLEAN
+			// but avoiding casts (mapping actually expects STRING)
+			TestSpec
+				.forStrategy(createMappingTypeStrategy())
+				.inputTypes(DataTypes.INT(), DataTypes.CHAR(10))
+				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
+
 			// invalid mapping strategy
 			TestSpec
 				.forStrategy(createMappingTypeStrategy())
