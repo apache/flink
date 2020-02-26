@@ -18,12 +18,14 @@ parameters:
   e2e_pool_definion: # defines the hardware pool for end-to-end test execution
   stage_name: # defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)
   environment: # defines environment variables for downstream scripts
+  run_end_to_end: # if set to 'true', the end to end tests will be executed
+  container: # the container name for the build
 
 jobs:
 - job: compile_${{parameters.stage_name}}
   condition: not(eq(variables['MODE'], 'e2e'))
   pool: ${{parameters.test_pool_definition}}
-  container: flink-build-container
+  container: ${{parameters.container}}
   timeoutInMinutes: 240
   cancelTimeoutInMinutes: 1
   workspace:
@@ -63,7 +65,7 @@ jobs:
   dependsOn: compile_${{parameters.stage_name}}
   condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
   pool: ${{parameters.test_pool_definition}}
-  container: flink-build-container
+  container: ${{parameters.container}}
   timeoutInMinutes: 240
   cancelTimeoutInMinutes: 1
   workspace:
@@ -132,20 +134,26 @@ jobs:
         restoreKeys: $(CACHE_FALLBACK_KEY)
         path: $(MAVEN_CACHE_FOLDER)
       displayName: Cache Maven local repo
+      continueOnError: true
     
     # download artifacts
     - task: DownloadPipelineArtifact@2
       inputs:
         path: $(CACHE_FLINK_DIR)
         artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
+    - script: |
+        echo "##vso[task.setvariable variable=JAVA_HOME]$(JAVA_HOME_11_X64)"
+        echo "##vso[task.setvariable variable=PATH]$(JAVA_HOME_11_X64)/bin;$(PATH)"
+      displayName: "Set to jdk11"
+      condition: eq('${{parameters.container}}', 'flink-build-jdk11')
     - script: ./tools/travis/setup_maven.sh
-    - script: ./tools/azure-pipelines/prepare_precommit.sh
+    - script: ${{parameters.environment}} ./tools/azure-pipelines/prepare_precommit.sh
       displayName: prepare and build Flink
     - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
       displayName: Test - precommit 
 
 - job: e2e_${{parameters.stage_name}}
-  condition: eq(variables['MODE'], 'e2e')
+  condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
   # We are not running this job on a container, but in a VM.
   pool: ${{parameters.e2e_pool_definition}}
   timeoutInMinutes: 240
@@ -159,9 +167,15 @@ jobs:
         restoreKeys: $(CACHE_FALLBACK_KEY)
         path: $(MAVEN_CACHE_FOLDER)
       displayName: Cache Maven local repo
+      continueOnError: true
+    - script: |
+        echo "##vso[task.setvariable variable=JAVA_HOME]$(JAVA_HOME_11_X64)"
+        echo "##vso[task.setvariable variable=PATH]$(JAVA_HOME_11_X64)/bin;$(PATH)"
+      displayName: "Set to jdk11"
+      condition: eq('${{parameters.container}}', 'flink-build-jdk11')
     - script: ./tools/travis/setup_maven.sh
     - script: ./tools/azure-pipelines/setup_kubernetes.sh
-    - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dmaven.wagon.http.pool=false" STAGE=compile ./tools/azure_controller.sh compile
+    - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
       displayName: Build
     - script: FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
       displayName: Run nightly e2e tests
