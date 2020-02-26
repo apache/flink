@@ -55,7 +55,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.List;
+import java.util.Map;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -169,7 +173,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		this.maxOutOfOrder = udf.getMaxOutOfOrder();
 
-		this.deDuplication = udf.enableDeduplication();
+		this.deDuplication = udf.deduplicationEnabled();
 	}
 
 	@Override
@@ -188,7 +192,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				0); // default value of the state, if nothing was set
 		isKeyedLeftProcessed = getRuntimeContext().getState(descriptor);
 		executor = Executors.newFixedThreadPool(maxOutOfOrder);
-		pendingTasks = new LinkedList<>();
+		pendingTasks = new ArrayList<>();
 	}
 
 	@Override

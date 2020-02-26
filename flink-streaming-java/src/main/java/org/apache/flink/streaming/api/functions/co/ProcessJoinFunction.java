@@ -19,11 +19,9 @@
 package org.apache.flink.streaming.api.functions.co;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.Preconditions;
 
 /**
  * A function that processes two joined elements and produces a single output one.
@@ -66,11 +64,10 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 	}
 
 	/**
-	 * Wether intervaljoin discard event with same timestamp and StreamRecord value on same key
-	 * before same event cleanup
+	 * If IntervalJoinProcessor discards event with same StreamRecord value on same key
 	 * @return
 	 */
-	public boolean enableDeduplication() {
+	public boolean deduplicationEnabled() {
 		return deduplication;
 	}
 

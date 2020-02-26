@@ -110,6 +110,55 @@ public class IntervalJoinITCase {
 	}
 
 	@Test
+	public void testCanJoinOverSameKeyWithDeduplication() throws Exception {
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> streamOne = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> streamTwo = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1),
+			Tuple2.of("key", 1)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		streamOne
+			.intervalJoin(streamTwo)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
+
+				@Override
+				public void processElement(Tuple2<String, Integer> left,
+										   Tuple2<String, Integer> right, Context ctx,
+										   Collector<String> out) throws Exception {
+					out.collect(left + ":" + right);
+				}
+
+				@Override
+				public boolean deduplicationEnabled() {
+					return true;
+				}
+			}).addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key,0):(key,0)",
+			"(key,1):(key,1)"
+		);
+	}
+
+	@Test
 	public void testJoinsCorrectlyWithMultipleKeysDefault() throws Exception {
 		testJoinsCorrectlyWithMultipleKeys(1, false);
 	}
