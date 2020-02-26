@@ -25,9 +25,9 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
- * Helper  class to construct {@link StreamOperatorBase}. Wraps couple of internal parameters
- * to simplify for users construction of classes extending {@link StreamOperatorBase} and to
- * allow for backward compatible changes in the {@link StreamOperatorBase}'s constructor.
+ * Helper  class to construct {@link AbstractStreamOperatorV2}. Wraps couple of internal parameters
+ * to simplify for users construction of classes extending {@link AbstractStreamOperatorV2} and to
+ * allow for backward compatible changes in the {@link AbstractStreamOperatorV2}'s constructor.
  *
  * @param <OUT> The output type of an operator that will be constructed using {@link StreamOperatorParameters}.
  */
