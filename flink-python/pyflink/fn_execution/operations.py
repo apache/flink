@@ -47,6 +47,43 @@ class ScalarFunctionOperation(Operation):
         for scalar_func in self.scalar_funcs:
             scalar_func.open(None)
 
+    def setup(self):
+        super(ScalarFunctionOperation, self).setup()
+        self.output_processor = _OutputProcessor(
+            window_fn=None,
+            main_receivers=self.receivers[0],
+            tagged_receivers=None,
+            per_element_output_counter=None)
+
+    def start(self):
+        with self.scoped_start_state:
+            super(ScalarFunctionOperation, self).start()
+
+    def process(self, o):
+        self.output_processor.process_outputs(o, [self.func(o.value)])
+
+    def finish(self):
+        super(ScalarFunctionOperation, self).finish()
+
+    def needs_finalization(self):
+        return False
+
+    def reset(self):
+        super(ScalarFunctionOperation, self).reset()
+
+    def teardown(self):
+        for scalar_func in self.scalar_funcs:
+            scalar_func.close(None)
+
+    def progress_metrics(self):
+        metrics = super(ScalarFunctionOperation, self).progress_metrics()
+        metrics.processed_elements.measured.output_element_counts.clear()
+        tag = None
+        receiver = self.receivers[0]
+        metrics.processed_elements.measured.output_element_counts[
+            str(tag)] = receiver.opcounter.element_counter.value()
+        return metrics
+
     def _generate_func(self, udfs):
         """
         Generates a lambda function based on udfs.
@@ -128,43 +165,6 @@ class ScalarFunctionOperation(Operation):
         constant_value_name = 'c%s' % _next_constant_num()
         self.variable_dict[constant_value_name] = parsed_constant_value
         return constant_value_name
-
-    def setup(self):
-        super(ScalarFunctionOperation, self).setup()
-        self.output_processor = _OutputProcessor(
-            window_fn=None,
-            main_receivers=self.receivers[0],
-            tagged_receivers=None,
-            per_element_output_counter=None)
-
-    def start(self):
-        with self.scoped_start_state:
-            super(ScalarFunctionOperation, self).start()
-
-    def process(self, o):
-        self.output_processor.process_outputs(o, [self.func(o.value)])
-
-    def finish(self):
-        super(ScalarFunctionOperation, self).finish()
-
-    def needs_finalization(self):
-        return False
-
-    def reset(self):
-        super(ScalarFunctionOperation, self).reset()
-
-    def teardown(self):
-        for scalar_func in self.scalar_funcs:
-            scalar_func.close(None)
-
-    def progress_metrics(self):
-        metrics = super(ScalarFunctionOperation, self).progress_metrics()
-        metrics.processed_elements.measured.output_element_counts.clear()
-        tag = None
-        receiver = self.receivers[0]
-        metrics.processed_elements.measured.output_element_counts[
-            str(tag)] = receiver.opcounter.element_counter.value()
-        return metrics
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
