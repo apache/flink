@@ -861,12 +861,12 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		return setResourcesMethod;
 	}
 
-	private List<JobVertex> getExpectedVerticesList(List<JobVertex> vertices) {
+	private static List<JobVertex> getExpectedVerticesList(List<JobVertex> vertices) {
 		List<JobVertex> verticesMatched = new ArrayList<JobVertex>();
-		List<String> ExpectedOrder = Arrays.asList("source1", "source2", "map1", "map2");
-		for (int i = 0; i < ExpectedOrder.size(); i++) {
+		List<String> expectedOrder = Arrays.asList("source1", "source2", "map1", "map2");
+		for (int i = 0; i < expectedOrder.size(); i++) {
 			for (JobVertex vertex : vertices) {
-				if (vertex.getName().contains(ExpectedOrder.get(i))) {
+				if (vertex.getName().contains(expectedOrder.get(i))) {
 					verticesMatched.add(vertex);
 				}
 			}
