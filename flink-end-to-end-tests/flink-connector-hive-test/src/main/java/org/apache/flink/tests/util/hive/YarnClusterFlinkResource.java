@@ -27,6 +27,7 @@ import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.JobController;
 import org.apache.flink.tests.util.flink.JobSubmission;
+import org.apache.flink.tests.util.flink.SQLJobSubmission;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
@@ -162,6 +163,11 @@ public class YarnClusterFlinkResource implements FlinkResource {
 			autoClosableProcessBuilder.setStdoutProcessor(s -> lines.add(s));
 			autoClosableProcessBuilder.runBlocking(Duration.ofMinutes(10));
 			return new YarnClusterJobController(lines);
+		}
+
+		@Override
+		public void submitSQLJob(SQLJobSubmission job) throws IOException {
+
 		}
 
 		/**
