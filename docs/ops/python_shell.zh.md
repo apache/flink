@@ -157,7 +157,7 @@ Python Shell可以运行在YARN集群之上。Python shell在Yarn上部署一个
 例如，在一个部署了两个TaskManager的Yarn集群上运行Python Shell:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn -n 2
+bin/pyflink-shell.sh yarn -n 2
 {% endhighlight %}
 
 关于所有可选的参数，可以查看本页面底部的完整说明。
@@ -168,7 +168,7 @@ Python Shell可以运行在YARN集群之上。Python shell在Yarn上部署一个
 如果你已经通过Flink Yarn Session部署了一个Flink集群，能够通过以下的命令连接到这个集群:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn
+bin/pyflink-shell.sh yarn
 {% endhighlight %}
 
 

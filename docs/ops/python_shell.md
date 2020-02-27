@@ -163,7 +163,7 @@ For example, to start a Yarn cluster for the Python Shell with two TaskManagers
 use the following:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn -n 2
+bin/pyflink-shell.sh yarn -n 2
 {% endhighlight %}
 
 For all other options, see the full reference at the bottom.
@@ -175,7 +175,7 @@ If you have previously deployed a Flink cluster using the Flink Yarn Session,
 the Python shell can connect with it using the following command:
 
 {% highlight bash %}
- bin/pyflink-shell.sh yarn
+bin/pyflink-shell.sh yarn
 {% endhighlight %}
 
 

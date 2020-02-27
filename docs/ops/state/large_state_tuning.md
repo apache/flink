@@ -137,29 +137,29 @@ To tune memory-related performance issues, the following steps may be helpful:
 
   - An advanced option (*expert mode*) to reduce the number of MemTable flushes in setups with many states, is to tune RocksDB's ColumnFamily options (arena block size, max background flush threads, etc.) via a `RocksDBOptionsFactory`:
 
-    {% highlight java %}
-    public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
-    
-        @Override
-        public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-            // increase the max background flush threads when we have many states in one operator,
-            // which means we would have many column families in one DB instance.
-            return currentOptions.setMaxBackgroundFlushes(4);
-        }
-    
-        @Override
-        public ColumnFamilyOptions createColumnOptions(
-            ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-            // decrease the arena block size from default 8MB to 1MB. 
-            return currentOptions.setArenaBlockSize(1024 * 1024);
-        }
-    
-        @Override
-        public OptionsFactory configure(Configuration configuration) {
-            return this;
-        }
+{% highlight java %}
+public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
+
+    @Override
+    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+        // increase the max background flush threads when we have many states in one operator,
+        // which means we would have many column families in one DB instance.
+        return currentOptions.setMaxBackgroundFlushes(4);
     }
-    {% endhighlight %}
+
+    @Override
+    public ColumnFamilyOptions createColumnOptions(
+        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+        // decrease the arena block size from default 8MB to 1MB. 
+        return currentOptions.setArenaBlockSize(1024 * 1024);
+    }
+
+    @Override
+    public OptionsFactory configure(Configuration configuration) {
+        return this;
+    }
+}
+{% endhighlight %}
 
 ## Capacity Planning
 
@@ -205,8 +205,8 @@ each key-group can be decompressed individually, which is important for rescalin
 Compression can be activated through the `ExecutionConfig`:
 
 {% highlight java %}
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setUseSnapshotCompression(true);
+ExecutionConfig executionConfig = new ExecutionConfig();
+executionConfig.setUseSnapshotCompression(true);
 {% endhighlight %}
 
 <span class="label label-info">Note</span> The compression option has no impact on incremental snapshots, because they are using RocksDB's internal
