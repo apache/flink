@@ -380,7 +380,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final TableSchema actualTableSchema = executor.getTableSchema(sessionId, "TableNumber2");
 
 		final TableSchema expectedTableSchema = new TableSchema(
-			new String[]{"IntegerField2", "StringField2", "TimestampField3"},
+			new String[]{"IntegerField2", "StringField2", "TimestampField2"},
 			new TypeInformation[]{Types.INT, Types.STRING, Types.SQL_TIMESTAMP});
 
 		assertEquals(expectedTableSchema, actualTableSchema);
@@ -1154,12 +1154,12 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> actualResults = new ArrayList<>();
 		TestBaseUtils.readAllResultLines(actualResults, path);
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("true,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("true,Hello World");
-		expectedResults.add("false,Hello World!!!!");
+		expectedResults.add("true,Hello World,2020-01-01 00:00:01.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:02.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:03.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:04.0");
+		expectedResults.add("true,Hello World,2020-01-01 00:00:05.0");
+		expectedResults.add("false,Hello World!!!!,2020-01-01 00:00:06.0");
 		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 	}
 
