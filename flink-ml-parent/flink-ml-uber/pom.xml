@@ -64,6 +64,7 @@ under the License.
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-ml-api</include>
 									<include>org.apache.flink:flink-ml-lib_${scala.binary.version}</include>
+									<include>com.github.fommil.netlib:core</include>
 								</includes>
 							</artifactSet>
 						</configuration>

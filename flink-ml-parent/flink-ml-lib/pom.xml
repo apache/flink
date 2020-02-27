@@ -60,30 +60,4 @@ under the License.
 			<version>1.1.2</version>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<!-- Build flink-ml-lib jar -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<artifactSet>
-								<includes combine.children="append">
-									<include>com.github.fommil.netlib:core</include>
-								</includes>
-							</artifactSet>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>
