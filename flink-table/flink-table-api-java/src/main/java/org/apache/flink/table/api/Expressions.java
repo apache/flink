@@ -64,7 +64,7 @@ public final class Expressions {
 	/**
 	 * Creates an unresolved reference to a table's field.
 	 *
-	 * <p>Example
+	 * <p>Example:
 	 * <pre>{@code
 	 *   tab.select($("key"), $("value"))
 	 * }
@@ -112,7 +112,7 @@ public final class Expressions {
 	 * <p>Example:
 	 * <pre>{@code
 	 * Table table = ...
-	 * table.withColumns(range(b, c))
+	 * table.select(withColumns(range(b, c)))
 	 * }</pre>
 	 *
 	 * @see #withColumns(Object, Object...)
@@ -128,7 +128,7 @@ public final class Expressions {
 	 * <p>Example:
 	 * <pre>{@code
 	 * Table table = ...
-	 * table.withColumns(range(3, 4))
+	 * table.select(withColumns(range(3, 4)))
 	 * }</pre>
 	 *
 	 * @see #withColumns(Object, Object...)
@@ -385,7 +385,7 @@ public final class Expressions {
 	/**
 	 * Returns negative numeric.
 	 */
-	public static ApiExpression minus(Object v) {
+	public static ApiExpression negative(Object v) {
 		return apiCall(BuiltInFunctionDefinitions.MINUS_PREFIX, v);
 	}
 
@@ -465,7 +465,7 @@ public final class Expressions {
 	 * <p>A range can either be index-based or name-based. Indices start at 1 and boundaries are
 	 * inclusive.
 	 *
-	 * <p>e.g. in Scala: withColumns(range("b", "c")) or withoutColumns($("*"))
+	 * <p>e.g. withColumns(range("b", "c")) or withoutColumns($("*"))
 	 */
 	public static ApiExpression withColumns(Object head, Object... tail) {
 		return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.WITH_COLUMNS, head, tail);
@@ -519,9 +519,6 @@ public final class Expressions {
 	/**
 	 * A call to an unregistered, inline function. For functions that have been registered before and
 	 * are identified by a name, use {@link #call(String, Object...)}.
-	 *
-	 * <p><b>NOTE:</b>This call uses the new type inference stack. It means it will use the result of
-	 * {@link UserDefinedFunction#getTypeInference(DataTypeFactory)} method call.
 	 */
 	public static ApiExpression call(UserDefinedFunction function, Object... params) {
 		return apiCall(function, params);

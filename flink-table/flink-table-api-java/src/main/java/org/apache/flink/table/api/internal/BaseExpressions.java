@@ -58,7 +58,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.*;
  *                  reason why Java accepts Object is to remove cumbersome call to {@code lit()} for
  *                  literals. Scala alleviates this problem via implicit conversions.
  * @param <OutType> The produced type of the DSL. It is {@code ApiExpression} for Java and {@code Expression}
- *                  for Scala. In scala the infix operations are included via implicit conversions. In Java
+ *                  for Scala. In Scala the infix operations are included via implicit conversions. In Java
  *                  we introduced a wrapper that enables the operations without pulling them through the whole stack.
  */
 @PublicEvolving
@@ -86,7 +86,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * Boolean AND in three-valued logic. This is an infix notation. See also
 	 * {@link Expressions#and(Object, Object, Object...)} for prefix notation with multiple arguments.
 	 *
-	 * @see org.apache.flink.table.api.Expressions#and(Object, Object, Object...)
+	 * @see Expressions#and(Object, Object, Object...)
 	 */
 	public OutType and(InType other) {
 		return toApiSpecificExpression(unresolvedCall(AND, toExpr(), objectToExpression(other)));
@@ -96,7 +96,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * Boolean OR in three-valued logic. This is an infix notation. See also
 	 * {@link Expressions#or(Object, Object, Object...)} for prefix notation with multiple arguments.
 	 *
-	 * @see org.apache.flink.table.api.Expressions#or(Object, Object, Object...)
+	 * @see Expressions#or(Object, Object, Object...)
 	 */
 	public OutType or(InType other) {
 		return toApiSpecificExpression(unresolvedCall(OR, toExpr(), objectToExpression(other)));
@@ -168,7 +168,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	/**
 	 * Returns left multiplied by right.
 	 */
-	public OutType multipliedBy(InType other) {
+	public OutType times(InType other) {
 		return toApiSpecificExpression(unresolvedCall(TIMES, toExpr(), objectToExpression(other)));
 	}
 
@@ -436,8 +436,6 @@ public abstract class BaseExpressions<InType, OutType> {
 	public OutType end() {
 		return toApiSpecificExpression(unresolvedCall(WINDOW_END, toExpr()));
 	}
-
-	// scalar functions
 
 	/**
 	 * Calculates the remainder of division the given number by another one.
@@ -818,7 +816,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * Returns the position of string in an other string starting at 1.
 	 * Returns 0 if string could not be found.
 	 *
-	 * <p>e.g. "a".position("bbbbba") leads to 6
+	 * <p>e.g. lit("a").position("bbbbba") leads to 6
 	 */
 	public OutType position(InType haystack) {
 		return toApiSpecificExpression(unresolvedCall(POSITION, toExpr(), objectToExpression(haystack)));
@@ -828,7 +826,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * Returns a string left-padded with the given pad string to a length of len characters. If
 	 * the string is longer than len, the return value is shortened to len characters.
 	 *
-	 * <p>e.g. "hi".lpad(4, '??') returns "??hi",  "hi".lpad(1, '??') returns "h"
+	 * <p>e.g. lit("hi").lpad(4, "??") returns "??hi",  lit("hi").lpad(1, '??') returns "h"
 	 */
 	public OutType lpad(InType len, InType pad) {
 		return toApiSpecificExpression(unresolvedCall(LPAD, toExpr(), objectToExpression(len), objectToExpression(pad)));
@@ -838,7 +836,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * Returns a string right-padded with the given pad string to a length of len characters. If
 	 * the string is longer than len, the return value is shortened to len characters.
 	 *
-	 * <p>e.g. "hi".rpad(4, '??') returns "hi??",  "hi".rpad(1, '??') returns "h"
+	 * <p>e.g. lit("hi").rpad(4, "??") returns "hi??",  lit("hi").rpad(1, '??') returns "h"
 	 */
 	public OutType rpad(InType len, InType pad) {
 		return toApiSpecificExpression(unresolvedCall(RPAD, toExpr(), objectToExpression(len), objectToExpression(pad)));
@@ -852,8 +850,8 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * <pre>
 	 * {@code
 	 * table
-	 * .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
-	 * .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
+	 *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
+	 *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
 	 * }</pre>
 	 */
 	public OutType over(InType alias) {
@@ -863,7 +861,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	/**
 	 * Replaces a substring of string with a string starting at a position (starting at 1).
 	 *
-	 * <p>e.g. "xxxxxtest".overlay("xxxx", 6) leads to "xxxxxxxxx"
+	 * <p>e.g. lit("xxxxxtest").overlay("xxxx", 6) leads to "xxxxxxxxx"
 	 */
 	public OutType overlay(InType newString, InType starting) {
 		return toApiSpecificExpression(unresolvedCall(
@@ -877,7 +875,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	 * Replaces a substring of string with a string starting at a position (starting at 1).
 	 * The length specifies how many characters should be removed.
 	 *
-	 * <p>e.g. "xxxxxtest".overlay("xxxx", 6, 2) leads to "xxxxxxxxxst"
+	 * <p>e.g. lit("xxxxxtest").overlay("xxxx", 6, 2) leads to "xxxxxxxxxst"
 	 */
 	public OutType overlay(InType newString, InType starting, InType length) {
 		return toApiSpecificExpression(unresolvedCall(
@@ -989,7 +987,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	/**
 	 * Extracts parts of a time point or time interval. Returns the part as a long value.
 	 *
-	 * <p>e.g. "2006-06-05".toDate.extract(DAY) leads to 5
+	 * <p>e.g. lit("2006-06-05").toDate().extract(DAY) leads to 5
 	 */
 	public OutType extract(TimeIntervalUnit timeIntervalUnit) {
 		return toApiSpecificExpression(unresolvedCall(EXTRACT, valueLiteral(timeIntervalUnit), toExpr()));
@@ -998,7 +996,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	/**
 	 * Rounds down a time point to the given unit.
 	 *
-	 * <p>e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
+	 * <p>e.g. lit("12:44:31").toDate().floor(MINUTE) leads to 12:44:00
 	 */
 	public OutType floor(TimeIntervalUnit timeIntervalUnit) {
 		return toApiSpecificExpression(unresolvedCall(FLOOR, valueLiteral(timeIntervalUnit), toExpr()));
@@ -1007,7 +1005,7 @@ public abstract class BaseExpressions<InType, OutType> {
 	/**
 	 * Rounds up a time point to the given unit.
 	 *
-	 * <p>e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
+	 * <p>e.g. lit("12:44:31").toDate().ceil(MINUTE) leads to 12:45:00
 	 */
 	public OutType ceil(TimeIntervalUnit timeIntervalUnit) {
 		return toApiSpecificExpression(unresolvedCall(

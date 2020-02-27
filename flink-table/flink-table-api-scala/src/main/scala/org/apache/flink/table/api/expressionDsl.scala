@@ -102,7 +102,7 @@ trait ImplicitExpressionOperations extends BaseExpressions[Expression, Expressio
   /**
     * Returns negative numeric.
     */
-  def unary_- : Expression = Expressions.minus(expr)
+  def unary_- : Expression = Expressions.negative(expr)
 
   /**
     * Returns numeric.
@@ -127,7 +127,7 @@ trait ImplicitExpressionOperations extends BaseExpressions[Expression, Expressio
   /**
     * Returns left multiplied by right.
     */
-  def * (other: Expression): Expression = multipliedBy(other)
+  def * (other: Expression): Expression = times(other)
 
   /**
     * Returns the remainder (modulus) of left divided by right.
@@ -359,12 +359,24 @@ trait ImplicitExpressionConversions {
     }
   }
 
+
+  /**
+   * Extends Scala's StringContext with a method for creating an unresolved reference via
+   * string interpolation.
+   */
   implicit class FieldExpression(val sc: StringContext) {
+
+    /**
+     * Creates an unresolved reference to a table's field.
+     *
+     * Example:
+     * ```
+     * tab.select($"key", $"value")
+     * ```
+     * </pre>
+     */
     def $(args: Any*): Expression = unresolvedRef(sc.s(args: _*))
   }
-
-  implicit def apiExpressionToExpression(expr: ApiExpression): Expression =
-    expr.toExpr
 
   implicit def tableSymbolToExpression(sym: TableSymbol): Expression =
     valueLiteral(sym)
@@ -513,7 +525,7 @@ trait ImplicitExpressionConversions {
    *
    *  - `lit(12)`` leads to `INT`
    *  - `lit("abc")`` leads to `CHAR(3)`
-   *  - `lit(new BigDecimal("123.45"))` leads to `DECIMAL(5, 2)`
+   *  - `lit(new java.math.BigDecimal("123.45"))` leads to `DECIMAL(5, 2)`
    *
    * See [[org.apache.flink.table.types.utils.ValueDataTypeConverter]] for a list of supported
    * literal values.
@@ -532,8 +544,8 @@ trait ImplicitExpressionConversions {
   /**
    * Returns negative numeric.
    */
-  def minus(v: Expression): Expression = {
-    Expressions.minus(v)
+  def negative(v: Expression): Expression = {
+    Expressions.negative(v)
   }
 
   /**
@@ -713,7 +725,7 @@ trait ImplicitExpressionConversions {
     * Returns the string that results from concatenating the arguments and separator.
     * Returns NULL If the separator is NULL.
     *
-    * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
+    * Note: This function does not skip empty strings. However, it does skip any NULL
     * values after the separator argument.
     * @deprecated use [[ImplicitExpressionConversions.concatWs()]]
     **/

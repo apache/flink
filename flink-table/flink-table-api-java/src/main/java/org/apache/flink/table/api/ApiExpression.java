@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.ExpressionVisitor;
 import java.util.List;
 
 /**
- * Java API class that gives access to expressions operations.
+ * Java API class that gives access to expression operations.
  *
  * @see BaseExpressions
  */
