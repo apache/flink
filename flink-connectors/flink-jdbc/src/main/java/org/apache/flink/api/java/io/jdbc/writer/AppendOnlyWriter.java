@@ -40,7 +40,7 @@ public class AppendOnlyWriter implements JDBCWriter {
 	private final String insertSQL;
 	private final int[] fieldTypes;
 
-	private transient List<Tuple2<Boolean, Row>> rows;
+	private transient List<Tuple2<Boolean, Row>> tuples;
 	private transient PreparedStatement statement;
 
 	public AppendOnlyWriter(String insertSQL, int[] fieldTypes) {
@@ -50,25 +50,27 @@ public class AppendOnlyWriter implements JDBCWriter {
 
 	@Override
 	public void open(Connection connection) throws SQLException {
-		this.rows = new ArrayList<>();
+		this.tuples = new ArrayList<>();
 		this.statement = connection.prepareStatement(insertSQL);
 	}
 
 	@Override
 	public void addRecord(Tuple2<Boolean, Row> record) {
 		checkArgument(record.f0, "Append mode can not receive retract/delete message.");
-		rows.add(record);
+		//deep copy, add record to buffer
+		Tuple2<Boolean, Row> tuple2 = new Tuple2<>(record.f0, Row.copy(record.f1));
+		tuples.add(tuple2);
 	}
 
 	@Override
 	public void executeBatch() throws SQLException {
-		if (rows.size() > 0) {
-			for (Tuple2<Boolean, Row> row : rows) {
-				setRecordToStatement(statement, fieldTypes, row.f1);
+		if (tuples.size() > 0) {
+			for (Tuple2<Boolean, Row> tuple2 : tuples) {
+				setRecordToStatement(statement, fieldTypes, tuple2.f1);
 				statement.addBatch();
 			}
 			statement.executeBatch();
-			rows.clear();
+			tuples.clear();
 		}
 	}
 
