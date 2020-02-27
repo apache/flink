@@ -50,16 +50,16 @@ under the License.
 
 <div class="tab-content">
     <div class="tab-pane active" id="sbt_template">
-    {% highlight bash %}
-    $ sbt new tillrohrmann/flink-project.g8
-    {% endhighlight %}
+{% highlight bash %}
+$ sbt new tillrohrmann/flink-project.g8
+{% endhighlight %}
     这里将提示你输入几个参数 (项目名称，Flink版本...) 然后从 <a href="https://github.com/tillrohrmann/flink-project.g8">Flink项目模版</a>创建一个Flink项目。
     你的sbt版本需要不小于0.13.13才能执行这个命令。如有必要，你可以参考这个<a href="http://www.scala-sbt.org/download.html">安装指南</a>获取合适版本的sbt。
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
-    {% highlight bash %}
-    $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
-    {% endhighlight %}
+{% highlight bash %}
+$ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
+{% endhighlight %}
     这将在<strong>指定的</strong>目录创建一个Flink项目。
     </div>
 </div>
@@ -126,21 +126,21 @@ addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
 
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
     这将允许你 <strong>为新项目命名</strong>。同时以交互式的方式询问你项目的 groupId，artifactId 和 package 名称.
     </div>
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
 {% endhighlight %}
     </div>

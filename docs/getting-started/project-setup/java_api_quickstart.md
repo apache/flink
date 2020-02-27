@@ -53,23 +53,23 @@ Use one of the following commands to __create a project__:
 </ul>
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
-    {% highlight bash %}
+{% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
-    {% endhighlight %}
+{% endhighlight %}
 
     </div>
     {% unless site.is_stable %}
@@ -151,7 +151,7 @@ Use one of the following commands to __create a project__:
         <div class="tab-content">
 <!-- NOTE: Any change to the build scripts here should also be reflected in flink-web/q/gradle-quickstart.sh !! -->
             <div class="tab-pane active" id="gradle-build">
-                {% highlight gradle %}
+{% highlight gradle %}
 buildscript {
     repositories {
         jcenter() // this applies only to the Gradle 'Shadow' plugin
@@ -263,20 +263,20 @@ jar {
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
 }
-                {% endhighlight %}
+{% endhighlight %}
             </div>
             <div class="tab-pane" id="gradle-settings">
-                {% highlight gradle %}
+{% highlight gradle %}
 rootProject.name = 'quickstart'
-                {% endhighlight %}
+{% endhighlight %}
             </div>
         </div>
     </div>
 
     <div class="tab-pane" id="gradle-script">
-    {% highlight bash %}
-    bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
-    {% endhighlight %}
+{% highlight bash %}
+bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
+{% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask
     you for the project name, organization (also used for the package name), project version,
     Scala and Flink version.

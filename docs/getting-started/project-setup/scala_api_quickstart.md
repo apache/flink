@@ -50,16 +50,16 @@ You can scaffold a new project via either of the following two methods:
 
 <div class="tab-content">
     <div class="tab-pane active" id="sbt_template">
-    {% highlight bash %}
-    $ sbt new tillrohrmann/flink-project.g8
-    {% endhighlight %}
+{% highlight bash %}
+$ sbt new tillrohrmann/flink-project.g8
+{% endhighlight %}
     This will prompt you for a couple of parameters (project name, flink version...) and then create a Flink project from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
     You need sbt >= 0.13.13 to execute this command. You can follow this <a href="http://www.scala-sbt.org/download.html">installation guide</a> to obtain it if necessary.
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
-    {% highlight bash %}
-    $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
-    {% endhighlight %}
+{% highlight bash %}
+$ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
+{% endhighlight %}
     This will create a Flink project in the <strong>specified</strong> project directory.
     </div>
 </div>
@@ -128,21 +128,21 @@ Use one of the following commands to __create a project__:
 
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
 {% endhighlight %}
     </div>
