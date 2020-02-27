@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import java.io.File;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -81,6 +82,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	private final String taskManagerStdoutPath;
 
+	@Nullable
+	private final String taskManagerLogDir;
+
 	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
 	public TaskManagerConfiguration(
@@ -99,6 +103,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			String[] alwaysParentFirstLoaderPatterns,
 			@Nullable String taskManagerLogPath,
 			@Nullable String taskManagerStdoutPath,
+			@Nullable String taskManagerLogDir,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
 		this.numberSlots = numberSlots;
@@ -116,6 +121,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 		this.taskManagerLogPath = taskManagerLogPath;
 		this.taskManagerStdoutPath = taskManagerStdoutPath;
+		this.taskManagerLogDir = taskManagerLogDir;
 		this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
 	}
 
@@ -184,6 +190,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	public String getTaskManagerStdoutPath() {
 		return taskManagerStdoutPath;
+	}
+
+	@Nullable
+	public String getTaskManagerLogDir() {
+		return taskManagerLogDir;
 	}
 
 	public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
@@ -262,9 +273,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final String taskManagerLogPath = configuration.getString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
 		final String taskManagerStdoutPath;
+		final String taskManagerLogDir;
 
 		if (taskManagerLogPath != null) {
 			final int extension = taskManagerLogPath.lastIndexOf('.');
+			taskManagerLogDir = new File(taskManagerLogPath).getParent();
 
 			if (extension > 0) {
 				taskManagerStdoutPath = taskManagerLogPath.substring(0, extension) + ".out";
@@ -273,6 +286,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} else {
 			taskManagerStdoutPath = null;
+			taskManagerLogDir = null;
 		}
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
@@ -293,6 +307,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			alwaysParentFirstLoaderPatterns,
 			taskManagerLogPath,
 			taskManagerStdoutPath,
+			taskManagerLogDir,
 			retryingRegistrationConfiguration);
 	}
 }

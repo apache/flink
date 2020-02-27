@@ -16,13 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.rest.messages.taskmanager;
+
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Different file types to request from the {@link TaskExecutor}.
+ * Parameters for range read log REST handler.
  */
-public enum FileType {
-	LOG,
-	STDOUT,
-	CUSTOM
+public class TaskManagerFileMessageParameters extends TaskManagerMessageParameters {
+
+	public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
+
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.unmodifiableCollection(Arrays.asList(
+			logFileNamePathParameter,
+			this.taskManagerIdParameter
+		));
+	}
 }

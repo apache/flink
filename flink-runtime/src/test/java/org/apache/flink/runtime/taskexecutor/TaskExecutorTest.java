@@ -1740,7 +1740,7 @@ public class TaskExecutorTest extends TestLogger {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
 			try {
 				CompletableFuture<TransientBlobKey> logFuture =
-					tmGateway.requestFileUpload(FileType.LOG, timeout);
+					tmGateway.requestFileUpload(FileType.LOG, "", timeout);
 				logFuture.get();
 			} catch (Exception e) {
 				assertThat(e.getMessage(), containsString("The file LOG does not exist on the TaskExecutor."));

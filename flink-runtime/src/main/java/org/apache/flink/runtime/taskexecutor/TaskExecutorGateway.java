@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import java.util.Collection;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -194,10 +196,11 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * Requests the file upload of the specified type to the cluster's {@link BlobServer}.
 	 *
 	 * @param fileType to upload
+	 * @param fileName to upload
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
-	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, String fileName, @RpcTimeout Time timeout);
 
 	/**
 	 * Returns the gateway of Metric Query Service on the TaskManager.
@@ -212,4 +215,11 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future flag indicating whether the task executor can be released.
 	 */
 	CompletableFuture<Boolean> canBeReleased();
+
+	/**
+	 * Requests for the historical log file names on the TaskManager.
+	 *
+	 * @return A String Array with all historical log file names
+	 */
+	CompletableFuture<Collection<Tuple2<String, Long>>> requestLogList(@RpcTimeout Time timeout);
 }

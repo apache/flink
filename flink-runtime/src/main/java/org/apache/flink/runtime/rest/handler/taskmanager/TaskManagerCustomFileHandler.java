@@ -28,7 +28,8 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
-import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogFileNamePathParameter;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -39,16 +40,17 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+
 /**
  * Rest handler which serves the stdout file of the {@link TaskExecutor}.
  */
-public class TaskManagerStdoutFileHandler extends AbstractTaskManagerFileHandler<TaskManagerMessageParameters> {
+public class TaskManagerCustomFileHandler extends AbstractTaskManagerFileHandler<TaskManagerFileMessageParameters> {
 
-	public TaskManagerStdoutFileHandler(
+	public TaskManagerCustomFileHandler(
 		@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 		@Nonnull Time timeout,
 		@Nonnull Map<String, String> responseHeaders,
-		@Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> untypedResponseMessageHeaders,
+		@Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerFileMessageParameters> untypedResponseMessageHeaders,
 		@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		@Nonnull TransientBlobService transientBlobService,
 		@Nonnull Time cacheEntryDuration) {
@@ -57,11 +59,11 @@ public class TaskManagerStdoutFileHandler extends AbstractTaskManagerFileHandler
 
 	@Override
 	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskmanagerId2FileName) {
-		return resourceManagerGateway.requestTaskManagerFileUpload(taskmanagerId2FileName.f0, FileType.STDOUT, taskmanagerId2FileName.f1, timeout);
+		return resourceManagerGateway.requestTaskManagerFileUpload(taskmanagerId2FileName.f0, FileType.CUSTOM, taskmanagerId2FileName.f1, timeout);
 	}
 
 	@Override
-	protected String getFileName(HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest) throws RestHandlerException {
-		return "taskmanager.out";
+	protected String getFileName(HandlerRequest<EmptyRequestBody, TaskManagerFileMessageParameters> handlerRequest) throws RestHandlerException {
+		return handlerRequest.getPathParameter(LogFileNamePathParameter.class);
 	}
 }

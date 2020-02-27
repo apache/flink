@@ -16,13 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.rest.messages.taskmanager;
+
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 /**
- * Different file types to request from the {@link TaskExecutor}.
+ * TaskManager id path parameter used by TaskManager related handlers.
  */
-public enum FileType {
-	LOG,
-	STDOUT,
-	CUSTOM
+public class LogFileNamePathParameter extends MessagePathParameter<String> {
+
+	public static final String KEY = "filename";
+
+	public LogFileNamePathParameter() {
+		super(KEY);
+	}
+
+	@Override
+	protected String convertFromString(String value) {
+		return value;
+	}
+
+	@Override
+	protected String convertToString(String value) {
+		return value;
+	}
+
+	@Override
+	public String getDescription() {
+		return "String value that specifies the file name which to read.";
+	}
 }
