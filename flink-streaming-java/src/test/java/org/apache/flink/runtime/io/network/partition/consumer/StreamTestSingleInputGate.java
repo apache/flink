@@ -157,14 +157,6 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 	 * Returns true iff all input queues are empty.
 	 */
 	public boolean allQueuesEmpty() {
-//		for (int i = 0; i < numInputChannels; i++) {
-//			synchronized (inputQueues[i]) {
-//				inputQueues[i].add(InputValue.<T>event(new DummyEvent()));
-//				inputQueues[i].notifyAll();
-//				inputGate.onAvailableBuffer(inputChannels[i].getInputChannel());
-//			}
-//		}
-
 		for (int i = 0; i < numInputChannels; i++) {
 			if (inputQueues[i].size() > 0) {
 				return false;

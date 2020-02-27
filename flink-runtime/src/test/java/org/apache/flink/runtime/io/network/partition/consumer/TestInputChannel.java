@@ -120,7 +120,6 @@ public class TestInputChannel extends InputChannel {
 
 	@Override
 	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-
 	}
 
 	@Override
@@ -141,7 +140,6 @@ public class TestInputChannel extends InputChannel {
 
 	@Override
 	void sendTaskEvent(TaskEvent event) throws IOException {
-
 	}
 
 	@Override
@@ -155,24 +153,14 @@ public class TestInputChannel extends InputChannel {
 
 	@Override
 	void releaseAllResources() throws IOException {
-
 	}
 
 	@Override
 	protected void notifyChannelNonEmpty() {
-
-	}
-
-	public void assertReturnedDataBuffersAreRecycled() {
-		assertReturnedBuffersAreRecycled(true, false);
 	}
 
 	public void assertReturnedEventsAreRecycled() {
 		assertReturnedBuffersAreRecycled(false, true);
-	}
-
-	public void assertAllReturnedBuffersAreRecycled() {
-		assertReturnedBuffersAreRecycled(true, true);
 	}
 
 	private void assertReturnedBuffersAreRecycled(boolean assertBuffers, boolean assertEvents) {
