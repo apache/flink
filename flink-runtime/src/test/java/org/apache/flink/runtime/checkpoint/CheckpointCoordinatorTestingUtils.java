@@ -735,7 +735,7 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
-		public CheckpointCoordinatorBuilder setIoExecutor(Executor exioExecutorecutor) {
+		public CheckpointCoordinatorBuilder setIoExecutor(Executor ioExecutor) {
 			this.ioExecutor = ioExecutor;
 			return this;
 		}
