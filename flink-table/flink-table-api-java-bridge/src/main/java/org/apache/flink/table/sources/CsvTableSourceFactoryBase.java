@@ -128,10 +128,12 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 			// the CsvTableSource needs some rework first
 			// for now the schema must be equal to the encoding
 			// Ignore conversion classes in DataType
-			if (!getFieldLogicalTypes(formatSchema)
-					.equals(getFieldLogicalTypes(tableSchema))) {
-				throw new TableException(
-					"Encodings that differ from the schema are not supported yet for CsvTableSources.");
+			if (!getFieldLogicalTypes(formatSchema).equals(getFieldLogicalTypes(tableSchema))) {
+				throw new TableException(String.format(
+						"Encodings that differ from the schema are not supported yet for" +
+								" CsvTableSource, format schema is '%s', but table schema is '%s'.",
+						formatSchema,
+						tableSchema));
 			}
 		}
 
@@ -159,7 +161,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		return csvTableSourceBuilder.build();
 	}
 
-	private static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
+	public static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
 		return Arrays
 				.stream(schema.getFieldDataTypes())
 				.map(DataType::getLogicalType)

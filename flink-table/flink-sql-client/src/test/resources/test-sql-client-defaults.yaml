@@ -32,6 +32,8 @@ tables:
         type: INT
       - name: StringField1
         type: VARCHAR
+      - name: TimestampField1
+        type: TIMESTAMP
     connector:
       type: filesystem
       path: "$VAR_SOURCE_PATH1"
@@ -42,6 +44,8 @@ tables:
           type: INT
         - name: StringField1
           type: VARCHAR
+        - name: TimestampField1
+          type: TIMESTAMP
       line-delimiter: "\n"
       comment-prefix: "#"
   - name: TestView1
@@ -56,7 +60,7 @@ tables:
         type: INT
       - name: StringField2
         type: VARCHAR
-      - name: TimestampField3
+      - name: TimestampField2
         type: TIMESTAMP
     connector:
       type: filesystem
@@ -68,7 +72,7 @@ tables:
           type: INT
         - name: StringField2
           type: VARCHAR
-        - name: TimestampField3
+        - name: TimestampField2
           type: TIMESTAMP
       line-delimiter: "\n"
       comment-prefix: "#"
@@ -80,6 +84,8 @@ tables:
         type: BOOLEAN
       - name: StringField
         type: VARCHAR
+      - name: TimestampField
+        type: TIMESTAMP
     connector:
       type: filesystem
       path: "$VAR_SOURCE_SINK_PATH"
@@ -90,6 +96,8 @@ tables:
           type: BOOLEAN
         - name: StringField
           type: VARCHAR
+        - name: TimestampField
+          type: TIMESTAMP
   - name: TestView2
     type: view
     query: SELECT * FROM TestView1
