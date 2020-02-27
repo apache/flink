@@ -36,5 +36,6 @@ under the License.
 	<modules>
 		<module>flink-ml-api</module>
 		<module>flink-ml-lib</module>
+		<module>flink-ml-uber</module>
 	</modules>
 </project>
