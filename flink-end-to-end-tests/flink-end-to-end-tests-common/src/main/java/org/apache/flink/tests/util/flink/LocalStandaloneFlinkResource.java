@@ -39,6 +39,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Flink resource that start local standalone clusters.
@@ -71,10 +73,8 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	@Override
 	public ClusterController startCluster(int numTaskManagers) throws IOException {
-		distribution.startJobManager();
-		for (int x = 0; x < numTaskManagers; x++) {
-			distribution.startTaskManager();
-		}
+		distribution.setTaskExecutorHosts(IntStream.range(0, numTaskManagers).mapToObj(i -> "localhost").collect(Collectors.toList()));
+		distribution.startFlinkCluster();
 
 		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor())) {
 			for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
