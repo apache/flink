@@ -33,12 +33,11 @@ import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, toNullable}
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
-import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, RowType, TypeInformationRawType}
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.{fromLegacyInfoToDataType, fromLogicalToDataType}
 import org.apache.flink.table.utils.{TableSchemaUtils, TypeMappingUtils}
 import org.apache.flink.types.Row
-
 import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
@@ -242,45 +241,48 @@ object TableSinkUtils {
       consumedDataType: DataType,
       queryLogicalType: RowType,
       withChangeFlag: Boolean): DataType = {
-    consumedDataType.getLogicalType match {
-      case lt: LegacyTypeInformationType[_] =>
-        val requestedTypeInfo = if (withChangeFlag) {
-          lt.getTypeInformation match {
-            // Scala tuple
-            case t: CaseClassTypeInfo[_]
-              if t.getTypeClass == classOf[(_, _)] && t.getTypeAt(0) == Types.BOOLEAN =>
-              t.getTypeAt[Any](1)
-            // Java tuple
-            case t: TupleTypeInfo[_]
-              if t.getTypeClass == classOf[JTuple2[_, _]] && t.getTypeAt(0) == Types.BOOLEAN =>
-              t.getTypeAt[Any](1)
-            case _ => throw new TableException(
-              "Don't support " + consumedDataType + " conversion for the retract sink")
-          }
-        } else {
-          lt.getTypeInformation
-        }
-        // The tpe may been inferred by invoking [[TypeExtractor.createTypeInfo]] based the
-        // class of the resulting type. For example, converts the given [[Table]] into
-        // an append [[DataStream]]. If the class is Row, then the return type only is
-        // [[GenericTypeInfo[Row]]. So it should convert to the [[RowTypeInfo]] in order
-        // to better serialize performance.
-        requestedTypeInfo match {
-          case gt: GenericTypeInfo[Row] if gt.getTypeClass == classOf[Row] =>
-            fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
-          case gt: GenericTypeInfo[BaseRow] if gt.getTypeClass == classOf[BaseRow] =>
-            fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[BaseRow])
-          case bt: BaseRowTypeInfo =>
-            val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
-              DataTypes.FIELD(n, fromLogicalToDataType(t))
-            }
-            DataTypes.ROW(fields: _*).bridgedTo(classOf[BaseRow])
-          case _ =>
-            fromLegacyInfoToDataType(requestedTypeInfo)
-        }
+    val consumedTypeInfo = consumedDataType.getLogicalType match {
+      case lt: LegacyTypeInformationType[_] => Some(lt.getTypeInformation)
+      case rt: TypeInformationRawType[_] => Some(rt.getTypeInformation)
+      case _ => None
+    }
+    if (consumedTypeInfo.isEmpty) {
+      return consumedDataType
+    }
 
+    val requestedTypeInfo = if (withChangeFlag) {
+      consumedTypeInfo.get match {
+        // Scala tuple
+        case t: CaseClassTypeInfo[_]
+          if t.getTypeClass == classOf[(_, _)] && t.getTypeAt(0) == Types.BOOLEAN =>
+          t.getTypeAt[Any](1)
+        // Java tuple
+        case t: TupleTypeInfo[_]
+          if t.getTypeClass == classOf[JTuple2[_, _]] && t.getTypeAt(0) == Types.BOOLEAN =>
+          t.getTypeAt[Any](1)
+        case _ => throw new TableException(
+          "Don't support " + consumedDataType + " conversion for the retract sink")
+      }
+    } else {
+      consumedTypeInfo.get
+    }
+    // The tpe may been inferred by invoking [[TypeExtractor.createTypeInfo]] based the
+    // class of the resulting type. For example, converts the given [[Table]] into
+    // an append [[DataStream]]. If the class is Row, then the return type only is
+    // [[GenericTypeInfo[Row]]. So it should convert to the [[RowTypeInfo]] in order
+    // to better serialize performance.
+    requestedTypeInfo match {
+      case gt: GenericTypeInfo[Row] if gt.getTypeClass == classOf[Row] =>
+        fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
+      case gt: GenericTypeInfo[BaseRow] if gt.getTypeClass == classOf[BaseRow] =>
+        fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[BaseRow])
+      case bt: BaseRowTypeInfo =>
+        val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
+          DataTypes.FIELD(n, fromLogicalToDataType(t))
+        }
+        DataTypes.ROW(fields: _*).bridgedTo(classOf[BaseRow])
       case _ =>
-        consumedDataType
+        fromLegacyInfoToDataType(requestedTypeInfo)
     }
   }
 
