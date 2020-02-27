@@ -110,6 +110,26 @@ class RowCoderImpl(FlattenRowCoderImpl):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
+class TableFunctionRowCoderImpl(StreamCoderImpl):
+
+    def __init__(self, flatten_row_coder):
+        self._flatten_row_coder = flatten_row_coder
+        self._field_count = flatten_row_coder._filed_count
+
+    def encode_to_stream(self, value, out_stream, nested):
+        if value is None:
+            out_stream.write_byte(0x00)
+        else:
+            self._flatten_row_coder.encode_to_stream(value if self._field_count != 1 else (value,),
+                                                     out_stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        return self._flatten_row_coder.decode_from_stream(in_stream, nested)
+
+    def __repr__(self):
+        return 'TableFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
+
+
 class ArrayCoderImpl(StreamCoderImpl):
 
     def __init__(self, elem_coder):
