@@ -72,7 +72,7 @@ class ExpressionsConsistencyCheckTest {
     "$greater" -> "isGreater", // >
     "$amp$amp" -> "and", // &&
     "$bar$bar" -> "or", // ||
-    "$times" -> "multipliedBy", // *
+    "$times" -> "times", // *
     "$div" -> "dividedBy", // /
     "$plus" -> "plus", // +
     "$minus" -> "minus", // -
@@ -149,10 +149,10 @@ class ExpressionsConsistencyCheckTest {
     // in java we can use only static range
     "to",
 
-    // in java we can use only static rowsInterval
+    // in java we can use only static rowInterval
     "rows",
 
-    // users in java should use static minus()
+    // users in java should use static negative()
     "unary_$minus", // unary_-
 
     // not supported in java
@@ -173,8 +173,8 @@ class ExpressionsConsistencyCheckTest {
     // users should use 1.rows, 123.millis, 3.years
     "rowInterval",
 
-    //users should use unary_-
-    "minus"
+    // users should use unary_-
+    "negative"
   )
 
   val excludedJavaMethods = Set(
@@ -290,5 +290,4 @@ class ExpressionsConsistencyCheckTest {
 
     assertThat(missingMethods.asJava, IsEmptyIterable.emptyIterableOf(classOf[String]))
   }
-
 }
