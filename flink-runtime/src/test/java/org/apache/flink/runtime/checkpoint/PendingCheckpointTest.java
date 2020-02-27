@@ -462,7 +462,8 @@ public class PendingCheckpointTest {
 			masterStateIdentifiers,
 			props,
 			location,
-			executor);
+			executor,
+			new CompletableFuture<>());
 	}
 
 	@SuppressWarnings("unchecked")
