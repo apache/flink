@@ -57,9 +57,7 @@ public class AppendOnlyWriter implements JDBCWriter {
 	@Override
 	public void addRecord(Tuple2<Boolean, Row> record) {
 		checkArgument(record.f0, "Append mode can not receive retract/delete message.");
-		//deep copy, add record to buffer
-		Row row = Row.copy(record.f1);
-		cachedRows.add(row);
+		cachedRows.add(record.f1);
 	}
 
 	@Override
