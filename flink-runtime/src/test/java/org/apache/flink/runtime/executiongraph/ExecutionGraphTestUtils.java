@@ -241,7 +241,7 @@ public class ExecutionGraphTestUtils {
 
 	/**
 	 * Checks that all execution are in state DEPLOYING and then switches them
-	 * to state RUNNING
+	 * to state RUNNING.
 	 */
 	public static void switchToRunning(ExecutionGraph eg) {
 		// check that all execution are in state DEPLOYING
@@ -261,11 +261,11 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 	//  state modifications
 	// ------------------------------------------------------------------------
-	
+
 	public static void setVertexState(ExecutionVertex vertex, ExecutionState state) {
 		try {
 			Execution exec = vertex.getCurrentExecutionAttempt();
-			
+
 			Field f = Execution.class.getDeclaredField("state");
 			f.setAccessible(true);
 			f.set(exec, state);
@@ -274,11 +274,11 @@ public class ExecutionGraphTestUtils {
 			throw new RuntimeException("Modifying the state failed", e);
 		}
 	}
-	
+
 	public static void setVertexResource(ExecutionVertex vertex, LogicalSlot slot) {
 		Execution exec = vertex.getCurrentExecutionAttempt();
 
-		if(!exec.tryAssignResource(slot)) {
+		if (!exec.tryAssignResource(slot)) {
 			throw new RuntimeException("Could not assign resource.");
 		}
 	}
@@ -426,7 +426,7 @@ public class ExecutionGraphTestUtils {
 
 		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}
-	
+
 	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
 		return getExecutionVertex(id, new DirectScheduledExecutorService());
 	}
@@ -436,7 +436,7 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Verifies the generated {@link ExecutionJobVertex} for a given {@link JobVertex} in a {@link ExecutionGraph}
+	 * Verifies the generated {@link ExecutionJobVertex} for a given {@link JobVertex} in a {@link ExecutionGraph}.
 	 *
 	 * @param executionGraph the generated execution graph
 	 * @param originJobVertex the vertex to verify for
