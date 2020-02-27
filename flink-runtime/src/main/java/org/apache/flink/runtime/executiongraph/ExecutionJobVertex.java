@@ -249,10 +249,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		try {
-			this.operatorCoordinators = OperatorCoordinatorUtil.instantiateCoordinators(
+			final Map<OperatorID, OperatorCoordinator> coordinators = OperatorCoordinatorUtil.instantiateCoordinators(
 					jobVertex.getOperatorCoordinators(),
 					graph.getUserClassLoader(),
 					(opId) -> new ExecutionJobVertexCoordinatorContext(opId, this));
+
+			this.operatorCoordinators = Collections.unmodifiableMap(coordinators);
 		}
 		catch (IOException | ClassNotFoundException e) {
 			throw new JobException("Cannot instantiate the coordinator for operator " + getName(), e);
@@ -402,8 +404,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return operatorCoordinators.get(operatorId);
 	}
 
+	public Map<OperatorID, OperatorCoordinator> getOperatorCoordinatorMap() {
+		return operatorCoordinators;
+	}
+
 	public Collection<OperatorCoordinator> getOperatorCoordinators() {
-		return Collections.unmodifiableCollection(operatorCoordinators.values());
+		return operatorCoordinators.values();
 	}
 
 	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {

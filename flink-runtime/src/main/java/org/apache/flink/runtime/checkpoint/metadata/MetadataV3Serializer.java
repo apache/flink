@@ -81,6 +81,9 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 		dos.writeInt(operatorState.getParallelism());
 		dos.writeInt(operatorState.getMaxParallelism());
 
+		// Coordinator state
+		serializeStreamStateHandle(operatorState.getCoordinatorState(), dos);
+
 		// Sub task states
 		final Map<Integer, OperatorSubtaskState> subtaskStateMap = operatorState.getSubtaskStates();
 		dos.writeInt(subtaskStateMap.size());
@@ -96,8 +99,10 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 		final int parallelism = dis.readInt();
 		final int maxParallelism = dis.readInt();
 
-		// Add task state
 		final OperatorState operatorState = new OperatorState(jobVertexId, parallelism, maxParallelism);
+
+		// Coordinator state
+		operatorState.setCoordinatorState(deserializeStreamStateHandle(dis));
 
 		// Sub task states
 		final int numSubTaskStates = dis.readInt();
