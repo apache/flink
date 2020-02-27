@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
@@ -179,6 +180,10 @@ public final class LegacyTypeInfoDataTypeConverter {
 
 		else if (typeInfo instanceof CompositeType) {
 			return createLegacyType(LogicalTypeRoot.STRUCTURED_TYPE, typeInfo);
+		}
+
+		else if (typeInfo instanceof GenericTypeInfo) {
+			return DataTypes.RAW(typeInfo).bridgedTo(typeInfo.getTypeClass());
 		}
 
 		return createLegacyType(LogicalTypeRoot.RAW, typeInfo);

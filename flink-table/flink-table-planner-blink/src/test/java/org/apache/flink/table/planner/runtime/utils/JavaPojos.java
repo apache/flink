@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.runtime.utils;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * POJOs for Table API testing.
@@ -40,6 +42,31 @@ public class JavaPojos {
 					"ts=" + ts +
 					", msg='" + msg + '\'' +
 					'}';
+		}
+	}
+
+	public static class Device {
+		public Long deviceId;
+		public String deviceName;
+		// raw type
+		public TreeMap<String, Long> metrics;
+
+		public Device() {
+		}
+
+		public Device(Long deviceId, String deviceName, Map<String, Long> metrics) {
+			this.deviceId = deviceId;
+			this.deviceName = deviceName;
+			this.metrics = new TreeMap<>(metrics);
+		}
+
+		@Override
+		public String toString() {
+			return "Device{" +
+				"deviceId=" + deviceId +
+				", deviceName='" + deviceName + '\'' +
+				", metrics=" + metrics +
+				'}';
 		}
 	}
 }
