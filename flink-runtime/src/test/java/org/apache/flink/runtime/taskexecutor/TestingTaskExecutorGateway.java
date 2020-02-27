@@ -39,6 +39,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
@@ -46,6 +47,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -181,7 +183,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestFileUploadByType(FileType fileType, Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	}
+
+	@Override
+	public CompletableFuture<TransientBlobKey> requestFileUploadByName(String fileName, Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
@@ -211,5 +218,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	@Override
 	public String getHostname() {
 		return hostname;
+	}
+
+	@Override
+	public CompletableFuture<Collection<LogInfo>> requestLogList(Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 }

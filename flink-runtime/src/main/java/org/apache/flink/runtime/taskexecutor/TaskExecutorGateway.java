@@ -38,12 +38,14 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.messages.taskmanager.LogInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -200,7 +202,16 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
-	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestFileUploadByType(FileType fileType, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the file upload of the specified name to the cluster's {@link BlobServer}.
+	 *
+	 * @param fileName to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+	 */
+	CompletableFuture<TransientBlobKey> requestFileUploadByName(String fileName, @RpcTimeout Time timeout);
 
 	/**
 	 * Returns the gateway of Metric Query Service on the TaskManager.
@@ -215,6 +226,13 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	 * @return Future flag indicating whether the task executor can be released.
 	 */
 	CompletableFuture<Boolean> canBeReleased();
+
+	/**
+	 * Requests for the historical log file names on the TaskManager.
+	 *
+	 * @return A Tuple2 Array with all log file names with its length.
+	 */
+	CompletableFuture<Collection<LogInfo>> requestLogList(@RpcTimeout Time timeout);
 
 	@Override
 	CompletableFuture<Acknowledge> sendOperatorEventToTask(
