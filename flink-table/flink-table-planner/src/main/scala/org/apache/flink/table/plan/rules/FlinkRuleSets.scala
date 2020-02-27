@@ -114,7 +114,8 @@ object FlinkRuleSets {
     ProjectCalcMergeRule.INSTANCE,
     FilterToCalcRule.INSTANCE,
     ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
+    FlinkCalcMergeRule.INSTANCE,
+//    CalcMergeRule.INSTANCE,
 
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
