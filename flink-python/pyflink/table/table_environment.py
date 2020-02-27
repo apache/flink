@@ -766,8 +766,8 @@ class TableEnvironment(object):
         :param function: The python user-defined function to register.
         :type function: pyflink.table.udf.UserDefinedFunctionWrapper
         """
-        self._j_tenv.registerFunction(name, function._judf(self._is_blink_planner,
-                                                           self.get_config()._j_table_config))
+        self._j_tenv.registerFunction(name, function.java_user_defined_function(
+            self._is_blink_planner, self.get_config()._j_table_config))
 
     @since("1.10.0")
     def create_temporary_view(self, view_path, table):
