@@ -22,8 +22,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Utils for building the most basic environment for running python udf workers. The basic environment does not include
@@ -31,62 +29,38 @@ import java.util.List;
  */
 public class ResourceUtil {
 
-	public static final String[] BUILT_IN_PYTHON_DEPENDENCIES = {
-		"pyflink.zip",
-		"py4j-0.10.8.1-src.zip",
-		"cloudpickle-1.2.2-src.zip",
-		"pyflink-udf-runner.sh"
-	};
+	public static final String PYFLINK_UDF_RUNNER = "pyflink-udf-runner.sh";
 
-	public static List<File> extractBuiltInDependencies(
-			String tmpdir,
-			String prefix,
-			boolean skipShellScript) throws IOException, InterruptedException {
-		List<File> extractedFiles = new ArrayList<>();
-		for (String fileName : BUILT_IN_PYTHON_DEPENDENCIES) {
-			if (skipShellScript && fileName.endsWith(".sh")) {
-				continue;
-			}
-
-			File file = new File(tmpdir, prefix + fileName);
-			if (fileName.endsWith(".sh")) {
-				// TODO: This is a hacky solution to prevent subprocesses to hold the file descriptor of shell scripts,
-				// which will cause the execution of shell scripts failed with the exception "test file is busy"
-				// randomly. It's a bug of JDK, see https://bugs.openjdk.java.net/browse/JDK-8068370. After moving flink
-				// python jar to lib directory, we can solve this problem elegantly by extracting these files only once.
-				String javaExecutable = String.join(File.separator, System.getProperty("java.home"), "bin", "java");
-				String classPath = new File(
-					ResourceUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getAbsolutePath();
-				new ProcessBuilder(
-					javaExecutable,
-					"-cp",
-					classPath,
-					ResourceUtil.class.getName(),
-					tmpdir,
-					prefix,
-					fileName).inheritIO().start().waitFor();
-			} else {
-				Files.copy(
-					ResourceUtil.class.getClassLoader().getResourceAsStream(fileName),
-					Paths.get(file.getAbsolutePath()));
-			}
-			extractedFiles.add(file);
-		}
-		return extractedFiles;
+	public static File extractUdfRunner(String tmpdir) throws IOException, InterruptedException {
+		File file = new File(tmpdir, PYFLINK_UDF_RUNNER);
+		// TODO: This is a hacky solution to prevent subprocesses to hold the file descriptor of shell scripts,
+		// which will cause the execution of shell scripts failed with the exception "test file is busy"
+		// randomly. It's a bug of JDK, see https://bugs.openjdk.java.net/browse/JDK-8068370. After moving flink
+		// python jar to lib directory, we can solve this problem elegantly by extracting these files only once.
+		String javaExecutable = String.join(File.separator, System.getProperty("java.home"), "bin", "java");
+		String classPath = new File(
+			ResourceUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getAbsolutePath();
+		new ProcessBuilder(
+			javaExecutable,
+			"-cp",
+			classPath,
+			ResourceUtil.class.getName(),
+			tmpdir,
+			PYFLINK_UDF_RUNNER).inheritIO().start().waitFor();
+		return file;
 	}
 
 	/**
 	 * This main method is used to create the shell script in a subprocess, see the "TODO" hints in method
-	 * {@link ResourceUtil#extractBuiltInDependencies}.
+	 * {@link ResourceUtil#extractUdfRunner}.
 	 * @param args First argument is the directory where shell script will be created. Second argument is the prefix of
 	 *             the shell script. Third argument is the fileName of the shell script.
 	 * @throws IOException
 	 */
 	public static void main(String[] args) throws IOException {
 		String tmpdir = args[0];
-		String prefix = args[1];
-		String fileName = args[2];
-		File file = new File(tmpdir, prefix + fileName);
+		String fileName = args[1];
+		File file = new File(tmpdir, fileName);
 
 		Files.copy(
 			ResourceUtil.class.getClassLoader().getResourceAsStream(fileName), Paths.get(file.getAbsolutePath()));

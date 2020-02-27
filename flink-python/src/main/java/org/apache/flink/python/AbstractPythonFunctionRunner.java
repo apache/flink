@@ -42,9 +42,6 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 
-import java.io.File;
-import java.util.List;
-
 /**
  * An base class for {@link PythonFunctionRunner}.
  *
@@ -111,12 +108,6 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 	 */
 	protected transient DataOutputViewStreamWrapper baosWrapper;
 
-	/**
-	 * Python libraries and shell script extracted from resource of flink-python jar.
-	 * They are used to support running python udf worker in process mode.
-	 */
-	private transient List<File> pythonInternalLibs;
-
 	public AbstractPythonFunctionRunner(
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
@@ -160,15 +151,6 @@ public abstract class AbstractPythonFunctionRunner<IN> implements PythonFunction
 
 	@Override
 	public void close() throws Exception {
-
-		try {
-			if (pythonInternalLibs != null) {
-				pythonInternalLibs.forEach(File::delete);
-			}
-		} finally {
-			pythonInternalLibs = null;
-		}
-
 		try {
 			if (jobBundleFactory != null) {
 				jobBundleFactory.close();
