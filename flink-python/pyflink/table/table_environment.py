@@ -33,7 +33,6 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
-from pyflink.table.udf import UserDefinedScalarFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.util import utils
 
 __all__ = [
