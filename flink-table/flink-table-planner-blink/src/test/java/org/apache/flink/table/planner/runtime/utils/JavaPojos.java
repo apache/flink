@@ -45,6 +45,60 @@ public class JavaPojos {
 		}
 	}
 
+	/**
+	 * Nested POJO.
+	 */
+	public static class Order {
+		public Long user;
+		public ProductItem product;
+		public int amount;
+
+		public Order() {
+		}
+
+		public Order(Long user, ProductItem product, int amount) {
+			this.user = user;
+			this.product = product;
+			this.amount = amount;
+		}
+
+		@Override
+		public String toString() {
+			return "Order{" +
+				"user=" + user +
+				", product='" + product + '\'' +
+				", amount=" + amount +
+				'}';
+		}
+	}
+
+	/**
+	 * Simple POJO.
+	 */
+	public static class ProductItem {
+		public String name;
+		public Long id;
+
+		public ProductItem() {
+		}
+
+		public ProductItem(String name, Long id) {
+			this.name = name;
+			this.id = id;
+		}
+
+		@Override
+		public String toString() {
+			return "Product{" +
+				"name='" + name + '\'' +
+				", id=" + id +
+				'}';
+		}
+	}
+
+	/**
+	 * POJO with a RAW type.
+	 */
 	public static class Device {
 		public Long deviceId;
 		public String deviceName;

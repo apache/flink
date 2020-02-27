@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.sinks
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.utils.RelOptUtils
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
@@ -189,11 +190,43 @@ object TableSinkUtils {
       queryLogicalType,
       withChangeFlag)
     if (LogicalTypeChecks.isCompositeType(requestedOutputType.getLogicalType)) {
-      DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+      fromDataTypeToTypeInfo(requestedOutputType) match {
+        case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
+        case _ => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+      }
     } else {
       // atomic type
       TableSchema.builder().field("f0", requestedOutputType).build()
     }
+  }
+
+  /**
+   * Expands a [[PojoTypeInfo]] to a corresponding [[TableSchema]].
+   * This is a special handling for [[PojoTypeInfo]], because fields of [[PojoTypeInfo]] is not
+   * in the defined order but the alphabet order. In order to match the query schema, we should
+   * reorder the Pojo schema.
+   */
+  private def expandPojoTypeToSchema(
+      pojo: PojoTypeInfo[_],
+      queryLogicalType: RowType): TableSchema = {
+    val fieldNames = queryLogicalType.getFieldNames
+    // reorder pojo fields according to the query schema
+    val reorderedFields = fieldNames.map(name => {
+      val index = pojo.getFieldIndex(name)
+      if (index < 0) {
+        throw new TableException(s"$name is not found in ${pojo.toString}")
+      }
+      val fieldTypeInfo = pojo.getPojoFieldAt(index).getTypeInformation
+      val fieldDataType = fieldTypeInfo match {
+        case nestedPojo: PojoTypeInfo[_] =>
+          val nestedLogicalType = queryLogicalType.getFields()(index).getType.asInstanceOf[RowType]
+          expandPojoTypeToSchema(nestedPojo, nestedLogicalType).toRowDataType
+        case _ =>
+          fromLegacyInfoToDataType(fieldTypeInfo)
+      }
+      DataTypes.FIELD(name, fieldDataType)
+    })
+    DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*))
   }
 
   /**
