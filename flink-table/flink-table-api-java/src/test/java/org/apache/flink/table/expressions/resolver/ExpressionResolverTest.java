@@ -24,7 +24,6 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -41,10 +40,8 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,7 +61,6 @@ import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -161,7 +157,7 @@ public class ExpressionResolverTest {
 					DataTypes.BOOLEAN()
 				)),
 
-			TestSpec.test("Lookup calls")
+			TestSpec.test("Lookup system function call")
 				.inputSchemas(
 					TableSchema.builder()
 						.field("f0", DataTypes.INT())
@@ -176,7 +172,7 @@ public class ExpressionResolverTest {
 					DataTypes.INT().notNull().bridgedTo(int.class)
 				)),
 
-			TestSpec.test("Catalog calls")
+			TestSpec.test("Lookup catalog function call")
 				.inputSchemas(
 					TableSchema.builder()
 						.field("f0", DataTypes.INT())
@@ -191,7 +187,7 @@ public class ExpressionResolverTest {
 					DataTypes.INT().notNull().bridgedTo(int.class)
 				)),
 
-			TestSpec.test("Deeply nested user defined calls")
+			TestSpec.test("Deeply nested user-defined inline calls")
 				.inputSchemas(
 					TableSchema.builder()
 						.field("f0", DataTypes.INT())
@@ -236,7 +232,10 @@ public class ExpressionResolverTest {
 	/**
 	 * Test scalar function.
 	 */
-	@FunctionHint(input = @DataTypeHint(inputGroup = InputGroup.ANY), isVarArgs = true, output = @DataTypeHint(value = "INTEGER NOT NULL", bridgedTo = int.class))
+	@FunctionHint(
+		input = @DataTypeHint(inputGroup = InputGroup.ANY),
+		isVarArgs = true, output = @DataTypeHint(value = "INTEGER NOT NULL",
+		bridgedTo = int.class))
 	public static class ScalarFunc extends ScalarFunction {
 		public int eval(Object... any) {
 			return 0;
@@ -294,31 +293,13 @@ public class ExpressionResolverTest {
 		}
 
 		public ExpressionResolver getResolver() {
-			DataTypeFactory dataTypeFactory = new DataTypeFactory() {
-				@Override
-				public Optional<DataType> createDataType(String name) {
-					final LogicalType parsedType = LogicalTypeParser.parse(
-						name,
-						Thread.currentThread().getContextClassLoader());
-					return Optional.of(fromLogicalToDataType(parsedType));
-				}
-
-				@Override
-				public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
-					return Optional.empty();
-				}
-
-				@Override
-				public <T> DataType createDataType(Class<T> clazz) {
-					throw new UnsupportedOperationException("Not supported in the test");
-				}
-
-				@Override
-				public <T> DataType createRawDataType(Class<T> clazz) {
-					throw new UnsupportedOperationException("Not supported in the test");
-				}
-			};
 			FunctionLookup functionLookup = new FunctionLookup() {
+				@Override
+				public Optional<Result> lookupFunction(String stringIdentifier) {
+					// this is a simplified version for the test
+					return lookupFunction(UnresolvedIdentifier.of(stringIdentifier.split("\\.")));
+				}
+
 				@Override
 				public Optional<Result> lookupFunction(UnresolvedIdentifier identifier) {
 					final FunctionIdentifier functionIdentifier;
@@ -373,10 +354,9 @@ public class ExpressionResolverTest {
 			};
 			return ExpressionResolver.resolverFor(
 				new TableConfig(),
-				str -> UnresolvedIdentifier.of(str.split("\\.")), // this is a simplified version for the test
 				name -> Optional.empty(),
 				functionLookup,
-				dataTypeFactory,
+				new DataTypeFactoryMock(),
 				Arrays.stream(schemas)
 					.map(schema -> (QueryOperation) new CatalogQueryOperation(ObjectIdentifier.of("", "", ""), schema))
 					.toArray(QueryOperation[]::new)
