@@ -131,6 +131,10 @@ public class OperatorState implements CompositeStateHandle {
 		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
 			operatorSubtaskState.discardState();
 		}
+
+		if (coordinatorState != null) {
+			coordinatorState.discardState();
+		}
 	}
 
 	@Override
