@@ -250,7 +250,7 @@ public class ParquetTableSourceTest extends TestUtil {
 			tableEnv.explain(t2);
 		} catch (Exception e) {
 			if (e instanceof JsonMappingException) {
-				// TODO remove this after fix the bug in PlanJsonParser
+				// TODO remove this after https://issues.apache.org/jira/browse/FLINK-16315 is fixed
 				// the program can reach here to prove that the optimization does not hang until OOM
 			} else {
 				fail(e.getMessage());
