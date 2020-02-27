@@ -377,6 +377,13 @@ object UserDefinedFunctionTestUtils {
     override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.JAVA_BIG_DEC
   }
 
+  @SerialVersionUID(1L)
+  object IsNullUDF extends ScalarFunction {
+    def eval(v: Any): Boolean = v == null
+
+    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.BOOLEAN
+  }
+
   // ------------------------------------------------------------------------------------
   // POJOs
   // ------------------------------------------------------------------------------------
