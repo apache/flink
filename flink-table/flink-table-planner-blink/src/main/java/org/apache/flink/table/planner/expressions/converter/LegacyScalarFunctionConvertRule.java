@@ -35,7 +35,7 @@ import static org.apache.flink.table.planner.expressions.converter.ExpressionCon
 /**
  * {@link CallExpressionConvertRule} to convert {@link ScalarFunctionDefinition}.
  */
-public class ScalarFunctionConvertRule implements CallExpressionConvertRule {
+public class LegacyScalarFunctionConvertRule implements CallExpressionConvertRule {
 
 	@Override
 	public Optional<RexNode> convert(CallExpression call, ConvertContext context) {

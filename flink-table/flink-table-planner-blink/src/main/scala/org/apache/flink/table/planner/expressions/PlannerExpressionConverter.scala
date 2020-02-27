@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.expressions.{ApiExpressionVisitor, CallExpression, Expression, FieldReferenceExpression, LocalReferenceExpression, LookupCallExpression, TableReferenceExpression, TableSymbol, TimeIntervalUnit, TimePointUnit, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.expressions.{E => PlannerE, UUID => PlannerUUID}
@@ -37,7 +37,7 @@ import _root_.scala.collection.JavaConverters._
 class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
   override def visit(call: CallExpression): PlannerExpression = {
-    translateCall(call.getFunctionDefinition, call.getChildren.asScala)
+    ApiResolvedCallExpression(call)
   }
 
   override def visit(unresolvedCall: UnresolvedCallExpression): PlannerExpression = {

@@ -19,7 +19,6 @@
 package org.apache.flink.table.operations.utils.factories;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
@@ -28,10 +27,15 @@ import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,11 +64,11 @@ public class CalculatedTableFactory {
 	}
 
 	private class FunctionTableCallVisitor extends ResolvedExpressionDefaultVisitor<CalculatedQueryOperation<?>> {
-
-		private String[] leftTableFieldNames;
+		private List<String> leftTableFieldNames;
+		private static final String ATOMIC_FIELD_NAME = "f0";
 
 		public FunctionTableCallVisitor(String[] leftTableFieldNames) {
-			this.leftTableFieldNames = leftTableFieldNames;
+			this.leftTableFieldNames = Arrays.asList(leftTableFieldNames);
 		}
 
 		@Override
@@ -72,14 +76,9 @@ public class CalculatedTableFactory {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
 				return unwrapFromAlias(call);
-			} else if (definition instanceof TableFunctionDefinition) {
-				return createFunctionCall(
-					(TableFunctionDefinition) definition,
-					Collections.emptyList(),
-					call.getResolvedChildren());
-			} else {
-				return defaultMethod(call);
 			}
+
+			return createFunctionCall(call, Collections.emptyList());
 		}
 
 		private CalculatedQueryOperation<?> unwrapFromAlias(CallExpression call) {
@@ -95,42 +94,87 @@ public class CalculatedTableFactory {
 			}
 
 			CallExpression tableCall = (CallExpression) children.get(0);
-			TableFunctionDefinition tableFunctionDefinition =
-				(TableFunctionDefinition) tableCall.getFunctionDefinition();
-			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getResolvedChildren());
+			return createFunctionCall(tableCall, aliases);
+		}
+
+		private CalculatedQueryOperation<?> createFunctionCall(CallExpression call, List<String> aliases) {
+			FunctionDefinition definition = call.getFunctionDefinition();
+			if (definition instanceof TableFunctionDefinition) {
+				return createFunctionCall(
+					((TableFunctionDefinition) definition).getTableFunction(),
+					call.getFunctionIdentifier().orElse(FunctionIdentifier.of(definition.toString())),
+					call.getOutputDataType(),
+					aliases,
+					call.getResolvedChildren());
+			} else if (definition instanceof TableFunction<?>) {
+				return createFunctionCall(
+					(TableFunction<?>) definition,
+					call.getFunctionIdentifier().orElse(FunctionIdentifier.of(definition.toString())),
+					call.getOutputDataType(),
+					aliases,
+					call.getResolvedChildren());
+			} else {
+				return defaultMethod(call);
+			}
 		}
 
 		private CalculatedQueryOperation<?> createFunctionCall(
-				TableFunctionDefinition tableFunctionDefinition,
+				TableFunction<?> tableFunction,
+				FunctionIdentifier identifier,
+				DataType resultType,
 				List<String> aliases,
 				List<ResolvedExpression> parameters) {
-			TypeInformation<?> resultType = tableFunctionDefinition.getResultType();
 
-			int callArity = resultType.getTotalFields();
+			final TableSchema tableSchema = adjustNames(
+				extractSchema(resultType),
+				aliases,
+				identifier);
+
+			return new CalculatedQueryOperation(
+				tableFunction,
+				parameters,
+				TypeConversions.fromDataTypeToLegacyInfo(resultType),
+				tableSchema);
+		}
+
+		private TableSchema extractSchema(DataType resultType) {
+			if (LogicalTypeChecks.isCompositeType(resultType.getLogicalType())) {
+				return DataTypeUtils.expandCompositeTypeToSchema(resultType);
+			}
+
+			int i = 0;
+			String fieldName = ATOMIC_FIELD_NAME;
+			while (leftTableFieldNames.contains(fieldName)) {
+				fieldName = ATOMIC_FIELD_NAME + "_" + i++;
+			}
+			return TableSchema.builder()
+				.field(fieldName, resultType)
+				.build();
+		}
+
+		private TableSchema adjustNames(
+				TableSchema tableSchema,
+				List<String> aliases,
+				FunctionIdentifier identifier) {
 			int aliasesSize = aliases.size();
-
-			String[] fieldNames;
 			if (aliasesSize == 0) {
-				fieldNames = FieldInfoUtils.getFieldNames(resultType, Arrays.asList(leftTableFieldNames));
-			} else if (aliasesSize != callArity) {
+				return tableSchema;
+			}
+
+			int callArity = tableSchema.getFieldCount();
+			if (callArity != aliasesSize) {
 				throw new ValidationException(String.format(
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					tableFunctionDefinition.toString(),
+					identifier.toString(),
 					callArity,
 					aliasesSize));
-			} else {
-				fieldNames = aliases.toArray(new String[aliasesSize]);
 			}
 
-			TypeInformation<?>[] fieldTypes = FieldInfoUtils.getFieldTypes(resultType);
-
-			return new CalculatedQueryOperation(
-				tableFunctionDefinition.getTableFunction(),
-				parameters,
-				tableFunctionDefinition.getResultType(),
-				new TableSchema(fieldNames, fieldTypes));
+			return TableSchema.builder()
+				.fields(aliases.toArray(new String[0]), tableSchema.getFieldDataTypes())
+				.build();
 		}
 
 		@Override

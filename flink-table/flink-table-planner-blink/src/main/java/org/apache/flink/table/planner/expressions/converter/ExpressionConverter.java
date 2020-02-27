@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -71,7 +72,8 @@ import static org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
 public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 
 	private static final List<CallExpressionConvertRule> FUNCTION_CONVERT_CHAIN = Arrays.asList(
-		new ScalarFunctionConvertRule(),
+		new LegacyScalarFunctionConvertRule(),
+		new UserDefinedFunctionConverter(),
 		new OverConvertRule(),
 		new DirectConvertRule(),
 		new CustomizedConvertRule()
@@ -79,10 +81,17 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 
 	private final RelBuilder relBuilder;
 	private final FlinkTypeFactory typeFactory;
+	private final DataTypeFactory dataTypeFactory;
 
 	public ExpressionConverter(RelBuilder relBuilder) {
 		this.relBuilder = relBuilder;
 		this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
+		this.dataTypeFactory = relBuilder.getCluster()
+			.getPlanner()
+			.getContext()
+			.unwrap(FlinkContext.class)
+			.getCatalogManager()
+			.getDataTypeFactory();
 	}
 
 	@Override
@@ -239,6 +248,11 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 			@Override
 			public FlinkTypeFactory getTypeFactory() {
 				return typeFactory;
+			}
+
+			@Override
+			public DataTypeFactory getDataTypeFactory() {
+				return dataTypeFactory;
 			}
 		};
 	}
