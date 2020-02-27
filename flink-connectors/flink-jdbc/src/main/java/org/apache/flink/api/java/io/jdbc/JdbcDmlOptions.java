@@ -22,6 +22,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -54,7 +55,6 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 	}
 
 	public JDBCDialect getDialect() {
-		Preconditions.checkNotNull(dialect, "dialect not set");
 		return dialect;
 	}
 
@@ -62,19 +62,18 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
 		return fieldNames;
 	}
 
-	public String[] getKeyFields() {
-		return keyFields;
+	public Optional<String[]> getKeyFields() {
+		return Optional.ofNullable(keyFields);
 	}
 
 	/**
-	 * JDBCUpsertOptionsBuilder.
+	 * Builder for {@link JdbcDmlOptions}.
 	 */
 	public static class JdbcDmlOptionsBuilder extends JDBCUpdateQueryOptionsBuilder<JdbcDmlOptionsBuilder> {
 		private String tableName;
 		private String[] fieldNames;
 		private String[] keyFields;
 		private JDBCDialect dialect;
-		private JDBCDialect customDialect;
 
 		@Override
 		protected JdbcDmlOptionsBuilder self() {

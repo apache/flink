@@ -17,6 +17,8 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.io.jdbc.executor.InsertOrUpdateJdbcExecutor;
 import org.apache.flink.api.java.io.jdbc.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
@@ -27,6 +29,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.function.Function;
+
+import static org.apache.flink.api.java.io.jdbc.JDBCUtils.getPrimaryKey;
+import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
 	private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
@@ -35,7 +42,7 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 	private final JdbcDmlOptions dmlOptions;
 
 	TableJdbcUpsertOutputFormat(JdbcConnectionProvider connectionProvider, JdbcDmlOptions dmlOptions, JdbcExecutionOptions batchOptions) {
-		super(connectionProvider, batchOptions, ctx -> JdbcBatchStatementExecutor.upsertRow(dmlOptions, ctx), tuple2 -> tuple2.f1);
+		super(connectionProvider, batchOptions, ctx -> createUpsertRowExecutor(dmlOptions, ctx), tuple2 -> tuple2.f1);
 		this.dmlOptions = dmlOptions;
 	}
 
@@ -55,15 +62,15 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 		int[] pkTypes = dmlOptions.getFieldTypes() == null ? null :
 				Arrays.stream(pkFields).map(f -> dmlOptions.getFieldTypes()[f]).toArray();
 		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames());
-		return JdbcBatchStatementExecutor.keyedRow(pkFields, pkTypes, deleteSql);
+		return createKeyedRowExecutor(pkFields, pkTypes, deleteSql);
 	}
 
 	@Override
-	void doWriteRecord(Tuple2<Boolean, Row> record) throws SQLException {
-		if (record.f0) {
-			super.doWriteRecord(record);
+	void addToBatch(Tuple2<Boolean, Row> original, Row extracted) throws SQLException {
+		if (original.f0) {
+			super.addToBatch(original, extracted);
 		} else {
-			deleteExecutor.process(jdbcRecordExtractor.apply(record));
+			deleteExecutor.addToBatch(extracted);
 		}
 	}
 
@@ -85,4 +92,37 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 		super.attemptFlush();
 		deleteExecutor.executeBatch();
 	}
+
+	private static JdbcBatchStatementExecutor<Row> createKeyedRowExecutor(int[] pkFields, int[] pkTypes, String sql) {
+		return JdbcBatchStatementExecutor.keyed(
+			sql,
+			createRowKeyExtractor(pkFields),
+			(st, record) -> setRecordToStatement(st, pkTypes, createRowKeyExtractor(pkFields).apply(record)));
+	}
+
+	private static JdbcBatchStatementExecutor<Row> createUpsertRowExecutor(JdbcDmlOptions opt, RuntimeContext ctx) {
+		checkArgument(opt.getKeyFields().isPresent());
+
+		int[] pkFields = Arrays.stream(opt.getKeyFields().get()).mapToInt(Arrays.asList(opt.getFieldNames())::indexOf).toArray();
+		int[] pkTypes = opt.getFieldTypes() == null ? null : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
+
+		return opt.getDialect()
+			.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
+			.map(sql -> createSimpleRowExecutor(sql, opt.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()))
+			.orElseGet(() ->
+				new InsertOrUpdateJdbcExecutor<>(
+					opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields().get()),
+					opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
+					opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get()),
+					createRowJdbcStatementBuilder(pkTypes),
+					createRowJdbcStatementBuilder(opt.getFieldTypes()),
+					createRowJdbcStatementBuilder(opt.getFieldTypes()),
+					createRowKeyExtractor(pkFields),
+					ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity()));
+	}
+
+	private static Function<Row, Row> createRowKeyExtractor(int[] pkFields) {
+		return row -> getPrimaryKey(row, pkFields);
+	}
+
 }

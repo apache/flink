@@ -84,8 +84,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			String[] fieldNames, TypeInformation[] fieldTypes, String[] keyNames) {
 		this.drivername = options.getDriverName();
 		this.dbURL = options.getDbURL();
-		this.username = options.getUsername();
-		this.password = options.getPassword();
+		this.username = options.getUsername().orElse(null);
+		this.password = options.getPassword().orElse(null);
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
 		List<String> nameList = Arrays.asList(fieldNames);

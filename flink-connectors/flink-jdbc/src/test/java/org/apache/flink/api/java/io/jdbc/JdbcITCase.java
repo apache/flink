@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.java.io.jdbc.JdbcConnectionOptions.JdbcConnectionOptionsBuilder;
 import org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TestEntry;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -42,7 +43,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Smoke tests for the {@link JdbcSink} and the underlying classes.
  */
-public class JdbcE2eTest extends JDBCTestBase {
+public class JdbcITCase extends JDBCTestBase {
 
 	@Test
 	@Ignore
@@ -51,24 +52,24 @@ public class JdbcE2eTest extends JDBCTestBase {
 		env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
 		env.setParallelism(1);
 		env
-				.fromElements(TEST_DATA)
-				.addSink(JdbcSink.sink(
-						String.format(INSERT_TEMPLATE, INPUT_TABLE),
-						(ps, t) -> {
-							ps.setInt(1, t.id);
-							ps.setString(2, t.title);
-							ps.setString(3, t.author);
-							if (t.price == null) {
-								ps.setNull(4, Types.DOUBLE);
-							} else {
-								ps.setDouble(4, t.price);
-							}
-							ps.setInt(5, t.qty);
-						},
-						new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-								.withUrl(getDbMetadata().getUrl())
-								.withDriverName(getDbMetadata().getDriverClass())
-								.build()));
+			.fromElements(TEST_DATA)
+			.addSink(JdbcSink.sink(
+				String.format(INSERT_TEMPLATE, INPUT_TABLE),
+				(ps, t) -> {
+					ps.setInt(1, t.id);
+					ps.setString(2, t.title);
+					ps.setString(3, t.author);
+					if (t.price == null) {
+						ps.setNull(4, Types.DOUBLE);
+					} else {
+						ps.setDouble(4, t.price);
+					}
+					ps.setInt(5, t.qty);
+				},
+				new JdbcConnectionOptionsBuilder()
+					.withUrl(getDbMetadata().getUrl())
+					.withDriverName(getDbMetadata().getDriverClass())
+					.build()));
 		env.execute();
 
 		assertEquals(Arrays.asList(TEST_DATA), selectBooks());

@@ -20,7 +20,7 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.io.jdbc.writer.AppendOnlyWriter;
+import org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TestEntry;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.junit.After;
@@ -28,12 +28,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.sql.BatchUpdateException;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormatTest.toRow;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.OUTPUT_TABLE;
+import static org.apache.flink.api.java.io.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.mockito.Mockito.doReturn;
 
 /**
@@ -41,7 +44,7 @@ import static org.mockito.Mockito.doReturn;
  */
 public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 
-	private JDBCUpsertOutputFormat format;
+	private JdbcBatchingOutputFormat format;
 	private String[] fieldNames;
 
 	@Before
@@ -49,11 +52,11 @@ public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 		fieldNames = new String[]{"id", "title", "author", "price", "qty"};
 	}
 
-	@Test(expected = BatchUpdateException.class)
+	@Test(expected = IOException.class)
 	public void testMaxRetry() throws Exception {
-		format = JDBCUpsertOutputFormat.builder()
+		format = JdbcBatchingOutputFormat.builder()
 			.setOptions(JDBCOptions.builder()
-				.setDBUrl(DB_URL)
+				.setDBUrl(getDbMetadata().getUrl())
 				.setTableName(OUTPUT_TABLE)
 				.build())
 			.setFieldNames(fieldNames)
@@ -77,8 +80,8 @@ public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 	}
 
 	private void alterTable() throws Exception {
-		Class.forName(DRIVER_CLASS);
-		try (Connection conn = DriverManager.getConnection(DB_URL);
+		Class.forName(getDbMetadata().getDriverClass());
+		try (Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
 			Statement stat = conn.createStatement()) {
 			stat.execute("ALTER  TABLE " + OUTPUT_TABLE + " DROP COLUMN " + fieldNames[1]);
 		}
@@ -94,12 +97,16 @@ public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 			}
 		}
 		format = null;
-		Class.forName(DRIVER_CLASS);
+		Class.forName(getDbMetadata().getDriverClass());
 		try (
-			Connection conn = DriverManager.getConnection(DB_URL);
+			Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
 			Statement stat = conn.createStatement()) {
 			stat.execute("DELETE FROM " + OUTPUT_TABLE);
 		}
 	}
 
+	@Override
+	protected DbMetadata getDbMetadata() {
+		return DERBY_EBOOKSHOP_DB;
+	}
 }

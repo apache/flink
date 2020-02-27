@@ -58,7 +58,7 @@ under the License.
 
 This connector provides a sink that writes data to a JDBC database.
 
-To use this it, add the following dependency to your project (along with your JDBC-driver):
+To use it, add the following dependency to your project (along with your JDBC-driver):
 
 {% highlight xml %}
 <dependency>

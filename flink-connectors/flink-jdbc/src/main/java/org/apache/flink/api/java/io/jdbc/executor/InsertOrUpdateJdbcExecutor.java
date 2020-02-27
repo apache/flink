@@ -17,7 +17,10 @@
 
 package org.apache.flink.api.java.io.jdbc.executor;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
+
+import javax.annotation.Nonnull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,7 +31,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * {@link JdbcBatchStatementExecutor} that provides upsert semantics by updating row if it exists and inserting otherwise.
+ * Used in Table API.
+ */
+@Internal
+public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {
 
 	private final String existSQL;
 	private final String insertSQL;
@@ -46,22 +56,23 @@ final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExe
 	private transient PreparedStatement updateStatement;
 	private transient Map<K, V> batch = new HashMap<>();
 
-	InsertOrUpdateJdbcExecutor(String existSQL,
-								String insertSQL,
-								String updateSQL,
-								JdbcStatementBuilder<K> existSetter,
-								JdbcStatementBuilder<V> insertSetter,
-								JdbcStatementBuilder<V> updateSetter,
-								Function<R, K> keyExtractor,
-								Function<R, V> valueExtractor) {
-		this.existSQL = existSQL;
-		this.insertSQL = insertSQL;
-		this.updateSQL = updateSQL;
-		this.existSetter = existSetter;
-		this.insertSetter = insertSetter;
-		this.updateSetter = updateSetter;
-		this.keyExtractor = keyExtractor;
-		this.valueMapper = valueExtractor;
+	public InsertOrUpdateJdbcExecutor(
+			@Nonnull String existSQL,
+			@Nonnull String insertSQL,
+			@Nonnull String updateSQL,
+			@Nonnull JdbcStatementBuilder<K> existSetter,
+			@Nonnull JdbcStatementBuilder<V> insertSetter,
+			@Nonnull JdbcStatementBuilder<V> updateSetter,
+			@Nonnull Function<R, K> keyExtractor,
+			@Nonnull Function<R, V> valueExtractor) {
+		this.existSQL = checkNotNull(existSQL);
+		this.insertSQL = checkNotNull(insertSQL);
+		this.updateSQL = checkNotNull(updateSQL);
+		this.existSetter = checkNotNull(existSetter);
+		this.insertSetter = checkNotNull(insertSetter);
+		this.updateSetter = checkNotNull(updateSetter);
+		this.keyExtractor = checkNotNull(keyExtractor);
+		this.valueMapper = checkNotNull(valueExtractor);
 	}
 
 	@Override
@@ -73,7 +84,7 @@ final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExe
 	}
 
 	@Override
-	public void process(R record) {
+	public void addToBatch(R record) {
 		batch.put(keyExtractor.apply(record), valueMapper.apply(record));
 	}
 

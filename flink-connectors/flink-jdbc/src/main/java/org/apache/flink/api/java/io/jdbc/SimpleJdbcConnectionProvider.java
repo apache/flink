@@ -43,10 +43,10 @@ class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializab
 			synchronized (this) {
 				if (connection == null) {
 					Class.forName(jdbcOptions.getDriverName());
-					if (jdbcOptions.getUsername() == null) {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL());
+					if (jdbcOptions.getUsername().isPresent()) {
+						connection = DriverManager.getConnection(jdbcOptions.getDbURL(), jdbcOptions.getUsername().get(), jdbcOptions.getPassword().orElse(null));
 					} else {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL(), jdbcOptions.getUsername(), jdbcOptions.getPassword());
+						connection = DriverManager.getConnection(jdbcOptions.getDbURL());
 					}
 				}
 			}

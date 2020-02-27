@@ -20,7 +20,10 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.util.Optional;
 
 /**
  * JDBC connection options.
@@ -32,10 +35,12 @@ public class JdbcConnectionOptions implements Serializable {
 
 	protected final String url;
 	protected final String driverName;
+	@Nullable
 	protected final String username;
+	@Nullable
 	protected final String password;
 
-	public JdbcConnectionOptions(String url, String driverName, String username, String password) {
+	JdbcConnectionOptions(String url, String driverName, String username, String password) {
 		this.url = Preconditions.checkNotNull(url, "jdbc url is empty");
 		this.driverName = Preconditions.checkNotNull(driverName, "driver name is empty");
 		this.username = username;
@@ -50,16 +55,16 @@ public class JdbcConnectionOptions implements Serializable {
 		return driverName;
 	}
 
-	public String getUsername() {
-		return username;
+	public Optional<String> getUsername() {
+		return Optional.ofNullable(username);
 	}
 
-	public String getPassword() {
-		return password;
+	public Optional<String> getPassword() {
+		return Optional.ofNullable(password);
 	}
 
 	/**
-	 * JDBCConnectionOptionsBuilder.
+	 * Builder for {@link JdbcConnectionOptions}.
 	 */
 	public static class JdbcConnectionOptionsBuilder {
 		private String url;

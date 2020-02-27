@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.java.io.jdbc.JdbcConnectionOptions.JdbcConnectionOptionsBuilder;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -53,16 +54,16 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	private transient int batchCount = 0;
 
 	/**
-	 * @deprecated use {@link #JDBCOutputFormat(JdbcConnectionProvider, JdbcInsertOptions, JdbcExecutionOptions)}}.
+	 * @deprecated use {@link JDBCOutputFormatBuilder builder} instead.
 	 */
 	@Deprecated
 	public JDBCOutputFormat(String username, String password, String drivername, String dbURL, String query, int batchInterval, int[] typesArray) {
-		this(new SimpleJdbcConnectionProvider(new JdbcConnectionOptions(dbURL, drivername, username, password)),
+		this(new SimpleJdbcConnectionProvider(new JdbcConnectionOptionsBuilder().withUrl(dbURL).withDriverName(drivername).withUsername(username).withPassword(password).build()),
 				new JdbcInsertOptions(query, typesArray),
 				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
 	}
 
-	public JDBCOutputFormat(JdbcConnectionProvider connectionProvider, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
+	private JDBCOutputFormat(JdbcConnectionProvider connectionProvider, JdbcInsertOptions insertOptions, JdbcExecutionOptions batchOptions) {
 		super(connectionProvider);
 		this.insertOptions = insertOptions;
 		this.batchOptions = batchOptions;
@@ -145,7 +146,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 	}
 
 	/**
-	 * Builder for a {@link JDBCOutputFormat}.
+	 * Builder for {@link JDBCOutputFormat}.
 	 */
 	public static class JDBCOutputFormatBuilder {
 		private String username;
@@ -199,9 +200,10 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		 * @return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
-			return new JDBCOutputFormat(new SimpleJdbcConnectionProvider(buildConnectionOptions()),
-					new JdbcInsertOptions(query, typesArray),
-					JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
+			return new JDBCOutputFormat(
+				new SimpleJdbcConnectionProvider(buildConnectionOptions()),
+				new JdbcInsertOptions(query, typesArray),
+				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
 		}
 
 		public JdbcConnectionOptions buildConnectionOptions() {
@@ -212,7 +214,12 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 				LOG.info("Password was not supplied.");
 			}
 
-			return new JdbcConnectionOptions(dbURL, drivername, username, password);
+			return new JdbcConnectionOptionsBuilder()
+				.withUrl(dbURL)
+				.withDriverName(drivername)
+				.withUsername(username)
+				.withPassword(password)
+				.build();
 		}
 	}
 
