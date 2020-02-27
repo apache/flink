@@ -155,9 +155,9 @@ public class JDBCTableSource implements
 		JDBCInputFormat.JDBCInputFormatBuilder builder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(options.getDriverName())
 				.setDBUrl(options.getDbURL())
-				.setUsername(options.getUsername())
-				.setPassword(options.getPassword())
 				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
+		options.getUsername().ifPresent(builder::setUsername);
+		options.getPassword().ifPresent(builder::setPassword);
 
 		if (readOptions.getFetchSize() != 0) {
 			builder.setFetchSize(readOptions.getFetchSize());

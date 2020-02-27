@@ -27,6 +27,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
 
+/**
+ * A {@link JdbcBatchStatementExecutor} that extracts SQL keys from the supplied stream elements and executes a SQL query for them.
+ */
 class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T> {
 
 	private final String sql;
@@ -52,7 +55,7 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	}
 
 	@Override
-	public void process(T record) {
+	public void addToBatch(T record) {
 		batch.add(keyExtractor.apply(record));
 	}
 

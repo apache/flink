@@ -19,14 +19,11 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.io.jdbc.executor.JdbcBatchStatementExecutor;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-
-import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
 
 /**
  * Sets {@link PreparedStatement} parameters to use in JDBC Sink based on a specific type of StreamRecord.
@@ -36,11 +33,4 @@ import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
 @PublicEvolving
 public interface JdbcStatementBuilder<T> extends BiConsumerWithException<PreparedStatement, T, SQLException>, Serializable {
 
-	/**
-	 * Creates a {@link JdbcStatementBuilder} for {@link Row} using the provided SQL types array.
-	 * Uses {@link org.apache.flink.api.java.io.jdbc.JDBCUtils#setRecordToStatement}
-	 */
-	static JdbcStatementBuilder<Row> forRow(int[] types) {
-		return (st, record) -> setRecordToStatement(st, types, record);
-	}
 }

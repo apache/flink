@@ -33,8 +33,6 @@ import java.sql.Statement;
  */
 @SuppressWarnings("SpellCheckingInspection")
 public class JdbcTestFixture {
-	public static final JDBCTestCheckpoint CP0 = new JDBCTestCheckpoint(0, 1, 2, 3);
-	public static final JDBCTestCheckpoint CP1 = new JDBCTestCheckpoint(1, 4, 5, 6);
 
 	public static final String INPUT_TABLE = "books";
 	static final String OUTPUT_TABLE = "newbooks";

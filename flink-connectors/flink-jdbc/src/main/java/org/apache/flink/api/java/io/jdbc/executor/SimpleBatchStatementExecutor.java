@@ -27,6 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * A {@link JdbcBatchStatementExecutor} that executes supplied statement for given the records (without any pre-processing).
+ */
 class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
 	private final String sql;
@@ -49,7 +52,7 @@ class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T
 	}
 
 	@Override
-	public void process(T record) {
+	public void addToBatch(T record) {
 		batch.add(valueTransformer.apply(record));
 	}
 

@@ -24,14 +24,17 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 
 class GenericJdbcSinkFunction<T> extends RichSinkFunction<T> implements CheckpointedFunction {
 	private final AbstractJdbcOutputFormat<T > outputFormat;
 
-	GenericJdbcSinkFunction(AbstractJdbcOutputFormat<T > outputFormat) {
-		this.outputFormat = outputFormat;
+	GenericJdbcSinkFunction(@Nonnull AbstractJdbcOutputFormat<T> outputFormat) {
+		this.outputFormat = Preconditions.checkNotNull(outputFormat);
 	}
 
 	@Override

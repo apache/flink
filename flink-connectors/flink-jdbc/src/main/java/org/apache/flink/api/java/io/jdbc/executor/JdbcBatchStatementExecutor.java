@@ -19,22 +19,14 @@
 package org.apache.flink.api.java.io.jdbc.executor;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.io.jdbc.JdbcDmlOptions;
 import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
-import org.apache.flink.types.Row;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.function.Function;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCUtils.getPrimaryKey;
-import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
- * JDBCWriter used to execute statements (e.g. INSERT, UPSERT, DELETE).
+ * Executes the given JDBC statement in batch for the accumulated records.
  */
 @Internal
 public interface JdbcBatchStatementExecutor<T> {
@@ -44,7 +36,7 @@ public interface JdbcBatchStatementExecutor<T> {
 	 */
 	void open(Connection connection) throws SQLException;
 
-	void process(T record) throws SQLException;
+	void addToBatch(T record) throws SQLException;
 
 	/**
 	 * Submits a batch of commands to the database for execution.
@@ -56,43 +48,8 @@ public interface JdbcBatchStatementExecutor<T> {
 	 */
 	void close() throws SQLException;
 
-	static JdbcBatchStatementExecutor<Row> upsertRow(JdbcDmlOptions opt, RuntimeContext ctx) {
-		checkNotNull(opt.getKeyFields());
-
-		int[] pkFields = Arrays.stream(opt.getKeyFields()).mapToInt(Arrays.asList(opt.getFieldNames())::indexOf).toArray();
-		int[] pkTypes = opt.getFieldTypes() == null ? null : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
-
-		return opt.getDialect()
-				.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields())
-				.map(sql -> keyedRow(pkFields, opt.getFieldTypes(), sql))
-				.orElseGet(() ->
-						new InsertOrUpdateJdbcExecutor<>(
-								opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields()),
-								opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
-								opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields()),
-								JdbcStatementBuilder.forRow(pkTypes),
-								JdbcStatementBuilder.forRow(opt.getFieldTypes()),
-								JdbcStatementBuilder.forRow(opt.getFieldTypes()),
-								rowKeyExtractor(pkFields),
-								ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity()));
-	}
-
-	static Function<Row, Row> rowKeyExtractor(int[] pkFields) {
-		return row -> getPrimaryKey(row, pkFields);
-	}
-
-	static JdbcBatchStatementExecutor<Row> keyedRow(int[] pkFields, int[] pkTypes, String sql) {
-		return keyed(sql,
-				rowKeyExtractor(pkFields),
-				(st, record) -> setRecordToStatement(st, pkTypes, rowKeyExtractor(pkFields).apply(record)));
-	}
-
 	static <T, K> JdbcBatchStatementExecutor<T> keyed(String sql, Function<T, K> keyExtractor, JdbcStatementBuilder<K> statementBuilder) {
 		return new KeyedBatchStatementExecutor<>(sql, keyExtractor, statementBuilder);
-	}
-
-	static JdbcBatchStatementExecutor<Row> simpleRow(String sql, int[] fieldTypes, boolean objectReuse) {
-		return simple(sql, JdbcStatementBuilder.forRow(fieldTypes), objectReuse ? Row::copy : Function.identity());
 	}
 
 	static <T, V> JdbcBatchStatementExecutor<T> simple(String sql, JdbcStatementBuilder<V> paramSetter, Function<T, V> valueTransformer) {
