@@ -30,13 +30,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class MetadataV2Test {
+/**
+ * Simple tests for the {@link CheckpointMetadata} data holder class.
+ */
+public class CheckpointMetadataTest {
 
-	/**
-	 * Simple test of savepoint methods.
-	 */
 	@Test
-	public void testSavepointV2() throws Exception {
+	public void testConstructAndDispose() throws Exception {
 		final Random rnd = new Random();
 
 		final long checkpointId = rnd.nextInt(Integer.MAX_VALUE) + 1;

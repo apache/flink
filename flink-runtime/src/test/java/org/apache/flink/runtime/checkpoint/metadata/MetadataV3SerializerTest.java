@@ -38,7 +38,7 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Various tests for the version 2 format serializer of a checkpoint.
+ * Various tests for the version 3 format serializer of a checkpoint.
  */
 public class MetadataV3SerializerTest {
 
@@ -127,7 +127,7 @@ public class MetadataV3SerializerTest {
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);
 
-		serializer.serialize(new CheckpointMetadata(checkpointId, operatorStates, masterStates), out);
+		MetadataV3Serializer.serialize(new CheckpointMetadata(checkpointId, operatorStates, masterStates), out);
 		out.close();
 
 		byte[] bytes = baos.toByteArray();
