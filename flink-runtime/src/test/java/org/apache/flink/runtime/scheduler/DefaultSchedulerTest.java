@@ -39,7 +39,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -787,7 +786,6 @@ public class DefaultSchedulerTest extends TestLogger {
 			VoidBackPressureStatsTracker.INSTANCE,
 			executor,
 			configuration,
-			new SimpleSlotProvider(TEST_JOB_ID, 0),
 			scheduledExecutorService,
 			taskRestartExecutor,
 			ClassLoader.getSystemClassLoader(),
@@ -795,7 +793,6 @@ public class DefaultSchedulerTest extends TestLogger {
 			Time.seconds(300),
 			VoidBlobWriter.getInstance(),
 			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
-			Time.seconds(300),
 			NettyShuffleMaster.INSTANCE,
 			NoOpJobMasterPartitionTracker.INSTANCE,
 			schedulingStrategyFactory,
