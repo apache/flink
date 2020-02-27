@@ -66,6 +66,12 @@ public class CheckpointTestUtils {
 
 			OperatorState taskState = new OperatorState(new OperatorID(), numSubtasksPerTask, 128);
 
+			final boolean hasCoordinatorState = random.nextBoolean();
+			if (hasCoordinatorState) {
+				final StreamStateHandle stateHandle = createDummyStreamStateHandle(random);
+				taskState.setCoordinatorState(stateHandle);
+			}
+
 			boolean hasOperatorStateBackend = random.nextBoolean();
 			boolean hasOperatorStateStream = random.nextBoolean();
 
