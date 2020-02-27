@@ -1,6 +1,6 @@
 ---
 title: "Azure Blob 存储"
-nav-title: Azure Blob Storage
+nav-title: Azure Blob 存储
 nav-parent_id: filesystems
 nav-pos: 3
 ---
