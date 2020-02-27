@@ -35,7 +35,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -109,7 +108,6 @@ public class SchedulerTestingUtils {
 			VoidBackPressureStatsTracker.INSTANCE,
 			Executors.directExecutor(),
 			new Configuration(),
-			new SimpleSlotProvider(jobGraph.getJobID(), 0), // this is not used any more in the new scheduler
 			asyncExecutor,
 			asyncExecutor,
 			ClassLoader.getSystemClassLoader(),
@@ -117,7 +115,6 @@ public class SchedulerTestingUtils {
 			Time.seconds(300),
 			VoidBlobWriter.getInstance(),
 			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
-			Time.seconds(300),
 			NettyShuffleMaster.INSTANCE,
 			NoOpJobMasterPartitionTracker.INSTANCE,
 			new EagerSchedulingStrategy.Factory(),
