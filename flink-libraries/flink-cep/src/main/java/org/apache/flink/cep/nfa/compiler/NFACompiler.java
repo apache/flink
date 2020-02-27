@@ -245,15 +245,18 @@ public class NFACompiler {
 			List<Tuple2<IterativeCondition<T>, String>> notConditions = new ArrayList<>();
 
 			Pattern<T, ? extends T> previousPattern = currentPattern;
-			while (previousPattern.getPrevious() != null && (
-				previousPattern.getPrevious().getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL) ||
-				previousPattern.getPrevious().getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW)) {
-
-				previousPattern = previousPattern.getPrevious();
+			while (previousPattern.getPrevious() != null) {
+				if (previousPattern.getPrevious() instanceof GroupPattern) {
+					previousPattern = ((GroupPattern) previousPattern.getPrevious()).getRawPattern();
+				} else {
+					previousPattern = previousPattern.getPrevious();
+				}
 
 				if (previousPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
 					final IterativeCondition<T> notCondition = getTakeCondition(previousPattern);
 					notConditions.add(Tuple2.of(notCondition, previousPattern.getName()));
+				} else if (!previousPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+					break;
 				}
 			}
 			return notConditions;

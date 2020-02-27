@@ -980,6 +980,53 @@ public class NotPatternITCase extends TestLogger {
 		));
 	}
 
+	@Test
+	public void testNotFollowedByInTheEndOfGroupPattern() throws Exception {
+
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		int i = 0;
+		inputEvents.add(new StreamRecord<>(NotFollowByData.A_1, i++));
+		inputEvents.add(new StreamRecord<>(NotFollowByData.C_1, i++));
+		inputEvents.add(new StreamRecord<>(NotFollowByData.B_1, i++));
+		inputEvents.add(new StreamRecord<>(NotFollowByData.A_1, i++));
+		inputEvents.add(new StreamRecord<>(NotFollowByData.B_2, i++));
+
+		Pattern<Event, ?> startPattern = Pattern
+				.<Event>begin("a").where(new SimpleCondition<Event>() {
+					private static final long serialVersionUID = 5726188262756267490L;
+
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("a");
+					}
+				})
+				.notFollowedBy("not c").where(new SimpleCondition<Event>() {
+					private static final long serialVersionUID = 5726188262756267490L;
+
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("c");
+					}
+				});
+
+		Pattern<Event, ?> pattern = Pattern.begin(startPattern).followedBy("b")
+				.where(new SimpleCondition<Event>() {
+					private static final long serialVersionUID = 5726188262756267490L;
+
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("b");
+					}
+				});
+
+		NFA<Event> nfa = compile(pattern, false);
+
+		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
+
+		comparePatterns(matches, Lists.<List<Event>>newArrayList(Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_2)));
+	}
+
 	private List<List<Event>> testNotFollowedByBeforeZeroOrMore(boolean eager, boolean allMatches) throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
