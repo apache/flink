@@ -53,23 +53,23 @@ Flink项目可以使用不同的构建工具进行构建。
 </ul>
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+{% highlight bash %}
+$ mvn archetype:generate                               \
+  -DarchetypeGroupId=org.apache.flink              \
+  -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+  -DarchetypeVersion={{site.version}}
+{% endhighlight %}
         这种方式允许你<strong>为新项目命名</strong>。它将以交互式的方式询问你项目的 groupId、artifactId 和 package 名称。
     </div>
     <div class="tab-pane" id="quickstart-script">
-    {% highlight bash %}
+{% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
+$ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
-    {% endhighlight %}
+{% endhighlight %}
 
     </div>
     {% unless site.is_stable %}
@@ -147,7 +147,7 @@ Flink 可以从 JAR 文件运行应用程序，而无需另外指定主类。
         <div class="tab-content">
 <!-- NOTE: Any change to the build scripts here should also be reflected in flink-web/q/gradle-quickstart.sh !! -->
             <div class="tab-pane active" id="gradle-build">
-                {% highlight gradle %}
+{% highlight gradle %}
 buildscript {
     repositories {
         jcenter() // this applies only to the Gradle 'Shadow' plugin
@@ -258,20 +258,20 @@ jar {
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
 }
-                {% endhighlight %}
+{% endhighlight %}
             </div>
             <div class="tab-pane" id="gradle-settings">
-                {% highlight gradle %}
+{% highlight gradle %}
 rootProject.name = 'quickstart'
-                {% endhighlight %}
+{% endhighlight %}
             </div>
         </div>
     </div>
 
     <div class="tab-pane" id="gradle-script">
-    {% highlight bash %}
-    bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
-    {% endhighlight %}
+{% highlight bash %}
+bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{site.version}} {{site.scala_version}}
+{% endhighlight %}
     这种方式允许你<strong>为新项目命名</strong>。它将以交互式的方式询问你的项目名称、组织机构（也用于包名）、项目版本、Scala 和 Flink 版本。
     </div>
 </div>
