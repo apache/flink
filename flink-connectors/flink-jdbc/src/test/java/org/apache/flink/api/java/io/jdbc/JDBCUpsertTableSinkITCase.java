@@ -53,7 +53,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:upsert";
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
-	public static final String NOT_EXISTS_TABLE = "notExistsTable";
+	public static final String NOT_EXISTS_TABLE = "notExistedTable";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
