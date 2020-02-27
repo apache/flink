@@ -49,6 +49,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -1095,18 +1096,21 @@ public class FlinkKafkaProducer<IN>
 	// ----------------------------------- Utilities --------------------------
 
 	private void abortTransactions(final Set<String> transactionalIds) {
+		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		transactionalIds.parallelStream().forEach(transactionalId -> {
-			// don't mess with the original configuration or any other properties of the
-			// original object
-			// -> create an internal kafka producer on our own and do not rely on
-			//    initTransactionalProducer().
-			final Properties myConfig = new Properties();
-			myConfig.putAll(producerConfig);
-			initTransactionalProducerConfig(myConfig, transactionalId);
-			try (FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer =
-					new FlinkKafkaInternalProducer<>(myConfig)) {
-				// it suffices to call initTransactions - this will abort any lingering transactions
-				kafkaProducer.initTransactions();
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
+				// don't mess with the original configuration or any other properties of the
+				// original object
+				// -> create an internal kafka producer on our own and do not rely on
+				//    initTransactionalProducer().
+				final Properties myConfig = new Properties();
+				myConfig.putAll(producerConfig);
+				initTransactionalProducerConfig(myConfig, transactionalId);
+				try (FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer =
+						new FlinkKafkaInternalProducer<>(myConfig)) {
+					// it suffices to call initTransactions - this will abort any lingering transactions
+					kafkaProducer.initTransactions();
+				}
 			}
 		});
 	}
