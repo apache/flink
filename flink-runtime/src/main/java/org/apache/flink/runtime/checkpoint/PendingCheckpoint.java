@@ -117,30 +117,9 @@ public class PendingCheckpoint {
 
 	private volatile ScheduledFuture<?> cancellerHandle;
 
-	private CheckpointException failureCause = null;
+	private CheckpointException failureCause;
 
 	// --------------------------------------------------------------------------------------------
-	public PendingCheckpoint(
-		JobID jobId,
-		long checkpointId,
-		long checkpointTimestamp,
-		Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
-		Collection<String> masterStateIdentifiers,
-		CheckpointProperties props,
-		CheckpointStorageLocation targetLocation,
-		Executor executor) {
-
-		this(
-			jobId,
-			checkpointId,
-			checkpointTimestamp,
-			verticesToConfirm,
-			masterStateIdentifiers,
-			props,
-			targetLocation,
-			executor,
-			new CompletableFuture<>());
-	}
 
 	public PendingCheckpoint(
 			JobID jobId,
