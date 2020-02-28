@@ -220,6 +220,8 @@ fi
 ARTIFACTS_DIR="${HERE}/artifacts"
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
+env > $ARTIFACTS_DIR/environment
+
 LOG4J_PROPERTIES=${HERE}/../tools/log4j-travis.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
@@ -231,5 +233,15 @@ PROFILE="$PROFILE -Pe2e-travis1 -Pe2e-travis2 -Pe2e-travis3 -Pe2e-travis4 -Pe2e-
 mvn ${MVN_COMMON_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} verify -pl ${e2e_modules} -DdistDir=$(readlink -e build-target)
 
 EXIT_CODE=$?
+
+# On Azure, publish ARTIFACTS_FILE as a build artifact
+if [ ! -z "$TF_BUILD" ] ; then
+	echo "COMPRESSING build artifacts."
+	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tgz
+	tar -zcvf ${ARTIFACTS_FILE} $ARTIFACTS_DIR
+	mkdir artifact-dir
+	cp ${ARTIFACTS_FILE} artifact-dir/
+	echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/artifact-dir"
+fi
 
 exit $EXIT_CODE

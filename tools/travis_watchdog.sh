@@ -44,11 +44,11 @@ MAX_NO_OUTPUT=${1:-300}
 SLEEP_TIME=20
 
 # Maximum times to retry uploading artifacts file to transfer.sh
-TRANSFER_UPLOAD_MAX_RETRIES=10
+TRANSFER_UPLOAD_MAX_RETRIES=2
 
 # The delay between two retries to upload artifacts file to transfer.sh. The default exponential
 # backoff algorithm should be too long for the last several retries.
-TRANSFER_UPLOAD_RETRY_DELAY=15
+TRANSFER_UPLOAD_RETRY_DELAY=5
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
@@ -142,6 +142,19 @@ upload_artifacts_s3() {
 		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
 		# re-creates the whole directory structure from root.
 		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
+	fi
+
+	# On Azure, publish ARTIFACTS_FILE as a build artifact
+	if [ ! -z "$TF_BUILD" ] ; then
+		echo "DEBBUGGING"
+		env
+		set -x
+		ARTIFACT_DIR="$(pwd)/artifact-dir"
+		mkdir $ARTIFACT_DIR
+		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
+		
+		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$ARTIFACT_DIR"
+		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')"
 	fi
 
 	# upload to https://transfer.sh
