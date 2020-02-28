@@ -451,7 +451,7 @@ public class FunctionITCase extends AbstractTestBase {
 	}
 
 	@Test
-	public void testPrimitiveScalarFunction() throws Exception {
+	public void testDataTypeBasedTypeInferenceNotSupported() throws Exception {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
 

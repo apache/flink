@@ -34,7 +34,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 
 /**
- * Tests for both catalog and system function.
+ * Tests for user defined functions in the Table API.
  */
 public class FunctionITCase extends AbstractTestBase {
 
@@ -42,7 +42,7 @@ public class FunctionITCase extends AbstractTestBase {
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
-	public void testPrimitiveScalarFunction() throws Exception {
+	public void testDataTypeBasedTypeInferenceNotSupported() throws Exception {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
 

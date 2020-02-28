@@ -37,12 +37,12 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for catalog and system in stream table environment.
+ * Tests for user defined functions in the Table API.
  */
 public class FunctionITCase extends StreamingTestBase {
 
 	@Test
-	public void testPrimitiveScalarFunction() throws Exception {
+	public void testScalarFunction() throws Exception {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1, 1L, 1L),
 			Row.of(2, 2L, 1L),
@@ -75,7 +75,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testRowTableFunction() throws Exception {
+	public void testJoinWithTableFunction() throws Exception {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of("1,2,3"),
 			Row.of("2,3,4"),
