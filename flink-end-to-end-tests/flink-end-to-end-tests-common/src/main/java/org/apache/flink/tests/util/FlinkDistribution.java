@@ -48,6 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -286,6 +287,10 @@ public final class FlinkDistribution implements ExternalResource {
 			.collect(Collectors.toList());
 
 		Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+	}
+
+	public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {
+		Files.write(conf.resolve("slaves"), taskExecutorHosts);
 	}
 
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {
