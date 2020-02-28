@@ -1098,6 +1098,9 @@ public class FlinkKafkaProducer<IN>
 	private void abortTransactions(final Set<String> transactionalIds) {
 		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		transactionalIds.parallelStream().forEach(transactionalId -> {
+			// The parallelStream executes the consumer in a separated thread pool.
+			// Because the consumer(e.g. Kafka) uses the context classloader to construct some class
+			// we should set the correct classloader for it.
 			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 				// don't mess with the original configuration or any other properties of the
 				// original object
