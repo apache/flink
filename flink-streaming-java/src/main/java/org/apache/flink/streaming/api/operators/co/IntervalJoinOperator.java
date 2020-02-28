@@ -56,10 +56,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -135,8 +134,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private transient ExecutorService executor;
 	private transient List<Future> pendingTasks;
 
-	private transient final int maxOutOfOrder;
-	private transient final boolean deDuplication;
+	private transient boolean deDuplication;
+	private transient int maxOneSideOutOfOrder;
 
 	/**
 	 * Creates a new IntervalJoinOperator.
@@ -172,8 +171,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
 
-		this.maxOutOfOrder = udf.getMaxOutOfOrder();
 		this.deDuplication = udf.deduplicationEnabled();
+		this.maxOneSideOutOfOrder = udf.getMaxOutOfOrder();
 	}
 
 	@Override
@@ -191,7 +190,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				Integer.class, // type information
 				0); // default value of the state, if nothing was set
 		isKeyedLeftProcessed = getRuntimeContext().getState(descriptor);
-		executor = Executors.newFixedThreadPool(maxOutOfOrder);
+		executor = Executors.newFixedThreadPool(maxOneSideOutOfOrder);
 		pendingTasks = new ArrayList<>();
 	}
 
@@ -269,7 +268,9 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			@Override
 			public void run() {
 				try {
-					addToBuffer(ourBuffer, ourValue, ourTimestamp, deDuplication);
+					if (!addToBuffer(ourBuffer, ourValue, ourTimestamp, deDuplication)) {
+						return;
+					}
 
 					for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
 						final long timestamp  = bucket.getKey();
@@ -356,8 +357,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		userFunction.processElement(left, right, context, collector);
 	}
 
-	private static synchronized <T> void addToBuffer(
-			final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
+	private static synchronized <T> boolean addToBuffer(
+			final MapState<Long, List<BufferEntry<T>>> buffer,
 			final T value,
 			final long timestamp,
 			boolean deDuplication) throws Exception {
@@ -381,6 +382,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			elemsInBucket.add(new BufferEntry<>(value, false));
 			buffer.put(timestamp, elemsInBucket);
 		}
+		return !duplicated;
 	}
 
 	@Override

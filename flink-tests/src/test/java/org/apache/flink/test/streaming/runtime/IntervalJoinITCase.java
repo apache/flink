@@ -19,7 +19,6 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -139,8 +138,8 @@ public class IntervalJoinITCase {
 
 				@Override
 				public void processElement(Tuple2<String, Integer> left,
-										   Tuple2<String, Integer> right, Context ctx,
-										   Collector<String> out) throws Exception {
+					Tuple2<String, Integer> right, Context ctx,
+					Collector<String> out) throws Exception{
 					out.collect(left + ":" + right);
 				}
 
@@ -186,6 +185,49 @@ public class IntervalJoinITCase {
 	@Test
 	public void testBoundedUnorderedStreamsStillJoinCorrectlyDeduplication() throws Exception {
 		testBoundedUnorderedStreamsStillJoinCorrectly(1, true);
+	}
+
+	@Test
+	private void testCorrectlyJoinWithKeysOutOfOrder() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> streamOne = env.fromElements(
+			Tuple2.of("key1", 0),
+			Tuple2.of("key1", 1),
+			Tuple2.of("key2", 1),
+			Tuple2.of("key2", 2)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> streamTwo = env.fromElements(
+			Tuple2.of("key2", 1),
+			Tuple2.of("key1", 2),
+			Tuple2.of("key2", 3),
+			Tuple2.of("key2", 4),
+			Tuple2.of("key1", 5)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		streamOne
+			.intervalJoin(streamTwo)
+			// if it were not keyed then the boundaries [0; 1] would lead to the pairs (1, 1),
+			// (1, 2), (2, 2), (2, 3)..., so that this is not happening is what we are testing here
+			.between(Time.milliseconds(0), Time.milliseconds(1))
+			.process(new CombineToStringJoinFunction(4, false))
+			.addSink(new ResultSink());
+
+		env.execute();
+		Thread.sleep(100L);
+		expectInAnyOrder(
+			"(key1,1):(key1,2)",
+			"(key2,1):(key2,1)",
+			"(key1,1):(key1,2)",
+			"(key2,2):(key2,3)"
+		);
 	}
 
 	@Test(expected = NullPointerException.class)
@@ -369,6 +411,7 @@ public class IntervalJoinITCase {
 				ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
+				ctx.close();
 			}
 
 			@Override
@@ -390,6 +433,7 @@ public class IntervalJoinITCase {
 				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
+				ctx.close();
 			}
 
 			@Override
@@ -476,11 +520,11 @@ public class IntervalJoinITCase {
 			// if it were not keyed then the boundaries [0; 1] would lead to the pairs (1, 1),
 			// (1, 2), (2, 2), (2, 3)..., so that this is not happening is what we are testing here
 			.between(Time.milliseconds(0), Time.milliseconds(1))
-			.process( new CombineToStringJoinFunction(maxOutOfOrder, deDuplication))
+			.process(new CombineToStringJoinFunction(maxOutOfOrder, deDuplication))
 			.addSink(new ResultSink());
 
 		env.execute();
-
+		Thread.sleep(100L);
 		expectInAnyOrder(
 			"(key1,0):(key1,0)",
 			"(key2,1):(key2,1)",
@@ -517,6 +561,7 @@ public class IntervalJoinITCase {
 			this.maxOutOfOrder = maxOutOfOrder;
 			this.deduplication = deduplication;
 		}
+
 		@Override
 		public void processElement(Tuple2<String, Integer> left,
 			Tuple2<String, Integer> right, Context ctx, Collector<String> out) {
