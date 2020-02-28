@@ -42,26 +42,23 @@ public class ConfigurationParserUtils {
 	 * @return managed memory size (in megabytes)
 	 */
 	public static long getManagedMemorySize(Configuration configuration) {
-		long managedMemorySize;
-		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
-			try {
-				managedMemorySize = MemorySize.parse(
-					configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-			} catch (IllegalArgumentException e) {
-				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
-			}
-		} else {
-			managedMemorySize = Long.valueOf(managedMemorySizeDefaultVal);
+		final MemorySize defaultManagedMemory = MemorySize.parse(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue());
+
+		final String managedMemoryValue = configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		final MemorySize configuredManagedMemory;
+
+		try {
+			configuredManagedMemory = MemorySize.parse(managedMemoryValue, MEGA_BYTES);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
 		}
 
-		checkConfigParameter(configuration.getString(
-			TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) || managedMemorySize > 0,
-			managedMemorySize, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+		checkConfigParameter(defaultManagedMemory.equals(configuredManagedMemory) || configuredManagedMemory.getMebiBytes() > 0,
+			managedMemoryValue, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
 			"MemoryManager needs at least one MB of memory. " +
 				"If you leave this config parameter empty, the system automatically pick a fraction of the available memory.");
 
-		return managedMemorySize;
+		return configuredManagedMemory.getMebiBytes();
 	}
 
 	/**
