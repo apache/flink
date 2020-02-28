@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
@@ -38,11 +38,11 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
  * Utility class for creating a valid {@link SortQueryOperation} operation.
  */
 @Internal
-public class SortOperationFactory {
+final class SortOperationFactory {
 
 	private final boolean isStreamingMode;
 
-	public SortOperationFactory(boolean isStreamingMode) {
+	SortOperationFactory(boolean isStreamingMode) {
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -56,7 +56,7 @@ public class SortOperationFactory {
 	 * @param child relational expression on top of which to apply the sort operation
 	 * @return valid sort operation
 	 */
-	public QueryOperation createSort(
+	QueryOperation createSort(
 			List<ResolvedExpression> orders,
 			QueryOperation child,
 			ExpressionResolver.PostResolverFactory postResolverFactory) {
@@ -77,7 +77,7 @@ public class SortOperationFactory {
 	 * @param child should be {@link SortQueryOperation}
 	 * @return valid sort operation with applied offset
 	 */
-	public QueryOperation createLimitWithOffset(int offset, QueryOperation child) {
+	QueryOperation createLimitWithOffset(int offset, QueryOperation child) {
 		SortQueryOperation previousSort = validateAndGetChildSort(child);
 
 		if (offset < 0) {
@@ -98,7 +98,7 @@ public class SortOperationFactory {
 	 * @param child should be {@link SortQueryOperation}
 	 * @return valid sort operation with applied fetch
 	 */
-	public QueryOperation createLimitWithFetch(int fetch, QueryOperation child) {
+	QueryOperation createLimitWithFetch(int fetch, QueryOperation child) {
 		SortQueryOperation previousSort = validateAndGetChildSort(child);
 
 		if (fetch < 0) {
@@ -132,7 +132,7 @@ public class SortOperationFactory {
 		}
 	}
 
-	private class OrderWrapper extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+	private static class OrderWrapper extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
 		private ExpressionResolver.PostResolverFactory postResolverFactory;
 

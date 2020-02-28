@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
@@ -44,7 +44,7 @@ import static java.util.Arrays.asList;
  * Utility class for creating a valid {@link JoinQueryOperation} operation.
  */
 @Internal
-public class JoinOperationFactory {
+final class JoinOperationFactory {
 
 	private final EquiJoinExistsChecker equiJoinExistsChecker = new EquiJoinExistsChecker();
 
@@ -66,7 +66,7 @@ public class JoinOperationFactory {
 	 * @param correlated if the join should be a correlated join
 	 * @return valid join operation
 	 */
-	public QueryOperation create(
+	QueryOperation create(
 			QueryOperation left,
 			QueryOperation right,
 			JoinType joinType,

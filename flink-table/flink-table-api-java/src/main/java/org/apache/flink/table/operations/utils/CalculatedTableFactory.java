@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
@@ -45,7 +45,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
  * Utility class for creating a valid {@link CalculatedQueryOperation} operation.
  */
 @Internal
-public class CalculatedTableFactory {
+final class CalculatedTableFactory {
 
 	/**
 	 * Creates a valid {@link CalculatedQueryOperation} operation.
@@ -53,7 +53,7 @@ public class CalculatedTableFactory {
 	 * @param callExpr call to table function as expression
 	 * @return valid calculated table
 	 */
-	public QueryOperation create(ResolvedExpression callExpr, String[] leftTableFieldNames) {
+	QueryOperation create(ResolvedExpression callExpr, String[] leftTableFieldNames) {
 		FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor(leftTableFieldNames);
 		return callExpr.accept(calculatedTableCreator);
 	}

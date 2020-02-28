@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
@@ -41,7 +41,7 @@ import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.
  * Utility class for creating projection expressions from column operation.
  */
 @Internal
-public final class ColumnOperationUtils {
+final class ColumnOperationUtils {
 
 	private static final DropColumnsExtractor dropColumnsExtractor = new DropColumnsExtractor();
 	private static final RenameColumnExtractor renameColumnExtractor = new RenameColumnExtractor();
@@ -55,7 +55,7 @@ public final class ColumnOperationUtils {
 	 * @param newAliases new aliases for current columns
 	 * @return projection expressions
 	 */
-	public static List<Expression> renameColumns(List<String> inputFields, List<Expression> newAliases) {
+	static List<Expression> renameColumns(List<String> inputFields, List<Expression> newAliases) {
 		LinkedHashMap<String, Expression> finalFields = new LinkedHashMap<>();
 
 		inputFields.forEach(field -> finalFields.put(field, unresolvedRef(field)));
@@ -77,7 +77,7 @@ public final class ColumnOperationUtils {
 	 * @param newExpressions new columns to add
 	 * @return projection expressions
 	 */
-	public static List<Expression> addOrReplaceColumns(List<String> inputFields, List<Expression> newExpressions) {
+	static List<Expression> addOrReplaceColumns(List<String> inputFields, List<Expression> newExpressions) {
 		LinkedHashMap<String, Expression> finalFields = new LinkedHashMap<>();
 
 		inputFields.forEach(field -> finalFields.put(field, unresolvedRef(field)));
@@ -98,7 +98,7 @@ public final class ColumnOperationUtils {
 	 * @param dropExpressions columns to remove
 	 * @return projection expressions
 	 */
-	public static List<Expression> dropFields(List<String> inputFields, List<Expression> dropExpressions) {
+	static List<Expression> dropFields(List<String> inputFields, List<Expression> dropExpressions) {
 		Set<String> columnsToDrop = dropExpressions.stream()
 			.map(expr -> expr.accept(dropColumnsExtractor))
 			.collect(Collectors.toSet());

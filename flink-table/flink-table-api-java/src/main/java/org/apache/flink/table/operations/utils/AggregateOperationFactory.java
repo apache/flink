@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -87,7 +87,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTim
  * Utility class for creating a valid {@link AggregateQueryOperation} or {@link WindowAggregateQueryOperation}.
  */
 @Internal
-public final class AggregateOperationFactory {
+final class AggregateOperationFactory {
 
 	private final boolean isStreamingMode;
 	private final NoNestedAggregates noNestedAggregates = new NoNestedAggregates();
@@ -95,7 +95,7 @@ public final class AggregateOperationFactory {
 	private final AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator();
 	private final IsKeyTypeChecker isKeyTypeChecker = new IsKeyTypeChecker();
 
-	public AggregateOperationFactory(boolean isStreamingMode) {
+	AggregateOperationFactory(boolean isStreamingMode) {
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -107,7 +107,7 @@ public final class AggregateOperationFactory {
 	 * @param child relational operation on top of which to apply the aggregation
 	 * @return valid aggregate operation
 	 */
-	public QueryOperation createAggregate(
+	QueryOperation createAggregate(
 			List<ResolvedExpression> groupings,
 			List<ResolvedExpression> aggregates,
 			QueryOperation child) {
@@ -141,7 +141,7 @@ public final class AggregateOperationFactory {
 	 * @param child relational operation on top of which to apply the aggregation
 	 * @return valid window aggregate operation
 	 */
-	public QueryOperation createWindowAggregate(
+	QueryOperation createWindowAggregate(
 			List<ResolvedExpression> groupings,
 			List<ResolvedExpression> aggregates,
 			List<ResolvedExpression> windowProperties,
@@ -222,7 +222,7 @@ public final class AggregateOperationFactory {
 	 * @param resolver resolver to resolve potential unresolved field references
 	 * @return window with expressions resolved
 	 */
-	public ResolvedGroupWindow createResolvedWindow(GroupWindow window, ExpressionResolver resolver) {
+	ResolvedGroupWindow createResolvedWindow(GroupWindow window, ExpressionResolver resolver) {
 		Expression alias = window.getAlias();
 
 		if (!(alias instanceof UnresolvedReferenceExpression)) {
@@ -517,12 +517,12 @@ public final class AggregateOperationFactory {
 	/**
 	 * Extract a table aggregate Expression and it's aliases.
 	 */
-	public Tuple2<ResolvedExpression, List<String>> extractTableAggFunctionAndAliases(Expression callExpr) {
+	Tuple2<ResolvedExpression, List<String>> extractTableAggFunctionAndAliases(Expression callExpr) {
 		TableAggFunctionCallResolver visitor = new TableAggFunctionCallResolver();
 		return Tuple2.of(callExpr.accept(visitor), visitor.getAlias());
 	}
 
-	private class TableAggFunctionCallResolver extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+	private static class TableAggFunctionCallResolver extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
 		private List<String> alias = new LinkedList<>();
 

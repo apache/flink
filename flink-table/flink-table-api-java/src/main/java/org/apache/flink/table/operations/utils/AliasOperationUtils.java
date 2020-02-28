@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
@@ -41,7 +41,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
  * Utility class for creating valid alias expressions that can be later used as a projection.
  */
 @Internal
-public final class AliasOperationUtils {
+final class AliasOperationUtils {
 
 	private static final AliasLiteralValidator aliasLiteralValidator = new AliasLiteralValidator();
 	private static final String ALL_REFERENCE = "*";
@@ -54,7 +54,7 @@ public final class AliasOperationUtils {
 	 * @param child relational operation on top of which to apply the aliases
 	 * @return validated list of aliases
 	 */
-	public static List<Expression> createAliasList(List<Expression> aliases, QueryOperation child) {
+	static List<Expression> createAliasList(List<Expression> aliases, QueryOperation child) {
 		TableSchema childSchema = child.getTableSchema();
 
 		if (aliases.size() > childSchema.getFieldCount()) {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -35,7 +35,7 @@ import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperat
  * Utility class for creating a valid {@link SetQueryOperation}.
  */
 @Internal
-public class SetOperationFactory {
+final class SetOperationFactory {
 
 	private final boolean isStreamingMode;
 
@@ -52,7 +52,7 @@ public class SetOperationFactory {
 	 * @param all flag defining how duplicates should be handled
 	 * @return creates a valid algebraic operation
 	 */
-	public QueryOperation create(
+	QueryOperation create(
 			SetQueryOperationType type,
 			QueryOperation left,
 			QueryOperation right,

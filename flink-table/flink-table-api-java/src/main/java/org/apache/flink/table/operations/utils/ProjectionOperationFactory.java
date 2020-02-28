@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils.factories;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
@@ -57,13 +57,13 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  * Utility class for creating valid {@link ProjectQueryOperation} operation.
  */
 @Internal
-public final class ProjectionOperationFactory {
+final class ProjectionOperationFactory {
 
 	private final TransitiveExtractNameVisitor extractTransitiveNameVisitor = new TransitiveExtractNameVisitor();
 	private final StripAliases stripAliases = new StripAliases();
 	private int currentFieldIndex = 0;
 
-	public QueryOperation create(
+	QueryOperation create(
 			List<ResolvedExpression> projectList,
 			QueryOperation child,
 			boolean explicitAlias,
@@ -179,7 +179,7 @@ public final class ProjectionOperationFactory {
 		}
 	}
 
-	private class StripAliases extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+	private static class StripAliases extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
 		@Override
 		public ResolvedExpression visit(CallExpression call) {
@@ -196,7 +196,7 @@ public final class ProjectionOperationFactory {
 		}
 	}
 
-	private class TransitiveExtractNameVisitor extends ResolvedExpressionDefaultVisitor<Optional<String>> {
+	private static class TransitiveExtractNameVisitor extends ResolvedExpressionDefaultVisitor<Optional<String>> {
 
 		@Override
 		public Optional<String> visit(CallExpression call) {
