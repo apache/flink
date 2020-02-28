@@ -55,6 +55,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private DatadogHttpClient client;
 	private List<String> configTags;
 
+	private final Clock clock = () -> System.currentTimeMillis() / 1000L;
+
 	public static final String API_KEY = "apikey";
 	public static final String PROXY_HOST = "proxyHost";
 	public static final String PROXY_PORT = "proxyPort";
@@ -70,14 +72,14 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
-			counters.put(c, new DCounter(c, name, host, tags));
+			counters.put(c, new DCounter(c, name, host, tags, clock));
 		} else if (metric instanceof Gauge) {
 			Gauge g = (Gauge) metric;
-			gauges.put(g, new DGauge(g, name, host, tags));
+			gauges.put(g, new DGauge(g, name, host, tags, clock));
 		} else if (metric instanceof Meter) {
 			Meter m = (Meter) metric;
 			// Only consider rate
-			meters.put(m, new DMeter(m, name, host, tags));
+			meters.put(m, new DMeter(m, name, host, tags, clock));
 		} else if (metric instanceof Histogram) {
 			LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
 		} else {
@@ -109,7 +111,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
 		String tags = config.getString(TAGS, "");
 
-		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort);
+		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, true);
 
 		configTags = getTagsFromConfig(tags);
 
