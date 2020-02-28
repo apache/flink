@@ -75,8 +75,7 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 	@Override
 	public void open() throws Exception {
 		super.open();
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator(
-			"reader", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("reader", 0, Long.MAX_VALUE);
 		reader = new ArrowStreamReader(bais, allocator);
 	}
 
