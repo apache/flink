@@ -20,6 +20,7 @@ parameters:
   environment: # defines environment variables for downstream scripts
   run_end_to_end: # if set to 'true', the end to end tests will be executed
   container: # the container name for the build
+  jdk: # the jdk version to use
 
 jobs:
 - job: compile_${{parameters.stage_name}}
@@ -50,7 +51,11 @@ jobs:
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
     displayName: Cache Maven local repo
-
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin;$PATH"
+    displayName: "Set to jdk11"
+    condition: eq('${{parameters.jdk}}', 'jdk11')
   # Compile
   - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
     displayName: Build
@@ -109,7 +114,11 @@ jobs:
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
     displayName: Cache Maven local repo
-    
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin;$PATH"
+    displayName: "Set to jdk11"
+    condition: eq('${{parameters.jdk}}', 'jdk11')  
   # Test
   - script: STAGE=test ${{parameters.environment}} ./tools/azure_controller.sh $(module)
     displayName: Test - $(module)
@@ -137,10 +146,10 @@ jobs:
       displayName: Cache Maven local repo
       continueOnError: true
     - script: |
-        echo "##vso[task.setvariable variable=JAVA_HOME]$(JAVA_HOME_11_X64)"
-        echo "##vso[task.setvariable variable=PATH]$(JAVA_HOME_11_X64)/bin;$(PATH)"
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin;$PATH"
       displayName: "Set to jdk11"
-      condition: eq('${{parameters.container}}', 'flink-build-jdk11')
+      condition: eq('${{parameters.jdk}}', 'jdk11')
     - script: ./tools/travis/setup_maven.sh
     - script: ./tools/azure-pipelines/setup_kubernetes.sh
     - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
