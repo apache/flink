@@ -107,11 +107,13 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		String apiKey = config.getString(API_KEY, null);
 		String proxyHost = config.getString(PROXY_HOST, null);
 		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
+		String tags = config.getString(TAGS, "");
 
 		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort);
-		LOGGER.info("Configured DatadogHttpReporter");
 
-		configTags = getTagsFromConfig(config.getString(TAGS, ""));
+		configTags = getTagsFromConfig(tags);
+
+		LOGGER.info("Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}}", tags, proxyHost, proxyPort);
 	}
 
 	@Override
