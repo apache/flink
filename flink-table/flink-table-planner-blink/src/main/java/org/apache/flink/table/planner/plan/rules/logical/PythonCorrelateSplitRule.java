@@ -92,7 +92,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		}
 		RexNode rexNode = pythonTableFuncScan.getCall();
 		if (rexNode instanceof RexCall) {
-			return PythonUtil.isPythonCall(rexNode) && PythonUtil.containsNonPythonCall(rexNode);
+			return PythonUtil.isPythonCall(rexNode, null) && PythonUtil.containsNonPythonCall(rexNode);
 		}
 		return false;
 	}
@@ -196,7 +196,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		ScalarFunctionSplitter splitter = new ScalarFunctionSplitter(
 			primitiveLeftFieldCount,
 			extractedJavaRexCalls,
-			false
+			PythonUtil::isNonPythonCall
 		);
 
 		RelNode rightNewInput;

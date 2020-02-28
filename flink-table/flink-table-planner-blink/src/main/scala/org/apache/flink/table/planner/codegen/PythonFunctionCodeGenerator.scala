@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction, PythonFunctionKind}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, primitiveDefaultValue, primitiveTypeTermForType}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
@@ -44,6 +44,7 @@ object PythonFunctionCodeGenerator {
     * @param serializedScalarFunction serialized Python scalar function
     * @param inputTypes input data types
     * @param resultType expected result type
+    * @param pythonFunctionKind the kind of the Python function
     * @param deterministic the determinism of the function's results
     * @param pythonEnv the Python execution environment
     * @return instance of generated ScalarFunction
@@ -54,6 +55,7 @@ object PythonFunctionCodeGenerator {
       serializedScalarFunction: Array[Byte],
       inputTypes: Array[TypeInformation[_]],
       resultType: TypeInformation[_],
+      pythonFunctionKind: PythonFunctionKind,
       deterministic: Boolean,
       pythonEnv: PythonEnv): ScalarFunction = {
     val funcName = newName(PYTHON_SCALAR_FUNCTION_NAME)
@@ -67,6 +69,7 @@ object PythonFunctionCodeGenerator {
 
     val typeInfoTypeTerm = classOf[TypeInformation[_]].getCanonicalName
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
+    val pythonFunctionKindTypeTerm = classOf[PythonFunctionKind].getCanonicalName
 
     val resultTypeNameTerm =
       ctx.addReusableObject(resultType, "resultType", typeInfoTypeTerm)
@@ -76,6 +79,8 @@ object PythonFunctionCodeGenerator {
     val inputTypesCode = inputTypes
       .map(ctx.addReusableObject(_, "inputType", typeInfoTypeTerm))
       .mkString(", ")
+    val pythonFunctionKindNameTerm =
+      ctx.addReusableObject(pythonFunctionKind, "pythonFunctionKind", pythonFunctionKindTypeTerm)
 
     val funcCode = j"""
       |public class $funcName extends ${classOf[ScalarFunction].getCanonicalName}
@@ -111,6 +116,11 @@ object PythonFunctionCodeGenerator {
       |  @Override
       |  public $pythonEnvTypeTerm getPythonEnv() {
       |    return $pythonEnvNameTerm;
+      |  }
+      |
+      |  @Override
+      |  public $pythonFunctionKindTypeTerm getPythonFunctionKind() {
+      |    return $pythonFunctionKindNameTerm;
       |  }
       |
       |  @Override

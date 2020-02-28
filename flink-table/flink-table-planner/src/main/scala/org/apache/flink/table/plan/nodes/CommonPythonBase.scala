@@ -72,7 +72,8 @@ trait CommonPythonBase {
     // the serialized Python function, the Python env, etc
     val pythonFunction = new SimplePythonFunction(
       func.asInstanceOf[PythonFunction].getSerializedPythonFunction,
-      func.asInstanceOf[PythonFunction].getPythonEnv)
+      func.asInstanceOf[PythonFunction].getPythonEnv,
+      func.asInstanceOf[PythonFunction].getPythonFunctionKind)
     new PythonFunctionInfo(pythonFunction, inputs.toArray)
   }
 

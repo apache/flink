@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 
 import java.util.Arrays;
 
@@ -117,6 +118,11 @@ public class JavaUserDefinedScalarFunctions {
 		public PythonEnv getPythonEnv() {
 			return null;
 		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.GENERAL;
+		}
 	}
 
 	/**
@@ -151,6 +157,11 @@ public class JavaUserDefinedScalarFunctions {
 		@Override
 		public PythonEnv getPythonEnv() {
 			return null;
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.GENERAL;
 		}
 	}
 }

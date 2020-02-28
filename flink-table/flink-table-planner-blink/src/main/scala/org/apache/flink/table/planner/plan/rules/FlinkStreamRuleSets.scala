@@ -349,6 +349,7 @@ object FlinkStreamRuleSets {
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
+    PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )
