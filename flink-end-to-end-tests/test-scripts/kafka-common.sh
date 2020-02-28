@@ -76,7 +76,7 @@ function start_kafka_cluster {
 
     if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
         echo "Kafka cluster did not start after $MAX_RETRY_SECONDS seconds. Printing Kafka logs:"
-        cat $KAFKA_DIR/logs/*
+        debug_error
         exit 1
     else
         echo "Waiting for broker..."
@@ -166,6 +166,7 @@ function start_confluent_schema_registry {
 
   if ! get_and_verify_schema_subjects_exist; then
       echo "Could not start confluent schema registry"
+      debug_error
       return 1
   fi
 }
@@ -182,4 +183,14 @@ function get_and_verify_schema_subjects_exist {
 
 function stop_confluent_schema_registry {
     $CONFLUENT_DIR/bin/schema-registry-stop
+}
+
+function debug_error {
+    echo "Debugging test failure. Currently running JVMs:"
+    jps -v
+    echo "Kafka logs:"
+    find $KAFKA_DIR/logs/ -type f -exec printf "\n===\ncontents of {}:\n===\n" \; -exec cat {} \;
+
+    echo "Kafka config:"
+    find $KAFKA_DIR/config/ -type f -exec printf "\n===\ncontents of {}:\n===\n" \; -exec cat {} \;
 }
