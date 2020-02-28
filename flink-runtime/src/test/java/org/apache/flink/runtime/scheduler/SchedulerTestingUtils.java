@@ -66,7 +66,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
@@ -278,11 +278,11 @@ public class SchedulerTestingUtils {
 
 		private Logger log = LOG;
 		private BackPressureStatsTracker backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
-		private Executor ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+		private Executor ioExecutor = TestingUtils.defaultExecutor();
 		private Configuration jobMasterConfiguration = new Configuration();
-		private ScheduledExecutorService futureExecutor = new DirectScheduledExecutorService();
+		private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
 		private ScheduledExecutor delayExecutor = new ScheduledExecutorServiceAdapter(futureExecutor);
-		private ClassLoader userCodeLoader = getClass().getClassLoader();
+		private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
 		private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
 		private Time rpcTimeout = DEFAULT_TIMEOUT;
 		private BlobWriter blobWriter = VoidBlobWriter.getInstance();
