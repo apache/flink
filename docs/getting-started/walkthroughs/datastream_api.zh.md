@@ -522,65 +522,65 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-    @Override
-    public void processElement(
-            Transaction transaction,
-            Context context,
-            Collector<Alert> collector) throws Exception {
+@Override
+public void processElement(
+        Transaction transaction,
+        Context context,
+        Collector<Alert> collector) throws Exception {
 
-        // Get the current state for the current key
-        Boolean lastTransactionWasSmall = flagState.value();
+    // Get the current state for the current key
+    Boolean lastTransactionWasSmall = flagState.value();
 
-        // Check if the flag is set
-        if (lastTransactionWasSmall != null) {
-            if (transaction.getAmount() > LARGE_AMOUNT) {
-                // Output an alert downstream
-                Alert alert = new Alert();
-                alert.setId(transaction.getAccountId());
+    // Check if the flag is set
+    if (lastTransactionWasSmall != null) {
+        if (transaction.getAmount() > LARGE_AMOUNT) {
+            // Output an alert downstream
+            Alert alert = new Alert();
+            alert.setId(transaction.getAccountId());
 
-                collector.collect(alert);
-            }
-
-            // Clean up our state
-            flagState.clear();
+            collector.collect(alert);
         }
 
-        if (transaction.getAmount() < SMALL_AMOUNT) {
-            // Set the flag to true
-            flagState.update(true);
-        }
+        // Clean up our state
+        flagState.clear();
     }
+
+    if (transaction.getAmount() < SMALL_AMOUNT) {
+        // Set the flag to true
+        flagState.update(true);
+    }
+}
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-  override def processElement(
-      transaction: Transaction,
-      context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-      collector: Collector[Alert]): Unit = {
+override def processElement(
+    transaction: Transaction,
+    context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
+    collector: Collector[Alert]): Unit = {
 
-    // Get the current state for the current key
-    val lastTransactionWasSmall = flagState.value
+  // Get the current state for the current key
+  val lastTransactionWasSmall = flagState.value
 
-    // Check if the flag is set
-    if (lastTransactionWasSmall != null) {
-      if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
-        // Output an alert downstream
-        val alert = new Alert
-        alert.setId(transaction.getAccountId)
+  // Check if the flag is set
+  if (lastTransactionWasSmall != null) {
+    if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
+      // Output an alert downstream
+      val alert = new Alert
+      alert.setId(transaction.getAccountId)
 
-        collector.collect(alert)
-      }
-      // Clean up our state
-      flagState.clear()
+      collector.collect(alert)
     }
-
-    if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
-      // set the flag to true
-      flagState.update(true)
-    }
+    // Clean up our state
+    flagState.clear()
   }
+
+  if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
+    // set the flag to true
+    flagState.update(true)
+  }
+}
 {% endhighlight %}
 </div>
 </div>
@@ -614,21 +614,21 @@ Flink 中的 `KeyedProcessFunction` 允许您设置计时器，该计时器在�
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-    private transient ValueState<Boolean> flagState;
-    private transient ValueState<Long> timerState;
+private transient ValueState<Boolean> flagState;
+private transient ValueState<Long> timerState;
 
-    @Override
-    public void open(Configuration parameters) {
-        ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
-                "flag",
-                Types.BOOLEAN);
-        flagState = getRuntimeContext().getState(flagDescriptor);
+@Override
+public void open(Configuration parameters) {
+    ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
+            "flag",
+            Types.BOOLEAN);
+    flagState = getRuntimeContext().getState(flagDescriptor);
 
-        ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
-                "timer-state",
-                Types.LONG);
-        timerState = getRuntimeContext().getState(timerDescriptor);
-    }
+    ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
+            "timer-state",
+            Types.LONG);
+    timerState = getRuntimeContext().getState(timerDescriptor);
+}
 {% endhighlight %}
 </div>
 
