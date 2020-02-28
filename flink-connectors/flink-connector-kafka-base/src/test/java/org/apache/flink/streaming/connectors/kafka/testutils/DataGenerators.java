@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -28,7 +27,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
@@ -150,13 +148,12 @@ public class DataGenerators {
 				Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(server.getBrokerConnectionString());
 				producerProperties.setProperty("retries", "3");
 				Transformation<String> mockTransform = new MockTransformation();
-				DataStream<String> stream = new DataStream<>(new DummyStreamExecutionEnvironment(), mockTransform);
 
 				StreamSink<String> sink = server.getProducerSink(
 						topic,
 						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
 						producerProperties,
-						new FlinkFixedPartitioner<String>());
+						new FlinkFixedPartitioner<>());
 
 				OneInputStreamOperatorTestHarness<String, Object> testHarness =
 						new OneInputStreamOperatorTestHarness<>(sink);
@@ -209,14 +206,6 @@ public class DataGenerators {
 
 			@Override
 			public Collection<Transformation<?>> getTransitivePredecessors() {
-				return null;
-			}
-		}
-
-		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
-
-			@Override
-			public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 				return null;
 			}
 		}
