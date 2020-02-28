@@ -124,8 +124,23 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	@Override
 	public void report() {
-		DatadogHttpRequest request = new DatadogHttpRequest();
+		DSeries request = new DSeries();
 
+		addGaugesAndUnregisterOnException(request);
+		counters.values().forEach(request::addCounter);
+		meters.values().forEach(request::addMeter);
+
+		try {
+			client.send(request);
+			LOGGER.debug("Reported series with size {}.", request.getSeries().size());
+		} catch (SocketTimeoutException e) {
+			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
+		} catch (Exception e) {
+			LOGGER.warn("Failed reporting metrics to Datadog.", e);
+		}
+	}
+
+	private void addGaugesAndUnregisterOnException(DSeries request) {
 		List<Gauge> gaugesToRemove = new ArrayList<>();
 		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
@@ -147,23 +162,6 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			}
 		}
 		gaugesToRemove.forEach(gauges::remove);
-
-		for (DCounter c : counters.values()) {
-			request.addCounter(c);
-		}
-
-		for (DMeter m : meters.values()) {
-			request.addMeter(m);
-		}
-
-		try {
-			client.send(request);
-			LOGGER.debug("Reported series with size {}.", request.getSeries().getSeries().size());
-		} catch (SocketTimeoutException e) {
-			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}.", e.getMessage());
-		} catch (Exception e) {
-			LOGGER.warn("Failed reporting metrics to Datadog.", e);
-		}
 	}
 
 	/**
@@ -197,32 +195,5 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	 */
 	private String getVariableName(String str) {
 		return str.substring(1, str.length() - 1);
-	}
-
-	/**
-	 * Compact metrics in batch, serialize them, and send to Datadog via HTTP.
-	 */
-	static class DatadogHttpRequest {
-		private final DSeries series;
-
-		public DatadogHttpRequest() {
-			series = new DSeries();
-		}
-
-		public void addGauge(DGauge gauge) {
-			series.addMetric(gauge);
-		}
-
-		public void addCounter(DCounter counter) {
-			series.addMetric(counter);
-		}
-
-		public void addMeter(DMeter meter) {
-			series.addMetric(meter);
-		}
-
-		public DSeries getSeries() {
-			return series;
-		}
 	}
 }
