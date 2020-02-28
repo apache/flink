@@ -35,12 +35,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Flink resource that start local standalone clusters.
@@ -73,7 +72,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	@Override
 	public ClusterController startCluster(int numTaskManagers) throws IOException {
-		distribution.setTaskExecutorHosts(IntStream.range(0, numTaskManagers).mapToObj(i -> "localhost").collect(Collectors.toList()));
+		distribution.setTaskExecutorHosts(Collections.nCopies(numTaskManagers, "localhost"));
 		distribution.startFlinkCluster();
 
 		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor())) {
