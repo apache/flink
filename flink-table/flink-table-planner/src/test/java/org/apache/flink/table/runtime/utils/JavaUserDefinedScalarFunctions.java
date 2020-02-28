@@ -118,11 +118,6 @@ public class JavaUserDefinedScalarFunctions {
 		public PythonEnv getPythonEnv() {
 			return null;
 		}
-
-		@Override
-		public PythonFunctionKind getPythonFunctionKind() {
-			return PythonFunctionKind.GENERAL;
-		}
 	}
 
 	/**
@@ -158,10 +153,33 @@ public class JavaUserDefinedScalarFunctions {
 		public PythonEnv getPythonEnv() {
 			return null;
 		}
+	}
+
+	/**
+	 * Test for Pandas Python Scalar Function.
+	 */
+	public static class PandasScalarFunction extends PythonScalarFunction {
+		public PandasScalarFunction(String name) {
+			super(name);
+		}
 
 		@Override
 		public PythonFunctionKind getPythonFunctionKind() {
-			return PythonFunctionKind.GENERAL;
+			return PythonFunctionKind.PANDAS;
+		}
+	}
+
+	/**
+	 * Test for Pandas Python Scalar Function.
+	 */
+	public static class BooleanPandasScalarFunction extends BooleanPythonScalarFunction {
+		public BooleanPandasScalarFunction(String name) {
+			super(name);
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.PANDAS;
 		}
 	}
 }

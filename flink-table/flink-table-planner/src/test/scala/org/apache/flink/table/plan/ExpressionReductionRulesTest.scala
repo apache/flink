@@ -581,6 +581,4 @@ object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
   override def getSerializedPythonFunction: Array[Byte] = null
 
   override def getPythonEnv: PythonEnv = null
-
-  override def getPythonFunctionKind: PythonFunctionKind = PythonFunctionKind.GENERAL
 }
