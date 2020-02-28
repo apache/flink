@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
@@ -63,11 +62,6 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 	 */
 	private transient ArrowStreamReader reader;
 
-	/**
-	 * The JoinedRow reused holding the execution result.
-	 */
-	private transient JoinedRow reuseJoinedRow;
-
 	public BaseRowArrowPythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
@@ -84,7 +78,6 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator(
 			"reader", 0, Long.MAX_VALUE);
 		reader = new ArrowStreamReader(bais, allocator);
-		reuseJoinedRow = new JoinedRow();
 	}
 
 	@Override

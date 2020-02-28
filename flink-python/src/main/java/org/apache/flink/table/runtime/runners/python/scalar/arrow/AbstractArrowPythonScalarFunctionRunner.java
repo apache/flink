@@ -44,7 +44,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 @Internal
 public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends AbstractPythonScalarFunctionRunner<IN> {
 
-	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:arrow:schema:v1";
+	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
 
 	/**
 	 * Max number of elements to include in an arrow batch.
@@ -93,8 +93,7 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 	@Override
 	public void open() throws Exception {
 		super.open();
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator(
-			"writer", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("writer", 0, Long.MAX_VALUE);
 		root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(getInputType()), allocator);
 		arrowWriter = createArrowWriter();
 		arrowStreamWriter = new ArrowStreamWriter(root, null, baos);

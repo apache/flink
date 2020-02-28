@@ -90,8 +90,7 @@ public class ArrowUtilsTest {
 		}
 		rowType = new RowType(rowFields);
 
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator(
-			"stdout", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("stdout", 0, Long.MAX_VALUE);
 	}
 
 	@Test

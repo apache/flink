@@ -56,7 +56,8 @@ public class PythonOptions {
 		.key("python.fn-execution.arrow.batch.size")
 		.defaultValue(1000)
 		.withDescription("The maximum number of elements to include in an arrow batch for Python " +
-			"user-defined function execution.");
+			"user-defined function execution. The arrow batch size should not exceed the " +
+			"bundle size. Otherwise, the bundle size will be used as the arrow batch size.");
 
 	/**
 	 * The amount of memory to be allocated by the Python framework.
