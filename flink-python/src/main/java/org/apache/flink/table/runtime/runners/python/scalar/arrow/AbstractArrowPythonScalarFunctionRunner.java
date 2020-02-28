@@ -78,7 +78,7 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 	 */
 	private transient int currentBatchCount;
 
-	AbstractArrowPythonScalarFunctionRunner(
+	public AbstractArrowPythonScalarFunctionRunner(
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,

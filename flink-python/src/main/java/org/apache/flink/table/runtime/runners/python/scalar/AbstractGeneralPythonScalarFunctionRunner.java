@@ -45,7 +45,7 @@ public abstract class AbstractGeneralPythonScalarFunctionRunner<IN> extends Abst
 	 */
 	private transient TypeSerializer<IN> inputTypeSerializer;
 
-	AbstractGeneralPythonScalarFunctionRunner(
+	public AbstractGeneralPythonScalarFunctionRunner(
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,

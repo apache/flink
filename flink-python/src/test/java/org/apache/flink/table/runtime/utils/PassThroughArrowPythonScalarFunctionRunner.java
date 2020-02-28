@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.arrow.ArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.scalar.arrow.AbstractArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -33,9 +33,11 @@ import java.util.List;
 import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJobBundleFactory;
 
 /**
- * An {@link ArrowPythonScalarFunctionRunner} that just return the input elements as the execution results.
+ * An Arrow Python ScalarFunction runner that just return the input elements as the execution results.
+ *
+ * @param <IN> Type of the input elements.
  */
-public class PassThroughArrowPythonScalarFunctionRunner extends ArrowPythonScalarFunctionRunner {
+public abstract class PassThroughArrowPythonScalarFunctionRunner<IN> extends AbstractArrowPythonScalarFunctionRunner<IN> {
 
 	private final JobBundleFactory jobBundleFactory;
 	private final List<byte[]> bufferedInputs;

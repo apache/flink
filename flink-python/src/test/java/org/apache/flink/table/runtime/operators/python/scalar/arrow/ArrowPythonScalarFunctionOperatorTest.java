@@ -26,6 +26,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.types.CRow;
@@ -88,14 +90,19 @@ public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionO
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
 				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughArrowPythonScalarFunctionRunner(
+			return new PassThroughArrowPythonScalarFunctionRunner<Row>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize());
+				getPythonConfig().getMaxArrowBatchSize()) {
+				@Override
+				public ArrowWriter<Row> createArrowWriter() {
+					return ArrowUtils.createRowArrowWriter(root);
+				}
+			};
 		}
 	}
 }

@@ -32,8 +32,9 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.utils.PassThroughBaseRowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -115,13 +116,18 @@ public class BaseRowPythonScalarFunctionOperatorTest
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
 				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughBaseRowPythonScalarFunctionRunner(
+			return new PassThroughPythonScalarFunctionRunner<BaseRow>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType);
+				userDefinedFunctionOutputType) {
+				@Override
+				public TypeSerializer<BaseRow> getInputTypeSerializer() {
+					return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
+				}
+			};
 		}
 	}
 }

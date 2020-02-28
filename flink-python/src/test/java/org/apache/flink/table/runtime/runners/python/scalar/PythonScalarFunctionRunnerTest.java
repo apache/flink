@@ -26,6 +26,7 @@ import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -228,13 +229,18 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 				new String[] {System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
-		return new PassThroughPythonScalarFunctionRunner(
+		return new PassThroughPythonScalarFunctionRunner<Row>(
 			"testPythonRunner",
 			receiver,
 			pythonFunctionInfos,
 			environmentManager,
 			rowType,
 			rowType,
-			jobBundleFactory);
+			jobBundleFactory) {
+			@Override
+			public TypeSerializer<Row> getInputTypeSerializer() {
+				return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
+			}
+		};
 	}
 }

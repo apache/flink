@@ -31,11 +31,13 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.utils.PassThroughBaseRowArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -110,14 +112,19 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughBaseRowArrowPythonScalarFunctionRunner(
+			return new PassThroughArrowPythonScalarFunctionRunner<BaseRow>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize());
+				getPythonConfig().getMaxArrowBatchSize()) {
+				@Override
+				public ArrowWriter<BaseRow> createArrowWriter() {
+					return ArrowUtils.createBaseRowArrowWriter(root);
+				}
+			};
 		}
 	}
 }

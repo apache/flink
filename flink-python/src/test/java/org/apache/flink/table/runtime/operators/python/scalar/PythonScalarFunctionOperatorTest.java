@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -90,13 +92,18 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
 				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonScalarFunctionRunner(
+			return new PassThroughPythonScalarFunctionRunner<Row>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType);
+				userDefinedFunctionOutputType) {
+				@Override
+				public TypeSerializer<Row> getInputTypeSerializer() {
+					return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
+				}
+			};
 		}
 	}
 }

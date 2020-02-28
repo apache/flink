@@ -22,6 +22,8 @@ import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
@@ -56,7 +58,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 	@Test
 	public void testArrowWriterConstructedProperlyForSingleUDF() throws Exception {
-		final ArrowPythonScalarFunctionRunner runner = (ArrowPythonScalarFunctionRunner) createSingleUDFRunner();
+		final AbstractArrowPythonScalarFunctionRunner<Row> runner = (AbstractArrowPythonScalarFunctionRunner<Row>) createSingleUDFRunner();
 		runner.open();
 
 		ArrowFieldWriter<Row>[] fieldWriters = runner.arrowWriter.getFieldWriters();
@@ -66,7 +68,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 	@Test
 	public void testArrowWriterConstructedProperlyForMultipleUDFs() throws Exception {
-		final ArrowPythonScalarFunctionRunner runner = (ArrowPythonScalarFunctionRunner) createMultipleUDFRunner();
+		final AbstractArrowPythonScalarFunctionRunner<Row> runner = (AbstractArrowPythonScalarFunctionRunner<Row>) createMultipleUDFRunner();
 		runner.open();
 
 		ArrowFieldWriter<Row>[] fieldWriters = runner.arrowWriter.getFieldWriters();
@@ -78,7 +80,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 
 	@Test
 	public void testArrowWriterConstructedProperlyForChainedUDFs() throws Exception {
-		final ArrowPythonScalarFunctionRunner runner = (ArrowPythonScalarFunctionRunner) createChainedUDFRunner();
+		final AbstractArrowPythonScalarFunctionRunner<Row> runner = (AbstractArrowPythonScalarFunctionRunner<Row>) createChainedUDFRunner();
 		runner.open();
 
 		ArrowFieldWriter<Row>[] fieldWriters = runner.arrowWriter.getFieldWriters();
@@ -100,7 +102,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 				new Integer[]{0})
 		};
 		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
-		final ArrowPythonScalarFunctionRunner runner = createPassThroughArrowPythonScalarFunctionRunner(
+		final AbstractArrowPythonScalarFunctionRunner<Row> runner = createPassThroughArrowPythonScalarFunctionRunner(
 			resultReceiverSpy,
 			pythonFunctionInfos,
 			rowType,
@@ -137,7 +139,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 	}
 
 	@Override
-	public ArrowPythonScalarFunctionRunner createPythonScalarFunctionRunner(
+	public AbstractArrowPythonScalarFunctionRunner<Row> createPythonScalarFunctionRunner(
 		PythonFunctionInfo[] pythonFunctionInfos,
 		RowType inputType,
 		RowType outputType) {
@@ -149,7 +151,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 			dummyReceiver, pythonFunctionInfos, inputType, outputType, 1, spy(JobBundleFactory.class));
 	}
 
-	private ArrowPythonScalarFunctionRunner createPassThroughArrowPythonScalarFunctionRunner(
+	private AbstractArrowPythonScalarFunctionRunner<Row> createPassThroughArrowPythonScalarFunctionRunner(
 		FnDataReceiver<byte[]> receiver,
 		PythonFunctionInfo[] pythonFunctionInfos,
 		RowType inputType,
@@ -163,7 +165,7 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 				new String[] {System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
-		return new PassThroughArrowPythonScalarFunctionRunner(
+		return new PassThroughArrowPythonScalarFunctionRunner<Row>(
 			"testPythonRunner",
 			receiver,
 			pythonFunctionInfos,
@@ -171,6 +173,11 @@ public class ArrowPythonScalarFunctionRunnerTest extends AbstractPythonScalarFun
 			inputType,
 			outputType,
 			maxArrowBatchSize,
-			jobBundleFactory);
+			jobBundleFactory) {
+			@Override
+			public ArrowWriter<Row> createArrowWriter() {
+				return ArrowUtils.createRowArrowWriter(root);
+			}
+		};
 	}
 }
