@@ -216,8 +216,6 @@ fi
 ARTIFACTS_DIR="${HERE}/artifacts"
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
-env > $ARTIFACTS_DIR/environment
-
 LOG4J_PROPERTIES=${HERE}/../tools/log4j-travis.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"

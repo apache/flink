@@ -162,6 +162,7 @@ jobs:
       displayName: Setup Docker
     - script: ./tools/azure-pipelines/free_disk_space.sh
       displayName: Free up disk space
+    - script: sudo apt-get install -y bc
     - script: M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
       displayName: Build Flink
     # TODO remove pre-commit tests script by adding the tests to the nightly script
@@ -169,6 +170,10 @@ jobs:
 #      displayName: Test - precommit 
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target flink-end-to-end-tests/run-nightly-tests.sh
       displayName: Run e2e tests
+      env:
+        IT_CASE_S3_BUCKET: $(IT_CASE_S3_BUCKET)
+        IT_CASE_S3_ACCESS_KEY: $(IT_CASE_S3_ACCESS_KEY)
+        IT_CASE_S3_SECRET_KEY: $(IT_CASE_S3_SECRET_KEY)
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
       condition: and(succeededOrFailed(), not(eq('$(ARTIFACT_DIR)', '')))

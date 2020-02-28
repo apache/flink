@@ -17,7 +17,7 @@
 #
 # This file defines the Flink build for the "apache/flink" repository, including
 # the following:
-#  - PR builds
+#  - PR builds (triggered through ci-bot)
 #  - custom triggered e2e tests
 #  - nightly builds
 
