@@ -55,7 +55,7 @@ class SplitPythonConditionFromCorrelateRule
     joinType == JoinRelType.INNER &&
       Option(mergedCalc.getProgram.getCondition)
         .map(mergedCalc.getProgram.expandLocalRef)
-        .exists(containsPythonCall)
+        .exists(containsPythonCall(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -97,7 +97,7 @@ class SplitPythonConditionFromCorrelateRule
       correlate.getRowType.getFieldCount - mergedCalc.getRowType.getFieldCount)
 
     val pythonFilters = correlateFilters
-      .filter(containsPythonCall)
+      .filter(containsPythonCall(_))
       .map(_.accept(inputRefRewriter))
 
     val topCalcCondition = RexUtil.composeConjunction(rexBuilder, pythonFilters)

@@ -39,9 +39,15 @@ public final class SimplePythonFunction implements PythonFunction {
 	 */
 	private final PythonEnv pythonEnv;
 
-	public SimplePythonFunction(byte[] serializedPythonFunction, PythonEnv pythonEnv) {
+	/**
+	 * The kind of the user-defined python function.
+	 */
+	private final PythonFunctionKind pythonFunctionKind;
+
+	public SimplePythonFunction(byte[] serializedPythonFunction, PythonEnv pythonEnv, PythonFunctionKind pythonFunctionKind) {
 		this.serializedPythonFunction = Preconditions.checkNotNull(serializedPythonFunction);
 		this.pythonEnv = Preconditions.checkNotNull(pythonEnv);
+		this.pythonFunctionKind = Preconditions.checkNotNull(pythonFunctionKind);
 	}
 
 	@Override
@@ -52,5 +58,10 @@ public final class SimplePythonFunction implements PythonFunction {
 	@Override
 	public PythonEnv getPythonEnv() {
 		return pythonEnv;
+	}
+
+	@Override
+	public PythonFunctionKind getPythonFunctionKind() {
+		return pythonFunctionKind;
 	}
 }

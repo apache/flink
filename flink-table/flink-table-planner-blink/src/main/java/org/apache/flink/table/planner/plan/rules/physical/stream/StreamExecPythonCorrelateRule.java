@@ -54,7 +54,7 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 		RelNode child = ((RelSubset) calc.getInput()).getOriginal();
 		if (child instanceof FlinkLogicalTableFunctionScan) {
 			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) child;
-			return PythonUtil.isPythonCall(scan.getCall());
+			return PythonUtil.isPythonCall(scan.getCall(), null);
 		} else if (child instanceof FlinkLogicalCalc) {
 			FlinkLogicalCalc childCalc = (FlinkLogicalCalc) child;
 			return findTableFunction(childCalc);
@@ -70,7 +70,7 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 			// right node is a table function
 			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
 			// return true if the table function is python table function
-			return PythonUtil.isPythonCall(scan.getCall());
+			return PythonUtil.isPythonCall(scan.getCall(), null);
 		} else if (right instanceof FlinkLogicalCalc) {
 			// a filter is pushed above the table function
 			return findTableFunction((FlinkLogicalCalc) right);
