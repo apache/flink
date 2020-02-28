@@ -563,6 +563,13 @@ abstract class TableTestUtil(
   }
 
   /**
+   * Registers a [[UserDefinedFunction]] according to FLIP-65.
+   */
+  def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
+    testingTableEnv.createTemporarySystemFunction(name, function)
+  }
+
+  /**
     * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
     */
   def addFunction[T: TypeInformation](

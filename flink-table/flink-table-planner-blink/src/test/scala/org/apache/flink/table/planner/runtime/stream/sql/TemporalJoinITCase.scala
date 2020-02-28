@@ -142,7 +142,7 @@ class TemporalJoinITCase(state: StateBackendMode)
     tEnv.registerTable("RatesHistory", ratesHistory)
     tEnv.registerTable("FilteredRatesHistory",
       tEnv.sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110"))
-    tEnv.registerFunction(
+    tEnv.createTemporarySystemFunction(
       "Rates",
       tEnv
         .scan("FilteredRatesHistory")
@@ -213,7 +213,7 @@ class TemporalJoinITCase(state: StateBackendMode)
 
     tEnv.createTemporaryView("Orders", orders)
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
-    tEnv.registerFunction(
+    tEnv.createTemporarySystemFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction("rowtime", "currency"))
     tEnv.registerFunction(

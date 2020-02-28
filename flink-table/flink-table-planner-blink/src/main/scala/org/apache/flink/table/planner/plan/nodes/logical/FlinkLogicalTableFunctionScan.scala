@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.logical
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,9 +29,10 @@ import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelColumnMapping
 import org.apache.calcite.rex.{RexCall, RexNode}
-
 import java.lang.reflect.Type
 import java.util
+
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 /**
   * Sub-class of [[TableFunctionScan]] that is a relational expression
@@ -96,11 +96,12 @@ class FlinkLogicalTableFunctionScanConverter
       return false
     }
     val rexCall = logicalTableFunction.getCall.asInstanceOf[RexCall]
-    if (!rexCall.getOperator.isInstanceOf[TableSqlFunction]) {
-      return false
+    val functionDefinition = rexCall.getOperator match {
+      case tsf: TableSqlFunction => tsf.udtf
+      case bsf: BridgingSqlFunction => bsf.getDefinition
+      case _ => return false
     }
-    val tableFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    tableFunction.udtf.isInstanceOf[TemporalTableFunction]
+    functionDefinition.isInstanceOf[TemporalTableFunction]
   }
 
   def convert(rel: RelNode): RelNode = {
