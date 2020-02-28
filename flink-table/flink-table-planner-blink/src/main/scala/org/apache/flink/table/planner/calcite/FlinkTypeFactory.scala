@@ -293,6 +293,11 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case it: TimeIndicatorRelDataType =>
         new TimeIndicatorRelDataType(it.typeSystem, it.originalType, isNullable, it.isEventTime)
 
+      // for nested rows we keep the nullability property,
+      // top-level rows fall back to Calcite's default handling
+      case rt: RelRecordType if rt.getStructKind == StructKind.PEEK_FIELDS_NO_EXPAND =>
+        new RelRecordType(rt.getStructKind, rt.getFieldList, isNullable);
+
       case _ =>
         super.createTypeWithNullability(relDataType, isNullable)
     }
