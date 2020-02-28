@@ -203,7 +203,8 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		return resourceManagerClient;
 	}
 
-	private void getContainersFromPreviousAttempts(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
+	@VisibleForTesting
+	void getContainersFromPreviousAttempts(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
 		final List<Container> containersFromPreviousAttempts =
 			new RegisterApplicationMasterResponseReflector(log).getContainersFromPreviousAttempts(registerApplicationMasterResponse);
 
@@ -211,6 +212,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 		for (final Container container : containersFromPreviousAttempts) {
 			workerNodeMap.put(new ResourceID(container.getId().toString()), new YarnWorkerNode(container));
+			nodeManagerClient.getContainerStatusAsync(container.getId(), container.getNodeId());
 		}
 	}
 
@@ -229,6 +231,8 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 	@Override
 	protected void initialize() throws ResourceManagerException {
+		nodeManagerClient = createAndStartNodeManagerClient(yarnConfig);
+
 		try {
 			resourceManagerClient = createAndStartResourceManagerClient(
 				yarnConfig,
@@ -237,8 +241,6 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		} catch (Exception e) {
 			throw new ResourceManagerException("Could not start resource manager client.", e);
 		}
-
-		nodeManagerClient = createAndStartNodeManagerClient(yarnConfig);
 	}
 
 	@Override
@@ -454,6 +456,11 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		onFatalError(error);
 	}
 
+	@VisibleForTesting
+	Map<ResourceID, YarnWorkerNode> getWorkerNodeMap() {
+		return Collections.unmodifiableMap(workerNodeMap);
+	}
+
 	// ------------------------------------------------------------------------
 	//  NMClientAsync CallbackHandler methods
 	// ------------------------------------------------------------------------
@@ -479,7 +486,14 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 	@Override
 	public void onGetContainerStatusError(ContainerId containerId, Throwable throwable) {
-		// We are not interested in getting container status
+		// We fetch the status of the container from the previous attempts.
+		// If we get error, it means the container did not start or it is not usable. We need to release it.
+		runAsync(() -> {
+			log.info("Releasing not started container {} from the previous attempt. {}", containerId, throwable);
+			final ResourceID resourceId = new ResourceID(containerId.toString());
+			workerNodeMap.remove(resourceId);
+			resourceManagerClient.releaseAssignedContainer(containerId);
+		});
 	}
 
 	@Override
