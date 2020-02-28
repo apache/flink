@@ -220,6 +220,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
                                             bytearray(serialized_func),
                                             j_input_types,
                                             j_result_type,
+                                            j_function_kind,
                                             self._deterministic,
                                             _get_python_env())
 

@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, primitiveDefaultValue, primitiveTypeTermForTypeInfo}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction, PythonFunctionKind}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 
@@ -42,6 +42,7 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
     * @param serializedScalarFunction serialized Python scalar function
     * @param inputTypes input data types
     * @param resultType expected result type
+    * @param pythonFunctionKind the kind of the Python function
     * @param deterministic the determinism of the function's results
     * @param pythonEnv the Python execution environment
     * @return instance of generated ScalarFunction
@@ -51,6 +52,7 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
       serializedScalarFunction: Array[Byte],
       inputTypes: Array[TypeInformation[_]],
       resultType: TypeInformation[_],
+      pythonFunctionKind: PythonFunctionKind,
       deterministic: Boolean,
       pythonEnv: PythonEnv): ScalarFunction = {
     val funcName = newName(PYTHON_SCALAR_FUNCTION_NAME)
@@ -73,6 +75,8 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
     val encodedScalarFunction = EncodingUtils.encodeBytesToBase64(serializedScalarFunction)
     val encodedPythonEnv = EncodingUtils.encodeObjectToString(pythonEnv)
     val pythonEnvTypeTerm = classOf[PythonEnv].getCanonicalName
+    val encodedPythonFunctionKind = EncodingUtils.encodeObjectToString(pythonFunctionKind)
+    val pythonFunctionKindTypeTerm = classOf[PythonFunctionKind].getCanonicalName
 
     val funcCode = j"""
       |public class $funcName extends ${classOf[ScalarFunction].getCanonicalName}
@@ -104,6 +108,12 @@ object PythonFunctionCodeGenerator extends Compiler[UserDefinedFunction] {
       |  public $pythonEnvTypeTerm getPythonEnv() {
       |    return ($pythonEnvTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
       |      "$encodedPythonEnv", $pythonEnvTypeTerm.class);
+      |  }
+      |
+      |  @Override
+      |  public $pythonFunctionKindTypeTerm getPythonFunctionKind() {
+      |    return ($pythonFunctionKindTypeTerm) $encodingUtilsTypeTerm.decodeStringToObject(
+      |      "$encodedPythonFunctionKind", $pythonFunctionKindTypeTerm.class);
       |  }
       |
       |  @Override
