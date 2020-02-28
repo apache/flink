@@ -13,6 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+#
+# The Azure provided machines typically have the following disk allocation:
+# Total space: 85GB
+# Allocated: 67 GB
+# Free: 17 GB
+# This script frees up 28 GB of disk space by deleting unneeded packages and 
+# large directories.
+# The Flink end to end tests download and generate more than 17 GB of files,
+# causing unpredictable behavior and build failures.
+#
 echo "=============================================================================="
 echo "Freeing up disk space on CI system"
 echo "=============================================================================="

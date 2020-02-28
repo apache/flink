@@ -210,8 +210,8 @@ printf "\n\n====================================================================
 printf "Running Java end-to-end tests\n"
 printf "==============================================================================\n"
 
-HERE="`dirname \"$0\"`"				# relative
-HERE="`( cd \"${HERE}\" && pwd -P)`" 	# absolutized and normalized
+HERE="`dirname \"$0\"`"
+HERE="`( cd \"${HERE}\" && pwd -P)`"
 if [ -z "${HERE}" ] ; then
 	# error; for some reason, the path is not accessible
 	# to the script (e.g. permissions re-evaled after suid)
@@ -230,4 +230,6 @@ e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 2 -n
 PROFILE="$PROFILE -Pe2e-travis1 -Pe2e-travis2 -Pe2e-travis3 -Pe2e-travis4 -Pe2e-travis5 -Pe2e-travis6"
 mvn ${MVN_COMMON_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} verify -pl ${e2e_modules} -DdistDir=$(readlink -e build-target)
 
-exit 0
+EXIT_CODE=$?
+
+exit $EXIT_CODE
