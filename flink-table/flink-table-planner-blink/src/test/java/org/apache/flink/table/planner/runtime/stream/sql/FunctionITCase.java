@@ -603,7 +603,7 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.initData(sourceData);
 
 		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		tEnv().sqlUpdate("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
@@ -761,7 +761,7 @@ public class FunctionITCase extends StreamingTestBase {
 	/**
 	 * Function that returns a row.
 	 */
-	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
+	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING> NOT NULL>"))
 	public static class RowTableFunction extends TableFunction<Row> {
 		public void eval(String s) {
 			if (s == null) {
