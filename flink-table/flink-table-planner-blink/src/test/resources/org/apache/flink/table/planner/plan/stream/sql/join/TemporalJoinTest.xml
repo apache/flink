@@ -53,7 +53,7 @@ LogicalProject(rate=[$0], secondary_key=[$1], t3_comment=[$2], t3_secondary_key=
       :  +- LogicalFilter(condition=[OR(=($7, $3), =($9, $4))])
       :     +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :        :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      :        +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)], elementType=[class [Ljava.lang.Object;])
+      :        +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(TIME ATTRIBUTE(ROWTIME) rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table3]])
 ]]>
     </Resource>
