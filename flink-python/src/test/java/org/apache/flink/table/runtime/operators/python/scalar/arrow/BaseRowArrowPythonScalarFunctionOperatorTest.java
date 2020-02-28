@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.python.scalar;
+package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -31,10 +31,13 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.ArrowWriter;
+import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -44,9 +47,9 @@ import java.util.Collection;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 
 /**
- * Tests for {@link BaseRowPythonScalarFunctionOperator}.
+ * Tests for {@link BaseRowArrowPythonScalarFunctionOperator}.
  */
-public class BaseRowPythonScalarFunctionOperatorTest
+public class BaseRowArrowPythonScalarFunctionOperatorTest
 		extends PythonScalarFunctionOperatorTestBase<BaseRow, BaseRow, BaseRow> {
 
 	private final BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(new TypeInformation[]{
@@ -63,14 +66,8 @@ public class BaseRowPythonScalarFunctionOperatorTest
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		return new PassThroughPythonScalarFunctionOperator(
-			config,
-			scalarFunctions,
-			inputType,
-			outputType,
-			udfInputOffsets,
-			forwardedFields
-		);
+		return new PassThroughBaseRowArrowPythonScalarFunctionOperator(
+			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -96,13 +93,12 @@ public class BaseRowPythonScalarFunctionOperatorTest
 
 	@Override
 	public TypeSerializer<BaseRow> getOutputTypeSerializer(RowType rowType) {
-		// If not specified, PojoSerializer will be used which doesn't work well with the Arrow data structure.
 		return new BaseRowSerializer(new ExecutionConfig(), rowType);
 	}
 
-	private static class PassThroughPythonScalarFunctionOperator extends BaseRowPythonScalarFunctionOperator {
+	private static class PassThroughBaseRowArrowPythonScalarFunctionOperator extends BaseRowArrowPythonScalarFunctionOperator {
 
-		PassThroughPythonScalarFunctionOperator(
+		PassThroughBaseRowArrowPythonScalarFunctionOperator(
 			Configuration config,
 			PythonFunctionInfo[] scalarFunctions,
 			RowType inputType,
@@ -114,18 +110,19 @@ public class BaseRowPythonScalarFunctionOperatorTest
 
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
-				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonScalarFunctionRunner<BaseRow>(
+			FnDataReceiver<byte[]> resultReceiver,
+			PythonEnvironmentManager pythonEnvironmentManager) {
+			return new PassThroughArrowPythonScalarFunctionRunner<BaseRow>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType) {
+				userDefinedFunctionOutputType,
+				getPythonConfig().getMaxArrowBatchSize()) {
 				@Override
-				public TypeSerializer<BaseRow> getInputTypeSerializer() {
-					return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
+				public ArrowWriter<BaseRow> createArrowWriter() {
+					return ArrowUtils.createBaseRowArrowWriter(root);
 				}
 			};
 		}

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -58,6 +59,11 @@ public abstract class AbstractBaseRowPythonScalarFunctionOperator
 	 */
 	private transient Projection<BaseRow, BinaryRow> udfInputProjection;
 
+	/**
+	 * The JoinedRow reused holding the execution result.
+	 */
+	protected transient JoinedRow reuseJoinedRow;
+
 	public AbstractBaseRowPythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
@@ -73,6 +79,7 @@ public abstract class AbstractBaseRowPythonScalarFunctionOperator
 	public void open() throws Exception {
 		super.open();
 		baseRowWrapper = new StreamRecordBaseRowWrappingCollector(output);
+		reuseJoinedRow = new JoinedRow();
 
 		udfInputProjection = createUdfInputProjection();
 		forwardedFieldProjection = createForwardedFieldProjection();

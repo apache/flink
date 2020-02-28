@@ -108,6 +108,10 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
+	public PythonConfig getPythonConfig() {
+		return config;
+	}
+
 	@Override
 	public void open() throws Exception {
 		try {

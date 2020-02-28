@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.python.scalar;
+package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -27,9 +26,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.ArrowWriter;
+import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -39,11 +41,10 @@ import java.util.Collection;
 import java.util.Queue;
 
 /**
- * Tests for {@link PythonScalarFunctionOperator}.
+ * Tests for {@link ArrowPythonScalarFunctionOperator}.
  */
-public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
+public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
 
-	@Override
 	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row> getTestOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
@@ -51,21 +52,18 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		return new PassThroughPythonScalarFunctionOperator(
+		return new PassThroughArrowPythonScalarFunctionOperator(
 			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
-	@Override
 	public CRow newRow(boolean accumulateMsg, Object... fields) {
 		return new CRow(Row.of(fields), accumulateMsg);
 	}
 
-	@Override
 	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
 		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
 	}
 
-	@Override
 	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
 		return StreamTableEnvironment.create(env);
 	}
@@ -76,9 +74,9 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		return null;
 	}
 
-	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {
+	private static class PassThroughArrowPythonScalarFunctionOperator extends ArrowPythonScalarFunctionOperator {
 
-		PassThroughPythonScalarFunctionOperator(
+		PassThroughArrowPythonScalarFunctionOperator(
 			Configuration config,
 			PythonFunctionInfo[] scalarFunctions,
 			RowType inputType,
@@ -92,16 +90,17 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
 				PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonScalarFunctionRunner<Row>(
+			return new PassThroughArrowPythonScalarFunctionRunner<Row>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType) {
+				userDefinedFunctionOutputType,
+				getPythonConfig().getMaxArrowBatchSize()) {
 				@Override
-				public TypeSerializer<Row> getInputTypeSerializer() {
-					return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
+				public ArrowWriter<Row> createArrowWriter() {
+					return ArrowUtils.createRowArrowWriter(root);
 				}
 			};
 		}
