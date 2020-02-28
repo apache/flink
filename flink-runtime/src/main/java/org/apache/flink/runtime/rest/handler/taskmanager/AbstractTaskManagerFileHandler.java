@@ -79,7 +79,7 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRes
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
- * class for serving files from the {@link TaskExecutor}.
+ * Base class for serving files from the {@link TaskExecutor}.
  */
 public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessageParameters> extends AbstractHandler<RestfulGateway, EmptyRequestBody, M> {
 
@@ -172,8 +172,8 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			});
 	}
 
-	private CompletableFuture<TransientBlobKey> loadTaskManagerFile(Tuple2<ResourceID, String> taskManagerFileDetail) throws RestHandlerException {
-		log.debug("Load file from TaskManager {}.", taskManagerFileDetail.f0);
+	private CompletableFuture<TransientBlobKey> loadTaskManagerFile(Tuple2<ResourceID, String> taskManagerId2FileName) throws RestHandlerException {
+		log.debug("Load file from TaskManager {}.", taskManagerId2FileName.f0);
 
 		final ResourceManagerGateway resourceManagerGateway = resourceManagerGatewayRetriever
 			.getNow()
@@ -184,7 +184,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 					HttpResponseStatus.NOT_FOUND);
 			});
 
-		return requestFileUpload(resourceManagerGateway, taskManagerFileDetail);
+		return requestFileUpload(resourceManagerGateway, taskManagerId2FileName);
 	}
 
 	private void removeBlob(RemovalNotification<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> removalNotification) {
@@ -267,5 +267,5 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
 	protected abstract String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) throws RestHandlerException;
 
-	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerFileDetail);
+	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerId2FileName);
 }
