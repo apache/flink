@@ -58,7 +58,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
@@ -73,6 +75,8 @@ import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServer;
@@ -103,6 +107,7 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcKvStateRegistryListener;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.rpc.RpcTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotActiveException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
@@ -117,6 +122,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -140,7 +146,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -189,15 +194,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
 
-	private final TaskCompletionTracker taskCompletionTracker;
-
 	// --------- job manager connections -----------
 
 	private final Map<ResourceID, JobManagerConnection> jobManagerConnections;
 
 	// --------- task slot allocation table -----------
 
-	private final TaskSlotTable taskSlotTable;
+	private final TaskSlotTable<Task> taskSlotTable;
 
 	private final JobManagerTable jobManagerTable;
 
@@ -280,7 +283,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
 		this.currentRegistrationTimeoutId = null;
-		this.taskCompletionTracker = new TaskCompletionTracker();
 
 		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
 		this.jobManagerHeartbeatManager = createJobManagerHeartbeatManager(heartbeatServices, resourceId);
@@ -351,7 +353,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 
 			// tell the task slot table who's responsible for the task slot actions
-			taskSlotTable.start(new SlotActionsImpl());
+			taskSlotTable.start(new SlotActionsImpl(), getMainThreadExecutor());
 
 			// start the job leader service
 			jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
@@ -397,7 +399,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		return FutureUtils
 			.runAfterwards(
-				taskCompletionTracker.failIncompleteTasksAndGetTerminationFuture(),
+				taskSlotTable.closeAsync(),
 				this::stopTaskExecutorServices)
   		    .handle((ignored, throwable) -> {
   		    	handleOnStopException(throwableBeforeTasksCompletion, throwable);
@@ -489,6 +491,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		try {
 			final JobID jobId = tdd.getJobId();
+			final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 			final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
 
 			if (jobManagerConnection == null) {
@@ -553,6 +556,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getExecutionAttemptId(),
 				taskManagerConfiguration.getTimeout());
 
+			final TaskOperatorEventGateway taskOperatorEventGateway = new RpcTaskOperatorEventGateway(
+				jobManagerConnection.getJobManagerGateway(),
+				executionAttemptID,
+				(t) -> runAsync(() -> failTask(executionAttemptID, t)));
+
 			TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 			CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
 			GlobalAggregateManager aggregateManager = jobManagerConnection.getGlobalAggregateManager();
@@ -603,6 +611,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskManagerActions,
 				inputSplitProvider,
 				checkpointResponder,
+				taskOperatorEventGateway,
 				aggregateManager,
 				blobCacheService,
 				libraryCache,
@@ -627,7 +636,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			if (taskAdded) {
 				task.startTaskThread();
-				taskCompletionTracker.trackTaskCompletion(task);
 
 				setupResultPartitionBookkeeping(
 					tdd.getJobId(),
@@ -971,6 +979,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
+	// ----------------------------------------------------------------------
+	// Other RPCs
+	// ----------------------------------------------------------------------
+
+	@Override
+	public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+			ExecutionAttemptID executionAttemptID,
+			OperatorID operatorId,
+			SerializedValue<OperatorEvent> evt) {
+
+		log.debug("Operator event for {} - {}", executionAttemptID, operatorId);
+
+		final Task task = taskSlotTable.getTask(executionAttemptID);
+		if (task == null) {
+			return FutureUtils.completedExceptionally(new TaskNotRunningException(
+				"Task " + executionAttemptID.toHexString() + " not running on TaskManager"));
+		}
+
+		try {
+			task.deliverOperatorEvent(operatorId, evt);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+		catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalError(t);
+			return FutureUtils.completedExceptionally(t);
+		}
+	}
+
 	// ======================================================================
 	//  Internal methods
 	// ======================================================================
@@ -1160,7 +1196,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
-				final Iterator<TaskSlot> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
+				final Iterator<TaskSlot<Task>> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
 				final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
 				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
@@ -1473,7 +1509,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 
 			log.info("Un-registering task and sending final execution state {} to JobManager for task {} {}.",
-				task.getExecutionState(), task.getTaskInfo().getTaskName(), task.getExecutionId());
+				task.getExecutionState(), task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionId());
 
 			AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 
@@ -1871,32 +1907,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		public TaskExecutorHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
 			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()), partitionTracker.createClusterPartitionReport());
-		}
-	}
-
-	private static class TaskCompletionTracker {
-		private final Map<ExecutionAttemptID, Task> incompleteTasks;
-
-		private TaskCompletionTracker() {
-			incompleteTasks = new ConcurrentHashMap<>(8);
-		}
-
-		void trackTaskCompletion(Task task) {
-			incompleteTasks.put(task.getExecutionId(), task);
-			task.getTerminationFuture().thenRun(() -> incompleteTasks.remove(task.getExecutionId()));
-		}
-
-		CompletableFuture<Void> failIncompleteTasksAndGetTerminationFuture() {
-			FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
-			return FutureUtils.waitForAll(
-				incompleteTasks
-					.values()
-					.stream()
-					.map(task -> {
-						task.failExternally(cause);
-						return task.getTerminationFuture();
-					})
-					.collect(Collectors.toList()));
 		}
 	}
 }

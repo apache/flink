@@ -25,7 +25,7 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
+import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
@@ -1255,6 +1255,37 @@ trait ImplicitExpressionConversions {
     }
 
     convertArray(array)
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Function calls
+  // ----------------------------------------------------------------------------------------------
+
+  /**
+   * A call to a function that will be looked up in a catalog. There are two kinds of functions:
+   *
+   *  - System functions - which are identified with one part names
+   *  - Catalog functions - which are identified always with three parts names
+   *    (catalog, database, function)
+   *
+   * Moreover each function can either be a temporary function or permanent one
+   * (which is stored in a catalog).
+   *
+   * Based on those two properties, the resolution order for looking up a function based on
+   * the provided path is as follows:
+   *
+   *  - Temporary system function
+   *  - System function
+   *  - Temporary catalog function
+   *  - Catalog function
+   *
+   * @see TableEnvironment#useCatalog(String)
+   * @see TableEnvironment#useDatabase(String)
+   * @see TableEnvironment#createTemporaryFunction
+   * @see TableEnvironment#createTemporarySystemFunction
+   */
+  def call(path: String, params: Expression*): Expression = {
+    lookupCall(path, params: _*)
   }
 
   // ----------------------------------------------------------------------------------------------

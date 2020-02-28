@@ -51,6 +51,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
@@ -189,7 +190,10 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 			jmContainer.getVolumeMounts().get(0).getMountPath());
 		assertEquals(FLINK_CONF_FILENAME, jmContainer.getVolumeMounts().get(0).getSubPath());
 
-		assertThat(jmContainer.getEnv(), Matchers.contains(new EnvVar(FLINK_MASTER_ENV_KEY, FLINK_MASTER_ENV_VALUE, null)));
+		EnvVar masterEnv = new EnvVar(FLINK_MASTER_ENV_KEY, FLINK_MASTER_ENV_VALUE, null);
+		assertTrue(
+			"Environment " + masterEnv.toString() + " should be set.",
+			jmContainer.getEnv().contains(masterEnv));
 	}
 
 	@Test

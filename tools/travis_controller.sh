@@ -90,7 +90,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Dmaven.wagon.http.pool=false"
 	$MVN
 	EXIT_CODE=$?
 
@@ -113,8 +113,6 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         check_shaded_artifacts_s3_fs hadoop
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_s3_fs presto
-        EXIT_CODE=$(($EXIT_CODE+$?))
-        check_shaded_artifacts_connector_elasticsearch 2
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 5
         EXIT_CODE=$(($EXIT_CODE+$?))

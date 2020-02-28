@@ -122,7 +122,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -135,6 +135,10 @@ Please find the required dependencies for different Hive major versions below.
        hive-metastore-1.0.0.jar
        hive-exec-1.0.0.jar
        libfb303-0.9.0.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+       
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3-nohive.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
 
 {% endhighlight %}
 </div>
@@ -144,7 +148,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -158,6 +162,10 @@ Please find the required dependencies for different Hive major versions below.
        hive-exec-1.1.0.jar
        libfb303-0.9.2.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
 
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3-nohive.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
+
 {% endhighlight %}
 </div>
 
@@ -166,7 +174,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -180,6 +188,10 @@ Please find the required dependencies for different Hive major versions below.
        hive-exec-1.2.1.jar
        libfb303-0.9.2.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
 
+       // Orc dependencies -- required by the ORC vectorized optimizations
+       orc-core-1.4.3-nohive.jar
+       aircompressor-0.8.jar // transitive dependency of orc-core
+
 {% endhighlight %}
 </div>
 
@@ -188,7 +200,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -208,7 +220,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -228,7 +240,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -252,7 +264,7 @@ Please find the required dependencies for different Hive major versions below.
 /flink-{{ site.version }}
    /lib
 
-       // Flink's Hive connector. Contains flink-hadoop-compatibility and flink-orc jars
+       // Flink's Hive connector
        flink-connector-hive{{ site.scala_version_suffix }}-{{ site.version }}.jar
 
        // Hadoop dependencies
@@ -376,98 +388,3 @@ DDL to create Hive tables, views, partitions, functions within Flink will be sup
 
 Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
 
-## Supported Types
-
-Currently `HiveCatalog` supports most Flink data types with the following mapping:
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-center" style="width: 25%">Flink Data Type</th>
-      <th class="text-center">Hive Data Type</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td class="text-center">CHAR(p)</td>
-        <td class="text-center">CHAR(p)</td>
-    </tr>
-    <tr>
-        <td class="text-center">VARCHAR(p)</td>
-        <td class="text-center">VARCHAR(p)</td>
-    </tr>
-        <tr>
-        <td class="text-center">STRING</td>
-        <td class="text-center">STRING</td>
-    </tr>
-    <tr>
-        <td class="text-center">BOOLEAN</td>
-        <td class="text-center">BOOLEAN</td>
-    </tr>
-    <tr>
-        <td class="text-center">TINYINT</td>
-        <td class="text-center">TINYINT</td>
-    </tr>
-    <tr>
-        <td class="text-center">SMALLINT</td>
-        <td class="text-center">SMALLINT</td>
-    </tr>
-    <tr>
-        <td class="text-center">INT</td>
-        <td class="text-center">INT</td>
-    </tr>
-    <tr>
-        <td class="text-center">BIGINT</td>
-        <td class="text-center">LONG</td>
-    </tr>
-    <tr>
-        <td class="text-center">FLOAT</td>
-        <td class="text-center">FLOAT</td>
-    </tr>
-    <tr>
-        <td class="text-center">DOUBLE</td>
-        <td class="text-center">DOUBLE</td>
-    </tr>
-    <tr>
-        <td class="text-center">DECIMAL(p, s)</td>
-        <td class="text-center">DECIMAL(p, s)</td>
-    </tr>
-    <tr>
-        <td class="text-center">DATE</td>
-        <td class="text-center">DATE</td>
-    </tr>
-    <tr>
-        <td class="text-center">TIMESTAMP(9)</td>
-        <td class="text-center">TIMESTAMP</td>
-    </tr>
-    <tr>
-        <td class="text-center">BYTES</td>
-        <td class="text-center">BINARY</td>
-    </tr>
-    <tr>
-        <td class="text-center">ARRAY&lt;T&gt;</td>
-        <td class="text-center">LIST&lt;T&gt;</td>
-    </tr>
-    <tr>
-        <td class="text-center">MAP<K, V></td>
-        <td class="text-center">MAP<K, V></td>
-    </tr>
-    <tr>
-        <td class="text-center">ROW</td>
-        <td class="text-center">STRUCT</td>
-    </tr>
-  </tbody>
-</table>
-
-
-* Hive's `CHAR(p)` has a maximum length of 255
-* Hive's `VARCHAR(p)` has a maximum length of 65535
-* Hive's `MAP` only supports primitive key types while Flink's `MAP` can be any data type
-
-
-Note that:
-
-* Flink doesn't support Hive's `UNION` type is not supported
-* Hive's `TIMESTAMP` always has precision 9 and doesn't support other precisions. As a result, `HiveCatalog` cannot store `TIMESTAMP` columns whose precisions are not 9. Hive UDFs, on the other hand, can process `TIMESTAMP` values with a precision <= 9.
-* Hive doesn't support Flink's `TIMESTAMP_WITH_TIME_ZONE`, `TIMESTAMP_WITH_LOCAL_TIME_ZONE`, and `MULTISET`
-* Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type yet

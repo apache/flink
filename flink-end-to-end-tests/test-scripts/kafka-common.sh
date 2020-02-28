@@ -30,6 +30,7 @@ KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-$KAFKA_VERSION
 CONFLUENT_DIR=$TEST_DATA_DIR/confluent-$CONFLUENT_VERSION
 SCHEMA_REGISTRY_PORT=8082
 SCHEMA_REGISTRY_URL=http://localhost:${SCHEMA_REGISTRY_PORT}
+MAX_RETRY_SECONDS=120
 
 function setup_kafka_dist {
   # download Kafka
@@ -67,10 +68,20 @@ function start_kafka_cluster {
   $KAFKA_DIR/bin/zookeeper-server-start.sh -daemon $KAFKA_DIR/config/zookeeper.properties
   $KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
 
+  start_time=$(date +%s)
   # zookeeper outputs the "Node does not exist" bit to stderr
   while [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*Node\ does\ not\ exist.* ]]; do
-    echo "Waiting for broker..."
-    sleep 1
+    current_time=$(date +%s)
+    time_diff=$((current_time - start_time))
+
+    if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+        echo "Kafka cluster did not start after $MAX_RETRY_SECONDS seconds. Printing Kafka logs:"
+        cat $KAFKA_DIR/logs/*
+        exit 1
+    else
+        echo "Waiting for broker..."
+        sleep 1
+    fi
   done
 }
 

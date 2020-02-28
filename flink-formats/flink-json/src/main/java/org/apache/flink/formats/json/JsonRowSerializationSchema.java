@@ -81,12 +81,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	/** Reusable object node. */
 	private transient ObjectNode node;
 
-	/**
-	 * @deprecated Use the provided {@link Builder} instead.
-	 */
-	@Deprecated
-	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
-		// TODO make this constructor private in the future
+	private JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
 		Preconditions.checkNotNull(typeInfo, "Type information");
 		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
 		this.typeInfo = (RowTypeInfo) typeInfo;
@@ -99,14 +94,21 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	@PublicEvolving
 	public static class Builder {
 
-		private final RowTypeInfo typeInfo;
+		private RowTypeInfo typeInfo;
+
+		private Builder() {
+			// private constructor
+		}
 
 		/**
 		 * Creates a JSON serialization schema for the given type information.
 		 *
 		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
 		 *                 are used to parse the JSON properties.
+		 *
+		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
 		 */
+		@Deprecated
 		public Builder(TypeInformation<Row> typeInfo) {
 			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
 			this.typeInfo = (RowTypeInfo) typeInfo;
@@ -118,14 +120,41 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		 * @param jsonSchema JSON schema describing the result type
 		 *
 		 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+		 *
+		 * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
 		 */
+		@Deprecated
 		public Builder(String jsonSchema) {
 			this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
 		}
 
+		/**
+		 * Sets type information for JSON serialization schema.
+		 *
+		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
+		 *                 are used to parse the JSON properties.
+		 */
+		public Builder withTypeInfo(TypeInformation<Row> typeInfo) {
+			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+			this.typeInfo = (RowTypeInfo) typeInfo;
+			return this;
+		}
+
+		/**
+		 * Finalizes the configuration and checks validity.
+		 * @return Configured {@link JsonRowSerializationSchema}
+		 */
 		public JsonRowSerializationSchema build() {
+			checkArgument(typeInfo != null, "typeInfo should be set.");
 			return new JsonRowSerializationSchema(typeInfo);
 		}
+	}
+
+	/**
+	 * Creates a builder for {@link JsonRowSerializationSchema.Builder}.
+	 */
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	@Override

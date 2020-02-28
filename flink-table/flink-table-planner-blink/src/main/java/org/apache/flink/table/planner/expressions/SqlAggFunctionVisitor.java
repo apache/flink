@@ -39,7 +39,7 @@ import org.apache.calcite.sql.SqlAggFunction;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;

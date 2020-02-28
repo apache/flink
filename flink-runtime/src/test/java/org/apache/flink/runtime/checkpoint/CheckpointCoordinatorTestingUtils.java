@@ -24,6 +24,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.mock.Whitebox;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -33,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway.CheckpointConsumer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -43,7 +47,11 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -66,7 +74,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -354,13 +361,13 @@ public class CheckpointCoordinatorTestingUtils {
 		return executionJobVertex;
 	}
 
-	static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) throws Exception {
+	static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
 		return mockExecutionVertex(attemptID, (LogicalSlot) null);
 	}
 
 	static ExecutionVertex mockExecutionVertex(
 		ExecutionAttemptID attemptID,
-		CheckpointConsumer checkpointConsumer) throws Exception {
+		CheckpointConsumer checkpointConsumer) {
 
 		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 		taskManagerGateway.setCheckpointConsumer(checkpointConsumer);
@@ -369,7 +376,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 	static ExecutionVertex mockExecutionVertex(
 		ExecutionAttemptID attemptID,
-		TaskManagerGateway taskManagerGateway) throws Exception {
+		TaskManagerGateway taskManagerGateway) {
 
 		TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 		slotBuilder.setTaskManagerGateway(taskManagerGateway);
@@ -379,7 +386,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 	static ExecutionVertex mockExecutionVertex(
 		ExecutionAttemptID attemptID,
-		@Nullable LogicalSlot slot) throws Exception {
+		@Nullable LogicalSlot slot) {
 
 		JobVertexID jobVertexID = new JobVertexID();
 		return mockExecutionVertex(
@@ -399,7 +406,7 @@ public class CheckpointCoordinatorTestingUtils {
 		int parallelism,
 		int maxParallelism,
 		ExecutionState state,
-		ExecutionState ... successiveStates) throws Exception {
+		ExecutionState ... successiveStates) {
 
 		return mockExecutionVertex(
 			attemptID,
@@ -420,7 +427,7 @@ public class CheckpointCoordinatorTestingUtils {
 		int parallelism,
 		int maxParallelism,
 		ExecutionState state,
-		ExecutionState ... successiveStates) throws Exception {
+		ExecutionState ... successiveStates) {
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
@@ -434,11 +441,7 @@ public class CheckpointCoordinatorTestingUtils {
 		));
 		if (slot != null) {
 			// is there a better way to do this?
-			//noinspection unchecked
-			AtomicReferenceFieldUpdater<Execution, LogicalSlot> slotUpdater =
-				(AtomicReferenceFieldUpdater<Execution, LogicalSlot>)
-					Whitebox.getInternalState(exec, "ASSIGNED_SLOT_UPDATER");
-			slotUpdater.compareAndSet(exec, null, slot);
+			Whitebox.setInternalState(exec, "assignedResource", slot);
 		}
 
 		when(exec.getAttemptId()).thenReturn(attemptID);
@@ -564,6 +567,211 @@ public class CheckpointCoordinatorTestingUtils {
 			when(v.getJobVertex()).thenReturn(vertex);
 		}
 		return vertex;
+	}
+
+	/**
+	 * A helper builder for {@link CheckpointCoordinatorConfiguration} to deduplicate test codes.
+	 */
+	public static class CheckpointCoordinatorConfigurationBuilder {
+		private long checkpointInterval = 600000;
+
+		private long checkpointTimeout = 600000;
+
+		private long minPauseBetweenCheckpoints = 0;
+
+		private int maxConcurrentCheckpoints = Integer.MAX_VALUE;
+
+		private CheckpointRetentionPolicy checkpointRetentionPolicy =
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
+
+		private boolean isExactlyOnce = true;
+
+		private boolean isPreferCheckpointForRecovery = false;
+
+		private int tolerableCpFailureNumber = 0;
+
+		public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(long checkpointInterval) {
+			this.checkpointInterval = checkpointInterval;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setCheckpointTimeout(long checkpointTimeout) {
+			this.checkpointTimeout = checkpointTimeout;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
+			this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
+			this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setCheckpointRetentionPolicy(
+			CheckpointRetentionPolicy checkpointRetentionPolicy) {
+			this.checkpointRetentionPolicy = checkpointRetentionPolicy;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setExactlyOnce(boolean exactlyOnce) {
+			isExactlyOnce = exactlyOnce;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
+			isPreferCheckpointForRecovery = preferCheckpointForRecovery;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfigurationBuilder setTolerableCpFailureNumber(int tolerableCpFailureNumber) {
+			this.tolerableCpFailureNumber = tolerableCpFailureNumber;
+			return this;
+		}
+
+		public CheckpointCoordinatorConfiguration build() {
+			return new CheckpointCoordinatorConfiguration(
+				checkpointInterval,
+				checkpointTimeout,
+				minPauseBetweenCheckpoints,
+				maxConcurrentCheckpoints,
+				checkpointRetentionPolicy,
+				isExactlyOnce,
+				isPreferCheckpointForRecovery,
+				tolerableCpFailureNumber);
+		}
+	}
+
+	/**
+	 * A helper builder for {@link CheckpointCoordinator} to deduplicate test codes.
+	 */
+	public static class CheckpointCoordinatorBuilder {
+		private JobID jobId = new JobID();
+
+		private CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+			new CheckpointCoordinatorConfigurationBuilder().build();
+
+		private ExecutionVertex[] tasksToTrigger;
+
+		private ExecutionVertex[] tasksToWaitFor;
+
+		private ExecutionVertex[] tasksToCommitTo;
+
+		private CheckpointIDCounter checkpointIDCounter =
+			new StandaloneCheckpointIDCounter();
+
+		private CompletedCheckpointStore completedCheckpointStore =
+			new StandaloneCompletedCheckpointStore(1);
+
+		private StateBackend checkpointStateBackend = new MemoryStateBackend();
+
+		private Executor ioExecutor = Executors.directExecutor();
+
+		private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
+
+		private SharedStateRegistryFactory sharedStateRegistryFactory =
+			SharedStateRegistry.DEFAULT_FACTORY;
+
+		private CheckpointFailureManager failureManager =
+			new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE);
+
+		public CheckpointCoordinatorBuilder() {
+			ExecutionVertex vertex = mockExecutionVertex(new ExecutionAttemptID());
+			ExecutionVertex[] defaultVertices = new ExecutionVertex[] { vertex };
+			tasksToTrigger = defaultVertices;
+			tasksToWaitFor = defaultVertices;
+			tasksToCommitTo = defaultVertices;
+		}
+
+		public CheckpointCoordinatorBuilder setJobId(JobID jobId) {
+			this.jobId = jobId;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setCheckpointCoordinatorConfiguration(
+			CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration) {
+			this.checkpointCoordinatorConfiguration = checkpointCoordinatorConfiguration;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setTasks(ExecutionVertex[] tasks) {
+			this.tasksToTrigger = tasks;
+			this.tasksToWaitFor = tasks;
+			this.tasksToCommitTo = tasks;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setTasksToTrigger(ExecutionVertex[] tasksToTrigger) {
+			this.tasksToTrigger = tasksToTrigger;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setTasksToWaitFor(ExecutionVertex[] tasksToWaitFor) {
+			this.tasksToWaitFor = tasksToWaitFor;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setTasksToCommitTo(ExecutionVertex[] tasksToCommitTo) {
+			this.tasksToCommitTo = tasksToCommitTo;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setCheckpointIDCounter(
+			CheckpointIDCounter checkpointIDCounter) {
+			this.checkpointIDCounter = checkpointIDCounter;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setCompletedCheckpointStore(
+			CompletedCheckpointStore completedCheckpointStore) {
+			this.completedCheckpointStore = completedCheckpointStore;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setCheckpointStateBackend(StateBackend checkpointStateBackend) {
+			this.checkpointStateBackend = checkpointStateBackend;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setIoExecutor(Executor exioExecutorecutor) {
+			this.ioExecutor = ioExecutor;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setTimer(ScheduledExecutor timer) {
+			this.timer = timer;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setSharedStateRegistryFactory(
+			SharedStateRegistryFactory sharedStateRegistryFactory) {
+			this.sharedStateRegistryFactory = sharedStateRegistryFactory;
+			return this;
+		}
+
+		public CheckpointCoordinatorBuilder setFailureManager(
+			CheckpointFailureManager failureManager) {
+			this.failureManager = failureManager;
+			return this;
+		}
+
+		public CheckpointCoordinator build() {
+			return new CheckpointCoordinator(
+				jobId,
+				checkpointCoordinatorConfiguration,
+				tasksToTrigger,
+				tasksToWaitFor,
+				tasksToCommitTo,
+				checkpointIDCounter,
+				completedCheckpointStore,
+				checkpointStateBackend,
+				ioExecutor,
+				timer,
+				sharedStateRegistryFactory,
+				failureManager);
+		}
 	}
 
 	/**

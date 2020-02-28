@@ -441,7 +441,6 @@ the current catalog and current database will be referred. Users can switch the 
 table API or SQL.
 
 Identifiers follow SQL requirements which means that they can be escaped with a backtick character (`` ` ``).
-Additionally all SQL reserved keywords must be escaped.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -459,10 +458,6 @@ tableEnv.createTemporaryView("exampleView", table);
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table);
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -491,10 +486,6 @@ tableEnv.createTemporaryView("exampleView", table)
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table)
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table)
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -862,9 +853,9 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 The behavior of translating  a query is different for `TableEnvironment` and `StreamTableEnvironment`.
 
-For `TableEnvironment`, A Table API or SQL query is translated when `TableEnvironment.execute()` is called, because `TableEnvironment` will optimize multiple-sinks into one DAG.
+For `TableEnvironment`, a Table API or SQL query is translated when `TableEnvironment.execute()` is called, because `TableEnvironment` will optimize multiple-sinks into one DAG.
 
-while for `StreamTableEnvironment`, A Table API or SQL query is translated when:
+While for `StreamTableEnvironment`, a Table API or SQL query is translated when:
 
 * a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
 * a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
@@ -1452,7 +1443,7 @@ Advanced users may provide custom optimizations via a `CalciteConfig` object tha
 ### Explaining a Table
 
 The Table API provides a mechanism to explain the logical and optimized query plans to compute a `Table`. 
-This is done through the `TableEnvironment.explain(table)` method or `TableEnvironment.explain()` method. `explain(table)` returns the plan of a given `Table`. `explain()` returns the result of a multiple-sinks plan and is mainly used for the Blink planner. It returns a String describing three plans:
+This is done through the `TableEnvironment.explain(table)` method or `TableEnvironment.explain()` method. `explain(table)` returns the plan of a given `Table`. `explain()` returns the result of a multiple sinks plan and is mainly used for the Blink planner. It returns a String describing three plans:
 
 1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
 2. the optimized logical query plan, and

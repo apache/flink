@@ -18,10 +18,17 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test for HiveCatalog on generic metadata.
@@ -32,6 +39,30 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
 	public static void init() {
 		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
+	}
+
+	// ------ tables ------
+
+	@Test
+	public void testGenericTableSchema() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		TableSchema tableSchema = TableSchema.builder()
+				.fields(new String[]{"col1", "col2", "col3"},
+						new DataType[]{DataTypes.TIMESTAMP(3), DataTypes.TIMESTAMP(6), DataTypes.TIMESTAMP(9)})
+				.watermark("col3", "col3", DataTypes.TIMESTAMP(9))
+				.build();
+
+		ObjectPath tablePath = new ObjectPath(db1, "generic_table");
+		try {
+			catalog.createTable(tablePath,
+					new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT),
+					false);
+
+			assertEquals(tableSchema, catalog.getTable(tablePath).getSchema());
+		} finally {
+			catalog.dropTable(tablePath, true);
+		}
 	}
 
 	// ------ partitions ------
@@ -142,6 +173,18 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
 
 	@Override
 	public void testAlterPartitionTableStats() throws Exception {
+	}
+
+	@Override
+	public void testAlterPartitionedTable() throws Exception {
+	}
+
+	@Override
+	public void testAlterTableStats_partitionedTable() throws Exception {
+	}
+
+	@Override
+	public void testCreatePartitionedTable_Batch() throws Exception {
 	}
 
 	// ------ test utils ------

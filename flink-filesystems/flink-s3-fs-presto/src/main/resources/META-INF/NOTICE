@@ -22,7 +22,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
-- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.6.7
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
 - com.fasterxml.woodstox:woodstox-core:5.0.3
 - com.google.guava:guava:21.0
 - io.airlift:configuration:0.153
@@ -47,6 +47,12 @@ This project bundles the following dependencies under the Creative Commons CC0 1
 See bundled license files for details.
 
 - org.hdrhistogram:HdrHistogram:2.1.9
+
+This project bundles the following dependencies under the CDDL 1.1 license.
+See bundled license files for details.
+
+- javax.activation:javax.activation-api:1.2.0
+- javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
 See bundled license files for details.

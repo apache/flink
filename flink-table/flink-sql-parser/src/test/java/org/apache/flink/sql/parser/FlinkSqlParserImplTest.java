@@ -96,6 +96,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateCatalog() {
+		check(
+			"create catalog c1\n" +
+				" WITH (\n" +
+				"  'key1'='value1',\n" +
+				"  'key2'='value2'\n" +
+				" )\n",
+			"CREATE CATALOG `C1` " +
+				"WITH (\n" +
+				"  'key1' = 'value1',\n" +
+				"  'key2' = 'value2'\n" +
+				")");
+	}
+
+	@Test
 	public void testShowDataBases() {
 		check("show databases", "SHOW DATABASES");
 	}

@@ -353,7 +353,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			tEnv.sqlUpdate(ddl);
+			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not create a table from statement: " + ddl, e);
 		}
@@ -364,7 +364,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			tEnv.sqlUpdate(ddl);
+			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not drop table from statement: " + ddl, e);
 		}
@@ -584,7 +584,7 @@ public class LocalExecutor implements Executor {
 		final String jobName = sessionId + ": " + statement;
 		final Pipeline pipeline;
 		try {
-			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
+			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
@@ -628,7 +628,7 @@ public class LocalExecutor implements Executor {
 						context.getQueryConfig(),
 						tableName);
 			});
-			pipeline = context.createPipeline(jobName, context.getFlinkConfig());
+			pipeline = context.createPipeline(jobName);
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store

@@ -33,7 +33,7 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericI
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.StreamTestData
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{CatalogManagerMocks, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -203,15 +203,13 @@ class StreamTableEnvironmentTest extends TableTestBase {
     val jStreamExecEnv = mock(classOf[JStreamExecEnv])
     when(jStreamExecEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
     val config = new TableConfig
-    val manager: CatalogManager = new CatalogManager(
-      "default_catalog",
-      new GenericInMemoryCatalog("default_catalog", "default_database"))
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager: ModuleManager = new ModuleManager
     val executor: StreamExecutor = new StreamExecutor(jStreamExecEnv)
-    val functionCatalog = new FunctionCatalog(config, manager, moduleManager)
-    val streamPlanner = new StreamPlanner(executor, config, functionCatalog, manager)
+    val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
+    val streamPlanner = new StreamPlanner(executor, config, functionCatalog, catalogManager)
     val jTEnv = new JStreamTableEnvironmentImpl(
-      manager,
+      catalogManager,
       moduleManager,
       functionCatalog,
       config,

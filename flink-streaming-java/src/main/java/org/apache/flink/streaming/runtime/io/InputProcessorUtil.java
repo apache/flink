@@ -23,6 +23,8 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -40,6 +42,7 @@ public class InputProcessorUtil {
 			CheckpointingMode checkpointMode,
 			InputGate inputGate,
 			Configuration taskManagerConfig,
+			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
@@ -48,6 +51,8 @@ public class InputProcessorUtil {
 			checkpointMode, pageSize, taskManagerConfig, taskName);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
+		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
 	}
 
@@ -61,6 +66,7 @@ public class InputProcessorUtil {
 			InputGate inputGate1,
 			InputGate inputGate2,
 			Configuration taskManagerConfig,
+			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
@@ -85,6 +91,8 @@ public class InputProcessorUtil {
 			inputGate1.getNumberOfInputChannels() + inputGate2.getNumberOfInputChannels(),
 			taskName,
 			toNotifyOnCheckpoint);
+		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
 		return new CheckpointedInputGate[] {
 			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
 			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
@@ -129,5 +137,10 @@ public class InputProcessorUtil {
 			default:
 				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
+	}
+
+	private static void registerCheckpointMetrics(TaskIOMetricGroup taskIOMetricGroup, CheckpointBarrierHandler barrierHandler) {
+		taskIOMetricGroup.gauge(MetricNames.CHECKPOINT_ALIGNMENT_TIME, barrierHandler::getAlignmentDurationNanos);
+		taskIOMetricGroup.gauge(MetricNames.CHECKPOINT_START_DELAY_TIME, barrierHandler::getCheckpointStartDelayNanos);
 	}
 }

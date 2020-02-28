@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.schema._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
@@ -44,9 +43,10 @@ import org.junit.{Before, BeforeClass, Test}
 import org.powermock.api.mockito.PowerMockito._
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
-
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
+
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConverters._
 
@@ -86,10 +86,11 @@ class SelectivityEstimatorTest {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
-    val catalogManager = mock(classOf[CatalogManager])
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = mock(classOf[ModuleManager])
     val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
-    val context: FlinkContext = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager)
+    val context: FlinkContext = new FlinkContextImpl(
+      tableConfig, functionCatalog, catalogManager, null)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getPlanner").thenReturn(planner)

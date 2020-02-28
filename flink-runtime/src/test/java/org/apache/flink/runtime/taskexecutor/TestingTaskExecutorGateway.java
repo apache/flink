@@ -34,15 +34,19 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -81,6 +85,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer;
 
+	private final TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler;
+
 	TestingTaskExecutorGateway(
 			String address,
 			String hostname,
@@ -93,7 +99,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			Consumer<Exception> disconnectResourceManagerConsumer,
 			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
 			Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
-			TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer) {
+			TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>> releaseOrPromotePartitionsConsumer,
+			TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventHandler) {
+
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
@@ -106,6 +114,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		this.cancelTaskFunction = cancelTaskFunction;
 		this.canBeReleasedSupplier = canBeReleasedSupplier;
 		this.releaseOrPromotePartitionsConsumer = releaseOrPromotePartitionsConsumer;
+		this.operatorEventHandler = operatorEventHandler;
 	}
 
 	@Override
@@ -186,6 +195,14 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
 		return canBeReleasedSupplier.get();
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+			ExecutionAttemptID task,
+			OperatorID operator,
+			SerializedValue<OperatorEvent> evt) {
+		return operatorEventHandler.apply(task, operator, evt);
 	}
 
 	@Override

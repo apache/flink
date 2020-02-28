@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.checkpoint.savepoint.CheckpointTestUtils;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 
 import org.junit.Test;
 

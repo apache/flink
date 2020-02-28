@@ -54,29 +54,6 @@ import static org.junit.Assert.assertThat;
  */
 public abstract class AggFunctionTestBase<T, ACC> {
 
-	/**
-	 * Spec for parameterized aggregate function tests.
-	 */
-	protected static class AggFunctionTestSpec<T, ACC> {
-		final AggregateFunction<T, ACC> aggregator;
-		final List<List<T>> inputValueSets;
-		final List<T> expectedResults;
-
-		public AggFunctionTestSpec(
-				AggregateFunction<T, ACC> aggregator,
-				List<List<T>> inputValueSets,
-				List<T> expectedResults) {
-			this.aggregator = aggregator;
-			this.inputValueSets = inputValueSets;
-			this.expectedResults = expectedResults;
-		}
-
-		@Override
-		public String toString() {
-			return aggregator.getClass().getSimpleName();
-		}
-	}
-
 	protected abstract List<List<T>> getInputValueSets();
 
 	protected abstract List<T> getExpectedResults();

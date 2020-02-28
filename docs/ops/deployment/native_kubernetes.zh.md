@@ -1,5 +1,5 @@
 ---
-title:  "Native Kubernetes 安装"
+title:  "原生 Kubernetes 设置"
 nav-title: Native Kubernetes
 nav-parent_id: deployment
 is_beta: true
@@ -134,15 +134,16 @@ By default, the JobManager and TaskManager only store logs under `/opt/flink/log
 If you want to use `kubectl logs <PodName>` to view the logs, you must perform the following:
 
 1. Add a new appender to the log4j.properties in the Flink client.
-2. Update the rootLogger in log4j.properties to `log4j.rootLogger=INFO, file, console`.
+2. Add the following 'appenderRef' the rootLogger in log4j.properties `rootLogger.appenderRef.console.ref = ConsoleAppender`.
 3. Remove the redirect args by adding config option `-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`.
 4. Stop and start your session again. Now you could use `kubectl logs` to view your logs.
 
 {% highlight bash %}
 # Log all infos to the console
-log4j.appender.console=org.apache.log4j.ConsoleAppender
-log4j.appender.console.layout=org.apache.log4j.PatternLayout
-log4j.appender.console.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 {% endhighlight %}
 
 If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process. 

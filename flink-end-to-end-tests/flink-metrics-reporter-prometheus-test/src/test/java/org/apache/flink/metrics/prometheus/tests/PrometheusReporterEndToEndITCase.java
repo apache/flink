@@ -28,6 +28,7 @@ import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,17 +69,38 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 
 	static {
 		final String base = "prometheus-" + PROMETHEUS_VERSION + '.';
+		final String os;
+		final String platform;
 		switch (OperatingSystem.getCurrentOperatingSystem()) {
 			case MAC_OS:
-				PROMETHEUS_FILE_NAME = base + "darwin-amd64";
+				os = "darwin";
 				break;
 			case WINDOWS:
-				PROMETHEUS_FILE_NAME = base + "windows-amd64";
+				os = "windows";
 				break;
 			default:
-				PROMETHEUS_FILE_NAME = base + "linux-amd64";
+				os = "linux";
 				break;
 		}
+		switch (ProcessorArchitecture.getProcessorArchitecture()) {
+			case X86:
+				platform = "386";
+				break;
+			case AMD64:
+				platform = "amd64";
+				break;
+			case ARMv7:
+				platform = "armv7";
+				break;
+			case AARCH64:
+				platform = "arm64";
+				break;
+			default:
+				platform = "Unknown";
+				break;
+		}
+
+		PROMETHEUS_FILE_NAME = base + os + "-" + platform;
 	}
 
 	private static final Pattern LOG_REPORTER_PORT_PATTERN = Pattern.compile(".*Started PrometheusReporter HTTP server on port ([0-9]+).*");

@@ -29,7 +29,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
 import static org.junit.Assert.assertEquals;
 
 /**

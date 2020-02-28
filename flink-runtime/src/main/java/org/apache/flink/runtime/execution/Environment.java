@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -123,6 +124,11 @@ public interface Environment {
 	 *         provider has been assigned to this environment.
 	 */
 	InputSplitProvider getInputSplitProvider();
+
+	/**
+	 * Gets the gateway through which operators can send events to the operator coordinators.
+	 */
+	TaskOperatorEventGateway getOperatorCoordinatorEventGateway();
 
 	/**
 	 * Returns the current {@link IOManager}.

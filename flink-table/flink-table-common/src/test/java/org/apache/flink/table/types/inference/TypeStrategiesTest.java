@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
+import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -67,6 +68,18 @@ public class TypeStrategiesTest {
 				.forStrategy(explicit(DataTypes.BIGINT()))
 				.inputTypes()
 				.expectDataType(DataTypes.BIGINT()),
+
+			// infer from input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes(DataTypes.INT(), DataTypes.STRING())
+				.expectDataType(DataTypes.INT()),
+
+			// infer from not existing input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes()
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
 
 			// (INT, BOOLEAN) -> STRING
 			TestSpec

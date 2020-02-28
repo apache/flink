@@ -112,6 +112,8 @@ public final class Utils {
 	 * 		remote home directory base (will be extended)
 	 * @param relativeTargetPath
 	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 * @param replication
+	 * 	    number of replications of a remote file to be created
 	 *
 	 * @return Path to remote file (usually hdfs)
 	 */
@@ -120,10 +122,11 @@ public final class Utils {
 		String appId,
 		Path localSrcPath,
 		Path homedir,
-		String relativeTargetPath) throws IOException {
+		String relativeTargetPath,
+		int replication) throws IOException {
 
 		File localFile = new File(localSrcPath.toUri().getPath());
-		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath);
+		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath, replication);
 		// now create the resource instance
 		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
 		return Tuple2.of(remoteFileInfo.f0, resource);
@@ -142,6 +145,8 @@ public final class Utils {
 	 * 		remote home directory base (will be extended)
 	 * @param relativeTargetPath
 	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 * @param replication
+	 * 	    number of replications of a remote file to be created
 	 *
 	 * @return Path to remote file (usually hdfs)
 	 */
@@ -150,7 +155,8 @@ public final class Utils {
 		String appId,
 		Path localSrcPath,
 		Path homedir,
-		String relativeTargetPath) throws IOException {
+		String relativeTargetPath,
+		int replication) throws IOException {
 
 		File localFile = new File(localSrcPath.toUri().getPath());
 		if (localFile.isDirectory()) {
@@ -167,9 +173,9 @@ public final class Utils {
 
 		Path dst = new Path(homedir, suffix);
 
-		LOG.debug("Copying from {} to {}", localSrcPath, dst);
-
+		LOG.debug("Copying from {} to {} with replication number {}", localSrcPath, dst, replication);
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
+		fs.setReplication(dst, (short) replication);
 
 		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
 		//       file once again which has problems with eventually consistent read-after-write file

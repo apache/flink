@@ -37,22 +37,23 @@ public class OperatorState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
-	/** id of the operator */
+	/** The id of the operator. */
 	private final OperatorID operatorID;
 
-	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
+	/** The handles to states created by the parallel tasks: subtaskIndex -> subtaskstate. */
 	private final Map<Integer, OperatorSubtaskState> operatorSubtaskStates;
 
-	/** parallelism of the operator when it was checkpointed */
+	/** The parallelism of the operator when it was checkpointed. */
 	private final int parallelism;
 
-	/** maximum parallelism of the operator when the job was first created */
+	/** The maximum parallelism (for number of keygroups) of the operator when the job was first created. */
 	private final int maxParallelism;
 
 	public OperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
-		Preconditions.checkArgument(
-			parallelism <= maxParallelism,
-			"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
+		if (parallelism > maxParallelism) {
+			throw new IllegalArgumentException(String.format(
+				"Parallelism %s is not smaller or equal to max parallelism %s.", parallelism, maxParallelism));
+		}
 
 		this.operatorID = operatorID;
 
@@ -84,6 +85,10 @@ public class OperatorState implements CompositeStateHandle {
 		} else {
 			return operatorSubtaskStates.get(subtaskIndex);
 		}
+	}
+
+	public Map<Integer, OperatorSubtaskState> getSubtaskStates() {
+		return Collections.unmodifiableMap(operatorSubtaskStates);
 	}
 
 	public Collection<OperatorSubtaskState> getStates() {
@@ -146,10 +151,6 @@ public class OperatorState implements CompositeStateHandle {
 	@Override
 	public int hashCode() {
 		return parallelism + 31 * Objects.hash(operatorID, operatorSubtaskStates);
-	}
-
-	public Map<Integer, OperatorSubtaskState> getSubtaskStates() {
-		return Collections.unmodifiableMap(operatorSubtaskStates);
 	}
 
 	@Override

@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -90,6 +91,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final ExecutionVertexOperations executionVertexOperations;
 
+	private final Set<ExecutionVertexID> verticesWaitingForRestart;
+
 	public DefaultScheduler(
 		final Logger log,
 		final JobGraph jobGraph,
@@ -151,6 +154,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getInputsLocationsRetriever());
+
+		this.verticesWaitingForRestart = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -182,7 +187,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		}
 	}
 
-	private void handleTaskFailure(final ExecutionVertexID executionVertexId, final Throwable error) {
+	private void handleTaskFailure(final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+		setGlobalFailureCause(error);
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
 		maybeRestartTasks(failureHandlingResult);
 	}
@@ -210,6 +216,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Set<ExecutionVertexVersion> executionVertexVersions =
 			new HashSet<>(executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
 
+		addVerticesToRestartPending(verticesToRestart);
+
 		final CompletableFuture<?> cancelFuture = cancelTasksAsync(verticesToRestart);
 
 		delayExecutor.schedule(
@@ -219,9 +227,23 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			TimeUnit.MILLISECONDS);
 	}
 
+	private void addVerticesToRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
+		verticesWaitingForRestart.addAll(verticesToRestart);
+		transitionExecutionGraphState(JobStatus.RUNNING, JobStatus.RESTARTING);
+	}
+
+	private void removeVerticesFromRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
+		verticesWaitingForRestart.removeAll(verticesToRestart);
+		if (verticesWaitingForRestart.isEmpty()) {
+			transitionExecutionGraphState(JobStatus.RESTARTING, JobStatus.RUNNING);
+		}
+	}
+
 	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions) {
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
+
+			removeVerticesFromRestartPending(verticesToRestart);
 
 			resetForNewExecutions(verticesToRestart);
 

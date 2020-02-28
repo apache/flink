@@ -42,7 +42,6 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -84,6 +83,9 @@ public final class TestTaskBuilder {
 	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
 	private Collection<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
 	private Collection<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
+	private JobID jobId = new JobID();
+	private AllocationID allocationID = new AllocationID();
+	private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 
 	public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
 		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
@@ -149,10 +151,23 @@ public final class TestTaskBuilder {
 		return this;
 	}
 
+	public TestTaskBuilder setJobId(JobID jobId) {
+		this.jobId = jobId;
+		return this;
+	}
+
+	public TestTaskBuilder setAllocationID(AllocationID allocationID) {
+		this.allocationID = allocationID;
+		return this;
+	}
+
+	public TestTaskBuilder setExecutionAttemptId(ExecutionAttemptID executionAttemptId) {
+		this.executionAttemptId = executionAttemptId;
+		return this;
+	}
+
 	public Task build() throws Exception {
-		final JobID jobId = new JobID();
 		final JobVertexID jobVertexId = new JobVertexID();
-		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 
 		final SerializedValue<ExecutionConfig> serializedExecutionConfig = new SerializedValue<>(executionConfig);
 
@@ -182,7 +197,7 @@ public final class TestTaskBuilder {
 			jobInformation,
 			taskInformation,
 			executionAttemptId,
-			new AllocationID(),
+			allocationID,
 			0,
 			0,
 			resultPartitions,
@@ -198,6 +213,7 @@ public final class TestTaskBuilder {
 			taskManagerActions,
 			new MockInputSplitProvider(),
 			new TestCheckpointResponder(),
+			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
 			blobCacheService,
 			libraryCacheManager,

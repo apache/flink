@@ -200,7 +200,7 @@ public class CliFrontend {
 			program = buildProgram(programOptions);
 		}
 		catch (FileNotFoundException e) {
-			throw new CliArgsException("Could not build the program from JAR file.", e);
+			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
 		}
 
 		final List<URL> jobJars = program.getJobJarAndDependencies();

@@ -23,8 +23,6 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -36,8 +34,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
-import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
 import org.hamcrest.Matcher;
@@ -209,6 +206,17 @@ public class TypeInferenceExtractorTest {
 						}),
 					TypeStrategies.explicit(DataTypes.STRING())),
 
+			// test varying arguments extraction with byte
+			TestSpec
+				.forScalarFunction(VarArgWithByteFunction.class)
+				.expectOutputMapping(
+					InputTypeStrategies.varyingSequence(
+						new String[]{"bytes"},
+						new ArgumentTypeStrategy[]{
+							InputTypeStrategies.explicit(DataTypes.TINYINT().notNull().bridgedTo(byte.class))
+						}),
+					TypeStrategies.explicit(DataTypes.STRING())),
+
 			// output hint with input extraction
 			TestSpec
 				.forScalarFunction(ExtractWithOutputHintFunction.class)
@@ -299,7 +307,7 @@ public class TypeInferenceExtractorTest {
 			TestSpec
 				.forScalarFunction(InvalidMethodScalarFunction.class)
 				.expectErrorMessage("Considering all hints, the method should comply with the signature:\n" +
-					"java.lang.String eval(int)"),
+					"java.lang.String eval(int[])"),
 
 			// mismatch between hints and implementation regarding accumulator
 			TestSpec
@@ -315,7 +323,26 @@ public class TypeInferenceExtractorTest {
 			// named arguments with overloaded function
 			TestSpec
 				.forScalarFunction(NamedArgumentsScalarFunction.class)
-				.expectNamedArguments("n")
+				.expectNamedArguments("n"),
+
+			// scalar function that takes any input
+			TestSpec
+				.forScalarFunction(InputGroupScalarFunction.class)
+				.expectNamedArguments("o")
+				.expectOutputMapping(
+					InputTypeStrategies.sequence(
+						new String[]{"o"},
+						new ArgumentTypeStrategy[]{InputTypeStrategies.ANY}),
+					TypeStrategies.explicit(DataTypes.STRING())),
+
+			// scalar function that takes any input as vararg
+			TestSpec
+				.forScalarFunction(VarArgInputGroupScalarFunction.class)
+				.expectOutputMapping(
+					InputTypeStrategies.varyingSequence(
+						new String[]{"o"},
+						new ArgumentTypeStrategy[]{InputTypeStrategies.ANY}),
+					TypeStrategies.explicit(DataTypes.STRING()))
 		);
 	}
 
@@ -410,22 +437,22 @@ public class TypeInferenceExtractorTest {
 
 		static TestSpec forScalarFunction(Class<? extends ScalarFunction> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forScalarFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forScalarFunction(new DataTypeFactoryMock(), function));
 		}
 
 		static TestSpec forAggregateFunction(Class<? extends AggregateFunction<?, ?>> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forAggregateFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forAggregateFunction(new DataTypeFactoryMock(), function));
 		}
 
 		static TestSpec forTableFunction(Class<? extends TableFunction<?>> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forTableFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forTableFunction(new DataTypeFactoryMock(), function));
 		}
 
 		static TestSpec forTableAggregateFunction(Class<? extends TableAggregateFunction<?, ?>> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forTableAggregateFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forTableAggregateFunction(new DataTypeFactoryMock(), function));
 		}
 
 		TestSpec expectNamedArguments(String... expectedArgumentNames) {
@@ -451,24 +478,6 @@ public class TypeInferenceExtractorTest {
 		TestSpec expectErrorMessage(String expectedErrorMessage) {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
-		}
-	}
-
-	private static class DataTypeLookupMock implements DataTypeLookup {
-
-		@Override
-		public Optional<DataType> lookupDataType(String name) {
-			return Optional.of(TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name)));
-		}
-
-		@Override
-		public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
-			return Optional.empty();
-		}
-
-		@Override
-		public DataType resolveRawDataType(Class<?> clazz) {
-			return null;
 		}
 	}
 
@@ -619,6 +628,12 @@ public class TypeInferenceExtractorTest {
 		}
 	}
 
+	private static class VarArgWithByteFunction extends ScalarFunction {
+		public String eval(byte... bytes) {
+			return null;
+		}
+	}
+
 	@FunctionHint(output = @DataTypeHint("INT"))
 	private static class ExtractWithOutputHintFunction extends ScalarFunction {
 		public Object eval(Integer i) {
@@ -688,7 +703,7 @@ public class TypeInferenceExtractorTest {
 
 	@FunctionHint(output = @DataTypeHint("STRING"))
 	private static class InvalidMethodScalarFunction extends ScalarFunction {
-		public Long eval(int i) {
+		public Long eval(int[] i) {
 			return null;
 		}
 	}
@@ -726,6 +741,18 @@ public class TypeInferenceExtractorTest {
 
 		public Integer eval(@DataTypeHint("DECIMAL(10, 2)") Object n) {
 			return null;
+		}
+	}
+
+	private static class InputGroupScalarFunction extends ScalarFunction {
+		public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+			return o.toString();
+		}
+	}
+
+	private static class VarArgInputGroupScalarFunction extends ScalarFunction {
+		public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... o) {
+			return Arrays.toString(o);
 		}
 	}
 }

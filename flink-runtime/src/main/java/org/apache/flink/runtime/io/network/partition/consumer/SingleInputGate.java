@@ -254,10 +254,6 @@ public class SingleInputGate extends InputGate {
 		return numberOfInputChannels;
 	}
 
-	public IntermediateDataSetID getConsumedResultId() {
-		return consumedResultId;
-	}
-
 	/**
 	 * Returns the type of this input channel's consumed result partition.
 	 *

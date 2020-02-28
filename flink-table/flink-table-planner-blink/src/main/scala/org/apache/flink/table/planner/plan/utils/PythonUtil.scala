@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.flink.table.functions.python.PythonFunction
-import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
+import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.JavaConversions._
 
@@ -75,6 +75,7 @@ object PythonUtil {
       */
     private def isPythonRexCall(rexCall: RexCall): Boolean = rexCall.getOperator match {
       case sfc: ScalarSqlFunction => sfc.scalarFunction.isInstanceOf[PythonFunction]
+      case tfc: TableSqlFunction => tfc.udtf.isInstanceOf[PythonFunction]
       case _ => false
     }
 

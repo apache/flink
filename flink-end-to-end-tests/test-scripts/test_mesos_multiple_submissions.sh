@@ -29,7 +29,7 @@ TEST_PROGRAM_JAR=$END_TO_END_DIR/flink-cli-test/target/PeriodicStreamingJob.jar
 
 function submit_job {
     local output_path=$1
-    docker exec -it mesos-master bash -c "${FLINK_DIR}/bin/flink run -d -p 1 ${TEST_PROGRAM_JAR} --durationInSecond ${DURATION} --outputPath ${output_path}" \
+    docker exec mesos-master bash -c "${FLINK_DIR}/bin/flink run -d -p 1 ${TEST_PROGRAM_JAR} --durationInSecond ${DURATION} --outputPath ${output_path}" \
         | grep "Job has been submitted with JobID" | sed 's/.* //g' | tr -d '\r'
 }
 

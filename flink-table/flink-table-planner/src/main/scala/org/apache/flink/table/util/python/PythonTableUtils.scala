@@ -32,7 +32,7 @@ import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, Ro
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.codegen.PythonFunctionCodeGenerator
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.python.PythonEnv
 import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.types.Row
@@ -64,6 +64,32 @@ object PythonTableUtils {
       serializedScalarFunction,
       inputTypes,
       resultType,
+      deterministic,
+      pythonEnv)
+
+  /**
+    * Creates a [[TableFunction]] for the specified Python TableFunction.
+    *
+    * @param funcName class name of the user-defined function. Must be a valid Java class identifier
+    * @param serializedTableFunction serialized Python table function
+    * @param inputTypes input data types
+    * @param resultTypes expected result types
+    * @param deterministic the determinism of the function's results
+    * @param pythonEnv the Python execution environment
+    * @return A generated Java TableFunction representation for the specified Python TableFunction
+    */
+  def createPythonTableFunction(
+      funcName: String,
+      serializedTableFunction: Array[Byte],
+      inputTypes: Array[TypeInformation[_]],
+      resultTypes: Array[TypeInformation[_]],
+      deterministic: Boolean,
+      pythonEnv: PythonEnv): TableFunction[_] =
+    PythonFunctionCodeGenerator.generateTableFunction(
+      funcName,
+      serializedTableFunction,
+      inputTypes,
+      resultTypes,
       deterministic,
       pythonEnv)
 

@@ -48,6 +48,7 @@ import org.powermock.modules.junit4.PowerMockRunner
 import java.math.BigDecimal
 
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConversions._
 
@@ -82,11 +83,11 @@ class AggCallSelectivityEstimatorTest {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
-    val catalogManager = mock(classOf[CatalogManager])
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = mock(classOf[ModuleManager])
     val config = new TableConfig
     val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
-    val context = new FlinkContextImpl(new TableConfig, functionCatalog, catalogManager)
+    val context = new FlinkContextImpl(new TableConfig, functionCatalog, catalogManager, null)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getTypeFactory").thenReturn(typeFactory)

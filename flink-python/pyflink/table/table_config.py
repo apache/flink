@@ -18,6 +18,7 @@
 
 from py4j.compat import long
 
+from pyflink import since
 from pyflink.common import Configuration
 from pyflink.common.dependency_manager import DependencyManager
 from pyflink.java_gateway import get_gateway
@@ -276,6 +277,7 @@ class TableConfig(object):
         """
         self._j_table_config.setSqlDialect(SqlDialect._to_j_sql_dialect(sql_dialect))
 
+    @since("1.10.0")
     def set_python_executable(self, python_exec):
         """
         Sets the path of the python interpreter which is used to execute the python udf workers.
@@ -305,7 +307,7 @@ class TableConfig(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.15.0).
+            The python udf worker depends on Apache Beam (version == 2.19.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
@@ -313,6 +315,7 @@ class TableConfig(object):
         """
         self.get_configuration().set_string(DependencyManager.PYTHON_EXEC, python_exec)
 
+    @since("1.10.0")
     def get_python_executable(self):
         """
         Gets the path of the python interpreter which is used to execute the python udf workers.

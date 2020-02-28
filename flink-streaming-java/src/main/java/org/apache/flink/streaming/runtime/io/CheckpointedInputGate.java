@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -28,8 +29,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -66,7 +65,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 			InputGate inputGate,
 			BufferStorage bufferStorage,
 			String taskName,
-			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+			AbstractInvokable toNotifyOnCheckpoint) {
 		this(
 			inputGate,
 			bufferStorage,
@@ -235,8 +234,18 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @return The duration in nanoseconds
 	 */
-	public long getAlignmentDurationNanos() {
+	@VisibleForTesting
+	long getAlignmentDurationNanos() {
 		return barrierHandler.getAlignmentDurationNanos();
+	}
+
+	/**
+	 * @return the time that elapsed, in nanoseconds, between the creation of the latest checkpoint
+	 * and the time when it's first {@link CheckpointBarrier} was received by this {@link InputGate}.
+	 */
+	@VisibleForTesting
+	long getCheckpointStartDelayNanos() {
+		return barrierHandler.getCheckpointStartDelayNanos();
 	}
 
 	/**

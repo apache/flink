@@ -54,23 +54,23 @@ public class SingleInputGateFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGateFactory.class);
 
 	@Nonnull
-	private final ResourceID taskExecutorResourceId;
+	protected final ResourceID taskExecutorResourceId;
 
-	private final int partitionRequestInitialBackoff;
+	protected final int partitionRequestInitialBackoff;
 
-	private final int partitionRequestMaxBackoff;
-
-	@Nonnull
-	private final ConnectionManager connectionManager;
+	protected final int partitionRequestMaxBackoff;
 
 	@Nonnull
-	private final ResultPartitionManager partitionManager;
+	protected final ConnectionManager connectionManager;
 
 	@Nonnull
-	private final TaskEventPublisher taskEventPublisher;
+	protected final ResultPartitionManager partitionManager;
 
 	@Nonnull
-	private final NetworkBufferPool networkBufferPool;
+	protected final TaskEventPublisher taskEventPublisher;
+
+	@Nonnull
+	protected final NetworkBufferPool networkBufferPool;
 
 	private final int networkBuffersPerChannel;
 
@@ -198,7 +198,8 @@ public class SingleInputGateFactory {
 					metrics));
 	}
 
-	private InputChannel createKnownInputChannel(
+	@VisibleForTesting
+	protected InputChannel createKnownInputChannel(
 			SingleInputGate inputGate,
 			int index,
 			NettyShuffleDescriptor inputChannelDescriptor,
@@ -243,7 +244,10 @@ public class SingleInputGateFactory {
 		return () -> bufferPoolFactory.createBufferPool(0, floatingNetworkBuffersPerGate);
 	}
 
-	private static class ChannelStatistics {
+	/**
+	 * Statistics of input channels.
+	 */
+	protected static class ChannelStatistics {
 		int numLocalChannels;
 		int numRemoteChannels;
 		int numUnknownChannels;

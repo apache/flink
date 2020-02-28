@@ -53,7 +53,7 @@ public final class UnresolvedCallExpression implements Expression {
 
 	private final List<Expression> args;
 
-	public UnresolvedCallExpression(
+	UnresolvedCallExpression(
 			FunctionIdentifier functionIdentifier,
 			FunctionDefinition functionDefinition,
 			List<Expression> args) {
@@ -65,7 +65,7 @@ public final class UnresolvedCallExpression implements Expression {
 			new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null.")));
 	}
 
-	public UnresolvedCallExpression(
+	UnresolvedCallExpression(
 			FunctionDefinition functionDefinition,
 			List<Expression> args) {
 		this.functionIdentifier = null;

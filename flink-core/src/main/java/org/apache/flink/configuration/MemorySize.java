@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -54,6 +55,13 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
 	public static final MemorySize MAX_VALUE = new MemorySize(Long.MAX_VALUE);
 
+	private static final List<MemoryUnit> ORDERED_UNITS = Arrays.asList(
+		BYTES,
+		KILO_BYTES,
+		MEGA_BYTES,
+		GIGA_BYTES,
+		TERA_BYTES);
+
 	// ------------------------------------------------------------------------
 
 	/** The memory size, in bytes. */
@@ -61,6 +69,9 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
 	/** The memorized value returned by toString(). */
 	private transient String stringified;
+
+	/** The memorized value returned by toHumanReadableString(). */
+	private transient String humanReadableStr;
 
 	/**
 	 * Constructs a new MemorySize.
@@ -70,6 +81,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 	public MemorySize(long bytes) {
 		checkArgument(bytes >= 0, "bytes must be >= 0");
 		this.bytes = bytes;
+	}
+
+	public static MemorySize ofMebiBytes(long mebiBytes) {
+		return new MemorySize(mebiBytes << 20);
 	}
 
 	// ------------------------------------------------------------------------
@@ -132,23 +147,16 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 	}
 
 	private String formatToString() {
-		List<MemoryUnit> orderedUnits = Arrays.asList(
-			BYTES,
-			KILO_BYTES,
-			MEGA_BYTES,
-			GIGA_BYTES,
-			TERA_BYTES);
-
-		MemoryUnit highestIntegerUnit = IntStream.range(0, orderedUnits.size())
+		MemoryUnit highestIntegerUnit = IntStream.range(0, ORDERED_UNITS.size())
 			.sequential()
-			.filter(idx -> bytes % orderedUnits.get(idx).getMultiplier() != 0)
+			.filter(idx -> bytes % ORDERED_UNITS.get(idx).getMultiplier() != 0)
 			.boxed()
 			.findFirst()
 			.map(idx -> {
 				if (idx == 0) {
-					return orderedUnits.get(0);
+					return ORDERED_UNITS.get(0);
 				} else {
-					return orderedUnits.get(idx - 1);
+					return ORDERED_UNITS.get(idx - 1);
 				}
 			}).orElse(BYTES);
 
@@ -156,6 +164,38 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 			"%d %s",
 			bytes / highestIntegerUnit.getMultiplier(),
 			highestIntegerUnit.getUnits()[1]);
+	}
+
+	public String toHumanReadableString() {
+		if (humanReadableStr == null) {
+			humanReadableStr = formatToHumanReadableString();
+		}
+
+		return humanReadableStr;
+	}
+
+	private String formatToHumanReadableString() {
+		MemoryUnit highestUnit = IntStream.range(0, ORDERED_UNITS.size())
+			.sequential()
+			.filter(idx -> bytes > ORDERED_UNITS.get(idx).getMultiplier())
+			.boxed()
+			.max(Comparator.naturalOrder())
+			.map(ORDERED_UNITS::get)
+			.orElse(BYTES);
+
+		if (highestUnit == BYTES) {
+			return String.format(
+				"%d %s",
+				bytes,
+				BYTES.getUnits()[1]);
+		} else {
+			double approximate = 1.0 * bytes / highestUnit.getMultiplier();
+			return String.format(
+				"%.3f%s (%d bytes)",
+				approximate,
+				highestUnit.getUnits()[1],
+				bytes);
+		}
 	}
 
 	@Override

@@ -44,20 +44,20 @@ public class KeySelectorUtil {
 	public static BaseRowKeySelector getBaseRowSelector(int[] keyFields, BaseRowTypeInfo rowType) {
 		if (keyFields.length > 0) {
 			LogicalType[] inputFieldTypes = rowType.getLogicalTypes();
-			String[] inputFieldNames = rowType.getFieldNames();
 			LogicalType[] keyFieldTypes = new LogicalType[keyFields.length];
-			String[] keyFieldNames = new String[keyFields.length];
 			for (int i = 0; i < keyFields.length; ++i) {
 				keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
-				keyFieldNames[i] = inputFieldNames[keyFields[i]];
 			}
-			RowType returnType = RowType.of(keyFieldTypes, keyFieldNames);
-			RowType inputType = RowType.of(inputFieldTypes, rowType.getFieldNames());
+			// do not provide field names for the result key type,
+			// because we may have duplicate key fields and the field names may conflict
+			RowType returnType = RowType.of(keyFieldTypes);
+			RowType inputType = rowType.toRowType();
 			GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 				CodeGeneratorContext.apply(new TableConfig()),
 				"KeyProjection",
 				inputType,
-				returnType, keyFields);
+				returnType,
+				keyFields);
 			BaseRowTypeInfo keyRowType = BaseRowTypeInfo.of(returnType);
 			return new BinaryRowKeySelector(keyRowType, generatedProjection);
 		} else {

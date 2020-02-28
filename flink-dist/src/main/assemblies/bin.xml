@@ -38,8 +38,10 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.slf4j:slf4j-log4j12</include>
-				<include>log4j:log4j</include>
+				<include>org.apache.logging.log4j:log4j-api</include>
+				<include>org.apache.logging.log4j:log4j-core</include>
+				<include>org.apache.logging.log4j:log4j-slf4j-impl</include>
+				<include>org.apache.logging.log4j:log4j-1.2-api</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
@@ -49,6 +51,13 @@ under the License.
 		<file>
 			<source>target/flink-dist_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy bash utils -->
+		<file>
+			<source>target/bash-java-utils.jar</source>
+			<outputDirectory>bin/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
 
