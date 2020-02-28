@@ -99,8 +99,8 @@ public class DatadogHttpClient {
 		}
 	}
 
-	public void send(DatadogHttpReporter.DatadogHttpRequest request) throws Exception {
-		String postBody = serialize(request.getSeries());
+	public void send(DSeries request) throws Exception {
+		String postBody = serialize(request);
 
 		Request r = new Request.Builder()
 			.url(seriesUrl)
