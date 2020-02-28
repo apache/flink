@@ -37,7 +37,12 @@ import _root_.scala.collection.JavaConverters._
 class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
   override def visit(call: CallExpression): PlannerExpression = {
-    ApiResolvedCallExpression(call)
+    val functionKind = call.getFunctionDefinition.getKind
+    if (functionKind == FunctionKind.AGGREGATE || functionKind == FunctionKind.TABLE_AGGREGATE) {
+      ApiResolvedAggregateCallExpression(call)
+    } else {
+      ApiResolvedCallExpression(call)
+    }
   }
 
   override def visit(unresolvedCall: UnresolvedCallExpression): PlannerExpression = {

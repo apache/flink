@@ -34,7 +34,7 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
  * Wrapper for call expressions resolved already in the API with the new type inference stack.
  */
 case class ApiResolvedCallExpression(
-  resolvedCall: CallExpression)
+    resolvedCall: CallExpression)
   extends LeafExpression {
 
   override private[flink] def resultType: TypeInformation[_] = TypeConversions
