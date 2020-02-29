@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.operators.bundle.trigger.BundleTriggerCall
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.util.Collector;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -85,7 +85,7 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT>
 
 		this.numOfElements = 0;
 		this.collector = new StreamRecordCollector<>(output);
-		this.bundle = new HashMap<>();
+		this.bundle = new LinkedHashMap<>();
 
 		bundleTrigger.registerCallback(this);
 		// reset trigger
