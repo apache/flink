@@ -134,8 +134,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private transient ExecutorService executor;
 	private transient List<Future> pendingTasks;
 
-	private transient boolean deDuplication;
-	private transient int maxOneSideOutOfOrder;
+	private boolean deDuplication = false;
+	private int maxOneSideOutOfOrder = 1;
 
 	/**
 	 * Creates a new IntervalJoinOperator.
@@ -159,7 +159,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			ProcessJoinFunction<T1, T2, OUT> udf) {
 
 		super(Preconditions.checkNotNull(udf));
-
+		Preconditions.checkArgument(udf.getMaxOutOfOrder() > 0,
+		"interval join threads must be greater than 0");
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 

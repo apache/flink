@@ -188,7 +188,7 @@ public class IntervalJoinITCase {
 	}
 
 	@Test
-	private void testCorrectlyJoinWithKeysOutOfOrder() throws Exception {
+	public void testCorrectlyJoinWithKeysOutOfOrderAsInOrder() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
@@ -224,7 +224,6 @@ public class IntervalJoinITCase {
 		expectInAnyOrder(
 			"(key1,1):(key1,2)",
 			"(key2,1):(key2,1)",
-			"(key1,1):(key1,2)",
 			"(key2,2):(key2,3)"
 		);
 	}
