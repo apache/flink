@@ -176,6 +176,13 @@
 			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<file>
+			<source>target/temporary/flink-shaded-zookeeper-3-${zookeeper.optional.version}-${flink.shaded.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-shaded-zookeeper-${zookeeper.optional.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 	<dependencySets>
 		<dependencySet>
