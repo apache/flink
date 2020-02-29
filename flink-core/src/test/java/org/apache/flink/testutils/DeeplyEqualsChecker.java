@@ -24,7 +24,6 @@ import org.apache.flink.types.Row;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -33,7 +32,6 @@ import java.util.function.BiFunction;
  * Deep equality checker for tests. It performs deep checks for objects which have no proper deepEquals methods like:
  * <ul>
  *     <li>{@link Tuple}s</li>
- *     <li>{@link Iterable}s</li>
  *     <li>Java arrays</li>
  *     <li>{@link Row}</li>
  *     <li>{@link Throwable}</li>
@@ -90,8 +88,6 @@ public class DeeplyEqualsChecker {
 	private boolean deepEquals0(Object e1, Object e2) {
 		if (e1.getClass().isArray() && e2.getClass().isArray()) {
 			return deepEqualsArray(e1, e2);
-		} else if (e1 instanceof Iterable && e2 instanceof Iterable) {
-			return deepEqualsIterable((Iterable) e1, (Iterable) e2);
 		} else if (e1 instanceof Tuple && e2 instanceof Tuple) {
 			return deepEqualsTuple((Tuple) e1, (Tuple) e2);
 		} else if (e1 instanceof Row && e2 instanceof Row) {
@@ -101,21 +97,6 @@ public class DeeplyEqualsChecker {
 		} else {
 			return e1.equals(e2);
 		}
-	}
-
-	private boolean deepEqualsIterable(Iterable i1, Iterable i2) {
-		Iterator s1 = i1.iterator();
-		Iterator s2 = i2.iterator();
-
-		while (s1.hasNext() && s2.hasNext()) {
-			Object l = s1.next();
-			Object r = s2.next();
-
-			if (!deepEquals(l, r)) {
-				return false;
-			}
-		}
-		return !s1.hasNext() && !s2.hasNext();
 	}
 
 	private boolean deepEqualsTuple(Tuple tuple1, Tuple tuple2) {
