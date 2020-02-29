@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -233,7 +234,7 @@ public class TimeWindow extends Window {
 			if (currentMerge == null) {
 				currentMerge = new Tuple2<>();
 				currentMerge.f0 = candidate;
-				currentMerge.f1 = new HashSet<>();
+				currentMerge.f1 = new LinkedHashSet<>();
 				currentMerge.f1.add(candidate);
 			} else if (currentMerge.f0.intersects(candidate)) {
 				currentMerge.f0 = currentMerge.f0.cover(candidate);
