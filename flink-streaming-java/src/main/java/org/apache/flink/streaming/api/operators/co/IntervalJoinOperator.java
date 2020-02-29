@@ -304,13 +304,13 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		Boolean isLeftProcessed = isKeyedLeftProcessed.value() == 1;
 
-		if (isLeft == isLeftProcessed && isKeyedLeftProcessed.value() != 0) {
+		if (isLeftProcessed == isLeft && isKeyedLeftProcessed.value() != 0) {
 			Future futureTask = executor.submit(t);
 			pendingTasks.add(futureTask);
 		} else {
 			waitForPendingTasks();
-			isKeyedLeftProcessed.update(isLeft ? 1 : -1);
 			t.run();
+			isKeyedLeftProcessed.update(isLeft ? 1 : -1);
 		}
 	}
 
@@ -326,14 +326,12 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	public void processWatermark(Watermark mark) throws Exception {
 		waitForPendingTasks();
 		super.processWatermark(mark);
-		isKeyedLeftProcessed.update(-1);
 	}
 
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		waitForPendingTasks();
 		super.snapshotState(context);
-		isKeyedLeftProcessed.update(-1);
 	}
 
 	@Override

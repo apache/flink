@@ -221,7 +221,6 @@ public class IntervalJoinITCase {
 			.addSink(new ResultSink());
 
 		env.execute();
-		Thread.sleep(100L);
 		expectInAnyOrder(
 			"(key1,1):(key1,2)",
 			"(key2,1):(key2,1)",
@@ -411,7 +410,6 @@ public class IntervalJoinITCase {
 				ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
-				ctx.close();
 			}
 
 			@Override
@@ -433,7 +431,6 @@ public class IntervalJoinITCase {
 				ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
 				ctx.collectWithTimestamp(Tuple2.of("key", 6), 6L);
-				ctx.close();
 			}
 
 			@Override
@@ -524,7 +521,6 @@ public class IntervalJoinITCase {
 			.addSink(new ResultSink());
 
 		env.execute();
-		Thread.sleep(100L);
 		expectInAnyOrder(
 			"(key1,0):(key1,0)",
 			"(key2,1):(key2,1)",
