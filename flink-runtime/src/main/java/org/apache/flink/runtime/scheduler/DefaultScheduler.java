@@ -93,7 +93,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-	DefaultScheduler(
+	public DefaultScheduler(
 		final Logger log,
 		final JobGraph jobGraph,
 		final BackPressureStatsTracker backPressureStatsTracker,

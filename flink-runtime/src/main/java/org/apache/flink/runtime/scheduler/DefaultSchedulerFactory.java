@@ -107,7 +107,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
 	}
 
-	static SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
+	private SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
 		switch (scheduleMode) {
 			case EAGER:
 				return new EagerSchedulingStrategy.Factory();
