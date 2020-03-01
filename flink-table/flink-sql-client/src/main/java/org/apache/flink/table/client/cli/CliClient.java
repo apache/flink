@@ -512,21 +512,35 @@ public class CliClient {
 			printExecutionException(e);
 			return;
 		}
-		final CliResultView view;
-		if (resultDesc.isMaterialized()) {
-			view = new CliTableResultView(this, resultDesc);
+
+		if (resultDesc.isTableauMode()) {
+			try (CliTableauResultView tableauResultView = new CliTableauResultView(
+					terminal, executor, sessionId, resultDesc)) {
+				if (resultDesc.isMaterialized()) {
+					tableauResultView.displayBatchResults();
+				} else {
+					tableauResultView.displayStreamResults();
+				}
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		} else {
-			view = new CliChangelogResultView(this, resultDesc);
-		}
+			final CliResultView view;
+			if (resultDesc.isMaterialized()) {
+				view = new CliTableResultView(this, resultDesc);
+			} else {
+				view = new CliChangelogResultView(this, resultDesc);
+			}
 
-		// enter view
-		try {
-			view.open();
+			// enter view
+			try {
+				view.open();
 
-			// view left
-			printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
+				// view left
+				printInfo(CliStrings.MESSAGE_RESULT_QUIT);
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		}
 	}
 
