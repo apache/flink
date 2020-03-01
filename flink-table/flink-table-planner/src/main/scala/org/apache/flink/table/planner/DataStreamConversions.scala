@@ -20,7 +20,6 @@ package org.apache.flink.table.planner
 
 import java.lang.{Boolean => JBool}
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
