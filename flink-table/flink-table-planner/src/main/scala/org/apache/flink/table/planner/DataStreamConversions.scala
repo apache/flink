@@ -42,7 +42,8 @@ object DataStreamConversions {
     *                            field naming might be lost during optimization.
     * @param withChangeFlag      Set to true to emit records with change flags.
     * @param requestedOutputType The [[TypeInformation]] of the resulting [[DataStream]].
-    * @tparam A The type of the resulting [[DataStream]].
+    * @param config              The [[TableConfig]] of the current [[TableEnvironment]].
+    * @tparam A                  The type of the resulting [[DataStream]].
     * @return The [[DataStream]] of requested type.
     */
   def convert[A](
