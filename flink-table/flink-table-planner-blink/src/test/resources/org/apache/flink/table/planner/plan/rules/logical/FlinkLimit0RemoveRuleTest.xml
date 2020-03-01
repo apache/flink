@@ -39,7 +39,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalProject($f0=[IS NOT NULL($0)])
       +- LogicalAggregate(group=[{}], m=[MIN($0)])
          +- LogicalProject(i=[true])
-            +- LogicalValues(tuples=[[]])
+            +- LogicalValues(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -63,7 +63,7 @@ LogicalSort(fetch=[0])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalValues(tuples=[[]])
+   +- LogicalValues(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -87,7 +87,7 @@ LogicalSort(fetch=[0])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalValues(tuples=[[]])
+   +- LogicalValues(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -110,7 +110,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
 LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalValues(tuples=[[]])
+   +- LogicalValues(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -137,7 +137,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalProject($f0=[IS NOT NULL($0)])
       +- LogicalAggregate(group=[{}], m=[MIN($0)])
          +- LogicalProject(i=[true])
-            +- LogicalValues(tuples=[[]])
+            +- LogicalValues(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -154,7 +154,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalValues(tuples=[[]])
+LogicalValues(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -171,7 +171,7 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], offset=[10], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalValues(tuples=[[]])
+LogicalValues(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -190,7 +190,7 @@ LogicalProject(a=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0])
-+- LogicalValues(tuples=[[]])
++- LogicalValues(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -207,7 +207,7 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalValues(tuples=[[]])
+LogicalValues(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.config.ExecutionConfigOptions.{SQL_EXEC_DISABLED_OPERATORS, SQL_RESOURCE_DEFAULT_PARALLELISM, SQL_RESOURCE_HASH_AGG_TABLE_MEM}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -113,12 +113,12 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
       FlinkStatistic.builder().uniqueKeys(Set(Set("a6").asJava).asJava).build()
     )
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
   }
 
   @Test
   def testSingleAggOnTable_SortAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
+    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
     testSingleAggOnTable()
     checkResult("SELECT a6, b6, max(c6), count(d6), sum(e6) FROM T6 GROUP BY a6, b6",
       (0 until 50000).map(i => row(i, 1L, if (i % 500 == 0) null else s"Hello$i", 1L, 10))
@@ -127,21 +127,19 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
 
   @Test
   def testSingleAggOnTable_HashAgg_WithLocalAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
     // set smaller parallelism to avoid MemoryAllocationException
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 2)
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
+    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 2)
     testSingleAggOnTable()
   }
 
   @Test
   def testSingleAggOnTable_HashAgg_WithoutLocalAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
     testSingleAggOnTable()
   }
 
@@ -151,18 +149,18 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
       Seq(row(2, 1, 1), row(3, 2, 1), row(5, 2, 1), row(6, 3, 1)))
     // group by string
     checkResult("SELECT a1, c1, count(d1), avg(b1) FROM T1 GROUP BY a1, c1",
-      Seq(row(2, "A", 0, 1.0), row(3, "A", 1, 2.0), row(5, "B", 1, 2.0), row(6, "C", 1, 3.0)))
+      Seq(row(2, "A", 0, 1), row(3, "A", 1, 2), row(5, "B", 1, 2), row(6, "C", 1, 3)))
     checkResult("SELECT c5, d5, avg(b5), avg(a5) FROM T5 WHERE d5 IS NOT NULL GROUP BY c5, d5",
-      Seq(row("B", "Hi", 2.0, 3.0), row("C", "Hello", null, 1.0),
-        row("D", "Hello world", 3.0, 4.0), row("E", "Hello world, how are you?", 1.0, 3.0),
-        row("I", "hahaha", 2.0, 7.0), row("J", "I am fine.", 1.0, 6.0)))
+      Seq(row("B", "Hi", 2, 3), row("C", "Hello", null, 1),
+        row("D", "Hello world", 3, 4), row("E", "Hello world, how are you?", 1, 3),
+        row("I", "hahaha", 2, 7), row("J", "I am fine.", 1, 6)))
     // group by string with null
     checkResult("SELECT a1, d1, count(d1) FROM T1 GROUP BY a1, d1",
       Seq(row(2, null, 0), row(3, "Hi", 1), row(5, "Hello", 1), row(6, "Hello world", 1)))
     checkResult("SELECT c5, d5, avg(b5), avg(a5) FROM T5 GROUP BY c5, d5",
-      Seq(row("A", null, 1.0, 2.0), row("B", "Hi", 2.0, 3.0), row("C", "Hello", null, 1.0),
-        row("D", "Hello world", 3.0, 4.0), row("E", "Hello world, how are you?", 1.0, 3.0),
-        row("F", null, null, 5.0), row("I", "hahaha", 2.0, 7.0), row("J", "I am fine.", 1.0, 6.0)))
+      Seq(row("A", null, 1, 2), row("B", "Hi", 2, 3), row("C", "Hello", null, 1),
+        row("D", "Hello world", 3, 4), row("E", "Hello world, how are you?", 1, 3),
+        row("F", null, null, 5), row("I", "hahaha", 2, 7), row("J", "I am fine.", 1, 6)))
 
     checkResult("SELECT a3, b3, count(c3) FROM T3 GROUP BY a3, b3",
       Seq(row(1, 10, 1), row(2, 20, 2), row(3, 10, 1), row(4, 20, 1), row(4, null, 1)))
@@ -176,14 +174,14 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
 
     // large data, for hash agg mode it will fallback
     checkResult("SELECT a6, c6, avg(b6), count(d6), avg(e6) FROM T6 GROUP BY a6, c6",
-      (0 until 50000).map(i => row(i, if (i % 500 == 0) null else s"Hello$i", 1D, 1L, 10D))
+      (0 until 50000).map(i => row(i, if (i % 500 == 0) null else s"Hello$i", 1, 1L, 10))
     )
     checkResult("SELECT a6, d6, avg(b6), count(c6), avg(e6) FROM T6 GROUP BY a6, d6",
-      (0 until 50000).map(i => row(i, "Hello world", 1D, if (i % 500 == 0) 0L else 1L, 10D))
+      (0 until 50000).map(i => row(i, "Hello world", 1, if (i % 500 == 0) 0L else 1L, 10))
     )
     checkResult("SELECT a6, f6, avg(b6), count(c6), avg(e6) FROM T6 GROUP BY a6, f6",
-      (0 until 50000).map(i => row(i, new Date(i + 1531820000000L), 1D,
-        if (i % 500 == 0) 0L else 1L, 10D))
+      (0 until 50000).map(i => row(i, new Date(i + 1531820000000L), 1,
+        if (i % 500 == 0) 0L else 1L, 10))
     )
   }
 
@@ -283,17 +281,17 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
 
     checkResult("SELECT a4, c4, COUNT(b4), AVG(b4) FROM T4 " +
       "GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)",
-      Seq(row(1, "A", 1, 1.0), row(2, "B", 1, 1.0), row(3, "B", 1, 2.0), row(4, "C", 1, 3.0)))
+      Seq(row(1, "A", 1, 1), row(2, "B", 1, 1), row(3, "B", 1, 2), row(4, "C", 1, 3)))
 
     checkResult("SELECT a4, e4, s, avg(ab), count(cb) FROM " +
       "(SELECT a4, e4, avg(b4) as ab, count(b4) AS cb, " +
       "TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, " +
       "TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 " +
       "GROUP BY a4, e4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, e4, s",
-      Seq(row(1, "Hi", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1D, 1),
-        row(2, "Hello", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1D, 1),
-        row(3, "Hello world", LocalDateTime.of(2018, 6, 1, 10, 15, 0), 2D, 1),
-        row(4, "I am fine.", LocalDateTime.of(2018, 6, 1, 10, 30, 0), 3D, 1)))
+      Seq(row(1, "Hi", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1, 1),
+        row(2, "Hello", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1, 1),
+        row(3, "Hello world", LocalDateTime.of(2018, 6, 1, 10, 15, 0), 2, 1),
+        row(4, "I am fine.", LocalDateTime.of(2018, 6, 1, 10, 30, 0), 3, 1)))
 
     checkResult("SELECT a4, c4, s, COUNT(b4) FROM " +
       "(SELECT a4, c4, avg(b4) AS b4, " +

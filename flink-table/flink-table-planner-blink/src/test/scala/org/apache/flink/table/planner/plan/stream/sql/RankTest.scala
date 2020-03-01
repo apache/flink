@@ -579,28 +579,6 @@ class RankTest extends TableTestBase {
   }
 
   @Test
-  def testTopNOrderByIncrSum(): Unit = {
-    val subquery =
-      """
-        |SELECT a, b, incr_sum(c) as sum_c
-        |FROM MyTable
-        |GROUP BY a, b
-      """.stripMargin
-
-    val sql =
-      s"""
-         |SELECT *
-         |FROM (
-         |  SELECT a, b, sum_c,
-         |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY sum_c DESC) AS row_num
-         |  FROM ($subquery))
-         |WHERE row_num <= 10
-      """.stripMargin
-
-    util.verifyPlanWithTrait(sql)
-  }
-
-  @Test
   def testNestedTopN(): Unit = {
     val subquery =
       """
@@ -656,59 +634,6 @@ class RankTest extends TableTestBase {
          |      ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) as row_num
          |  FROM ($subquery))
          |WHERE row_num <= a
-      """.stripMargin
-
-    util.verifyPlanWithTrait(sql)
-  }
-
-  @Test
-  def testTopNWithoutRowNumber2(): Unit = {
-    util.addTableSource[(String, String, String, String, Long, String, Long, String)](
-      "stream_source",
-      'seller_id, 'sku_id, 'venture, 'stat_date, 'trd_amt, 'trd_buyer_id, 'log_pv, 'log_visitor_id)
-
-    val group_sql =
-      """
-        |SELECT
-        |    seller_id
-        |    ,sku_id
-        |    ,venture
-        |    ,stat_date
-        |    ,incr_sum(trd_amt) AS amt_dtr
-        |    ,COUNT(DISTINCT trd_buyer_id) AS byr_cnt_dtr
-        |    ,SUM(log_pv) AS pv_dtr
-        |    ,COUNT(DISTINCT log_visitor_id) AS uv_dtr
-        |FROM stream_source
-        |GROUP BY seller_id,sku_id,venture,stat_date
-      """.stripMargin
-
-    val sql =
-      s"""
-         |SELECT
-         |    CONCAT(seller_id, venture, stat_date, sku_id) as rowkey,
-         |    seller_id,
-         |    sku_id,
-         |    venture,
-         |    stat_date,
-         |    amt_dtr,
-         |    byr_cnt_dtr,
-         |    pv_dtr,
-         |    uv_dtr
-         |FROM (
-         |  SELECT
-         |        seller_id,
-         |        sku_id,
-         |        venture,
-         |        stat_date,
-         |        amt_dtr,
-         |        byr_cnt_dtr,
-         |        pv_dtr,
-         |        uv_dtr,
-         |        ROW_NUMBER() OVER (PARTITION BY seller_id, venture, stat_date
-         |           ORDER BY amt_dtr DESC) AS rownum
-         |  FROM ($group_sql)
-         |)
-         |WHERE rownum <= 10
       """.stripMargin
 
     util.verifyPlanWithTrait(sql)

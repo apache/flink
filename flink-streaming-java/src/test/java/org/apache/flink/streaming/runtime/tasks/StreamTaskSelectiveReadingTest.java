@@ -28,8 +28,10 @@ import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
@@ -39,7 +41,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -58,7 +59,7 @@ public class StreamTaskSelectiveReadingTest {
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-		testBase(new AnyReadingStreamOperator("Operator0"), true, expectedOutput, true);
+		testBase(new TestAnyModeReadingStreamOperator("Operator0"), true, expectedOutput, true);
 	}
 
 	@Test
@@ -72,7 +73,7 @@ public class StreamTaskSelectiveReadingTest {
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-		testBase(new AnyReadingStreamOperator("Operator0"), false, expectedOutput, false);
+		testBase(new TestAnyModeReadingStreamOperator("Operator0"), false, expectedOutput, false);
 	}
 
 	@Test
@@ -86,7 +87,7 @@ public class StreamTaskSelectiveReadingTest {
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 3"));
 		expectedOutput.add(new StreamRecord<>("[Operator0-2]: 4"));
 
-		testBase(new SequentialReadingStreamOperator("Operator0"), false, expectedOutput, true);
+		testBase(new TestSequentialReadingStreamOperator("Operator0"), false, expectedOutput, true);
 	}
 
 	@Test
@@ -104,13 +105,14 @@ public class StreamTaskSelectiveReadingTest {
 	}
 
 	@Test
-	public void testReadFinishedInput() {
+	public void testReadFinishedInput() throws Exception {
 		try {
 			testBase(new TestReadFinishedInputStreamOperator(), false, new ConcurrentLinkedQueue<>(), true);
 			fail("should throw an IOException");
-		} catch (Throwable t) {
-			assertTrue("wrong exception, should be IOException",
-				ExceptionUtils.findThrowableWithMessage(t, "Could not read the finished input: input1").isPresent());
+		} catch (Exception t) {
+			if (!ExceptionUtils.findThrowableWithMessage(t, "only first input is selected but it is already finished").isPresent()) {
+				throw t;
+			}
 		}
 	}
 
@@ -182,7 +184,7 @@ public class StreamTaskSelectiveReadingTest {
 	// Utilities
 	// ------------------------------------------------------------------------
 
-	private static class TestSelectiveReadingTask<IN1, IN2, OUT> extends TwoInputSelectableStreamTask<IN1, IN2, OUT> {
+	private static class TestSelectiveReadingTask<IN1, IN2, OUT> extends TwoInputStreamTask<IN1, IN2, OUT> {
 
 		private volatile boolean started;
 
@@ -192,87 +194,20 @@ public class StreamTaskSelectiveReadingTest {
 		}
 
 		@Override
-		protected void performDefaultAction(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			if (!started) {
 				synchronized (this) {
 					this.wait();
 				}
 			}
 
-			super.performDefaultAction(context);
+			super.processInput(controller);
 		}
 
 		public void startProcessing() {
 			started = true;
 			synchronized (this) {
 				this.notifyAll();
-			}
-		}
-	}
-
-	private static class AnyReadingStreamOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
-
-		private final String name;
-
-		AnyReadingStreamOperator(String name) {
-			super();
-
-			this.name = name;
-		}
-
-		@Override
-		public InputSelection nextSelection() {
-			return InputSelection.ALL;
-		}
-
-		@Override
-		public void processElement1(StreamRecord<String> element) {
-			output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
-		}
-
-		@Override
-		public void processElement2(StreamRecord<Integer> element) {
-			output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
-		}
-	}
-
-	/**
-	 * Test operator for sequential reading.
-	 */
-	public static class SequentialReadingStreamOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable, BoundedMultiInput {
-
-		private final String name;
-
-		private InputSelection inputSelection;
-
-		public SequentialReadingStreamOperator(String name) {
-			super();
-
-			this.name = name;
-			this.inputSelection = InputSelection.FIRST;
-		}
-
-		@Override
-		public InputSelection nextSelection() {
-			return inputSelection;
-		}
-
-		@Override
-		public void processElement1(StreamRecord<String> element) {
-			output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
-		}
-
-		@Override
-		public void processElement2(StreamRecord<Integer> element) {
-			output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
-		}
-
-		@Override
-		public void endInput(int inputId) {
-			if (inputId == 1) {
-				inputSelection = InputSelection.SECOND;
 			}
 		}
 	}

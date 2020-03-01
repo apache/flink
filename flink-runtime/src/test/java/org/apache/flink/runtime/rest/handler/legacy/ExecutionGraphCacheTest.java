@@ -21,13 +21,13 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -168,7 +168,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		final ArchivedExecutionGraph expectedExecutionGraph2 = new ArchivedExecutionGraphBuilder().build();
 
 		final AtomicInteger requestJobCalls = new AtomicInteger(0);
-		final TestingRestfulGateway restfulGateway = TestingRestfulGateway.newBuilder()
+		final TestingRestfulGateway restfulGateway = new TestingRestfulGateway.Builder()
 			.setRequestJobFunction(
 				jobId -> {
 					requestJobCalls.incrementAndGet();
@@ -298,7 +298,8 @@ public class ExecutionGraphCacheTest extends TestLogger {
 				new ArchivedExecutionConfig(new ExecutionConfig()),
 				false,
 				null,
-				null);
+				null,
+				"stateBackendName");
 
 			jobStatus = super.getState();
 		}

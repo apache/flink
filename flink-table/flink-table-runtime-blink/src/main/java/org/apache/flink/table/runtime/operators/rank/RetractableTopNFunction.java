@@ -117,6 +117,9 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
 	@Override
 	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
+		long currentTime = ctx.timerService().currentProcessingTime();
+		// register state-cleanup timer
+		registerProcessingCleanupTimer(ctx, currentTime);
 		initRankEnd(input);
 		SortedMap<BaseRow, Long> sortedMap = treeMap.value();
 		if (sortedMap == null) {
@@ -132,8 +135,13 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			}
 
 			// emit
-			emitRecordsWithRowNumber(sortedMap, sortKey, input, out);
-
+			if (outputRankNumber || hasOffset()) {
+				// the without-number-algorithm can't handle topN with offset,
+				// so use the with-number-algorithm to handle offset
+				emitRecordsWithRowNumber(sortedMap, sortKey, input, out);
+			} else {
+				emitRecordsWithoutRowNumber(sortedMap, sortKey, input, out);
+			}
 			// update data state
 			List<BaseRow> inputs = dataState.get(sortKey);
 			if (inputs == null) {
@@ -144,7 +152,13 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			dataState.put(sortKey, inputs);
 		} else {
 			// emit updates first
-			retractRecordWithRowNumber(sortedMap, sortKey, input, out);
+			if (outputRankNumber || hasOffset()) {
+				// the without-number-algorithm can't handle topN with offset,
+				// so use the with-number-algorithm to handle offset
+				retractRecordWithRowNumber(sortedMap, sortKey, input, out);
+			} else {
+				retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
+			}
 
 			// and then update sortedMap
 			if (sortedMap.containsKey(sortKey)) {
@@ -171,7 +185,103 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		treeMap.update(sortedMap);
 	}
 
+	@Override
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
+		if (stateCleaningEnabled) {
+			cleanupState(dataState, treeMap);
+		}
+	}
+
 	// ------------- ROW_NUMBER-------------------------------
+
+	private void emitRecordsWithRowNumber(
+			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			throws Exception {
+		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
+		long curRank = 0L;
+		boolean findsSortKey = false;
+		while (iterator.hasNext() && isInRankEnd(curRank)) {
+			Map.Entry<BaseRow, Long> entry = iterator.next();
+			BaseRow key = entry.getKey();
+			if (!findsSortKey && key.equals(sortKey)) {
+				curRank += entry.getValue();
+				collect(out, inputRow, curRank);
+				findsSortKey = true;
+			} else if (findsSortKey) {
+				List<BaseRow> inputs = dataState.get(key);
+				if (inputs == null) {
+					// Skip the data if it's state is cleared because of state ttl.
+					if (lenient) {
+						LOG.warn(STATE_CLEARED_WARN_MSG);
+					} else {
+						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+					}
+				} else {
+					int i = 0;
+					while (i < inputs.size() && isInRankEnd(curRank)) {
+						curRank += 1;
+						BaseRow prevRow = inputs.get(i);
+						retract(out, prevRow, curRank - 1);
+						collect(out, prevRow, curRank);
+						i++;
+					}
+				}
+			} else {
+				curRank += entry.getValue();
+			}
+		}
+	}
+
+	private void emitRecordsWithoutRowNumber(
+			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
+			throws Exception {
+		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
+		long curRank = 0L;
+		boolean findsSortKey = false;
+		BaseRow toCollect = null;
+		BaseRow toDelete = null;
+		while (iterator.hasNext() && isInRankEnd(curRank)) {
+			Map.Entry<BaseRow, Long> entry = iterator.next();
+			BaseRow key = entry.getKey();
+			if (!findsSortKey && key.equals(sortKey)) {
+				curRank += entry.getValue();
+				if (isInRankRange(curRank)) {
+					toCollect = inputRow;
+				}
+				findsSortKey = true;
+			} else if (findsSortKey) {
+				List<BaseRow> inputs = dataState.get(key);
+				if (inputs == null) {
+					// Skip the data if it's state is cleared because of state ttl.
+					if (lenient) {
+						LOG.warn(STATE_CLEARED_WARN_MSG);
+					} else {
+						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+					}
+				} else {
+					long count = entry.getValue();
+					// gets the rank of last record with same sortKey
+					long rankOfLastRecord = curRank + count;
+					// deletes the record if there is a record recently downgrades to Top-(N+1)
+					if (isInRankEnd(rankOfLastRecord)) {
+						curRank = rankOfLastRecord;
+					} else {
+						int index = Long.valueOf(rankEnd - curRank).intValue();
+						toDelete = inputs.get(index);
+						break;
+					}
+				}
+			} else {
+				curRank += entry.getValue();
+			}
+		}
+		if (toDelete != null) {
+			delete(out, toDelete);
+		}
+		if (toCollect != null) {
+			collect(out, inputRow);
+		}
+	}
 
 	private void retractRecordWithRowNumber(
 			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
@@ -228,7 +338,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		}
 	}
 
-	private void emitRecordsWithRowNumber(
+	private void retractRecordWithoutRowNumber(
 			SortedMap<BaseRow, Long> sortedMap, BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out)
 			throws Exception {
 		Iterator<Map.Entry<BaseRow, Long>> iterator = sortedMap.entrySet().iterator();
@@ -238,10 +348,6 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			Map.Entry<BaseRow, Long> entry = iterator.next();
 			BaseRow key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
-				curRank += entry.getValue();
-				collect(out, inputRow, curRank);
-				findsSortKey = true;
-			} else if (findsSortKey) {
 				List<BaseRow> inputs = dataState.get(key);
 				if (inputs == null) {
 					// Skip the data if it's state is cleared because of state ttl.
@@ -251,14 +357,41 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
 					}
 				} else {
-					int i = 0;
-					while (i < inputs.size() && isInRankEnd(curRank)) {
+					Iterator<BaseRow> inputIter = inputs.iterator();
+					while (inputIter.hasNext() && isInRankEnd(curRank)) {
 						curRank += 1;
-						BaseRow prevRow = inputs.get(i);
-						retract(out, prevRow, curRank - 1);
-						collect(out, prevRow, curRank);
-						i++;
+						BaseRow prevRow = inputIter.next();
+						if (!findsSortKey && equaliser.equalsWithoutHeader(prevRow, inputRow)) {
+							delete(out, prevRow, curRank);
+							curRank -= 1;
+							findsSortKey = true;
+							inputIter.remove();
+						} else if (findsSortKey) {
+							if (curRank == rankEnd) {
+								collect(out, prevRow, curRank);
+								break;
+							}
+						}
 					}
+					if (inputs.isEmpty()) {
+						dataState.remove(key);
+					} else {
+						dataState.put(key, inputs);
+					}
+				}
+			} else if (findsSortKey) {
+				long count = entry.getValue();
+				// gets the rank of last record with same sortKey
+				long rankOfLastRecord = curRank + count;
+				// sends the record if there is a record recently upgrades to Top-N
+				if (rankOfLastRecord < rankEnd) {
+					curRank = rankOfLastRecord;
+				} else {
+					int index = Long.valueOf(rankEnd - curRank - 1).intValue();
+					List<BaseRow> inputs = dataState.get(key);
+					BaseRow toAdd = inputs.get(index);
+					collect(out, toAdd);
+					break;
 				}
 			} else {
 				curRank += entry.getValue();

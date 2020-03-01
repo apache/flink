@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -110,7 +111,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	public void testGetTaskManagerLocationWhenScheduled() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		final TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlot();
+		final TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
 		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
 				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);

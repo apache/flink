@@ -38,6 +38,7 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -782,6 +783,11 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 			"Cannot release snapshot which is owned by a different state map.");
 
 		releaseSnapshot(copyOnWriteStateMapSnapshot.getSnapshotVersion());
+	}
+
+	@VisibleForTesting
+	Set<Integer> getSnapshotVersions() {
+		return snapshotVersions;
 	}
 
 	// Meta data setter / getter and toString -----------------------------------------------------

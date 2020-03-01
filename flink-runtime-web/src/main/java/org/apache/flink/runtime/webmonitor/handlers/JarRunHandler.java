@@ -98,11 +98,7 @@ public class JarRunHandler extends
 			return jobGraph;
 		});
 
-		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> {
-			// we have to enable queued scheduling because slots will be allocated lazily
-			jobGraph.setAllowQueuedScheduling(true);
-			return gateway.submitJob(jobGraph, timeout);
-		});
+		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
 
 		return jobSubmissionFuture
 			.thenCombine(jarUploadFuture, (ack, jobGraph) -> new JarRunResponseBody(jobGraph.getJobID()));
@@ -139,7 +135,7 @@ public class JarRunHandler extends
 			JarHandlerContext context,
 			final SavepointRestoreSettings savepointRestoreSettings) {
 		return CompletableFuture.supplyAsync(() -> {
-			final JobGraph jobGraph = context.toJobGraph(configuration);
+			final JobGraph jobGraph = context.toJobGraph(configuration, false);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 			return jobGraph;
 		}, executor);

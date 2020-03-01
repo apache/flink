@@ -29,12 +29,10 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -42,6 +40,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -117,8 +116,6 @@ abstract class BatchExecHashAggregateBase(
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  def getOperatorName: String
-
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
@@ -131,27 +128,24 @@ abstract class BatchExecHashAggregateBase(
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)
 
-    var managedMemoryInMB = 0
+    var managedMemory: Long = 0L
     val generatedOperator = if (grouping.isEmpty) {
       AggWithoutKeysCodeGenerator.genWithoutKeys(
         ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
-      managedMemoryInMB = config.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM)
-      val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+      managedMemory = MemorySize.parse(config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal
-      ).genWithKeys(managedMemory)
+      ).genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    val ret = new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      input.getParallelism,
+      managedMemory)
   }
 }

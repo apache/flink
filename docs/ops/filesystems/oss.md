@@ -37,7 +37,7 @@ You can use OSS objects like regular files by specifying paths in the following 
 oss://<your-bucket>/<object-name>
 {% endhighlight %}
 
-Below shows how to use OSS with Flink:
+Below shows how to use OSS in a Flink job:
 
 {% highlight java %}
 // Read from OSS bucket
@@ -50,17 +50,19 @@ stream.writeAsText("oss://<your-bucket>/<object-name>")
 env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));
 {% endhighlight %}
 
-### Shaded Hadoop OSS file system 
+### Shaded Hadoop OSS file system
 
-To use `flink-oss-fs-hadoop,` copy the respective JAR file from the opt directory to the lib directory of your Flink distribution before starting Flink, e.g.
+To use `flink-oss-fs-hadoop,` copy the respective JAR file from the `opt` directory to a directory in `plugins` directory of your Flink distribution before starting Flink, e.g.
 
 {% highlight bash %}
-cp ./opt/flink-oss-fs-hadoop-{{ site.version }}.jar ./lib/
+mkdir ./plugins/oss-fs-hadoop
+cp ./opt/flink-oss-fs-hadoop-{{ site.version }}.jar ./plugins/oss-fs-hadoop/
 {% endhighlight %}
 
-`flink-oss-fs-hadoop` registers default FileSystem wrappers for URIs with the oss:// scheme.
+`flink-oss-fs-hadoop` registers default FileSystem wrappers for URIs with the *oss://* scheme.
 
 #### Configurations setup
+
 After setting up the OSS FileSystem wrapper, you need to add some configurations to make sure that Flink is allowed to access your OSS buckets.
 
 To allow for easy adoption, you can use the same configuration keys in `flink-conf.yaml` as in Hadoop's `core-site.xml`
@@ -74,5 +76,14 @@ fs.oss.endpoint: Aliyun OSS endpoint to connect to
 fs.oss.accessKeyId: Aliyun access key ID
 fs.oss.accessKeySecret: Aliyun access key secret
 {% endhighlight %}
+
+An alternative `CredentialsProvider` can also be configured in the `flink-conf.yaml`, e.g. 
+{% highlight yaml %}
+# Read Credentials from OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET
+fs.oss.credentials.provider: com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider
+{% endhighlight %}
+Other credential providers can be found under https://github.com/aliyun/aliyun-oss-java-sdk/tree/master/src/main/java/com/aliyun/oss/common/auth. 
+
+ 
 
 {% top %}

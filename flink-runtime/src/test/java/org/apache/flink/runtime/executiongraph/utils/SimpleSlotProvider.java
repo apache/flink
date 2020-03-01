@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -76,7 +77,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i),
 				0,
 				taskManagerGateway,
-				ResourceProfile.UNKNOWN);
+				ResourceProfile.ANY);
 			slots.add(as);
 		}
 
@@ -88,7 +89,6 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
-			boolean allowQueued,
 			Time allocationTimeout) {
 		final SlotContext slot;
 
@@ -99,19 +99,18 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				slot = slots.removeFirst();
 			}
 			if (slot != null) {
-				TestingLogicalSlot result = new TestingLogicalSlot(
-					slot.getTaskManagerLocation(),
-					slot.getTaskManagerGateway(),
-					slot.getPhysicalSlotNumber(),
-					slot.getAllocationId(),
-					slotRequestId,
-					new SlotSharingGroupId(),
-					null,
-					this);
+				TestingLogicalSlot result = new TestingLogicalSlotBuilder()
+					.setTaskManagerLocation(slot.getTaskManagerLocation())
+					.setTaskManagerGateway(slot.getTaskManagerGateway())
+					.setSlotNumber(slot.getPhysicalSlotNumber())
+					.setAllocationId(slot.getAllocationId())
+					.setSlotRequestId(slotRequestId)
+					.setSlotSharingGroupId(task.getSlotSharingGroupId())
+					.setSlotOwner(this)
+					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
 				return CompletableFuture.completedFuture(result);
-			}
-			else {
+			} else {
 				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
 			}
 		}
@@ -138,7 +137,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				logicalSlot.getTaskManagerLocation(),
 				logicalSlot.getPhysicalSlotNumber(),
 				logicalSlot.getTaskManagerGateway(),
-				ResourceProfile.UNKNOWN);
+				ResourceProfile.ANY);
 
 			slots.add(as);
 			allocatedSlots.remove(logicalSlot.getSlotRequestId());

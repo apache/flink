@@ -216,7 +216,7 @@ class CalcITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery(sqlQuery)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(result, "MySink")
+    tEnv.insertInto("MySink", result)
     tEnv.execute("test")
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
@@ -259,5 +259,29 @@ class CalcITCase extends StreamingTestBase {
 
     val expected = List("2,2,Hello", "3,2,Hello world")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testLongProjectionList(): Unit = {
+
+    val t = env.fromCollection(TestData.smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val selectList = Stream.range(3, 200)
+      .map(i => s"CASE WHEN a IS NOT NULL AND a > $i THEN 0 WHEN a < 0 THEN 0 ELSE $i END")
+      .mkString(",")
+    val sqlQuery = s"select $selectList from MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Stream.range(3, 200).map(_.toString).mkString(",")
+    assertEquals(sink.getAppendResults.size, TestData.smallTupleData3.size)
+    sink.getAppendResults.foreach( result =>
+      assertEquals(expected, result)
+    )
   }
 }

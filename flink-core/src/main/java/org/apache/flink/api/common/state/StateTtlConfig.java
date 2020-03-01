@@ -79,17 +79,6 @@ public class StateTtlConfig implements Serializable {
 
 	/**
 	 * This option configures time scale to use for ttl.
-	 *
-	 * @deprecated will be removed in a future version in favor of {@link TtlTimeCharacteristic}
-	 */
-	@Deprecated
-	public enum TimeCharacteristic {
-		/** Processing time, see also <code>TimeCharacteristic.ProcessingTime</code>. */
-		ProcessingTime
-	}
-
-	/**
-	 * This option configures time scale to use for ttl.
 	 */
 	public enum TtlTimeCharacteristic {
 		/** Processing time, see also <code>org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>. */
@@ -169,7 +158,7 @@ public class StateTtlConfig implements Serializable {
 		private StateVisibility stateVisibility = NeverReturnExpired;
 		private TtlTimeCharacteristic ttlTimeCharacteristic = ProcessingTime;
 		private Time ttl;
-		private boolean isCleanupInBackground = false;
+		private boolean isCleanupInBackground = true;
 		private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy> strategies =
 			new EnumMap<>(CleanupStrategies.Strategies.class);
 
@@ -217,22 +206,6 @@ public class StateTtlConfig implements Serializable {
 		@Nonnull
 		public Builder neverReturnExpired() {
 			return setStateVisibility(StateVisibility.NeverReturnExpired);
-		}
-
-		/**
-		 * Sets the time characteristic.
-		 *
-		 * @param timeCharacteristic The time characteristic configures time scale to use for ttl.
-		 *
-		 * @deprecated will be removed in a future version in favor of {@link #setTtlTimeCharacteristic}
-		 */
-		@Deprecated
-		@Nonnull
-		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
-			checkArgument(timeCharacteristic.equals(TimeCharacteristic.ProcessingTime),
-				"Only support TimeCharacteristic.ProcessingTime, this function has replaced by setTtlTimeCharacteristic.");
-			setTtlTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
-			return this;
 		}
 
 		/**
@@ -336,13 +309,30 @@ public class StateTtlConfig implements Serializable {
 		}
 
 		/**
-		 * Enable cleanup of expired state in background.
+		 * Enable default cleanup of expired state in background (enabled by default).
 		 *
-		 * <p>Depending on actually used backend, the corresponding cleanup will kick in if supported.
+		 * <p>Depending on actually used backend, the corresponding default cleanup will kick in if supported.
+		 * If some specific cleanup is also configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
+		 * {@link #cleanupInRocksdbCompactFilter()}, then the specific one will kick in instead of default.
+		 *
+		 * @deprecated enabled by default, no need to enable it manually
 		 */
 		@Nonnull
+		@Deprecated
 		public Builder cleanupInBackground() {
 			isCleanupInBackground = true;
+			return this;
+		}
+
+		/**
+		 * Disable default cleanup of expired state in background (enabled by default).
+		 *
+		 * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
+		 * {@link #cleanupInRocksdbCompactFilter()}, this setting does not disable it.
+		 */
+		@Nonnull
+		public Builder disableCleanupInBackground() {
+			isCleanupInBackground = false;
 			return this;
 		}
 

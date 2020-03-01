@@ -202,18 +202,11 @@ public abstract class NettyMessage {
 	 * </pre>
 	 */
 	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
-		private final boolean restoreOldNettyBehaviour;
-
 		/**
 		 * Creates a new message decoded with the required frame properties.
-		 *
-		 * @param restoreOldNettyBehaviour
-		 * 		restore Netty 4.0.27 code in {@link LengthFieldBasedFrameDecoder#extractFrame} to
-		 * 		copy instead of slicing the buffer
 		 */
-		NettyMessageDecoder(boolean restoreOldNettyBehaviour) {
+		NettyMessageDecoder() {
 			super(Integer.MAX_VALUE, 0, 4, -4, 4);
-			this.restoreOldNettyBehaviour = restoreOldNettyBehaviour;
 		}
 
 		@Override
@@ -268,29 +261,6 @@ public abstract class NettyMessage {
 				msg.release();
 			}
 		}
-
-		@Override
-		protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
-			if (restoreOldNettyBehaviour) {
-				/*
-				 * For non-credit based code paths with Netty >= 4.0.28.Final:
-				 * These versions contain an improvement by Netty, which slices a Netty buffer
-				 * instead of doing a memory copy [1] in the
-				 * LengthFieldBasedFrameDecoder. In some situations, this
-				 * interacts badly with our Netty pipeline leading to OutOfMemory
-				 * errors.
-				 *
-				 * [1] https://github.com/netty/netty/issues/3704
-				 *
-				 * TODO: remove along with the non-credit based fallback protocol
-				 */
-				ByteBuf frame = ctx.alloc().buffer(length);
-				frame.writeBytes(buffer, index, length);
-				return frame;
-			} else {
-				return super.extractFrame(ctx, buffer, index, length);
-			}
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -311,14 +281,18 @@ public abstract class NettyMessage {
 
 		final boolean isBuffer;
 
+		final boolean isCompressed;
+
 		private BufferResponse(
 				ByteBuf buffer,
 				boolean isBuffer,
+				boolean isCompressed,
 				int sequenceNumber,
 				InputChannelID receiverId,
 				int backlog) {
 			this.buffer = checkNotNull(buffer);
 			this.isBuffer = isBuffer;
+			this.isCompressed = isCompressed;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
@@ -331,6 +305,7 @@ public abstract class NettyMessage {
 				int backlog) {
 			this.buffer = checkNotNull(buffer).asByteBuf();
 			this.isBuffer = buffer.isBuffer();
+			this.isCompressed = buffer.isCompressed();
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
@@ -354,8 +329,8 @@ public abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
-			// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), buffer size (4)
-			final int messageHeaderLength = 16 + 4 + 4 + 1 + 4;
+			// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), isCompressed (1), buffer size (4)
+			final int messageHeaderLength = 16 + 4 + 4 + 1 + 1 + 4;
 
 			ByteBuf headerBuf = null;
 			try {
@@ -371,6 +346,7 @@ public abstract class NettyMessage {
 				headerBuf.writeInt(sequenceNumber);
 				headerBuf.writeInt(backlog);
 				headerBuf.writeBoolean(isBuffer);
+				headerBuf.writeBoolean(isCompressed);
 				headerBuf.writeInt(buffer.readableBytes());
 
 				CompositeByteBuf composityBuf = allocator.compositeDirectBuffer();
@@ -396,10 +372,11 @@ public abstract class NettyMessage {
 			int sequenceNumber = buffer.readInt();
 			int backlog = buffer.readInt();
 			boolean isBuffer = buffer.readBoolean();
+			boolean isCompressed = buffer.readBoolean();
 			int size = buffer.readInt();
 
 			ByteBuf retainedSlice = buffer.readSlice(size).retain();
-			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId, backlog);
+			return new BufferResponse(retainedSlice, isBuffer, isCompressed, sequenceNumber, receiverId, backlog);
 		}
 	}
 
@@ -670,16 +647,13 @@ public abstract class NettyMessage {
 
 		private static final byte ID = 6;
 
-		final ResultPartitionID partitionId;
-
 		final int credit;
 
 		final InputChannelID receiverId;
 
-		AddCredit(ResultPartitionID partitionId, int credit, InputChannelID receiverId) {
+		AddCredit(int credit, InputChannelID receiverId) {
 			checkArgument(credit > 0, "The announced credit should be greater than 0");
 
-			this.partitionId = partitionId;
 			this.credit = credit;
 			this.receiverId = receiverId;
 		}
@@ -689,10 +663,7 @@ public abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16);
-
-				partitionId.getPartitionId().writeTo(result);
-				partitionId.getProducerId().writeTo(result);
+				result = allocateBuffer(allocator, ID, 4 + 16);
 				result.writeInt(credit);
 				receiverId.writeTo(result);
 
@@ -708,14 +679,10 @@ public abstract class NettyMessage {
 		}
 
 		static AddCredit readFrom(ByteBuf buffer) {
-			ResultPartitionID partitionId =
-				new ResultPartitionID(
-					IntermediateResultPartitionID.fromByteBuf(buffer),
-					ExecutionAttemptID.fromByteBuf(buffer));
 			int credit = buffer.readInt();
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 
-			return new AddCredit(partitionId, credit, receiverId);
+			return new AddCredit(credit, receiverId);
 		}
 
 		@Override

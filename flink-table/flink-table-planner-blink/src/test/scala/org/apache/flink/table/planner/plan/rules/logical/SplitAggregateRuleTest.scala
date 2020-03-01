@@ -33,9 +33,8 @@ class SplitAggregateRuleTest extends TableTestBase {
   private val util = streamTestUtil()
   util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
   util.buildStreamProgram(FlinkStreamProgram.PHYSICAL)
-  util.enableMiniBatch()
   util.tableEnv.getConfig.getConfiguration.setBoolean(
-    OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
 
   @Test
   def testSingleDistinctAgg(): Unit = {
@@ -76,27 +75,13 @@ class SplitAggregateRuleTest extends TableTestBase {
   }
 
   @Test
-  def testSingleFirstValueWithOrderWithDistinctAgg(): Unit = {
-    // FIRST_VALUE with order is not splittable,
-    // so SplitAggregateRule can not be applied to the plan
-    util.verifyPlan("SELECT a, FIRST_VALUE(c, b), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
   def testSingleLastValueWithDistinctAgg(): Unit = {
     util.verifyPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
-  def testSingleLastValueWithOrderWithDistinctAgg(): Unit = {
-    // LAST_VALUE with order is not splittable,
-    // so SplitAggregateRule can not be applied to the plan
-    util.verifyPlan("SELECT a, LAST_VALUE(c, b), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
-  def testSingleConcatAggWithDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT a, CONCAT_AGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+  def testSingleListAggWithDistinctAgg(): Unit = {
+    util.verifyPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
@@ -179,7 +164,7 @@ class SplitAggregateRuleTest extends TableTestBase {
   @Test
   def testBucketsConfiguration(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setInteger(
-      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
     val sqlQuery = "SELECT COUNT(DISTINCT c) FROM MyTable"
     util.verifyPlan(sqlQuery)
   }

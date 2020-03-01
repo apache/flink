@@ -509,10 +509,11 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				stubOpen = false;
 			}
 
-			this.output.close();
-
 			// close all chained tasks letting them report failure
 			BatchTask.closeChainedTasks(this.chainedTasks, this);
+
+			// close the output collector
+			this.output.close();
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause

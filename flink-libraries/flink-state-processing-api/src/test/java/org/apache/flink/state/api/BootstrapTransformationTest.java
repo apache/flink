@@ -21,6 +21,7 @@ package org.apache.flink.state.api;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.core.fs.Path;
@@ -28,9 +29,11 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
+import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assert;
@@ -39,6 +42,7 @@ import org.junit.Test;
 /**
  * Tests for bootstrap transformations.
  */
+@SuppressWarnings("serial")
 public class BootstrapTransformationTest extends AbstractTestBase {
 
 	@Test
@@ -138,6 +142,30 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 		Assert.assertEquals("The parallelism of a data set should be constrained my the savepoint max parallelism", 1, getParallelism(result));
 	}
 
+	@Test
+	public void testStreamConfig() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSource<String> input = env.fromElements("");
+
+		BootstrapTransformation<String> transformation = OperatorTransformation
+			.bootstrapWith(input)
+			.keyBy(new CustomKeySelector())
+			.transform(new ExampleKeyedStateBootstrapFunction());
+
+		StreamConfig config = transformation.getConfig(OperatorIDGenerator.fromUid("uid"), new MemoryStateBackend(), null);
+		KeySelector selector = config.getStatePartitioner(0, Thread.currentThread().getContextClassLoader());
+
+		Assert.assertEquals("Incorrect key selector forwarded to stream operator", CustomKeySelector.class, selector.getClass());
+	}
+
+	private static class CustomKeySelector implements KeySelector<String, String> {
+
+		@Override
+		public String getKey(String value) throws Exception {
+			return value;
+		}
+	}
+
 	private static <T> int getParallelism(DataSet<T> dataSet) {
 		//All concrete implementations of DataSet are operators so this should always be safe.
 		return ((Operator) dataSet).getParallelism();
@@ -162,6 +190,13 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
+		}
+	}
+
+	private static class ExampleKeyedStateBootstrapFunction extends KeyedStateBootstrapFunction<String, String> {
+
+		@Override
+		public void processElement(String value, Context ctx) throws Exception {
 		}
 	}
 }

@@ -48,8 +48,6 @@ public interface ResultSubpartitionView {
 
 	void releaseAllResources() throws IOException;
 
-	void notifySubpartitionConsumed() throws IOException;
-
 	boolean isReleased();
 
 	Throwable getFailureCause();
@@ -60,4 +58,6 @@ public interface ResultSubpartitionView {
 	boolean nextBufferIsEvent();
 
 	boolean isAvailable();
+
+	int unsynchronizedGetNumberOfQueuedBuffers();
 }

@@ -34,5 +34,5 @@ __all__ = [
     'ExecutionMode',
     'InputDependencyConstraint',
     'RestartStrategies',
-    'RestartStrategyConfiguration'
+    'RestartStrategyConfiguration',
 ]

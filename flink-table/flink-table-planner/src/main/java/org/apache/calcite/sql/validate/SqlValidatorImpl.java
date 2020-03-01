@@ -90,6 +90,8 @@ import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
+import org.apache.calcite.sql.validate.implicit.TypeCoercion;
+import org.apache.calcite.sql.validate.implicit.TypeCoercions;
 import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.util.BitString;
 import org.apache.calcite.util.Bug;
@@ -290,6 +292,12 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	private final SqlValidatorImpl.ValidationErrorFunction validationErrorFunction =
 		new SqlValidatorImpl.ValidationErrorFunction();
 
+	// TypeCoercion instance used for implicit type coercion.
+	private TypeCoercion typeCoercion;
+
+	// Flag saying if we enable the implicit type coercion.
+	private boolean enableTypeCoercion;
+
 	//~ Constructors -----------------------------------------------------------
 
 	/**
@@ -321,6 +329,9 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 		overFinder = new AggFinder(opTab, true, false, false, aggOrOverFinder, nameMatcher);
 		groupFinder = new AggFinder(opTab, false, false, true, null, nameMatcher);
 		aggOrOverOrGroupFinder = new AggFinder(opTab, true, true, true, null, nameMatcher);
+		this.enableTypeCoercion = catalogReader.getConfig() == null
+			|| catalogReader.getConfig().typeCoercion();
+		this.typeCoercion = TypeCoercions.getTypeCoercion(this, conformance);
 	}
 
 	//~ Methods ----------------------------------------------------------------
@@ -3816,6 +3827,29 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	public SqlValidatorScope getWithScope(SqlNode withItem) {
 		assert withItem.getKind() == SqlKind.WITH_ITEM;
 		return scopes.get(withItem);
+	}
+
+	@Override
+	public SqlValidator setEnableTypeCoercion(boolean enabled) {
+		this.enableTypeCoercion = enabled;
+		return this;
+	}
+
+	@Override
+	public boolean isTypeCoercionEnabled() {
+		return this.enableTypeCoercion;
+	}
+
+	@Override
+	public void setTypeCoercion(TypeCoercion typeCoercion) {
+		Objects.requireNonNull(typeCoercion);
+		this.typeCoercion = typeCoercion;
+	}
+
+	@Override
+	public TypeCoercion getTypeCoercion() {
+		assert isTypeCoercionEnabled();
+		return this.typeCoercion;
 	}
 
 	/**

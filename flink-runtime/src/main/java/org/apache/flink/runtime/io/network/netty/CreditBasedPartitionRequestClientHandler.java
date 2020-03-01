@@ -306,6 +306,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 				Buffer buffer = inputChannel.requestBuffer();
 				if (buffer != null) {
 					nettyBuffer.readBytes(buffer.asByteBuf(), receivedSize);
+					buffer.setCompressed(bufferOrEvent.isCompressed);
 
 					inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 				} else if (inputChannel.isReleased()) {
@@ -352,7 +353,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 			//It is no need to notify credit for the released channel.
 			if (!inputChannel.isReleased()) {
 				AddCredit msg = new AddCredit(
-					inputChannel.getPartitionId(),
 					inputChannel.getAndResetUnannouncedCredit(),
 					inputChannel.getInputChannelId());
 

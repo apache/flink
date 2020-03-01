@@ -19,9 +19,11 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -37,12 +39,15 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -57,12 +62,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	private final IMetaStoreClient client;
 	private final HiveConf hiveConf;
-	private final String hiveVersion;
+	private final HiveShim hiveShim;
 
 	public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
 		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
-		this.hiveVersion = hiveVersion;
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		client = createMetastoreClient();
 	}
 
@@ -147,6 +152,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		client.dropDatabase(name, deleteData, ignoreIfNotExists);
 	}
 
+	public void dropDatabase(String name, boolean deleteData, boolean ignoreIfNotExists, boolean cascade)
+			throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
+		client.dropDatabase(name, deleteData, ignoreIfNotExists, cascade);
+	}
+
 	public void alterDatabase(String name, Database database) throws NoSuchObjectException, MetaException, TException {
 		client.alterDatabase(name, database);
 	}
@@ -154,11 +164,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	public boolean dropPartition(String databaseName, String tableName, List<String> partitionValues, boolean deleteData)
 			throws NoSuchObjectException, MetaException, TException {
 		return client.dropPartition(databaseName, tableName, partitionValues, deleteData);
-	}
-
-	public void alter_partition(String databaseName, String tableName, Partition partition)
-			throws InvalidOperationException, MetaException, TException {
-		client.alter_partition(databaseName, tableName, partition);
 	}
 
 	public void renamePartition(String databaseName, String tableName, List<String> partitionValues, Partition partition)
@@ -213,26 +218,52 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		return client.listPartitions(dbName, tblName, max);
 	}
 
+	public PartitionSpecProxy listPartitionSpecsByFilter(String dbName, String tblName, String filter, short max) throws TException {
+		return client.listPartitionSpecsByFilter(dbName, tblName, filter, max);
+	}
+
 	//-------- Start of shimmed methods ----------
 
+	public Set<String> getNotNullColumns(Configuration conf, String dbName, String tableName) {
+		return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
+	}
+
+	public Optional<UniqueConstraint> getPrimaryKey(String dbName, String tableName, byte trait) {
+		return hiveShim.getPrimaryKey(client, dbName, tableName, trait);
+	}
+
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getViews(client, databaseName);
 	}
 
 	private IMetaStoreClient createMetastoreClient() {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getHiveMetastoreClient(hiveConf);
 	}
 
 	public Function getFunction(String databaseName, String functionName) throws MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-		return hiveShim.getFunction(client, databaseName, functionName);
+		try {
+			// Hive may not throw NoSuchObjectException if function doesn't exist, instead it throws a MetaException
+			return client.getFunction(databaseName, functionName);
+		} catch (MetaException e) {
+			// need to check the cause and message of this MetaException to decide whether it should actually be a NoSuchObjectException
+			if (e.getCause() instanceof NoSuchObjectException) {
+				throw (NoSuchObjectException) e.getCause();
+			}
+			if (e.getMessage().startsWith(NoSuchObjectException.class.getSimpleName())) {
+				throw new NoSuchObjectException(e.getMessage());
+			}
+			throw e;
+		}
 	}
 
 	public void alter_table(String databaseName, String tableName, Table table)
 			throws InvalidOperationException, MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		hiveShim.alterTable(client, databaseName, tableName, table);
 	}
+
+	public void alter_partition(String databaseName, String tableName, Partition partition)
+			throws InvalidOperationException, MetaException, TException {
+		hiveShim.alterPartition(client, databaseName, tableName, partition);
+	}
+
 }

@@ -25,16 +25,16 @@ limitations under the License.
 LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
 +- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
    :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
-   :  +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
+   :  +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
    +- LogicalProject(EXPR$0=[3], EXPR$1=[4:BIGINT]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
-      +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
+      +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
 :- Calc(select=[1 AS EXPR$0, 2.0:DECIMAL(20, 1) AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
-:  +- Values(tuples=[[{ 0 }]], values=[ZERO], reuse_id=[1]), rowType=[RecordType(INTEGER ZERO)]
+:  +- Values(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]], values=[ZERO], reuse_id=[1]), rowType=[RecordType(INTEGER ZERO)]
 +- Calc(select=[3 AS EXPR$0, 4.0:DECIMAL(20, 1) AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
    +- Reused(reference_id=[1]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
@@ -47,12 +47,12 @@ Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, D
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalValues(tuples=[[{ 1, 2, 3 }]])
++- LogicalValues(type=[RecordType(INTEGER a, INTEGER b, INTEGER c)], tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
+Values(type=[RecordType(INTEGER a, INTEGER b, INTEGER c)], tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -65,18 +65,18 @@ Values(tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
 LogicalProject(a=[$0], b=[$1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(EXPR$0=[1], EXPR$1=[2])
-   :  +- LogicalValues(tuples=[[{ 0 }]])
+   :  +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
    :- LogicalProject(EXPR$0=[3], EXPR$1=[null:INTEGER])
-   :  +- LogicalValues(tuples=[[{ 0 }]])
+   :  +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
    +- LogicalProject(EXPR$0=[4], EXPR$1=[5])
-      +- LogicalValues(tuples=[[{ 0 }]])
+      +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[EXPR$0, EXPR$1])
 :- Calc(select=[1 AS EXPR$0, CAST(2) AS EXPR$1])
-:  +- Values(tuples=[[{ 0 }]], values=[ZERO], reuse_id=[1])
+:  +- Values(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]], values=[ZERO], reuse_id=[1])
 :- Calc(select=[3 AS EXPR$0, null:INTEGER AS EXPR$1])
 :  +- Reused(reference_id=[1])
 +- Calc(select=[4 AS EXPR$0, CAST(5) AS EXPR$1])
@@ -91,13 +91,13 @@ Union(all=[true], union=[EXPR$0, EXPR$1])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[null:INTEGER])
-+- LogicalValues(tuples=[[{ 0 }]])
++- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[null:INTEGER AS EXPR$0])
-+- Values(tuples=[[{ 0 }]], values=[ZERO])
++- Values(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]], values=[ZERO])
 ]]>
     </Resource>
   </TestCase>

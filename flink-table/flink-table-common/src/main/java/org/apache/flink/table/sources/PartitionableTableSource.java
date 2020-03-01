@@ -19,7 +19,6 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.table.sinks.TableSink;
 
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,7 @@ import java.util.Map;
  *
  * <p>A partition is represented as a {@code Map<String, String>} which maps from partition
  * field name to partition value. Since the map is NOT ordered, the correct order of partition
- * fields should be obtained via {@link #getPartitionFieldNames()}.
+ * fields should be obtained via partition keys of catalog table.
  */
 @Experimental
 public interface PartitionableTableSource {
@@ -42,17 +41,6 @@ public interface PartitionableTableSource {
 	 * Returns all the partitions of this {@link PartitionableTableSource}.
 	 */
 	List<Map<String, String>> getPartitions();
-
-	/**
-	 * Gets the partition field names of the table. The partition field names should be sorted in
-	 * a strict order, i.e. they have the order as specified in the PARTITION statement in DDL.
-	 * This should be an empty set if the table is not partitioned.
-	 *
-	 * <p>All the partition fields should exist in the {@link TableSink#getTableSchema()}.
-	 *
-	 * @return partition field names of the table, empty if the table is not partitioned.
-	 */
-	List<String> getPartitionFieldNames();
 
 	/**
 	 * Applies the remaining partitions to the table source. The {@code remainingPartitions} is

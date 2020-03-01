@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
+import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
@@ -37,11 +38,14 @@ final class LogicalSink(
     traitSet: RelTraitSet,
     input: RelNode,
     sink: TableSink[_],
-    sinkName: String)
+    sinkName: String,
+    val catalogTable: CatalogTable,
+    val staticPartitions: Map[String, String])
   extends Sink(cluster, traitSet, input, sink, sinkName) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalSink(cluster, traitSet, inputs.head, sink, sinkName)
+    new LogicalSink(
+      cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
@@ -50,8 +54,11 @@ object LogicalSink {
 
   def create(input: RelNode,
       sink: TableSink[_],
-      sinkName: String): LogicalSink = {
+      sinkName: String,
+      catalogTable: CatalogTable = null,
+      staticPartitions: Map[String, String] = Map()): LogicalSink = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
-    new LogicalSink(input.getCluster, traits, input, sink, sinkName)
+    new LogicalSink(
+      input.getCluster, traits, input, sink, sinkName, catalogTable, staticPartitions)
   }
 }

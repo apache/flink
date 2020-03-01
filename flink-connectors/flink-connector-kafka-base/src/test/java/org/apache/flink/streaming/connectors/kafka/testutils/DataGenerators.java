@@ -55,8 +55,7 @@ public class DataGenerators {
 			final int numElements,
 			final boolean randomizeOrder) throws Exception {
 		env.setParallelism(numPartitions);
-		env.getConfig().disableSysoutLogging();
-		env.setRestartStrategy(RestartStrategies.noRestart());
+				env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> stream = env.addSource(
 				new RichParallelSourceFunction<Integer>() {
@@ -105,6 +104,8 @@ public class DataGenerators {
 		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
+		// Ensure the producer enables idempotence.
+		props.putAll(testServer.getIdempotentProducerConfig());
 
 		stream = stream.rebalance();
 		testServer.produceIntoKafka(stream, topic,

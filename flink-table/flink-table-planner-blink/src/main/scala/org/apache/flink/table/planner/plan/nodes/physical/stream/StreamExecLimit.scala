@@ -127,7 +127,8 @@ class StreamExecLimit(
       tableConfig, "AlwaysEqualsComparator", Array(), Array(), Array(), Array())
 
     val processFunction = if (generateRetraction) {
-      val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.SQL_EXEC_TOPN_CACHE_SIZE)
+      val cacheSize = tableConfig.getConfiguration.getLong(
+        StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
       new AppendOnlyTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,
@@ -166,13 +167,14 @@ class StreamExecLimit(
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(
       inputTransform,
-      s"Limit(offset: $limitStart, fetch: ${fetchToString(fetch)})",
+      getRelDetailedDescription,
       operator,
       outputRowTypeInfo,
-      getResource.getParallelism)
+      inputTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     val selector = NullBinaryRowKeySelector.INSTANCE

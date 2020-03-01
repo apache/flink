@@ -139,24 +139,19 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	}
 
 	public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+		final String metricName;
 		if (name != null && name.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
 			LOG.warn("The operator name {} exceeded the {} characters length limit and was truncated.", name, METRICS_OPERATOR_NAME_MAX_LENGTH);
-			name = name.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+			metricName = name.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+		} else {
+			metricName = name;
 		}
-		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, operatorID, name);
+
 		// unique OperatorIDs only exist in streaming, so we have to rely on the name for batch operators
-		final String key = operatorID + name;
+		final String key = operatorID + metricName;
 
 		synchronized (this) {
-			OperatorMetricGroup previous = operators.put(key, operator);
-			if (previous == null) {
-				// no operator group so far
-				return operator;
-			} else {
-				// already had an operator group. restore that one.
-				operators.put(key, previous);
-				return previous;
-			}
+			return operators.computeIfAbsent(key, operator -> new OperatorMetricGroup(this.registry, this, operatorID, metricName));
 		}
 	}
 

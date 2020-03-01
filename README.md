@@ -67,10 +67,10 @@ counts.writeAsCsv(outputPath)
 
 Prerequisites for building Flink:
 
-* Unix-like environment (we use Linux, Mac OS X, Cygwin)
-* git
+* Unix-like environment (we use Linux, Mac OS X, Cygwin, WSL)
+* Git
 * Maven (we recommend version 3.2.5 and require at least 3.1.1)
-* Java 8 (Java 9 and 10 are not yet supported)
+* Java 8 or 11 (Java 9 or 10 may work)
 
 ```
 git clone https://github.com/apache/flink.git
@@ -78,7 +78,7 @@ cd flink
 mvn clean package -DskipTests # this will take up to 10 minutes
 ```
 
-Flink is now installed in `build-target`
+Flink is now installed in `build-target`.
 
 *NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
 To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
@@ -98,7 +98,7 @@ Minimal requirements for an IDE are:
 The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala development.
 
 * IntelliJ download: [https://www.jetbrains.com/idea/](https://www.jetbrains.com/idea/)
-* IntelliJ Scala Plugin: [http://plugins.jetbrains.com/plugin/?id=1347](http://plugins.jetbrains.com/plugin/?id=1347)
+* IntelliJ Scala Plugin: [https://plugins.jetbrains.com/plugin/?id=1347](https://plugins.jetbrains.com/plugin/?id=1347)
 
 Check out our [Setting up IntelliJ](https://ci.apache.org/projects/flink/flink-docs-master/flinkDev/ide_setup.html#intellij-idea) guide for details.
 

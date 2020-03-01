@@ -20,7 +20,7 @@ package org.apache.flink.sql.parser.dml;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlProperty;
-import org.apache.flink.sql.parser.error.SqlParseException;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlInsertKeyword;
@@ -29,6 +29,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.NlsString;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -61,7 +62,8 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 
 	/** Get static partition key value pair as strings.
 	 *
-	 * <p>Caution that we use {@link SqlLiteral#toString()} to get
+	 * <p>For character literals we return the unquoted and unescaped values.
+	 * For other types we use {@link SqlLiteral#toString()} to get
 	 * the string format of the value literal. If the string format is not
 	 * what you need, use {@link #getStaticPartitions()}.
 	 *
@@ -75,7 +77,8 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 		}
 		for (SqlNode node : this.staticPartitions.getList()) {
 			SqlProperty sqlProperty = (SqlProperty) node;
-			String value = SqlLiteral.value(sqlProperty.getValue()).toString();
+			Comparable comparable = SqlLiteral.value(sqlProperty.getValue());
+			String value = comparable instanceof NlsString ? ((NlsString) comparable).getValue() : comparable.toString();
 			ret.put(sqlProperty.getKey().getSimple(), value);
 		}
 		return ret;
@@ -139,7 +142,7 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 	}
 
 	@Override
-	public void validate() throws SqlParseException {
+	public void validate() throws SqlValidateException {
 		// no-op
 	}
 }

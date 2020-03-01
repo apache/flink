@@ -23,9 +23,9 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.ShuffleMode
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
-import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.config.ExecutionConfigOptions._
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment, TableUtils}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -56,7 +56,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
   private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
-    .create(settings, catalogManager = None, getTableConfig)
+    .create(settings, catalogManager = None, new TableConfig)
   val tEnv: TableEnvironment = testingTableEnv
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val env: StreamExecutionEnvironment = planner.getExecEnv
@@ -67,24 +67,9 @@ class BatchTestBase extends BatchAbstractTestBase {
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
     + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
-  // TODO: [FLINK-13338] will expose dialect option to TableConfig to
-  //  avoid override CalciteConfig by users
-  /**
-    * Subclass should overwrite this method if we want to overwrite configuration during
-    * sql parse to sql to rel conversion phrase.
-    */
-  protected def getTableConfig: TableConfig = new TableConfig
-
   @Before
   def before(): Unit = {
-    conf.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
-    conf.getConfiguration.setString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
-      ShuffleMode.PIPELINED.toString)
+    BatchTestBase.configForMiniCluster(conf)
   }
 
   /**
@@ -139,7 +124,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     FlinkRelOptUtil.toString(optimized, SqlExplainLevel.EXPPLAN_ATTRIBUTES)
   }
 
-  def check(sqlQuery: String, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+  def check(sqlQuery: String, checkFunc: Seq[Row] => Option[String]): Unit = {
     val table = parseQuery(sqlQuery)
     val result = executeQuery(table)
 
@@ -156,7 +141,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     }
   }
 
-  def checkTable(table: Table, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+  def checkTable(table: Table, checkFunc: Seq[Row] => Option[String]): Unit = {
     val result = executeQuery(table)
 
     checkFunc(result).foreach { results =>
@@ -300,7 +285,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableUtil.collect(table.asInstanceOf[TableImpl])
+  def executeQuery(table: Table): Seq[Row] = TableUtils.collectToList(table).asScala
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)
@@ -451,7 +436,7 @@ object BatchTestBase {
       result: Array[T],
       sort: Boolean,
       asTuples: Boolean = false): Unit = {
-    val resultStringsBuffer: ArrayBuffer[String] = new ArrayBuffer[String](result.size)
+    val resultStringsBuffer: ArrayBuffer[String] = new ArrayBuffer[String](result.length)
     result.foreach { v =>
       v match {
         case t0: Tuple if asTuples =>
@@ -486,5 +471,10 @@ object BatchTestBase {
       case (e, r) =>
         assertEquals(msg, e, r)
     }
+  }
+
+  def configForMiniCluster(conf: TableConfig): Unit = {
+    conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
+    conf.getConfiguration.setString(TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
   }
 }

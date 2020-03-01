@@ -52,9 +52,12 @@ public class FileSystemBlobStore implements BlobStoreService {
 	/** The base path of the blob store. */
 	private final String basePath;
 
+	/** The name of the blob path. */
+	public static final String BLOB_PATH_NAME = "blob";
+
 	public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
 		this.fileSystem = checkNotNull(fileSystem);
-		this.basePath = checkNotNull(storagePath) + "/blob";
+		this.basePath = checkNotNull(storagePath) + "/" + BLOB_PATH_NAME;
 
 		LOG.info("Creating highly available BLOB storage directory at {}", basePath);
 

@@ -164,7 +164,7 @@ class StreamExecGlobalGroupAggregate(
       .generateRecordEqualiser("GroupAggValueEqualiser")
 
     val operator = if (tableConfig.getConfiguration.getBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
       val aggFunction = new MiniBatchGlobalGroupAggFunction(
         localAggsHandler,
         globalAggsHandler,
@@ -186,13 +186,14 @@ class StreamExecGlobalGroupAggregate(
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
-      "GlobalGroupAggregate",
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outRowType),
-      getResource.getParallelism)
+      inputTransformation.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state

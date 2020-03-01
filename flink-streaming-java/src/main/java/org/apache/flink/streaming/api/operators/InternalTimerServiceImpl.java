@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -43,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
  */
-public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
+public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 
 	private final ProcessingTimeService processingTimeService;
 
@@ -153,6 +152,8 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 				TypeSerializerSchemaCompatibility<N> namespaceSerializerCompatibility =
 					restoredTimersSnapshot.getNamespaceSerializerSnapshot().resolveSchemaCompatibility(namespaceSerializer);
 
+				restoredTimersSnapshot = null;
+
 				if (namespaceSerializerCompatibility.isIncompatible() || namespaceSerializerCompatibility.isCompatibleAfterMigration()) {
 					throw new IllegalStateException(
 						"Tried to initialize restored TimerService with new namespace serializer that requires migration or is incompatible.");
@@ -175,7 +176,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 			// re-register the restored timers (if any)
 			final InternalTimer<K, N> headTimer = processingTimeTimersQueue.peek();
 			if (headTimer != null) {
-				nextTimer = processingTimeService.registerTimer(headTimer.getTimestamp(), this);
+				nextTimer = processingTimeService.registerTimer(headTimer.getTimestamp(), this::onProcessingTime);
 			}
 			this.isInitialized = true;
 		} else {
@@ -206,7 +207,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 				if (nextTimer != null) {
 					nextTimer.cancel(false);
 				}
-				nextTimer = processingTimeService.registerTimer(time, this);
+				nextTimer = processingTimeService.registerTimer(time, this::onProcessingTime);
 			}
 		}
 	}
@@ -246,8 +247,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 		}
 	}
 
-	@Override
-	public void onProcessingTime(long time) throws Exception {
+	private void onProcessingTime(long time) throws Exception {
 		// null out the timer in case the Triggerable calls registerProcessingTimeTimer()
 		// inside the callback.
 		nextTimer = null;
@@ -261,7 +261,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 		}
 
 		if (timer != null && nextTimer == null) {
-			nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this);
+			nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this::onProcessingTime);
 		}
 	}
 

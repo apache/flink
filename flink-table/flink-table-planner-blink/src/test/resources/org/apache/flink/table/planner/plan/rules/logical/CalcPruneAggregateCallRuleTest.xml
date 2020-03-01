@@ -89,7 +89,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalCalc(expr#0=[{inputs}], expr#1=[true], i=[$t1])
          +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
-            +- LogicalValues(tuples=[[]])
+            +- LogicalValues(type=[RecordType(INTEGER a1)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -166,7 +166,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalCalc(expr#0=[{inputs}], expr#1=[true], i=[$t1])
          +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-            +- LogicalValues(tuples=[[]])
+            +- LogicalValues(type=[RecordType(INTEGER $f0)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -188,7 +188,7 @@ LogicalProject(a1=[$0], c1=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalCalc(expr#0..1=[{inputs}], expr#2=[10], expr#3=[>($t1, $t2)], proj#0..1=[{exprs}], $condition=[$t3])
+LogicalCalc(expr#0..1=[{inputs}], expr#2=[10], expr#3=[>($t1, $t2)], a1=[$t0], c1=[$t1], $condition=[$t3])
 +- LogicalAggregate(group=[{0}], c1=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
@@ -279,7 +279,7 @@ LogicalProject(a2=[$0], b2=[$1], d2=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalCalc(expr#0..2=[{inputs}], expr#3=[0], expr#4=[>($t2, $t3)], proj#0..2=[{exprs}], $condition=[$t4])
+LogicalCalc(expr#0..2=[{inputs}], expr#3=[0], expr#4=[>($t2, $t3)], a2=[$t0], b2=[$t1], d2=[$t2], $condition=[$t4])
 +- LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
@@ -368,7 +368,7 @@ LogicalProject(a=[$0], b2=[$1], d2=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalCalc(expr#0..2=[{inputs}], proj#0..2=[{exprs}])
+LogicalCalc(expr#0..2=[{inputs}], a=[$t0], b2=[$t1], d2=[$t2])
 +- LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>

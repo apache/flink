@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, LocalTimeTypeInfo, T
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
-import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableTestBase, TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSource}
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableTestBase, TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSource}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
@@ -48,7 +48,7 @@ class TableSourceTest extends TableTestBase {
       Seq.empty[Row])
     )
     util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
-    util.tableEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
+    TestPartitionableSourceFactory.registerTableSource(util.tableEnv, "PartitionableTable", true)
   }
 
   @Test

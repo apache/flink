@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -144,7 +144,7 @@ class BatchExecRank(
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
           val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
           val partialKeyEnabled = tableConfig.getConfiguration.getBoolean(
-            BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+            BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && partitionKeyList.containsAll(shuffleKeys)
         }
       case _ => false
@@ -286,19 +286,11 @@ class BatchExecRank(
       rankEnd,
       outputRankNumber)
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
-      getOperatorName,
-      operator,
+      getRelDetailedDescription,
+      SimpleOperatorFactory.of(operator),
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
-  }
-
-  private def getOperatorName: String = {
-    if (isGlobal) {
-      "GlobalRank"
-    } else {
-      "LocalRank"
-    }
+      input.getParallelism)
   }
 }

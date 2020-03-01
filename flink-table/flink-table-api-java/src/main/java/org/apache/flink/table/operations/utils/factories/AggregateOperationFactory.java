@@ -31,6 +31,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -39,7 +40,6 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -69,7 +69,7 @@ import java.util.stream.Stream;
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
@@ -503,8 +503,8 @@ public final class AggregateOperationFactory {
 
 		@Override
 		protected Boolean defaultMethod(LogicalType logicalType) {
-			if (logicalType.getTypeRoot() == LogicalTypeRoot.ANY) {
-				// we don't know anything about the ANY type, we don't know if it is comparable and hashable.
+			if (logicalType.getTypeRoot() == LogicalTypeRoot.RAW) {
+				// we don't know anything about the RAW type, we don't know if it is comparable and hashable.
 				return false;
 			} else if (logicalType instanceof LegacyTypeInformationType) {
 				return ((LegacyTypeInformationType) logicalType).getTypeInformation().isKeyType();
@@ -518,11 +518,11 @@ public final class AggregateOperationFactory {
 	 * Extract a table aggregate Expression and it's aliases.
 	 */
 	public Tuple2<ResolvedExpression, List<String>> extractTableAggFunctionAndAliases(Expression callExpr) {
-		TableAggFunctionCallVisitor visitor = new TableAggFunctionCallVisitor();
+		TableAggFunctionCallResolver visitor = new TableAggFunctionCallResolver();
 		return Tuple2.of(callExpr.accept(visitor), visitor.getAlias());
 	}
 
-	private class TableAggFunctionCallVisitor extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+	private class TableAggFunctionCallResolver extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
 		private List<String> alias = new LinkedList<>();
 

@@ -55,7 +55,7 @@ class TableSinksValidationTest extends TableTestBase {
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRegistrationWithInconsistentFieldNamesAndTypesLength(): Unit = {
     val util = streamTestUtil()
 

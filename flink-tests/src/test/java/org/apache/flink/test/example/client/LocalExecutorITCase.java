@@ -22,7 +22,10 @@ package org.apache.flink.test.example.client;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.LocalExecutor;
+import org.apache.flink.client.deployment.executors.LocalExecutor;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.util.TestLogger;
@@ -53,15 +56,15 @@ public class LocalExecutorITCase extends TestLogger {
 				fw.write(WordCountData.TEXT);
 			}
 
-			LocalExecutor executor = new LocalExecutor();
-			executor.setDefaultOverwriteFiles(true);
-			executor.setTaskManagerNumSlots(parallelism);
-			executor.setPrintStatusDuringExecution(false);
-			executor.start();
+			final Configuration config = new Configuration();
+			config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+			config.setBoolean(DeploymentOptions.ATTACHED, true);
+
+			final LocalExecutor executor = new LocalExecutor();
+
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
-			executor.executePlan(wcPlan);
-			executor.stop();
+			executor.execute(wcPlan, config);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

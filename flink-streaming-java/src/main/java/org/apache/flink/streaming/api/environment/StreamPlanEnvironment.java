@@ -18,12 +18,11 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 /**
@@ -36,7 +35,6 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	private ExecutionEnvironment env;
 
 	protected StreamPlanEnvironment(ExecutionEnvironment env) {
-		super();
 		this.env = env;
 
 		int parallelism = env.getParallelism();
@@ -49,18 +47,9 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute() throws Exception {
-		return execute("");
-	}
-
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
-
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
 		if (env instanceof OptimizerPlanEnvironment) {
-			((OptimizerPlanEnvironment) env).setPlan(streamGraph);
-		} else if (env instanceof PreviewPlanEnvironment) {
-			((PreviewPlanEnvironment) env).setPreview(streamGraph.getStreamingPlanAsJSON());
+			((OptimizerPlanEnvironment) env).setPipeline(streamGraph);
 		}
 
 		throw new OptimizerPlanEnvironment.ProgramAbortException();

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -46,7 +46,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 			slot.releaseSlot(new Exception("Test Exception"));
 
 			assertFalse(slot.isAlive());
@@ -57,7 +57,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
 			vertex.scheduleForExecution(
-				TestingSlotProviderStrategy.from(new TestingSlotProvider((i) -> future), false),
+				TestingSlotProviderStrategy.from(new TestingSlotProvider((i) -> future)),
 				LocationPreferenceConstraint.ALL,
 				Collections.emptySet());
 
@@ -78,7 +78,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 			slot.releaseSlot(new Exception("Test Exception"));
 
 			assertFalse(slot.isAlive());
@@ -88,7 +88,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
 			vertex.scheduleForExecution(
-				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future), true),
+				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future)),
 				LocationPreferenceConstraint.ALL,
 				Collections.emptySet());
 
@@ -113,7 +113,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			CompletableFuture<LogicalSlot> future = CompletableFuture.completedFuture(slot);
 
@@ -121,7 +121,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 
 			// try to deploy to the slot
 			vertex.scheduleForExecution(
-				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future), false),
+				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future)),
 				LocationPreferenceConstraint.ALL,
 				Collections.emptySet());
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());

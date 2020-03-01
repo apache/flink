@@ -53,7 +53,7 @@ import scala.collection.mutable
   * RelNode, the RelNode is the output node of a new block (or named break-point).
   * There are several special cases that a RelNode can not be a break-point.
   * (1). UnionAll is not a break-point
-  * when [[RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
+  * when [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
   * (2). [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]]
   * with window attribute) are not a break-point because their physical RelNodes are a composite
   * RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan and
@@ -258,7 +258,7 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
   private val isUnionAllAsBreakPointDisabled = config.getConfiguration.getBoolean(
-    RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
+    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
 
   /**
     * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s,
@@ -381,15 +381,15 @@ object RelNodeBlockPlanBuilder {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
-    key("sql.optimizer.unionall-as-breakpoint.disabled")
+  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.union-all-as-breakpoint-disabled")
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("Disable union-all node as breakpoint when constructing common sub-graph.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
-    key("sql.optimizer.reuse.optimize-block.with-digest.enabled")
+  val TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.reuse-optimize-block-with-digest-enabled")
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("When true, the optimizer will try to find out duplicated sub-plan by " +
             "digest to build optimize block(a.k.a. common sub-graph). " +
@@ -430,7 +430,7 @@ object RelNodeBlockPlanBuilder {
     */
   private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
     val findOpBlockWithDigest = tableConfig.getConfiguration.getBoolean(
-      RelNodeBlockPlanBuilder.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes
     }

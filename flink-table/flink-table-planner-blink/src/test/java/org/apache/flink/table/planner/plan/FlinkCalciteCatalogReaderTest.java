@@ -18,10 +18,15 @@
 
 package org.apache.flink.table.planner.plan;
 
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable;
-import org.apache.flink.table.planner.plan.schema.FlinkTable;
+import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.TestTableSource;
 
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.config.CalciteConnectionProperty;
@@ -33,7 +38,6 @@ import org.apache.calcite.schema.Table;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -66,21 +70,31 @@ public class FlinkCalciteCatalogReaderTest {
 	}
 
 	@Test
-	public void testGetFlinkTable() {
-		FlinkTable flinkTableMock = mock(FlinkTable.class);
-		when(flinkTableMock.getRowType(typeFactory)).thenReturn(mock(RelDataType.class));
-		rootSchemaPlus.add(tableMockName, flinkTableMock);
-		Prepare.PreparingTable resultTable = catalogReader.getTable(Arrays.asList(tableMockName));
+	public void testGetFlinkPreparingTableBase() {
+		// Mock CatalogSchemaTable.
+		CatalogSchemaTable mockTable = new CatalogSchemaTable(
+			ObjectIdentifier.of("a", "b", "c"),
+			ConnectorCatalogTable.source(
+				new TestTableSource(true, TableSchema.builder().build()),
+				true),
+			FlinkStatistic.UNKNOWN(),
+			null,
+			true,
+			false);
 
-		assertTrue(resultTable instanceof FlinkRelOptTable);
+		rootSchemaPlus.add(tableMockName, mockTable);
+		Prepare.PreparingTable preparingTable = catalogReader
+			.getTable(Collections.singletonList(tableMockName));
+		assertTrue(preparingTable instanceof FlinkPreparingTableBase);
 	}
 
 	@Test
-	public void testGetNonFlinkTable() {
+	public void testGetNonFlinkPreparingTableBase() {
 		Table nonFlinkTableMock = mock(Table.class);
 		when(nonFlinkTableMock.getRowType(typeFactory)).thenReturn(mock(RelDataType.class));
 		rootSchemaPlus.add(tableMockName, nonFlinkTableMock);
-		Prepare.PreparingTable resultTable = catalogReader.getTable(Arrays.asList(tableMockName));
-		assertFalse(resultTable instanceof FlinkRelOptTable);
+		Prepare.PreparingTable resultTable = catalogReader
+			.getTable(Collections.singletonList(tableMockName));
+		assertFalse(resultTable instanceof FlinkPreparingTableBase);
 	}
 }

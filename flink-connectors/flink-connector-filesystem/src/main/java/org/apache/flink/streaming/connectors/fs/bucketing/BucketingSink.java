@@ -61,7 +61,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -159,7 +158,13 @@ import java.util.UUID;
  * @see SequenceFileWriter
  *
  * @param <T> Type of the elements emitted by this sink
+ *
+ * @deprecated Please use the
+ * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ * instead.
+ *
  */
+@Deprecated
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
 		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
@@ -887,11 +892,12 @@ public class BucketingSink<T>
 
 		LOG.debug("Moving pending files to final location on restore.");
 
-		Set<Long> pastCheckpointIds = pendingFilesPerCheckpoint.keySet();
-		for (Long pastCheckpointId : pastCheckpointIds) {
+		for (Map.Entry<Long, List<String>> entry : pendingFilesPerCheckpoint.entrySet()) {
+			Long pastCheckpointId = entry.getKey();
+			List<String> pendingFiles = entry.getValue();
 			// All the pending files are buckets that have been completed but are waiting to be renamed
 			// to their final name
-			for (String filename : pendingFilesPerCheckpoint.get(pastCheckpointId)) {
+			for (String filename : pendingFiles) {
 				Path finalPath = new Path(filename);
 				Path pendingPath = getPendingPathFor(finalPath);
 

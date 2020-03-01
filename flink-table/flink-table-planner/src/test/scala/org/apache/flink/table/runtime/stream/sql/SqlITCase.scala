@@ -39,6 +39,7 @@ import org.junit.Assert._
 import org.junit._
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class SqlITCase extends StreamingWithStateTestBase {
 
@@ -869,6 +870,45 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     assertEquals(List(expected.toString()), StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProjectionWithManyColumns(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.clear
+
+    // force code split
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
+
+    val length = 1000
+    val rowData = List.range(0, length)
+    val row: Row = new Row(length)
+    val fieldTypes = new ArrayBuffer[TypeInformation[_]]()
+    val fieldNames = new ArrayBuffer[String]()
+    rowData.foreach { i =>
+      row.setField(i, i)
+      fieldTypes += Types.INT()
+      fieldNames += s"f$i"
+    }
+
+    val data = new mutable.MutableList[Row]
+    data.+=(row)
+    val t = env.fromCollection(data)(new RowTypeInfo(fieldTypes.toArray: _*)).toTable(tEnv)
+    tEnv.registerTable("MyTable", t)
+
+    val expected = List(rowData.reverse.mkString(","))
+    val sql =
+      s"""
+         |SELECT ${fieldNames.reverse.mkString(", ")} FROM MyTable
+       """.stripMargin
+
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    assertEquals(expected, StreamITCase.testResults)
   }
 }
 

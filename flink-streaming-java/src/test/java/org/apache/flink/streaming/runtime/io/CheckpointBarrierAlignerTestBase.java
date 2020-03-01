@@ -34,22 +34,25 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.Matchers;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -72,23 +75,26 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 	CheckpointedInputGate inputGate;
 
+	static long testStartTimeNanos;
+
+	@Before
+	public void setUp() {
+		testStartTimeNanos = System.nanoTime();
+	}
+
 	protected CheckpointedInputGate createBarrierBuffer(
 		int numberOfChannels,
 		BufferOrEvent[] sequence,
-		@Nullable AbstractInvokable toNotify) throws IOException {
+		AbstractInvokable toNotify) throws IOException {
 		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
 		return createBarrierBuffer(gate, toNotify);
 	}
 
 	protected CheckpointedInputGate createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
-		return createBarrierBuffer(numberOfChannels, sequence, null);
+		return createBarrierBuffer(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(InputGate gate) throws IOException {
-		return createBarrierBuffer(gate, null);
-	}
-
-	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException;
+	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) throws IOException;
 
 	abstract void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence);
 
@@ -230,7 +236,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		// checkpoint 1 done, returning buffered data
 		check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, handler.getNextExpectedCheckpointId());
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[5], sequence[6]);
 
 		check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
@@ -247,7 +253,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		startTs = System.nanoTime();
 		check(sequence[17], inputGate.pollNext().get(), PAGE_SIZE);
 		assertEquals(3L, handler.getNextExpectedCheckpointId());
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment());
 
 		check(sequence[18], inputGate.pollNext().get(), PAGE_SIZE);
@@ -326,7 +332,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[14], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[18], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[19], inputGate.pollNext().get(), PAGE_SIZE);
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 
 		// end of stream: remaining buffered contents
 		check(sequence[10], inputGate.pollNext().get(), PAGE_SIZE);
@@ -404,7 +410,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 		// checkpoint 2 completed
 		check(sequence[12], inputGate.pollNext().get(), PAGE_SIZE);
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		check(sequence[25], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[27], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[30], inputGate.pollNext().get(), PAGE_SIZE);
@@ -487,7 +493,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 		// checkpoint done - replay buffered
 		check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		verify(toNotify).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -502,7 +508,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		// checkpoint 2 aborted, checkpoint 3 started
 		check(sequence[12], inputGate.pollNext().get(), PAGE_SIZE);
 		assertEquals(3L, inputGate.getLatestCheckpointId());
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		verify(toNotify).abortCheckpointOnBarrier(eq(2L),
 			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)));
 		check(sequence[16], inputGate.pollNext().get(), PAGE_SIZE);
@@ -592,7 +598,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[25], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[26], inputGate.pollNext().get(), PAGE_SIZE);
 
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 
 		// checkpoint 4 aborted (due to end of partition)
 		check(sequence[24], inputGate.pollNext().get(), PAGE_SIZE);
@@ -936,7 +942,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		startTs = System.nanoTime();
 		check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 
 		check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[8], inputGate.pollNext().get(), PAGE_SIZE);
@@ -947,7 +953,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[12], inputGate.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L),
 			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		check(sequence[13], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// one more successful checkpoint
@@ -956,7 +962,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		startTs = System.nanoTime();
 		check(sequence[20], inputGate.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(3L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		check(sequence[21], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// this checkpoint gets immediately canceled
@@ -974,7 +980,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		startTs = System.nanoTime();
 		check(sequence[32], inputGate.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(5L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		check(sequence[33], inputGate.pollNext().get(), PAGE_SIZE);
 
 		check(sequence[37], inputGate.pollNext().get(), PAGE_SIZE);
@@ -1025,7 +1031,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		// finished first checkpoint
 		check(sequence[3], inputGate.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 
 		check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -1107,7 +1113,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 		// cancelled by cancellation barrier
 		check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		verify(toNotify).abortCheckpointOnBarrier(eq(1L),
 			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
@@ -1120,7 +1126,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 		// checkpoint done
 		check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		verify(toNotify).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(2L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 
 		// queued data
@@ -1194,7 +1200,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 		// checkpoint finished
 		check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
-		validateAlignmentTime(startTs, inputGate.getAlignmentDurationNanos());
+		validateAlignmentTime(startTs, inputGate);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(5L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		check(sequence[11], inputGate.pollNext().get(), PAGE_SIZE);
 
@@ -1258,9 +1264,15 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		}
 	}
 
-	private static void validateAlignmentTime(long startTimestamp, long alignmentDuration) {
-		final long elapsed = System.nanoTime() - startTimestamp;
-		assertTrue("wrong alignment time", alignmentDuration <= elapsed);
+	private static void validateAlignmentTime(long alignmentStartTimestamp, CheckpointedInputGate inputGate) {
+		long elapsedAlignment = System.nanoTime() - alignmentStartTimestamp;
+		long elapsedTotalTime = System.nanoTime() - testStartTimeNanos;
+		assertThat(inputGate.getAlignmentDurationNanos(), Matchers.lessThanOrEqualTo(elapsedAlignment));
+
+		// Barrier lag is calculated with System.currentTimeMillis(), so we need a tolerance of 1ms
+		// when comparing to time elapsed via System.nanoTime()
+		long tolerance = 1_000_000;
+		assertThat(inputGate.getCheckpointStartDelayNanos(), Matchers.lessThanOrEqualTo(elapsedTotalTime + tolerance));
 	}
 
 	// ------------------------------------------------------------------------
@@ -1297,10 +1309,10 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(
+		public Future<Boolean> triggerCheckpointAsync(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				boolean advanceToEndOfEventTime) throws Exception {
+				boolean advanceToEndOfEventTime) {
 			throw new UnsupportedOperationException("should never be called");
 		}
 
@@ -1324,7 +1336,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			throw new UnsupportedOperationException("should never be called");
 		}
 	}

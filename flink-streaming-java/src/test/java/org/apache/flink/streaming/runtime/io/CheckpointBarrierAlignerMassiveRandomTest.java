@@ -19,22 +19,19 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.Random;
-
-import static org.junit.Assert.fail;
 
 /**
  * The test generates two random streams (input channels) which independently
@@ -46,11 +43,10 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 	private static final int PAGE_SIZE = 1024;
 
 	@Test
-	public void testWithTwoChannelsAndRandomBarriers() {
+	public void testWithTwoChannelsAndRandomBarriers() throws Exception {
 		NetworkBufferPool networkBufferPool1 = null;
 		NetworkBufferPool networkBufferPool2 = null;
-		try (IOManager ioMan = new IOManagerAsync()) {
-
+		try {
 			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
@@ -60,7 +56,12 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
 
-			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, PAGE_SIZE), "Testing: No task associated", null);
+			CheckpointedInputGate checkpointedInputGate =
+				new CheckpointedInputGate(
+					myIG,
+					new CachedBufferStorage(PAGE_SIZE),
+					"Testing: No task associated",
+					new DummyCheckpointInvokable());
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
@@ -68,10 +69,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					boe.getBuffer().recycleBuffer();
 				}
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (networkBufferPool1 != null) {
@@ -138,7 +135,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			this.currentBarriers = new int[numberOfChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
-			this.isAvailable = AVAILABLE;
+			availabilityHelper.resetAvailable();
 		}
 
 		@Override
@@ -152,7 +149,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 
 		@Override
-		public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
+		public Optional<BufferOrEvent> getNext() throws IOException {
 			currentChannel = (currentChannel + 1) % numberOfChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
@@ -165,6 +162,11 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 						currentChannel));
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();
+				if (buffer == null) {
+					// we exhausted buffer pool for this channel that is supposed to be blocked
+					// by the credit-based flow control, so we should poll from the second channel
+					return getNext();
+				}
 				buffer.getMemorySegment().putLong(0, c++);
 				return Optional.of(new BufferOrEvent(buffer, currentChannel));
 			}

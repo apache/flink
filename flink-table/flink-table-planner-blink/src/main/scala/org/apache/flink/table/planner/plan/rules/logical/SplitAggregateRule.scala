@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkLogicalRelFactories, FlinkRelBuilder}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.planner.plan.PartialFinalType
@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.doAllAggSupportSplit
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -37,7 +36,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
-
+import java.math.{BigDecimal => JBigDecimal}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -70,7 +69,8 @@ import scala.collection.JavaConversions._
   *
   * flink logical plan:
   * {{{
-  * FlinkLogicalCalc(select=[a, $f1, $f2, /($f3, $f4) AS $f3])
+  * FlinkLogicalCalc(select=[a, $f1, $f2, CAST(IF(=($f4, 0:BIGINT), null:INTEGER, /($f3, $f4))) AS
+  *     $f3])
   * +- FlinkLogicalAggregate(group=[{0}], agg#0=[SUM($2)], agg#1=[$SUM0($3)], agg#2=[$SUM0($4)],
   *        agg#3=[$SUM0($5)])
   *    +- FlinkLogicalAggregate(group=[{0, 3}], agg#0=[SUM($1) FILTER $4], agg#1=[COUNT(DISTINCT $2)
@@ -112,21 +112,19 @@ class SplitAggregateRule extends RelOptRule(
   "SplitAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
 
-    val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
-    val splitSkewDistinctAggEnabled = tableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
+    val splitDistinctAggEnabled = tableConfig.getConfiguration.getBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
-      isMiniBatchEnabled && splitSkewDistinctAggEnabled && isAllAggSplittable
+      splitDistinctAggEnabled && isAllAggSplittable
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val originalAggregate: FlinkLogicalAggregate = call.rel(0)
     val aggCalls = originalAggregate.getAggCallList
     val input: FlinkRelNode = call.rel(1)
@@ -146,7 +144,7 @@ class SplitAggregateRule extends RelOptRule(
 
     val hashFieldsMap: util.Map[Int, Int] = new util.HashMap()
     val buckets = tableConfig.getConfiguration.getInteger(
-      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
 
     if (hashFieldIndexes.nonEmpty) {
       val projects = new util.ArrayList[RexNode](relBuilder.fields)
@@ -305,7 +303,22 @@ class SplitAggregateRule extends RelOptRule(
             aggGroupCount + index + avgAggCount + 1,
             finalAggregate.getRowType)
           avgAggCount += 1
-          relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
+          // Make a guarantee that the final aggregation returns NULL if underlying count is ZERO.
+          // We use SUM0 for underlying sum, which may run into ZERO / ZERO,
+          // and division by zero exception occurs.
+          // @see Glossary#SQL2011 SQL:2011 Part 2 Section 6.27
+          val equals = relBuilder.call(
+            FlinkSqlOperatorTable.EQUALS,
+            countInputRef,
+            relBuilder.getRexBuilder.makeBigintLiteral(JBigDecimal.valueOf(0)))
+          val ifTrue = relBuilder.cast(
+            relBuilder.getRexBuilder.constantNull(), aggCall.`type`.getSqlTypeName)
+          val ifFalse = relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
+          relBuilder.call(
+            FlinkSqlOperatorTable.IF,
+            equals,
+            ifTrue,
+            ifFalse)
         } else {
           RexInputRef.of(aggGroupCount + index + avgAggCount, finalAggregate.getRowType)
         }
@@ -336,8 +349,8 @@ object SplitAggregateRule {
       (Seq(FlinkSqlOperatorTable.FIRST_VALUE), Seq(FlinkSqlOperatorTable.FIRST_VALUE)),
     FlinkSqlOperatorTable.LAST_VALUE ->
       (Seq(FlinkSqlOperatorTable.LAST_VALUE), Seq(FlinkSqlOperatorTable.LAST_VALUE)),
-    FlinkSqlOperatorTable.CONCAT_AGG ->
-      (Seq(FlinkSqlOperatorTable.CONCAT_AGG), Seq(FlinkSqlOperatorTable.CONCAT_AGG)),
+    FlinkSqlOperatorTable.LISTAGG ->
+      (Seq(FlinkSqlOperatorTable.LISTAGG), Seq(FlinkSqlOperatorTable.LISTAGG)),
     SINGLE_VALUE -> (Seq(SINGLE_VALUE), Seq(SINGLE_VALUE))
   )
 

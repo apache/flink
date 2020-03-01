@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -67,10 +68,10 @@ public class BinaryExternalSorterTest {
 		ioManager = new IOManagerAsync();
 		conf = new Configuration();
 		if (!spillCompress) {
-			conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, false);
+			conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
 		}
 		if (asyncMerge) {
-			conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
+			conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
 		}
 	}
 
@@ -94,9 +95,9 @@ public class BinaryExternalSorterTest {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.serializer = new BinaryRowSerializer(2);
-		this.conf.setInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 128);
+		this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
 	}
 
 	@After
@@ -121,7 +122,7 @@ public class BinaryExternalSorterTest {
 		LOG.debug("initializing sortmerger");
 
 		//there are two sort buffer if sortMemory > 100 * 1024 * 1024.
-		MemoryManager memoryManager = new MemoryManager(1024 * 1024 * 101, 1);
+		MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024 * 101).build();
 		long minMemorySize = memoryManager.computeNumberOfPages(1) * MemoryManager.DEFAULT_PAGE_SIZE;
 		BinaryExternalSorter sorter = new BinaryExternalSorter(
 				new Object(),
@@ -310,7 +311,7 @@ public class BinaryExternalSorterTest {
 		LOG.debug("initializing sortmerger");
 
 		long minMemorySize = memoryManager.computeNumberOfPages(0.01) * MemoryManager.DEFAULT_PAGE_SIZE;
-		conf.setInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 8);
+		conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
 
 		BinaryExternalSorter sorter = new BinaryExternalSorter(
 				new Object(),

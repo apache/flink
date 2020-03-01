@@ -20,16 +20,13 @@ package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Experimental;
 
-import java.util.List;
 import java.util.Map;
 
 /**
  * An interface for partitionable {@link TableSink}. A partitionable sink can writes
  * query results to partitions.
  *
- * <p>Partition columns are defined via {@link #getPartitionFieldNames()} and the field names
- * should be sorted in a strict order. And all the partition fields should exist in the
- * {@link TableSink#getTableSchema()}.
+ * <p>Partition columns are defined via catalog table.
  *
  * <p>For example, a partitioned table named {@code my_table} with a table schema
  * {@code [a INT, b VARCHAR, c DOUBLE, dt VARCHAR, country VARCHAR]} is partitioned on columns
@@ -61,17 +58,6 @@ import java.util.Map;
  */
 @Experimental
 public interface PartitionableTableSink {
-
-	/**
-	 * Gets the partition field names of the table. The partition field names should be sorted in
-	 * a strict order, i.e. they have the order as specified in the PARTITION statement in DDL.
-	 * This should be an empty set if the table is not partitioned.
-	 *
-	 * <p>All the partition fields should exist in the {@link TableSink#getTableSchema()}.
-	 *
-	 * @return partition field names of the table, empty if the table is not partitioned.
-	 */
-	List<String> getPartitionFieldNames();
 
 	/**
 	 * Sets the static partition into the {@link TableSink}. The static partition may be partial

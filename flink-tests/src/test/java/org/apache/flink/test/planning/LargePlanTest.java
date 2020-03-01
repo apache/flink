@@ -24,8 +24,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 
 import org.junit.Test;
 
@@ -34,12 +32,14 @@ import org.junit.Test;
  */
 public class LargePlanTest {
 
-	@Test(expected = OptimizerPlanEnvironment.ProgramAbortException.class, timeout = 30_000)
+	@Test(timeout = 30_000)
 	public void testPlanningOfLargePlan() throws Exception {
-		runProgram(new PreviewPlanEnvironment(), 10, 20);
+		runProgram(10, 20);
 	}
 
-	private static void runProgram(ExecutionEnvironment env, int depth, int width) throws Exception {
+	private static void runProgram(int depth, int width) throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
 		DataSet<String> input = env.fromElements("a", "b", "c");
 		DataSet<String> stats = null;
 
@@ -48,7 +48,8 @@ public class LargePlanTest {
 		}
 
 		stats.output(new DiscardingOutputFormat<>());
-		env.execute("depth " + depth + " width " + width);
+
+		env.createProgramPlan("depth " + depth + " width " + width);
 	}
 
 	private static DataSet<String> analyze(DataSet<String> input, DataSet<String> stats, int branches) {

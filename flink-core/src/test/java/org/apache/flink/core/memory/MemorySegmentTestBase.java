@@ -37,11 +37,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -325,6 +329,10 @@ public abstract class MemorySegmentTestBase {
 	public void testEqualTo() {
 		MemorySegment seg1 = createSegment(pageSize);
 		MemorySegment seg2 = createSegment(pageSize);
+
+		byte[] referenceArray = new byte[pageSize];
+		seg1.put(0, referenceArray);
+		seg2.put(0, referenceArray);
 
 		int i = new Random().nextInt(pageSize - 8);
 
@@ -1665,6 +1673,7 @@ public abstract class MemorySegmentTestBase {
 		{
 			final MemorySegment segment = createSegment(pageSize);
 			byte[] expected = new byte[pageSize];
+			segment.put(0, expected, 0, pageSize);
 
 			for (int i = 0; i < 200; i++) {
 				int numBytes = random.nextInt(pageSize - 10) + 1;
@@ -2275,6 +2284,25 @@ public abstract class MemorySegmentTestBase {
 				assertTrue(cmp >= 0);
 			}
 		}
+	}
+
+	@Test
+	public void testCompareBytesWithDifferentLength() {
+		final byte[] bytes1 = new byte[] {'a', 'b', 'c'};
+		final byte[] bytes2 = new byte[] {'a', 'b', 'c', 'd'};
+
+		MemorySegment seg1 = createSegment(4);
+		MemorySegment seg2 = createSegment(4);
+		seg1.put(0, bytes1);
+		seg2.put(0, bytes2);
+
+		assertThat(seg1.compare(seg2, 0, 0, 3, 4), lessThan(0));
+		assertThat(seg1.compare(seg2, 0, 0, 3, 3), equalTo(0));
+		assertThat(seg1.compare(seg2, 0, 0, 3, 2), greaterThan(0));
+		// test non-zero offset
+		assertThat(seg1.compare(seg2, 1, 1, 2, 3), lessThan(0));
+		assertThat(seg1.compare(seg2, 1, 1, 2, 2), equalTo(0));
+		assertThat(seg1.compare(seg2, 1, 1, 2, 1), greaterThan(0));
 	}
 
 	@Test

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -29,6 +30,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -120,6 +122,11 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	@Override
 	public void finish() {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<?> getAvailableFuture() {
+		return AvailabilityProvider.AVAILABLE;
 	}
 
 	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;

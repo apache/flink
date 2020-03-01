@@ -101,6 +101,28 @@ class LookupJoinTest extends TableTestBase with Serializable {
   }
 
   @Test
+  def testNotDistinctFromInJoinCondition(): Unit = {
+
+    // does not support join condition contains `IS NOT DISTINCT`
+    expectExceptionThrown(
+      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a IS NOT  DISTINCT FROM D.id",
+      "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
+        "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
+      classOf[TableException]
+    )
+
+    // does not support join condition contains `IS NOT  DISTINCT` and similar syntax
+    expectExceptionThrown(
+      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id OR (T.a IS NULL AND D.id IS NULL)",
+      "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
+        "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
+      classOf[TableException]
+    )
+  }
+
+  @Test
   def testInvalidLookupTableFunction(): Unit = {
     streamUtil.addDataStream[(Int, String, Long, Timestamp)](
       "T", 'a, 'b, 'c, 'ts, 'proctime.proctime)
@@ -122,7 +144,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable2 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
-        "java.lang.Long) \n" +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
       classOf[TableException]
     )
@@ -156,7 +178,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable7 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
         "java.time.LocalDateTime)",
       classOf[TableException]
@@ -168,7 +191,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable8 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
         "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
       classOf[TableException]
@@ -186,7 +210,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable10 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
+        "org.apache.flink.table.dataformat.SqlTimestamp) \n" +
         "Actual: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
         "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long)",
       classOf[TableException]
@@ -325,6 +350,45 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON true
         |WHERE T.c > 1000
+      """.stripMargin
+
+    streamUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithFunctionAndConstantCondition(): Unit = {
+
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.b = concat(D.name, '!') AND D.age = 11
+      """.stripMargin
+
+    streamUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithMultiFunctionAndConstantCondition(): Unit = {
+
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
+      """.stripMargin
+
+    streamUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithFunctionAndReferenceCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id AND T.b = concat(D.name, '!')
+        |WHERE D.name LIKE 'Jack%'
       """.stripMargin
 
     streamUtil.verifyPlan(sql)

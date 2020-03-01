@@ -82,7 +82,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 		int inputKey = 998244353;
 		MyObj inputObj = new MyObj(114514, 1919810);
 		Map<Object, Object> javaMap = new HashMap<>();
-		javaMap.put(inputKey, new BinaryGeneric<>(inputObj, new KryoSerializer<>(MyObj.class, config)));
+		javaMap.put(inputKey, new BinaryGeneric<>(inputObj));
 		BaseMap inputMap = new GenericMap(javaMap);
 
 		byte[] serialized;
@@ -107,7 +107,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 
 		MyObj outputObj = BinaryGeneric.getJavaObjectFromBinaryGeneric(
 			(BinaryGeneric) outputMap.toJavaMap(
-				DataTypes.INT().getLogicalType(), DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType())
+				DataTypes.INT().getLogicalType(), DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType())
 				.get(inputKey), new KryoSerializer<>(MyObj.class, config));
 		assertEquals(inputObj, outputObj);
 	}
@@ -115,7 +115,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 	private BaseMapSerializer createSerializerWithConfig(ExecutionConfig config) {
 		return new BaseMapSerializer(
 			DataTypes.INT().getLogicalType(),
-			DataTypes.ANY(TypeInformation.of(MyObj.class)).getLogicalType(),
+			DataTypes.RAW(TypeInformation.of(MyObj.class)).getLogicalType(),
 			config);
 	}
 

@@ -23,12 +23,12 @@ import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, 
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule
+import org.apache.calcite.rel.rules.{FilterJoinRule, FilterProjectTransposeRule}
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[FlinkFilterJoinRule]].
+  * Tests for [[org.apache.calcite.rel.rules.FilterJoinRule]].
   */
 class FlinkFilterJoinRuleTest extends TableTestBase {
   private val util = batchTestUtil()
@@ -44,8 +44,8 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(
           FilterProjectTransposeRule.INSTANCE,
-          FlinkFilterJoinRule.FILTER_ON_JOIN,
-          FlinkFilterJoinRule.JOIN))
+          FilterJoinRule.FILTER_ON_JOIN,
+          FilterJoinRule.JOIN))
         .build()
     )
 

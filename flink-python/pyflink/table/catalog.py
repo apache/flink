@@ -18,6 +18,7 @@
 
 from py4j.java_gateway import java_import
 
+from pyflink import since
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
 
@@ -757,14 +758,6 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.getClassName()
 
-    def get_properties(self):
-        """
-        Get the properties of the function.
-
-        :return: The properties of the function.
-        """
-        return dict(self._j_catalog_function.getProperties())
-
     def copy(self):
         """
         Create a deep copy of the function.
@@ -796,6 +789,24 @@ class CatalogFunction(object):
             return detailed_description.get()
         else:
             return None
+
+    @since("1.10.0")
+    def is_generic(self):
+        """
+        Whether or not is the function a flink UDF.
+
+        :return: Whether is the function a flink UDF.
+        """
+        return self._j_catalog_function.isGeneric()
+
+    @since("1.10.0")
+    def get_function_language(self):
+        """
+        Get the language used for the function definition.
+
+        :return: the language type of the function definition
+        """
+        return self._j_catalog_function.getFunctionLanguage()
 
 
 class ObjectPath(object):

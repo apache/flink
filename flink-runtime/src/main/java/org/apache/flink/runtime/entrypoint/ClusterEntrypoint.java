@@ -46,14 +46,16 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -116,10 +118,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	private final AtomicBoolean isShutDown = new AtomicBoolean(false);
 
 	@GuardedBy("lock")
-	private DispatcherResourceManagerComponent<?> clusterComponent;
+	private DispatcherResourceManagerComponent clusterComponent;
 
 	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
+
+	@GuardedBy("lock")
+	private ProcessMetricGroup processMetricGroup;
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
@@ -189,7 +194,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 	}
 
-	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
+	private SecurityContext installSecurityContext(Configuration configuration) throws Exception {
 		LOG.info("Install security context.");
 
 		SecurityUtils.install(new SecurityConfiguration(configuration));
@@ -205,10 +210,11 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
-			final DispatcherResourceManagerComponentFactory<?> dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);
+			final DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);
 
 			clusterComponent = dispatcherResourceManagerComponentFactory.create(
 				configuration,
+				ioExecutor,
 				commonRpcService,
 				haServices,
 				blobServer,
@@ -262,6 +268,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, bindAddress);
 			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
+
+			final String hostname = RpcUtils.getHostname(commonRpcService);
+
+			processMetricGroup = MetricUtils.instantiateProcessMetricGroup(
+				metricRegistry,
+				hostname,
+				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 		}
@@ -347,6 +360,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				} catch (Throwable t) {
 					exception = ExceptionUtils.firstOrSuppressed(t, exception);
 				}
+			}
+
+			if (processMetricGroup != null) {
+				processMetricGroup.close();
 			}
 
 			if (metricRegistry != null) {
@@ -459,7 +476,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	// Abstract methods
 	// --------------------------------------------------
 
-	protected abstract DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration);
+	protected abstract DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException;
 
 	protected abstract ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 		Configuration configuration,

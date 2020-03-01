@@ -139,7 +139,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 				queryServiceAddressesFuture.whenCompleteAsync(
 					(Collection<String> queryServiceAddresses, Throwable throwable) -> {
 						if (throwable != null) {
-							LOG.warn("Requesting paths for query services failed.", throwable);
+							LOG.debug("Requesting paths for query services failed.", throwable);
 						} else {
 							for (String queryServiceAddress : queryServiceAddresses) {
 								retrieveAndQueryMetrics(queryServiceAddress);
@@ -157,7 +157,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 				taskManagerQueryServiceGatewaysFuture.whenCompleteAsync(
 					(Collection<Tuple2<ResourceID, String>> queryServiceGateways, Throwable throwable) -> {
 						if (throwable != null) {
-							LOG.warn("Requesting TaskManager's path for query services failed.", throwable);
+							LOG.debug("Requesting TaskManager's path for query services failed.", throwable);
 						} else {
 							List<String> taskManagersToRetain = queryServiceGateways
 								.stream()
@@ -175,7 +175,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 					executor);
 			}
 		} catch (Exception e) {
-			LOG.warn("Exception while fetching metrics.", e);
+			LOG.debug("Exception while fetching metrics.", e);
 		}
 	}
 

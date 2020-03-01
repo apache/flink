@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.planner.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
 
-import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
@@ -41,6 +42,8 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
+
+import com.google.common.collect.ImmutableSet
 
 import java.util
 
@@ -70,7 +73,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     // TODO get uniqueKeys from TableSchema of TableSource
 
     relOptTable match {
-      case table: FlinkRelOptTable => table.uniqueKeysSet.orNull
+      case table: FlinkPreparingTableBase => table.uniqueKeysSet.orElse(null)
       case _ => null
     }
   }
@@ -135,8 +138,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
                 }
               case _ => // ignore
             }
-          //rename
-          case a: RexCall if a.getKind.equals(SqlKind.AS) &&
+          //rename or cast
+          case a: RexCall if (a.getKind.equals(SqlKind.AS) || isFidelityCast(a)) &&
             a.getOperands.get(0).isInstanceOf[RexInputRef] =>
             appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
           case _ => // ignore
@@ -171,6 +174,18 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       }
     }
     projUniqueKeySet
+  }
+
+  /**
+    * Whether the [[RexCall]] is a cast that doesn't lose any information.
+    */
+  private def isFidelityCast(call: RexCall): Boolean = {
+    if (call.getKind != SqlKind.CAST) {
+      return false
+    }
+    val originalType = FlinkTypeFactory.toLogicalType(call.getOperands.get(0).getType)
+    val newType = FlinkTypeFactory.toLogicalType(call.getType)
+    LogicalTypeCasts.supportsImplicitCast(originalType, newType)
   }
 
   def getUniqueKeys(

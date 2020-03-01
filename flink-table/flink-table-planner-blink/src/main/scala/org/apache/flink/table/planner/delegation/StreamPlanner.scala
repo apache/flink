@@ -25,14 +25,11 @@ import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
-import org.apache.flink.table.planner.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.PlanUtil
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -57,13 +54,6 @@ class StreamPlanner(
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
-  override private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
-    val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
-    val context = new DAGProcessContext(this)
-    new ParallelismProcessor().process(execNodePlan, context)
-  }
-
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
     execNodes.map {
@@ -85,10 +75,11 @@ class StreamPlanner(
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
-    val transformations = translateToPlan(execNodes)
-    val streamExecutor = new StreamExecutor(getExecEnv)
-    streamExecutor.setTableConfig(getTableConfig)
-    val streamGraph = streamExecutor.generateStreamGraph(transformations, "")
+
+    val plannerForExplain = createDummyPlannerForExplain()
+    plannerForExplain.overrideEnvParallelism()
+    val transformations = plannerForExplain.translateToPlan(execNodes)
+    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
@@ -104,7 +95,7 @@ class StreamPlanner(
     val (explainLevel, withRetractTraits) = if (extended) {
       (SqlExplainLevel.ALL_ATTRIBUTES, true)
     } else {
-      (SqlExplainLevel.EXPPLAN_ATTRIBUTES, false)
+      (SqlExplainLevel.DIGEST_ATTRIBUTES, false)
     }
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,
@@ -116,5 +107,11 @@ class StreamPlanner(
     sb.append(System.lineSeparator)
     sb.append(executionPlan)
     sb.toString()
+  }
+
+  private def createDummyPlannerForExplain(): StreamPlanner = {
+    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
+    val executor = new StreamExecutor(dummyExecEnv)
+    new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 }

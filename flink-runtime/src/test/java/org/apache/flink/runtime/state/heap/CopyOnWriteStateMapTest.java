@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -50,23 +51,23 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		final CopyOnWriteStateMap<Integer, Integer, ArrayList<Integer>> stateMap =
 			new CopyOnWriteStateMap<>(new ArrayListSerializer<>(IntSerializer.INSTANCE));
 
-		ArrayList<Integer> state_1_1 = new ArrayList<>();
-		state_1_1.add(41);
-		ArrayList<Integer> state_2_1 = new ArrayList<>();
-		state_2_1.add(42);
-		ArrayList<Integer> state_1_2 = new ArrayList<>();
-		state_1_2.add(43);
+		ArrayList<Integer> state11 = new ArrayList<>();
+		state11.add(41);
+		ArrayList<Integer> state21 = new ArrayList<>();
+		state21.add(42);
+		ArrayList<Integer> state12 = new ArrayList<>();
+		state12.add(43);
 
-		Assert.assertNull(stateMap.putAndGetOld(1, 1, state_1_1));
-		Assert.assertEquals(state_1_1, stateMap.get(1, 1));
+		Assert.assertNull(stateMap.putAndGetOld(1, 1, state11));
+		Assert.assertEquals(state11, stateMap.get(1, 1));
 		Assert.assertEquals(1, stateMap.size());
 
-		Assert.assertNull(stateMap.putAndGetOld(2, 1, state_2_1));
-		Assert.assertEquals(state_2_1, stateMap.get(2, 1));
+		Assert.assertNull(stateMap.putAndGetOld(2, 1, state21));
+		Assert.assertEquals(state21, stateMap.get(2, 1));
 		Assert.assertEquals(2, stateMap.size());
 
-		Assert.assertNull(stateMap.putAndGetOld(1, 2, state_1_2));
-		Assert.assertEquals(state_1_2, stateMap.get(1, 2));
+		Assert.assertNull(stateMap.putAndGetOld(1, 2, state12));
+		Assert.assertEquals(state12, stateMap.get(1, 2));
 		Assert.assertEquals(3, stateMap.size());
 
 		Assert.assertTrue(stateMap.containsKey(2, 1));
@@ -76,10 +77,10 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		Assert.assertTrue(stateMap.containsKey(2, 1));
 		Assert.assertEquals(3, stateMap.size());
 		Assert.assertNull(stateMap.get(2, 1));
-		stateMap.put(2, 1, state_2_1);
+		stateMap.put(2, 1, state21);
 		Assert.assertEquals(3, stateMap.size());
 
-		Assert.assertEquals(state_2_1, stateMap.removeAndGetOld(2, 1));
+		Assert.assertEquals(state21, stateMap.removeAndGetOld(2, 1));
 		Assert.assertFalse(stateMap.containsKey(2, 1));
 		Assert.assertEquals(2, stateMap.size());
 
@@ -91,18 +92,15 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		Assert.assertEquals(1, stateMap.size());
 
 		StateTransformationFunction<ArrayList<Integer>, Integer> function =
-			new StateTransformationFunction<ArrayList<Integer>, Integer>() {
-				@Override
-				public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
-					previousState.add(value);
-					return previousState;
-				}
+			(previousState, value) -> {
+				previousState.add(value);
+				return previousState;
 			};
 
 		final int value = 4711;
 		stateMap.transform(1, 1, value, function);
-		state_1_1 = function.apply(state_1_1, value);
-		Assert.assertEquals(state_1_1, stateMap.get(1, 1));
+		state11 = function.apply(state11, value);
+		Assert.assertEquals(state11, stateMap.get(1, 1));
 	}
 
 	/**
@@ -116,14 +114,14 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		int insert = 0;
 		int remove = 0;
 		while (!stateMap.isRehashing()) {
-			stateMap.put(insert++, 0, new ArrayList<Integer>());
+			stateMap.put(insert++, 0, new ArrayList<>());
 			if (insert % 8 == 0) {
 				stateMap.remove(remove++, 0);
 			}
 		}
 		Assert.assertEquals(insert - remove, stateMap.size());
 		while (stateMap.isRehashing()) {
-			stateMap.put(insert++, 0, new ArrayList<Integer>());
+			stateMap.put(insert++, 0, new ArrayList<>());
 			if (insert % 8 == 0) {
 				stateMap.remove(remove++, 0);
 			}
@@ -165,16 +163,13 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		int referencedSnapshotId = 0;
 
 		final StateTransformationFunction<ArrayList<Integer>, Integer> transformationFunction =
-			new StateTransformationFunction<ArrayList<Integer>, Integer>() {
-				@Override
-				public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
-					if (previousState == null) {
-						previousState = new ArrayList<>();
-					}
-					previousState.add(value);
-					// we give back the original, attempting to spot errors in to copy-on-write
-					return previousState;
+			(previousState, value) -> {
+				if (previousState == null) {
+					previousState = new ArrayList<>();
 				}
+				previousState.add(value);
+				// we give back the original, attempting to spot errors in to copy-on-write
+				return previousState;
 			};
 
 		StateIncrementalVisitor<Integer, Integer, ArrayList<Integer>> updatingIterator =
@@ -206,13 +201,13 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 					break;
 				}
 				case 2: {
-					stateMap.put(key, namespace, new ArrayList<Integer>());
-					referenceMap.put(compositeKey, new ArrayList<Integer>());
+					stateMap.put(key, namespace, new ArrayList<>());
+					referenceMap.put(compositeKey, new ArrayList<>());
 					break;
 				}
 				case 3: {
-					state = stateMap.putAndGetOld(key, namespace, new ArrayList<Integer>());
-					referenceState = referenceMap.put(compositeKey, new ArrayList<Integer>());
+					state = stateMap.putAndGetOld(key, namespace, new ArrayList<>());
+					referenceState = referenceMap.put(compositeKey, new ArrayList<>());
 					break;
 				}
 				case 4: {
@@ -252,6 +247,7 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 			Assert.assertEquals(referenceMap.size(), stateMap.size());
 
 			if (state != null) {
+				Assert.assertNotNull(referenceState);
 				// mutate the states a bit...
 				if (random.nextBoolean() && !state.isEmpty()) {
 					state.remove(state.size() - 1);
@@ -360,11 +356,11 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		stateMap.put(5, 1, originalState5);
 
 		// no snapshot taken, we get the original back
-		Assert.assertTrue(stateMap.get(1, 1) == originalState1);
+		Assert.assertSame(stateMap.get(1, 1), originalState1);
 		CopyOnWriteStateMapSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateMap.stateSnapshot();
 		// after snapshot1 is taken, we get a copy...
 		final ArrayList<Integer> copyState = stateMap.get(1, 1);
-		Assert.assertFalse(copyState == originalState1);
+		Assert.assertNotSame(copyState, originalState1);
 		// ...and the copy is equal
 		Assert.assertEquals(originalState1, copyState);
 
@@ -372,26 +368,51 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		stateMap.put(3, 1, originalState3);
 
 		// on repeated lookups, we get the same copy because no further snapshot was taken
-		Assert.assertTrue(copyState == stateMap.get(1, 1));
+		Assert.assertSame(copyState, stateMap.get(1, 1));
 
 		// we take snapshot2
 		CopyOnWriteStateMapSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateMap.stateSnapshot();
 		// after the second snapshot, copy-on-write is active again for old entries
-		Assert.assertFalse(copyState == stateMap.get(1, 1));
+		Assert.assertNotSame(copyState, stateMap.get(1, 1));
 		// and equality still holds
 		Assert.assertEquals(copyState, stateMap.get(1, 1));
 
 		// after releasing snapshot2
 		stateMap.releaseSnapshot(snapshot2);
 		// we still get the original of the untouched late insert (after snapshot1)
-		Assert.assertTrue(originalState3 == stateMap.get(3, 1));
+		Assert.assertSame(originalState3, stateMap.get(3, 1));
 		// but copy-on-write is still active for older inserts (before snapshot1)
-		Assert.assertFalse(originalState4 == stateMap.get(4, 1));
+		Assert.assertNotSame(originalState4, stateMap.get(4, 1));
 
 		// after releasing snapshot1
 		stateMap.releaseSnapshot(snapshot1);
 		// no copy-on-write is active
-		Assert.assertTrue(originalState5 == stateMap.get(5, 1));
+		Assert.assertSame(originalState5, stateMap.get(5, 1));
+	}
+
+	/**
+	 * This tests that snapshot can be released correctly.
+	 */
+	@Test
+	public void testSnapshotRelease() {
+		final CopyOnWriteStateMap<Integer, Integer, Integer> stateMap =
+			new CopyOnWriteStateMap<>(IntSerializer.INSTANCE);
+
+		for (int i = 0; i < 10; i++) {
+			stateMap.put(i, i, i);
+		}
+
+		CopyOnWriteStateMapSnapshot<Integer, Integer, Integer> snapshot = stateMap.stateSnapshot();
+		Assert.assertFalse(snapshot.isReleased());
+		Assert.assertThat(stateMap.getSnapshotVersions(), Matchers.contains(snapshot.getSnapshotVersion()));
+
+		snapshot.release();
+		Assert.assertTrue(snapshot.isReleased());
+		Assert.assertThat(stateMap.getSnapshotVersions(), Matchers.empty());
+
+		// verify that snapshot will release itself only once
+		snapshot.release();
+		Assert.assertThat(stateMap.getSnapshotVersions(), Matchers.empty());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -435,13 +456,9 @@ public class CopyOnWriteStateMapTest extends TestLogger {
 		Assert.assertEquals(a.length, b.length);
 
 		Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>> comparator =
-			new Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>>() {
-
-				@Override
-				public int compare(Tuple3<Integer, Integer, ArrayList<Integer>> o1, Tuple3<Integer, Integer, ArrayList<Integer>> o2) {
-					int namespaceDiff = o1.f1 - o2.f1;
-					return namespaceDiff != 0 ? namespaceDiff : o1.f0 - o2.f0;
-				}
+			(o1, o2) -> {
+				int namespaceDiff = o1.f1 - o2.f1;
+				return namespaceDiff != 0 ? namespaceDiff : o1.f0 - o2.f0;
 			};
 
 		Arrays.sort(a, comparator);

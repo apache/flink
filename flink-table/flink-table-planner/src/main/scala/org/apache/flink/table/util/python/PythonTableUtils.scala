@@ -24,61 +24,91 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.TimeZone
 import java.util.function.BiConsumer
 
-import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.java.{BatchTableEnvironment, StreamTableEnvironment}
-import org.apache.flink.table.api.{Table, Types}
+import org.apache.flink.core.io.InputSplit
+import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.codegen.PythonFunctionCodeGenerator
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.python.PythonEnv
+import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.types.Row
+
+import scala.collection.JavaConversions._
 
 object PythonTableUtils {
 
   /**
-    * Converts the given [[DataStream]] into a [[Table]].
+    * Creates a [[ScalarFunction]] for the specified Python ScalarFunction.
     *
-    * The schema of the [[Table]] is derived from the specified schemaString.
-    *
-    * @param tableEnv The table environment.
-    * @param dataStream The [[DataStream]] to be converted.
-    * @param dataType The type information of the table.
-    * @return The converted [[Table]].
+    * @param funcName class name of the user-defined function. Must be a valid Java class identifier
+    * @param serializedScalarFunction serialized Python scalar function
+    * @param inputTypes input data types
+    * @param resultType expected result type
+    * @param deterministic the determinism of the function's results
+    * @param pythonEnv the Python execution environment
+    * @return A generated Java ScalarFunction representation for the specified Python ScalarFunction
     */
-  def fromDataStream(
-      tableEnv: StreamTableEnvironment,
-      dataStream: DataStream[Array[Object]],
-      dataType: TypeInformation[Row]): Table = {
-    val convertedDataStream = dataStream.map(
-      new MapFunction[Array[Object], Row] {
-        override def map(value: Array[Object]): Row =
-          convertTo(dataType).apply(value).asInstanceOf[Row]
-      }).returns(dataType.asInstanceOf[TypeInformation[Row]])
-
-    tableEnv.fromDataStream(convertedDataStream)
-  }
+  def createPythonScalarFunction(
+      funcName: String,
+      serializedScalarFunction: Array[Byte],
+      inputTypes: Array[TypeInformation[_]],
+      resultType: TypeInformation[_],
+      deterministic: Boolean,
+      pythonEnv: PythonEnv): ScalarFunction =
+    PythonFunctionCodeGenerator.generateScalarFunction(
+      funcName,
+      serializedScalarFunction,
+      inputTypes,
+      resultType,
+      deterministic,
+      pythonEnv)
 
   /**
-    * Converts the given [[DataSet]] into a [[Table]].
+    * Creates a [[TableFunction]] for the specified Python TableFunction.
     *
-    * The schema of the [[Table]] is derived from the specified schemaString.
-    *
-    * @param tableEnv The table environment.
-    * @param dataSet The [[DataSet]] to be converted.
-    * @param dataType The type information of the table.
-    * @return The converted [[Table]].
+    * @param funcName class name of the user-defined function. Must be a valid Java class identifier
+    * @param serializedTableFunction serialized Python table function
+    * @param inputTypes input data types
+    * @param resultTypes expected result types
+    * @param deterministic the determinism of the function's results
+    * @param pythonEnv the Python execution environment
+    * @return A generated Java TableFunction representation for the specified Python TableFunction
     */
-  def fromDataSet(
-      tableEnv: BatchTableEnvironment,
-      dataSet: DataSet[Array[Object]],
-      dataType: TypeInformation[Row]): Table = {
-    val convertedDataSet = dataSet.map(
-      new MapFunction[Array[Object], Row] {
-        override def map(value: Array[Object]): Row =
-          convertTo(dataType).apply(value).asInstanceOf[Row]
-      }).returns(dataType.asInstanceOf[TypeInformation[Row]])
+  def createPythonTableFunction(
+      funcName: String,
+      serializedTableFunction: Array[Byte],
+      inputTypes: Array[TypeInformation[_]],
+      resultTypes: Array[TypeInformation[_]],
+      deterministic: Boolean,
+      pythonEnv: PythonEnv): TableFunction[_] =
+    PythonFunctionCodeGenerator.generateTableFunction(
+      funcName,
+      serializedTableFunction,
+      inputTypes,
+      resultTypes,
+      deterministic,
+      pythonEnv)
 
-    tableEnv.fromDataSet(convertedDataSet)
+  /**
+    * Wrap the unpickled python data with an InputFormat. It will be passed to
+    * PythonInputFormatTableSource later.
+    *
+    * @param data The unpickled python data.
+    * @param dataType The python data type.
+    * @param config The execution config used to create serializer.
+    * @return An InputFormat containing the python data.
+    */
+  def getInputFormat(
+      data: java.util.List[Array[Object]],
+      dataType: TypeInformation[Row],
+      config: ExecutionConfig): InputFormat[Row, _] = {
+    val converter = convertTo(dataType)
+    new CollectionInputFormat(data.map(converter(_).asInstanceOf[Row]),
+      dataType.createSerializer(config))
   }
 
   /**
@@ -421,4 +451,24 @@ object PythonTableUtils {
     }
     result
   }
+}
+
+/**
+  * An InputFormatTableSource created by python 'from_element' method.
+  *
+  * @param inputFormat The input format which contains the python data collection,
+  *                    usually created by PythonTableUtils#getInputFormat method
+  * @param rowTypeInfo The row type info of the python data.
+  *                    It is generated by the python 'from_element' method.
+  */
+class PythonInputFormatTableSource[Row](
+    inputFormat: InputFormat[Row, _ <: InputSplit],
+    rowTypeInfo: RowTypeInfo
+) extends InputFormatTableSource[Row] {
+
+  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = inputFormat
+
+  override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(rowTypeInfo)
+
+  override def getReturnType: TypeInformation[Row] = rowTypeInfo.asInstanceOf[TypeInformation[Row]]
 }

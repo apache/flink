@@ -59,14 +59,6 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Table/SQL Uber JAR -->
-		<file>
-			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- SQL Client -->
 		<file>
 			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
@@ -176,14 +168,22 @@
 			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
-	</files>
-	<fileSets>
-		<fileSet>
-			<directory>../flink-python/lib/</directory>
-			<outputDirectory>opt/python/</outputDirectory>
+
+		<!-- ML (API & LIB)  -->
+		<file>
+			<source>../flink-ml-parent/flink-ml-uber/target/flink-ml-uber_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
-		</fileSet>
-	</fileSets>
+		</file>
+
+		<file>
+			<source>target/temporary/flink-shaded-zookeeper-3-${zookeeper.optional.version}-${flink.shaded.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-shaded-zookeeper-${zookeeper.optional.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+	</files>
 	<dependencySets>
 		<dependencySet>
 			<unpack>false</unpack>

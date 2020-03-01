@@ -28,7 +28,7 @@ LogicalProject(a=[$0], s=[$3])
    +- LogicalProject(s=[$0])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
-            +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -61,14 +61,14 @@ LogicalProject(b=[$0], s=[$2])
       +- LogicalProject(s=[$0])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(tuples=[[{ 0 }]])
+               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, s])
 +- Correlate(invocation=[explode($cor0.set)], correlate=[table(explode($cor0.set))], select=[b,set,f0], rowType=[RecordType(BIGINT b, BIGINT MULTISET set, BIGINT f0)], joinType=[INNER])
-   +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow], select=[b, COLLECT(b) AS set])
+   +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, COLLECT(b) AS set])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, rowtime], where=[<(b, 3)])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
@@ -87,7 +87,7 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
    +- LogicalProject(k=[$0], v=[$1])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
-            +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -118,7 +118,7 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
       +- LogicalProject(x=[$0], y=[$1])
          +- Uncollect
             +- LogicalProject(b=[$cor0.b])
-               +- LogicalValues(tuples=[[{ 0 }]])
+               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -148,7 +148,7 @@ LogicalProject(a=[$0], s=[$2])
       +- LogicalProject(s=[$0])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(tuples=[[{ 0 }]])
+               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -174,7 +174,7 @@ LogicalProject(a=[$0], s=[$3])
    +- LogicalProject(s=[$0])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
-            +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -203,7 +203,7 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
       +- LogicalProject(id=[$0], point=[$1])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(tuples=[[{ 0 }]])
+               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -229,7 +229,7 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
    +- LogicalProject(s=[$0])
       +- Uncollect
          +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -253,7 +253,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
       +- LogicalProject(s=[$0], t=[$1])
          +- Uncollect
             +- LogicalProject(b=[$cor0.b])
-               +- LogicalValues(tuples=[[{ 0 }]])
+               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -275,7 +275,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
       +- Uncollect
          +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">

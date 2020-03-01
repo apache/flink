@@ -23,12 +23,14 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -73,7 +75,7 @@ public class SortMergeJoinIteratorTest {
 
 	@Before
 	public void before() throws MemoryAllocationException {
-		this.memManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.ioManager = new IOManagerAsync();
 		this.serializer = new BinaryRowSerializer(1);
 	}
@@ -179,7 +181,8 @@ public class SortMergeJoinIteratorTest {
 				input1,
 				input2,
 				new ResettableExternalBuffer(
-						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
+						ioManager,
+						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextInnerJoin()) {
@@ -217,7 +220,8 @@ public class SortMergeJoinIteratorTest {
 				input1,
 				input2,
 				new ResettableExternalBuffer(
-						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
+						ioManager,
+						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextOuterJoin()) {
@@ -256,10 +260,12 @@ public class SortMergeJoinIteratorTest {
 				input1,
 				input2,
 				new ResettableExternalBuffer(
-						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
+						ioManager,
+						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
 						serializer, false),
 				new ResettableExternalBuffer(
-						memManager, ioManager, memManager.allocatePages(this, BUFFER_MEMORY),
+						ioManager,
+						new LazyMemorySegmentPool(this, memManager, BUFFER_MEMORY),
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextOuterJoin()) {

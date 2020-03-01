@@ -164,8 +164,6 @@ public abstract class InputChannel {
 
 	abstract boolean isReleased();
 
-	abstract void notifySubpartitionConsumed() throws IOException;
-
 	/**
 	 * Releases all resources of the channel.
 	 */
@@ -246,6 +244,14 @@ public abstract class InputChannel {
 
 		// Reached maximum backoff
 		return false;
+	}
+
+	// ------------------------------------------------------------------------
+	// Metric related method
+	// ------------------------------------------------------------------------
+
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return 0;
 	}
 
 	// ------------------------------------------------------------------------

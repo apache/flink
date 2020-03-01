@@ -43,11 +43,11 @@ class StreamingWithAggTestBase(
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     if (aggMode.isLocalAggEnabled) {
       tEnv.getConfig.getConfiguration.setString(
-        OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY,
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
         AggregatePhaseStrategy.TWO_PHASE.toString)
     } else {
       tEnv.getConfig.getConfiguration.setString(
-        OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY,
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
         AggregatePhaseStrategy.ONE_PHASE.toString)
     }
   }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
@@ -45,7 +45,7 @@ public final class CompileUtils {
 	 * number of Meta zone GC (class unloading), resulting in performance bottlenecks. So we add
 	 * a cache to avoid this problem.
 	 */
-	protected static final Cache<Tuple2<ClassLoader, String>, Class<?>> COMPILED_CACHE = CacheBuilder
+	protected static final Cache<String, Cache<ClassLoader, Class>> COMPILED_CACHE = CacheBuilder
 		.newBuilder()
 		.maximumSize(100)   // estimated cache size
 		.build();
@@ -58,20 +58,20 @@ public final class CompileUtils {
 	 * @param <T>   the class type
 	 * @return  the compiled class
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> Class<T> compile(ClassLoader cl, String name, String code) {
-		Tuple2<ClassLoader, String> cacheKey = Tuple2.of(cl, name);
-		Class<?> clazz = COMPILED_CACHE.getIfPresent(cacheKey);
-		if (clazz == null) {
-			clazz = doCompile(cl, name, code);
-			COMPILED_CACHE.put(cacheKey, clazz);
+		try {
+			Cache<ClassLoader, Class> compiledClasses = COMPILED_CACHE.get(name,
+					() -> CacheBuilder.newBuilder().maximumSize(5).weakKeys().softValues().build());
+			return compiledClasses.get(cl, () -> doCompile(cl, name, code));
+		} catch (Exception e) {
+			throw new FlinkRuntimeException(e.getMessage(), e);
 		}
-		//noinspection unchecked
-		return (Class<T>) clazz;
 	}
 
 	private static <T> Class<T> doCompile(ClassLoader cl, String name, String code) {
 		checkNotNull(cl, "Classloader must not be null.");
-		CODE_LOG.debug("Compiling: %s \n\n Code:\n%s", name, code);
+		CODE_LOG.debug("Compiling: {} \n\n Code:\n{}", name, code);
 		SimpleCompiler compiler = new SimpleCompiler();
 		compiler.setParentClassLoader(cl);
 		try {

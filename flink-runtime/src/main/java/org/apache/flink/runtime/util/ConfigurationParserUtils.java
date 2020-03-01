@@ -20,13 +20,10 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
 
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
@@ -34,68 +31,6 @@ import static org.apache.flink.util.MathUtils.checkedDownCast;
  * sanity check them.
  */
 public class ConfigurationParserUtils {
-
-	/**
-	 * Parses the configuration to get the managed memory size and validates the value.
-	 *
-	 * @param configuration configuration object
-	 * @return managed memory size (in megabytes)
-	 */
-	public static long getManagedMemorySize(Configuration configuration) {
-		long managedMemorySize;
-		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
-			try {
-				managedMemorySize = MemorySize.parse(
-					configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-			} catch (IllegalArgumentException e) {
-				throw new IllegalConfigurationException("Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
-			}
-		} else {
-			managedMemorySize = Long.valueOf(managedMemorySizeDefaultVal);
-		}
-
-		checkConfigParameter(configuration.getString(
-			TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) || managedMemorySize > 0,
-			managedMemorySize, TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
-			"MemoryManager needs at least one MB of memory. " +
-				"If you leave this config parameter empty, the system automatically pick a fraction of the available memory.");
-
-		return managedMemorySize;
-	}
-
-	/**
-	 * Parses the configuration to get the fraction of managed memory and validates the value.
-	 *
-	 * @param configuration configuration object
-	 * @return fraction of managed memory
-	 */
-	public static float getManagedMemoryFraction(Configuration configuration) {
-		float managedMemoryFraction = configuration.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-
-		checkConfigParameter(managedMemoryFraction > 0.0f && managedMemoryFraction < 1.0f, managedMemoryFraction,
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(),
-			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
-
-		return managedMemoryFraction;
-	}
-
-	/**
-	 * Parses the configuration to get the type of memory.
-	 *
-	 * @param configuration configuration object
-	 * @return type of memory
-	 */
-	public static MemoryType getMemoryType(Configuration configuration) {
-		// check whether we use heap or off-heap memory
-		final MemoryType memType;
-		if (configuration.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
-			memType = MemoryType.OFF_HEAP;
-		} else {
-			memType = MemoryType.HEAP;
-		}
-		return memType;
-	}
 
 	/**
 	 * Parses the configuration to get the number of slots and validates the value.
@@ -142,8 +77,8 @@ public class ConfigurationParserUtils {
 	 * @return size of memory segment
 	 */
 	public static int getPageSize(Configuration configuration) {
-		final int pageSize = checkedDownCast(MemorySize.parse(
-			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+		final int pageSize = checkedDownCast(
+			configuration.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes());
 
 		// check page size of for minimum size
 		checkConfigParameter(

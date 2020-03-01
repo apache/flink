@@ -58,7 +58,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		checkNotNull(shuffleEnvironmentContext);
 		NettyShuffleEnvironmentConfiguration networkConfig = NettyShuffleEnvironmentConfiguration.fromConfiguration(
 			shuffleEnvironmentContext.getConfiguration(),
-			shuffleEnvironmentContext.getMaxJvmHeapMemory(),
+			shuffleEnvironmentContext.getNetworkMemorySize(),
 			shuffleEnvironmentContext.isLocalCommunicationOnly(),
 			shuffleEnvironmentContext.getHostAddress());
 		return createNettyShuffleEnvironment(
@@ -86,7 +86,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
 
 		ConnectionManager connectionManager = nettyConfig != null ?
-			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig, config.isCreditBased()) :
+			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig) :
 			new LocalConnectionManager();
 
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
@@ -104,7 +104,10 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.getBlockingSubpartitionType(),
 			config.networkBuffersPerChannel(),
 			config.floatingNetworkBuffersPerGate(),
-			config.networkBufferSize());
+			config.networkBufferSize(),
+			config.isForcePartitionReleaseOnConsumption(),
+			config.isBlockingShuffleCompressionEnabled(),
+			config.getCompressionCodec());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorResourceId,

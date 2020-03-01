@@ -1,0 +1,27 @@
+tables:
+  - name: q7
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q7.csv"
+    format:
+      type: csv
+      fields:
+        - name: supp_nation
+          type: VARCHAR
+        - name: cust_nation
+          type: VARCHAR
+        - name: l_year
+          type: BIGINT
+        - name: revenue
+          type: DOUBLE
+      field-delimiter: "|"
+    schema:
+      - name: supp_nation
+        type: VARCHAR
+      - name: cust_nation
+        type: VARCHAR
+      - name: l_year
+        type: BIGINT
+      - name: revenue
+        type: DOUBLE

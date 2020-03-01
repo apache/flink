@@ -115,7 +115,7 @@ class BatchExecSortAggregate(
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
           val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
           val partialKeyEnabled = tableConfig.getConfiguration.getBoolean(
-            BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+            BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && groupKeysList.containsAll(shuffleKeys)
         }
       case _ => false
@@ -161,10 +161,4 @@ class BatchExecSortAggregate(
   override def getDamBehavior: DamBehavior = {
     if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.PIPELINED
   }
-
-  override def getOperatorName: String = {
-    val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
-    aggOperatorName(aggregateNamePrefix + "SortAggregate")
-  }
-
 }

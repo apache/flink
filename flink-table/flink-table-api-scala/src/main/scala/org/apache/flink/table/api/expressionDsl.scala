@@ -25,9 +25,9 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
+import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper, _}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -1119,7 +1119,7 @@ trait ImplicitExpressionConversions {
       * Calls a table function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+      val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
         .getReturnTypeOfTableFunction(t, implicitly[TypeInformation[T]])
       unresolvedCall(new TableFunctionDefinition(t.getClass.getName, t, resultTypeInfo), params: _*)
     }
@@ -1129,10 +1129,10 @@ trait ImplicitExpressionConversions {
       (val a: UserDefinedAggregateFunction[T, ACC]) {
 
     private def createFunctionDefinition(): FunctionDefinition = {
-      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+      val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
         .getReturnTypeOfAggregateFunction(a, implicitly[TypeInformation[T]])
 
-      val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper.
+      val accTypeInfo: TypeInformation[ACC] = UserDefinedFunctionHelper.
         getAccumulatorTypeOfAggregateFunction(a, implicitly[TypeInformation[ACC]])
 
       a match {
@@ -1255,6 +1255,37 @@ trait ImplicitExpressionConversions {
     }
 
     convertArray(array)
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Function calls
+  // ----------------------------------------------------------------------------------------------
+
+  /**
+   * A call to a function that will be looked up in a catalog. There are two kinds of functions:
+   *
+   *  - System functions - which are identified with one part names
+   *  - Catalog functions - which are identified always with three parts names
+   *    (catalog, database, function)
+   *
+   * Moreover each function can either be a temporary function or permanent one
+   * (which is stored in a catalog).
+   *
+   * Based on those two properties, the resolution order for looking up a function based on
+   * the provided path is as follows:
+   *
+   *  - Temporary system function
+   *  - System function
+   *  - Temporary catalog function
+   *  - Catalog function
+   *
+   * @see TableEnvironment#useCatalog(String)
+   * @see TableEnvironment#useDatabase(String)
+   * @see TableEnvironment#createTemporaryFunction
+   * @see TableEnvironment#createTemporarySystemFunction
+   */
+  def call(path: String, params: Expression*): Expression = {
+    lookupCall(path, params: _*)
   }
 
   // ----------------------------------------------------------------------------------------------

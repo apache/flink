@@ -23,8 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendBaseRowSink}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.types.logical.IntType
-
+import org.apache.flink.table.types.logical.{IntType, VarCharType}
 import org.junit.Assert._
 import org.junit.Test
 
@@ -33,17 +32,18 @@ class ValuesITCase extends StreamingTestBase {
   @Test
   def testValues(): Unit = {
 
-    val sqlQuery = "SELECT * FROM (VALUES (1, 2, 3)) T(a, b, c)"
+    val sqlQuery = "SELECT * FROM (VALUES (1, 'Bob'), (1, 'Alice')) T(a, b)"
 
-    val outputType = new BaseRowTypeInfo(new IntType(), new IntType(), new IntType())
+    val outputType = new BaseRowTypeInfo(
+      new IntType(),
+      new VarCharType(5))
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[BaseRow]
     val sink = new TestingAppendBaseRowSink(outputType)
     result.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = List("0|1,2,3")
+    val expected = List("0|1,Alice", "0|1,Bob")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
-
 }

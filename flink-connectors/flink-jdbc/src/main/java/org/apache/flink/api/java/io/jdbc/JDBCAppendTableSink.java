@@ -64,6 +64,7 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
 		return dataStream
 			.addSink(new JDBCSinkFunction(outputFormat))
+			.setParallelism(dataStream.getParallelism())
 			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), fieldNames));
 	}
 

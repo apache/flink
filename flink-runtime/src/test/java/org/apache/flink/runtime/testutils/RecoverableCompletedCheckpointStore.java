@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;

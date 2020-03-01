@@ -63,6 +63,25 @@ files. The meta data file and data files are stored in the directory that is
 configured via `state.checkpoints.dir` in the configuration files, 
 and also can be specified for per job in the code.
 
+The current checkpoint directory layout ([introduced by FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531)) is as follows:
+
+{% highlight yaml %}
+/user-defined-checkpoint-dir
+    /{job-id}
+        |
+        + --shared/
+        + --taskowned/
+        + --chk-1/
+        + --chk-2/
+        + --chk-3/
+        ...
+{% endhighlight %}
+
+The **SHARED** directory is for state that is possibly part of multiple checkpoints, **TASKOWNED** is for state that must never be dropped by the JobManager, and **EXCLUSIVE** is for state that belongs to one checkpoint only. 
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> The checkpoint directory is not part of a public API and can be changed in the future release.
+</div>
 #### Configure globally via configuration files
 
 {% highlight yaml %}

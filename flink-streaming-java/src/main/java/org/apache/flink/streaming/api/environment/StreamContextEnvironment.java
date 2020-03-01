@@ -19,12 +19,21 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.DetachedEnvironment;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
@@ -34,31 +43,58 @@ import org.slf4j.LoggerFactory;
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
 	private final ContextEnvironment ctx;
 
-	protected StreamContextEnvironment(ContextEnvironment ctx) {
+	StreamContextEnvironment(final ContextEnvironment ctx) {
+		super(checkNotNull(ctx).getExecutorServiceLoader(), ctx.getConfiguration(), ctx.getUserCodeClassLoader());
+
 		this.ctx = ctx;
-		if (ctx.getParallelism() > 0) {
-			setParallelism(ctx.getParallelism());
+
+		final int parallelism = ctx.getParallelism();
+		if (parallelism > 0) {
+			setParallelism(parallelism);
 		}
 	}
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
+		JobClient jobClient = executeAsync(streamGraph);
 
-		// execute the programs
-		if (ctx instanceof DetachedEnvironment) {
-			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
-			((DetachedEnvironment) ctx).setDetachedPlan(streamGraph);
-			return DetachedEnvironment.DetachedJobExecutionResult.INSTANCE;
+		JobExecutionResult jobExecutionResult;
+		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+					jobClient.getJobExecutionResult(ctx.getUserCodeClassLoader());
+
+			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> {
+							// wait a smidgen to allow the async request to go through before
+							// the jvm exits
+							jobClient.cancel().get(1, TimeUnit.SECONDS);
+						},
+						ContextEnvironment.class.getSimpleName(),
+						LOG);
+				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+			}
+
+			jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
 		} else {
-			return ctx
-				.getClient()
-				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointRestoreSettings())
-				.getJobExecutionResult();
+			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 		}
+
+		return jobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+		final JobClient jobClient = super.executeAsync(streamGraph);
+
+		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+
+		return jobClient;
 	}
 }

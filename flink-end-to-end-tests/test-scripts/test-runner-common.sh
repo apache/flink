@@ -19,6 +19,8 @@
 
 source "${END_TO_END_DIR}"/test-scripts/common.sh
 
+export FLINK_VERSION=$(mvn --file ${END_TO_END_DIR}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
+
 #######################################
 # Prints the given description, runs the given test and prints how long the execution took.
 # Arguments:
@@ -101,7 +103,7 @@ function cleanup_proc {
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    rm ${FLINK_DIR}/log/*
+    rm -f ${FLINK_DIR}/log/*
     echo "Deleted all files under ${FLINK_DIR}/log/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null

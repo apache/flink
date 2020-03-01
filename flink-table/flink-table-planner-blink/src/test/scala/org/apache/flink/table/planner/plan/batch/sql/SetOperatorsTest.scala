@@ -36,7 +36,7 @@ class SetOperatorsTest extends TableTestBase {
   @Before
   def before(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.addTableSource[(Int, Long, String)]("T1", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("T2", 'd, 'e, 'f)
     util.addTableSource[(Int, Long, Int, String, Long)]("T3", 'a, 'b, 'd, 'c, 'e)
@@ -127,5 +127,10 @@ class SetOperatorsTest extends TableTestBase {
           new GenericTypeInfo(classOf[NonPojo])),
       Array("a", "b"))
     util.verifyPlan("SELECT a FROM A UNION ALL SELECT b FROM A")
+  }
+
+  @Test
+  def testIntersectWithOuterProject(): Unit = {
+    util.verifyPlan("SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)")
   }
 }

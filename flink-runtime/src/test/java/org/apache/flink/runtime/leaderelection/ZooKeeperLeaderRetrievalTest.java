@@ -32,7 +32,8 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
@@ -45,9 +46,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
+import java.time.Duration;
 
 import static org.junit.Assert.assertEquals;
 
@@ -102,7 +101,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	 */
 	@Test
 	public void testConnectingAddressRetrievalWithDelayedLeaderElection() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
+		Duration timeout = Duration.ofMinutes(1L);
 
 		long sleepingTime = 1000;
 
@@ -197,7 +196,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	 */
 	@Test
 	public void testTimeoutOfFindConnectingAddress() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+		Duration timeout = Duration.ofSeconds(1L);
 
 		LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 		InetAddress result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
@@ -207,14 +206,14 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	static class FindConnectingAddress implements Runnable {
 
-		private final FiniteDuration timeout;
+		private final Duration timeout;
 		private final LeaderRetrievalService leaderRetrievalService;
 
 		private InetAddress result;
 		private Exception exception;
 
 		public FindConnectingAddress(
-				FiniteDuration timeout,
+				Duration timeout,
 				LeaderRetrievalService leaderRetrievalService) {
 			this.timeout = timeout;
 			this.leaderRetrievalService = leaderRetrievalService;

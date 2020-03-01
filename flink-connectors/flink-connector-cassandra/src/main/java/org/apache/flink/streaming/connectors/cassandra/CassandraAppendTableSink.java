@@ -92,6 +92,7 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 
 		return dataStream
 				.addSink(sink)
+				.setParallelism(dataStream.getParallelism())
 				.name(TableConnectorUtils.generateRuntimeName(this.getClass(), fieldNames));
 
 	}

@@ -96,11 +96,14 @@ public class TypeStringUtils {
 			return DOUBLE;
 		} else if (typeInfo.equals(Types.BIG_DEC)) {
 			return DECIMAL;
-		} else if (typeInfo.equals(Types.SQL_DATE)) {
+		} else if (typeInfo.equals(Types.SQL_DATE) || typeInfo.equals(Types.LOCAL_DATE)) {
+			// write LOCAL_DATE as "DATE" to keep compatible when using new types
 			return DATE;
-		} else if (typeInfo.equals(Types.SQL_TIME)) {
+		} else if (typeInfo.equals(Types.SQL_TIME) || typeInfo.equals(Types.LOCAL_TIME)) {
+			// write LOCAL_TIME as "TIME" to keep compatible when using new types
 			return TIME;
-		} else if (typeInfo.equals(Types.SQL_TIMESTAMP)) {
+		} else if (typeInfo.equals(Types.SQL_TIMESTAMP) || typeInfo.equals(Types.LOCAL_DATE_TIME)) {
+			// write LOCAL_DATE_TIME as "TIMESTAMP" to keep compatible when using new types
 			return TIMESTAMP;
 		} else if (typeInfo instanceof RowTypeInfo) {
 			final RowTypeInfo rt = (RowTypeInfo) typeInfo;

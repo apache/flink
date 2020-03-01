@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 import org.junit.Assert._
@@ -55,7 +54,8 @@ abstract class PatternTranslatorTestBase extends TestLogger {
   private val testTableRowType = RowType.of(new IntType)
   private val tableName = "testTable"
   private val context = prepareContext(testTableTypeInfo)
-  private val calcitePlanner: FlinkPlannerImpl = context._2.getFlinkPlanner
+  private val calcitePlanner: FlinkPlannerImpl = context._2.createFlinkPlanner
+  private val parser = context._2.plannerContext.createCalciteParser()
 
   private def prepareContext(typeInfo: TypeInformation[Row])
   : (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
@@ -67,7 +67,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     when(jDataStreamMock.getId).thenReturn(0)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     TableTestUtil.registerDataStream(
       tEnv, tableName, dataStreamMock.javaStream, Some(Array[Expression]('f0, 'proctime.proctime)))
 
@@ -81,7 +81,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
   def verifyPattern(matchRecognize: String, expected: Pattern[BaseRow, _ <: BaseRow]): Unit = {
     // create RelNode from SQL expression
-    val parsed = calcitePlanner.parse(
+    val parsed = parser.parse(
       s"""
          |SELECT *
          |FROM $tableName
@@ -94,7 +94,8 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     val optimized: RelNode = plannerBase.optimize(Seq(converted)).head
 
     // throw exception if plan contains more than a match
-    if (!optimized.getInput(0).isInstanceOf[StreamExecDataStreamScan]) {
+    // the plan should be: StreamExecMatch -> StreamExecExchange -> StreamExecDataStreamScan
+    if (!optimized.getInput(0).getInput(0).isInstanceOf[StreamExecDataStreamScan]) {
       fail("Expression is converted into more than a Match operation. Use a different test method.")
     }
 

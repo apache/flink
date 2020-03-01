@@ -18,7 +18,6 @@
 
 import glob
 import os
-import sys
 import unittest
 from py4j.java_gateway import java_import
 
@@ -27,9 +26,6 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import TableSink
 from pyflink.table.types import _to_java_type
 from pyflink.util import utils
-
-if sys.version_info[0] >= 3:
-    xrange = range
 
 
 class TestTableSink(TableSink):
@@ -105,7 +101,7 @@ class TestUpsertSink(TestTableSink):
 
         gateway = get_gateway()
         j_keys = gateway.new_array(gateway.jvm.String, len(keys))
-        for i in xrange(0, len(keys)):
+        for i in range(0, len(keys)):
             j_keys[i] = keys[i]
 
         super(TestUpsertSink, self).__init__(
@@ -134,7 +130,7 @@ def upsert_results(keys):
     """
     gateway = get_gateway()
     j_keys = gateway.new_array(gateway.jvm.int, len(keys))
-    for i in xrange(0, len(keys)):
+    for i in range(0, len(keys)):
         j_keys[i] = keys[i]
 
     results = gateway.jvm.RowCollector.getAndClearValues()

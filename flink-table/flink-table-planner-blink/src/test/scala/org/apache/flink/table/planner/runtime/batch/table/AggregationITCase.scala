@@ -47,7 +47,7 @@ class AggregationITCase extends BatchTestBase {
       .where('a.get("_1") > 0)
       .select('a.get("_1").avg, 'a.get("_2").sum, 'b.count)
 
-    val expected = "2.0,6,3"
+    val expected = "2,6,3"
     val results = executeQuery(result)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -59,7 +59,7 @@ class AggregationITCase extends BatchTestBase {
       .select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg)
 
     val results = executeQuery(t)
-    val expected = "231,231,1,21,21,11.0"
+    val expected = "231,231,1,21,21,11"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -71,7 +71,7 @@ class AggregationITCase extends BatchTestBase {
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
 
-    val expected = "1.5,1.5,1.5,1.5,1.5,1.5,2"
+    val expected = "1,1,1,1,1.5,1.5,2"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -83,7 +83,7 @@ class AggregationITCase extends BatchTestBase {
       (2: Byte, 2: Short))
       .select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
 
-    val expected = "1.5,3,2,1.5,3"
+    val expected = "1,3,2,1,3"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -116,7 +116,7 @@ class AggregationITCase extends BatchTestBase {
       .select('_1, '_2, '_3)
       .select('_1.avg, '_2.sum, '_3.count)
 
-    val expected = "1.5,3,2"
+    val expected = "1,3,2"
     val result = executeQuery(t)
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
@@ -132,7 +132,7 @@ class AggregationITCase extends BatchTestBase {
           |Count(a) as e1, a.count as e2
         """.stripMargin)
 
-    val expected = "231,231,1,1,21,21,11.0,11.0,21,21"
+    val expected = "231,231,1,1,21,21,11,11,21,21"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -297,9 +297,9 @@ class AggregationITCase extends BatchTestBase {
       .select('c.min, 'e, 'a.avg, 'd.count)
 
     val expected = Seq(
-      s"0,1,${1.0 / 1},1", s"7,1,${9.0 / 2},2", s"2,1,${6.0 / 2},2",
-      s"3,2,${11.0 / 3},3", s"1,2,${10.0 / 3},3", s"14,2,${5.0 / 1},1",
-      s"12,3,${5.0 / 1},1", s"5,3,${8.0 / 2},2").mkString("\n")
+      s"0,1,${1 / 1},1", s"7,1,${9 / 2},2", s"2,1,${6 / 2},2",
+      s"3,2,${11 / 3},3", s"1,2,${10 / 3},3", s"14,2,${5 / 1},1",
+      s"12,3,${5 / 1},1", s"5,3,${8 / 2},2").mkString("\n")
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

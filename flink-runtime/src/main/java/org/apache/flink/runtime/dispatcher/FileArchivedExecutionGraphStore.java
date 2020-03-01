@@ -20,10 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
@@ -83,6 +83,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 	public FileArchivedExecutionGraphStore(
 			File rootDir,
 			Time expirationTime,
+			int maximumCapacity,
 			long maximumCacheSizeBytes,
 			ScheduledExecutor scheduledExecutor,
 			Ticker ticker) throws IOException {
@@ -102,6 +103,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 			"The storage directory must exist and be a directory.");
 		this.jobDetailsCache = CacheBuilder.newBuilder()
 			.expireAfterWrite(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS)
+			.maximumSize(maximumCapacity)
 			.removalListener(
 				(RemovalListener<JobID, JobDetails>) notification -> deleteExecutionGraphFile(notification.getKey()))
 			.ticker(ticker)

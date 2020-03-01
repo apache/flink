@@ -91,9 +91,6 @@ function run_test() {
     latest_snapshot_count=$(cat $FLINK_DIR/log/*out* | grep "on snapshot" | tail -n 1 | awk '{print $4}')
     echo "Latest snapshot count was ${latest_snapshot_count}"
 
-    # wait until the TM loss was detected
-    wait_for_job_state_transition ${JOB_ID} "RESTARTING" "CREATED"
-
     start_and_wait_for_tm
 
     wait_job_running ${JOB_ID}

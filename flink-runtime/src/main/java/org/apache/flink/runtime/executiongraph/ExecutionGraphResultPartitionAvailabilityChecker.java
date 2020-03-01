@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
-import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -36,11 +36,11 @@ public class ExecutionGraphResultPartitionAvailabilityChecker implements ResultP
 	private final Function<IntermediateResultPartitionID, ResultPartitionID> partitionIDMapper;
 
 	/** The tracker that tracks all available result partitions. */
-	private final PartitionTracker partitionTracker;
+	private final JobMasterPartitionTracker partitionTracker;
 
 	ExecutionGraphResultPartitionAvailabilityChecker(
 			final Function<IntermediateResultPartitionID, ResultPartitionID> partitionIDMapper,
-			final PartitionTracker partitionTracker) {
+			final JobMasterPartitionTracker partitionTracker) {
 
 		this.partitionIDMapper = checkNotNull(partitionIDMapper);
 		this.partitionTracker = checkNotNull(partitionTracker);

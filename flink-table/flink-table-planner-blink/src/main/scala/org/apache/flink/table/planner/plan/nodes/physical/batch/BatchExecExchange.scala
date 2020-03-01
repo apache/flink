@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.operators.DamBehavior
@@ -90,7 +91,7 @@ class BatchExecExchange(
     requiredShuffleMode match {
       case Some(mode) if mode eq ShuffleMode.BATCH => mode
       case _ =>
-        if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
+        if (tableConf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
             .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
           ShuffleMode.BATCH
         } else {
@@ -144,6 +145,7 @@ class BatchExecExchange(
           null,
           shuffleMode)
         transformation.setOutputType(outputRowType)
+        transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
         transformation
 
       case RelDistribution.Type.SINGLETON =>
@@ -152,6 +154,7 @@ class BatchExecExchange(
           new GlobalPartitioner[BaseRow],
           shuffleMode)
         transformation.setOutputType(outputRowType)
+        transformation.setParallelism(1)
         transformation
 
       case RelDistribution.Type.RANDOM_DISTRIBUTED =>
@@ -160,6 +163,7 @@ class BatchExecExchange(
           new RebalancePartitioner[BaseRow],
           shuffleMode)
         transformation.setOutputType(outputRowType)
+        transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
         transformation
 
       case RelDistribution.Type.BROADCAST_DISTRIBUTED =>
@@ -168,6 +172,7 @@ class BatchExecExchange(
           new BroadcastPartitioner[BaseRow],
           shuffleMode)
         transformation.setOutputType(outputRowType)
+        transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
         transformation
 
       case RelDistribution.Type.HASH_DISTRIBUTED =>
@@ -186,6 +191,7 @@ class BatchExecExchange(
           partitioner,
           shuffleMode)
         transformation.setOutputType(outputRowType)
+        transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
         transformation
       case _ =>
         throw new UnsupportedOperationException(

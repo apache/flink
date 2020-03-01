@@ -232,6 +232,18 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
   }
 
   @Test
+  def testInnerJoinWithDuplicateKey(): Unit = {
+    val query = "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("2,2,2", "3,3,3")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6 AND h < b"
 

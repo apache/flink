@@ -29,7 +29,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -86,7 +86,7 @@ LogicalSort(offset=[10], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -103,7 +103,7 @@ LogicalSort(offset=[0], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -120,7 +120,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) proctime, TIME ATTRIBUTE(ROWTIME) rowtime)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -137,7 +137,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(TIMESTAMP(3) proctime, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -154,7 +154,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(TIMESTAMP(3) desc, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -171,7 +171,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(BIGINT c, TIMESTAMP(3) desc)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -188,7 +188,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(BIGINT c, TIMESTAMP(3) proctime)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -205,7 +205,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -222,7 +222,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(TIME ATTRIBUTE(ROWTIME) desc, BIGINT c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -239,7 +239,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(BIGINT c, TIME ATTRIBUTE(ROWTIME) desc)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -256,7 +256,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(BIGINT c, TIME ATTRIBUTE(ROWTIME) rowtime)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

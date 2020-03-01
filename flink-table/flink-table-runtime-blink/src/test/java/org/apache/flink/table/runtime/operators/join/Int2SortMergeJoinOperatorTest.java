@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.join;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -71,7 +72,7 @@ public class Int2SortMergeJoinOperatorTest {
 
 	@Before
 	public void setup() {
-		this.memManager = new MemoryManager(36 * 1024 * 1024, 1);
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(36 * 1024 * 1024).build();
 		this.ioManager = new IOManagerAsync();
 	}
 
@@ -183,7 +184,7 @@ public class Int2SortMergeJoinOperatorTest {
 
 	static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
 		return new SortMergeJoinOperator(
-				32 * 32 * 1024, 1024 * 1024, type, leftIsSmaller,
+				0, type, leftIsSmaller,
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {

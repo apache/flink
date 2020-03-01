@@ -29,7 +29,7 @@ object JoinITCaseHelper {
 
   def disableBroadcastHashJoin(tEnv: TableEnvironment): Unit = {
     tEnv.getConfig.getConfiguration.setLong(
-      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
   }
 
   def disableOtherJoinOpForJoin(tEnv: TableEnvironment, expected: JoinType): Unit = {
@@ -42,7 +42,7 @@ object JoinITCaseHelper {
       case NestedLoopJoin => "HashJoin, SortMergeJoin"
     }
     tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, disabledOperators)
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, disabledOperators)
   }
 
 }

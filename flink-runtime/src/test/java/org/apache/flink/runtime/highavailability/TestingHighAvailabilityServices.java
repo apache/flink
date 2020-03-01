@@ -23,7 +23,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
@@ -41,7 +41,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderRetrievalService dispatcherLeaderRetriever;
 
-	private volatile LeaderRetrievalService webMonitorEndpointLeaderRetriever;
+	private volatile LeaderRetrievalService clusterRestEndpointLeaderRetriever;
 
 	private volatile Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction = ignored -> null;
 
@@ -55,11 +55,11 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderElectionService dispatcherLeaderElectionService;
 
-	private volatile LeaderElectionService webMonitorEndpointLeaderElectionService;
+	private volatile LeaderElectionService clusterRestEndpointLeaderElectionService;
 
 	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
-	private volatile SubmittedJobGraphStore submittedJobGraphStore;
+	private volatile JobGraphStore jobGraphStore;
 
 	private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
@@ -75,8 +75,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.dispatcherLeaderRetriever = dispatcherLeaderRetriever;
 	}
 
-	public void setWebMonitorEndpointLeaderRetriever(final LeaderRetrievalService webMonitorEndpointLeaderRetriever) {
-		this.webMonitorEndpointLeaderRetriever = webMonitorEndpointLeaderRetriever;
+	public void setClusterRestEndpointLeaderRetriever(final LeaderRetrievalService clusterRestEndpointLeaderRetriever) {
+		this.clusterRestEndpointLeaderRetriever = clusterRestEndpointLeaderRetriever;
 	}
 
 	public void setJobMasterLeaderRetriever(JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
@@ -95,16 +95,16 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.dispatcherLeaderElectionService = leaderElectionService;
 	}
 
-	public void setWebMonitorEndpointLeaderElectionService(final LeaderElectionService webMonitorEndpointLeaderElectionService) {
-		this.webMonitorEndpointLeaderElectionService = webMonitorEndpointLeaderElectionService;
+	public void setClusterRestEndpointLeaderElectionService(final LeaderElectionService clusterRestEndpointLeaderElectionService) {
+		this.clusterRestEndpointLeaderElectionService = clusterRestEndpointLeaderElectionService;
 	}
 
 	public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
 		this.checkpointRecoveryFactory = checkpointRecoveryFactory;
 	}
 
-	public void setSubmittedJobGraphStore(SubmittedJobGraphStore submittedJobGraphStore) {
-		this.submittedJobGraphStore = submittedJobGraphStore;
+	public void setJobGraphStore(JobGraphStore jobGraphStore) {
+		this.jobGraphStore = jobGraphStore;
 	}
 
 	public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
@@ -159,8 +159,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
-		return webMonitorEndpointLeaderRetriever;
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		return clusterRestEndpointLeaderRetriever;
 	}
 
 	@Override
@@ -197,8 +197,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
-		return webMonitorEndpointLeaderElectionService;
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		return clusterRestEndpointLeaderElectionService;
 	}
 
 	@Override
@@ -213,13 +213,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() {
-		SubmittedJobGraphStore store = submittedJobGraphStore;
+	public JobGraphStore getJobGraphStore() {
+		JobGraphStore store = jobGraphStore;
 
 		if (store != null) {
 			return store;
 		} else {
-			throw new IllegalStateException("SubmittedJobGraphStore has not been set");
+			throw new IllegalStateException("JobGraphStore has not been set");
 
 		}
 	}

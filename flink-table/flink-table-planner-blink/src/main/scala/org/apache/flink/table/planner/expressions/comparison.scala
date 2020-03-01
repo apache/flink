@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.{isArray, isComparable, isNumeric}
 import org.apache.flink.table.planner.validate._
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 
 import org.apache.calcite.sql.SqlOperator
 
@@ -34,6 +35,9 @@ abstract class BinaryComparison extends BinaryExpression {
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       case (lType, rType) if isComparable(lType) && lType == rType => ValidationSuccess
+      case (lType, rType) if isComparable(lType) &&
+          fromTypeInfoToLogicalType(lType) == fromTypeInfoToLogicalType(rType) =>
+        ValidationSuccess
       case (lType, rType) =>
         ValidationFailure(
           s"Comparison is only supported for numeric types and " +
@@ -50,6 +54,9 @@ case class EqualTo(left: PlannerExpression, right: PlannerExpression) extends Bi
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       case (lType, rType) if lType == rType => ValidationSuccess
+      case (lType, rType)
+        if fromTypeInfoToLogicalType(lType) == fromTypeInfoToLogicalType(rType) =>
+        ValidationSuccess
       case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
         ValidationSuccess
       case (lType, rType) =>
@@ -66,6 +73,9 @@ case class NotEqualTo(left: PlannerExpression, right: PlannerExpression) extends
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       case (lType, rType) if lType == rType => ValidationSuccess
+      case (lType, rType)
+        if fromTypeInfoToLogicalType(lType) == fromTypeInfoToLogicalType(rType) =>
+        ValidationSuccess
       case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
         ValidationSuccess
       case (lType, rType) =>

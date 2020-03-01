@@ -89,12 +89,10 @@ class BatchExecLookupJoin(
     planner: BatchPlanner): Transformation[BaseRow] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val transformation = translateToPlanInternal(
+    translateToPlanInternal(
       inputTransformation,
       planner.getExecEnv,
       planner.getTableConfig,
       planner.getRelBuilder)
-    transformation.setParallelism(getResource.getParallelism)
-    transformation
   }
 }

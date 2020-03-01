@@ -60,8 +60,8 @@ public class OperatorTest {
 		opMethod.setAccessible(true);
 
 		// verify explicit change in resources
-		ResourceSpec minResources = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
-		ResourceSpec preferredResources = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(200).build();
+		ResourceSpec minResources = ResourceSpec.newBuilder(1.0, 100).build();
+		ResourceSpec preferredResources = ResourceSpec.newBuilder(2.0, 200).build();
 		opMethod.invoke(operator, minResources, preferredResources);
 
 		assertEquals(minResources, operator.getMinResources());

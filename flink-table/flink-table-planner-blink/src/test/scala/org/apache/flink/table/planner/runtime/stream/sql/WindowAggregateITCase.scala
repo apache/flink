@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{SQL_EXEC_EMIT_LATE_FIRE_DELAY, SQL_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
@@ -70,7 +70,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val sql =
       """
         |SELECT
-        |  string,
+        |  `string`,
         |  HOP_START(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND),
         |  HOP_ROWTIME(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND),
         |  COUNT(1),
@@ -79,7 +79,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
         |  COUNT(DISTINCT `float`),
         |  concat_distinct_agg(name)
         |FROM T1
-        |GROUP BY string, HOP(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND)
+        |GROUP BY `string`, HOP(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND)
       """.stripMargin
 
     val sink = new TestingAppendSink
@@ -97,6 +97,35 @@ class WindowAggregateITCase(mode: StateBackendMode)
       "Hi,1970-01-01T00:00,1970-01-01T00:00:00.004,1,1,1,1,a",
       "null,1970-01-01T00:00:00.028,1970-01-01T00:00:00.032,1,1,1,1,null",
       "null,1970-01-01T00:00:00.032,1970-01-01T00:00:00.036,1,1,1,1,null")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCascadingTumbleWindow(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+
+    val sql =
+      """
+        |SELECT SUM(cnt)
+        |FROM (
+        |  SELECT COUNT(1) AS cnt, TUMBLE_ROWTIME(rowtime, INTERVAL '10' SECOND) AS ts
+        |  FROM T1
+        |  GROUP BY `int`, `string`, TUMBLE(rowtime, INTERVAL '10' SECOND)
+        |)
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq("9")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -122,7 +151,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val sql =
       """
         |SELECT
-        |  string,
+        |  `string`,
         |  SESSION_START(rowtime, INTERVAL '0.005' SECOND),
         |  SESSION_ROWTIME(rowtime, INTERVAL '0.005' SECOND),
         |  COUNT(1),
@@ -131,7 +160,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
         |  SUM(`int`),
         |  COUNT(DISTINCT name)
         |FROM T1
-        |GROUP BY string, SESSION(rowtime, INTERVAL '0.005' SECOND)
+        |GROUP BY `string`, SESSION(rowtime, INTERVAL '0.005' SECOND)
       """.stripMargin
 
     val sink = new TestingAppendSink
@@ -171,7 +200,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val sql =
       """
         |SELECT
-        |  string,
+        |  `string`,
         |  TUMBLE_START(rowtime, INTERVAL '0.005' SECOND) as w_start,
         |  TUMBLE_END(rowtime, INTERVAL '0.005' SECOND),
         |  COUNT(DISTINCT `long`),
@@ -202,7 +231,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
     tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto(result, "MySink")
+    tEnv.insertInto("MySink", result)
     tEnv.execute("test")
 
     val expected = Seq(
@@ -251,16 +280,57 @@ class WindowAggregateITCase(mode: StateBackendMode)
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testMinMaxWithTumblingWindow(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    tEnv.getConfig.getConfiguration.setBoolean("table.exec.emit.early-fire.enabled", true)
+    tEnv.getConfig.getConfiguration.setString("table.exec.emit.early-fire.delay", "1000 ms")
+
+    val sql =
+      """
+        |SELECT
+        | MAX(max_ts),
+        | MIN(min_ts),
+        | `string`
+        |FROM(
+        | SELECT
+        | `string`,
+        | `int`,
+        | MAX(rowtime) as max_ts,
+        | MIN(rowtime) as min_ts
+        | FROM T1
+        | GROUP BY `string`, `int`, TUMBLE(rowtime, INTERVAL '10' SECOND))
+        |GROUP BY `string`
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "1970-01-01T00:00:00.001,1970-01-01T00:00:00.001,Hi",
+      "1970-01-01T00:00:00.002,1970-01-01T00:00:00.002,Hallo",
+      "1970-01-01T00:00:00.007,1970-01-01T00:00:00.003,Hello",
+      "1970-01-01T00:00:00.016,1970-01-01T00:00:00.008,Hello world",
+      "1970-01-01T00:00:00.032,1970-01-01T00:00:00.032,null")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
-      SQL_EXEC_EMIT_LATE_FIRE_DELAY)
+      TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
     if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
         "Currently not support different lateFireInterval configs in one job")
     }
-    tableConfig.getConfiguration.setBoolean(SQL_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    tableConfig.getConfiguration.setString(SQL_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
+    tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setString(
+      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
   }
 }

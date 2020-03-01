@@ -36,7 +36,7 @@ class TwoStageAggregateTest extends TableTestBase {
     util.enableMiniBatch()
     util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
       AggregatePhaseStrategy.TWO_PHASE.toString)
   }
 

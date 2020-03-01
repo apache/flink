@@ -36,7 +36,7 @@ import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.api.dataview.DataView
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.aggfunctions.{CountAggFunction, IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.runtime.aggregate.GeneratedAggregations
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -79,11 +79,11 @@ class HarnessTestBase extends StreamingWithStateTestBase {
 
   protected val minMaxAggregationStateType: RowTypeInfo =
     new RowTypeInfo(minMaxAggregates
-      .map(UserFunctionsTypeHelper.getAccumulatorTypeOfAggregateFunction(_)): _*)
+      .map(UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(_)): _*)
 
   protected val sumAggregationStateType: RowTypeInfo =
     new RowTypeInfo(sumAggregates
-      .map(UserFunctionsTypeHelper.getAccumulatorTypeOfAggregateFunction(_)): _*)
+      .map(UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(_)): _*)
 
   protected val minMaxFuncName = "MinMaxAggregateHelper"
   protected val sumFuncName = "SumAggregationHelper"
@@ -408,12 +408,8 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   }
 
   def getOperator(testHarness: OneInputStreamOperatorTestHarness[_, _])
-      : AbstractUdfStreamOperator[_, _] = {
-    val operatorField = classOf[OneInputStreamOperatorTestHarness[_, _]]
-      .getDeclaredField("oneInputOperator")
-    operatorField.setAccessible(true)
-    operatorField.get(testHarness).asInstanceOf[AbstractUdfStreamOperator[_, _]]
-  }
+  : AbstractUdfStreamOperator[_, _] =
+    testHarness.getOneInputOperator.asInstanceOf[AbstractUdfStreamOperator[_, _]]
 
   def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
     verify(expected, actual, new RowResultSortComparator)

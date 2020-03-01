@@ -39,10 +39,6 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() {
-	}
-
-	@Override
 	public boolean isReleased() {
 		return true;
 	}
@@ -60,5 +56,10 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public boolean isAvailable() {
 		return false;
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return 0;
 	}
 }

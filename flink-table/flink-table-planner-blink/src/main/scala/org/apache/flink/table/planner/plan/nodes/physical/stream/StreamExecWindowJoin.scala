@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, MapFunction}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap, TwoInputStreamOperator}
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation, UnionTransformation}
 import org.apache.flink.table.api.TableException
@@ -29,7 +29,9 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, RelExplainUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -65,6 +67,12 @@ class StreamExecWindowJoin(
   extends BiRel(cluster, traitSet, leftRel, rightRel)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
+
+  if (containsPythonCall(remainCondition.get)) {
+    throw new TableException("Only inner join condition with equality predicates supports the " +
+      "Python UDF taking the inputs from the left table and the right table at the same time, " +
+      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+  }
 
   // TODO remove FlinkJoinType
   private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(joinType)
@@ -105,8 +113,8 @@ class StreamExecWindowJoin(
     super.explainTerms(pw)
       .item("joinType", flinkJoinType.toString)
       .item("windowBounds", windowBounds)
-      .item("where",
-        RelExplainUtil.expressionToString(joinCondition, outputRowType, getExpressionString))
+      .item("where", getExpressionString(
+        joinCondition, outputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
@@ -294,8 +302,8 @@ class StreamExecWindowJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftPlan,
       rightPlan,
-      "Co-Process",
-      new LegacyKeyedCoProcessOperator(procJoinFunc).
+      getRelDetailedDescription,
+      new KeyedCoProcessOperator(procJoinFunc).
         asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
       leftPlan.getParallelism
@@ -338,15 +346,16 @@ class StreamExecWindowJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftPlan,
       rightPlan,
-      "Co-Process",
+      getRelDetailedDescription,
       new KeyedCoProcessOperatorWithWatermarkDelay(rowJoinFunc, rowJoinFunc.getMaxOutputDelay)
         .asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
-      getResource.getParallelism
+      leftPlan.getParallelism
     )
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state

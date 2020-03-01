@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="planBefore">
       <![CDATA[
 LogicalFilter(condition=[>=($0, 0)])
-+- LogicalProject(c1=[org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$ad6edb4d4c8a8ac04216f9aeaab1e36f($2, org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$ad6edb4d4c8a8ac04216f9aeaab1e36f($2, $5))])
++- LogicalProject(c1=[org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50($2, org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50($2, $5))])
    +- LogicalJoin(condition=[=($1, $4)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]])
@@ -51,9 +51,9 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[FullOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, $f3, y, z], build=[left])
++- HashJoin(joinType=[FullOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, b, <(b, 2) AS $f3])
+   :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
@@ -116,9 +116,9 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[LeftOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, $f3, y, z], build=[left])
++- HashJoin(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, b, <(b, 2) AS $f3])
+   :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
@@ -212,28 +212,6 @@ Calc(select=[c, g])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightOuterJoinEquiPred">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(b=[$1], y=[$4])
-+- LogicalJoin(condition=[=($0, $5)], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[b, y])
-+- HashJoin(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
-   :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Exchange(distribution=[hash[z]])
-      +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRightOuterJoinEquiAndLocalPred">
     <Resource name="planBefore">
       <![CDATA[
@@ -246,12 +224,12 @@ LogicalProject(b=[$1], x=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, x])
-+- HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, x, z, $f3], build=[left])
++- HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], build=[right])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- Calc(select=[x, z, <(x, 2) AS $f3])
+      +- Calc(select=[x, z])
          +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
@@ -274,6 +252,46 @@ Calc(select=[b, y])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoinEquiPred">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], y=[$4])
++- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b, y])
++- HashJoin(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[z]])
+      +- Calc(select=[y, z])
+         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUDFInJoinCondition">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalJoin(condition=[AND(=($1, $4), =(org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50($0, $3), 10))], joinType=[inner])
+:- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(Merger$(a, d), 10))], select=[a, b, c, d, e, f], build=[right])
+:- Exchange(distribution=[hash[b]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[e]])
+   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

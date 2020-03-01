@@ -26,11 +26,10 @@ import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOpera
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
-import org.apache.flink.table.planner.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.PlanUtil
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
@@ -61,9 +60,7 @@ class BatchPlanner(
     val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
     val context = new DAGProcessContext(this)
     // breakup deadlock
-    val postNodeDag = new DeadlockBreakupProcessor().process(execNodePlan, context)
-    // set parallelism
-    new ParallelismProcessor().process(postNodeDag, context)
+    new DeadlockBreakupProcessor().process(execNodePlan, context)
   }
 
   override protected def translateToPlan(
@@ -87,10 +84,15 @@ class BatchPlanner(
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
-    val transformations = translateToPlan(execNodes)
-    val batchExecutor = new BatchExecutor(getExecEnv)
-    batchExecutor.setTableConfig(getTableConfig)
-    val streamGraph = batchExecutor.generateStreamGraph(transformations, "")
+
+    val plannerForExplain = createDummyPlannerForExplain()
+    plannerForExplain.overrideEnvParallelism()
+    val transformations = plannerForExplain.translateToPlan(execNodes)
+
+    val execEnv = getExecEnv
+    ExecutorUtils.setBatchProperties(execEnv, getTableConfig)
+    val streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations)
+    ExecutorUtils.setBatchProperties(streamGraph, getTableConfig)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
@@ -106,7 +108,7 @@ class BatchPlanner(
     val explainLevel = if (extended) {
       SqlExplainLevel.ALL_ATTRIBUTES
     } else {
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES
+      SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     sb.append(ExecNodePlanDumper.dagToString(execNodes, explainLevel))
     sb.append(System.lineSeparator)
@@ -116,4 +118,11 @@ class BatchPlanner(
     sb.append(executionPlan)
     sb.toString()
   }
+
+  private def createDummyPlannerForExplain(): BatchPlanner = {
+    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
+    val executorForExplain = new BatchExecutor(dummyExecEnv)
+    new BatchPlanner(executorForExplain, config, functionCatalog, catalogManager)
+  }
+
 }

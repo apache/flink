@@ -19,7 +19,7 @@
 ################################################################################
 
 ### If unspecified, the hostname of the container is taken as the JobManager address
-FLINK_HOME=${FLINK_HOME:-"/opt/flink/bin"}
+FLINK_HOME=${FLINK_HOME:-"/opt/flink"}
 
 JOB_CLUSTER="job-cluster"
 TASK_MANAGER="task-manager"

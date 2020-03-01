@@ -58,7 +58,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val agg: StreamExecGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 
@@ -76,7 +76,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       isStateBackendDataViews = true)
 
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
     val isTwoPhaseEnabled = getAggPhaseStrategy(tableConfig) != AggregatePhaseStrategy.ONE_PHASE
 
     isMiniBatchEnabled && isTwoPhaseEnabled &&

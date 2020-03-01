@@ -138,10 +138,7 @@ object ReturnTypeInference {
         fromLogicalTypeToTypeInfo(FlinkTypeFactory.toLogicalType(resultType))
       }
     }
-    val nonDecimalType = op match {
-      case _: Div => (_: LogicalType) => BasicTypeInfo.DOUBLE_TYPE_INFO
-      case _: Mul => (t: LogicalType) => fromLogicalTypeToTypeInfo(t)
-    }
+    val nonDecimalType = (t: LogicalType) => fromLogicalTypeToTypeInfo(t)
     inferBinaryArithmetic(op, decimalFunc, nonDecimalType)
   }
 

@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -29,9 +30,7 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -219,13 +218,13 @@ class BatchExecSortMergeJoin(
       leftType,
       rightType)
 
-    val externalBufferMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
-    val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+    val externalBufferMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
+    val sortMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
+    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
 
-    val sortMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM)
-    val sortMemory = sortMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+    val managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2
 
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
       val originalOrders = originalKeys.map(_ => true)
@@ -241,9 +240,7 @@ class BatchExecSortMergeJoin(
     val rightSortGen = newSortGen(rightAllKey, rightType)
 
     val operator = new SortMergeJoinOperator(
-      sortMemory,
-      sortMemory,
-      externalBufferMemory,
+      externalBufferMemory.toDouble / managedMemory,
       flinkJoinType,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
       condFunc,
@@ -258,30 +255,18 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
-    val managedMemoryInMB = externalBufferMemoryInMB * externalBufferNum + sortMemoryInMB * 2
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    ExecNode.createTwoInputTransformation(
       leftInput,
       rightInput,
-      getOperatorName,
-      operator,
+      getRelDetailedDescription,
+      SimpleOperatorFactory.of(operator),
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      getResource.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      rightInput.getParallelism,
+      managedMemory)
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {
     val mq = relNode.getCluster.getMetadataQuery
     mq.getAverageRowSize(relNode) * mq.getRowCount(relNode)
-  }
-
-  private def getOperatorName: String = if (getCondition != null) {
-    val inFields = inputRowType.getFieldNames.toList
-    s"SortMergeJoin(where: ${
-      getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)})"
-  } else {
-    "SortMergeJoin"
   }
 }

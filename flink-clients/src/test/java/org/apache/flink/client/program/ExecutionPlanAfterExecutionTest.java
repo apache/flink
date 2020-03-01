@@ -43,7 +43,6 @@ public class ExecutionPlanAfterExecutionTest extends TestLogger implements Seria
 	@Test
 	public void testExecuteAfterGetExecutionPlan() {
 		ExecutionEnvironment env = new LocalEnvironment();
-		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> baseSet = env.fromElements(1, 2);
 
@@ -87,7 +86,6 @@ public class ExecutionPlanAfterExecutionTest extends TestLogger implements Seria
 	@Test
 	public void testGetExecutionPlanOfRangePartition() {
 		ExecutionEnvironment env = new LocalEnvironment();
-		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> baseSet = env.fromElements(1, 2);
 

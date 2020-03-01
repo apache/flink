@@ -20,48 +20,48 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-{% assign active_pages = site.array %}
-{% assign active = page %}
+{%- assign active_pages = site.array -%}
+{%- assign active = page -%}
 
-{% for i in (1..10) %}
-  {% assign active_pages = active_pages | push: active %}
-  {% if active.nav-parent_id %}
-    {% assign next = site.pages_by_language[page.language] | where: "nav-id" , active.nav-parent_id %}
-    {% if next.size > 0 %}
-      {% assign active = next[0] %}
-    {% else %}
-      {% break %}
-    {% endif %}
-  {% else %}
-    {% break %}
-  {% endif %}
-{% endfor %}
+{%- for i in (1..10) -%}
+  {%- assign active_pages = active_pages | push: active -%}
+  {%- if active.nav-parent_id -%}
+    {%- assign next = site.pages_by_language[page.language] | where: "nav-id" , active.nav-parent_id -%}
+    {%- if next.size > 0 -%}
+      {%- assign active = next[0] -%}
+    {%- else -%}
+      {%- break -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- break -%}
+  {%- endif -%}
+{%- endfor -%}
 
 {% assign active_pages = active_pages | reverse %}
 
 <ol class="breadcrumb">
-{% for p in active_pages %}
-  {% capture title %}{% if p.nav-title %}{{ p.nav-title }}{% else %}{{ p.title }}{% endif %}{% endcapture %}
-  {% if forloop.last == true %}
+{%- for p in active_pages %}
+  {% capture title %}{% if p.nav-title %}{{ p.nav-title }}{% else %}{{ p.title }}{% endif %}{% endcapture -%}
+  {%- if forloop.last == true %}
     <li class="active">{{ title }}</li>
-  {% elsif p.nav-show_overview %}
+  {%- elsif p.nav-show_overview %}
     <li><a href="{{ site.baseurl }}{{ p.url }}">{{ title }}</a></li>
-  {% else %}
+  {%- else %}
     <li>{{ title }}</li>
-  {% endif %}
-{% endfor %}
+  {%- endif -%}
+{%- endfor %}
 </ol>
 
 <h1>{{ page.title }}{% if page.is_beta %} <span class="beta">Beta</span>{% endif %}</h1>
 {% if site.show_outdated_warning %}
 <div class="alert alert-danger" role="alert">
-  {% if page.language == "en" %}
+  {%- if page.language == "en" %}
     <strong>This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.</strong>
-  {% else if page.language == "zh" %}
+  {%- else if page.language == "zh" %}
     <strong>本文档是 Apache Flink 的旧版本。建议访问 <a href="https://ci.apache.org/projects/flink/flink-docs-stable/zh">最新的稳定版本</a>。</strong>
-  {% endif %}
+  {%- endif %}
 </div>
-{% endif %}
+{%- endif %}
 
 {{ content }}
 

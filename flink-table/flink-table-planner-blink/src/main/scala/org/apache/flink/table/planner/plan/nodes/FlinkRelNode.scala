@@ -19,11 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes
 
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.plan.utils.RelDescriptionWriterImpl
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAsOperator
 import org.apache.calcite.sql.SqlKind._
+
+import java.io.{PrintWriter, StringWriter}
 
 import scala.collection.JavaConversions._
 
@@ -31,6 +34,22 @@ import scala.collection.JavaConversions._
   * Base class for flink relational expression.
   */
 trait FlinkRelNode extends RelNode {
+
+  /**
+    * Returns a string which describes the detailed information of relational expression
+    * with attributes which contribute to the plan output.
+    *
+    * This method leverages [[RelNode#explain]] with
+    * [[org.apache.calcite.sql.SqlExplainLevel.EXPPLAN_ATTRIBUTES]] explain level to generate
+    * the description.
+    */
+  def getRelDetailedDescription: String = {
+    val sw = new StringWriter
+    val pw = new PrintWriter(sw)
+    val relWriter = new RelDescriptionWriterImpl(pw)
+    this.explain(relWriter)
+    sw.toString
+  }
 
   private[flink] def getExpressionString(
       expr: RexNode,
@@ -100,7 +119,6 @@ trait FlinkRelNode extends RelNode {
         throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
     }
   }
-
 }
 
 /**

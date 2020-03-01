@@ -22,18 +22,41 @@
   # List of additional classes and packages to import.
   # Example. "org.apache.calcite.sql.*", "java.util.List".
   imports: [
+    "org.apache.calcite.sql.ExtendedSqlRowTypeNameSpec",
+    "org.apache.calcite.sql.SqlMapTypeNameSpec",
     "org.apache.flink.sql.parser.ddl.SqlCreateTable",
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
     "org.apache.flink.sql.parser.ddl.SqlCreateView",
     "org.apache.flink.sql.parser.ddl.SqlDropView",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
+    "org.apache.flink.sql.parser.ddl.SqlTableOption",
+    "org.apache.flink.sql.parser.ddl.SqlWatermark",
+    "org.apache.flink.sql.parser.ddl.SqlUseCatalog",
+    "org.apache.flink.sql.parser.ddl.SqlUseDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlCreateDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlDropDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlAlterDatabase",
+    "org.apache.flink.sql.parser.ddl.SqlAlterFunction",
+    "org.apache.flink.sql.parser.ddl.SqlCreateFunction",
+    "org.apache.flink.sql.parser.ddl.SqlDropFunction",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTable",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableRename",
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties",
+    "org.apache.flink.sql.parser.ddl.SqlCreateCatalog",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
-    "org.apache.flink.sql.parser.type.SqlArrayType",
-    "org.apache.flink.sql.parser.type.SqlMapType",
-    "org.apache.flink.sql.parser.type.SqlRowType",
+    "org.apache.flink.sql.parser.dql.SqlShowCatalogs",
+    "org.apache.flink.sql.parser.dql.SqlDescribeCatalog",
+    "org.apache.flink.sql.parser.dql.SqlShowDatabases",
+    "org.apache.flink.sql.parser.dql.SqlShowFunctions",
+    "org.apache.flink.sql.parser.dql.SqlDescribeDatabase",
+    "org.apache.flink.sql.parser.dql.SqlShowTables",
+    "org.apache.flink.sql.parser.dql.SqlRichDescribeTable",
+    "org.apache.flink.sql.parser.type.ExtendedSqlBasicTypeNameSpec",
+    "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
+    "org.apache.flink.sql.parser.utils.ParserResource",
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
     "org.apache.flink.sql.parser.SqlProperty",
     "org.apache.calcite.sql.SqlDrop",
@@ -49,11 +72,18 @@
     "PARTITIONED",
     "IF",
     "WATERMARK",
-    "ASCENDING",
-    "FROM_SOURCE",
-    "BOUNDED",
-    "DELAY",
-    "OVERWRITE"
+    "OVERWRITE",
+    "STRING",
+    "BYTES",
+    "RAW",
+    "CATALOGS",
+    "USE",
+    "DATABASES",
+    "FUNCTIONS",
+    "EXTENDED",
+    "SCALA",
+    "TABLES",
+    "RENAME"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -79,6 +109,7 @@
     "C"
     "CASCADE"
     "CATALOG"
+    "CATALOGS"
     "CATALOG_NAME"
     "CENTURY"
     "CHAIN"
@@ -110,6 +141,7 @@
     "CURSOR_NAME"
     "DATA"
     "DATABASE"
+    "DATABASES"
     "DATETIME_INTERVAL_CODE"
     "DATETIME_INTERVAL_PRECISION"
     "DECADE"
@@ -137,6 +169,7 @@
     "EXCEPTION"
     "EXCLUDE"
     "EXCLUDING"
+    "EXTENDED"
     "FINAL"
     "FIRST"
     "FOLLOWING"
@@ -144,6 +177,7 @@
     "FORTRAN"
     "FOUND"
     "FRAC_SECOND"
+    "FUNCTIONS"
     "G"
     "GENERAL"
     "GENERATED"
@@ -231,6 +265,7 @@
     "QUARTER"
     "READ"
     "RELATIVE"
+    "RENAME"
     "REPEATABLE"
     "REPLACE"
     "RESPECT"
@@ -323,6 +358,7 @@
     "STYLE"
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
+    "TABLES"
     "TABLE_NAME"
     "TEMPORARY"
     "TIES"
@@ -345,6 +381,7 @@
     "UNDER"
     "UNNAMED"
     "USAGE"
+    "USE"
     "USER_DEFINED_TYPE_CATALOG"
     "USER_DEFINED_TYPE_CODE"
     "USER_DEFINED_TYPE_NAME"
@@ -364,10 +401,6 @@
     # not in core, added in Flink
     "PARTITIONED",
     "IF",
-    "ASCENDING",
-    "FROM_SOURCE",
-    "BOUNDED",
-    "DELAY",
     "OVERWRITE"
   ]
 
@@ -375,7 +408,19 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
-    "RichSqlInsert()"
+    "RichSqlInsert()",
+    "SqlShowCatalogs()",
+    "SqlDescribeCatalog()",
+    "SqlUseCatalog()",
+    "SqlShowDatabases()",
+    "SqlUseDatabase()",
+    "SqlAlterDatabase()",
+    "SqlDescribeDatabase()",
+    "SqlAlterFunction()",
+    "SqlShowFunctions()",
+    "SqlShowTables()",
+    "SqlRichDescribeTable()",
+    "SqlAlterTable()"
   ]
 
   # List of methods for parsing custom literals.
@@ -384,13 +429,14 @@
   literalParserMethods: [
   ]
 
-  # List of methods for parsing custom data types.
-  # Return type of method implementation should be "SqlIdentifier".
+  # List of methods for parsing ddl supported data types.
+  # Return type of method implementation should be "SqlTypeNameSpec".
   # Example: SqlParseTimeStampZ().
   dataTypeParserMethods: [
-    "SqlArrayType()",
-    "SqlMapType()",
-    "SqlRowType()"
+    "ExtendedSqlBasicTypeName()",
+    "CustomizedCollectionsTypeName()",
+    "SqlMapTypeName()",
+    "ExtendedSqlRowTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.
@@ -408,15 +454,28 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
+    "SqlCreateCatalog",
     "SqlCreateTable",
-    "SqlCreateView"
+    "SqlCreateView",
+    "SqlCreateDatabase",
+    "SqlCreateFunction"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
     "SqlDropTable",
-    "SqlDropView"
+    "SqlDropView",
+    "SqlDropDatabase"
+    "SqlDropFunction"
+  ]
+
+  # Binary operators tokens
+  binaryOperatorsTokens: [
+  ]
+
+  # Binary operators initialization
+  extraBinaryExpressions: [
   ]
 
   # List of files in @includes directory that have parser method
@@ -432,6 +491,7 @@
   joinTypes: [
   ]
 
+  includePosixOperators: false
   includeCompoundIdentifier: true
   includeBraces: true
   includeAdditionalDeclarations: false

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM
 import org.apache.flink.streaming.api.transformations.PartitionTransformation
@@ -92,6 +93,7 @@ class StreamExecExchange(
           inputTransform,
           partitioner.asInstanceOf[StreamPartitioner[BaseRow]])
         transformation.setOutputType(outputTypeInfo)
+        transformation.setParallelism(1)
         transformation
       case RelDistribution.Type.HASH_DISTRIBUTED =>
         // TODO Eliminate duplicate keys
@@ -104,6 +106,7 @@ class StreamExecExchange(
           inputTransform,
           partitioner.asInstanceOf[StreamPartitioner[BaseRow]])
         transformation.setOutputType(outputTypeInfo)
+        transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
         transformation
       case _ =>
         throw new UnsupportedOperationException(

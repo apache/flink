@@ -20,41 +20,37 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.dataview.{DataViewSpec, MapViewSpec}
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
+import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
-
 import java.time.Duration
 import java.util
 
@@ -289,7 +285,7 @@ object AggregateUtil extends Enumeration {
           val bufferTypeInfos = bufferTypes.map(fromLogicalTypeToDataType)
           (bufferTypeInfos, Array.empty[DataViewSpec],
               fromLogicalTypeToDataType(a.getResultType.getLogicalType))
-        case a: AggregateFunction[_, _] =>
+        case a: UserDefinedAggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {
             case aggSqlFun: AggSqlFunction =>
               (aggSqlFun.externalAccType, aggSqlFun.externalResultType)
@@ -498,15 +494,25 @@ object AggregateUtil extends Enumeration {
 
       case DATE => DataTypes.INT
       case TIME_WITHOUT_TIME_ZONE => DataTypes.INT
-      case TIMESTAMP_WITHOUT_TIME_ZONE => DataTypes.BIGINT
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[TimestampType]
+        DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val dt = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
 
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT
 
-      case VARCHAR | CHAR => fromLegacyInfoToDataType(BinaryStringTypeInfo.INSTANCE)
+      case VARCHAR =>
+        val dt = argTypes(0).asInstanceOf[VarCharType]
+        DataTypes.VARCHAR(dt.getLength).bridgedTo(classOf[BinaryString])
+      case CHAR =>
+        val dt = argTypes(0).asInstanceOf[CharType]
+        DataTypes.CHAR(dt.getLength).bridgedTo(classOf[BinaryString])
       case DECIMAL =>
         val dt = argTypes(0).asInstanceOf[DecimalType]
-        DataTypes.DECIMAL(dt.getPrecision, dt.getScale)
+        DataTypes.DECIMAL(dt.getPrecision, dt.getScale).bridgedTo(classOf[Decimal])
       case t =>
         throw new TableException(s"Distinct aggregate function does not support type: $t.\n" +
           s"Please re-check the data type.")
@@ -541,7 +547,7 @@ object AggregateUtil extends Enumeration {
              _: SqlSumAggFunction |
              _: SqlSumEmptyIsZeroAggFunction |
              _: SqlSingleValueAggFunction |
-             _: SqlConcatAggFunction => true
+             _: SqlListAggFunction => true
         case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
         case _ => false
       }
@@ -673,10 +679,11 @@ object AggregateUtil extends Enumeration {
     * Creates a MiniBatch trigger depends on the config.
     */
   def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
-    val size = tableConfig.getConfiguration.getLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE)
+    val size = tableConfig.getConfiguration.getLong(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
     if (size <= 0 ) {
       throw new IllegalArgumentException(
-        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE + " must be > 0.")
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
     }
     new CountBundleTrigger[BaseRow](size)
   }
@@ -686,8 +693,7 @@ object AggregateUtil extends Enumeration {
     */
   def timeFieldIndex(
       inputType: RelDataType, relBuilder: RelBuilder, timeField: FieldReferenceExpression): Int = {
-    timeField.accept(new RexNodeConverter(relBuilder.values(inputType)))
-        .asInstanceOf[RexInputRef].getIndex
+    relBuilder.values(inputType).field(timeField.getName).getIndex
   }
 
   /**
@@ -744,4 +750,11 @@ object AggregateUtil extends Enumeration {
 
   def toDuration(literalExpr: ValueLiteralExpression): Duration =
     extractValue(literalExpr, classOf[Duration]).get()
+
+  private[flink] def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
+    aggCalls
+      .filter(e => e.getAggregation.isInstanceOf[AggSqlFunction])
+      .map(e => e.getAggregation.asInstanceOf[AggSqlFunction].aggregateFunction)
+      .exists(_.isInstanceOf[TableAggregateFunction[_, _]])
+  }
 }

@@ -23,7 +23,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, RelDigestUtil}
+import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, FlinkRelOptUtil}
 
 import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.core.{Exchange, TableFunctionScan}
@@ -57,11 +57,11 @@ object SubplanReuser {
     */
   def reuseDuplicatedSubplan(rels: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
     if (!tableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
       return rels
     }
     val tableSourceReuseEnabled = tableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED)
     val context = new SubplanReuseContext(tableSourceReuseEnabled, rels: _*)
     val reuseShuttle = new SubplanReuseShuttle(context)
     rels.map(_.accept(reuseShuttle))
@@ -106,7 +106,7 @@ object SubplanReuser {
       if (digest != null) {
         digest
       } else {
-        val newDigest = RelDigestUtil.getDigest(node)
+        val newDigest = FlinkRelOptUtil.getDigest(node)
         mapRelToDigest.put(node, newDigest)
         newDigest
       }

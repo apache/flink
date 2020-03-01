@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor.ReleaseType;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -61,17 +60,18 @@ import java.util.Collection;
  *     <li>{@link ResultPartitionWriter#fail(Throwable)} and {@link ResultPartitionWriter#close()} are called
  *     if the production has failed.
  *     </li>
- *     <li>if {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code true} and
- *     {@link ResultPartitionWriter#finish()} and {@link ResultPartitionWriter#close()} are called when the production is done.
- *     The actual release can take some time depending on implementation details,
- *     e.g. if the `end of consumption' confirmation from the consumer is being awaited implicitly.
- *     The partition has to support the {@link ReleaseType#AUTO} in {@link ShuffleDescriptor#getSupportedReleaseTypes()}.</li>
- *     <li>if {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code false} and
- *     {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)} and {@link ShuffleEnvironment#releasePartitionsLocally(Collection)},
- *     if it occupies any producer local resources ({@link ShuffleDescriptor#storesLocalResourcesOn()}),
- *     are called outside of the producer thread, e.g. to manage the lifecycle of BLOCKING result partitions
- *     which can outlive their producers. The partition has to support the {@link ReleaseType#MANUAL} in
- *     {@link ShuffleDescriptor#getSupportedReleaseTypes()}.</li>
+ *     <li>for PIPELINED partitions if there was a detected consumption attempt and it either failed or finished
+ *     after the bounded production has been done ({@link ResultPartitionWriter#finish()} and
+ *     {@link ResultPartitionWriter#close()} have been called). Only one consumption attempt is ever expected for
+ *     the PIPELINED partition at the moment so it can be released afterwards.
+ *     <li>if the following methods are called outside of the producer thread:
+ *     <ol>
+ *         <li>{@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)}</li>
+ *         <li>and if it occupies any producer local resources ({@link ShuffleDescriptor#storesLocalResourcesOn()})
+ *             then also {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}</li>
+ *     </ol>
+ *     e.g. to manage the lifecycle of BLOCKING result partitions which can outlive their producers.
+ *     The BLOCKING partitions can be consumed multiple times.</li>
  * </ol>
  * The partitions, which currently still occupy local resources, can be queried with
  * {@link ShuffleEnvironment#getPartitionsOccupyingLocalResources}.
@@ -132,8 +132,6 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	 *
 	 * <p>This is called for partitions which occupy resources locally
 	 * (can be checked by {@link ShuffleDescriptor#storesLocalResourcesOn()}).
-	 * This method is not called if {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code true}.
-	 * The partition has to support the {@link ReleaseType#MANUAL} in {@link ShuffleDescriptor#getSupportedReleaseTypes()}.
 	 *
 	 * @param partitionIds identifying the partitions to be released
 	 */

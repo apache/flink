@@ -58,14 +58,18 @@ import org.apache.parquet.filter2.predicate.Operators.DoubleColumn;
 import org.apache.parquet.filter2.predicate.Operators.FloatColumn;
 import org.apache.parquet.filter2.predicate.Operators.IntColumn;
 import org.apache.parquet.filter2.predicate.Operators.LongColumn;
+import org.apache.parquet.hadoop.metadata.ColumnPath;
+import org.apache.parquet.io.InvalidRecordException;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -152,7 +156,7 @@ public class ParquetTableSource
 
 	@Override
 	public TableSource<Row> projectFields(int[] fields) {
-		return new ParquetTableSource(path, parquetSchema, parquetConfig, recursiveEnumeration, fields, null);
+		return new ParquetTableSource(path, parquetSchema, parquetConfig, recursiveEnumeration, fields, predicate);
 	}
 
 	@Override
@@ -223,7 +227,8 @@ public class ParquetTableSource
 	@Override
 	public String explainSource() {
 		return "ParquetFile[path=" + path + ", schema=" + parquetSchema + ", filter=" + predicateString()
-			+ ", typeInfo=" + typeInfo + "]";
+			+ ", typeInfo=" + typeInfo + ", selectedFields=" + Arrays.toString(selectedFields)
+			+ ", pushDownStatus=" + isFilterPushedDown + "]";
 	}
 
 	private String predicateString() {
@@ -319,7 +324,7 @@ public class ParquetTableSource
 			}
 		} else if (exp instanceof BinaryExpression) {
 			if (exp instanceof And) {
-				LOG.debug("All of the predicates should be in CNF. Found an AND expression.", exp);
+				LOG.debug("All of the predicates should be in CNF. Found an AND expression: {}.", exp);
 			} else if (exp instanceof Or) {
 				FilterPredicate c1 = toParquetPredicate(((Or) exp).left());
 				FilterPredicate c2 = toParquetPredicate(((Or) exp).right());
@@ -445,8 +450,16 @@ public class ParquetTableSource
 
 	@Nullable
 	private Tuple2<Column, Comparable> extractColumnAndLiteral(BinaryComparison comp) {
-		TypeInformation<?> typeInfo = getLiteralType(comp);
 		String columnName = getColumnName(comp);
+		ColumnPath columnPath = ColumnPath.fromDotString(columnName);
+		TypeInformation<?> typeInfo = null;
+		try {
+			Type type = parquetSchema.getType(columnPath.toArray());
+			typeInfo = ParquetSchemaConverter.convertParquetTypeToTypeInfo(type);
+		} catch (InvalidRecordException e) {
+			LOG.error("Pushed predicate on undefined field name {} in schema", columnName);
+			return null;
+		}
 
 		// fetch literal and ensure it is comparable
 		Object value = getLiteral(comp);
@@ -461,15 +474,15 @@ public class ParquetTableSource
 		if (typeInfo == BasicTypeInfo.BYTE_TYPE_INFO ||
 			typeInfo == BasicTypeInfo.SHORT_TYPE_INFO ||
 			typeInfo == BasicTypeInfo.INT_TYPE_INFO) {
-			return new Tuple2<>(FilterApi.intColumn(columnName), (Integer) value);
+			return new Tuple2<>(FilterApi.intColumn(columnName), ((Number) value).intValue());
 		} else if (typeInfo == BasicTypeInfo.LONG_TYPE_INFO) {
-			return new Tuple2<>(FilterApi.longColumn(columnName), (Long) value);
+			return new Tuple2<>(FilterApi.longColumn(columnName), ((Number) value).longValue());
 		} else if (typeInfo == BasicTypeInfo.FLOAT_TYPE_INFO) {
-			return new Tuple2<>(FilterApi.floatColumn(columnName), (Float) value);
+			return new Tuple2<>(FilterApi.floatColumn(columnName), ((Number) value).floatValue());
 		} else if (typeInfo == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
 			return new Tuple2<>(FilterApi.booleanColumn(columnName), (Boolean) value);
 		} else if (typeInfo == BasicTypeInfo.DOUBLE_TYPE_INFO) {
-			return new Tuple2<>(FilterApi.doubleColumn(columnName), (Double) value);
+			return new Tuple2<>(FilterApi.doubleColumn(columnName), ((Number) value).doubleValue());
 		} else if (typeInfo == BasicTypeInfo.STRING_TYPE_INFO) {
 			return new Tuple2<>(FilterApi.binaryColumn(columnName), Binary.fromString((String) value));
 		} else {

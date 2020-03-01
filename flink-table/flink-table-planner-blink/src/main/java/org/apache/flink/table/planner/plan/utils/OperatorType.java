@@ -22,7 +22,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 /**
  * Some dedicated operator type which is used in
- * {@link ExecutionConfigOptions#SQL_EXEC_DISABLED_OPERATORS}.
+ * {@link ExecutionConfigOptions#TABLE_EXEC_DISABLED_OPERATORS}.
  */
 public enum OperatorType {
 

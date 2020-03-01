@@ -14,3 +14,7 @@
 # limitations under the License.
 
 org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+org.apache.flink.table.planner.runtime.batch.sql.TestPartitionableSinkFactory
+org.apache.flink.table.planner.utils.TestPartitionableSourceFactory
+org.apache.flink.table.planner.utils.TestFilterableTableSourceFactory
+org.apache.flink.table.planner.utils.TestProjectableTableSourceFactory

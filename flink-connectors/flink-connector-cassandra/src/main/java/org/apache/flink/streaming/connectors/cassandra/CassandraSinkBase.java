@@ -128,8 +128,14 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	@Override
 	public void invoke(IN value) throws Exception {
 		checkAsyncErrors();
-		tryAcquire();
-		final ListenableFuture<V> result = send(value);
+		tryAcquire(1);
+		final ListenableFuture<V> result;
+		try {
+			result = send(value);
+		} catch (Throwable e) {
+			semaphore.release();
+			throw e;
+		}
 		Futures.addCallback(result, callback);
 	}
 
@@ -139,11 +145,12 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 
 	public abstract ListenableFuture<V> send(IN value);
 
-	private void tryAcquire() throws InterruptedException, TimeoutException {
-		if (!semaphore.tryAcquire(config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+	private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
+		if (!semaphore.tryAcquire(permits, config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
 			throw new TimeoutException(
 				String.format(
-					"Failed to acquire 1 permit of %d to send value in %s.",
+					"Failed to acquire %d out of %d permits to send value in %s.",
+					permits,
 					config.getMaxConcurrentRequests(),
 					config.getMaxConcurrentRequestsTimeout()
 				)
@@ -158,8 +165,8 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		}
 	}
 
-	private void flush() {
-		semaphore.acquireUninterruptibly(config.getMaxConcurrentRequests());
+	private void flush() throws InterruptedException, TimeoutException {
+		tryAcquire(config.getMaxConcurrentRequests());
 		semaphore.release(config.getMaxConcurrentRequests());
 	}
 

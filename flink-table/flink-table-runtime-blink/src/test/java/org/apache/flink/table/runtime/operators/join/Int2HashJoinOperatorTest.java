@@ -21,11 +21,9 @@ package org.apache.flink.table.runtime.operators.join;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -243,6 +241,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		joinAndAssert(operator, buildInput, probeInput, expectOutSize, expectOutKeySize, expectOutVal, false);
 	}
 
+	@SuppressWarnings("unchecked")
 	static void joinAndAssert(
 			Object operator,
 			MutableObjectIterator<BinaryRow> input1,
@@ -256,9 +255,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 				new IntType(), new IntType(), new IntType(), new IntType());
 		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
-					(operator instanceof InputSelectable || operator instanceof StreamOperatorFactory) ?
-							TwoInputSelectableStreamTask::new :
-							TwoInputStreamTask::new,
+				TwoInputStreamTask::new,
 				2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, baseRowType);
 		testHarness.memorySize = 36 * 1024 * 1024;
 		testHarness.getExecutionConfig().enableObjectReuse();
@@ -269,6 +266,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			testHarness.getStreamConfig().setStreamOperatorFactory((StreamOperatorFactory<?>) operator);
 		}
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
+		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -401,7 +399,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
 	public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
 		return HashJoinOperator.newHashJoinOperator(
-				memorySize, memorySize, 0, type,
+				type,
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {

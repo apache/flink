@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -43,9 +43,6 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER_CLASS;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FLUSH_ON_CHECKPOINT;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_HOSTS;
-import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_HOSTS_HOSTNAME;
-import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_HOSTS_PORT;
-import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_HOSTS_PROTOCOL;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_INDEX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_DELIMITER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_KEY_NULL_LITERAL;
@@ -54,6 +51,7 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 /**
  * Connector descriptor for the Elasticsearch search engine.
  */
+@PublicEvolving
 public class Elasticsearch extends ConnectorDescriptor {
 
 	private DescriptorProperties internalProperties = new DescriptorProperties(true);
@@ -306,14 +304,13 @@ public class Elasticsearch extends ConnectorDescriptor {
 		final DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(internalProperties);
 
-		final List<List<String>> hostValues = hosts.stream()
-			.map(host -> Arrays.asList(host.hostname, String.valueOf(host.port), host.protocol))
-			.collect(Collectors.toList());
-		properties.putIndexedFixedProperties(
-			CONNECTOR_HOSTS,
-			Arrays.asList(CONNECTOR_HOSTS_HOSTNAME, CONNECTOR_HOSTS_PORT, CONNECTOR_HOSTS_PROTOCOL),
-			hostValues);
-
+		if (hosts.size() > 0) {
+			properties.putString(
+				CONNECTOR_HOSTS,
+				hosts.stream()
+					.map(Host::toString)
+					.collect(Collectors.joining(";")));
+		}
 		return properties.asMap();
 	}
 }

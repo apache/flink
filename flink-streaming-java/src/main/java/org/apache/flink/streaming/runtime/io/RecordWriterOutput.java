@@ -82,7 +82,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	@Override
 	public void collect(StreamRecord<OUT> record) {
 		if (this.outputTag != null) {
-			// we are only responsible for emitting to the main input
+			// we are not responsible for emitting to the main output.
 			return;
 		}
 
@@ -92,7 +92,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-			// we are only responsible for emitting to the side-output specified by our
+			// we are not responsible for emitting to the side-output specified by this
 			// OutputTag.
 			return;
 		}

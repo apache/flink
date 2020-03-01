@@ -22,6 +22,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -69,7 +70,7 @@ public class BufferDataOverWindowOperatorTest {
 			new RowType.RowField("f0", new BigIntType())));
 
 	private List<GenericRow> collect;
-	private MemoryManager memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+	private MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 	private IOManager ioManager;
 	private BufferDataOverWindowOperator operator;
 	private GeneratedRecordComparator boundComparator = new GeneratedRecordComparator("", "", new Object[0]) {
@@ -176,7 +177,7 @@ public class BufferDataOverWindowOperatorTest {
 	}
 
 	private void test(OverWindowFrame[] frames, GenericRow[] expect) throws Exception {
-		operator = new BufferDataOverWindowOperator(MEMORY_SIZE, frames, comparator, true) {
+		operator = new BufferDataOverWindowOperator(frames, comparator, true) {
 			{
 				output = new NonBufferOverWindowOperatorTest.ConsumerOutput(new Consumer<BaseRow>() {
 					@Override
@@ -197,6 +198,8 @@ public class BufferDataOverWindowOperatorTest {
 				StreamConfig conf = mock(StreamConfig.class);
 				when(conf.<BaseRow>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
+				when(conf.getManagedMemoryFraction())
+						.thenReturn(0.99);
 				return conf;
 			}
 

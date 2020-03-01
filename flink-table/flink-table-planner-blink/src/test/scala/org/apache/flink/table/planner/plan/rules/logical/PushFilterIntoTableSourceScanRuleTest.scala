@@ -20,9 +20,13 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestFilterableTableSource}
-
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.FilterProjectTransposeRule
 import org.apache.calcite.tools.RuleSets
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.Types
+import org.apache.flink.types.Row
 import org.junit.{Before, Test}
 
 /**
@@ -40,16 +44,37 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushFilterIntoTableSourceScanRule.INSTANCE))
+        .add(RuleSets.ofList(PushFilterIntoTableSourceScanRule.INSTANCE,
+          FilterProjectTransposeRule.INSTANCE))
         .build()
     )
 
+    // name: STRING, id: LONG, amount: INT, price: DOUBLE
     util.tableEnv.registerTableSource("MyTable", TestFilterableTableSource(true))
+    val ddl =
+      s"""
+         |CREATE TABLE VirtualTable (
+         |  name STRING,
+         |  id bigint,
+         |  amount int,
+         |  virtualField as amount + 1,
+         |  price double
+         |) with (
+         |  'connector.type' = 'TestFilterableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.sqlUpdate(ddl)
   }
 
   @Test
   def testCanPushDown(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2")
+  }
+
+  @Test
+  def testCanPushDownWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2")
   }
 
   @Test
@@ -59,8 +84,19 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testCannotPushDownWithVirtualColumn(): Unit = {
+    // TestFilterableTableSource only accept predicates with `amount`
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE price > 10")
+  }
+
+  @Test
   def testPartialPushDown(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 AND price > 10")
+  }
+
+  @Test
+  def testPartialPushDownWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10")
   }
 
   @Test
@@ -69,13 +105,28 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
   }
 
   @Test
+  def testFullyPushDownWithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND amount < 10")
+  }
+
+  @Test
   def testPartialPushDown2(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 OR price > 10")
   }
 
   @Test
+  def testPartialPushDown2WithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR price > 10")
+  }
+
+  @Test
   def testCannotPushDown3(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 OR amount < 10")
+  }
+
+  @Test
+  def testCannotPushDown3WithVirtualColumn(): Unit = {
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR amount < 10")
   }
 
   @Test
@@ -94,4 +145,18 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
     util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
+  @Test
+  def testLowerUpperPushdown(): Unit = {
+    val rti = new RowTypeInfo(Array[TypeInformation[_]](
+      Types.STRING, Types.STRING),
+      Array("a", "b"))
+    val data = List(Row.of("foo", "bar"))
+    util.tableEnv
+      .registerTableSource(
+        "MTable",
+        TestFilterableTableSource(true, rti, data, Set("a", "b"))
+      )
+
+    util.verifyPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'")
+  }
 }

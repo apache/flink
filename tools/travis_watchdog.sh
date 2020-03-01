@@ -43,6 +43,13 @@ MAX_NO_OUTPUT=${1:-300}
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
 
+# Maximum times to retry uploading artifacts file to transfer.sh
+TRANSFER_UPLOAD_MAX_RETRIES=10
+
+# The delay between two retries to upload artifacts file to transfer.sh. The default exponential
+# backoff algorithm should be too long for the last several retries.
+TRANSFER_UPLOAD_RETRY_DELAY=15
+
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 PYTHON_TEST="./flink-python/dev/lint-python.sh"
@@ -60,14 +67,17 @@ MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 #
-# We use -Punsafe-mapr-repo since the https version fails on Travis for some reason.
-MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -B -Pskip-webui-build -Punsafe-mapr-repo $MVN_LOGGING_OPTIONS"
+MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Dmaven.wagon.http.pool=false -B -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
-MVN_TEST_OPTIONS="$MVN_LOGGING_OPTIONS -Dflink.tests.with-openssl"
+MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
+
+e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
 
 MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
 MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
+# don't move the e2e-pre-commit profile activation into the misc entry in .travis.yml, since it breaks caching
+MVN_E2E="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -Pe2e-pre-commit -pl ${e2e_modules},flink-dist verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -84,6 +94,11 @@ UPLOAD_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
 UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
 
 ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
+
+if [ ! -z "$TF_BUILD" ] ; then
+	# set proper artifacts file name on Azure Pipelines
+	ARTIFACTS_FILE=${BUILD_BUILDNUMBER}.tar.gz
+fi
 
 if [ $TEST == $STAGE_PYTHON ]; then
 	CMD=$PYTHON_TEST
@@ -131,7 +146,7 @@ upload_artifacts_s3() {
 
 	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
-	curl --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
+	curl --retry ${TRANSFER_UPLOAD_MAX_RETRIES} --retry-delay ${TRANSFER_UPLOAD_RETRY_DELAY} --upload-file $ARTIFACTS_FILE --max-time 60 https://transfer.sh
 }
 
 print_stacktraces () {
@@ -156,7 +171,7 @@ print_stacktraces () {
 put_yarn_logs_to_artifacts() {
 	# Make sure to be in project root
 	cd $HERE/../
-	for file in `find ./flink-yarn-tests/target/flink-yarn-tests* -type f -name '*.log'`; do
+	for file in `find ./flink-yarn-tests/target -type f -name '*.log'`; do
 		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).log"`
 		TARGET_DIR=`dirname	 "$TARGET_FILE"`
 		mkdir -p "$ARTIFACTS_DIR/yarn-tests/$TARGET_DIR"
@@ -176,6 +191,10 @@ mod_time () {
 the_time() {
 	echo `date +%s`
 }
+
+# =============================================================================
+# WATCHDOG
+# =============================================================================
 
 watchdog () {
 	touch $CMD_OUT
@@ -199,67 +218,41 @@ watchdog () {
 	done
 }
 
-# =============================================================================
-# WATCHDOG
-# =============================================================================
+run_with_watchdog() {
+	local cmd="$1"
 
-# Start watching $MVN_OUT
-watchdog &
+	watchdog &
+	WD_PID=$!
+	echo "STARTED watchdog (${WD_PID})."
 
-WD_PID=$!
+	# Make sure to be in project root
+	cd "$HERE/../"
 
-echo "STARTED watchdog (${WD_PID})."
+	echo "RUNNING '${cmd}'."
 
-# Make sure to be in project root
-cd $HERE/../
+	# Run $CMD and pipe output to $CMD_OUT for the watchdog. The PID is written to $CMD_PID to
+	# allow the watchdog to kill $CMD if it is not producing any output anymore. $CMD_EXIT contains
+	# the exit code. This is important for Travis' build life-cycle (success/failure).
+	( $cmd & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$CMD_PID 4>$CMD_EXIT | tee $CMD_OUT
 
-# Compile modules
+	EXIT_CODE=$(<$CMD_EXIT)
 
-echo "RUNNING '${CMD}'."
+	echo "${CMD_TYPE} exited with EXIT CODE: ${EXIT_CODE}."
 
-# Run $CMD and pipe output to $CMD_OUT for the watchdog. The PID is written to $CMD_PID to
-# allow the watchdog to kill $CMD if it is not producing any output anymore. $CMD_EXIT contains
-# the exit code. This is important for Travis' build life-cycle (success/failure).
-( $CMD & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$CMD_PID 4>$CMD_EXIT | tee $CMD_OUT
+	# Make sure to kill the watchdog in any case after $CMD has completed
+	echo "Trying to KILL watchdog (${WD_PID})."
+	( kill $WD_PID 2>&1 ) > /dev/null
 
-EXIT_CODE=$(<$CMD_EXIT)
+	rm $CMD_PID
+	rm $CMD_EXIT
+}
 
-echo "${CMD_TYPE} exited with EXIT CODE: ${EXIT_CODE}."
-
-# Make sure to kill the watchdog in any case after $CMD has completed
-echo "Trying to KILL watchdog (${WD_PID})."
-( kill $WD_PID 2>&1 ) > /dev/null
-
-rm $CMD_PID
-rm $CMD_EXIT
+run_with_watchdog "$CMD"
 
 # Run tests if compilation was successful
 if [ $CMD_TYPE == "MVN" ]; then
 	if [ $EXIT_CODE == 0 ]; then
-
-		# Start watching $MVN_OUT
-		watchdog &
-		echo "STARTED watchdog (${WD_PID})."
-
-		WD_PID=$!
-
-		echo "RUNNING '${MVN_TEST}'."
-
-		# Run $MVN_TEST and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
-		# allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
-		# the exit code. This is important for Travis' build life-cycle (success/failure).
-		( $MVN_TEST & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
-
-		EXIT_CODE=$(<$MVN_EXIT)
-
-		echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
-
-		# Make sure to kill the watchdog in any case after $MVN_TEST has completed
-		echo "Trying to KILL watchdog (${WD_PID})."
-		( kill $WD_PID 2>&1 ) > /dev/null
-
-		rm $MVN_PID
-		rm $MVN_EXIT
+		run_with_watchdog "$MVN_TEST"
 	else
 		echo "=============================================================================="
 		echo "Compilation failure detected, skipping test execution."
@@ -283,29 +276,37 @@ upload_artifacts_s3
 cd ../../
 
 # only run end-to-end tests in misc because we only have flink-dist here
-if [[ ${PROFILE} == *"jdk9"* ]]; then
-    printf "\n\n==============================================================================\n"
-    printf "Skipping end-to-end tests since they fail on Java 9.\n"
-    printf "==============================================================================\n"
-else
-    case $TEST in
-        (misc)
+case $TEST in
+    (misc)
+        # If we are not on Azure (we are on Travis) run precommit tests in misc stage.
+        # On Azure, we run them in a separate job
+        if [ -z "$TF_BUILD" ] ; then
             if [ $EXIT_CODE == 0 ]; then
-                printf "\n\n==============================================================================\n"
-                printf "Running end-to-end tests\n"
-                printf "==============================================================================\n"
-    
+                echo "\n\n==============================================================================\n"
+                echo "Running bash end-to-end tests\n"
+                echo "==============================================================================\n"
+
                 FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-    
+
                 EXIT_CODE=$?
             else
-                printf "\n==============================================================================\n"
-                printf "Previous build failure detected, skipping end-to-end tests.\n"
-                printf "==============================================================================\n"
+                echo "\n==============================================================================\n"
+                echo "Previous build failure detected, skipping bash end-to-end tests.\n"
+                echo "==============================================================================\n"
             fi
-        ;;
-    esac
-fi
+        fi
+        if [ $EXIT_CODE == 0 ]; then
+            echo "\n\n==============================================================================\n"
+            echo "Running java end-to-end tests\n"
+            echo "==============================================================================\n"
+
+            run_with_watchdog "$MVN_E2E -DdistDir=$(readlink -e build-target)"
+        else
+            echo "\n==============================================================================\n"
+            echo "Previous build failure detected, skipping java end-to-end tests.\n"
+        fi
+    ;;
+esac
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE

@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -38,7 +37,6 @@ public abstract class ExecutorBase implements Executor {
 	private static final String DEFAULT_JOB_NAME = "Flink Exec Table Job";
 
 	private final StreamExecutionEnvironment executionEnvironment;
-	protected List<Transformation<?>> transformations = new ArrayList<>();
 	protected TableConfig tableConfig;
 
 	public ExecutorBase(StreamExecutionEnvironment executionEnvironment) {
@@ -49,18 +47,19 @@ public abstract class ExecutorBase implements Executor {
 		this.tableConfig = tableConfig;
 	}
 
-	@Override
-	public void apply(List<Transformation<?>> transformations) {
-		this.transformations.addAll(transformations);
-	}
-
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return executionEnvironment;
 	}
 
-	public abstract StreamGraph generateStreamGraph(
-			List<Transformation<?>> transformations,
-			String jobName) throws Exception;
+	@Override
+	public void apply(List<Transformation<?>> transformations) {
+		transformations.forEach(getExecutionEnvironment()::addOperator);
+	}
+
+	/**
+	 * Translates the transformations applied into this executor to a stream graph.
+	 */
+	public abstract StreamGraph getStreamGraph(String jobName);
 
 	protected String getNonEmptyJobName(String jobName) {
 		if (StringUtils.isNullOrWhitespaceOnly(jobName)) {

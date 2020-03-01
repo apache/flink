@@ -91,7 +91,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("5+5", "10")
     testSqlApi("5-5", "0")
     testSqlApi("5*5", "25")
-    testSqlApi("5/5", "1.0")
+    testSqlApi("5/5", "1")
     testSqlApi("POWER(5, 5)", "3125.0")
     testSqlApi("ABS(-5)", "5")
     testSqlApi("MOD(-26, 5)", "-1")
@@ -119,6 +119,8 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
     testSqlApi("PI()", "3.141592653589793")
     testSqlApi("E()", "2.718281828459045")
+    testSqlApi("truncate(42.345)", "42")
+    testSqlApi("truncate(cast(42.345 as decimal(5, 3)), 2)", "42.34")
   }
 
   @Test
@@ -137,12 +139,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     // Decimal(2,1) / Decimal(10,0) => Decimal(23,12)
     testSqlApi("2.0/(-3)", "-0.666666666667")
     testSqlApi("-7.9/2", "-3.950000000000")
-
-    //div function
-    testSqlApi("div(7, 2)", "3")
-    testSqlApi("div(7.9, 2.009)", "3")
-    testSqlApi("div(7, -2.009)", "-3")
-    testSqlApi("div(-7.9, 2)", "-3")
   }
 
   @Test
@@ -181,8 +177,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 3 END", "3")
     testSqlApi("NULLIF(1, 1)", "null")
     testSqlApi("COALESCE(NULL, 5)", "5")
-    testSqlApi("COALESCE(keyvalue('', ';', ':', 'isB2C'), '5')", "5")
-    testSqlApi("COALESCE(jsonvalue('xx', '$x'), '5')", "5")
   }
 
   @Test
@@ -277,26 +271,6 @@ class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
   def testNullableCases(): Unit = {
-    testSqlApi(
-      "BITAND(cast(NUll as bigInt), cast(NUll as bigInt))",
-      nullable
-    )
-
-    testSqlApi(
-      "BITNOT(cast(NUll as bigInt))",
-      nullable
-    )
-
-    testSqlApi(
-      "BITOR(cast(NUll as bigInt), cast(NUll as bigInt))",
-      nullable
-    )
-
-    testSqlApi(
-      "BITXOR(cast(NUll as bigInt), cast(NUll as bigInt))",
-      nullable
-    )
-
     testSqlApi(
       "TO_BASE64(FROM_BASE64(cast(NUll as varchar)))",
       nullable

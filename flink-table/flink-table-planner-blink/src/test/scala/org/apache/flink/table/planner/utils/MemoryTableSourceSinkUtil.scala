@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, TableSink, TableSinkBase}
 import org.apache.flink.table.sources._
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
 
@@ -162,5 +163,35 @@ object MemoryTableSourceSinkUtil {
     }
 
     override def close(): Unit = {}
+  }
+
+  final class DataTypeOutputFormatTableSink(
+      schema: TableSchema) extends OutputFormatTableSink[Row] {
+
+    override def getConsumedDataType: DataType = schema.toRowDataType
+
+    override def getOutputFormat: OutputFormat[Row] = new MemoryCollectionOutputFormat
+
+    override def getTableSchema: TableSchema = schema
+
+    override def configure(
+        fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
+  }
+
+  final class DataTypeAppendStreamTableSink(
+      schema: TableSchema) extends AppendStreamTableSink[Row] {
+
+    override def getConsumedDataType: DataType = schema.toRowDataType
+
+    override def getTableSchema: TableSchema = schema
+
+    override def configure(
+        fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
+
+    override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
+      dataStream.writeUsingOutputFormat(new MemoryCollectionOutputFormat)
+    }
+
+    override def emitDataStream(dataStream: DataStream[Row]): Unit = ???
   }
 }

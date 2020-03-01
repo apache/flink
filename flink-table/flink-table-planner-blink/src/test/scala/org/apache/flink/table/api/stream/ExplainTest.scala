@@ -24,7 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.Test
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -41,6 +41,12 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   val STRING = new VarCharType(VarCharType.MAX_LENGTH)
   val LONG = new BigIntType()
   val INT = new IntType()
+
+  @Before
+  def before(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4)
+  }
 
   @Test
   def testExplainTableSourceScan(): Unit = {
@@ -110,9 +116,9 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
     util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
     val table = util.tableEnv.sqlQuery(
       """
         |SELECT id1, T3.rowtime AS ts, text
@@ -125,7 +131,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery(
       """
-        |SELECT id1, CONCAT_AGG('#', text)
+        |SELECT id1, LISTAGG(text, '#')
         |FROM TempTable
         |GROUP BY id1, TUMBLE(ts, INTERVAL '8' SECOND)
       """.stripMargin)
@@ -134,7 +140,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery(
       """
-        |SELECT id1, CONCAT_AGG('*', text)
+        |SELECT id1, LISTAGG(text, '*')
         |FROM TempTable
         |GROUP BY id1, HOP(ts, INTERVAL '12' SECOND, INTERVAL '6' SECOND)
       """.stripMargin)

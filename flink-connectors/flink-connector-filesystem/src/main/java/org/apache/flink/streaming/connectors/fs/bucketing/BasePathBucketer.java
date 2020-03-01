@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.Path;
  * A {@link Bucketer} that does not perform any
  * bucketing of files. All files are written to the base path.
  */
+@Deprecated
 public class BasePathBucketer<T> implements Bucketer<T> {
 	private static final long serialVersionUID = 1L;
 

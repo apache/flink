@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction
@@ -32,23 +32,22 @@ import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.{getDefaul
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isAny
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isRaw
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
-
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
-
 import java.lang.reflect.{Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
+import java.time.{Instant, LocalDateTime}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -148,7 +147,7 @@ object UserDefinedFunctionUtils {
   }
 
   def getAggUserDefinedInputTypes(
-      func: AggregateFunction[_, _],
+      func: UserDefinedAggregateFunction[_, _],
       externalAccType: DataType,
       expectedTypes: Array[LogicalType]): Array[DataType] = {
     val accMethod = getAggFunctionUDIMethod(
@@ -170,7 +169,7 @@ object UserDefinedFunctionUtils {
     udiTypes.zipWithIndex.map {
       case (t: DataType, i) =>
         // we don't trust GenericType.
-        if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.ANY) {
+        if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.RAW) {
           val returnType = fromLogicalTypeToDataType(expectedTypes(i))
           if (expectedTypes(i).supportsOutputConversion(t.getConversionClass)) {
             returnType.bridgedTo(t.getConversionClass)
@@ -188,7 +187,7 @@ object UserDefinedFunctionUtils {
     * Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
-      function: AggregateFunction[_, _],
+      function: UserDefinedAggregateFunction[_, _],
       expectedTypes: Seq[LogicalType])
   : Option[Array[Class[_]]] = {
     getAggFunctionUDIMethod(
@@ -239,7 +238,7 @@ object UserDefinedFunctionUtils {
   }
 
   def getAggFunctionUDIMethod(
-      function: AggregateFunction[_, _],
+      function: UserDefinedAggregateFunction[_, _],
       methodName: String,
       accType: DataType,
       expectedTypes: Seq[LogicalType])
@@ -449,17 +448,17 @@ object UserDefinedFunctionUtils {
   /**
     * Create [[SqlFunction]] for a [[ScalarFunction]]
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param function scalar function
     * @param typeFactory type factory
     * @return the ScalarSqlFunction
     */
   def createScalarSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       function: ScalarFunction,
       typeFactory: FlinkTypeFactory): SqlFunction = {
-    new ScalarSqlFunction(name, displayName, function, typeFactory)
+    new ScalarSqlFunction(identifier, displayName, function, typeFactory)
   }
 
   /**
@@ -478,34 +477,34 @@ object UserDefinedFunctionUtils {
     * For all the other cases, please use
     * createTableSqlFunction (String, String, TableFunction, FlinkTypeFactory) instead.
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param tableFunction table function
     * @param implicitResultType the implicit type information of returned table
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createTableSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       tableFunction: TableFunction[_],
       implicitResultType: DataType,
       typeFactory: FlinkTypeFactory): TableSqlFunction = {
     // we don't know the exact result type yet.
     val function = new DeferredTypeFlinkTableFunction(tableFunction, implicitResultType)
-    new TableSqlFunction(name, displayName, tableFunction, implicitResultType,
+    new TableSqlFunction(identifier, displayName, tableFunction, implicitResultType,
       typeFactory, function)
   }
 
   /**
     * Create [[SqlFunction]] for an [[AggregateFunction]]
     *
-    * @param name function name
+    * @param identifier function identifier
     * @param aggFunction aggregate function
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createAggregateSqlFunction(
-      name: String,
+      identifier: FunctionIdentifier,
       displayName: String,
       aggFunction: AggregateFunction[_, _],
       externalResultType: DataType,
@@ -516,7 +515,7 @@ object UserDefinedFunctionUtils {
     checkAndExtractMethods(aggFunction, "accumulate")
 
     AggSqlFunction(
-      name,
+      identifier,
       displayName,
       aggFunction,
       externalResultType,
@@ -530,30 +529,31 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Tries to infer the DataType of an AggregateFunction's return type.
+    * Tries to infer the DataType of a [[UserDefinedAggregateFunction]]'s return type.
     *
-    * @param aggregateFunction The AggregateFunction for which the return type is inferred.
-    * @param extractedType The implicitly inferred type of the result type.
-    *
-    * @return The inferred result type of the AggregateFunction.
+    * @param userDefinedAggregateFunction The [[UserDefinedAggregateFunction]] for which the return
+    *                                     type is inferred.
+    * @param extractedType                The implicitly inferred type of the result type.
+    * @return The inferred result type of the [[UserDefinedAggregateFunction]].
     */
   def getResultTypeOfAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
+      userDefinedAggregateFunction: UserDefinedAggregateFunction[_, _],
       extractedType: DataType = null): DataType = {
 
-    val resultType = aggregateFunction.getResultType
+    val resultType = userDefinedAggregateFunction.getResultType
     if (resultType != null) {
       fromLegacyInfoToDataType(resultType)
     } else if (extractedType != null) {
       extractedType
     } else {
       try {
-        extractTypeFromAggregateFunction(aggregateFunction, 0)
+        extractTypeFromAggregateFunction(userDefinedAggregateFunction, 0)
       } catch {
         case ite: InvalidTypesException =>
           throw new TableException(
             "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-                "You can override AggregateFunction.getResultType() to specify the type.",
+                "You can override UserDefinedAggregateFunction.getResultType() to " +
+                "specify the type.",
             ite
           )
       }
@@ -561,30 +561,31 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Tries to infer the Type of an AggregateFunction's accumulator type.
+    * Tries to infer the Type of a [[UserDefinedAggregateFunction]]'s accumulator type.
     *
-    * @param aggregateFunction The AggregateFunction for which the accumulator type is inferred.
-    * @param extractedType The implicitly inferred type of the accumulator type.
-    *
-    * @return The inferred accumulator type of the AggregateFunction.
+    * @param userDefinedAggregateFunction The [[UserDefinedAggregateFunction]] for which the
+    *                                     accumulator type is inferred.
+    * @param extractedType                The implicitly inferred type of the accumulator type.
+    * @return The inferred accumulator type of the [[UserDefinedAggregateFunction]].
     */
   def getAccumulatorTypeOfAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
+      userDefinedAggregateFunction: UserDefinedAggregateFunction[_, _],
       extractedType: DataType = null): DataType = {
 
-    val accType = aggregateFunction.getAccumulatorType
+    val accType = userDefinedAggregateFunction.getAccumulatorType
     if (accType != null) {
       fromLegacyInfoToDataType(accType)
     } else if (extractedType != null) {
       extractedType
     } else {
       try {
-        extractTypeFromAggregateFunction(aggregateFunction, 1)
+        extractTypeFromAggregateFunction(userDefinedAggregateFunction, 1)
       } catch {
         case ite: InvalidTypesException =>
           throw new TableException(
             "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-                "You can override AggregateFunction.getAccumulatorType() to specify the type.",
+                "You can override UserDefinedAggregateFunction.getAccumulatorType() to specify " +
+                "the type.",
             ite
           )
       }
@@ -593,21 +594,21 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Internal method to extract a type from an AggregateFunction's type parameters.
+    * Internal method to extract a type from a [[UserDefinedAggregateFunction]]'s type parameters.
     *
-    * @param aggregateFunction The AggregateFunction for which the type is extracted.
+    * @param aggregateFunction The [[UserDefinedAggregateFunction]] for which the type is extracted.
     * @param parameterTypePos The position of the type parameter for which the type is extracted.
     *
     * @return The extracted type.
     */
   @throws(classOf[InvalidTypesException])
   private def extractTypeFromAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
+      aggregateFunction: UserDefinedAggregateFunction[_, _],
       parameterTypePos: Int): DataType = {
 
     fromLegacyInfoToDataType(TypeExtractor.createTypeInfo(
       aggregateFunction,
-      classOf[AggregateFunction[_, _]],
+      classOf[UserDefinedAggregateFunction[_, _]],
       aggregateFunction.getClass,
       parameterTypePos))
   }
@@ -726,10 +727,14 @@ object UserDefinedFunctionUtils {
         expected.isPrimitive && Primitives.wrap(expected) == candidate ||
         candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
         candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
-        candidate == classOf[Timestamp] && (expected == classOf[Long] ||
-            expected == classOf[JLong]) ||
         candidate == classOf[BinaryString] && expected == classOf[String] ||
         candidate == classOf[String] && expected == classOf[BinaryString] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[LocalDateTime] ||
+        candidate == classOf[Timestamp] && expected == classOf[SqlTimestamp] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[Timestamp] ||
+        candidate == classOf[LocalDateTime] && expected == classOf[SqlTimestamp] ||
+        candidate == classOf[SqlTimestamp] && expected == classOf[Instant] ||
+        candidate == classOf[Instant] && expected == classOf[SqlTimestamp] ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
         candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
         classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||
@@ -745,13 +750,17 @@ object UserDefinedFunctionUtils {
       internal: LogicalType,
       parameterType: DataType): Boolean = {
     val paraInternalType = fromDataTypeToLogicalType(parameterType)
-    if (isAny(internal) && isAny(paraInternalType)) {
+    if (isRaw(internal) && isRaw(paraInternalType)) {
       getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
     } else {
       // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...
       paraInternalType == internal ||
           getInternalClassForType(internal) == getInternalClassForType(paraInternalType)
     }
+  }
+
+  def getOperandTypeArray(callBinding: SqlOperatorBinding): Array[LogicalType] = {
+    getOperandType(callBinding).toArray
   }
 
   def getOperandType(callBinding: SqlOperatorBinding): Seq[LogicalType] = {
@@ -798,7 +807,7 @@ object UserDefinedFunctionUtils {
     }.toArray
   }
 
-  private[table] def buildRelDataType(
+  def buildRelDataType(
       typeFactory: RelDataTypeFactory,
       resultType: LogicalType,
       fieldNames: Array[String],

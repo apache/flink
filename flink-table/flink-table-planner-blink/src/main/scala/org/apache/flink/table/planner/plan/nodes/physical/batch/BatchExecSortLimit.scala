@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
@@ -141,18 +141,11 @@ class BatchExecSortLimit(
     // TODO If input is ordered, there is no need to use the heap.
     val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)
 
-    new OneInputTransformation(
+    ExecNode.createOneInputTransformation(
       input,
-      getOperatorName,
-      operator,
+      getRelDetailedDescription,
+      SimpleOperatorFactory.of(operator),
       inputType,
-      getResource.getParallelism)
-  }
-
-  private def getOperatorName = {
-    s"${if (isGlobal) "Global" else "Local"}SortLimit(" +
-        s"orderBy: [${RelExplainUtil.collationToString(sortCollation, getRowType)}], " +
-        s"offset: $limitStart, " +
-        s"fetch: ${RelExplainUtil.fetchToString(fetch)})"
+      input.getParallelism)
   }
 }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
@@ -145,8 +145,12 @@ object FlinkLogicalRelFactories {
     * Implementation of [[FilterFactory]] that returns a [[FlinkLogicalCalc]].
     */
   class FilterFactoryImpl extends FilterFactory {
-    def createFilter(input: RelNode, condition: RexNode): RelNode = {
+    override def createFilter(
+        input: RelNode,
+        condition: RexNode,
+        variablesSet: util.Set[CorrelationId]): RelNode = {
       // Create a program containing a filter.
+      // Ignore the variablesSet for current implementation.
       val rexBuilder = input.getCluster.getRexBuilder
       val inputRowType = input.getRowType
       val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)
@@ -208,9 +212,11 @@ object FlinkLogicalRelFactories {
       val tableScan = LogicalTableScan.create(cluster, table)
       tableScan match {
         case s: LogicalTableScan if FlinkLogicalTableSourceScan.isTableSourceScan(s) =>
-          FlinkLogicalTableSourceScan.create(cluster, s.getTable.asInstanceOf[FlinkRelOptTable])
+          FlinkLogicalTableSourceScan.create(cluster,
+            s.getTable.asInstanceOf[FlinkPreparingTableBase])
         case s: LogicalTableScan if FlinkLogicalDataStreamTableScan.isDataStreamTableScan(s) =>
-          FlinkLogicalDataStreamTableScan.create(cluster, s.getTable.asInstanceOf[FlinkRelOptTable])
+          FlinkLogicalDataStreamTableScan.create(cluster,
+            s.getTable.asInstanceOf[FlinkPreparingTableBase])
       }
     }
   }

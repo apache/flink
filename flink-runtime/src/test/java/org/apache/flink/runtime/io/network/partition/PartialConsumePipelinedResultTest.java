@@ -34,14 +34,17 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Test for consuming a pipelined result only partially.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class PartialConsumePipelinedResultTest extends TestLogger {
 
 	// Test configuration
@@ -94,8 +97,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", sender, receiver);
 
-		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
-			sender.getID(), receiver.getID());
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.manualtests;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -90,7 +91,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 		}
 
 		final Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
+		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
 		MiniClusterResource flink = new MiniClusterResource(new MiniClusterResourceConfiguration.Builder()

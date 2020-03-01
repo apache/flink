@@ -80,8 +80,9 @@ class BatchExecValues(
       getRelTypeName)
     val transformation = planner.getExecEnv.createInput(inputFormat,
       inputFormat.getProducedType).getTransformation
-    transformation.setParallelism(getResource.getParallelism)
-    transformation
+    transformation.setName(getRelDetailedDescription)
+    transformation.setParallelism(1)
+    ExecNode.setManagedMemoryWeight(transformation)
   }
 
 }

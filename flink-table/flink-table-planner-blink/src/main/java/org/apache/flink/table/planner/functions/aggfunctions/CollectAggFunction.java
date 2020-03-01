@@ -18,13 +18,20 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.PojoField;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.dataview.MapViewTypeInfo;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.util.WrappingRuntimeException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -127,5 +134,20 @@ public class CollectAggFunction<T>
 	@Override
 	public TypeInformation<Map<T, Integer>> getResultType() {
 		return new MapTypeInfo<>(elementType, Types.INT);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public TypeInformation<CollectAccumulator<T>> getAccumulatorType() {
+		try {
+			Class<CollectAccumulator<T>> clazz = (Class<CollectAccumulator<T>>) (Class) CollectAccumulator.class;
+			List<PojoField> pojoFields = new ArrayList<>();
+			pojoFields.add(new PojoField(
+				clazz.getDeclaredField("map"),
+				new MapViewTypeInfo<>(elementType, BasicTypeInfo.INT_TYPE_INFO)));
+			return new PojoTypeInfo<>(clazz, pojoFields);
+		} catch (NoSuchFieldException e) {
+			throw new WrappingRuntimeException(e);
+		}
 	}
 }

@@ -23,9 +23,8 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -34,7 +33,7 @@ class SetOperatorsValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
@@ -51,7 +50,7 @@ class SetOperatorsValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
@@ -68,8 +67,8 @@ class SetOperatorsValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnv(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = StreamTableEnvironment.create(env)
-    val tEnv2 = StreamTableEnvironment.create(env)
+    val tEnv1 = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+    val tEnv2 = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv1, 'a, 'b, 'c)
     val ds2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv2, 'a, 'b, 'c)

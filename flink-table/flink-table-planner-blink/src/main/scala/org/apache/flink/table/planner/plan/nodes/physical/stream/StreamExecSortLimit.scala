@@ -151,7 +151,7 @@ class StreamExecSortLimit(
       sortDirections,
       nullsIsLast)
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
-    val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.SQL_EXEC_TOPN_CACHE_SIZE)
+    val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
 
@@ -214,25 +214,19 @@ class StreamExecSortLimit(
 
     val ret = new OneInputTransformation(
       inputTransform,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       outputRowTypeInfo,
-      getResource.getParallelism)
+      inputTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret
-  }
-
-  private def getOperatorName = {
-    s"SortLimit(" +
-      s"orderBy: [${RelExplainUtil.collationToString(sortCollation, getRowType)}], " +
-      s"offset: $limitStart, " +
-      s"fetch: ${RelExplainUtil.fetchToString(fetch)})"
   }
 }

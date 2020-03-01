@@ -114,7 +114,7 @@ class StreamExecSort(
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
-    if (!config.getConfiguration.getBoolean(StreamExecSort.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
+    if (!config.getConfiguration.getBoolean(StreamExecSort.TABLE_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
       throw new TableException("Sort on a non-time-attribute field is not supported.")
     }
 
@@ -132,12 +132,13 @@ class StreamExecSort(
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(
       input,
-      s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
+      getRelDetailedDescription,
       sortOperator,
       outputRowTypeInfo,
-      getResource.getParallelism)
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+      input.getParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
     ret
   }
@@ -146,8 +147,8 @@ object StreamExecSort {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_SORT_NON_TEMPORAL_ENABLED: ConfigOption[JBoolean] =
-  key("sql.exec.sort.non-temporal.enabled")
+  val TABLE_EXEC_SORT_NON_TEMPORAL_ENABLED: ConfigOption[JBoolean] =
+  key("table.exec.non-temporal-sort.enabled")
       .defaultValue(JBoolean.valueOf(false))
       .withDescription("Set whether to enable universal sort for stream. When it is false, " +
           "universal sort can't use for stream, default false. Just for testing.")
