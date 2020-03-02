@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
@@ -52,9 +54,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /**
  * An {@link TwoInputStreamOperator operator} to execute time-bounded stream inner joins.
@@ -94,6 +100,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 	private static final String LEFT_BUFFER = "LEFT_BUFFER";
 	private static final String RIGHT_BUFFER = "RIGHT_BUFFER";
+	private static final String INSERT_DIRECTION = "INSERT_DIRECTION";
 	private static final String CLEANUP_TIMER_NAME = "CLEANUP_TIMER";
 	private static final String CLEANUP_NAMESPACE_LEFT = "CLEANUP_LEFT";
 	private static final String CLEANUP_NAMESPACE_RIGHT = "CLEANUP_RIGHT";
@@ -106,11 +113,14 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 	private transient MapState<Long, List<BufferEntry<T1>>> leftBuffer;
 	private transient MapState<Long, List<BufferEntry<T2>>> rightBuffer;
+	private transient ValueState<Boolean> isInsertFromLeft;
 
 	private transient TimestampedCollector<OUT> collector;
 	private transient ContextImpl context;
 
 	private transient InternalTimerService<String> internalTimerService;
+
+	private transient Map<Object, SortedMap<Long, List<BufferEntry<Object>>>> otherBuffersCache;
 
 	/**
 	 * Creates a new IntervalJoinOperator.
@@ -155,6 +165,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		context = new ContextImpl(userFunction);
 		internalTimerService =
 			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
+		otherBuffersCache = new HashMap<>();
 	}
 
 	@Override
@@ -172,6 +183,16 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			LongSerializer.INSTANCE,
 			new ListSerializer<>(new BufferEntrySerializer<>(rightTypeSerializer))
 		));
+
+		this.isInsertFromLeft = context.getKeyedStateStore().getState(new ValueStateDescriptor<>(
+			INSERT_DIRECTION,
+			Boolean.class
+		));
+
+		// if restore force rebuild cache from state
+		if (context.isRestored()) {
+			isInsertFromLeft.update(null);
+		}
 	}
 
 	/**
@@ -223,17 +244,41 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
+		// force rebuild cache if first time see this key
+		if (isInsertFromLeft.value() == null) {
+			isInsertFromLeft.update(!isLeft);
+		}
+
+		if (isInsertFromLeft.value() != isLeft) {
+			// clean up buffers of current key
+			otherBuffersCache.remove(getCurrentKey());
+
+			// build in memory sortedMap
+			SortedMap<Long, List<BufferEntry<Object>>> newBucket = new TreeMap<>();
+			for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+				List<BufferEntry<Object>> items = new ArrayList<>();
+				for (BufferEntry<OTHER> item : bucket.getValue()) {
+					items.add((BufferEntry<Object>)item);
+				}
+				newBucket.put(bucket.getKey(), items);
+			}
+			otherBuffersCache.put(getCurrentKey(), newBucket);
+			isInsertFromLeft.update(isLeft);
+		}
+
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket:
+			otherBuffersCache.get(getCurrentKey()).subMap(
+				ourTimestamp + relativeLowerBound, ourTimestamp + relativeUpperBound + 1).entrySet()) {
 			final long timestamp  = bucket.getKey();
 
 			if (timestamp < ourTimestamp + relativeLowerBound ||
 					timestamp > ourTimestamp + relativeUpperBound) {
-				continue;
+				throw new RuntimeException("fatal error");
 			}
 
-			for (BufferEntry<OTHER> entry: bucket.getValue()) {
+			for (BufferEntry<Object> entry: bucket.getValue()) {
 				if (isLeft) {
 					collect((T1) ourValue, (T2) entry.element, ourTimestamp, timestamp);
 				} else {
@@ -289,12 +334,20 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				long timestamp = (upperBound <= 0L) ? timerTimestamp : timerTimestamp - upperBound;
 				logger.trace("Removing from left buffer @ {}", timestamp);
 				leftBuffer.remove(timestamp);
+				// update cache if cache left buffer for this key (insert from right)
+				if (!isInsertFromLeft.value() ) {
+					otherBuffersCache.get(getCurrentKey()).remove(timestamp);
+				}
 				break;
 			}
 			case CLEANUP_NAMESPACE_RIGHT: {
 				long timestamp = (lowerBound <= 0L) ? timerTimestamp + lowerBound : timerTimestamp;
 				logger.trace("Removing from right buffer @ {}", timestamp);
 				rightBuffer.remove(timestamp);
+				// update cache if cache right buffer for this key (insert from left)
+				if (isInsertFromLeft.value() ) {
+					otherBuffersCache.get(getCurrentKey()).remove(timestamp);
+				}
 				break;
 			}
 			default:
