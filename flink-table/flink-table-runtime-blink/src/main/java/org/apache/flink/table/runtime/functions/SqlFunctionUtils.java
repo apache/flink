@@ -40,6 +40,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.MatchResult;
@@ -723,7 +724,7 @@ public class SqlFunctionUtils {
 		}
 
 		String[] keyValuePairs = text.split(listDelimiter);
-		Map<String, String> ret = new HashMap<>(keyValuePairs.length);
+		Map<String, String> ret = new LinkedHashMap<>(keyValuePairs.length);
 		for (String keyValuePair : keyValuePairs) {
 			String[] keyValue = keyValuePair.split(keyValueDelimiter, 2);
 			if (keyValue.length < 2) {
