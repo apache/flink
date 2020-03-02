@@ -71,7 +71,10 @@ class JsonFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"$candidate is not json scalar", (!expectedValues(3)).toString)
   }
 
-  private def verifyException[T <: Exception](candidate: String, expectedException: Class[T]): Unit = {
+  private def verifyException[T <: Exception](
+    candidate: String,
+    expectedException: Class[T]
+  ): Unit = {
     val sqlCandidates = Array(
       s"$candidate is json value",
       s"$candidate is not json value",
