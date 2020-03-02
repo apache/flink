@@ -206,6 +206,9 @@ start.timesOrMore(2);
 // expecting 2 or more occurrences and repeating as many as possible
 start.timesOrMore(2).greedy();
 
+// expecting 0, 2 or more occurrences
+start.timesOrMore(2).optional()
+
 // expecting 0, 2 or more occurrences and repeating as many as possible
 start.timesOrMore(2).optional().greedy();
 {% endhighlight %}
