@@ -1,5 +1,5 @@
 ---
-title:  "Docker 安装"
+title:  "Docker 设置"
 nav-title: Docker
 nav-parent_id: deployment
 nav-pos: 6

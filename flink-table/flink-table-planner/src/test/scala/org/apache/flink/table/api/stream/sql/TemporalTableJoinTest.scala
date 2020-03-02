@@ -74,6 +74,35 @@ class TemporalTableJoinTest extends TableTestBase {
     util.verifySql(sqlQuery, getExpectedSimpleProctimeJoinPlan())
   }
 
+  @Test
+  def testJoinOnQueryLeft(): Unit = {
+    val sqlQuery = "SELECT " +
+      "o_amount * rate as rate " +
+      "FROM (SELECT * FROM Orders WHERE o_amount > 1000) AS o, " +
+      "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
+      "WHERE currency = o_currency"
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamTemporalTableJoin",
+        unaryNode("DataStreamCalc",
+          streamTableNode(orders),
+          term("select", "o_amount, o_currency, o_rowtime"),
+          term("where", ">(o_amount, 1000)")),
+        streamTableNode(ratesHistory),
+        term("where",
+          "AND(" +
+            s"${TEMPORAL_JOIN_CONDITION.getName}(o_rowtime, rowtime, currency), " +
+            "=(currency, o_currency))"),
+        term("join", "o_amount", "o_currency", "o_rowtime", "currency", "rate", "rowtime"),
+        term("joinType", "InnerJoin")
+      ),
+      term("select", "*(o_amount, rate) AS rate")
+    )
+    util.verifySql(sqlQuery, expected)
+  }
+
   /**
     * Test versioned joins with more complicated query.
     * Important thing here is that we have complex OR join condition

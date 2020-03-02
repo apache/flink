@@ -19,14 +19,14 @@
 package org.apache.flink.yarn.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractSessionClusterExecutor;
-import org.apache.flink.core.execution.Executor;
+import org.apache.flink.client.deployment.executors.AbstractSessionClusterExecutor;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.yarn.YarnClusterClientFactory;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 /**
- * The {@link Executor} to be used when executing a job on an already running cluster.
+ * The {@link PipelineExecutor} to be used when executing a job on an already running cluster.
  */
 @Internal
 public class YarnSessionClusterExecutor extends AbstractSessionClusterExecutor<ApplicationId, YarnClusterClientFactory> {

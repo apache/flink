@@ -105,7 +105,8 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 				packagedProgram,
 				configuration,
 				defaultParallelism,
-				jobId);
+				jobId,
+				false);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 
 			return jobGraph;

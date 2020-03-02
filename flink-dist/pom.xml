@@ -33,6 +33,10 @@ under the License.
 	<name>flink-dist</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<zookeeper.optional.version>3.5.6</zookeeper.optional.version>
+	</properties>
+
 	<dependencies>
 
 		<!-- Flink project binaries -->
@@ -159,14 +163,27 @@ under the License.
 			it easier for users to swap logging frameworks -->
 
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<!-- API bridge between log4j 1 and 2; included for convenience -->
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-1.2-api</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
@@ -387,6 +404,13 @@ under the License.
 			<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-ml-uber_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 		<!-- end optional Flink libraries -->
 
 		<dependency>
@@ -452,7 +476,6 @@ under the License.
 				<dependency>
 					<groupId>org.apache.flink</groupId>
 					<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-					<version>${hadoop.version}-${flink.shaded.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
@@ -595,27 +618,46 @@ under the License.
 						<goals>
 							<goal>copy</goal>
 						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>javax.xml.bind</groupId>
+									<artifactId>jaxb-api</artifactId>
+									<version>${jaxb.api.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+								</artifactItem>
+								<artifactItem>
+									<groupId>javax.activation</groupId>
+									<artifactId>javax.activation-api</artifactId>
+									<version>${javax.activation.api.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-zk-jars</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-shaded-zookeeper-3</artifactId>
+									<version>${zookeeper.optional.version}-${flink.shaded.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<artifactItems>
-						<artifactItem>
-							<groupId>javax.xml.bind</groupId>
-							<artifactId>jaxb-api</artifactId>
-							<version>${jaxb.api.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-						</artifactItem>
-						<artifactItem>
-							<groupId>javax.activation</groupId>
-							<artifactId>javax.activation-api</artifactId>
-							<version>${javax.activation.api.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-						</artifactItem>
-					</artifactItems>
-					<outputDirectory>${project.build.directory}/temporary</outputDirectory>
-				</configuration>
 			</plugin>
 
 			<plugin>
@@ -642,7 +684,7 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!--Build uber jar-->
+			<!-- Build uber jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -666,13 +708,16 @@ under the License.
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
+										<exclude>org/apache/flink/runtime/util/BashJavaUtils.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
 							<artifactSet>
 								<excludes>
-									<exclude>org.slf4j:slf4j-log4j12</exclude>
-									<exclude>log4j:log4j</exclude>
+									<!-- log4j 2 is bundled separately from the flink-dist jar -->
+									<exclude>org.apache.logging.log4j:*</exclude>
+									<!-- Bundled separately so that users can easily switch between ZK 3.4/3.5-->
+									<exclude>org.apache.flink:flink-shaded-zookeeper-3</exclude>
 								</excludes>
 							</artifactSet>
 							<transformers>
@@ -696,6 +741,59 @@ under the License.
 						-->
 						<id>shade-flink</id>
 						<phase>none</phase>
+					</execution>
+					<!-- Build BashJavaUtils jar -->
+					<execution>
+						<id>bash-utils</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration combine.self="override">
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<finalName>bash-java-utils</finalName>
+							<filters>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>log4j.properties</exclude>
+										<exclude>log4j-test.properties</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+								<!-- Include only the BashJavaUtils, other required classes should come from the flink-dist-->
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/runtime/util/BashJavaUtils.class</include>
+									</includes>
+								</filter>
+							</filters>
+							<artifactSet>
+								<includes>
+									<exclude>org.apache.logging.log4j:*</exclude>
+									<include>org.apache.flink:*</include>
+								</includes>
+							</artifactSet>
+							<transformers>
+								<!-- Include a log4j2 configuration that always prints to stdout -->
+								<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+									<resource>log4j2.properties</resource>
+									<file>src/main/resources/log4j-bash-utils.properties</file>
+								</transformer>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+									<resource>reference.conf</resource>
+								</transformer>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+									<projectName>Apache Flink</projectName>
+									<encoding>UTF-8</encoding>
+								</transformer>
+							</transformers>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

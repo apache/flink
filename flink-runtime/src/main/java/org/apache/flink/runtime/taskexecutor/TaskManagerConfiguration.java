@@ -27,14 +27,11 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -219,7 +216,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		Time finiteRegistrationDuration;
 		try {
-			Duration maxRegistrationDuration = TimeUtils.parseDuration(configuration.getString(TaskManagerOptions.REGISTRATION_TIMEOUT));
+			Duration maxRegistrationDuration = configuration.get(TaskManagerOptions.REGISTRATION_TIMEOUT);
 			finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
 		} catch (IllegalArgumentException e) {
 			LOG.warn("Invalid format for parameter {}. Set the timeout to be infinite.",
@@ -229,7 +226,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final Time initialRegistrationPause;
 		try {
-			Duration pause = TimeUtils.parseDuration(configuration.getString(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF));
+			Duration pause = configuration.get(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF);
 			initialRegistrationPause = Time.milliseconds(pause.toMillis());
 		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
@@ -238,7 +235,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final Time maxRegistrationPause;
 		try {
-			Duration pause = TimeUtils.parseDuration(configuration.getString(TaskManagerOptions.REGISTRATION_MAX_BACKOFF));
+			Duration pause = configuration.get(TaskManagerOptions.REGISTRATION_MAX_BACKOFF);
 			maxRegistrationPause = Time.milliseconds(pause.toMillis());
 		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
@@ -247,7 +244,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final Time refusedRegistrationPause;
 		try {
-			Duration pause = TimeUtils.parseDuration(configuration.getString(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF));
+			Duration pause = configuration.get(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF);
 			refusedRegistrationPause = Time.milliseconds(pause.toMillis());
 		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +

@@ -35,6 +35,6 @@ public class ParserMock implements Parser {
 
 	@Override
 	public UnresolvedIdentifier parseIdentifier(String identifier) {
-		return null;
+		return UnresolvedIdentifier.of(identifier);
 	}
 }

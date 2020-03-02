@@ -19,7 +19,9 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.transforms.DataTypeConversionClassTransformation;
+import org.apache.flink.table.types.inference.transforms.LegacyDecimalTypeTransformation;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.sql.Date;
@@ -47,5 +49,20 @@ public class TypeTransformations {
 		conversions.put(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE, Time.class);
 		conversions.put(LogicalTypeRoot.DATE, Date.class);
 		return new DataTypeConversionClassTransformation(conversions);
+	}
+
+	/**
+	 * Returns a type transformation that transforms legacy decimal data type to DECIMAL(38, 18).
+	 */
+	public static TypeTransformation legacyDecimalToDefaultDecimal() {
+		return LegacyDecimalTypeTransformation.INSTANCE;
+	}
+
+	/**
+	 * Returns a type transformation that transforms data type to nullable data type but keeps
+	 * other information unchanged.
+	 */
+	public static TypeTransformation toNullable() {
+		return DataType::nullable;
 	}
 }

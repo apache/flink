@@ -106,13 +106,14 @@ class StreamExecTableSourceScan(
 
     val fieldIndexes = computeIndexMapping()
 
+    val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
-    if (inputTransform.getOutputType !=
+    if (inputDataType !=
         TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of data type $producedDataType that does not match with the " +
+        s"returned a DataStream of data type $inputDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }

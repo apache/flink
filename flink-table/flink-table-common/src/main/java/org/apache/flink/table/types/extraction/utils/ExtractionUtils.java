@@ -21,7 +21,7 @@ package org.apache.flink.table.types.extraction.utils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 
@@ -34,7 +34,9 @@ import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -43,13 +45,17 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescriptor;
 
 /**
  * Utilities for performing reflection tasks.
@@ -74,6 +80,15 @@ public final class ExtractionUtils {
 			),
 			cause
 		);
+	}
+
+	/**
+	 * Collects methods of the given name.
+	 */
+	public static List<Method> collectMethods(Class<?> function, String methodName) {
+		return Arrays.stream(function.getMethods())
+			.filter(method -> method.getName().equals(methodName))
+			.collect(Collectors.toList());
 	}
 
 	/**
@@ -117,15 +132,15 @@ public final class ExtractionUtils {
 	/**
 	 * Creates a raw data type.
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static DataType createRawType(
-			DataTypeLookup lookup,
+			DataTypeFactory typeFactory,
 			@Nullable Class<? extends TypeSerializer<?>> rawSerializer,
 			@Nullable Class<?> conversionClass) {
 		if (rawSerializer != null) {
 			return DataTypes.RAW((Class) createConversionClass(conversionClass), instantiateRawSerializer(rawSerializer));
 		}
-		return lookup.resolveRawDataType(createConversionClass(conversionClass));
+		return typeFactory.createRawDataType(createConversionClass(conversionClass));
 	}
 
 	private static Class<?> createConversionClass(@Nullable Class<?> conversionClass) {
@@ -308,7 +323,7 @@ public final class ExtractionUtils {
 			// one parameter that has the same (or primitive) type of the field
 			final boolean hasParameter = method.getParameterCount() == 1 &&
 				(method.getGenericParameterTypes()[0].equals(field.getGenericType()) ||
-					boxPrimitive(method.getGenericParameterTypes()[0]).equals(field.getGenericType()));
+					primitiveToWrapper(method.getGenericParameterTypes()[0]).equals(field.getGenericType()));
 			if (!hasParameter) {
 				continue;
 			}
@@ -321,24 +336,12 @@ public final class ExtractionUtils {
 		return false;
 	}
 
-	private static final Map<Class<?>, Class<?>> primitiveWrapperMap = new HashMap<>();
-	static {
-		primitiveWrapperMap.put(Boolean.TYPE, Boolean.class);
-		primitiveWrapperMap.put(Byte.TYPE, Byte.class);
-		primitiveWrapperMap.put(Character.TYPE, Character.class);
-		primitiveWrapperMap.put(Short.TYPE, Short.class);
-		primitiveWrapperMap.put(Integer.TYPE, Integer.class);
-		primitiveWrapperMap.put(Long.TYPE, Long.class);
-		primitiveWrapperMap.put(Double.TYPE, Double.class);
-		primitiveWrapperMap.put(Float.TYPE, Float.class);
-	}
-
 	/**
 	 * Returns the boxed type of a primitive type.
 	 */
-	public static Type boxPrimitive(Type type) {
-		if (type instanceof Class && ((Class) type).isPrimitive()) {
-			return primitiveWrapperMap.get(type);
+	public static Type primitiveToWrapper(Type type) {
+		if (type instanceof Class) {
+			return primitiveToWrapper((Class<?>) type);
 		}
 		return type;
 	}
@@ -405,8 +408,92 @@ public final class ExtractionUtils {
 		return methods;
 	}
 
+	/**
+	 * Collects all annotations of the given type defined in the current class or superclasses. Duplicates
+	 * are ignored.
+	 */
+	public static <T extends Annotation> Set<T> collectAnnotationsOfClass(
+			Class<T> annotation,
+			Class<?> annotatedClass) {
+		final Set<T> collectedAnnotations = new HashSet<>();
+		Class<?> currentClass = annotatedClass;
+		while (currentClass != null) {
+			collectedAnnotations.addAll(Arrays.asList(currentClass.getAnnotationsByType(annotation)));
+			currentClass = currentClass.getSuperclass();
+		}
+		return collectedAnnotations;
+	}
+
+	/**
+	 * Collects all annotations of the given type defined in the given method. Duplicates are ignored.
+	 */
+	public static <T extends Annotation> Set<T> collectAnnotationsOfMethod(
+			Class<T> annotation,
+			Method annotatedMethod) {
+		return new HashSet<>(Arrays.asList(annotatedMethod.getAnnotationsByType(annotation)));
+	}
+
+	/**
+	 * Checks whether a method can be called with the given argument classes. This includes type
+	 * widening and vararg. {@code null} is a wildcard.
+	 *
+	 * <p>E.g., {@code (int.class, int.class)} matches {@code f(Object...), f(int, int), f(Integer, Object)}
+	 * and so forth.
+	 */
+	public static boolean isMethodInvokable(Method method, Class<?>... classes) {
+		final int paramCount = method.getParameterCount();
+		final int classCount = classes.length;
+		if (paramCount != 0 & classCount == 0) {
+			return false;
+		}
+		int currentClass = 0;
+		for (int currentParam = 0; currentParam < paramCount; currentParam++) {
+			final Class<?> param = method.getParameterTypes()[currentParam];
+			// entire parameter matches
+			if (classes[currentClass] == null || ExtractionUtils.isAssignable(classes[currentClass], param, true)) {
+				currentClass++;
+			}
+			// last parameter is a vararg that consumes remaining classes
+			else if (currentParam == paramCount - 1 && method.isVarArgs()) {
+				final Class<?> paramComponent = method.getParameterTypes()[currentParam].getComponentType();
+				while (currentClass < classCount && ExtractionUtils.isAssignable(classes[currentClass], paramComponent, true)) {
+					currentClass++;
+				}
+			}
+		}
+		// check if all classes have been consumed
+		return currentClass == classCount;
+	}
+
+	/**
+	 * Creates a method signature string like {@code int eval(Integer, String)}.
+	 */
+	public static String createMethodSignatureString(
+			String methodName,
+			Class<?>[] parameters,
+			@Nullable Class<?> returnType) {
+		final StringBuilder builder = new StringBuilder();
+		if (returnType != null) {
+			builder.append(returnType.getCanonicalName()).append(" ");
+		}
+		builder
+			.append(methodName)
+			.append(
+				Stream.of(parameters)
+					.map(parameter -> {
+						// in case we don't know the parameter at this location (i.e. for accumulators)
+						if (parameter == null) {
+							return "_";
+						} else {
+							return parameter.getCanonicalName();
+						}
+					})
+					.collect(Collectors.joining(", ", "(", ")")));
+		return builder.toString();
+	}
+
 	// --------------------------------------------------------------------------------------------
-	// Assignable Constructor Utilities
+	// Parameter Extraction Utilities
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -436,7 +523,7 @@ public final class ExtractionUtils {
 			if (!qualifyingConstructor) {
 				continue;
 			}
-			final List<String> parameterNames = extractConstructorParameterNames(clazz, constructor, fields);
+			final List<String> parameterNames = extractConstructorParameterNames(constructor, fields);
 			if (parameterNames != null) {
 				if (foundConstructor != null) {
 					throw extractionError(
@@ -450,34 +537,23 @@ public final class ExtractionUtils {
 	}
 
 	/**
+	 * Extracts the parameter names of a method if possible.
+	 */
+	public static @Nullable List<String> extractMethodParameterNames(Method method) {
+		return extractExecutableNames(method);
+	}
+
+	/**
 	 * Extracts ordered parameter names from a constructor that takes all of the given fields with
 	 * matching (possibly primitive) type and name.
 	 */
 	private static @Nullable List<String> extractConstructorParameterNames(
-			Class<?> clazz,
 			Constructor<?> constructor,
 			List<Field> fields) {
 		final Type[] parameterTypes = constructor.getGenericParameterTypes();
 
-		// by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
-		// so we need to extract them manually if possible
-		List<String> parameterNames = Stream.of(constructor.getParameters())
-			.map(Parameter::getName)
-			.collect(Collectors.toList());
-		if (parameterNames.stream().allMatch(n -> n.startsWith("arg"))) {
-			final ParameterExtractor extractor = new ParameterExtractor(constructor);
-			getClassReader(clazz).accept(extractor, 0);
-
-			final List<String> extractedNames = extractor.getParameterNames();
-			if (extractedNames.size() == 0 || !extractedNames.get(0).equals("this")) {
-				return null;
-			}
-			// remove "this" and additional local variables
-			// select less names if class file has not the required information
-			parameterNames = extractedNames.subList(1, Math.min(fields.size() + 1, extractedNames.size()));
-		}
-
-		if (parameterNames.size() != fields.size()) {
+		List<String> parameterNames = extractExecutableNames(constructor);
+		if (parameterNames == null) {
 			return null;
 		}
 
@@ -491,9 +567,49 @@ public final class ExtractionUtils {
 			final Type parameterType = parameterTypes[i];
 			// we are tolerant here because frameworks such as Avro accept a boxed type even though
 			// the field is primitive
-			if (!boxPrimitive(parameterType).equals(boxPrimitive(fieldType))) {
+			if (!primitiveToWrapper(parameterType).equals(primitiveToWrapper(fieldType))) {
 				return null;
 			}
+		}
+
+		return parameterNames;
+	}
+
+	private static @Nullable List<String> extractExecutableNames(Executable executable) {
+		final int offset;
+		if (!Modifier.isStatic(executable.getModifiers())) {
+			// remove "this" as first parameter
+			offset = 1;
+		} else {
+			offset = 0;
+		}
+		// by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
+		// so we need to extract them manually if possible
+		List<String> parameterNames = Stream.of(executable.getParameters())
+			.map(Parameter::getName)
+			.collect(Collectors.toList());
+		if (parameterNames.stream().allMatch(n -> n.startsWith("arg"))) {
+			final ParameterExtractor extractor;
+			if (executable instanceof Constructor) {
+				extractor = new ParameterExtractor((Constructor<?>) executable);
+			} else {
+				extractor = new ParameterExtractor((Method) executable);
+			}
+			getClassReader(executable.getDeclaringClass()).accept(extractor, 0);
+
+			final List<String> extractedNames = extractor.getParameterNames();
+			if (extractedNames.size() == 0) {
+				return null;
+			}
+			// remove "this" and additional local variables
+			// select less names if class file has not the required information
+			parameterNames = extractedNames.subList(
+				offset,
+				Math.min(executable.getParameterCount() + offset, extractedNames.size()));
+		}
+
+		if (parameterNames.size() != executable.getParameterCount()) {
+			return null;
 		}
 
 		return parameterNames;
@@ -509,7 +625,7 @@ public final class ExtractionUtils {
 	}
 
 	/**
-	 * Extracts the parameter names and descriptors from a constructor. Assuming the existence of a
+	 * Extracts the parameter names and descriptors from a constructor or method. Assuming the existence of a
 	 * local variable table.
 	 *
 	 * <p>For example:
@@ -527,13 +643,20 @@ public final class ExtractionUtils {
 	 */
 	private static class ParameterExtractor extends ClassVisitor {
 
-		private final String constructorDescriptor;
+		private static final int OPCODE = Opcodes.ASM7;
+
+		private final String methodDescriptor;
 
 		private final List<String> parameterNames = new ArrayList<>();
 
-		public ParameterExtractor(Constructor constructor) {
-			super(Opcodes.ASM7);
-			constructorDescriptor = getConstructorDescriptor(constructor);
+		public ParameterExtractor(Constructor<?> constructor) {
+			super(OPCODE);
+			methodDescriptor = getConstructorDescriptor(constructor);
+		}
+
+		public ParameterExtractor(Method method) {
+			super(OPCODE);
+			methodDescriptor = getMethodDescriptor(method);
 		}
 
 		public List<String> getParameterNames() {
@@ -547,8 +670,8 @@ public final class ExtractionUtils {
 				String descriptor,
 				String signature,
 				String[] exceptions) {
-			if (descriptor.equals(constructorDescriptor)) {
-				return new MethodVisitor(Opcodes.ASM7) {
+			if (descriptor.equals(methodDescriptor)) {
+				return new MethodVisitor(OPCODE) {
 					@Override
 					public void visitLocalVariable(
 							String name,
@@ -563,6 +686,181 @@ public final class ExtractionUtils {
 			}
 			return super.visitMethod(access, name, descriptor, signature, exceptions);
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Class Assignment and Boxing
+	//
+	// copied from o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * <p>Checks if one {@code Class} can be assigned to a variable of
+	 * another {@code Class}.</p>
+	 *
+	 * <p>Unlike the {@link Class#isAssignableFrom(java.lang.Class)} method,
+	 * this method takes into account widenings of primitive classes and
+	 * {@code null}s.</p>
+	 *
+	 * <p>Primitive widenings allow an int to be assigned to a long, float or
+	 * double. This method returns the correct result for these cases.</p>
+	 *
+	 * <p>{@code Null} may be assigned to any reference type. This method
+	 * will return {@code true} if {@code null} is passed in and the
+	 * toClass is non-primitive.</p>
+	 *
+	 * <p>Specifically, this method tests whether the type represented by the
+	 * specified {@code Class} parameter can be converted to the type
+	 * represented by this {@code Class} object via an identity conversion
+	 * widening primitive or widening reference conversion. See
+	 * <em><a href="http://docs.oracle.com/javase/specs/">The Java Language Specification</a></em>,
+	 * sections 5.1.1, 5.1.2 and 5.1.4 for details.</p>
+	 *
+	 * @param cls  the Class to check, may be null
+	 * @param toClass  the Class to try to assign into, returns false if null
+	 * @param autoboxing  whether to use implicit autoboxing/unboxing between primitives and wrappers
+	 * @return {@code true} if assignment possible
+	 */
+	public static boolean isAssignable(Class<?> cls, final Class<?> toClass, final boolean autoboxing) {
+		if (toClass == null) {
+			return false;
+		}
+		// have to check for null, as isAssignableFrom doesn't
+		if (cls == null) {
+			return !toClass.isPrimitive();
+		}
+		//autoboxing:
+		if (autoboxing) {
+			if (cls.isPrimitive() && !toClass.isPrimitive()) {
+				cls = primitiveToWrapper(cls);
+				if (cls == null) {
+					return false;
+				}
+			}
+			if (toClass.isPrimitive() && !cls.isPrimitive()) {
+				cls = wrapperToPrimitive(cls);
+				if (cls == null) {
+					return false;
+				}
+			}
+		}
+		if (cls.equals(toClass)) {
+			return true;
+		}
+		if (cls.isPrimitive()) {
+			if (!toClass.isPrimitive()) {
+				return false;
+			}
+			if (Integer.TYPE.equals(cls)) {
+				return Long.TYPE.equals(toClass)
+					|| Float.TYPE.equals(toClass)
+					|| Double.TYPE.equals(toClass);
+			}
+			if (Long.TYPE.equals(cls)) {
+				return Float.TYPE.equals(toClass)
+					|| Double.TYPE.equals(toClass);
+			}
+			if (Boolean.TYPE.equals(cls)) {
+				return false;
+			}
+			if (Double.TYPE.equals(cls)) {
+				return false;
+			}
+			if (Float.TYPE.equals(cls)) {
+				return Double.TYPE.equals(toClass);
+			}
+			if (Character.TYPE.equals(cls)) {
+				return Integer.TYPE.equals(toClass)
+					|| Long.TYPE.equals(toClass)
+					|| Float.TYPE.equals(toClass)
+					|| Double.TYPE.equals(toClass);
+			}
+			if (Short.TYPE.equals(cls)) {
+				return Integer.TYPE.equals(toClass)
+					|| Long.TYPE.equals(toClass)
+					|| Float.TYPE.equals(toClass)
+					|| Double.TYPE.equals(toClass);
+			}
+			if (Byte.TYPE.equals(cls)) {
+				return Short.TYPE.equals(toClass)
+					|| Integer.TYPE.equals(toClass)
+					|| Long.TYPE.equals(toClass)
+					|| Float.TYPE.equals(toClass)
+					|| Double.TYPE.equals(toClass);
+			}
+			// should never get here
+			return false;
+		}
+		return toClass.isAssignableFrom(cls);
+	}
+
+	/**
+	 * Maps primitive {@code Class}es to their corresponding wrapper {@code Class}.
+	 */
+	private static final Map<Class<?>, Class<?>> primitiveWrapperMap = new HashMap<>();
+	static {
+		primitiveWrapperMap.put(Boolean.TYPE, Boolean.class);
+		primitiveWrapperMap.put(Byte.TYPE, Byte.class);
+		primitiveWrapperMap.put(Character.TYPE, Character.class);
+		primitiveWrapperMap.put(Short.TYPE, Short.class);
+		primitiveWrapperMap.put(Integer.TYPE, Integer.class);
+		primitiveWrapperMap.put(Long.TYPE, Long.class);
+		primitiveWrapperMap.put(Double.TYPE, Double.class);
+		primitiveWrapperMap.put(Float.TYPE, Float.class);
+		primitiveWrapperMap.put(Void.TYPE, Void.TYPE);
+	}
+
+	/**
+	 * Maps wrapper {@code Class}es to their corresponding primitive types.
+	 */
+	private static final Map<Class<?>, Class<?>> wrapperPrimitiveMap = new HashMap<>();
+	static {
+		for (final Class<?> primitiveClass : primitiveWrapperMap.keySet()) {
+			final Class<?> wrapperClass = primitiveWrapperMap.get(primitiveClass);
+			if (!primitiveClass.equals(wrapperClass)) {
+				wrapperPrimitiveMap.put(wrapperClass, primitiveClass);
+			}
+		}
+	}
+
+	/**
+	 * <p>Converts the specified primitive Class object to its corresponding
+	 * wrapper Class object.</p>
+	 *
+	 * <p>NOTE: From v2.2, this method handles {@code Void.TYPE},
+	 * returning {@code Void.TYPE}.</p>
+	 *
+	 * @param cls  the class to convert, may be null
+	 * @return the wrapper class for {@code cls} or {@code cls} if
+	 * {@code cls} is not a primitive. {@code null} if null input.
+	 * @since 2.1
+	 */
+	public static Class<?> primitiveToWrapper(final Class<?> cls) {
+		Class<?> convertedClass = cls;
+		if (cls != null && cls.isPrimitive()) {
+			convertedClass = primitiveWrapperMap.get(cls);
+		}
+		return convertedClass;
+	}
+
+	/**
+	 * <p>Converts the specified wrapper class to its corresponding primitive
+	 * class.</p>
+	 *
+	 * <p>This method is the counter part of {@code primitiveToWrapper()}.
+	 * If the passed in class is a wrapper class for a primitive type, this
+	 * primitive type will be returned (e.g. {@code Integer.TYPE} for
+	 * {@code Integer.class}). For other classes, or if the parameter is
+	 * <b>null</b>, the return value is <b>null</b>.</p>
+	 *
+	 * @param cls the class to convert, may be <b>null</b>
+	 * @return the corresponding primitive type if {@code cls} is a
+	 * wrapper class, <b>null</b> otherwise
+	 * @see #primitiveToWrapper(Class)
+	 * @since 2.4
+	 */
+	public static Class<?> wrapperToPrimitive(final Class<?> cls) {
+		return wrapperPrimitiveMap.get(cls);
 	}
 
 	private ExtractionUtils() {

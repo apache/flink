@@ -74,6 +74,33 @@ Join(joinType=[InnerJoin], where=[=(t3_secondary_key, secondary_key)], select=[r
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinOnQueryLeft">
+    <Resource name="sql">
+      <![CDATA[SELECT o_amount * rate as rate FROM Orders2 AS o, LATERAL TABLE (Rates(o.o_rowtime)) AS r WHERE currency = o_currency]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(rate=[*($0, $4)])
++- LogicalFilter(condition=[=($3, $1)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :- LogicalProject(o_amount=[$0], o_currency=[$1], o_rowtime=[$2])
+      :  +- LogicalFilter(condition=[>($0, 1000)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[*(o_amount, rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, currency), =(currency, o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+   :- Exchange(distribution=[hash[o_currency]])
+   :  +- Calc(select=[o_amount, o_currency, o_rowtime], where=[>(o_amount, 1000)])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSimpleProctimeJoin">
     <Resource name="sql">
       <![CDATA[SELECT o_amount * rate as rate FROM ProctimeOrders AS o, LATERAL TABLE (ProctimeRates(o.o_proctime)) AS r WHERE currency = o_currency]]>

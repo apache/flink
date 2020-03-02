@@ -53,14 +53,10 @@ public class ActionWatcher<T extends HasMetadata> implements Watcher<T> {
 	public void onClose(KubernetesClientException e) {
 	}
 
-	public T await(long amount, TimeUnit timeUnit) {
-		try {
-			if (this.latch.await(amount, timeUnit)) {
-				return this.reference.get();
-			} else {
-				throw new KubernetesClientTimeoutException(this.resource, amount, timeUnit);
-			}
-		} catch (InterruptedException var5) {
+	public T await(long amount, TimeUnit timeUnit) throws InterruptedException {
+		if (this.latch.await(amount, timeUnit)) {
+			return this.reference.get();
+		} else {
 			throw new KubernetesClientTimeoutException(this.resource, amount, timeUnit);
 		}
 	}

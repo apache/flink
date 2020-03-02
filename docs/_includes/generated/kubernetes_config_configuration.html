@@ -39,6 +39,18 @@
             <td>Kubernetes image pull policy. Valid values are Always, Never, and IfNotPresent. The default policy is IfNotPresent to avoid putting pressure to image repository.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.container.image.pull-secrets</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of the Kubernetes secrets used to access private image registries.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.context</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The desired context from your Kubernetes config file used to configure the Kubernetes client for interacting with the cluster. This could be helpful if one has multiple contexts configured and wants to administrate different Flink clusters on different Kubernetes clusters/contexts.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.entry.path</h5></td>
             <td style="word-wrap: break-word;">"/opt/flink/bin/kubernetes-entry.sh"</td>
             <td>String</td>

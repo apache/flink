@@ -68,6 +68,11 @@ VERSION_TITLE=$(echo $NEW_VERSION | sed 's/\.[^.]*$//')
 perl -pi -e "s#^version_title: .*#version_title: ${VERSION_TITLE}#" _config.yml
 cd ..
 
+#change version of pyflink
+cd flink-python/pyflink
+perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${NEW_VERSION}\"#" version.py
+cd ../..
+
 git commit -am "Commit for release $NEW_VERSION"
 
 RELEASE_HASH=`git rev-parse HEAD`

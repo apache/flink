@@ -44,7 +44,7 @@ public class CliFrontendParser {
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
 	static final Option CLASS_OPTION = new Option("c", "class", true,
-			"Class with the program entry point (\"main()\" method or \"getPlan()\" method). Only needed if the " +
+			"Class with the program entry point (\"main()\" method). Only needed if the " +
 			"JAR file does not specify the class in its manifest.");
 
 	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
@@ -57,6 +57,10 @@ public class CliFrontendParser {
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 			"specified in the configuration.");
 
+	/**
+	 * @deprecated This has no effect anymore, we're keeping it to not break existing bash scripts.
+	 */
+	@Deprecated
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
 			"suppress logging output to standard out.");
 
@@ -158,7 +162,7 @@ public class CliFrontendParser {
 	static final Option PYEXEC_OPTION = new Option("pyexec", "pyExecutable", true,
 		"Specify the path of the python interpreter used to execute the python UDF worker " +
 			"(e.g.: --pyExecutable /usr/local/bin/python3). " +
-			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.15.0), " +
+			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.19.0), " +
 			"Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). " +
 			"Please ensure that the specified environment meets the above requirements.");
 
@@ -258,7 +262,6 @@ public class CliFrontendParser {
 		options.addOption(CLASS_OPTION);
 		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
-		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(PY_OPTION);

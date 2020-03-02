@@ -172,4 +172,25 @@ class TimestampITCase extends StreamingTestBase{
     )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testMaxMinWithRetractOnTimestamp(): Unit = {
+    val sink = new TestingRetractSink()
+    tEnv.sqlQuery(
+      s"""
+         |SELECT MAX(y), MIN(x)
+         |FROM
+         |  (SELECT b, MAX(c) AS x, MIN(c) AS y FROM T GROUP BY b, c)
+         |GROUP BY b
+       """.stripMargin)
+      .toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "1969-01-01T00:00:00.123456789,1969-01-01T00:00:00.123456789",
+      "1970-01-01T00:00:00.123,1970-01-01T00:00:00.123",
+      "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456",
+      "null,null"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }

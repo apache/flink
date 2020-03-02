@@ -30,7 +30,6 @@ import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -61,9 +60,11 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -169,10 +170,8 @@ public class JvmExitOnFatalErrorTest {
 				final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
 				final Configuration copiedConf = new Configuration(taskManagerConfig);
-				copiedConf.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1024m");
-
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
-					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfig(copiedConf));
+					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf));
 
 				final Executor executor = Executors.newCachedThreadPool();
 
@@ -216,6 +215,7 @@ public class JvmExitOnFatalErrorTest {
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
 						new NoOpCheckpointResponder(),
+						new NoOpTaskOperatorEventGateway(),
 						new TestGlobalAggregateManager(),
 						blobService,
 						new BlobLibraryCacheManager(

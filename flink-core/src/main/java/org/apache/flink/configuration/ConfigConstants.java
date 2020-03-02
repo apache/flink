@@ -247,6 +247,22 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
+	/** @deprecated Use {@link TaskManagerOptions#MANAGED_MEMORY_SIZE} instead */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY = "taskmanager.memory.preallocate";
+
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
@@ -328,6 +344,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
+
 	/**
 	 * @deprecated Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
 	 */
@@ -370,7 +390,7 @@ public final class ConfigConstants {
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
-	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate
 	 * for other JVM memory usage.
 	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
 	 */
@@ -1391,6 +1411,10 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
 
 	/**
 	 * Config key has been deprecated. Therefore, no default value required.

@@ -19,16 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
+import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
@@ -36,68 +33,18 @@ import org.apache.flink.table.types.logical.RowType
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-trait CommonPythonCalc {
-
-  def loadClass(className: String): Class[_] = {
-    try {
-      Class.forName(className, false, Thread.currentThread.getContextClassLoader)
-    } catch {
-      case ex: ClassNotFoundException => throw new TableException(
-        "The dependency of 'flink-python' is not present on the classpath.", ex)
-    }
-  }
-
-  private lazy val convertLiteralToPython = {
-    val clazz = loadClass("org.apache.flink.api.common.python.PythonBridgeUtils")
-    clazz.getMethod("convertLiteralToPython", classOf[RexLiteral], classOf[SqlTypeName])
-  }
+trait CommonPythonCalc extends CommonPythonBase {
 
   private def extractPythonScalarFunctionInfos(
       rexCalls: Array[RexCall]): (Array[Int], Array[PythonFunctionInfo]) = {
     // using LinkedHashMap to keep the insert order
     val inputNodes = new mutable.LinkedHashMap[RexNode, Integer]()
-    val pythonFunctionInfos = rexCalls.map(createPythonScalarFunctionInfo(_, inputNodes))
+    val pythonFunctionInfos = rexCalls.map(createPythonFunctionInfo(_, inputNodes))
 
     val udfInputOffsets = inputNodes.toArray
       .map(_._1)
       .collect { case inputRef: RexInputRef => inputRef.getIndex }
     (udfInputOffsets, pythonFunctionInfos)
-  }
-
-  private def createPythonScalarFunctionInfo(
-      pythonRexCall: RexCall,
-      inputNodes: mutable.Map[RexNode, Integer]): PythonFunctionInfo = {
-    pythonRexCall.getOperator match {
-      case sfc: ScalarSqlFunction =>
-        val inputs = new mutable.ArrayBuffer[AnyRef]()
-        pythonRexCall.getOperands.foreach {
-          case pythonRexCall: RexCall =>
-            // Continuous Python UDFs can be chained together
-            val argPythonInfo = createPythonScalarFunctionInfo(pythonRexCall, inputNodes)
-            inputs.append(argPythonInfo)
-
-          case literal: RexLiteral =>
-            inputs.append(
-              convertLiteralToPython.invoke(null, literal, literal.getType.getSqlTypeName))
-
-          case argNode: RexNode =>
-            // For input arguments of RexInputRef, it's replaced with an offset into the input row
-            inputNodes.get(argNode) match {
-              case Some(existing) => inputs.append(existing)
-              case None =>
-                val inputOffset = Integer.valueOf(inputNodes.size)
-                inputs.append(inputOffset)
-                inputNodes.put(argNode, inputOffset)
-            }
-        }
-
-        // Extracts the necessary information for Python function execution, such as
-        // the serialized Python function, the Python env, etc
-        val pythonFunction = new SimplePythonFunction(
-          sfc.scalarFunction.asInstanceOf[PythonFunction].getSerializedPythonFunction,
-          sfc.scalarFunction.asInstanceOf[PythonFunction].getPythonEnv)
-        new PythonFunctionInfo(pythonFunction, inputs.toArray)
-    }
   }
 
   private def getPythonScalarFunctionOperator(
@@ -170,5 +117,5 @@ trait CommonPythonCalc {
 
 object CommonPythonCalc {
   val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.BaseRowPythonScalarFunctionOperator"
+    "org.apache.flink.table.runtime.operators.python.scalar.BaseRowPythonScalarFunctionOperator"
 }

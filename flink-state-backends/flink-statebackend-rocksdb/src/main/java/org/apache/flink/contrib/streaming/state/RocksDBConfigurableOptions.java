@@ -134,4 +134,10 @@ public class RocksDBConfigurableOptions implements Serializable {
 			.withDescription("The amount of the cache for data blocks in RocksDB. " +
 				"RocksDB has default block-cache size as '8MB'.");
 
+	public static final ConfigOption<MemorySize> WRITE_BATCH_SIZE =
+		key("state.backend.rocksdb.write-batch-size")
+		.memoryType()
+		.defaultValue(MemorySize.parse("2mb"))
+		.withDescription("The max size of the consumed memory for RocksDB batch write, " +
+			"will flush just based on item count if this config set to 0.");
 }

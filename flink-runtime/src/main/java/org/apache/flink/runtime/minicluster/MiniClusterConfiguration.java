@@ -25,9 +25,12 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +40,8 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
  * Configuration object for the {@link MiniCluster}.
  */
 public class MiniClusterConfiguration {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterConfiguration.class);
 
 	static final String SCHEDULER_TYPE_KEY = JobManagerOptions.SCHEDULER.key();
 
@@ -71,15 +76,15 @@ public class MiniClusterConfiguration {
 			schedulerType = JobManagerOptions.SCHEDULER.defaultValue();
 		}
 
-		if (!configuration.contains(JobManagerOptions.SCHEDULER)) {
-			configuration.setString(JobManagerOptions.SCHEDULER, schedulerType);
+		final Configuration modifiedConfig = new Configuration(configuration);
+
+		if (!modifiedConfig.contains(JobManagerOptions.SCHEDULER)) {
+			modifiedConfig.setString(JobManagerOptions.SCHEDULER, schedulerType);
 		}
 
-		if (!TaskExecutorResourceUtils.isTaskExecutorResourceExplicitlyConfigured(configuration)) {
-			return new UnmodifiableConfiguration(TaskExecutorResourceUtils.adjustConfigurationForLocalExecution(configuration, numTaskManagers));
-		}
+		TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
 
-		return new UnmodifiableConfiguration(configuration);
+		return new UnmodifiableConfiguration(modifiedConfig);
 	}
 
 	// ------------------------------------------------------------------------

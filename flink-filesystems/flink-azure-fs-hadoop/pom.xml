@@ -36,6 +36,7 @@ under the License.
 	<properties>
 		<fs.azure.sdk.version>1.16.0</fs.azure.sdk.version>
 		<fs.jackson.core.version>2.9.4</fs.jackson.core.version>
+		<jetty.version>9.3.24.v20180605</jetty.version>
 	</properties>
 
 	<dependencies>
@@ -90,6 +91,17 @@ under the License.
 
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Pulled in by hadoop-azure; bumps it to the version used by 3.1.2+ for security purposes -->
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-util-ajax</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<build>
 		<plugins>
 			<!-- Relocate all Azure related classes -->
@@ -131,8 +143,8 @@ under the License.
 
 								<!-- shade dependencies internally used by Azure and never exposed downstream -->
 								<relocation>
-									<pattern>org.apache.httpcomponents</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.org.apache.httpcomponents</shadedPattern>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.fs.azure.shaded.org.apache.http</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>commons-logging</pattern>

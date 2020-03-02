@@ -63,6 +63,8 @@ import java.lang.annotation.Target;
  * {@link java.math.BigDecimal} will be extracted as {@code DECIMAL(12, 2)} if the enclosing structured
  * class is annotated with {@code @DataTypeHint(defaultDecimalPrecision = 12, defaultDecimalScale = 2)}. Individual
  * field annotations allow to deviate from those default values.
+ *
+ * @see FunctionHint
  */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)

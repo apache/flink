@@ -23,6 +23,8 @@ import org.apache.flink.runtime.util.BashJavaUtils;
 
 import org.junit.Test;
 
+import java.io.IOException;
+
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -34,11 +36,22 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT = "src/test/bin/runBashJavaUtilsCmd.sh";
 
+	/**
+	 * Executes the given shell script wrapper and returns the last line.
+	 */
+	private String executeScriptAndFetchLastLine(final String command) throws IOException {
+		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, command};
+		String[] lines = executeScript(commands).split(System.lineSeparator());
+		if (lines.length == 0) {
+			return "";
+		} else {
+			return lines[lines.length - 1];
+		}
+	}
+
 	@Test
 	public void testGetTmResourceDynamicConfigs() throws Exception {
-		String[] command = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-			BashJavaUtils.Command.GET_TM_RESOURCE_DYNAMIC_CONFIGS.toString()};
-		String result = executeScript(command);
+		String result = executeScriptAndFetchLastLine(BashJavaUtils.Command.GET_TM_RESOURCE_DYNAMIC_CONFIGS.toString());
 
 		assertNotNull(result);
 		ConfigurationUtils.parseTmResourceDynamicConfigs(result);
@@ -46,9 +59,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	@Test
 	public void testGetTmResourceJvmParams() throws Exception {
-		String[] command = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
-			BashJavaUtils.Command.GET_TM_RESOURCE_JVM_PARAMS.toString()};
-		String result = executeScript(command);
+		String result = executeScriptAndFetchLastLine(BashJavaUtils.Command.GET_TM_RESOURCE_JVM_PARAMS.toString());
 
 		assertNotNull(result);
 		ConfigurationUtils.parseTmResourceJvmParams(result);

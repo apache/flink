@@ -19,12 +19,12 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.ColumnarRow;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
 
 import java.io.IOException;
@@ -33,7 +33,7 @@ import java.util.List;
 /**
  * {@link OrcSplitReader} to read ORC files into {@link BaseRow}.
  */
-public class OrcColumnarRowSplitReader extends OrcSplitReader<BaseRow> {
+public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<BaseRow, BATCH> {
 
 	// the vector of rows that is read in a batch
 	private final VectorizedColumnBatch columnarBatch;
@@ -41,16 +41,18 @@ public class OrcColumnarRowSplitReader extends OrcSplitReader<BaseRow> {
 	private final ColumnarRow row;
 
 	public OrcColumnarRowSplitReader(
+			OrcShim<BATCH> shim,
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
-			ColumnBatchGenerator batchGenerator,
+			ColumnBatchGenerator<BATCH> batchGenerator,
 			List<Predicate> conjunctPredicates,
 			int batchSize,
 			Path path,
 			long splitStart,
 			long splitLength) throws IOException {
 		super(
+				shim,
 				conf,
 				schema,
 				selectedFields,
@@ -60,13 +62,13 @@ public class OrcColumnarRowSplitReader extends OrcSplitReader<BaseRow> {
 				splitStart,
 				splitLength);
 
-		this.columnarBatch = batchGenerator.generate(rowBatch);
+		this.columnarBatch = batchGenerator.generate(rowBatchWrapper.getBatch());
 		this.row = new ColumnarRow(columnarBatch);
 	}
 
 	@Override
 	protected int fillRows() {
-		int size = rowBatch.size;
+		int size = rowBatchWrapper.size();
 		columnarBatch.setNumRows(size);
 		return size;
 	}
@@ -81,7 +83,7 @@ public class OrcColumnarRowSplitReader extends OrcSplitReader<BaseRow> {
 	/**
 	 * Interface to gen {@link VectorizedColumnBatch}.
 	 */
-	public interface ColumnBatchGenerator {
-		VectorizedColumnBatch generate(VectorizedRowBatch rowBatch);
+	public interface ColumnBatchGenerator<BATCH> {
+		VectorizedColumnBatch generate(BATCH rowBatch);
 	}
 }

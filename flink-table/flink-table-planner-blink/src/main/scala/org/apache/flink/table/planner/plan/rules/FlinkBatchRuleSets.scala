@@ -415,6 +415,7 @@ object FlinkBatchRuleSets {
     // correlate
     BatchExecConstantTableFunctionScanRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
+    BatchExecPythonCorrelateRule.INSTANCE,
     // sink
     BatchExecSinkRule.INSTANCE
   )

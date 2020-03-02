@@ -26,7 +26,6 @@ import org.apache.flink.table.dataformat.{BinaryStringUtil, Decimal, _}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
 import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
@@ -36,10 +35,11 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.types.Row
-
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
+
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 
 object CodeGenUtils {
 
@@ -116,7 +116,28 @@ object CodeGenUtils {
   /**
     * Retrieve the canonical name of a class type.
     */
-  def className[T](implicit m: Manifest[T]): String = m.runtimeClass.getCanonicalName
+  def className[T](implicit m: Manifest[T]): String = {
+    val name = m.runtimeClass.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${m.runtimeClass.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
+
+  /**
+   * Returns a term for representing the given class in Java code.
+   */
+  def typeTerm(clazz: Class[_]): String = {
+    val name = clazz.getCanonicalName
+    if (name == null) {
+      throw new CodeGenException(
+        s"Class '${clazz.getName}' does not have a canonical name. " +
+          s"Make sure it is statically accessible.")
+    }
+    name
+  }
 
   // when casting we first need to unbox Primitives, for example,
   // float a = 1.0f;
@@ -165,18 +186,6 @@ object CodeGenUtils {
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
 
     case RAW => className[BinaryGeneric[_]]
-  }
-
-  /**
-    * Gets the boxed type term from external type info.
-    * We only use TypeInformation to store external type info.
-    */
-  def boxedTypeTermForExternalType(t: DataType): String = {
-    if (t.getConversionClass == null) {
-      ClassLogicalTypeConverter.getDefaultExternalClassForType(t.getLogicalType).getCanonicalName
-    } else {
-      t.getConversionClass.getCanonicalName
-    }
   }
 
   /**
@@ -681,12 +690,18 @@ object CodeGenUtils {
   def genToInternal(ctx: CodeGeneratorContext, t: DataType, term: String): String =
     genToInternal(ctx, t)(term)
 
+  /**
+   * Generates code for converting the given external source data type to the internal data format.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
   def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
-    val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
     if (isConverterIdentity(t)) {
-      term => s"($iTerm) $term"
+      term => s"$term"
     } else {
-      val eTerm = boxedTypeTermForExternalType(t)
+      val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
+      val eTerm = typeTerm(t.getConversionClass)
       val converter = ctx.addReusableObject(
         DataFormatConverters.getConverterForDataType(t),
         "converter")
@@ -694,38 +709,71 @@ object CodeGenUtils {
     }
   }
 
+  /**
+   * Generates code for converting the given external source data type to the internal data format.
+   *
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
+   */
   def genToInternalIfNeeded(
       ctx: CodeGeneratorContext,
-      t: DataType,
-      term: String): String = {
-    if (isInternalClass(t)) {
-      s"(${boxedTypeTermForType(fromDataTypeToLogicalType(t))}) $term"
+      sourceDataType: DataType,
+      externalTerm: String)
+    : GeneratedExpression = {
+    val sourceType = sourceDataType.getLogicalType
+    val sourceClass = sourceDataType.getConversionClass
+    // convert external source type to internal format
+    val internalResultTerm = if (isInternalClass(sourceDataType)) {
+      s"$externalTerm"
     } else {
-      genToInternal(ctx, t, term)
+      genToInternal(ctx, sourceDataType, externalTerm)
+    }
+    // extract null term from result term
+    if (sourceClass.isPrimitive) {
+      generateNonNullField(sourceType, internalResultTerm)
+    } else {
+      generateInputFieldUnboxing(ctx, sourceType, externalTerm, internalResultTerm)
     }
   }
 
-  def genToExternal(ctx: CodeGeneratorContext, t: DataType, term: String): String = {
-    val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(t))
-    if (isConverterIdentity(t)) {
-      s"($iTerm) $term"
+  def genToExternal(
+      ctx: CodeGeneratorContext,
+      targetType: DataType,
+      internalTerm: String): String = {
+    if (isConverterIdentity(targetType)) {
+      s"$internalTerm"
     } else {
-      val eTerm = boxedTypeTermForExternalType(t)
+      val iTerm = boxedTypeTermForType(fromDataTypeToLogicalType(targetType))
+      val eTerm = typeTerm(targetType.getConversionClass)
       val converter = ctx.addReusableObject(
-        DataFormatConverters.getConverterForDataType(t),
+        DataFormatConverters.getConverterForDataType(targetType),
         "converter")
-      s"($eTerm) $converter.toExternal(($iTerm) $term)"
+      s"($eTerm) $converter.toExternal(($iTerm) $internalTerm)"
     }
   }
 
+  /**
+   * Generates code for converting the internal data format to the given external target data type.
+   *
+   * Use this function for converting at the edges of the API.
+   */
   def genToExternalIfNeeded(
       ctx: CodeGeneratorContext,
-      t: DataType,
-      term: String): String = {
-    if (isInternalClass(t)) {
-      s"(${boxedTypeTermForType(fromDataTypeToLogicalType(t))}) $term"
+      targetDataType: DataType,
+      internalExpr: GeneratedExpression)
+    : String = {
+    val targetType = fromDataTypeToLogicalType(targetDataType)
+    // convert internal format to target type
+    val externalResultTerm = if (isInternalClass(targetDataType)) {
+      s"(${boxedTypeTermForType(targetType)}) ${internalExpr.resultTerm}"
     } else {
-      genToExternal(ctx, t, term)
+      genToExternal(ctx, targetDataType, internalExpr.resultTerm)
+    }
+    // merge null term into the result term
+    if (targetDataType.getConversionClass.isPrimitive) {
+      externalResultTerm
+    } else {
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
     }
   }
 

@@ -19,7 +19,7 @@
 package org.apache.flink.table.types.inference.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -57,8 +57,8 @@ public final class AdaptedCallContext implements CallContext {
 	}
 
 	@Override
-	public DataTypeLookup getDataTypeLookup() {
-		return originalContext.getDataTypeLookup();
+	public DataTypeFactory getDataTypeFactory() {
+		return originalContext.getDataTypeFactory();
 	}
 
 	@Override

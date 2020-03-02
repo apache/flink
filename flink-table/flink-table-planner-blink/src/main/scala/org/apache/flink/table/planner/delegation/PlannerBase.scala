@@ -20,13 +20,12 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
-import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
@@ -38,10 +37,12 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
-import org.apache.flink.table.planner.sinks.{DataStreamTableSink, TableSinkUtils}
+import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
-import org.apache.flink.table.sinks.{OverwritableTableSink, TableSink}
+import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+import org.apache.flink.table.utils.TableSchemaUtils
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
@@ -174,23 +175,33 @@ abstract class PlannerBase(
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
-        LogicalSink.create(input, s.getSink, "UnregisteredSink")
+        val sinkSchema = s.getSink.getTableSchema
+        // validate query schema and sink schema, and apply cast if possible
+        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
+        LogicalSink.create(
+          query,
+          s.getSink,
+          "UnregisteredSink",
+          ConnectorCatalogTable.sink(s.getSink, !isStreamingMode))
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
         val identifier = catalogSink.getTableIdentifier
         getTableSink(identifier).map { case (table, sink) =>
-          TableSinkUtils.validateSink(catalogSink, identifier, sink, table.getPartitionKeys)
-          sink match {
-            case overwritableTableSink: OverwritableTableSink =>
-              overwritableTableSink.setOverwrite(catalogSink.isOverwrite)
-            case _ =>
-              assert(!catalogSink.isOverwrite, "INSERT OVERWRITE requires " +
-                s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
-                sink.getClass.getName)
-          }
-          LogicalSink.create(
+          // check the logical field type and physical field type are compatible
+          val queryLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
+          // validate logical schema and physical schema are compatible
+          validateLogicalPhysicalTypesCompatible(table, sink, queryLogicalType)
+          // validate TableSink
+          validateTableSink(catalogSink, identifier, sink, table.getPartitionKeys)
+          // validate query schema and sink schema, and apply cast if possible
+          val query = validateSchemaAndApplyImplicitCast(
             input,
+            TableSchemaUtils.getPhysicalSchema(table.getSchema),
+            getTypeFactory,
+            Some(catalogSink.getTableIdentifier.asSummaryString()))
+          LogicalSink.create(
+            query,
             sink,
             identifier.toString,
             table,
@@ -209,9 +220,23 @@ abstract class PlannerBase(
           case UpdateMode.UPSERT => (false, true)
         }
         val typeInfo = LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(outputConversion.getType)
+        val inputLogicalType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
+        val sinkPhysicalSchema = inferSinkPhysicalSchema(
+          outputConversion.getType,
+          inputLogicalType,
+          withChangeFlag)
+        // validate query schema and sink schema, and apply cast if possible
+        val query = validateSchemaAndApplyImplicitCast(input, sinkPhysicalSchema, getTypeFactory)
         val tableSink = new DataStreamTableSink(
-          outputConversion.getChild, typeInfo, updatesAsRetraction, withChangeFlag)
-        LogicalSink.create(input, tableSink, "DataStreamTableSink")
+          FlinkTypeFactory.toTableSchema(query.getRowType),
+          typeInfo,
+          updatesAsRetraction,
+          withChangeFlag)
+        LogicalSink.create(
+          query,
+          tableSink,
+          "DataStreamTableSink",
+          ConnectorCatalogTable.sink(tableSink, !isStreamingMode))
 
       case _ =>
         throw new TableException(s"Unsupported ModifyOperation: $modifyOperation")
@@ -271,19 +296,15 @@ abstract class PlannerBase(
       case Some(s) if s.isInstanceOf[CatalogTable] =>
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val table = s.asInstanceOf[CatalogTable]
+        val context = new TableSinkFactoryContextImpl(
+          objectIdentifier, table, getTableConfig.getConfiguration)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val objectPath = objectIdentifier.toObjectPath
-          val sink = TableFactoryUtil.createTableSinkForCatalogTable(
-            catalog.get(),
-            table,
-            objectPath)
+          val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {
             return Option(table, sink.get())
           }
         }
-        val sinkProperties = table.toProperties
-        Option(table, TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
-          .createTableSink(sinkProperties))
+        Option(table, TableFactoryUtil.findAndCreateTableSink(context))
 
       case _ => None
     }

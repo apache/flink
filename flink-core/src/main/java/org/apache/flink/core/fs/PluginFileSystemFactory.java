@@ -18,7 +18,7 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.io.IOException;
 import java.net.URI;
@@ -57,7 +57,7 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 
 	@Override
 	public FileSystem create(final URI fsUri) throws IOException {
-		try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 			return new ClassLoaderFixingFileSystem(inner.create(fsUri), loader);
 		}
 	}
@@ -73,28 +73,28 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 
 		@Override
 		public Path getWorkingDirectory() {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.getWorkingDirectory();
 			}
 		}
 
 		@Override
 		public Path getHomeDirectory() {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.getHomeDirectory();
 			}
 		}
 
 		@Override
 		public URI getUri() {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.getUri();
 			}
 		}
 
 		@Override
 		public FileStatus getFileStatus(final Path f) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.getFileStatus(f);
 			}
 		}
@@ -104,84 +104,84 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 			final FileStatus file,
 			final long start,
 			final long len) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.getFileBlockLocations(file, start, len);
 			}
 		}
 
 		@Override
 		public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.open(f, bufferSize);
 			}
 		}
 
 		@Override
 		public FSDataInputStream open(final Path f) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.open(f);
 			}
 		}
 
 		@Override
 		public RecoverableWriter createRecoverableWriter() throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.createRecoverableWriter();
 			}
 		}
 
 		@Override
 		public FileStatus[] listStatus(final Path f) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.listStatus(f);
 			}
 		}
 
 		@Override
 		public boolean exists(final Path f) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.exists(f);
 			}
 		}
 
 		@Override
 		public boolean delete(final Path f, final boolean recursive) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.delete(f, recursive);
 			}
 		}
 
 		@Override
 		public boolean mkdirs(final Path f) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.mkdirs(f);
 			}
 		}
 
 		@Override
 		public FSDataOutputStream create(final Path f, final WriteMode overwriteMode) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.create(f, overwriteMode);
 			}
 		}
 
 		@Override
 		public boolean isDistributedFS() {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.isDistributedFS();
 			}
 		}
 
 		@Override
 		public FileSystemKind getKind() {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.getKind();
 			}
 		}
 
 		@Override
 		public boolean rename(final Path src, final Path dst) throws IOException {
-			try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(loader)) {
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.rename(src, dst);
 			}
 		}

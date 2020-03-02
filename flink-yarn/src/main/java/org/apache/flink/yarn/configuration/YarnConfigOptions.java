@@ -36,22 +36,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 public class YarnConfigOptions {
 
 	/**
-	 * The hostname or address where the application master RPC system is listening.
-	 */
-	public static final ConfigOption<String> APP_MASTER_RPC_ADDRESS =
-			key("yarn.appmaster.rpc.address")
-			.noDefaultValue()
-			.withDescription("The hostname or address where the application master RPC system is listening.");
-
-	/**
-	 * The port where the application master RPC system is listening.
-	 */
-	public static final ConfigOption<Integer> APP_MASTER_RPC_PORT =
-			key("yarn.appmaster.rpc.port")
-			.defaultValue(-1)
-			.withDescription("The port where the application master RPC system is listening.");
-
-	/**
 	 * The vcores used by YARN application master.
 	 */
 	public static final ConfigOption<Integer> APP_MASTER_VCORES =
@@ -85,18 +69,6 @@ public class YarnConfigOptions {
 					" the %s.",
 				code("org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler"))
 				.build());
-
-	/**
-	 * The maximum number of failed YARN containers before entirely stopping
-	 * the YARN session / job on YARN.
-	 * By default, we take the number of initially requested containers.
-	 *
-	 * <p>Note: This option returns a String since Integer options must have a static default value.
-	 */
-	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
-		key("yarn.maximum-failed-containers")
-		.noDefaultValue()
-		.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
@@ -198,6 +170,19 @@ public class YarnConfigOptions {
 				" with higher priority. If priority is negative or set to '-1'(default), Flink will unset yarn priority" +
 				" setting and use cluster default priority. Please refer to YARN's official documentation for specific" +
 				" settings required to enable priority scheduling for the targeted YARN version.");
+
+	/**
+	 * Yarn session client uploads flink jar and user libs to file system (hdfs/s3) as local resource for yarn
+	 * application context. The replication number changes the how many replica of each of these files in hdfs/s3.
+	 * It is useful to accelerate this container bootstrap, when a Flink application needs more than one hundred
+	 * of containers. If it is not configured, Flink will use the default replication value in hadoop configuration.
+	 */
+	public static final ConfigOption<Integer> FILE_REPLICATION =
+		key("yarn.file-replication")
+			.intType()
+			.defaultValue(-1)
+			.withDescription("Number of file replication of each local resource file. If it is not configured, Flink will" +
+				" use the default replication value in hadoop configuration.");
 
 	/**
 	 * A comma-separated list of strings to use as YARN application tags.

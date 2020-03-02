@@ -224,11 +224,12 @@ public class CliClient {
 		terminal.flush();
 
 		final Optional<SqlCommandCall> parsedStatement = parseCommand(statement);
-		// only support INSERT INTO
+		// only support INSERT INTO/OVERWRITE
 		return parsedStatement.map(cmdCall -> {
 			switch (cmdCall.command) {
 				case INSERT_INTO:
-					return callInsertInto(cmdCall);
+				case INSERT_OVERWRITE:
+					return callInsert(cmdCall);
 				default:
 					printError(CliStrings.MESSAGE_UNSUPPORTED_SQL);
 					return false;
@@ -294,7 +295,8 @@ public class CliClient {
 				callSelect(cmdCall);
 				break;
 			case INSERT_INTO:
-				callInsertInto(cmdCall);
+			case INSERT_OVERWRITE:
+				callInsert(cmdCall);
 				break;
 			case CREATE_TABLE:
 				callCreateTable(cmdCall);
@@ -528,7 +530,7 @@ public class CliClient {
 		}
 	}
 
-	private boolean callInsertInto(SqlCommandCall cmdCall) {
+	private boolean callInsert(SqlCommandCall cmdCall) {
 		printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
 		try {

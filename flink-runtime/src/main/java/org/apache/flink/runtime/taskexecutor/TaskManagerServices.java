@@ -21,8 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -33,7 +31,9 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -65,7 +65,7 @@ public class TaskManagerServices {
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 	private final KvStateService kvStateService;
 	private final BroadcastVariableManager broadcastVariableManager;
-	private final TaskSlotTable taskSlotTable;
+	private final TaskSlotTable<Task> taskSlotTable;
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
@@ -78,7 +78,7 @@ public class TaskManagerServices {
 		ShuffleEnvironment<?, ?> shuffleEnvironment,
 		KvStateService kvStateService,
 		BroadcastVariableManager broadcastVariableManager,
-		TaskSlotTable taskSlotTable,
+		TaskSlotTable<Task> taskSlotTable,
 		JobManagerTable jobManagerTable,
 		JobLeaderService jobLeaderService,
 		TaskExecutorLocalStateStoresManager taskManagerStateStore,
@@ -125,7 +125,7 @@ public class TaskManagerServices {
 		return broadcastVariableManager;
 	}
 
-	public TaskSlotTable getTaskSlotTable() {
+	public TaskSlotTable<Task> getTaskSlotTable() {
 		return taskSlotTable;
 	}
 
@@ -181,7 +181,7 @@ public class TaskManagerServices {
 		}
 
 		try {
-			taskSlotTable.stop();
+			taskSlotTable.close();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -241,7 +241,7 @@ public class TaskManagerServices {
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final TaskSlotTable taskSlotTable = createTaskSlotTable(
+		final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable(
 			taskManagerServicesConfiguration.getNumberOfSlots(),
 			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
@@ -278,7 +278,7 @@ public class TaskManagerServices {
 			taskEventDispatcher);
 	}
 
-	private static TaskSlotTable createTaskSlotTable(
+	private static TaskSlotTable<Task> createTaskSlotTable(
 			final int numberOfSlots,
 			final TaskExecutorResourceSpec taskExecutorResourceSpec,
 			final long timerServiceShutdownTimeout,
@@ -286,7 +286,7 @@ public class TaskManagerServices {
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
-		return new TaskSlotTable(
+		return new TaskSlotTableImpl<>(
 			numberOfSlots,
 			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
 			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
@@ -302,7 +302,7 @@ public class TaskManagerServices {
 		final ShuffleEnvironmentContext shuffleEnvironmentContext = new ShuffleEnvironmentContext(
 			taskManagerServicesConfiguration.getConfiguration(),
 			taskManagerServicesConfiguration.getResourceID(),
-			taskManagerServicesConfiguration.getShuffleMemorySize(),
+			taskManagerServicesConfiguration.getNetworkMemorySize(),
 			taskManagerServicesConfiguration.isLocalCommunicationOnly(),
 			taskManagerServicesConfiguration.getTaskManagerAddress(),
 			taskEventDispatcher,

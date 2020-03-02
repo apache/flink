@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.module.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
@@ -27,6 +28,9 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -36,6 +40,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Module to provide Hive built-in metadata.
  */
 public class HiveModule implements Module {
+
+	// a set of functions that shouldn't be overridden by HiveModule
+	@VisibleForTesting
+	static final Set<String> BUILT_IN_FUNC_BLACKLIST = Collections.unmodifiableSet(new HashSet<>(
+			Arrays.asList("dense_rank", "first_value", "lag", "last_value", "lead", "rank", "row_number",
+					"hop", "hop_end", "hop_proctime", "hop_rowtime", "hop_start",
+					"session", "session_end", "session_proctime", "session_rowtime", "session_start",
+					"tumble", "tumble_end", "tumble_proctime", "tumble_rowtime", "tumble_start")));
 
 	private final HiveFunctionDefinitionFactory factory;
 	private final String hiveVersion;
@@ -51,16 +63,19 @@ public class HiveModule implements Module {
 
 	@Override
 	public Set<String> listFunctions() {
-		return hiveShim.listBuiltInFunctions();
+		Set<String> builtInFuncs = hiveShim.listBuiltInFunctions();
+		builtInFuncs.removeAll(BUILT_IN_FUNC_BLACKLIST);
+		return builtInFuncs;
 	}
 
 	@Override
 	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
+		if (BUILT_IN_FUNC_BLACKLIST.contains(name)) {
+			return Optional.empty();
+		}
 		Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);
 
-		return info.isPresent() ?
-			Optional.of(factory.createFunctionDefinitionFromHiveFunction(name, info.get().getFunctionClass().getName()))
-			: Optional.empty();
+		return info.map(functionInfo -> factory.createFunctionDefinitionFromHiveFunction(name, functionInfo.getFunctionClass().getName()));
 	}
 
 	public String getHiveVersion() {

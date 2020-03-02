@@ -26,6 +26,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
@@ -50,6 +51,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for Fabric implementation of {@link FlinkKubeClient}.
@@ -187,6 +189,11 @@ public class Fabric8ClientTest extends KubernetesTestBase {
 		assertEquals(new File(mountPath, FLINK_CONF_FILENAME).getPath(),
 			jmContainer.getVolumeMounts().get(0).getMountPath());
 		assertEquals(FLINK_CONF_FILENAME, jmContainer.getVolumeMounts().get(0).getSubPath());
+
+		EnvVar masterEnv = new EnvVar(FLINK_MASTER_ENV_KEY, FLINK_MASTER_ENV_VALUE, null);
+		assertTrue(
+			"Environment " + masterEnv.toString() + " should be set.",
+			jmContainer.getEnv().contains(masterEnv));
 	}
 
 	@Test

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.table
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
-import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
+import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.{DataTypeAppendStreamTableSink, DataTypeOutputFormatTableSink}
 import org.apache.flink.test.util.TestBaseUtils
@@ -85,4 +85,35 @@ class TableSinkITCase extends BatchTestBase {
 
     TestBaseUtils.compareResultAsText(results, expected)
   }
+
+  @Test
+  def testDecimalForLegacyTypeTableSink(): Unit = {
+    MemoryTableSourceSinkUtil.clear()
+
+    val schema = TableSchema.builder()
+      .field("a", DataTypes.VARCHAR(5))
+      .field("b", DataTypes.DECIMAL(10, 0))
+      .build()
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
+
+    registerCollection("Table3", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
+
+    tEnv.from("Table3")
+      .select('a.cast(DataTypes.STRING()), 'b.cast(DataTypes.DECIMAL(10, 2)))
+      .distinct()
+      .insertInto("testSink")
+
+    tEnv.execute("")
+
+    val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
+    val expected = Seq("1,0.100000000000000000", "2,0.200000000000000000",
+      "3,0.300000000000000000", "3,0.400000000000000000", "4,0.500000000000000000",
+      "4,0.600000000000000000", "5,0.700000000000000000", "5,0.800000000000000000",
+      "5,0.900000000000000000").mkString("\n")
+
+    TestBaseUtils.compareResultAsText(results, expected)
+  }
+
+
 }

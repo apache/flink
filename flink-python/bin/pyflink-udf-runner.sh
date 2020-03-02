@@ -39,12 +39,5 @@ if [[ "$_PYTHON_WORKING_DIR" != "" ]]; then
     fi
 fi
 
-if [[ "$FLINK_LOG_DIR" != "" ]]; then
-    if [[ "$FLINK_IDENT_STRING" = "" ]]; then
-        FLINK_IDENT_STRING="$USER"
-    fi
-    log="$FLINK_LOG_DIR/flink-$USER-python-udf-boot-$HOSTNAME.log"
-    ${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}
-else
-    ${python} -m pyflink.fn_execution.boot $@
-fi
+log="$BOOT_LOG_DIR/flink-python-udf-boot.log"
+${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}

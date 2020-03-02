@@ -98,6 +98,8 @@ public class AkkaRpcService implements RpcService {
 	private final String address;
 	private final int port;
 
+	private final boolean captureAskCallstacks;
+
 	private final ScheduledExecutor internalScheduledExecutor;
 
 	private final CompletableFuture<Void> terminationFuture;
@@ -121,6 +123,8 @@ public class AkkaRpcService implements RpcService {
 		} else {
 			port = -1;
 		}
+
+		captureAskCallstacks = configuration.captureAskCallStack();
 
 		internalScheduledExecutor = new ActorSystemScheduledExecutorAdapter(actorSystem);
 
@@ -165,7 +169,8 @@ public class AkkaRpcService implements RpcService {
 					actorRef,
 					configuration.getTimeout(),
 					configuration.getMaximumFramesize(),
-					null);
+					null,
+					captureAskCallstacks);
 			});
 	}
 
@@ -185,7 +190,8 @@ public class AkkaRpcService implements RpcService {
 					configuration.getTimeout(),
 					configuration.getMaximumFramesize(),
 					null,
-					() -> fencingToken);
+					() -> fencingToken,
+					captureAskCallstacks);
 			});
 	}
 
@@ -247,7 +253,8 @@ public class AkkaRpcService implements RpcService {
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
 				terminationFuture,
-				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken);
+				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken,
+				captureAskCallstacks);
 
 			implementedRpcGateways.add(FencedMainThreadExecutable.class);
 		} else {
@@ -257,7 +264,8 @@ public class AkkaRpcService implements RpcService {
 				actorRef,
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
-				terminationFuture);
+				terminationFuture,
+				captureAskCallstacks);
 		}
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
@@ -285,7 +293,8 @@ public class AkkaRpcService implements RpcService {
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
 				null,
-				() -> fencingToken);
+				() -> fencingToken,
+				captureAskCallstacks);
 
 			// Rather than using the System ClassLoader directly, we derive the ClassLoader
 			// from this class . That works better in cases where Flink runs embedded and all Flink

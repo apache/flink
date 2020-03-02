@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.tests.util.flink.JobSubmission;
+import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -47,10 +48,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -204,14 +209,20 @@ public final class FlinkDistribution implements ExternalResource {
 
 		LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
 
-		try (AutoClosableProcess flink = new AutoClosableProcess(new ProcessBuilder()
-			.command(commands)
-			.start())) {
+		final Pattern pattern = jobSubmission.isDetached()
+			? Pattern.compile("Job has been submitted with JobID (.*)")
+			: Pattern.compile("Job with JobID (.*) has finished.");
 
-			final Pattern pattern = jobSubmission.isDetached()
-				? Pattern.compile("Job has been submitted with JobID (.*)")
-				: Pattern.compile("Job with JobID (.*) has finished.");
+		final CompletableFuture<String> rawJobIdFuture = new CompletableFuture<>();
+		final Consumer<String> stdoutProcessor = string -> {
+			LOG.info(string);
+			Matcher matcher = pattern.matcher(string);
+			if (matcher.matches()) {
+				rawJobIdFuture.complete(matcher.group(1));
+			}
+		};
 
+		try (AutoClosableProcess flink = AutoClosableProcess.create(commands.toArray(new String[0])).setStdoutProcessor(stdoutProcessor).runNonBlocking()) {
 			if (jobSubmission.isDetached()) {
 				try {
 					flink.getProcess().waitFor();
@@ -220,20 +231,34 @@ public final class FlinkDistribution implements ExternalResource {
 				}
 			}
 
-			try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(flink.getProcess().getInputStream(), StandardCharsets.UTF_8))) {
-				final Optional<String> jobId = bufferedReader.lines()
-					.peek(LOG::info)
-					.map(pattern::matcher)
-					.filter(Matcher::matches)
-					.map(matcher -> matcher.group(1))
-					.findAny();
-				if (!jobId.isPresent()) {
-					throw new IOException("Could not determine Job ID.");
-				} else {
-					return JobID.fromHexString(jobId.get());
-				}
+			try {
+				return JobID.fromHexString(rawJobIdFuture.get(1, TimeUnit.MINUTES));
+			} catch (Exception e) {
+				throw new IOException("Could not determine Job ID.", e);
 			}
 		}
+	}
+
+	public void submitSQLJob(SQLJobSubmission job) throws IOException {
+		final List<String> commands = new ArrayList<>();
+		commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
+		commands.add("embedded");
+		job.getDefaultEnvFile().ifPresent(defaultEnvFile -> {
+			commands.add("--defaults");
+			commands.add(defaultEnvFile);
+		});
+		job.getSessionEnvFile().ifPresent(sessionEnvFile -> {
+			commands.add("--environment");
+			commands.add(sessionEnvFile);
+		});
+		for (String jar : job.getJars()) {
+			commands.add("--jar");
+			commands.add(jar);
+		}
+		commands.add("--update");
+		commands.add("\"" + job.getSQL() + "\"");
+
+		AutoClosableProcess.runBlocking(commands.toArray(new String[0]));
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
@@ -262,6 +287,10 @@ public final class FlinkDistribution implements ExternalResource {
 			.collect(Collectors.toList());
 
 		Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+	}
+
+	public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {
+		Files.write(conf.resolve("slaves"), taskExecutorHosts);
 	}
 
 	public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException {

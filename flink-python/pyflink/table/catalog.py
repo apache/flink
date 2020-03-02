@@ -18,6 +18,7 @@
 
 from py4j.java_gateway import java_import
 
+from pyflink import since
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
 
@@ -789,6 +790,7 @@ class CatalogFunction(object):
         else:
             return None
 
+    @since("1.10.0")
     def is_generic(self):
         """
         Whether or not is the function a flink UDF.
@@ -797,13 +799,7 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.isGeneric()
 
-    def is_temporary(self):
-        """
-        Wheter or not the function is a temporary function.
-        :return: Wheter is a temporary function.
-        """
-        return self._j_catalog_function.isTemporary()
-
+    @since("1.10.0")
     def get_function_language(self):
         """
         Get the language used for the function definition.

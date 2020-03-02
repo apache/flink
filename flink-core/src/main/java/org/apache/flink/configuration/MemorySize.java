@@ -21,7 +21,12 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.GIGA_BYTES;
@@ -50,10 +55,23 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
 	public static final MemorySize MAX_VALUE = new MemorySize(Long.MAX_VALUE);
 
+	private static final List<MemoryUnit> ORDERED_UNITS = Arrays.asList(
+		BYTES,
+		KILO_BYTES,
+		MEGA_BYTES,
+		GIGA_BYTES,
+		TERA_BYTES);
+
 	// ------------------------------------------------------------------------
 
 	/** The memory size, in bytes. */
 	private final long bytes;
+
+	/** The memorized value returned by toString(). */
+	private transient String stringified;
+
+	/** The memorized value returned by toHumanReadableString(). */
+	private transient String humanReadableStr;
 
 	/**
 	 * Constructs a new MemorySize.
@@ -63,6 +81,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 	public MemorySize(long bytes) {
 		checkArgument(bytes >= 0, "bytes must be >= 0");
 		this.bytes = bytes;
+	}
+
+	public static MemorySize ofMebiBytes(long mebiBytes) {
+		return new MemorySize(mebiBytes << 20);
 	}
 
 	// ------------------------------------------------------------------------
@@ -117,7 +139,63 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
 	@Override
 	public String toString() {
-		return bytes + " bytes";
+		if (stringified == null) {
+			stringified = formatToString();
+		}
+
+		return stringified;
+	}
+
+	private String formatToString() {
+		MemoryUnit highestIntegerUnit = IntStream.range(0, ORDERED_UNITS.size())
+			.sequential()
+			.filter(idx -> bytes % ORDERED_UNITS.get(idx).getMultiplier() != 0)
+			.boxed()
+			.findFirst()
+			.map(idx -> {
+				if (idx == 0) {
+					return ORDERED_UNITS.get(0);
+				} else {
+					return ORDERED_UNITS.get(idx - 1);
+				}
+			}).orElse(BYTES);
+
+		return String.format(
+			"%d %s",
+			bytes / highestIntegerUnit.getMultiplier(),
+			highestIntegerUnit.getUnits()[1]);
+	}
+
+	public String toHumanReadableString() {
+		if (humanReadableStr == null) {
+			humanReadableStr = formatToHumanReadableString();
+		}
+
+		return humanReadableStr;
+	}
+
+	private String formatToHumanReadableString() {
+		MemoryUnit highestUnit = IntStream.range(0, ORDERED_UNITS.size())
+			.sequential()
+			.filter(idx -> bytes > ORDERED_UNITS.get(idx).getMultiplier())
+			.boxed()
+			.max(Comparator.naturalOrder())
+			.map(ORDERED_UNITS::get)
+			.orElse(BYTES);
+
+		if (highestUnit == BYTES) {
+			return String.format(
+				"%d %s",
+				bytes,
+				BYTES.getUnits()[1]);
+		} else {
+			double approximate = 1.0 * bytes / highestUnit.getMultiplier();
+			return String.format(
+				"%.3f%s (%d bytes)",
+				approximate,
+				highestUnit.getUnits()[1],
+				bytes);
+		}
 	}
 
 	@Override
@@ -224,32 +302,7 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 					"' cannot be re represented as 64bit number (numeric overflow).");
 		}
 
-		final long multiplier;
-		if (unit.isEmpty()) {
-			multiplier = 1L;
-		}
-		else {
-			if (matchesAny(unit, BYTES)) {
-				multiplier = 1L;
-			}
-			else if (matchesAny(unit, KILO_BYTES)) {
-				multiplier = 1024L;
-			}
-			else if (matchesAny(unit, MEGA_BYTES)) {
-				multiplier = 1024L * 1024L;
-			}
-			else if (matchesAny(unit, GIGA_BYTES)) {
-				multiplier = 1024L * 1024L * 1024L;
-			}
-			else if (matchesAny(unit, TERA_BYTES)) {
-				multiplier = 1024L * 1024L * 1024L * 1024L;
-			}
-			else {
-				throw new IllegalArgumentException("Memory size unit '" + unit +
-						"' does not match any of the recognized units: " + MemoryUnit.getAllUnits());
-			}
-		}
-
+		final long multiplier = parseUnit(unit).map(MemoryUnit::getMultiplier).orElse(1L);
 		final long result = value * multiplier;
 
 		// check for overflow
@@ -259,6 +312,25 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 		}
 
 		return result;
+	}
+
+	private static Optional<MemoryUnit> parseUnit(String unit) {
+		if (matchesAny(unit, BYTES)) {
+			return Optional.of(BYTES);
+		} else if (matchesAny(unit, KILO_BYTES)) {
+			return Optional.of(KILO_BYTES);
+		} else if (matchesAny(unit, MEGA_BYTES)) {
+			return Optional.of(MEGA_BYTES);
+		} else if (matchesAny(unit, GIGA_BYTES)) {
+			return Optional.of(GIGA_BYTES);
+		} else if (matchesAny(unit, TERA_BYTES)) {
+			return Optional.of(TERA_BYTES);
+		} else if (!unit.isEmpty()) {
+			throw new IllegalArgumentException("Memory size unit '" + unit +
+				"' does not match any of the recognized units: " + MemoryUnit.getAllUnits());
+		}
+
+		return Optional.empty();
 	}
 
 	private static boolean matchesAny(String str, MemoryUnit unit) {
@@ -286,20 +358,27 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 	 */
 	public enum MemoryUnit {
 
-		BYTES(new String[] { "b", "bytes" }),
-		KILO_BYTES(new String[] { "k", "kb", "kibibytes" }),
-		MEGA_BYTES(new String[] { "m", "mb", "mebibytes" }),
-		GIGA_BYTES(new String[] { "g", "gb", "gibibytes" }),
-		TERA_BYTES(new String[] { "t", "tb", "tebibytes" });
+		BYTES(new String[] { "b", "bytes" }, 1L),
+		KILO_BYTES(new String[] { "k", "kb", "kibibytes" }, 1024L),
+		MEGA_BYTES(new String[] { "m", "mb", "mebibytes" }, 1024L * 1024L),
+		GIGA_BYTES(new String[] { "g", "gb", "gibibytes" }, 1024L * 1024L * 1024L),
+		TERA_BYTES(new String[] { "t", "tb", "tebibytes" }, 1024L * 1024L * 1024L * 1024L);
 
-		private String[] units;
+		private final String[] units;
 
-		MemoryUnit(String[] units) {
+		private final long multiplier;
+
+		MemoryUnit(String[] units, long multiplier) {
 			this.units = units;
+			this.multiplier = multiplier;
 		}
 
 		public String[] getUnits() {
 			return units;
+		}
+
+		public long getMultiplier() {
+			return multiplier;
 		}
 
 		public static String getAllUnits() {
@@ -343,6 +422,5 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 			builder.setLength(builder.length() - 3);
 			return builder.toString();
 		}
-
 	}
 }

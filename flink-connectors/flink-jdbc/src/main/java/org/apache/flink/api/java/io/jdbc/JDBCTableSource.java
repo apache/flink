@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -31,12 +30,15 @@ import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
 import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.normalizeTableSchema;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -54,7 +56,7 @@ public class JDBCTableSource implements
 
 	// index of fields selected, null means that all fields are selected
 	private final int[] selectFields;
-	private final RowTypeInfo returnType;
+	private final DataType producedDataType;
 
 	private JDBCTableSource(
 		JDBCOptions options, JDBCReadOptions readOptions, JDBCLookupOptions lookupOptions, TableSchema schema) {
@@ -71,18 +73,19 @@ public class JDBCTableSource implements
 
 		this.selectFields = selectFields;
 
-		final TypeInformation<?>[] schemaTypeInfos = schema.getFieldTypes();
+		final DataType[] schemaDataTypes = schema.getFieldDataTypes();
 		final String[] schemaFieldNames = schema.getFieldNames();
 		if (selectFields != null) {
-			TypeInformation<?>[] typeInfos = new TypeInformation[selectFields.length];
-			String[] typeNames = new String[selectFields.length];
+			DataType[] dataTypes = new DataType[selectFields.length];
+			String[] fieldNames = new String[selectFields.length];
 			for (int i = 0; i < selectFields.length; i++) {
-				typeInfos[i] = schemaTypeInfos[selectFields[i]];
-				typeNames[i] = schemaFieldNames[selectFields[i]];
+				dataTypes[i] = schemaDataTypes[selectFields[i]];
+				fieldNames[i] = schemaFieldNames[selectFields[i]];
 			}
-			this.returnType = new RowTypeInfo(typeInfos, typeNames);
+			this.producedDataType =
+					TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
 		} else {
-			this.returnType = new RowTypeInfo(schemaTypeInfos, schemaFieldNames);
+			this.producedDataType = schema.toRowDataType();
 		}
 	}
 
@@ -93,23 +96,28 @@ public class JDBCTableSource implements
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv.createInput(getInputFormat(), getReturnType()).name(explainSource());
+		return execEnv
+				.createInput(
+						getInputFormat(),
+						(RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
+				.name(explainSource());
 	}
 
 	@Override
 	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		return JDBCLookupFunction.builder()
 				.setOptions(options)
 				.setLookupOptions(lookupOptions)
-				.setFieldTypes(returnType.getFieldTypes())
-				.setFieldNames(returnType.getFieldNames())
+				.setFieldTypes(rowTypeInfo.getFieldTypes())
+				.setFieldNames(rowTypeInfo.getFieldNames())
 				.setKeyNames(lookupKeys)
 				.build();
 	}
 
 	@Override
-	public TypeInformation<Row> getReturnType() {
-		return returnType;
+	public DataType getProducedDataType() {
+		return producedDataType;
 	}
 
 	@Override
@@ -132,17 +140,24 @@ public class JDBCTableSource implements
 		return schema;
 	}
 
+	@Override
+	public String explainSource() {
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+		return TableConnectorUtils.generateRuntimeName(getClass(), rowTypeInfo.getFieldNames());
+	}
+
 	public static Builder builder() {
 		return new Builder();
 	}
 
 	private JDBCInputFormat getInputFormat() {
+		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
 		JDBCInputFormat.JDBCInputFormatBuilder builder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(options.getDriverName())
 				.setDBUrl(options.getDbURL())
 				.setUsername(options.getUsername())
 				.setPassword(options.getPassword())
-				.setRowTypeInfo(new RowTypeInfo(returnType.getFieldTypes(), returnType.getFieldNames()));
+				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
 
 		if (readOptions.getFetchSize() != 0) {
 			builder.setFetchSize(readOptions.getFetchSize());
@@ -150,7 +165,7 @@ public class JDBCTableSource implements
 
 		final JDBCDialect dialect = options.getDialect();
 		String query = dialect.getSelectFromStatement(
-			options.getTableName(), returnType.getFieldNames(), new String[0]);
+			options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]);
 		if (readOptions.getPartitionColumnName().isPresent()) {
 			long lowerBound = readOptions.getPartitionLowerBound().get();
 			long upperBound = readOptions.getPartitionUpperBound().get();

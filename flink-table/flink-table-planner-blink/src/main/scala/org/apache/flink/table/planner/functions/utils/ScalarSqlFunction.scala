@@ -50,7 +50,7 @@ class ScalarSqlFunction(
     typeFactory: FlinkTypeFactory,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlFunction(
-    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
+    new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
     returnTypeInfer.getOrElse(createReturnTypeInference(displayName, scalarFunction, typeFactory)),
     createOperandTypeInference(displayName, scalarFunction, typeFactory),
     createOperandTypeChecker(displayName, scalarFunction),

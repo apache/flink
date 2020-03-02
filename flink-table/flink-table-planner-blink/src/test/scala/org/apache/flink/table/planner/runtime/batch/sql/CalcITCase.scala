@@ -306,6 +306,14 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testDecimalReturnType(): Unit = {
+    registerFunction("myNegative", MyNegative)
+    checkResult("SELECT myNegative(5.1)",
+      Seq(row(new java.math.BigDecimal("-5.100000000000000000"))
+      ))
+  }
+
+  @Test
   def testUDFWithInternalClass(): Unit = {
     registerFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
@@ -335,7 +343,7 @@ class CalcITCase extends BatchTestBase {
     tEnv.getConfig.setLocalTimeZone(pairs)
     checkResult(
       "SELECT CAST(a AS VARCHAR), b, CAST(b AS VARCHAR) FROM T",
-      Seq(row("1969-07-20 16:17:39", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39"))
+      Seq(row("1969-07-20 16:17:39.000", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39.000"))
     )
   }
 
@@ -448,7 +456,6 @@ class CalcITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO support agg
   @Test
   def testExternalTypeFunc2(): Unit = {
     registerFunction("func1", RowFunc)
@@ -597,7 +604,6 @@ class CalcITCase extends BatchTestBase {
       Seq(row("Hello"), row("Hello world")))
   }
 
-  @Ignore // TODO support substring
   @Test
   def testComplexNotInLargeValues(): Unit = {
     checkResult(
@@ -794,7 +800,6 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore //TODO support cast string to bigint.
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
     val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
@@ -1069,7 +1074,6 @@ class CalcITCase extends BatchTestBase {
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
     */
-  @Ignore
   @Test
   def testTimestampCompareWithDateString(): Unit = {
     //j 2015-05-20 10:00:00.887

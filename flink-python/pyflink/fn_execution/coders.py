@@ -23,39 +23,78 @@ import datetime
 import decimal
 from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder
+from apache_beam.typehints import typehints
 
 from pyflink.fn_execution import coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.table import Row
 
-FLINK_SCHEMA_CODER_URN = "flink:coder:schema:v1"
+FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
+FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
 
 
-__all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
+__all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
            'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
            'TimestampCoder', 'ArrayCoder', 'MapCoder', 'DecimalCoder']
 
 
-class RowCoder(FastCoder):
+class TableFunctionRowCoder(FastCoder):
     """
-    Coder for Row.
+    Coder for Table Function Row.
+    """
+    def __init__(self, flatten_row_coder):
+        self._flatten_row_coder = flatten_row_coder
+
+    def _create_impl(self):
+        return coder_impl.TableFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return TableFunctionRowCoder(FlattenRowCoder([from_proto(f.type)
+                                                      for f in schema_proto.fields]))
+
+    def __repr__(self):
+        return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._flatten_row_coder == other._flatten_row_coder)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._flatten_row_coder)
+
+
+class FlattenRowCoder(FastCoder):
+    """
+    Coder for Row. The decoded result will be flattened as a list of column values of a row instead
+    of a row object.
     """
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
 
     def _create_impl(self):
-        return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders])
+        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders])
 
     def is_deterministic(self):
         return all(c.is_deterministic() for c in self._field_coders)
 
     def to_type_hint(self):
-        from pyflink.table import Row
-        return Row
+        return typehints.List
+
+    @Coder.register_urn(FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields])
 
     def __repr__(self):
-        return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__
@@ -68,6 +107,24 @@ class RowCoder(FastCoder):
 
     def __hash__(self):
         return hash(self._field_coders)
+
+
+class RowCoder(FlattenRowCoder):
+    """
+    Coder for Row.
+    """
+
+    def __init__(self, field_coders):
+        super(RowCoder, self).__init__(field_coders)
+
+    def _create_impl(self):
+        return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders])
+
+    def to_type_hint(self):
+        return Row
+
+    def __repr__(self):
+        return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
 class CollectionCoder(FastCoder):
@@ -315,11 +372,6 @@ class TimestampCoder(DeterministicCoder):
 
     def to_type_hint(self):
         return datetime.datetime
-
-
-@Coder.register_urn(FLINK_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
-def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
-    return RowCoder([from_proto(f.type) for f in schema_proto.fields])
 
 
 type_name = flink_fn_execution_pb2.Schema.TypeName

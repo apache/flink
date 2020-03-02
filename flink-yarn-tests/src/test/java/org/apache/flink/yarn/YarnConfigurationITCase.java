@@ -26,8 +26,9 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
@@ -85,10 +86,12 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			// disable heap cutoff min
 			configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-			final TaskExecutorResourceSpec tmResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+			final int slotsPerTaskManager = 3;
+			configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+
+			final TaskExecutorProcessSpec tmResourceSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
 			final int masterMemory = 64;
 			final int taskManagerMemory = tmResourceSpec.getTotalProcessMemorySize().getMebiBytes();
-			final int slotsPerTaskManager = 3;
 
 			final YarnConfiguration yarnConfiguration = getYarnConfiguration();
 			final YarnClusterDescriptor clusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
@@ -105,7 +108,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
 
 			final PackagedProgram packagedProgram = PackagedProgram.newBuilder().setJarFile(streamingWordCountFile).build();
-			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, 1);
+			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, 1, false);
 
 			try {
 				final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()

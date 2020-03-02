@@ -69,6 +69,24 @@ Calc(select=[a, b, c], where=[OR(<(a, 10), >(a, 20))])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFilterOnNonAsciiLiteral">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c, c || TRIM(' 世界 ') FROM MyTable WHERE c = '你好']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$3=[||($2, TRIM(FLAG(BOTH), _UTF-16LE' ', _UTF-16LE' 世界 '))])
++- LogicalFilter(condition=[=($2, _UTF-16LE'你好')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, CAST(_UTF-16LE'你好':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS c, CAST(_UTF-16LE'你好世界':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS EXPR$3], where=[=(c, _UTF-16LE'你好':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFilterWithDateType">
     <Resource name="sql">
       <![CDATA[

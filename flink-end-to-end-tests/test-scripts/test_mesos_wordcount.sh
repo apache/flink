@@ -31,6 +31,6 @@ mkdir -p "${TEST_DATA_DIR}"
 
 start_flink_cluster_with_mesos
 
-docker exec -it mesos-master nohup bash -c "${FLINK_DIR}/bin/flink run -p 1 ${TEST_PROGRAM_JAR} ${INPUT_ARGS} --output ${OUTPUT_LOCATION}"
+docker exec mesos-master nohup bash -c "${FLINK_DIR}/bin/flink run -p 1 ${TEST_PROGRAM_JAR} ${INPUT_ARGS} --output ${OUTPUT_LOCATION}"
 
 check_result_hash "Mesos WordCount test" "${OUTPUT_LOCATION}" "${RESULT_HASH}"

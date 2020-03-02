@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Partially defined over window with (optional) partitioning and order.

@@ -18,10 +18,10 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -31,8 +31,11 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.LimitableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
@@ -56,6 +59,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -75,39 +79,50 @@ public class HiveTableSource implements
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
 
 	private final JobConf jobConf;
+	private final ReadableConfig flinkConf;
 	private final ObjectPath tablePath;
 	private final CatalogTable catalogTable;
 	// Remaining partition specs after partition pruning is performed. Null if pruning is not pushed down.
 	@Nullable
 	private List<Map<String, String>> remainingPartitions = null;
 	private String hiveVersion;
+	private HiveShim hiveShim;
 	private boolean partitionPruned;
 	private int[] projectedFields;
 	private boolean isLimitPushDown = false;
 	private long limit = -1L;
 
-	public HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
+	public HiveTableSource(
+			JobConf jobConf, ReadableConfig flinkConf, ObjectPath tablePath, CatalogTable catalogTable) {
 		this.jobConf = Preconditions.checkNotNull(jobConf);
+		this.flinkConf = Preconditions.checkNotNull(flinkConf);
 		this.tablePath = Preconditions.checkNotNull(tablePath);
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		partitionPruned = false;
 	}
 
 	// A constructor mainly used to create copies during optimizations like partition pruning and projection push down.
-	private HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable,
-							List<Map<String, String>> remainingPartitions,
-							String hiveVersion,
-							boolean partitionPruned,
-							int[] projectedFields,
-							boolean isLimitPushDown,
-							long limit) {
+	private HiveTableSource(
+			JobConf jobConf,
+			ReadableConfig flinkConf,
+			ObjectPath tablePath,
+			CatalogTable catalogTable,
+			List<Map<String, String>> remainingPartitions,
+			String hiveVersion,
+			boolean partitionPruned,
+			int[] projectedFields,
+			boolean isLimitPushDown,
+			long limit) {
 		this.jobConf = Preconditions.checkNotNull(jobConf);
+		this.flinkConf = Preconditions.checkNotNull(flinkConf);
 		this.tablePath = Preconditions.checkNotNull(tablePath);
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.remainingPartitions = remainingPartitions;
 		this.hiveVersion = hiveVersion;
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		this.partitionPruned = partitionPruned;
 		this.projectedFields = projectedFields;
 		this.isLimitPushDown = isLimitPushDown;
@@ -126,12 +141,15 @@ public class HiveTableSource implements
 		@SuppressWarnings("unchecked")
 		TypeInformation<BaseRow> typeInfo =
 				(TypeInformation<BaseRow>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
-		HiveTableInputFormat inputFormat = getInputFormat(allHivePartitions);
+
+		HiveTableInputFormat inputFormat = getInputFormat(
+				allHivePartitions,
+				flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
+
 		DataStreamSource<BaseRow> source = execEnv.createInput(inputFormat, typeInfo);
 
-		Configuration conf = GlobalConfiguration.loadConfiguration();
-		if (conf.getBoolean(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
-			int max = conf.getInteger(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
+		if (flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
+			int max = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
 			if (max < 1) {
 				throw new IllegalConfigurationException(
 						HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key() +
@@ -155,9 +173,16 @@ public class HiveTableSource implements
 		return source.name(explainSource());
 	}
 
-	private HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions) {
+	@VisibleForTesting
+	HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
 		return new HiveTableInputFormat(
-				jobConf, catalogTable, allHivePartitions, projectedFields, limit, hiveVersion);
+				jobConf,
+				catalogTable,
+				allHivePartitions,
+				projectedFields,
+				limit,
+				hiveVersion,
+				useMapRedReader);
 	}
 
 	@Override
@@ -189,8 +214,17 @@ public class HiveTableSource implements
 
 	@Override
 	public TableSource<BaseRow> applyLimit(long limit) {
-		return new HiveTableSource(jobConf, tablePath, catalogTable, remainingPartitions, hiveVersion,
-						partitionPruned, projectedFields, true, limit);
+		return new HiveTableSource(
+				jobConf,
+				flinkConf,
+				tablePath,
+				catalogTable,
+				remainingPartitions,
+				hiveVersion,
+				partitionPruned,
+				projectedFields,
+				true,
+				limit);
 	}
 
 	@Override
@@ -204,9 +238,33 @@ public class HiveTableSource implements
 		if (catalogTable.getPartitionKeys() == null || catalogTable.getPartitionKeys().size() == 0) {
 			return this;
 		} else {
-			return new HiveTableSource(jobConf, tablePath, catalogTable, remainingPartitions, hiveVersion,
-					true, projectedFields, isLimitPushDown, limit);
+			return new HiveTableSource(
+					jobConf,
+					flinkConf,
+					tablePath,
+					catalogTable,
+					remainingPartitions,
+					hiveVersion,
+					true,
+					projectedFields,
+					isLimitPushDown,
+					limit);
 		}
+	}
+
+	@Override
+	public TableSource<BaseRow> projectFields(int[] fields) {
+		return new HiveTableSource(
+				jobConf,
+				flinkConf,
+				tablePath,
+				catalogTable,
+				remainingPartitions,
+				hiveVersion,
+				partitionPruned,
+				fields,
+				isLimitPushDown,
+				limit);
 	}
 
 	private List<HiveTablePartition> initAllPartitions() {
@@ -286,7 +344,15 @@ public class HiveTableSource implements
 			case DOUBLE:
 				return Double.valueOf(valStr);
 			case DATE:
-				return Date.valueOf(valStr);
+				return HiveInspectors.toFlinkObject(
+						HiveInspectors.getObjectInspector(type),
+						hiveShim.toHiveDate(Date.valueOf(valStr)),
+						hiveShim);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return HiveInspectors.toFlinkObject(
+						HiveInspectors.getObjectInspector(type),
+						hiveShim.toHiveTimestamp(Timestamp.valueOf(valStr)),
+						hiveShim);
 			default:
 				break;
 		}
@@ -305,11 +371,5 @@ public class HiveTableSource implements
 			explain += String.format(", LimitPushDown %s, Limit %d", isLimitPushDown, limit);
 		}
 		return TableConnectorUtils.generateRuntimeName(getClass(), getTableSchema().getFieldNames()) + explain;
-	}
-
-	@Override
-	public TableSource<BaseRow> projectFields(int[] fields) {
-		return new HiveTableSource(jobConf, tablePath, catalogTable, remainingPartitions, hiveVersion,
-				partitionPruned, fields, isLimitPushDown, limit);
 	}
 }

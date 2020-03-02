@@ -20,8 +20,8 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -52,7 +52,7 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 
 	protected final int numSlotsPerTaskManager;
 
-	protected final TaskExecutorResourceSpec taskExecutorResourceSpec;
+	protected final TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	protected final int defaultMemoryMB;
 
@@ -97,14 +97,14 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 
 		this.numSlotsPerTaskManager = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 		double defaultCpus = getCpuCores(flinkConfig);
-		this.taskExecutorResourceSpec = TaskExecutorResourceUtils
-			.newResourceSpecBuilder(flinkConfig)
+		this.taskExecutorProcessSpec = TaskExecutorProcessUtils
+			.newProcessSpecBuilder(flinkConfig)
 			.withCpuCores(defaultCpus)
 			.build();
-		this.defaultMemoryMB = taskExecutorResourceSpec.getTotalProcessMemorySize().getMebiBytes();
+		this.defaultMemoryMB = taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes();
 
-		this.resourceProfilesPerWorker = TaskExecutorResourceUtils
-			.createDefaultWorkerSlotProfiles(taskExecutorResourceSpec, numSlotsPerTaskManager);
+		this.resourceProfilesPerWorker = TaskExecutorProcessUtils
+			.createDefaultWorkerSlotProfiles(taskExecutorProcessSpec, numSlotsPerTaskManager);
 
 		// Load the flink config uploaded by flink client
 		this.flinkClientConfig = loadClientConfiguration();

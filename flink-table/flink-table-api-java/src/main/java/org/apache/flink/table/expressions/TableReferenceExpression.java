@@ -38,7 +38,7 @@ public final class TableReferenceExpression implements ResolvedExpression {
 	private final String name;
 	private final QueryOperation queryOperation;
 
-	public TableReferenceExpression(String name, QueryOperation queryOperation) {
+	TableReferenceExpression(String name, QueryOperation queryOperation) {
 		this.name = Preconditions.checkNotNull(name);
 		this.queryOperation = Preconditions.checkNotNull(queryOperation);
 	}
