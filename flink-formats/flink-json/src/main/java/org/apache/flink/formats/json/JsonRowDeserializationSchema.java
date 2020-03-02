@@ -340,46 +340,42 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	}
 
 	private Optional<DeserializationRuntimeConverter> createConverterForSimpleType(TypeInformation<?> simpleTypeInfo) {
-		try {
-			if (simpleTypeInfo == Types.VOID) {
-				return Optional.of((mapper, jsonNode) -> null);
-			} else if (simpleTypeInfo == Types.BOOLEAN) {
-				return Optional.of(this::convertToBoolean);
-			} else if (simpleTypeInfo == Types.STRING) {
-				return Optional.of(this::convertToString);
-			} else if (simpleTypeInfo == Types.INT) {
-				return Optional.of(this::convertToInt);
-			} else if (simpleTypeInfo == Types.LONG) {
-				return Optional.of(this::convertToLong);
-			} else if (simpleTypeInfo == Types.DOUBLE) {
-				return Optional.of(this::convertToDouble);
-			} else if (simpleTypeInfo == Types.FLOAT) {
-				return Optional.of(this::convertToFloat);
-			} else if (simpleTypeInfo == Types.SHORT) {
-				return Optional.of(this::convertToShot);
-			} else if (simpleTypeInfo == Types.BYTE) {
-				return Optional.of(this::convertToByte);
-			} else if (simpleTypeInfo == Types.BIG_DEC) {
-				return Optional.of(this::convertToBigDecimal);
-			} else if (simpleTypeInfo == Types.BIG_INT) {
-				return Optional.of(this::convertToBigInt);
-			} else if (simpleTypeInfo == Types.SQL_DATE) {
-				return Optional.of(this::convertToDate);
-			} else if (simpleTypeInfo == Types.SQL_TIME) {
-				return Optional.of(this::convertToTime);
-			} else if (simpleTypeInfo == Types.SQL_TIMESTAMP) {
-				return Optional.of(this::convertToTimestamp);
-			} else if (simpleTypeInfo == Types.LOCAL_DATE) {
-				return Optional.of(this::convertToLocalDate);
-			} else if (simpleTypeInfo == Types.LOCAL_TIME) {
-				return Optional.of(this::convertToLocalTime);
-			} else if (simpleTypeInfo == Types.LOCAL_DATE_TIME) {
-				return Optional.of(this::convertToLocalDateTime);
-			} else {
-				return Optional.empty();
-			}
-		} catch (Throwable t) {
-			throw new ParseErrorException("Unable to deserialize simple type value.", t);
+		if (simpleTypeInfo == Types.VOID) {
+			return Optional.of((mapper, jsonNode) -> null);
+		} else if (simpleTypeInfo == Types.BOOLEAN) {
+			return Optional.of(this::convertToBoolean);
+		} else if (simpleTypeInfo == Types.STRING) {
+			return Optional.of(this::convertToString);
+		} else if (simpleTypeInfo == Types.INT) {
+			return Optional.of(this::convertToInt);
+		} else if (simpleTypeInfo == Types.LONG) {
+			return Optional.of(this::convertToLong);
+		} else if (simpleTypeInfo == Types.DOUBLE) {
+			return Optional.of(this::convertToDouble);
+		} else if (simpleTypeInfo == Types.FLOAT) {
+			return Optional.of(this::convertToFloat);
+		} else if (simpleTypeInfo == Types.SHORT) {
+			return Optional.of(this::convertToShot);
+		} else if (simpleTypeInfo == Types.BYTE) {
+			return Optional.of(this::convertToByte);
+		} else if (simpleTypeInfo == Types.BIG_DEC) {
+			return Optional.of(this::convertToBigDecimal);
+		} else if (simpleTypeInfo == Types.BIG_INT) {
+			return Optional.of(this::convertToBigInt);
+		} else if (simpleTypeInfo == Types.SQL_DATE) {
+			return Optional.of(this::convertToDate);
+		} else if (simpleTypeInfo == Types.SQL_TIME) {
+			return Optional.of(this::convertToTime);
+		} else if (simpleTypeInfo == Types.SQL_TIMESTAMP) {
+			return Optional.of(this::convertToTimestamp);
+		} else if (simpleTypeInfo == Types.LOCAL_DATE) {
+			return Optional.of(this::convertToLocalDate);
+		} else if (simpleTypeInfo == Types.LOCAL_TIME) {
+			return Optional.of(this::convertToLocalTime);
+		} else if (simpleTypeInfo == Types.LOCAL_DATE_TIME) {
+			return Optional.of(this::convertToLocalDateTime);
+		} else {
+			return Optional.empty();
 		}
 	}
 
@@ -439,7 +435,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		}
 	}
 
-	private short convertToByte(ObjectMapper mapper, JsonNode jsonNode) {
+	private byte convertToByte(ObjectMapper mapper, JsonNode jsonNode) {
 		try {
 			return Byte.parseByte(jsonNode.asText().trim());
 		} catch (Throwable t) {
