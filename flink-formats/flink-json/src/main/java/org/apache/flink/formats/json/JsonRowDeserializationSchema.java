@@ -40,6 +40,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Text
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -252,17 +254,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	}
 
 	private DeserializationRuntimeConverter wrapIntoNullableConverter(DeserializationRuntimeConverter converter) {
-		try {
-			return (mapper, jsonNode) -> {
-				if (jsonNode.isNull()) {
-					return null;
-				}
-
-				return converter.convert(mapper, jsonNode);
-			};
-		} catch (Throwable t) {
-			throw new ParseErrorException("Unable to deserialize nullable object.", t);
-		}
+		return (mapper, jsonNode) -> {
+			if (jsonNode.isNull()) {
+				return null;
+			}
+			return converter.convert(mapper, jsonNode);
+		};
 	}
 
 	private Optional<DeserializationRuntimeConverter> createContainerConverter(TypeInformation<?> typeInfo) {
@@ -285,8 +282,8 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	private DeserializationRuntimeConverter createMapConverter(TypeInformation keyType, TypeInformation valueType) {
 		DeserializationRuntimeConverter valueConverter = createConverter(valueType);
 		DeserializationRuntimeConverter keyConverter = createConverter(keyType);
-		try {
-			return (mapper, jsonNode) -> {
+		return (mapper, jsonNode) -> {
+			try {
 				Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.fields();
 				Map<Object, Object> result = new HashMap<>();
 				while (fields.hasNext()) {
@@ -296,10 +293,10 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 					result.put(key, value);
 				}
 				return result;
-			};
-		} catch (Throwable t) {
-			throw new ParseErrorException("Unable to deserialize map.", t);
-		}
+			}  catch (Throwable t) {
+				throw new ParseErrorException("Unable to deserialize map.", t);
+			}
+		};
 	}
 
 	private DeserializationRuntimeConverter createByteArrayConverter() {
@@ -347,25 +344,25 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			if (simpleTypeInfo == Types.VOID) {
 				return Optional.of((mapper, jsonNode) -> null);
 			} else if (simpleTypeInfo == Types.BOOLEAN) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.asBoolean());
+				return Optional.of(this::convertToBoolean);
 			} else if (simpleTypeInfo == Types.STRING) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.asText());
+				return Optional.of(this::convertToString);
 			} else if (simpleTypeInfo == Types.INT) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.asInt());
+				return Optional.of(this::convertToInt);
 			} else if (simpleTypeInfo == Types.LONG) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.asLong());
+				return Optional.of(this::convertToLong);
 			} else if (simpleTypeInfo == Types.DOUBLE) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.asDouble());
+				return Optional.of(this::convertToDouble);
 			} else if (simpleTypeInfo == Types.FLOAT) {
-				return Optional.of((mapper, jsonNode) -> Float.parseFloat(jsonNode.asText().trim()));
+				return Optional.of(this::convertToFloat);
 			} else if (simpleTypeInfo == Types.SHORT) {
-				return Optional.of((mapper, jsonNode) -> Short.parseShort(jsonNode.asText().trim()));
+				return Optional.of(this::convertToShot);
 			} else if (simpleTypeInfo == Types.BYTE) {
-				return Optional.of((mapper, jsonNode) -> Byte.parseByte(jsonNode.asText().trim()));
+				return Optional.of(this::convertToByte);
 			} else if (simpleTypeInfo == Types.BIG_DEC) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.decimalValue());
+				return Optional.of(this::convertToBigDecimal);
 			} else if (simpleTypeInfo == Types.BIG_INT) {
-				return Optional.of((mapper, jsonNode) -> jsonNode.bigIntegerValue());
+				return Optional.of(this::convertToBigInt);
 			} else if (simpleTypeInfo == Types.SQL_DATE) {
 				return Optional.of(this::convertToDate);
 			} else if (simpleTypeInfo == Types.SQL_TIME) {
@@ -383,6 +380,86 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			}
 		} catch (Throwable t) {
 			throw new ParseErrorException("Unable to deserialize simple type value.", t);
+		}
+	}
+
+	private boolean convertToBoolean(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.asBoolean();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize boolean.", t);
+		}
+	}
+
+	private String convertToString(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.asText();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize string.", t);
+		}
+	}
+
+	private int convertToInt(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.asInt();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize int.", t);
+		}
+	}
+
+	private long convertToLong(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.asLong();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize long.", t);
+		}
+	}
+
+	private double convertToDouble(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.asDouble();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize double.", t);
+		}
+	}
+
+	private float convertToFloat(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return Float.parseFloat(jsonNode.asText().trim());
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize float.", t);
+		}
+	}
+
+	private short convertToShot(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return Short.parseShort(jsonNode.asText().trim());
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize short.", t);
+		}
+	}
+
+	private short convertToByte(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return Byte.parseByte(jsonNode.asText().trim());
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize byte.", t);
+		}
+	}
+
+	private BigDecimal convertToBigDecimal(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.decimalValue();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize BigDecimal.", t);
+		}
+	}
+
+	private BigInteger convertToBigInt(ObjectMapper mapper, JsonNode jsonNode) {
+		try {
+			return jsonNode.bigIntegerValue();
+		} catch (Throwable t) {
+			throw new ParseErrorException("Unable to deserialize BigInteger.", t);
 		}
 	}
 
@@ -513,10 +590,10 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	private DeserializationRuntimeConverter assembleArrayConverter(
 		TypeInformation<?> elementType,
 		DeserializationRuntimeConverter elementConverter) {
-		try {
-			final Class<?> elementClass = elementType.getTypeClass();
+		final Class<?> elementClass = elementType.getTypeClass();
 
-			return (mapper, jsonNode) -> {
+		return (mapper, jsonNode) -> {
+			try {
 				final ArrayNode node = (ArrayNode) jsonNode;
 				final Object[] array = (Object[]) Array.newInstance(elementClass, node.size());
 				for (int i = 0; i < node.size(); i++) {
@@ -525,10 +602,10 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 				}
 
 				return array;
-			};
-		} catch (Throwable t) {
-			throw new ParseErrorException("Unable to deserialize array.", t);
-		}
+			} catch (Throwable t) {
+				throw new ParseErrorException("Unable to deserialize array.", t);
+			}
+		};
 	}
 
 	/**
