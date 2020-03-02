@@ -29,9 +29,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
@@ -40,8 +37,6 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
  * Configuration object for the {@link MiniCluster}.
  */
 public class MiniClusterConfiguration {
-
-	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterConfiguration.class);
 
 	static final String SCHEDULER_TYPE_KEY = JobManagerOptions.SCHEDULER.key();
 

@@ -904,16 +904,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	protected class DedicatedRpcServiceFactory implements RpcServiceFactory {
 
 		private final AkkaRpcServiceConfiguration akkaRpcServiceConfig;
-		private final String jobManagerBindAddress;
+		private final String bindAddress;
 
-		DedicatedRpcServiceFactory(AkkaRpcServiceConfiguration akkaRpcServiceConfig, String jobManagerBindAddress) {
+		DedicatedRpcServiceFactory(AkkaRpcServiceConfiguration akkaRpcServiceConfig, String bindAddress) {
 			this.akkaRpcServiceConfig = akkaRpcServiceConfig;
-			this.jobManagerBindAddress = jobManagerBindAddress;
+			this.bindAddress = bindAddress;
 		}
 
 		@Override
 		public RpcService createRpcService() {
-			final RpcService rpcService = MiniCluster.this.createRpcService(akkaRpcServiceConfig, true, jobManagerBindAddress);
+			final RpcService rpcService = MiniCluster.this.createRpcService(akkaRpcServiceConfig, true, bindAddress);
 
 			synchronized (lock) {
 				rpcServices.add(rpcService);
