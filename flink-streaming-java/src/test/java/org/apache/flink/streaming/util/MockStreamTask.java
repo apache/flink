@@ -23,14 +23,18 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -64,9 +68,11 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		CheckpointStorageWorkerView checkpointStorage,
 		TimerService timerService,
 		BiConsumer<String, Throwable> handleAsyncException,
-		Map<String, Accumulator<?, ?>> accumulatorMap
+		Map<String, Accumulator<?, ?>> accumulatorMap,
+		TaskMailbox taskMailbox,
+		StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor
 	) {
-		super(environment, timerService);
+		super(environment, timerService, FatalExitExceptionHandler.INSTANCE, taskActionExecutor, taskMailbox);
 		this.name = name;
 		this.checkpointLock = checkpointLock;
 		this.config = config;
@@ -99,7 +105,11 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 		return name;
 	}
 
-	@Override
+	/**
+	 * Checkpoint lock in {@link StreamTask} is replaced by {@link StreamTaskActionExecutor}.
+	 * <code>getCheckpointLock</code> method was moved from to the {@link org.apache.flink.streaming.runtime.tasks.SourceStreamTask SourceStreamTask}.
+	 */
+	@Deprecated
 	public Object getCheckpointLock() {
 		return checkpointLock;
 	}
@@ -154,7 +164,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 	}
 
 	@Override
-	public ProcessingTimeService getProcessingTimeService(int operatorIndex) {
-		return processingTimeService;
+	public ProcessingTimeServiceFactory getProcessingTimeServiceFactory() {
+		return mailboxExecutor -> processingTimeService;
 	}
 }

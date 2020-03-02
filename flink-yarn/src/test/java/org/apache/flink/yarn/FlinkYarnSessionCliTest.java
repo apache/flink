@@ -28,6 +28,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.FlinkException;
@@ -113,7 +114,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
 		assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
-		assertEquals(1, clusterSpecification.getNumberTaskManagers());
 	}
 
 	@Test
@@ -273,7 +273,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final int slotsPerTaskManager = 30;
 
 		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, taskManagerMemory + "m");
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
 		final String[] args = {"-yjm", String.valueOf(jobManagerMemory) + "m", "-ytm", String.valueOf(taskManagerMemory) + "m", "-ys", String.valueOf(slotsPerTaskManager)};
@@ -300,7 +300,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final int jobManagerMemory = 1337;
 		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
 		final int taskManagerMemory = 7331;
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, taskManagerMemory + "m");
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
 		final int slotsPerTaskManager = 42;
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
@@ -450,7 +450,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	private FlinkYarnSessionCli createFlinkYarnSessionCliWithTmTotalMemory(int totalMemomory) throws FlinkException {
 		Configuration configuration = new Configuration();
-		configuration.setString(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalMemomory + "m");
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
 		return createFlinkYarnSessionCli(configuration);
 	}
 

@@ -53,7 +53,7 @@ public class ConfigurationUtils {
 		if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
 			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
 		} else if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB.key())) {
-			return MemorySize.parse(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB) + "m");
+			return MemorySize.ofMebiBytes(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB));
 		} else {
 			//use default value
 			return MemorySize.parse(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue());
@@ -180,8 +180,8 @@ public class ConfigurationUtils {
 		checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
 		checkConfigContains(configs, TaskManagerOptions.TASK_HEAP_MEMORY.key());
 		checkConfigContains(configs, TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key());
-		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
-		checkConfigContains(configs, TaskManagerOptions.SHUFFLE_MEMORY_MIN.key());
+		checkConfigContains(configs, TaskManagerOptions.NETWORK_MEMORY_MAX.key());
+		checkConfigContains(configs, TaskManagerOptions.NETWORK_MEMORY_MIN.key());
 		checkConfigContains(configs, TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
 
 		return configs;

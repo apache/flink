@@ -24,7 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{StreamQueryConfig, ValidationException}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.table.utils.{EmptyTableAggFuncWithoutEmit, Top3, Top3WithEmitRetractValue, Top3WithMapView}
+import org.apache.flink.table.utils.{Top3, Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -183,28 +183,6 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       .groupBy('b)
       .select('b, 'a.sum as 'a)
       .flatAggregate(top3('a) as ('v1, 'v2))
-      .select('v1, 'v2)
-      .toRetractStream[Row]
-
-    env.execute()
-  }
-
-  @Test
-  def testTableAggFunctionWithoutEmitValueMethod(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Function class 'org.apache.flink.table.utils." +
-      "EmptyTableAggFuncWithoutEmit' does not implement at least one method named 'emitValue' " +
-      "which is public, not abstract and (in case of table functions) not static.")
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStateBackend(getStateBackend)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-
-    val func = new EmptyTableAggFuncWithoutEmit
-    val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    source
-      .flatAggregate(func('a) as ('v1, 'v2))
       .select('v1, 'v2)
       .toRetractStream[Row]
 

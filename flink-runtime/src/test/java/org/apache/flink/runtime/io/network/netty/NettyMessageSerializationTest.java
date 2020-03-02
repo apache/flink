@@ -162,10 +162,9 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.AddCredit expected = new NettyMessage.AddCredit(new ResultPartitionID(), random.nextInt(Integer.MAX_VALUE) + 1, new InputChannelID());
+			NettyMessage.AddCredit expected = new NettyMessage.AddCredit(random.nextInt(Integer.MAX_VALUE) + 1, new InputChannelID());
 			NettyMessage.AddCredit actual = encodeAndDecode(expected);
 
-			assertEquals(expected.partitionId, actual.partitionId);
 			assertEquals(expected.credit, actual.credit);
 			assertEquals(expected.receiverId, actual.receiverId);
 		}

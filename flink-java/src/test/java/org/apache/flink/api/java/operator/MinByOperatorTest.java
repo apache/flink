@@ -20,17 +20,22 @@ package org.apache.flink.api.java.operator;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.types.Row;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -205,6 +210,43 @@ public class MinByOperatorTest {
 	}
 
 	/**
+	 * Validates that no ClassCastException happens
+	 * should not fail e.g. like in FLINK-8255.
+	 */
+	@Test(expected = InvalidProgramException.class)
+	public void testMinByRowTypeInfoKeyFieldsDataset() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment
+				.getExecutionEnvironment();
+		TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
+
+		String[] fieldNames = new String[]{"id", "value"};
+		RowTypeInfo rowTypeInfo = new RowTypeInfo(types, fieldNames);
+		DataSet tupleDs = env
+				.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo);
+
+		tupleDs.minBy(0);
+	}
+
+	/**
+	 * Validates that no ClassCastException happens
+	 * should not fail e.g. like in FLINK-8255.
+	 */
+	@Test(expected = InvalidProgramException.class)
+	public void testMinByRowTypeInfoKeyFieldsForUnsortedGrouping() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		TypeInformation[] types = new TypeInformation[]{Types.INT, Types.INT};
+
+		String[] fieldNames = new String[]{"id", "value"};
+		RowTypeInfo rowTypeInfo = new RowTypeInfo(types, fieldNames);
+
+		UnsortedGrouping groupDs = env.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo).groupBy(0);
+
+		groupDs.minBy(1);
+	}
+
+	/**
 	 * Custom data type, for testing purposes.
 	 */
 	public static class CustomType implements Serializable {
@@ -229,5 +271,4 @@ public class MinByOperatorTest {
 			return myInt + "," + myLong + "," + myString;
 		}
 	}
-
 }

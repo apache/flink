@@ -841,6 +841,7 @@ TableEnvironment 和 StreamTableEnvironment 翻译查询的方式不同。
 
 而对于 `StreamTableEnvironment`，当下列情况发生时，Table API 或者 SQL 查询会被翻译：
 
+
 * `Table 被发送至`TableSink`，即，当 `Table.insertInto()` 被调用时。
 * SQL 更新语句执行时，即，当调用 `TableEnvironment.sqlUpdate()` 时。
 * `Table` 被转换成 `DataStream` 时。
@@ -1425,6 +1426,7 @@ Apache Flink 使用并扩展了 Apache Calcite 来执行复杂的查询优化。
 
 
 ### 解释表
+
 
 Table API 提供了一种机制来解释计算 `Table` 的逻辑和优化查询计划。
 这是通过 `TableEnvironment.explain(table)` 或者 `TableEnvironment.explain()` 完成的。`explain(table)` 返回给定 `Table` 的计划。 `explain()` 返回多 sink 计划的结果并且主要用于 Blink 计划器。它返回一个描述三种计划的字符串：

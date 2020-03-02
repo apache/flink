@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private final Process process;
 
-	public AutoClosableProcess(final Process process) {
+	private AutoClosableProcess(final Process process) {
 		Preconditions.checkNotNull(process);
 		this.process = process;
 	}
@@ -111,6 +112,25 @@ public class AutoClosableProcess implements AutoCloseable {
 					}
 				} catch (TimeoutException | InterruptedException e) {
 					throw new IOException("Process failed due to timeout.");
+				}
+			}
+		}
+
+		public void runBlockingWithRetry(final int maxRetries, final Duration attemptTimeout, final Duration globalTimeout) throws IOException {
+			int retries = 0;
+			final Deadline globalDeadline = Deadline.fromNow(globalTimeout);
+
+			while (true) {
+				try {
+					runBlocking(attemptTimeout);
+					break;
+				} catch (Exception e) {
+					if (++retries > maxRetries || !globalDeadline.hasTimeLeft()) {
+						String errMsg = String.format(
+							"Process (%s) exceeded timeout (%s) or number of retries (%s).",
+							Arrays.toString(commands), maxRetries, globalTimeout.toMillis());
+						throw new IOException(errMsg, e);
+					}
 				}
 			}
 		}

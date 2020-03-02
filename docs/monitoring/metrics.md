@@ -655,15 +655,7 @@ of your Flink distribution.
 
 Parameters:
 
-- `host` - the InfluxDB server host
-- `port` - (optional) the InfluxDB server port, defaults to `8086`
-- `db` - the InfluxDB database to store metrics
-- `username` - (optional) InfluxDB username used for authentication
-- `password` - (optional) InfluxDB username's password used for authentication
-- `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
-- `consistency` - (optional) InfluxDB consistency level for metrics. Possible values: [ALL, ANY, ONE, QUORUM], default is ONE
-- `connectTimeout` - (optional) the InfluxDB client connect timeout in milliseconds, default is 10000 ms
-- `writeTimeout` - (optional) the InfluxDB client write timeout in milliseconds, default is 10000 ms
+{% include generated/influxdb_reporter_configuration.html %}
 
 Example configuration:
 
@@ -1349,9 +1341,14 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="1">Task</th>
+      <th rowspan="2">Task</th>
       <td>checkpointAlignmentTime</td>
       <td>The time in nanoseconds that the last barrier alignment took to complete, or how long the current alignment has taken so far (in nanoseconds).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointStartDelayNanos</td>
+      <td>The time in nanoseconds that elapsed between the creation of the last checkpoint and the time when the checkpointing process has started by this Task. This delay shows how long it takes for the first checkpoint barrier to reach the task. A high value indicates back-pressure. If only a specific task has a long start delay, the most likely reason is data skew.</td>
       <td>Gauge</td>
     </tr>
   </tbody>

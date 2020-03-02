@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -114,6 +115,48 @@ public class TimeUtils {
 	 */
 	public static String getStringInMillis(final Duration duration) {
 		return duration.toMillis() + TimeUnit.MILLISECONDS.labels.get(0);
+	}
+
+	/**
+	 * Pretty prints the duration as a lowest granularity unit that does not lose precision.
+	 *
+	 * <p>Examples:
+	 * <pre>{@code
+	 * Duration.ofMilliseconds(60000) will be printed as 1 min
+	 * Duration.ofHours(1).plusSeconds(1) will be printed as 3601 s
+	 * }</pre>
+	 *
+	 * <b>NOTE:</b> It supports only durations that fit into long.
+	 */
+	public static String formatWithHighestUnit(Duration duration) {
+		long nanos = duration.toNanos();
+
+		List<TimeUnit> orderedUnits = Arrays.asList(
+				TimeUnit.NANOSECONDS,
+				TimeUnit.MICROSECONDS,
+				TimeUnit.MILLISECONDS,
+				TimeUnit.SECONDS,
+				TimeUnit.MINUTES,
+				TimeUnit.HOURS,
+				TimeUnit.DAYS);
+
+		TimeUnit highestIntegerUnit = IntStream.range(0, orderedUnits.size())
+			.sequential()
+			.filter(idx -> nanos % orderedUnits.get(idx).unit.getDuration().toNanos() != 0)
+			.boxed()
+			.findFirst()
+			.map(idx -> {
+				if (idx == 0) {
+					return orderedUnits.get(0);
+				} else {
+					return orderedUnits.get(idx - 1);
+				}
+			}).orElse(TimeUnit.MILLISECONDS);
+
+		return String.format(
+			"%d %s",
+			nanos / highestIntegerUnit.unit.getDuration().toNanos(),
+			highestIntegerUnit.getLabels().get(0));
 	}
 
 	/**

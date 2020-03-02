@@ -24,22 +24,30 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.stream.IntStream;
 
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS;
+import static org.apache.flink.kubernetes.utils.KubernetesUtils.parseImagePullSecrets;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -57,7 +65,7 @@ public class KubernetesUtilsTest extends TestLogger {
 	private static final String confDirInPod = "/opt/flink/conf";
 	private static final String logDirInPod = "/opt/flink/log";
 	private static final String logback = String.format("-Dlogback.configurationFile=file:%s/logback.xml", confDirInPod);
-	private static final String log4j = String.format("-Dlog4j.configuration=file:%s/log4j.properties", confDirInPod);
+	private static final String log4j = String.format("-Dlog4j.configuration=file:%s/log4j.properties -Dlog4j.configurationFile=file:%s/log4j.properties", confDirInPod, confDirInPod);
 	private static final String jmLogfile = String.format("-Dlog.file=%s/jobmanager.log", logDirInPod);
 	private static final String jmLogRedirects = String.format("1> %s/jobmanager.out 2> %s/jobmanager.err", logDirInPod, logDirInPod);
 	private static final String tmLogfile = String.format("-Dlog.file=%s/taskmanager.log", logDirInPod);
@@ -67,20 +75,20 @@ public class KubernetesUtilsTest extends TestLogger {
 	private static final int jobManagerMem = 768;
 	private static final String jmJvmMem = "-Xms168m -Xmx168m";
 
-	private static final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+	private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC = new TaskExecutorProcessSpec(
 		new CPUResource(1.0),
 		new MemorySize(0), // frameworkHeapSize
 		new MemorySize(0), // frameworkOffHeapSize
 		new MemorySize(111), // taskHeapSize
 		new MemorySize(0), // taskOffHeapSize
-		new MemorySize(222), // shuffleMemSize
+		new MemorySize(222), // networkMemSize
 		new MemorySize(0), // managedMemorySize
 		new MemorySize(333), // jvmMetaspaceSize
 		new MemorySize(0)); // jvmOverheadSize
 
 	private static final String tmJvmMem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
 	private static final String tmMemDynamicProperties =
-		TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
+		TaskExecutorProcessUtils.generateDynamicConfigsStr(TASK_EXECUTOR_PROCESS_SPEC).trim();
 
 	@Test
 	public void testGetJobManagerStartCommand() {
@@ -238,6 +246,43 @@ public class KubernetesUtilsTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testParseImagePullSecrets() {
+		final Configuration cfg = new Configuration();
+		final LocalObjectReference[] noSecrets = parseImagePullSecrets(cfg.get(CONTAINER_IMAGE_PULL_SECRETS));
+		assertEquals(0, noSecrets.length);
+
+		cfg.set(CONTAINER_IMAGE_PULL_SECRETS, Collections.singletonList("s1"));
+		final LocalObjectReference[] oneSecret = parseImagePullSecrets(cfg.get(CONTAINER_IMAGE_PULL_SECRETS));
+		assertTrue(oneSecret.length == 1 && oneSecret[0].getName().equals("s1"));
+
+		cfg.set(CONTAINER_IMAGE_PULL_SECRETS, Arrays.asList("s1", "s2", "s3", "s4"));
+		final LocalObjectReference[] commonSeparatedSecrets = parseImagePullSecrets(cfg.get(CONTAINER_IMAGE_PULL_SECRETS));
+		final String[] expectedSecrets = new String[]{"s1", "s2", "s3", "s4"};
+		assertEquals(4, commonSeparatedSecrets.length);
+		IntStream.range(0, 3).forEach(i -> assertEquals(expectedSecrets[i], commonSeparatedSecrets[i].getName()));
+	}
+
+	@Test
+	public void testCheckWithDynamicPort() {
+		testCheckAndUpdatePortConfigOption("0", "6123", "6123");
+	}
+
+	@Test
+	public void testCheckWithFixedPort() {
+		testCheckAndUpdatePortConfigOption("6123", "16123", "6123");
+	}
+
+	private void testCheckAndUpdatePortConfigOption(String port, String fallbackPort, String expectedPort) {
+		final Configuration cfg = new Configuration();
+		cfg.setString(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE, port);
+		KubernetesUtils.checkAndUpdatePortConfigOption(
+			cfg,
+			HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,
+			Integer.valueOf(fallbackPort));
+		assertEquals(expectedPort, cfg.get(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE));
+	}
+
 	private String getJobManagerExpectedCommand(String jvmAllOpts, String logging, String mainClassArgs) {
 		return java + " " + classpath + " " + jmJvmMem +
 			(jvmAllOpts.isEmpty() ? "" : " " + jvmAllOpts) +
@@ -276,7 +321,7 @@ public class KubernetesUtilsTest extends TestLogger {
 			String mainClassArgs) {
 
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(taskExecutorResourceSpec, 4, new HashMap<>());
+			new ContaineredTaskManagerParameters(TASK_EXECUTOR_PROCESS_SPEC, 4, new HashMap<>());
 
 		return KubernetesUtils.getTaskManagerStartCommand(
 			cfg,

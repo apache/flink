@@ -70,7 +70,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<optional>true</optional>
 		</dependency>
 
@@ -90,12 +89,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm-7</artifactId>
+			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-jackson</artifactId>
+			<artifactId>flink-shaded-zookeeper-3</artifactId>
 		</dependency>
 
 		<dependency>
@@ -240,20 +239,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Curator and ZooKeeper - we explicitly add ZooKeeper here as
-			well to make sure our managed version is used -->
-
-		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-curator</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- Lz4 compression library -->
 		<dependency>
 			<groupId>org.lz4</groupId>
@@ -308,16 +293,6 @@ under the License.
 			<artifactId>okhttp</artifactId>
 			<version>3.7.0</version>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
 		</dependency>
 
 		<!-- Used only for additional logging. Optional because of unclear EPL 1.0 license compatibility. -->
@@ -538,14 +513,12 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-shaded-curator</include>
 									<!-- add akka, akka's netty, akka uncommon math -->
 									<!-- we can do this only because our own netty dependency is
 										already externally shaded (flink-shaded-netty) -->
 									<include>com.typesafe.akka:akka-remote_*</include>
 									<include>io.netty:netty</include>
 									<include>org.uncommons.maths:uncommons-maths</include>
-									<include>org.apache.zookeeper:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
@@ -556,26 +529,6 @@ under the License.
 								<relocation>
 									<pattern>org.uncommons.math</pattern>
 									<shadedPattern>org.apache.flink.shaded.akka.org.uncommons.math</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.curator</pattern>
-									<!-- IMPORTANT: This must be kept in sync with flink-connector-kafka-0.8 -->
-									<shadedPattern>org.apache.flink.shaded.curator.org.apache.curator</shadedPattern>
-									<excludes>
-										<!-- Do not relocate curator-test. This leads to problems for downstream
-											users of runtime test classes that make use of it as the relocated
-											dependency is not included in the test-jar.-->
-										<exclude>org.apache.curator.test.*</exclude>
-									</excludes>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.zookeeper</pattern>
-									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper</shadedPattern>
-								</relocation>
-								<!-- jute is already shaded into the ZooKeeper jar -->
-								<relocation>
-									<pattern>org.apache.jute</pattern>
-									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

@@ -420,7 +420,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """
         |create table t1(
         |  a int,
-        |  b varchar,
+        |  `time` varchar,
         |  c as my_udf(a)
         |) with (
         |  'connector' = 'COLLECTION'
@@ -430,7 +430,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       """
         |create table t2(
         |  a int,
-        |  b varchar,
+        |  `time` varchar,
         |  c int not null
         |) with (
         |  'connector' = 'COLLECTION'
@@ -439,7 +439,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val query =
       """
         |insert into t2
-        |select t1.a, t1.b, t1.c from t1
+        |select t1.a, t1.`time`, t1.c from t1
       """.stripMargin
     tableEnv.sqlUpdate(sourceDDL)
     tableEnv.sqlUpdate(sinkDDL)

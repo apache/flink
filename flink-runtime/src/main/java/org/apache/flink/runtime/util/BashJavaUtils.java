@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 
 import java.util.Arrays;
@@ -31,6 +32,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Utility class for using java utilities in bash scripts.
  */
 public class BashJavaUtils {
+
+	private static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
 
 	public static void main(String[] args) throws Exception {
 		checkArgument(args.length > 0, "Command not specified.");
@@ -49,15 +52,21 @@ public class BashJavaUtils {
 	}
 
 	private static void getTmResourceDynamicConfigs(String[] args) throws Exception {
-		Configuration configuration = TaskManagerRunner.loadConfiguration(Arrays.copyOfRange(args, 1, args.length));
-		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
-		System.out.println(TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec));
+		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
+		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
 	}
 
 	private static void getTmResourceJvmParams(String[] args) throws Exception {
+		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
+		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateJvmParametersStr(taskExecutorProcessSpec));
+	}
+
+	private static Configuration getConfigurationForStandaloneTaskManagers(String[] args) throws Exception {
 		Configuration configuration = TaskManagerRunner.loadConfiguration(Arrays.copyOfRange(args, 1, args.length));
-		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
-		System.out.println(TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec));
+		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+			configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
 	}
 
 	/**

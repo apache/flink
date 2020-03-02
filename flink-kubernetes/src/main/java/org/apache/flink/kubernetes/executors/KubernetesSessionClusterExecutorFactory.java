@@ -21,16 +21,21 @@ package org.apache.flink.kubernetes.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.Executor;
-import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
 
 import javax.annotation.Nonnull;
 
 /**
- * An {@link ExecutorFactory} for executing jobs on an existing (session) cluster.
+ * An {@link PipelineExecutorFactory} for executing jobs on an existing (session) cluster.
  */
 @Internal
-public class KubernetesSessionClusterExecutorFactory implements ExecutorFactory {
+public class KubernetesSessionClusterExecutorFactory implements PipelineExecutorFactory {
+
+	@Override
+	public String getName() {
+		return KubernetesSessionClusterExecutor.NAME;
+	}
 
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
@@ -39,7 +44,7 @@ public class KubernetesSessionClusterExecutorFactory implements ExecutorFactory 
 	}
 
 	@Override
-	public Executor getExecutor(@Nonnull final Configuration configuration) {
+	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
 		return new KubernetesSessionClusterExecutor();
 	}
 }

@@ -277,7 +277,7 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
         elasticsearch = Elasticsearch().bulk_flush_max_size("42 mb")
 
         properties = elasticsearch.to_properties()
-        expected = {'connector.bulk-flush.max-size': '44040192 bytes',
+        expected = {'connector.bulk-flush.max-size': '42 mb',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -940,54 +940,7 @@ class AbstractTableDescriptorTests(object):
                     'connector.property-version': '1'}
         assert properties == expected
 
-    def test_register_table_source_and_register_table_sink(self):
-        self.env.set_parallelism(1)
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
-        self.prepare_csv_source(source_path, data, field_types, field_names)
-        sink_path = os.path.join(self.tempdir + '/streaming2.csv')
-        if os.path.isfile(sink_path):
-            os.remove(sink_path)
-
-        t_env = self.t_env
-        # register_table_source
-        t_env.connect(FileSystem().path(source_path))\
-             .with_format(OldCsv()
-                          .field_delimiter(',')
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .with_schema(Schema()
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .register_table_source("source")
-
-        # register_table_sink
-        t_env.connect(FileSystem().path(sink_path))\
-             .with_format(OldCsv()
-                          .field_delimiter(',')
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .with_schema(Schema()
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .register_table_sink("sink")
-
-        t_env.scan("source") \
-             .select("a + 1, b, c") \
-             .insert_into("sink")
-        self.t_env.execute("test")
-
-        with open(sink_path, 'r') as f:
-            lines = f.read()
-            assert lines == '2,Hi,Hello\n' + '3,Hello,Hello\n'
-
-    def test_register_table_source_and_sink(self):
+    def test_register_temporary_table(self):
         self.env.set_parallelism(1)
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
@@ -1009,7 +962,7 @@ class AbstractTableDescriptorTests(object):
                           .field("a", DataTypes.INT())
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
-             .register_table_source_and_sink("source")
+             .create_temporary_table("source")
         t_env.connect(FileSystem().path(sink_path))\
              .with_format(OldCsv()
                           .field_delimiter(',')
@@ -1020,7 +973,7 @@ class AbstractTableDescriptorTests(object):
                           .field("a", DataTypes.INT())
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
-             .register_table_source_and_sink("sink")
+             .create_temporary_table("sink")
         t_env.scan("source") \
              .select("a + 1, b, c") \
              .insert_into("sink")

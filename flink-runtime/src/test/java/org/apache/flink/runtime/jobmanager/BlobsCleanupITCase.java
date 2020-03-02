@@ -217,7 +217,10 @@ public class BlobsCleanupITCase extends TestLogger {
 				assertThat(jobResult.getApplicationStatus(), is(ApplicationStatus.CANCELED));
 			} else {
 				final JobResult jobResult = resultFuture.get();
-				assertThat(jobResult.isSuccess(), is(true));
+				Throwable cause = jobResult.getSerializedThrowable()
+						.map(throwable -> throwable.deserializeError(getClass().getClassLoader()))
+						.orElse(null);
+				assertThat(ExceptionUtils.stringifyException(cause), jobResult.isSuccess(), is(true));
 			}
 
 		}

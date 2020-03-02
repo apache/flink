@@ -43,7 +43,11 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 	private final TypeSerializer<Tuple2<Boolean, Row>> serializer;
 	private final TableSchema tableSchema;
 
-	public CollectStreamTableSink(InetAddress targetAddress, int targetPort, TypeSerializer<Tuple2<Boolean, Row>> serializer, TableSchema tableSchema) {
+	public CollectStreamTableSink(
+			InetAddress targetAddress,
+			int targetPort,
+			TypeSerializer<Tuple2<Boolean, Row>> serializer,
+			TableSchema tableSchema) {
 		this.targetAddress = targetAddress;
 		this.targetPort = targetPort;
 		this.serializer = serializer;
@@ -51,13 +55,20 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 	}
 
 	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
-
-	@Override
 	public CollectStreamTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		return new CollectStreamTableSink(targetAddress, targetPort, serializer, tableSchema);
+	}
+
+	// Retract stream sinks work only with the old type system.
+	@Override
+	public String[] getFieldNames() {
+		return tableSchema.getFieldNames();
+	}
+
+	// Retract stream sinks work only with the old type system.
+	@Override
+	public TypeInformation<?>[] getFieldTypes() {
+		return tableSchema.getFieldTypes();
 	}
 
 	@Override

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -32,17 +33,13 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.messages.TaskBackPressureResponse;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -54,10 +51,15 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
@@ -140,7 +142,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final ExecutionAttemptID eid = new ExecutionAttemptID();
 
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, TaskExecutorTest.TestInvokable.class);
+		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, FutureCompletingInvokable.class);
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
@@ -212,7 +214,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setMetricQueryServiceAddress(metricQueryServiceAddress)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
@@ -262,7 +264,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.setSlotSize(2)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
@@ -318,7 +320,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
@@ -385,7 +387,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
@@ -436,7 +438,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
@@ -469,7 +471,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
@@ -523,7 +525,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
@@ -554,7 +556,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		// set the memory segment to the smallest size possible, because we have to fill one
 		// memory buffer to trigger the schedule or update consumers message to the downstream
 		// operators
-		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 
 		NettyShuffleDescriptor sdd =
 			createRemoteWithIdAndLocation(new IntermediateResultPartitionID(), ResourceID.generate());
@@ -583,7 +585,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				.useRealNonMockShuffleEnvironment()
 				.build()) {
 			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
 			TestingAbstractInvokables.TestInvokableRecordCancel.resetGotCanceledFuture();
 
@@ -616,7 +618,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final Configuration configuration = new Configuration();
 		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 40);
-		configuration.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 
 		try (final TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId)
 					.setSlotSize(1)
@@ -817,5 +819,22 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			null,
 			producedPartitions,
 			inputGates);
+	}
+
+	/**
+	 * Test invokable which completes the given future when executed.
+	 */
+	public static class FutureCompletingInvokable extends AbstractInvokable {
+
+		static final CompletableFuture<Boolean> COMPLETABLE_FUTURE = new CompletableFuture<>();
+
+		public FutureCompletingInvokable(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			COMPLETABLE_FUTURE.complete(true);
+		}
 	}
 }

@@ -113,6 +113,20 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Arrow dependencies -->
+
+		<dependency>
+			<groupId>org.apache.arrow</groupId>
+			<artifactId>arrow-vector</artifactId>
+			<version>${arrow.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -281,13 +295,16 @@ under the License.
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>joda-time:*</include>
 									<inculde>com.google.protobuf:*</inculde>
+									<include>org.apache.arrow:*</include>
+									<include>io.netty:*</include>
+									<include>com.google.flatbuffers:*</include>
 								</includes>
 							</artifactSet>
 							<filters>
 								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
-										<exclude>org/apache/beam/repackaged/core/net/bytebuddy/**</exclude>
+										<exclude>org/apache/beam/vendor/bytebuddy/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
@@ -320,6 +337,18 @@ under the License.
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.arrow</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.org.apache.arrow</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google.flatbuffers</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.com.google.flatbuffers</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
@@ -343,6 +372,15 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
+					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC</argLine>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

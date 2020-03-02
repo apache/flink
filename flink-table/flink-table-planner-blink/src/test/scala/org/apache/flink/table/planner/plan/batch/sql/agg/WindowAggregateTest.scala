@@ -386,6 +386,33 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
 
     util.verifyPlan(sql)
   }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows(): Unit = {
+    // This test ensures that the LogicalWindowAggregate node' digest contains the window specs.
+    // This allows the planner to make the distinction between similar aggregations using different
+    // windows (see FLINK-15577).
+    val sql =
+      """
+        |WITH window_1h AS (
+        |    SELECT 1
+        |    FROM MyTable2
+        |    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+        |),
+        |
+        |window_2h AS (
+        |    SELECT 1
+        |    FROM MyTable2
+        |    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+        |)
+        |
+        |(SELECT * FROM window_1h)
+        |UNION ALL
+        |(SELECT * FROM window_2h)
+        |""".stripMargin
+
+    util.verifyPlan(sql)
+  }
 }
 
 object WindowAggregateTest {

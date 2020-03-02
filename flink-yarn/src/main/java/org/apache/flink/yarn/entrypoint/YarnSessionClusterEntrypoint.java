@@ -23,7 +23,6 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -40,14 +39,8 @@ import java.util.Map;
  */
 public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	public YarnSessionClusterEntrypoint(
-		Configuration configuration) {
+	public YarnSessionClusterEntrypoint(Configuration configuration) {
 		super(configuration);
-	}
-
-	@Override
-	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
-		return YarnEntrypointUtils.installSecurityContext(configuration);
 	}
 
 	@Override

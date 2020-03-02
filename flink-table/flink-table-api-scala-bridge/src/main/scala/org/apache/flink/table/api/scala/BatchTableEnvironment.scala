@@ -278,14 +278,14 @@ trait BatchTableEnvironment extends TableEnvironment {
   override def execute(jobName: String): JobExecutionResult
 
   /**
-    * Creates a table source and/or table sink from a descriptor.
+    * Creates a temporary table from a descriptor.
     *
     * Descriptors allow for declaring the communication to external systems in an
     * implementation-agnostic way. The classpath is scanned for suitable table factories that match
     * the desired configuration.
     *
     * The following example shows how to read from a connector using a JSON format and
-    * registering a table source as "MyTable":
+    * registering a temporary table as "MyTable":
     *
     * {{{
     *
@@ -301,7 +301,7 @@ trait BatchTableEnvironment extends TableEnvironment {
     *     new Schema()
     *       .field("user-name", "VARCHAR").from("u_name")
     *       .field("count", "DECIMAL")
-    *   .registerSource("MyTable")
+    *   .createTemporaryTable("MyTable")
     * }}}
     *
     * @param connectorDescriptor connector descriptor describing the external system
@@ -349,23 +349,30 @@ object BatchTableEnvironment {
   def create(executionEnvironment: ExecutionEnvironment, tableConfig: TableConfig)
   : BatchTableEnvironment = {
     try {
+      // temporary solution until FLINK-15635 is fixed
+      val classLoader = Thread.currentThread.getContextClassLoader
+
+      val moduleManager = new ModuleManager
+
+      val defaultCatalog = "default_catalog"
+      val catalogManager = CatalogManager.newBuilder
+        .classLoader(classLoader)
+        .config(tableConfig.getConfiguration)
+        .defaultCatalog(
+          defaultCatalog,
+          new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+        .executionConfig(executionEnvironment.getConfig)
+        .build
+
       val clazz = Class
         .forName("org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl")
-      val const = clazz
+      val con = clazz
         .getConstructor(
           classOf[ExecutionEnvironment],
           classOf[TableConfig],
           classOf[CatalogManager],
           classOf[ModuleManager])
-      val builtInCatalog = "default_catalog"
-      val catalogManager = new CatalogManager(
-        "default_catalog",
-        new GenericInMemoryCatalog(
-          builtInCatalog,
-          "default_database")
-      )
-      val moduleManager = new ModuleManager
-      const.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager)
+      con.newInstance(executionEnvironment, tableConfig, catalogManager, moduleManager)
         .asInstanceOf[BatchTableEnvironment]
     } catch {
       case t: Throwable => throw new TableException("Create BatchTableEnvironment failed.", t)

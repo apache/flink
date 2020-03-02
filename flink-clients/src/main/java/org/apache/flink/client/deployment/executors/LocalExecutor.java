@@ -30,8 +30,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.execution.Executor;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
@@ -44,10 +44,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An {@link Executor} for executing a {@link Pipeline} locally.
+ * An {@link PipelineExecutor} for executing a {@link Pipeline} locally.
  */
 @Internal
-public class LocalExecutor implements Executor {
+public class LocalExecutor implements PipelineExecutor {
 
 	public static final String NAME = "local";
 

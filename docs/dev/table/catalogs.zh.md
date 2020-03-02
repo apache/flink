@@ -1,6 +1,5 @@
 ---
 title: "Catalogs"
-is_beta: true
 nav-parent_id: tableapi
 nav-pos: 80
 ---
@@ -79,7 +78,7 @@ tableEnv.sqlUpdate("CREATE DATABASE mydb WITH (...)");
 // Create a catalog table
 tableEnv.sqlUpdate("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
 
-tableEnv.sqlQuery("SHOW TABLES"); // should see the table
+tableEnv.listTables(); // should return the tables in current catalog and database.
 
 {% endhighlight %}
 </div>
@@ -135,7 +134,7 @@ catalog.createTable(
         )
     );
 
-List<String> tables = catalog.listTables("mydb); // tables should contain "mytable"
+List<String> tables = catalog.listTables("mydb"); // tables should contain "mytable"
 {% endhighlight %}
 
 </div>

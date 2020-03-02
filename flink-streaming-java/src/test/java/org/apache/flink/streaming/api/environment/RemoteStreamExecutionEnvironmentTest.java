@@ -25,9 +25,9 @@ import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.core.execution.Executor;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -47,6 +47,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.is;
@@ -111,7 +112,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 				testExecutorServiceLoader.getActualSavepointRestoreSettings(), is(restoreSettings));
 	}
 
-	private static final class TestExecutorServiceLoader implements ExecutorServiceLoader {
+	private static final class TestExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
 		private final JobID jobID;
 
@@ -131,15 +132,21 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		}
 
 		@Override
-		public ExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
-			return new ExecutorFactory() {
+		public PipelineExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
+			return new PipelineExecutorFactory() {
+
+				@Override
+				public String getName() {
+					return "my-name";
+				}
+
 				@Override
 				public boolean isCompatibleWith(@Nonnull Configuration configuration) {
 					return true;
 				}
 
 				@Override
-				public Executor getExecutor(@Nonnull Configuration configuration) {
+				public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
 					return (pipeline, config) -> {
 						assertTrue(pipeline instanceof StreamGraph);
 
@@ -153,6 +160,11 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 					};
 				}
 			};
+		}
+
+		@Override
+		public Stream<String> getExecutorNames() {
+			throw new UnsupportedOperationException("not implemented");
 		}
 	}
 

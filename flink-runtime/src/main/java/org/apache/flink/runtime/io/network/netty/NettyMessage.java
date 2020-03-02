@@ -647,16 +647,13 @@ public abstract class NettyMessage {
 
 		private static final byte ID = 6;
 
-		final ResultPartitionID partitionId;
-
 		final int credit;
 
 		final InputChannelID receiverId;
 
-		AddCredit(ResultPartitionID partitionId, int credit, InputChannelID receiverId) {
+		AddCredit(int credit, InputChannelID receiverId) {
 			checkArgument(credit > 0, "The announced credit should be greater than 0");
 
-			this.partitionId = partitionId;
 			this.credit = credit;
 			this.receiverId = receiverId;
 		}
@@ -666,10 +663,7 @@ public abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16);
-
-				partitionId.getPartitionId().writeTo(result);
-				partitionId.getProducerId().writeTo(result);
+				result = allocateBuffer(allocator, ID, 4 + 16);
 				result.writeInt(credit);
 				receiverId.writeTo(result);
 
@@ -685,14 +679,10 @@ public abstract class NettyMessage {
 		}
 
 		static AddCredit readFrom(ByteBuf buffer) {
-			ResultPartitionID partitionId =
-				new ResultPartitionID(
-					IntermediateResultPartitionID.fromByteBuf(buffer),
-					ExecutionAttemptID.fromByteBuf(buffer));
 			int credit = buffer.readInt();
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 
-			return new AddCredit(partitionId, credit, receiverId);
+			return new AddCredit(credit, receiverId);
 		}
 
 		@Override

@@ -56,6 +56,30 @@ SqlUseCatalog SqlUseCatalog() :
 }
 
 /**
+* Parses a create catalog statement.
+* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <CATALOG> { startPos = getPos(); }
+    catalogName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlCreateCatalog(startPos.plus(getPos()),
+            catalogName,
+            propertyList);
+    }
+}
+
+/**
 * Parse a "Show Catalogs" metadata query command.
 */
 SqlShowDatabases SqlShowDatabases() :
@@ -953,5 +977,99 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
             fieldTypes,
             comments,
             unparseAsStandard);
+    }
+}
+
+/**
+ * Those methods should not be used in SQL. They are good for parsing identifiers
+ * in Table API. The difference between those identifiers and CompoundIdentifer is
+ * that the Table API identifiers ignore any keywords. They are also strictly limited
+ * to three part identifiers. The quoting still works the same way.
+ */
+SqlIdentifier TableApiIdentifier() :
+{
+    final List<String> nameList = new ArrayList<String>();
+    final List<SqlParserPos> posList = new ArrayList<SqlParserPos>();
+}
+{
+    TableApiIdentifierSegment(nameList, posList)
+    (
+        LOOKAHEAD(2)
+        <DOT>
+        TableApiIdentifierSegment(nameList, posList)
+    )?
+    (
+        LOOKAHEAD(2)
+        <DOT>
+        TableApiIdentifierSegment(nameList, posList)
+    )?
+    <EOF>
+    {
+        SqlParserPos pos = SqlParserPos.sum(posList);
+        return new SqlIdentifier(nameList, null, pos, posList);
+    }
+}
+
+void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions) :
+{
+    final String id;
+    char unicodeEscapeChar = BACKSLASH;
+    final SqlParserPos pos;
+    final Span span;
+}
+{
+    (
+        <QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, DQ, DQ, DQDQ,
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <BACK_QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, "`", "`", "``",
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <BRACKET_QUOTED_IDENTIFIER> {
+            id = SqlParserUtil.strip(getToken(0).image, "[", "]", "]]",
+                quotedCasing);
+            pos = getPos().withQuoting(true);
+        }
+    |
+        <UNICODE_QUOTED_IDENTIFIER> {
+            span = span();
+            String image = getToken(0).image;
+            image = image.substring(image.indexOf('"'));
+            image = SqlParserUtil.strip(image, DQ, DQ, DQDQ, quotedCasing);
+        }
+        [
+            <UESCAPE> <QUOTED_STRING> {
+                String s = SqlParserUtil.parseString(token.image);
+                unicodeEscapeChar = SqlParserUtil.checkUnicodeEscapeChar(s);
+            }
+        ]
+        {
+            pos = span.end(this).withQuoting(true);
+            SqlLiteral lit = SqlLiteral.createCharString(image, "UTF16", pos);
+            lit = lit.unescapeUnicode(unicodeEscapeChar);
+            id = lit.toValue();
+        }
+    |
+        {
+
+            id = getNextToken().image;
+            pos = getPos();
+        }
+    )
+    {
+        if (id.length() > this.identifierMaxLength) {
+            throw SqlUtil.newContextException(pos,
+                RESOURCE.identifierTooLong(id, this.identifierMaxLength));
+        }
+        names.add(id);
+        if (positions != null) {
+            positions.add(pos);
+        }
     }
 }

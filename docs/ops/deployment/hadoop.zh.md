@@ -38,13 +38,22 @@ Referencing the HDFS configuration in the [Flink configuration]({{ site.baseurl 
 
 Another way to provide the Hadoop configuration is to have it on the class path of the Flink process, see more details below.
 
-## Adding Hadoop Classpaths
+## Providing Hadoop classes
 
-The required classes to use Hadoop should be available in the `lib/` folder of the Flink installation
-(on all machines running Flink) unless Flink is built with [Hadoop shaded dependencies]({{ site.baseurl }}/flinkDev/building.html#pre-bundled-versions).
+In order to use Hadoop features (e.g., YARN, HDFS) it is necessary to provide Flink with the required Hadoop classes,
+as these are not bundled by default.
 
-If putting the files into the directory is not possible, Flink also respects
-the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
+This can be done by 
+1) Adding the Hadoop classpath to Flink
+2) Putting the required jar files into /lib directory of the Flink distribution
+Option 1) requires very little work, integrates nicely with existing Hadoop setups and should be the
+preferred approach.
+However, Hadoop has a large dependency footprint that increases the risk for dependency conflicts to occur.
+If this happens, please refer to option 2).
+
+The following subsections explains these approaches in detail.
+
+### Adding Hadoop Classpaths
 
 Flink will use the environment variable `HADOOP_CLASSPATH` to augment the
 classpath that is used when starting Flink components such as the Client,
@@ -65,6 +74,29 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath.
 
 Putting the Hadoop configuration in the same class path as the Hadoop libraries makes Flink pick up that configuration.
+
+### Adding Hadoop to /lib
+
+The Flink project releases Hadoop distributions for specific versions, that relocate or exclude several dependencies
+to reduce the risk of dependency clashes.
+These can be found in the [Additional Components]({{ site.download_url }}#additional-components) section of the download page.
+For these versions it is sufficient to download the corresponding `Pre-bundled Hadoop` component and putting it into
+the `/lib` directory of the Flink distribution.
+
+If the used Hadoop version is not listed on the download page (possibly due to being a Vendor-specific version),
+then it is necessary to build [flink-shaded](https://github.com/apache/flink-shaded) against this version.
+You can find the source code for this project in the [Additional Components]({{ site.download_url }}#additional-components) section of the download page.
+
+<span class="label label-info">Note</span> If you want to build `flink-shaded` against a vendor specific Hadoop version, you first have to configure the
+vendor-specific maven repository in your local maven setup as described [here](https://maven.apache.org/guides/mini/guide-multiple-repositories.html).
+
+Run the following command to build and install `flink-shaded` against your desired Hadoop version (e.g., for version `2.6.5-custom`):
+
+{% highlight bash %}
+mvn clean install -Dhadoop.version=2.6.5-custom
+{% endhighlight %}
+
+After this step is complete, put the `flink-shaded-hadoop-2-uber` jar into the `/lib` directory of the Flink distribution.
 
 ## Running a job locally
 

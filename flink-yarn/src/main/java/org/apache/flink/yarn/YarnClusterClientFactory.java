@@ -19,7 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractClusterClientFactory;
+import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link ClusterClientFactory} for a YARN cluster.
  */
 @Internal
-public class YarnClusterClientFactory extends AbstractClusterClientFactory<ApplicationId> {
+public class YarnClusterClientFactory extends AbstractContainerizedClusterClientFactory<ApplicationId> {
 
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
@@ -75,6 +75,7 @@ public class YarnClusterClientFactory extends AbstractClusterClientFactory<Appli
 				configuration,
 				yarnConfiguration,
 				yarnClient,
+				YarnClientYarnClusterInformationRetriever.create(yarnClient),
 				false);
 	}
 }

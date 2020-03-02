@@ -21,7 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -32,14 +32,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
-	private final ExecutorServiceLoader executorServiceLoader;
+	private final PipelineExecutorServiceLoader executorServiceLoader;
 
 	private final Configuration configuration;
 
 	private final ClassLoader userCodeClassLoader;
 
 	public ContextEnvironmentFactory(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);

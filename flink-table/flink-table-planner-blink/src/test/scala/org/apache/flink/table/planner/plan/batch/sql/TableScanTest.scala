@@ -19,14 +19,51 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.junit.Test
+
+import org.junit.{Before, Test}
 
 class TableScanTest extends TableTestBase {
 
   private val util = batchTestUtil()
+
+  @Before
+  def before(): Unit = {
+    util.tableEnv.registerFunction("my_udf", Func0)
+
+    util.addTable(
+      s"""
+         |create table computed_column_t(
+         |  a int,
+         |  b varchar,
+         |  c as a + 1,
+         |  d as to_timestamp(b),
+         |  e as my_udf(a)
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin)
+
+    util.addTable(
+      s"""
+         |create table c_watermark_t(
+         |  a int,
+         |  b varchar,
+         |  c as a + 1,
+         |  d as to_timestamp(b),
+         |  e as my_udf(a),
+         |  WATERMARK FOR d AS d - INTERVAL '0.001' SECOND
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin)
+  }
 
   @Test
   def testTableSourceScan(): Unit = {
@@ -53,43 +90,45 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testDDLWithComputedColumn(): Unit = {
-    // Create table with field as atom expression.
-    util.tableEnv.registerFunction("my_udf", Func0)
-    util.addTable(
-      s"""
-         |create table t1(
-         |  a int,
-         |  b varchar,
-         |  c as a + 1,
-         |  d as to_timestamp(b),
-         |  e as my_udf(a)
-         |) with (
-         |  'connector' = 'COLLECTION',
-         |  'is-bounded' = 'true'
-         |)
-       """.stripMargin)
-    util.verifyPlan("SELECT * FROM t1")
+    util.verifyPlan("SELECT * FROM computed_column_t")
   }
-
 
   @Test
   def testDDLWithWatermarkComputedColumn(): Unit = {
-    // Create table with field as atom expression.
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.verifyPlan("SELECT * FROM c_watermark_t")
+  }
+
+  @Test
+  def testTableApiScanWithComputedColumn(): Unit = {
+    util.verifyPlan(util.tableEnv.from("computed_column_t"))
+  }
+
+  @Test
+  def testTableApiScanWithWatermark(): Unit = {
+    util.verifyPlan(util.tableEnv.from("c_watermark_t"))
+  }
+
+  @Test
+  def testTableApiScanWithDDL(): Unit = {
     util.addTable(
       s"""
          |create table t1(
          |  a int,
-         |  b varchar,
-         |  c as a + 1,
-         |  d as to_timestamp(b),
-         |  e as my_udf(a),
-         |  WATERMARK FOR d AS d - INTERVAL '0.001' SECOND
+         |  b varchar
          |) with (
          |  'connector' = 'COLLECTION',
          |  'is-bounded' = 'true'
          |)
        """.stripMargin)
-    util.verifyPlan("SELECT * FROM t1")
+    util.verifyPlan(util.tableEnv.from("t1"))
+  }
+
+  @Test
+  def testTableApiScanWithTemporaryTable(): Unit = {
+    util.tableEnv.connect(new FileSystem().path(tempFolder.newFile.getPath))
+        .withFormat(new OldCsv())
+        .withSchema(new Schema().field("word", DataTypes.STRING()))
+        .createTemporaryTable("t1")
+    util.verifyPlan(util.tableEnv.from("t1"))
   }
 }

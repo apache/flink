@@ -37,6 +37,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Class representing the operators in the streaming programs, with all their properties.
  */
@@ -65,8 +67,7 @@ public class StreamNode implements Serializable {
 
 	private transient StreamOperatorFactory<?> operatorFactory;
 	private List<OutputSelector<?>> outputSelectors;
-	private TypeSerializer<?> typeSerializerIn1;
-	private TypeSerializer<?> typeSerializerIn2;
+	private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
 	private TypeSerializer<?> typeSerializerOut;
 
 	private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
@@ -235,20 +236,17 @@ public class StreamNode implements Serializable {
 		this.outputSelectors.add(outputSelector);
 	}
 
-	public TypeSerializer<?> getTypeSerializerIn1() {
-		return typeSerializerIn1;
+	public void setSerializersIn(TypeSerializer<?> ...typeSerializersIn) {
+		checkArgument(typeSerializersIn.length > 0);
+		this.typeSerializersIn = typeSerializersIn;
 	}
 
-	public void setSerializerIn1(TypeSerializer<?> typeSerializerIn1) {
-		this.typeSerializerIn1 = typeSerializerIn1;
+	public TypeSerializer<?>[] getTypeSerializersIn() {
+		return typeSerializersIn;
 	}
 
-	public TypeSerializer<?> getTypeSerializerIn2() {
-		return typeSerializerIn2;
-	}
-
-	public void setSerializerIn2(TypeSerializer<?> typeSerializerIn2) {
-		this.typeSerializerIn2 = typeSerializerIn2;
+	public TypeSerializer<?> getTypeSerializerIn(int index) {
+		return typeSerializersIn[index];
 	}
 
 	public TypeSerializer<?> getTypeSerializerOut() {

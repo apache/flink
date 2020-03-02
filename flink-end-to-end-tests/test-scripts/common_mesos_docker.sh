@@ -25,6 +25,7 @@ source "$(dirname "$0")"/common_docker.sh
 MAX_RETRY_SECONDS=120
 IMAGE_BUILD_RETRIES=5
 NODENAME=${NODENAME:-`hostname -f`}
+export MESOS_AGENT_CPU=1
 
 echo "End-to-end directory $END_TO_END_DIR"
 
@@ -32,12 +33,17 @@ start_time=$(date +%s)
 
 # make sure we stop our cluster at the end
 function cluster_shutdown {
+  docker exec mesos-master bash -c "chmod -R ogu+rw ${FLINK_DIR}/log/ ${TEST_DATA_DIR}"
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml down
 }
 on_exit cluster_shutdown
 
 function start_flink_cluster_with_mesos() {
     echo "Starting Flink on Mesos cluster"
+    if ! retry_times $IMAGE_BUILD_RETRIES 0 build_image; then
+        echo "ERROR: Could not build mesos image. Aborting..."
+        exit 1
+    fi
     build_image
 
     docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml up -d
@@ -59,10 +65,19 @@ function start_flink_cluster_with_mesos() {
 
 function build_image() {
     echo "Building Mesos Docker container"
-    if ! retry_times $IMAGE_BUILD_RETRIES 0 docker build -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/Dockerfile \
+    docker build -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/Dockerfile \
         -t flink/docker-mesos-cluster:latest \
-        $END_TO_END_DIR/test-scripts/docker-mesos-cluster/; then
-        echo "ERROR: Could not build mesos image. Aborting..."
-        exit 1
-    fi
+        $END_TO_END_DIR/test-scripts/docker-mesos-cluster/
+}
+
+function wait_job_terminal_state_mesos {
+  local job=$1
+  local expected_terminal_state=$2
+  wait_job_terminal_state $1 $2 "mesos-appmaster"
+}
+
+function wait_num_of_occurence_in_logs_mesos() {
+    local text=$1
+    local number=$2
+    wait_num_of_occurence_in_logs $1 $2 "mesos-appmaster"
 }

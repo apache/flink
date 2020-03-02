@@ -179,18 +179,18 @@ Flink provides several commonly used watermark strategies.
 
 - Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
 
-  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal and smaller to the max timestamp are not late.
 
-- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`.
+- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`.
 
-  Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
+  Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
 
 {% highlight sql %}
 CREATE TABLE Orders (
     user BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
-    WATERMARK FOR order_time AS order_time - '5' SECONDS
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH ( . . . );
 {% endhighlight %}
 
@@ -241,13 +241,17 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 Create a catalog function that has catalog and database namespaces with the identifier which is full classpath for JAVA/SCALA and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
 
 **TEMPORARY**
+
 Create temporary catalog function that has catalog and database namespaces and overrides catalog functions.
 
 **TEMPORARY SYSTEM**
+
 Create temporary system function that has no namespace and overrides built-in functions
 
 **IF NOT EXISTS**
+
 If the function already exists, nothing happens.
 
-**LANGUAGE JAVA|SCALA**
-Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+**LANGUAGE JAVA\|SCALA**
+
+Language tag to instruct Flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.

@@ -1,5 +1,5 @@
 ---
-title: "CREATE Statements"
+title: "CREATE 语句"
 nav-parent_id: sql
 nav-pos: 2
 ---
@@ -25,19 +25,19 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-CREATE statements are used to register a table/view/function into current or specified [Catalog]({{ site.baseurl }}/dev/table/catalogs.html). A registered table/view/function can be used in SQL queries.
+CREATE 语句用于向当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/table/catalogs.html) 中注册表、视图或函数。注册后的表、视图和函数可以在 SQL 查询中使用。
 
-Flink SQL supports the following CREATE statements for now:
+目前 Flink SQL 支持下列 CREATE 语句：
 
 - CREATE TABLE
 - CREATE DATABASE
 - CREATE FUNCTION
 
-## Run a CREATE statement
+## 执行 CREATE 语句
 
-CREATE statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful CREATE operation, otherwise will throw an exception.
+可以使用 `TableEnvironment` 中的 `sqlUpdate()` 方法执行 CREATE 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 CREATE 语句。 若 CREATE 操作执行成功，`sqlUpdate()` 方法不返回任何内容，否则会抛出异常。
 
-The following examples show how to run a CREATE statement in `TableEnvironment` and in SQL CLI.
+以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 CREATE 语句。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -45,17 +45,17 @@ The following examples show how to run a CREATE statement in `TableEnvironment` 
 EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-// SQL query with a registered table
-// register a table named "Orders"
+// 对已经已经注册的表进行 SQL 查询
+// 注册名为 “Orders” 的表
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
-// run a SQL query on the Table and retrieve the result as a new Table
+// 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL update with a registered table
-// register a TableSink
+// SQL 对已注册的表进行 update 操作
+// 注册 TableSink
 tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
-// run a SQL update query on the Table and emit the result to the TableSink
+// 在表上执行 SQL 更新查询并向 TableSink 发出结果
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
@@ -66,17 +66,17 @@ tableEnv.sqlUpdate(
 val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
-// SQL query with a registered table
-// register a table named "Orders"
+// 对已经已经注册的表进行 SQL 查询
+// 注册名为 “Orders” 的表
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
-// run a SQL query on the Table and retrieve the result as a new Table
+// 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL update with a registered table
-// register a TableSink
+// SQL 对已注册的表进行 update 操作
+// 注册 TableSink
 tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
-// run a SQL update query on the Table and emit the result to the TableSink
+// 在表上执行 SQL 更新查询并向 TableSink 发出结果
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -87,17 +87,17 @@ tableEnv.sqlUpdate(
 settings = EnvironmentSettings.newInstance()...
 table_env = TableEnvironment.create(settings)
 
-# SQL query with a registered table
-# register a table named "Orders"
+# 对已经已经注册的表进行 SQL 查询
+# 注册名为 “Orders” 的表
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
-# run a SQL query on the Table and retrieve the result as a new Table
+# 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-# SQL update with a registered table
-# register a TableSink
+# SQL 对已注册的表进行 update 操作
+# 注册 TableSink
 table_env.sql_update("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
-# run a SQL update query on the Table and emit the result to the TableSink
+# 在表上执行 SQL 更新查询并向 TableSink 发出结果
 table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -119,7 +119,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 {% top %}
 
-## CREATE TABLE
+##  CREATE TABLE
 
 {% highlight sql %}
 CREATE TABLE [catalog_name.][db_name.]table_name
@@ -142,71 +142,71 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 {% endhighlight %}
 
-Creates a table with the given name. If a table with the same name already exists in the catalog, an exception is thrown.
+根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
 
 **COMPUTED COLUMN**
 
-A computed column is a virtual column that is generated using the syntax  "`column_name AS computed_column_expression`". It is generated from a non-query expression that uses other columns in the same table and is not physically stored within the table. For example, a computed column could be defined as `cost AS price * quantity`. The expression may contain any combination of physical column, constant, function, or variable. The expression cannot contain a subquery.
+计算列是一个使用 “`column_name AS computed_column_expression`” 语法生成的虚拟列。它由使用同一表中其他列的非查询表达式生成，并且不会在表中进行物理存储。例如，一个计算列可以使用 `cost AS price * quantity` 进行定义，这个表达式可以包含物理列、常量、函数或变量的任意组合，但这个表达式不能存在任何子查询。
 
-Computed columns are commonly used in Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statements.
-A [processing time attribute]({{ site.baseurl}}/dev/table/streaming/time_attributes.html#processing-time) can be defined easily via `proc AS PROCTIME()` using the system `PROCTIME()` function.
-On the other hand, computed column can be used to derive event time column because an event time column may need to be derived from existing fields, e.g. the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
+在 Flink 中计算列一般用于为 CREATE TABLE 语句定义 [时间属性]({{ site.baseurl}}/zh/dev/table/streaming/time_attributes.html)。
+[处理时间属性]({{ site.baseurl}}/zh/dev/table/streaming/time_attributes.html#processing-time) 可以简单地通过使用了系统函数 `PROCTIME()` 的 `proc AS PROCTIME()` 语句进行定义。
+另一方面，由于事件时间列可能需要从现有的字段中获得，因此计算列可用于获得事件时间列。例如，原始字段的类型不是 `TIMESTAMP(3)` 或嵌套在 JSON 字符串中。
 
-Notes:
+注意：
 
-- A computed column defined on a source table is computed after reading from the source, it can be used in the following SELECT query statements.
-- A computed column cannot be the target of an INSERT statement. In INSERT statements, the schema of SELECT clause should match the schema of the target table without computed columns.
+- 定义在一个数据源表（ source table ）上的计算列会在从数据源读取数据后被计算，它们可以在 SELECT 查询语句中使用。
+- 计算列不可以作为 INSERT 语句的目标，在 INSERT 语句中，SELECT 语句的 schema 需要与目标表不带有计算列的 schema 一致。
 
 **WATERMARK**
 
-The `WATERMARK` defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression`.
+`WATERMARK` 定义了表的事件时间属性，其形式为 `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression` 。
 
-The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
+`rowtime_column_name` 把一个现有的列定义为一个为表标记事件时间的属性。该列的类型必须为 `TIMESTAMP(3)`，且是 schema 中的顶层列，它也可以是一个计算列。
 
-The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
-The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
-The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
-Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/ops/config.html#pipeline-auto-watermark-interval) configuration.
-If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
+`watermark_strategy_expression` 定义了 watermark 的生成策略。它允许使用包括计算列在内的任意非查询表达式来计算 watermark ；表达式的返回类型必须是 `TIMESTAMP(3)`，表示了从 Epoch 以来的经过的时间。
+返回的 watermark 只有当其不为空且其值大于之前发出的本地 watermark 时才会被发出（以保证 watermark 递增）。每条记录的 watermark 生成表达式计算都会由框架完成。
+框架会定期发出所生成的最大的 watermark ，如果当前 watermark 仍然与前一个 watermark 相同、为空、或返回的 watermark 的值小于最后一个发出的 watermark ，则新的 watermark 不会被发出。
+Watermark 根据 [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/zh/ops/config.html#pipeline-auto-watermark-interval) 中所配置的间隔发出。
+若 watermark 的间隔是 `0ms` ，那么每条记录都会产生一个 watermark，且 watermark 会在不为空并大于上一个发出的 watermark 时发出。
 
-When using event time semantics, tables must contain an event time attribute and watermarking strategy.
+使用事件时间语义时，表必须包含事件时间属性和 watermark 策略。
 
-Flink provides several commonly used watermark strategies.
+Flink 提供了几种常用的 watermark 策略。
 
-- Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`.
+- 严格递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column`。
 
-  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
+  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳小于最大时间戳的行被认为没有迟到。
 
-- Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
+- 递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`。
 
-  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp are not late.
+  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳等于或小于最大时间戳的行被认为没有迟到。
 
-- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`.
+- 有界乱序时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`。
 
-  Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
+  发出到目前为止已观察到的最大时间戳减去指定延迟的 watermark ，例如， `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '5' SECOND` 是一个 5 秒延迟的 watermark 策略。
 
 {% highlight sql %}
 CREATE TABLE Orders (
     user BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
-    WATERMARK FOR order_time AS order_time - '5' SECONDS
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH ( . . . );
 {% endhighlight %}
 
 **PARTITIONED BY**
 
-Partition the created table by the specified columns. A directory is created for each partition if this table is used as a filesystem sink.
+根据指定的列对已经创建的表进行分区。若表使用 filesystem sink ，则将会为每个分区创建一个目录。
 
 **WITH OPTIONS**
 
-Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
+表属性用于创建 table source/sink ，一般用于寻找和创建底层的连接器。
 
-The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems]({{ site.baseurl }}/dev/table/connect.html) for all the supported table properties of different connectors.
+表达式 `key1=val1` 的键和值必须为字符串文本常量。请参考 [连接外部系统]({{ site.baseurl }}/zh/dev/table/connect.html) 了解不同连接器所支持的属性。
 
-**Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
+**注意：** 表名可以为以下三种格式 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`。使用`catalog_name.db_name.table_name` 的表将会与名为 "catalog_name" 的 catalog 和名为 "db_name" 的数据库一起注册到 metastore 中。使用 `db_name.table_name` 的表将会被注册到当前执行的 table environment 中的 catalog 且数据库会被命名为 "db_name"；对于 `table_name`, 数据表将会被注册到当前正在运行的catalog和数据库中。
 
-**Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
+**注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
 
 {% top %}
 
@@ -218,37 +218,41 @@ CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
   WITH (key1=val1, key2=val2, ...)
 {% endhighlight %}
 
-Create a database with the given database properties. If a database with the same name already exists in the catalog, an exception is thrown.
+根据给定的表属性创建数据库。若数据库中已存在同名表会抛出异常。
 
 **IF NOT EXISTS**
 
-If the database already exists, nothing happens.
+若数据库已经存在，则不会进行任何操作。
 
 **WITH OPTIONS**
 
-Database properties used to store extra information related to this database.
-The key and value of expression `key1=val1` should both be string literal.
+数据库属性一般用于存储关于这个数据库额外的信息。
+表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
 
 {% top %}
 
 ## CREATE FUNCTION
 {% highlight sql%}
-CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
-  [IF NOT EXISTS] [[catalog_name.]db_name.]function_name 
+CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
+  [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA]
 {% endhighlight %}
 
-Create a catalog function that has catalog and database namespaces with the identifier which is full classpath for JAVA/SCALA and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+创建一个有 catalog 和数据库命名空间的 catalog function ，其需要指定 JAVA / SCALA 或其他 language tag 完整的 classpath。 若 catalog 中，已经有同名的函数注册了，则无法注册。
 
 **TEMPORARY**
-Create temporary catalog function that has catalog and database namespaces and overrides catalog functions.
+
+创建一个有 catalog 和数据库命名空间的临时 catalog function ，并覆盖原有的 catalog function 。
 
 **TEMPORARY SYSTEM**
-Create temporary system function that has no namespace and overrides built-in functions
+
+创建一个没有数据库命名空间的临时系统 catalog function ，并覆盖系统内置的函数。
 
 **IF NOT EXISTS**
-If the function already exists, nothing happens.
 
-**LANGUAGE JAVA|SCALA**
-Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+若该函数已经存在，则不会进行任何操作。
+
+**LANGUAGE JAVA\|SCALA**
+
+Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA 和 SCALA，且函数的默认语言为 JAVA。
 

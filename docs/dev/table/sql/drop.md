@@ -152,10 +152,13 @@ DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]
 Drop a catalog function that has catalog and database namespaces. If the function to drop does not exist, an exception is thrown.
 
 **TEMPORARY**
+
 Drop temporary catalog function that has catalog and database namespaces.
 
 **TEMPORARY SYSTEM**
+
 Drop temporary system function that has no namespace.
 
 **IF EXISTS**
+
 If the function doesn't exists, nothing happens.

@@ -41,6 +41,8 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,6 +70,14 @@ public final class LogicalTypeChecks {
 
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
+	}
+
+	/**
+	 * Checks whether a (possibly nested) logical type contains the given root.
+	 */
+	public static boolean hasNestedRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
+		final NestedTypeSearcher rootSearcher = new NestedTypeSearcher((t) -> hasRoot(t, typeRoot));
+		return logicalType.accept(rootSearcher).isPresent();
 	}
 
 	public static boolean hasFamily(LogicalType logicalType, LogicalTypeFamily family) {
@@ -407,6 +417,32 @@ public final class LogicalTypeChecks {
 				}
 				return true;
 			}
+		}
+	}
+
+	/**
+	 * Searches for a type (including children) satisfying the given predicate.
+	 */
+	private static class NestedTypeSearcher extends LogicalTypeDefaultVisitor<Optional<LogicalType>> {
+
+		private final Predicate<LogicalType> predicate;
+
+		private NestedTypeSearcher(Predicate<LogicalType> predicate) {
+			this.predicate = predicate;
+		}
+
+		@Override
+		protected Optional<LogicalType> defaultMethod(LogicalType logicalType) {
+			if (predicate.test(logicalType)) {
+				return Optional.of(logicalType);
+			}
+			for (LogicalType child : logicalType.getChildren()) {
+				final Optional<LogicalType> foundType = child.accept(this);
+				if (foundType.isPresent()) {
+					return foundType;
+				}
+			}
+			return Optional.empty();
 		}
 	}
 }

@@ -72,11 +72,17 @@ public class ResourceProfile implements Serializable {
 		.setTaskHeapMemory(MemorySize.MAX_VALUE)
 		.setTaskOffHeapMemory(MemorySize.MAX_VALUE)
 		.setManagedMemory(MemorySize.MAX_VALUE)
-		.setShuffleMemory(MemorySize.MAX_VALUE)
+		.setNetworkMemory(MemorySize.MAX_VALUE)
 		.build();
 
 	/** A ResourceProfile describing zero resources. */
 	public static final ResourceProfile ZERO = newBuilder().build();
+
+	/** Maximum number of cpu cores to output in {@link #toString()}. */
+	static final BigDecimal MAX_CPU_CORE_NUMBER_TO_LOG = new BigDecimal(16384);
+
+	/** Maximum memory resource size to output in {@link #toString()}. */
+	static final MemorySize MAX_MEMORY_SIZE_TO_LOG = new MemorySize(1L << 50); // 1Pb
 
 	// ------------------------------------------------------------------------
 
@@ -96,9 +102,9 @@ public class ResourceProfile implements Serializable {
 	@Nullable // can be null only for UNKNOWN
 	private final MemorySize managedMemory;
 
-	/** How much shuffle memory is needed. */
+	/** How much network memory is needed. */
 	@Nullable // can be null only for UNKNOWN
-	private final MemorySize shuffleMemory;
+	private final MemorySize networkMemory;
 
 	/** A extensible field for user specified resources from {@link ResourceSpec}. */
 	private final Map<String, Resource> extendedResources = new HashMap<>(1);
@@ -112,7 +118,7 @@ public class ResourceProfile implements Serializable {
 	 * @param taskHeapMemory The size of the task heap memory.
 	 * @param taskOffHeapMemory The size of the task off-heap memory.
 	 * @param managedMemory The size of the managed memory.
-	 * @param shuffleMemory The size of the shuffle memory.
+	 * @param networkMemory The size of the network memory.
 	 * @param extendedResources The extended resources such as GPU and FPGA
 	 */
 	private ResourceProfile(
@@ -120,7 +126,7 @@ public class ResourceProfile implements Serializable {
 			final MemorySize taskHeapMemory,
 			final MemorySize taskOffHeapMemory,
 			final MemorySize managedMemory,
-			final MemorySize shuffleMemory,
+			final MemorySize networkMemory,
 			final Map<String, Resource> extendedResources) {
 
 		checkNotNull(cpuCores);
@@ -130,7 +136,7 @@ public class ResourceProfile implements Serializable {
 		this.taskHeapMemory = checkNotNull(taskHeapMemory);
 		this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
 		this.managedMemory = checkNotNull(managedMemory);
-		this.shuffleMemory = checkNotNull(shuffleMemory);
+		this.networkMemory = checkNotNull(networkMemory);
 		if (extendedResources != null) {
 			this.extendedResources.putAll(extendedResources);
 		}
@@ -144,7 +150,7 @@ public class ResourceProfile implements Serializable {
 		this.taskHeapMemory = null;
 		this.taskOffHeapMemory = null;
 		this.managedMemory = null;
-		this.shuffleMemory = null;
+		this.networkMemory = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -190,13 +196,13 @@ public class ResourceProfile implements Serializable {
 	}
 
 	/**
-	 * Get the shuffle memory needed.
+	 * Get the network memory needed.
 	 *
-	 * @return The shuffle memory
+	 * @return The network memory
 	 */
-	public MemorySize getShuffleMemory() {
+	public MemorySize getNetworkMemory() {
 		throwUnsupportedOperationExecptionIfUnknown();
-		return shuffleMemory;
+		return networkMemory;
 	}
 
 	/**
@@ -206,7 +212,7 @@ public class ResourceProfile implements Serializable {
 	 */
 	public MemorySize getTotalMemory() {
 		throwUnsupportedOperationExecptionIfUnknown();
-		return getOperatorsMemory().add(shuffleMemory);
+		return getOperatorsMemory().add(networkMemory);
 	}
 
 	/**
@@ -264,7 +270,7 @@ public class ResourceProfile implements Serializable {
 			taskHeapMemory.compareTo(required.taskHeapMemory) >= 0 &&
 			taskOffHeapMemory.compareTo(required.taskOffHeapMemory) >= 0 &&
 			managedMemory.compareTo(required.managedMemory) >= 0 &&
-			shuffleMemory.compareTo(required.shuffleMemory) >= 0) {
+			networkMemory.compareTo(required.networkMemory) >= 0) {
 
 			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
 				if (!extendedResources.containsKey(resource.getKey()) ||
@@ -285,7 +291,7 @@ public class ResourceProfile implements Serializable {
 		result = 31 * result + Objects.hashCode(taskHeapMemory);
 		result = 31 * result + Objects.hashCode(taskOffHeapMemory);
 		result = 31 * result + Objects.hashCode(managedMemory);
-		result = 31 * result + Objects.hashCode(shuffleMemory);
+		result = 31 * result + Objects.hashCode(networkMemory);
 		result = 31 * result + extendedResources.hashCode();
 		return result;
 	}
@@ -300,7 +306,7 @@ public class ResourceProfile implements Serializable {
 				Objects.equals(taskHeapMemory, that.taskHeapMemory) &&
 				Objects.equals(taskOffHeapMemory, that.taskOffHeapMemory) &&
 				Objects.equals(managedMemory, that.managedMemory) &&
-				Objects.equals(shuffleMemory, that.shuffleMemory) &&
+				Objects.equals(networkMemory, that.networkMemory) &&
 				Objects.equals(extendedResources, that.extendedResources);
 		}
 		return false;
@@ -336,7 +342,7 @@ public class ResourceProfile implements Serializable {
 			taskHeapMemory.add(other.taskHeapMemory),
 			taskOffHeapMemory.add(other.taskOffHeapMemory),
 			managedMemory.add(other.managedMemory),
-			shuffleMemory.add(other.shuffleMemory),
+			networkMemory.add(other.networkMemory),
 			resultExtendedResource);
 	}
 
@@ -373,7 +379,7 @@ public class ResourceProfile implements Serializable {
 			taskHeapMemory.subtract(other.taskHeapMemory),
 			taskOffHeapMemory.subtract(other.taskOffHeapMemory),
 			managedMemory.subtract(other.managedMemory),
-			shuffleMemory.subtract(other.shuffleMemory),
+			networkMemory.subtract(other.networkMemory),
 			resultExtendedResource
 		);
 	}
@@ -388,17 +394,28 @@ public class ResourceProfile implements Serializable {
 			return "ResourceProfile{ANY}";
 		}
 
-		final StringBuilder resources = new StringBuilder(extendedResources.size() * 10);
+		final StringBuilder extendedResourceStr = new StringBuilder(extendedResources.size() * 10);
 		for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
-			resources.append(", ").append(resource.getKey()).append('=').append(resource.getValue().getValue());
+			extendedResourceStr.append(", ").append(resource.getKey()).append('=').append(resource.getValue().getValue());
 		}
-		return "ResourceProfile{" +
-			"cpuCores=" + cpuCores.getValue() +
-			", taskHeapMemory=" + taskHeapMemory +
-			", taskOffHeapMemory=" + taskOffHeapMemory +
-			", managedMemory=" + managedMemory +
-			", shuffleMemory=" + shuffleMemory + resources +
-			'}';
+		return "ResourceProfile{" + getResourceString() + extendedResourceStr + '}';
+	}
+
+	private String getResourceString() {
+		String resourceStr = cpuCores == null || cpuCores.getValue().compareTo(MAX_CPU_CORE_NUMBER_TO_LOG) > 0 ?
+			"" : "cpuCores=" + cpuCores.getValue();
+		resourceStr = addMemorySizeString(resourceStr, "taskHeapMemory", taskHeapMemory);
+		resourceStr = addMemorySizeString(resourceStr, "taskOffHeapMemory", taskOffHeapMemory);
+		resourceStr = addMemorySizeString(resourceStr, "managedMemory", managedMemory);
+		resourceStr = addMemorySizeString(resourceStr, "networkMemory", networkMemory);
+		return resourceStr;
+	}
+
+	private static String addMemorySizeString(String resourceStr, String name, MemorySize size) {
+		String comma = resourceStr.isEmpty() ? "" : ", ";
+		String memorySizeStr = size == null || size.compareTo(MAX_MEMORY_SIZE_TO_LOG) > 0 ?
+			"" : comma + name + '=' + size.toHumanReadableString();
+		return resourceStr + memorySizeStr;
 	}
 
 	// ------------------------------------------------------------------------
@@ -438,7 +455,7 @@ public class ResourceProfile implements Serializable {
 			.setTaskHeapMemory(resourceSpec.getTaskHeapMemory())
 			.setTaskOffHeapMemory(resourceSpec.getTaskOffHeapMemory())
 			.setManagedMemory(resourceSpec.getManagedMemory())
-			.setShuffleMemory(networkMemory)
+			.setNetworkMemory(networkMemory)
 			.addExtendedResources(resourceSpec.getExtendedResources())
 			.build();
 	}
@@ -464,7 +481,7 @@ public class ResourceProfile implements Serializable {
 		private MemorySize taskHeapMemory = MemorySize.ZERO;
 		private MemorySize taskOffHeapMemory = MemorySize.ZERO;
 		private MemorySize managedMemory = MemorySize.ZERO;
-		private MemorySize shuffleMemory = MemorySize.ZERO;
+		private MemorySize networkMemory = MemorySize.ZERO;
 		private Map<String, Resource> extendedResources = new HashMap<>();
 
 		private Builder() {
@@ -486,7 +503,7 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
-			this.taskHeapMemory = MemorySize.parse(taskHeapMemoryMB + "m");
+			this.taskHeapMemory = MemorySize.ofMebiBytes(taskHeapMemoryMB);
 			return this;
 		}
 
@@ -496,7 +513,7 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setTaskOffHeapMemoryMB(int taskOffHeapMemoryMB) {
-			this.taskOffHeapMemory = MemorySize.parse(taskOffHeapMemoryMB + "m");
+			this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
 			return this;
 		}
 
@@ -506,17 +523,17 @@ public class ResourceProfile implements Serializable {
 		}
 
 		public Builder setManagedMemoryMB(int managedMemoryMB) {
-			this.managedMemory = MemorySize.parse(managedMemoryMB + "m");
+			this.managedMemory = MemorySize.ofMebiBytes(managedMemoryMB);
 			return this;
 		}
 
-		public Builder setShuffleMemory(MemorySize shuffleMemory) {
-			this.shuffleMemory = shuffleMemory;
+		public Builder setNetworkMemory(MemorySize networkMemory) {
+			this.networkMemory = networkMemory;
 			return this;
 		}
 
-		public Builder setShuffleMemoryMB(int shuffleMemoryMB) {
-			this.shuffleMemory = MemorySize.parse(shuffleMemoryMB + "m");
+		public Builder setNetworkMemoryMB(int networkMemoryMB) {
+			this.networkMemory = MemorySize.ofMebiBytes(networkMemoryMB);
 			return this;
 		}
 
@@ -538,7 +555,7 @@ public class ResourceProfile implements Serializable {
 				taskHeapMemory,
 				taskOffHeapMemory,
 				managedMemory,
-				shuffleMemory,
+				networkMemory,
 				extendedResources);
 		}
 	}

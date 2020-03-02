@@ -22,6 +22,8 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -52,9 +54,8 @@ import static org.junit.Assert.assertThat;
  */
 public class YARNITCase extends YarnTestBase {
 
-	private final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
-
-	private final int sleepIntervalInMS = 100;
+	private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
+	private static final int sleepIntervalInMS = 100;
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -67,27 +68,26 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.FIRST, getTestingJobGraph()));
+		runTest(() -> deployPerJob(
+			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.FIRST),
+			getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
-		runTest(() -> deployPerjob(YarnConfigOptions.UserJarInclusion.DISABLED, getTestingJobGraph()));
+		runTest(() -> deployPerJob(
+			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
+			getTestingJobGraph()));
 	}
 
 	@Test
 	public void testPerJobModeWithDistributedCache() throws Exception {
-		runTest(() -> deployPerjob(
-			YarnConfigOptions.UserJarInclusion.DISABLED,
+		runTest(() -> deployPerJob(
+			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
 			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
 	}
 
-	private void deployPerjob(YarnConfigOptions.UserJarInclusion userJarInclusion, JobGraph jobGraph) throws Exception {
-
-		Configuration configuration = new Configuration();
-		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
-
+	private void deployPerJob(Configuration configuration, JobGraph jobGraph) throws Exception {
 		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
 
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
@@ -98,7 +98,6 @@ public class YARNITCase extends YarnTestBase {
 				.setMasterMemoryMB(768)
 				.setTaskManagerMemoryMB(1024)
 				.setSlotsPerTaskManager(1)
-				.setNumberTaskManagers(1)
 				.createClusterSpecification();
 
 			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
@@ -135,5 +134,14 @@ public class YARNITCase extends YarnTestBase {
 			.addSink(new DiscardingSink<>());
 
 		return env.getStreamGraph().getJobGraph();
+	}
+
+	private Configuration createDefaultConfiguration(YarnConfigOptions.UserJarInclusion userJarInclusion) {
+		Configuration configuration = new Configuration();
+		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
+
+		return configuration;
 	}
 }

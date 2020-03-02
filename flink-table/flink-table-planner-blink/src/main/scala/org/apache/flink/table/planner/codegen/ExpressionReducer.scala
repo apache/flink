@@ -138,8 +138,8 @@ class ExpressionReducer(
                SqlTypeName.MULTISET =>
             reducedValues.add(unreduced)
           case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
-            val escapeVarchar = StringEscapeUtils
-              .escapeJava(safeToString(reduced.getField(reducedIdx).asInstanceOf[BinaryString]))
+            val escapeVarchar = safeToString(
+              reduced.getField(reducedIdx).asInstanceOf[BinaryString])
             reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
             reducedIdx += 1
           case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>

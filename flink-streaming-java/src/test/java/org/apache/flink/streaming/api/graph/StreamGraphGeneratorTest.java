@@ -35,11 +35,15 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -310,6 +314,37 @@ public class StreamGraphGeneratorTest extends TestLogger {
 		env.getStreamGraph();
 
 		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+	}
+
+	@Test
+	public void testMultipleInputTransformation() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source1 = env.fromElements(1, 10);
+		DataStream<Long> source2 = env.fromElements(2L, 11L);
+		DataStream<String> source3 = env.fromElements("42", "44");
+
+		MultipleInputTransformation<String> transform = new MultipleInputTransformation<String>(
+			"My Operator",
+			new MultipleInputOperatorFactory(),
+			BasicTypeInfo.STRING_TYPE_INFO,
+			3);
+
+		transform.addInput(source1.getTransformation());
+		transform.addInput(source2.getTransformation());
+		transform.addInput(source3.getTransformation());
+
+		env.addOperator(transform);
+		StreamGraph streamGraph = env.getStreamGraph();
+		assertEquals(4, streamGraph.getStreamNodes().size());
+
+		assertEquals(1, streamGraph.getStreamEdges(source1.getId(), transform.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source2.getId(), transform.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source3.getId(), transform.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source1.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source2.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source3.getId()).size());
+		assertEquals(0, streamGraph.getStreamEdges(transform.getId()).size());
 	}
 
 	/**
@@ -631,6 +666,31 @@ public class StreamGraphGeneratorTest extends TestLogger {
 		@Override
 		protected boolean matchesSafely(ResourceSpec item) {
 			return resources.lessThanOrEqual(item) && item.lessThanOrEqual(resources);
+		}
+	}
+
+	private static class MultipleInputOperatorFactory implements StreamOperatorFactory<String> {
+		@Override
+		public <T extends StreamOperator<String>> T createStreamOperator(
+				StreamTask<?, ?> containingTask,
+				StreamConfig config,
+				Output<StreamRecord<String>> output) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setChainingStrategy(ChainingStrategy strategy) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public ChainingStrategy getChainingStrategy() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+			throw new UnsupportedOperationException();
 		}
 	}
 }
