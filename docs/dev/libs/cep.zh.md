@@ -60,7 +60,7 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 </div>
 </div>
 
-{% info 提示 %} FlinkCEP不是二进制分发的一部分。在集群上执行如何链接它可以看[这里]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html)。
+{% info 提示 %} FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html)。
 
 现在可以开始使用Pattern API写你的第一个CEP程序了。
 
