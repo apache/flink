@@ -415,10 +415,12 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(configuration);
 		checkNotNull(haServices);
 
-		final String taskManagerAddress = determineTaskManagerBindAddress(configuration, haServices);
-		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
-
-		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, taskManagerAddress, portRangeDefinition).createAndStart();
+		return AkkaRpcServiceUtils.createRemoteRpcService(
+			configuration,
+			determineTaskManagerBindAddress(configuration, haServices),
+			configuration.getString(TaskManagerOptions.RPC_PORT),
+			configuration.getString(TaskManagerOptions.BIND_HOST),
+			configuration.getOptional(TaskManagerOptions.RPC_BIND_PORT));
 	}
 
 	private static String determineTaskManagerBindAddress(

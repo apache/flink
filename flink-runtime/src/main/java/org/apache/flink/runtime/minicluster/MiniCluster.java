@@ -269,19 +269,29 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				} else {
 
 					// start a new service per component, possibly with custom bind addresses
+					final String jobManagerExternalAddress = miniClusterConfiguration.getJobManagerExternalAddress();
+					final String taskManagerExternalAddress = miniClusterConfiguration.getTaskManagerExternalAddress();
+					final String jobManagerExternalPortRange = miniClusterConfiguration.getJobManagerExternalPortRange();
+					final String taskManagerExternalPortRange = miniClusterConfiguration.getTaskManagerExternalPortRange();
 					final String jobManagerBindAddress = miniClusterConfiguration.getJobManagerBindAddress();
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
-					final String jobManagerBindPort = miniClusterConfiguration.getJobManagerBindPortRange();
-					final String taskManagerBindPort = miniClusterConfiguration.getTaskManagerBindPortRange();
 
 					dispatcherResourceManagreComponentRpcServiceFactory =
-						new DedicatedRpcServiceFactory(configuration, jobManagerBindAddress, jobManagerBindPort);
+						new DedicatedRpcServiceFactory(
+							configuration,
+							jobManagerExternalAddress,
+							jobManagerExternalPortRange,
+							jobManagerBindAddress);
 					taskManagerRpcServiceFactory =
-						new DedicatedRpcServiceFactory(configuration, taskManagerBindAddress, taskManagerBindPort);
+						new DedicatedRpcServiceFactory(
+							configuration,
+							taskManagerExternalAddress,
+							taskManagerExternalPortRange,
+							taskManagerBindAddress);
 
 					// we always need the 'commonRpcService' for auxiliary calls
 					// bind to the JobManager address with port 0
-					commonRpcService = createRemoteRpcService(configuration, jobManagerBindAddress, "0");
+					commonRpcService = createRemoteRpcService(configuration, jobManagerBindAddress, 0);
 				}
 
 				RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(
@@ -719,14 +729,36 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 *
 	 * @param configuration Flink configuration.
 	 * @param bindAddress The address to bind the RPC service to.
-	 * @param bindPortRange The port range to bind the RPC service to.
+	 * @param bindPort The port range to bind the RPC service to.
 	 * @return The instantiated RPC service
 	 */
 	protected RpcService createRemoteRpcService(
 			Configuration configuration,
 			String bindAddress,
-			String bindPortRange) throws Exception {
-		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, bindAddress, bindPortRange)
+			int bindPort) throws Exception {
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, bindAddress, String.valueOf(bindPort))
+			.withBindAddress(bindAddress)
+			.withBindPort(bindPort)
+			.withCustomConfig(AkkaUtils.testDispatcherConfig())
+			.createAndStart();
+	}
+
+	/**
+	 * Factory method to instantiate the remote RPC service.
+	 *
+	 * @param configuration Flink configuration.
+	 * @param externalAddress The external address to access the RPC service.
+	 * @param externalPortRange The external port range to access the RPC service.
+	 * @param bindAddress The address to bind the RPC service to.
+	 * @return The instantiated RPC service
+	 */
+	protected RpcService createRemoteRpcService(
+		Configuration configuration,
+		String externalAddress,
+		String externalPortRange,
+		String bindAddress) throws Exception {
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, externalAddress, externalPortRange)
+			.withBindAddress(bindAddress)
 			.withCustomConfig(AkkaUtils.testDispatcherConfig())
 			.createAndStart();
 	}
@@ -902,18 +934,25 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	protected class DedicatedRpcServiceFactory implements RpcServiceFactory {
 
 		private final Configuration configuration;
+		private final String externalAddress;
+		private final String externalPortRange;
 		private final String bindAddress;
-		private final String bindPortRange;
 
-		DedicatedRpcServiceFactory(Configuration configuration, String bindAddress, String bindPortRange) {
+		DedicatedRpcServiceFactory(
+				Configuration configuration,
+				String externalAddress,
+				String externalPortRange,
+				String bindAddress) {
 			this.configuration = configuration;
+			this.externalAddress = externalAddress;
+			this.externalPortRange = externalPortRange;
 			this.bindAddress = bindAddress;
-			this.bindPortRange = bindPortRange;
 		}
 
 		@Override
 		public RpcService createRpcService() throws Exception {
-			final RpcService rpcService = MiniCluster.this.createRemoteRpcService(configuration, bindAddress, bindPortRange);
+			final RpcService rpcService = MiniCluster.this.createRemoteRpcService(
+				configuration, externalAddress, externalPortRange, bindAddress);
 
 			synchronized (lock) {
 				rpcServices.add(rpcService);

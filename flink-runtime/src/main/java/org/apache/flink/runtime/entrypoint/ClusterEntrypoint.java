@@ -70,7 +70,6 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -248,10 +247,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		LOG.info("Initializing cluster services.");
 
 		synchronized (lock) {
-			final String bindAddress = configuration.getString(JobManagerOptions.ADDRESS);
-			final String portRange = getRPCPortRange(configuration);
-
-			commonRpcService = createRpcService(configuration, bindAddress, portRange);
+			commonRpcService = AkkaRpcServiceUtils.createRemoteRpcService(
+				configuration,
+				configuration.getString(JobManagerOptions.ADDRESS),
+				getRPCPortRange(configuration),
+				configuration.getString(JobManagerOptions.BIND_HOST),
+				configuration.getOptional(JobManagerOptions.RPC_BIND_PORT));
 
 			// update the configuration used to create the high availability services
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
@@ -266,7 +267,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			heartbeatServices = createHeartbeatServices(configuration);
 			metricRegistry = createMetricRegistry(configuration);
 
-			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, bindAddress);
+			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, commonRpcService.getAddress());
 			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 			final String hostname = RpcUtils.getHostname(commonRpcService);
@@ -278,11 +279,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 		}
-	}
-
-	@Nonnull
-	private RpcService createRpcService(Configuration configuration, String bindAddress, String portRange) throws Exception {
-		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, bindAddress, portRange).createAndStart();
 	}
 
 	/**
