@@ -53,7 +53,7 @@ jobs:
     displayName: Cache Maven local repo
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin;$PATH"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
     displayName: "Set to jdk11"
     condition: eq('${{parameters.jdk}}', 'jdk11')
   # Compile
@@ -116,7 +116,7 @@ jobs:
     displayName: Cache Maven local repo
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin;$PATH"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
     displayName: "Set to jdk11"
     condition: eq('${{parameters.jdk}}', 'jdk11')  
   # Test
@@ -147,7 +147,7 @@ jobs:
       continueOnError: true
     - script: |
         echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin;$PATH"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
       displayName: "Set to jdk11"
       condition: eq('${{parameters.jdk}}', 'jdk11')
     - script: ./tools/travis/setup_maven.sh
