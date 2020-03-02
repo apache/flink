@@ -173,10 +173,6 @@ object TestCollectionTableFactory {
 
     override def getTableSchema: TableSchema = schema
 
-    override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-      dataStream.addSink(new UnsafeMemorySinkFunction(schema.toRowType)).setParallelism(1)
-    }
-
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
       dataStream.addSink(new UnsafeMemorySinkFunction(schema.toRowType)).setParallelism(1)
     }

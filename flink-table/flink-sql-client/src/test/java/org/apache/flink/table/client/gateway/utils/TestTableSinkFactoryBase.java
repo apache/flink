@@ -20,6 +20,7 @@ package org.apache.flink.table.client.gateway.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
@@ -138,8 +139,8 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		}
 
 		@Override
-		public void emitDataStream(DataStream<Row> dataStream) {
-			// do nothing
+		public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+			return null;
 		}
 	}
 }

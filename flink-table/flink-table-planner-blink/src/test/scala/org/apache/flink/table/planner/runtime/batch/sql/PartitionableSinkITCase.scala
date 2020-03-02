@@ -306,11 +306,6 @@ private class TestSink(
 
   override def getOutputType: RowTypeInfo = rowType
 
-  override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-    dataStream.addSink(new UnsafeMemorySinkFunction(rowType))
-        .setParallelism(dataStream.getParallelism)
-  }
-
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     dataStream.addSink(new UnsafeMemorySinkFunction(rowType))
         .setParallelism(dataStream.getParallelism)
