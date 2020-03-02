@@ -22,10 +22,12 @@ import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
 import org.apache.flink.table.runtime.functions._
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.linq4j.tree.Types
-import org.apache.calcite.runtime.SqlFunctions
+import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
 import java.util.TimeZone
+
+import org.apache.calcite.sql.SqlJsonConstructorNullClause
 
 object BuiltInMethods {
 
@@ -463,4 +465,8 @@ object BuiltInMethods {
 
   val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[SqlDateTimeUtils], "truncate",
     classOf[SqlTimestamp], classOf[Int])
+
+  // JSON FUNCTIONS
+  val JSON_ARRAY = Types.lookupMethod(classOf[JsonFunctions], "jsonArray",
+    classOf[SqlJsonConstructorNullClause], classOf[Array[AnyRef]])
 }

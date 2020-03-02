@@ -186,6 +186,7 @@ object CodeGenUtils {
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
 
     case RAW => className[BinaryGeneric[_]]
+    case OBJECT => "Object"
   }
 
   /**
@@ -203,6 +204,7 @@ object CodeGenUtils {
     case INTERVAL_YEAR_MONTH => "-1"
     case INTERVAL_DAY_TIME => "-1L"
 
+    case OBJECT => "null"
     case _ => "null"
   }
 
