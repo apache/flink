@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.classloading;
+package org.apache.flink.runtime.execution.librarycache;
 
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
@@ -44,7 +43,7 @@ import static org.junit.Assert.assertNotEquals;
 /**
  * Tests for classloading and class loader utilities.
  */
-public class ClassLoaderTest extends TestLogger {
+public class FlinkUserCodeClassLoadersTest extends TestLogger {
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -104,7 +103,7 @@ public class ClassLoaderTest extends TestLogger {
 		final URLClassLoader childClassLoader2 = FlinkUserCodeClassLoaders.parentFirst(
 				new URL[] { childCodePath }, parentClassLoader);
 
-		final String className = ClassLoaderTest.class.getName();
+		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
 		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
 		final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
@@ -130,7 +129,7 @@ public class ClassLoaderTest extends TestLogger {
 		final URLClassLoader childClassLoader2 = FlinkUserCodeClassLoaders.childFirst(
 				new URL[] { childCodePath }, parentClassLoader, new String[0]);
 
-		final String className = ClassLoaderTest.class.getName();
+		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
 		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
 		final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
@@ -154,7 +153,7 @@ public class ClassLoaderTest extends TestLogger {
 		final URLClassLoader childClassLoader = FlinkUserCodeClassLoaders.childFirst(
 				new URL[] { childCodePath }, parentClassLoader, new String[0]);
 
-		final String className = ClassLoaderTest.class.getName();
+		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
 		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
 		final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
@@ -171,7 +170,7 @@ public class ClassLoaderTest extends TestLogger {
 
 	@Test
 	public void testRepeatedParentFirstPatternClass() throws Exception {
-		final String className = ClassLoaderTest.class.getName();
+		final String className = FlinkUserCodeClassLoadersTest.class.getName();
 		final String parentFirstPattern = className.substring(0, className.lastIndexOf('.'));
 
 		final ClassLoader parentClassLoader = getClass().getClassLoader();
