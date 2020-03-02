@@ -246,11 +246,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
-		// build sorted one side buffer cache if first time see this key
-		if (isInsertFromLeft.value() == null) {
-			isInsertFromLeft.update(!isLeft);
-		}
-
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
 		if (isLeft && skipLeftJoin) {
@@ -263,7 +258,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
-		if (isInsertFromLeft.value() != isLeft) {
+		if (isInsertFromLeft.value() == null || isInsertFromLeft.value() != isLeft) {
 			// clean up buffers of current key
 			otherBuffersCache.remove(getCurrentKey());
 
