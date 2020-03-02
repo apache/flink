@@ -86,7 +86,7 @@ class ParamsTest(unittest.TestCase):
         import jsonpickle
 
         param_info = ParamInfo(
-            "keyy",
+            "key",
             "",
             has_default_value=True,
             default_value=None,

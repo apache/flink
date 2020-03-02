@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import array
-import jsonpickle
 from typing import TypeVar, Generic
 
 V = TypeVar('V')
@@ -30,7 +29,7 @@ class WithParams(Generic[V]):
 
     def get_params(self) -> 'Params':
         """
-        Returns the all the parameters.
+        Returns all the parameters.
 
         :return: all the parameters.
         """
@@ -79,7 +78,7 @@ class Params(Generic[V]):
     """
 
     def __init__(self):
-        self._paramMap = {}
+        self._param_map = {}
 
     def set(self, info: 'ParamInfo', value: V) -> 'Params':
         """
@@ -89,7 +88,7 @@ class Params(Generic[V]):
         :param value: the value to be set to the specific parameter.
         :return: return the current Params.
         """
-        self._paramMap[info] = value
+        self._param_map[info] = value
         return self
 
     def get(self, info: 'ParamInfo') -> V:
@@ -103,7 +102,7 @@ class Params(Generic[V]):
         :return: the value of the specific param, or default value defined in the \
         info if this Params doesn't contain the parameter.
         """
-        if info not in self._paramMap:
+        if info not in self._param_map:
             if not info.is_optional:
                 raise ValueError("Missing non-optional parameter %s" % info.name)
             elif not info.has_default_value:
@@ -111,7 +110,7 @@ class Params(Generic[V]):
             else:
                 return info.default_value
         else:
-            return self._paramMap[info]
+            return self._param_map[info]
 
     def remove(self, info: 'ParamInfo') -> V:
         """
@@ -120,7 +119,7 @@ class Params(Generic[V]):
         :param info: the info of the specific parameter to remove.
         :return: the type of the specific parameter.
         """
-        self._paramMap.pop(info)
+        self._param_map.pop(info)
 
     def contains(self, info: 'ParamInfo') -> bool:
         """
@@ -129,7 +128,7 @@ class Params(Generic[V]):
         :param info: the info of the specific parameter to check.
         :return: `True` if this params has a value set for the specified `info`, false otherwise.
         """
-        return info in self._paramMap
+        return info in self._param_map
 
     def size(self) -> int:
         """
@@ -137,7 +136,7 @@ class Params(Generic[V]):
 
         :return: Return the number of params.
         """
-        return len(self._paramMap)
+        return len(self._param_map)
 
     def clear(self) -> None:
         """
@@ -145,7 +144,7 @@ class Params(Generic[V]):
 
         :return: None.
         """
-        self._paramMap.clear()
+        self._param_map.clear()
 
     def is_empty(self) -> bool:
         """
@@ -153,7 +152,7 @@ class Params(Generic[V]):
 
         :return: `true` if this params contains no mappings.
         """
-        return len(self._paramMap) == 0
+        return len(self._param_map) == 0
 
     def to_json(self) -> str:
         """
@@ -162,7 +161,8 @@ class Params(Generic[V]):
 
         :return: a json containing all parameters in this Params.
         """
-        return str(jsonpickle.encode(self._paramMap, keys=True))
+        import jsonpickle
+        return str(jsonpickle.encode(self._param_map, keys=True))
 
     def load_json(self, json: str) -> 'Params':
         """
@@ -172,7 +172,8 @@ class Params(Generic[V]):
         :param json: the json String to restore from.
         :return: the Params.
         """
-        self._paramMap.update(jsonpickle.decode(json, keys=True))
+        import jsonpickle
+        self._param_map.update(jsonpickle.decode(json, keys=True))
         return self
 
     @staticmethod
@@ -193,7 +194,7 @@ class Params(Generic[V]):
         :return: return this Params.
         """
         if other_params is not None:
-            self._paramMap.update(other_params._paramMap)
+            self._param_map.update(other_params._param_map)
         return self
 
     def clone(self) -> 'Params':
@@ -203,7 +204,7 @@ class Params(Generic[V]):
         :return: a clone of this Params.
         """
         new_params = Params()
-        new_params._paramMap.update(self._paramMap)
+        new_params._param_map.update(self._param_map)
         return new_params
 
 
