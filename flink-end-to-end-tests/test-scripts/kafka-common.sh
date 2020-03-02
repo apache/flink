@@ -69,8 +69,11 @@ function start_kafka_cluster {
   $KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
 
   start_time=$(date +%s)
-  # zookeeper outputs the "Node does not exist" bit to stderr
-  while [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*Node\ does\ not\ exist.* ]]; do
+  #
+  # Wait for the broker info to appear in ZK. We assume propery registration once an entry
+  # similar to this is in ZK: {"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://my-host:9092"],"jmx_port":-1,"host":"honorary-pig","timestamp":"1583157804932","port":9092,"version":4}
+  #
+  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*listener_security_protocol_map.* ]]; do
     current_time=$(date +%s)
     time_diff=$((current_time - start_time))
 
