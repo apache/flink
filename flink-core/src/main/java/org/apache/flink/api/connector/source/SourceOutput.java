@@ -29,7 +29,7 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 public interface SourceOutput<T> extends WatermarkOutput {
 
 	/**
-	 * Emit a record without a timestamp. Equivalent to {@link #collect(Object, Long) collect(timestamp, null)};
+	 * Emit a record without a timestamp. Equivalent to {@link #collect(Object, long) collect(timestamp, null)};
 	 *
 	 * @param record the record to emit.
 	 */
@@ -41,5 +41,5 @@ public interface SourceOutput<T> extends WatermarkOutput {
 	 * @param record the record to emit.
 	 * @param timestamp the timestamp of the record.
 	 */
-	void collect(T record, Long timestamp) throws Exception;
+	void collect(T record, long timestamp) throws Exception;
 }
