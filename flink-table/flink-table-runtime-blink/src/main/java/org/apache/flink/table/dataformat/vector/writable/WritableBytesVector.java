@@ -26,7 +26,8 @@ import org.apache.flink.table.dataformat.vector.BytesColumnVector;
 public interface WritableBytesVector extends WritableColumnVector, BytesColumnVector {
 
 	/**
-	 * Set byte[] at rowId with the provided value.
+	 * Append byte[] at rowId with the provided value.
+	 * Note: Must append values according to the order of rowId, can not random append.
 	 */
 	void appendBytes(int rowId, byte[] value, int offset, int length);
 

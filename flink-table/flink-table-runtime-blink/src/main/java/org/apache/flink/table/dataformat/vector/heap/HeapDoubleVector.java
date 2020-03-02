@@ -61,6 +61,12 @@ public class HeapDoubleVector extends AbstractHeapVector implements WritableDoub
 
 	@Override
 	public void setDoublesFromBinary(int rowId, int count, byte[] src, int srcIndex) {
+		if (rowId + count > vector.length || srcIndex + count * 8L > src.length) {
+			throw new IndexOutOfBoundsException(String.format(
+					"Index out of bounds, row id is %s, count is %s, binary src index is %s, binary" +
+							" length is %s, double array src index is %s, double array length is %s.",
+					rowId, count, srcIndex, src.length, rowId, vector.length));
+		}
 		if (LITTLE_ENDIAN) {
 			UNSAFE.copyMemory(src, BYTE_ARRAY_OFFSET + srcIndex, vector,
 					DOUBLE_ARRAY_OFFSET + rowId * 8L, count * 8L);

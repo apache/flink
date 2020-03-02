@@ -60,6 +60,12 @@ public class HeapFloatVector extends AbstractHeapVector implements WritableFloat
 
 	@Override
 	public void setFloatsFromBinary(int rowId, int count, byte[] src, int srcIndex) {
+		if (rowId + count > vector.length || srcIndex + count * 4L > src.length) {
+			throw new IndexOutOfBoundsException(String.format(
+					"Index out of bounds, row id is %s, count is %s, binary src index is %s, binary" +
+							" length is %s, float array src index is %s, float array length is %s.",
+					rowId, count, srcIndex, src.length, rowId, vector.length));
+		}
 		if (LITTLE_ENDIAN) {
 			UNSAFE.copyMemory(src, BYTE_ARRAY_OFFSET + srcIndex, vector,
 					FLOAT_ARRAY_OFFSET + rowId * 4L, count * 4L);

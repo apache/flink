@@ -52,14 +52,17 @@ public class HeapIntVector extends AbstractHeapVector implements WritableIntVect
 
 	@Override
 	public void setInt(int i, int value) {
-		if (i >= vector.length) {
-			throw new RuntimeException();
-		}
 		vector[i] = value;
 	}
 
 	@Override
 	public void setIntsFromBinary(int rowId, int count, byte[] src, int srcIndex) {
+		if (rowId + count > vector.length || srcIndex + count * 4L > src.length) {
+			throw new IndexOutOfBoundsException(String.format(
+					"Index out of bounds, row id is %s, count is %s, binary src index is %s, binary" +
+							" length is %s, int array src index is %s, int array length is %s.",
+					rowId, count, srcIndex, src.length, rowId, vector.length));
+		}
 		if (LITTLE_ENDIAN) {
 			UNSAFE.copyMemory(src, BYTE_ARRAY_OFFSET + srcIndex, vector,
 					INT_ARRAY_OFFSET + rowId * 4L, count * 4L);
@@ -73,9 +76,6 @@ public class HeapIntVector extends AbstractHeapVector implements WritableIntVect
 
 	@Override
 	public void setInts(int rowId, int count, int value) {
-		if (rowId + count - 1 >= vector.length) {
-			throw new RuntimeException();
-		}
 		for (int i = 0; i < count; ++i) {
 			vector[i + rowId] = value;
 		}

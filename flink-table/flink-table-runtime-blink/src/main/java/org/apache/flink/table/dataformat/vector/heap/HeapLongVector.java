@@ -57,6 +57,12 @@ public class HeapLongVector extends AbstractHeapVector implements WritableLongVe
 
 	@Override
 	public void setLongsFromBinary(int rowId, int count, byte[] src, int srcIndex) {
+		if (rowId + count > vector.length || srcIndex + count * 8L > src.length) {
+			throw new IndexOutOfBoundsException(String.format(
+					"Index out of bounds, row id is %s, count is %s, binary src index is %s, binary" +
+							" length is %s, long array src index is %s, long array length is %s.",
+					rowId, count, srcIndex, src.length, rowId, vector.length));
+		}
 		if (LITTLE_ENDIAN) {
 			UNSAFE.copyMemory(src, BYTE_ARRAY_OFFSET + srcIndex, vector,
 					LONG_ARRAY_OFFSET + rowId * 8L, count * 8L);
