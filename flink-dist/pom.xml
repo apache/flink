@@ -635,7 +635,7 @@ under the License.
 									<overWrite>true</overWrite>
 								</artifactItem>
 							</artifactItems>
-							<outputDirectory>${project.build.directory}/temporary</outputDirectory>
+							<outputDirectory>${project.build.directory}/temporary/java11_exclusive</outputDirectory>
 						</configuration>
 					</execution>
 					<execution>
@@ -665,16 +665,16 @@ under the License.
 				<artifactId>maven-antrun-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>unpack-javax-libraries</id>
+						<id>bundle-java11-exclusive-dependencies</id>
 						<phase>process-resources</phase>
 						<goals>
 							<goal>run</goal>
 						</goals>
 						<configuration>
 							<target>
-								<echo message="unpacking javax jars"/>
+								<echo message="bundling java11-exclusive dependencies"/>
 								<unzip dest="${project.build.directory}/classes/META-INF/versions/11">
-									<fileset dir="${project.build.directory}/temporary">
+									<fileset dir="${project.build.directory}/temporary/java11_exclusive">
 										<include name="*"/>
 									</fileset>
 								</unzip>
