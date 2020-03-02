@@ -28,10 +28,10 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
@@ -46,7 +46,7 @@ import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
 /**
- * Rule will split the {@link FlinkLogicalTableFunctionScan} which includes java calls into a
+ * Rule will split the Python {@link FlinkLogicalTableFunctionScan} which includes java calls into a
  * {@link FlinkLogicalCalc} which will be the left input of the new  {@link FlinkLogicalCorrelate}
  * and a new {@link FlinkLogicalTableFunctionScan} without java calls.
  */
@@ -99,11 +99,97 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		}
 		RexNode rexNode = pythonTableFuncScan.getCall();
 		if (rexNode instanceof RexCall) {
-			RexCall pythonTableFuncRexCall = (RexCall) rexNode;
-			return PythonUtil.isPythonCall(pythonTableFuncRexCall) &&
-				pythonTableFuncRexCall.getOperands().stream().anyMatch(PythonUtil::isNonPythonCall);
+			return PythonUtil.isPythonCall(rexNode) && PythonUtil.containsNonPythonCall(rexNode);
 		}
 		return false;
+	}
+
+	private List<String> createNewFiledNames(
+		RelDataType rowType,
+		RexBuilder rexBuilder,
+		int primitiveFieldCount,
+		ArrayBuffer<RexCall> extractedJavaRexCalls,
+		List<RexNode> calcProjects) {
+		for (int i = 0; i < primitiveFieldCount; i++) {
+			calcProjects.add(RexInputRef.of(i, rowType));
+		}
+		// add the fields of the extracted java rex calls.
+		Iterator<RexCall> iterator = extractedJavaRexCalls.iterator();
+		while (iterator.hasNext()) {
+			calcProjects.add(iterator.next());
+		}
+
+		List<String> nameList = new LinkedList<>();
+		for (int i = 0; i < primitiveFieldCount; i++) {
+			nameList.add(rowType.getFieldNames().get(i));
+		}
+		Iterator<Object> indicesIterator = extractedJavaRexCalls.indices().iterator();
+		while (indicesIterator.hasNext()) {
+			nameList.add("f" + indicesIterator.next());
+		}
+		return SqlValidatorUtil.uniquify(
+			nameList,
+			rexBuilder.getTypeFactory().getTypeSystem().isSchemaCaseSensitive());
+	}
+
+	private FlinkLogicalCalc createNewLeftCalc(
+		RelNode left,
+		RexBuilder rexBuilder,
+		ArrayBuffer<RexCall> extractedJavaRexCalls,
+		FlinkLogicalCorrelate correlate) {
+		// add the fields of the primitive left input.
+		List<RexNode> leftCalcProjects = new LinkedList<>();
+		RelDataType leftRowType = left.getRowType();
+		List<String> leftCalcCalcFieldNames = createNewFiledNames(
+			leftRowType,
+			rexBuilder,
+			leftRowType.getFieldCount(),
+			extractedJavaRexCalls,
+			leftCalcProjects);
+
+		// create a new java calc
+		return new FlinkLogicalCalc(
+			correlate.getCluster(),
+			correlate.getTraitSet(),
+			left,
+			RexProgram.create(
+				leftRowType,
+				leftCalcProjects,
+				null,
+				leftCalcCalcFieldNames,
+				rexBuilder));
+	}
+
+	private FlinkLogicalCalc createTopCalc(
+		int primitiveLeftFieldCount,
+		RexBuilder rexBuilder,
+		ArrayBuffer<RexCall> extractedJavaRexCalls,
+		RelDataType calcRowType,
+		FlinkLogicalCorrelate newCorrelate) {
+		RexProgram rexProgram = new RexProgramBuilder(newCorrelate.getRowType(), rexBuilder).getProgram();
+		int offset = extractedJavaRexCalls.size() + primitiveLeftFieldCount;
+
+		// extract correlate output RexNode.
+		List<RexNode> newTopCalcProjects = rexProgram
+			.getExprList()
+			.stream()
+			.filter(x -> x instanceof RexInputRef)
+			.filter(x -> {
+				int index = ((RexInputRef) x).getIndex();
+				return index < primitiveLeftFieldCount || index >= offset;
+			})
+			.collect(Collectors.toList());
+
+		return new FlinkLogicalCalc(
+			newCorrelate.getCluster(),
+			newCorrelate.getTraitSet(),
+			newCorrelate,
+			RexProgram.create(
+				newCorrelate.getRowType(),
+				newTopCalcProjects,
+				null,
+				calcRowType,
+				rexBuilder));
 	}
 
 	@Override
@@ -128,55 +214,15 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
 			FlinkLogicalTableFunctionScan scan = CorrelateUtil.getTableFunctionScan(calc).get();
 			FlinkLogicalCalc mergedCalc = CorrelateUtil.getMergedCalc(calc);
-			RexProgram program = mergedCalc.getProgram();
 			FlinkLogicalTableFunctionScan newScan = createNewScan(scan, splitter);
-			RexLocalRef condition = program.getCondition();
-			rightNewInput = new FlinkLogicalCalc(
-				correlate.getCluster(),
-				correlate.getTraitSet(),
-				newScan,
-				RexProgram.create(
-					newScan.getRowType(),
-					mergedCalc.getProgram().getProjectList(),
-					condition == null ? null : program.expandLocalRef(condition),
-					mergedCalc.getRowType(),
-					rexBuilder));
+			rightNewInput = mergedCalc.copy(mergedCalc.getTraitSet(), newScan, mergedCalc.getProgram());
 		}
 
-		// add the fields of the primitive left input.
-		List<RexNode> leftCalcProjects = new LinkedList<>();
-		for (int i = 0; i < primitiveLeftFieldCount; i++) {
-			leftCalcProjects.add(RexInputRef.of(i, left.getRowType()));
-		}
-		// add the fields of the extracted java rex calls.
-		Iterator<RexCall> iterator = extractedJavaRexCalls.iterator();
-		while (iterator.hasNext()) {
-			leftCalcProjects.add(iterator.next());
-		}
-
-		List<String> nameList = new LinkedList<>();
-		for (int i = 0; i < primitiveLeftFieldCount; i++) {
-			nameList.add(left.getRowType().getFieldNames().get(i));
-		}
-		Iterator<Object> indicesIterator = extractedJavaRexCalls.indices().iterator();
-		while (indicesIterator.hasNext()) {
-			nameList.add("f" + indicesIterator.next());
-		}
-		List<String> leftCalcCalcFieldNames = SqlValidatorUtil.uniquify(
-			nameList,
-			rexBuilder.getTypeFactory().getTypeSystem().isSchemaCaseSensitive());
-
-		// create a new java calc
-		FlinkLogicalCalc leftCalc = new FlinkLogicalCalc(
-			correlate.getCluster(),
-			correlate.getTraitSet(),
+		FlinkLogicalCalc leftCalc = createNewLeftCalc(
 			left,
-			RexProgram.create(
-				left.getRowType(),
-				leftCalcProjects,
-				null,
-				leftCalcCalcFieldNames,
-				rexBuilder));
+			rexBuilder,
+			extractedJavaRexCalls,
+			correlate);
 
 		FlinkLogicalCorrelate newCorrelate = new FlinkLogicalCorrelate(
 			correlate.getCluster(),
@@ -187,30 +233,13 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			correlate.getRequiredColumns(),
 			correlate.getJoinType());
 
-		RexProgram rexProgram = new RexProgramBuilder(newCorrelate.getRowType(), rexBuilder).getProgram();
-		int offset = extractedJavaRexCalls.size() + primitiveLeftFieldCount;
+		FlinkLogicalCalc newTopCalc = createTopCalc(
+			primitiveLeftFieldCount,
+			rexBuilder,
+			extractedJavaRexCalls,
+			correlate.getRowType(),
+			newCorrelate);
 
-		// extract correlate output RexNode.
-		List<RexNode> newTopCalcProjects = rexProgram
-			.getExprList()
-			.stream()
-			.filter(x -> x instanceof RexInputRef)
-			.filter(x -> {
-				int index = ((RexInputRef) x).getIndex();
-				return index < primitiveLeftFieldCount || index >= offset;
-			})
-			.collect(Collectors.toList());
-
-		FlinkLogicalCalc newTopCalc = new FlinkLogicalCalc(
-			correlate.getCluster(),
-			correlate.getTraitSet(),
-			newCorrelate,
-			RexProgram.create(
-				newCorrelate.getRowType(),
-				newTopCalcProjects,
-				null,
-				correlate.getRowType(),
-				rexBuilder));
 		call.transformTo(newTopCalc);
 	}
 }

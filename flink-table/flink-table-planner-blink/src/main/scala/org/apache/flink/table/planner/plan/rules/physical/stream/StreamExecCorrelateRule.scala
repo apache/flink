@@ -123,7 +123,10 @@ object StreamExecCorrelateRule {
   }
 
   def getTableScan(calc: FlinkLogicalCalc): FlinkLogicalTableFunctionScan = {
-    val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
+    val child = calc.getInput match {
+      case relSubset: RelSubset => relSubset.getOriginal
+      case hepRelVertex: HepRelVertex => hepRelVertex.getCurrentRel
+    }
     child match {
       case scan: FlinkLogicalTableFunctionScan => scan
       case calc: FlinkLogicalCalc => getTableScan(calc)

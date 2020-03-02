@@ -23,23 +23,23 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
-import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
+import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableTestBase}
 import org.junit.{Before, Test}
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {
-  private val util = batchTestUtil()
+  private val util = streamTestUtil()
 
   @Before
   def setup(): Unit = {
-    val programs = new FlinkChainedProgram[BatchOptimizeContext]()
+    val programs = new FlinkChainedProgram[StreamOptimizeContext]()
     // query decorrelation
     programs.addLast("decorrelate", new FlinkDecorrelateProgram)
     programs.addLast(
       "logical",
       FlinkVolcanoProgramBuilder.newBuilder
-        .add(FlinkBatchRuleSets.LOGICAL_OPT_RULES)
+        .add(FlinkStreamRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())
     programs.addLast(
@@ -47,9 +47,9 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkBatchRuleSets.LOGICAL_REWRITE)
+        .add(FlinkStreamRuleSets.LOGICAL_REWRITE)
         .build())
-    util.replaceBatchProgram(programs)
+    util.replaceStreamProgram(programs)
 
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("func", new MockPythonTableFunction)
