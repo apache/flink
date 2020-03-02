@@ -52,7 +52,7 @@ class WithParams(Generic[V]):
         Returns the value of the specific param.
 
         :param info: the info of the specific param, usually with default value.
-        :return: the value of the specific param, or default value defined in the
+        :return: the value of the specific param, or default value defined in the \
         ParamInfo if the inner Params doesn't contains this param.
         """
         return self.get_params().get(info)
@@ -100,7 +100,7 @@ class Params(Generic[V]):
         specified parameter.
 
         :param info: the info of the specific parameter to set.
-        :return: the value of the specific param, or default value defined in the
+        :return: the value of the specific param, or default value defined in the \
         info if this Params doesn't contain the parameter.
         """
         if info not in self._paramMap:
