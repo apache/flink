@@ -87,7 +87,11 @@ public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 	@After
 	public void clear() throws Exception {
 		if (format != null) {
-			format.close();
+			try {
+				format.close();
+			} catch (RuntimeException e) {
+				// ignore exception when close.
+			}
 		}
 		format = null;
 		Class.forName(DRIVER_CLASS);
