@@ -418,7 +418,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		final String taskManagerAddress = determineTaskManagerBindAddress(configuration, haServices);
 		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
-		return AkkaRpcServiceUtils.createRpcService(taskManagerAddress, portRangeDefinition, configuration);
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, taskManagerAddress, portRangeDefinition).createAndStart();
 	}
 
 	private static String determineTaskManagerBindAddress(

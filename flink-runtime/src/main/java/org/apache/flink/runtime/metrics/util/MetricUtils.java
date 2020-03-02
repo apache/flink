@@ -136,12 +136,10 @@ public class MetricUtils {
 		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
 		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 
-		return AkkaRpcServiceUtils.createRpcService(
-			hostname,
-			portRange,
-			configuration,
-			METRICS_ACTOR_SYSTEM_NAME,
-			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, hostname, portRange)
+			.withActorSystemName(METRICS_ACTOR_SYSTEM_NAME)
+			.withActorSystemExecutorConfiguration(new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority))
+			.createAndStart();
 	}
 
 	private static void instantiateClassLoaderMetrics(MetricGroup metrics) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
@@ -41,7 +42,6 @@ import org.apache.commons.cli.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -52,6 +52,7 @@ import java.net.BindException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import scala.Some;
@@ -82,92 +83,80 @@ public class BootstrapTools {
 		.build();
 
 	/**
-	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 * Starts a remote ActorSystem at given address and specific port range.
 	 * @param configuration The Flink configuration
-	 * @param listeningAddress The address to listen at.
-	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param externalAddress The external address to access the ActorSystem.
+	 * @param externalPortRange The choosing range of the external port to access the ActorSystem.
 	 * @param logger The logger to output log information.
 	 * @return The ActorSystem which has been started
 	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
-	public static ActorSystem startActorSystem(
+	@VisibleForTesting
+	public static ActorSystem startRemoteActorSystem(
 		Configuration configuration,
-		String listeningAddress,
-		String portRangeDefinition,
+		String externalAddress,
+		String externalPortRange,
 		Logger logger) throws Exception {
-		return startActorSystem(
-			configuration,
-			listeningAddress,
-			portRangeDefinition,
-			logger,
-			ForkJoinExecutorConfiguration.fromConfiguration(configuration));
-	}
-
-	/**
-	 * Starts an ActorSystem with the given configuration listening at the address/ports.
-	 *
-	 * @param configuration The Flink configuration
-	 * @param listeningAddress The address to listen at.
-	 * @param portRangeDefinition The port range to choose a port from.
-	 * @param logger The logger to output log information.
-	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
-	 * @return The ActorSystem which has been started
-	 * @throws Exception Thrown when actor system cannot be started in specified port range
-	 */
-	public static ActorSystem startActorSystem(
-			Configuration configuration,
-			String listeningAddress,
-			String portRangeDefinition,
-			Logger logger,
-			@Nonnull ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
-		return startActorSystem(
+		return startRemoteActorSystem(
 			configuration,
 			AkkaUtils.getFlinkActorSystemName(),
-			listeningAddress,
-			portRangeDefinition,
+			externalAddress,
+			externalPortRange,
+			NetUtils.getWildcardIPAddress(),
+			Optional.empty(),
 			logger,
-			actorSystemExecutorConfiguration);
+			ForkJoinExecutorConfiguration.fromConfiguration(configuration),
+			null);
 	}
 
 	/**
-	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 * Starts a remote ActorSystem at given address and specific port range.
 	 *
 	 * @param configuration The Flink configuration
 	 * @param actorSystemName Name of the started {@link ActorSystem}
-	 * @param listeningAddress The address to listen at.
-	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param externalAddress The external address to access the ActorSystem.
+	 * @param externalPortRange The choosing range of the external port to access the ActorSystem.
+	 * @param bindAddress The local address to bind to.
+	 * @param bindPort The local port to bind to. If not present, then the external port will be used.
 	 * @param logger The logger to output log information.
 	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @param customConfig Custom Akka config to be combined with the config derived from Flink configuration.
 	 * @return The ActorSystem which has been started
 	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
-	public static ActorSystem startActorSystem(
+	public static ActorSystem startRemoteActorSystem(
 			Configuration configuration,
 			String actorSystemName,
-			String listeningAddress,
-			String portRangeDefinition,
+			String externalAddress,
+			String externalPortRange,
+			String bindAddress,
+			@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort,
 			Logger logger,
-			@Nonnull ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+			ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+			Config customConfig) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
 		try {
-			portsIterator = NetUtils.getPortRangeFromString(portRangeDefinition);
+			portsIterator = NetUtils.getPortRangeFromString(externalPortRange);
 		} catch (Exception e) {
-			throw new IllegalArgumentException("Invalid port range definition: " + portRangeDefinition);
+			throw new IllegalArgumentException("Invalid port range definition: " + externalPortRange);
 		}
 
 		while (portsIterator.hasNext()) {
-			final int port = portsIterator.next();
+			final int externalPort = portsIterator.next();
 
 			try {
-				return startActorSystem(
+				return startRemoteActorSystem(
 					configuration,
 					actorSystemName,
-					listeningAddress,
-					port,
+					externalAddress,
+					externalPort,
+					bindAddress,
+					bindPort.orElse(externalPort),
 					logger,
-					actorSystemExecutorConfiguration);
+					actorSystemExecutorConfiguration,
+					customConfig);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception
@@ -181,102 +170,113 @@ public class BootstrapTools {
 
 		// if we come here, we have exhausted the port range
 		throw new BindException("Could not start actor system on any port in port range "
-			+ portRangeDefinition);
+			+ externalPortRange);
 	}
 
 	/**
-	 * Starts an Actor System at a specific port.
-	 *
-	 * @param configuration The Flink configuration.
-	 * @param listeningAddress The address to listen at.
-	 * @param listeningPort The port to listen at.
-	 * @param logger the logger to output log information.
-	 * @return The ActorSystem which has been started.
-	 * @throws Exception
-	 */
-	public static ActorSystem startActorSystem(
-		Configuration configuration,
-		String listeningAddress,
-		int listeningPort,
-		Logger logger) throws Exception {
-		return startActorSystem(
-			configuration,
-			listeningAddress,
-			listeningPort,
-			logger,
-			ForkJoinExecutorConfiguration.fromConfiguration(configuration));
-	}
-
-	/**
-	 * Starts an Actor System at a specific port.
-	 * @param configuration The Flink configuration.
-	 * @param listeningAddress The address to listen at.
-	 * @param listeningPort The port to listen at.
-	 * @param logger the logger to output log information.
-	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
-	 * @return The ActorSystem which has been started.
-	 * @throws Exception
-	 */
-	public static ActorSystem startActorSystem(
-				Configuration configuration,
-				String listeningAddress,
-				int listeningPort,
-				Logger logger,
-				ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
-		return startActorSystem(
-			configuration,
-			AkkaUtils.getFlinkActorSystemName(),
-			listeningAddress,
-			listeningPort,
-			logger,
-			actorSystemExecutorConfiguration);
-	}
-
-	/**
-	 * Starts an Actor System at a specific port.
+	 * Starts a remote Actor System at given address and specific port.
 	 * @param configuration The Flink configuration.
 	 * @param actorSystemName Name of the started {@link ActorSystem}
-	 * @param listeningAddress The address to listen at.
-	 * @param listeningPort The port to listen at.
+	 * @param externalAddress The external address to access the ActorSystem.
+	 * @param externalPort The external port to access the ActorSystem.
+	 * @param bindAddress The local address to bind to.
+	 * @param bindPort The local port to bind to.
 	 * @param logger the logger to output log information.
 	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @param customConfig Custom Akka config to be combined with the config derived from Flink configuration.
 	 * @return The ActorSystem which has been started.
 	 * @throws Exception
 	 */
-	public static ActorSystem startActorSystem(
+	private static ActorSystem startRemoteActorSystem(
 		Configuration configuration,
 		String actorSystemName,
-		String listeningAddress,
-		int listeningPort,
+		String externalAddress,
+		int externalPort,
+		String bindAddress,
+		int bindPort,
 		Logger logger,
-		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+		Config customConfig) throws Exception {
 
-		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
-		logger.info("Trying to start actor system at {}", hostPortUrl);
+		String externalHostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(externalAddress, externalPort);
+		String bindHostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(bindAddress, bindPort);
+		logger.info("Trying to start actor system, external address {}, bind address {}.", externalHostPortUrl, bindHostPortUrl);
 
 		try {
 			Config akkaConfig = AkkaUtils.getAkkaConfig(
 				configuration,
-				new Some<>(new Tuple2<>(listeningAddress, listeningPort)),
+				new Some<>(new Tuple2<>(externalAddress, externalPort)),
+				new Some<>(new Tuple2<>(bindAddress, bindPort)),
 				actorSystemExecutorConfiguration.getAkkaConfig());
 
-			logger.debug("Using akka configuration\n {}", akkaConfig);
+			if (customConfig != null) {
+				akkaConfig = customConfig.withFallback(akkaConfig);
+			}
 
-			ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
-
-			logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
-			return actorSystem;
+			return startActorSystem(akkaConfig, actorSystemName, logger);
 		}
 		catch (Throwable t) {
 			if (t instanceof ChannelException) {
 				Throwable cause = t.getCause();
 				if (cause != null && t.getCause() instanceof BindException) {
-					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
+					throw new IOException("Unable to create ActorSystem at address " + bindHostPortUrl +
 						" : " + cause.getMessage(), t);
 				}
 			}
 			throw new Exception("Could not create actor system", t);
 		}
+	}
+
+	/**
+	 * Starts a local Actor System.
+	 * @param configuration The Flink configuration.
+	 * @param actorSystemName Name of the started ActorSystem.
+	 * @param logger The logger to output log information.
+	 * @param actorSystemExecutorConfiguration Configuration for the ActorSystem's underlying executor.
+	 * @param customConfig Custom Akka config to be combined with the config derived from Flink configuration.
+	 * @return The ActorSystem which has been started.
+	 * @throws Exception
+	 */
+	public static ActorSystem startLocalActorSystem(
+		Configuration configuration,
+		String actorSystemName,
+		Logger logger,
+		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+		Config customConfig) throws Exception {
+
+		logger.info("Trying to start local actor system");
+
+		try {
+			Config akkaConfig = AkkaUtils.getAkkaConfig(
+				configuration,
+				scala.Option.empty(),
+				scala.Option.empty(),
+				actorSystemExecutorConfiguration.getAkkaConfig());
+
+			if (customConfig != null) {
+				akkaConfig = customConfig.withFallback(akkaConfig);
+			}
+
+			return startActorSystem(akkaConfig, actorSystemName, logger);
+		}
+		catch (Throwable t) {
+			throw new Exception("Could not create actor system", t);
+		}
+	}
+
+	/**
+	 * Starts an Actor System with given Akka config.
+	 * @param akkaConfig Config of the started ActorSystem.
+	 * @param actorSystemName Name of the started ActorSystem.
+	 * @param logger The logger to output log information.
+	 * @return The ActorSystem which has been started.
+	 */
+	private static ActorSystem startActorSystem(Config akkaConfig, String actorSystemName, Logger logger) {
+		logger.debug("Using akka configuration\n {}", akkaConfig);
+		ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
+
+		logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
+		return actorSystem;
 	}
 
 	/**

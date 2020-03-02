@@ -253,7 +253,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
 		config.set(TaskManagerOptions.CPU_CORES, 1.0);
 
-		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
+		final RpcService rpcService = AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
 
 		try {
 			final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
