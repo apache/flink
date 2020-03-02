@@ -15,3 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+from pyflink.ml.api.ml_environment import MLEnvironment
+from pyflink.ml.api.ml_environment_factory import MLEnvironmentFactory
+
+__all__ = [
+    "MLEnvironment", "MLEnvironmentFactory"
+]

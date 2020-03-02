@@ -16,9 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.ml.param import WithParams, ParamInfo, TypeConverters
-
-__all__ = ["HasSelectedCols", "HasOutputCol"]
+from pyflink.ml.api.param import WithParams, ParamInfo, TypeConverters
 
 
 class HasSelectedCols(WithParams):

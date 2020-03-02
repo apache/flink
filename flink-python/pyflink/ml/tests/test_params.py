@@ -20,8 +20,8 @@ import array
 import unittest
 
 from pyflink import keyword
-from pyflink.ml.param import ParamInfo, TypeConverters, Params
-from pyflink.mllib.param.colname import HasSelectedCols, HasOutputCol
+from pyflink.ml.api.param import ParamInfo, TypeConverters, Params
+from pyflink.ml.lib.param.colname import HasSelectedCols, HasOutputCol
 
 
 class ParamsTest(unittest.TestCase):

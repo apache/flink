@@ -15,3 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+from pyflink.ml.api.param.base import WithParams, Params, ParamInfo, TypeConverters
+
+__all__ = ['WithParams', 'Params', 'ParamInfo', 'TypeConverters']
