@@ -38,7 +38,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetAddress;
 
 public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
@@ -204,7 +203,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	}
 
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
-			Configuration config) throws IOException {
+			Configuration config) throws Exception {
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,
 			ResourceID.generate(),

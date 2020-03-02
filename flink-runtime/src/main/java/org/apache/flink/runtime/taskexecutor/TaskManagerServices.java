@@ -229,15 +229,19 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration,
 			taskEventDispatcher,
 			taskManagerMetricGroup);
-		final int dataPort = shuffleEnvironment.start();
+		final int listeningDataPort = shuffleEnvironment.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
 		kvStateService.start();
 
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(
 			taskManagerServicesConfiguration.getResourceID(),
-			taskManagerServicesConfiguration.getTaskManagerAddress(),
-			dataPort);
+			taskManagerServicesConfiguration.getExternalAddress(),
+			// we expose the task manager location with the listening port
+			// iff the external data port is not explicitly defined
+			taskManagerServicesConfiguration.getExternalDataPort() > 0 ?
+				taskManagerServicesConfiguration.getExternalDataPort() :
+				listeningDataPort);
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
@@ -304,7 +308,7 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getResourceID(),
 			taskManagerServicesConfiguration.getNetworkMemorySize(),
 			taskManagerServicesConfiguration.isLocalCommunicationOnly(),
-			taskManagerServicesConfiguration.getTaskManagerAddress(),
+			taskManagerServicesConfiguration.getBindAddress(),
 			taskEventDispatcher,
 			taskManagerMetricGroup);
 
