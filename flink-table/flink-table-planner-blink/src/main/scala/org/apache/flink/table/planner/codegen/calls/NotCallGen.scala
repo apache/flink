@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 
 /**
  * Inverts the boolean value of a [[CallGenerator]] result.
  */
-class NegativeCallGen(callGenerator: CallGenerator) extends CallGenerator {
+class NotCallGen(callGenerator: CallGenerator) extends CallGenerator {
 
   override def generate(
     ctx: CodeGeneratorContext,
@@ -34,13 +33,7 @@ class NegativeCallGen(callGenerator: CallGenerator) extends CallGenerator {
   ): GeneratedExpression = {
     assert(returnType.isInstanceOf[BooleanType])
 
-    val expr = callGenerator.generate(ctx, operands, returnType)
-    generateCallIfArgsNotNull(ctx, returnType, Seq(expr), returnType.isNullable) {
-      originalTerms =>
-        assert(originalTerms.size == 1)
-
-        s"!${originalTerms.head}"
-    }
+    ScalarOperatorGens.generateNot(ctx, callGenerator.generate(ctx, operands, returnType))
   }
 
 }

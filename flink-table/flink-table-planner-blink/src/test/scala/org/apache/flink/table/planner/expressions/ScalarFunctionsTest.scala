@@ -4195,24 +4195,4 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f55=f57",
       "true")
   }
-
-  @Test
-  def testIsJSONPredicates(): Unit = {
-    testSqlApi("'{}' is json value", "true")
-    testSqlApi("'{]' is json value", "false")
-    testSqlApi("'{}' is json object", "true")
-    testSqlApi("'[]' is json object", "false")
-    testSqlApi("'{}' is json array", "false")
-    testSqlApi("'[]' is json array", "true")
-    testSqlApi("'100' is json scalar", "true")
-    testSqlApi("'[]' is json scalar", "false")
-    testSqlApi("'{}' is not json value", "false")
-    testSqlApi("'{]' is not json value", "true")
-    testSqlApi("'{}' is not json object", "false")
-    testSqlApi("'[]' is not json object", "true")
-    testSqlApi("'{}' is not json array", "true")
-    testSqlApi("'[]' is not json array", "false")
-    testSqlApi("'100' is not json scalar", "false")
-    testSqlApi("'[]' is not json scalar", "true")
-  }
 }
