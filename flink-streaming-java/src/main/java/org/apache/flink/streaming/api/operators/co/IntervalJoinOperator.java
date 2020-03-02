@@ -243,7 +243,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
-		// force rebuild cache if first time see this key
+		// build sorted one side buffer cache if first time see this key
 		if (isInsertFromLeft.value() == null) {
 			isInsertFromLeft.update(!isLeft);
 		}
@@ -274,7 +274,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 			if (timestamp < ourTimestamp + relativeLowerBound ||
 					timestamp > ourTimestamp + relativeUpperBound) {
-				throw new RuntimeException("fatal error");
+				throw new RuntimeException("one side buffer cache has bucket with timestamp overflow");
 			}
 
 			for (BufferEntry<Object> entry: bucket.getValue()) {
@@ -334,7 +334,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				logger.trace("Removing from left buffer @ {}", timestamp);
 				leftBuffer.remove(timestamp);
 				// update cache if cache left buffer for this key (insert from right)
-				if (!isInsertFromLeft.value() ) {
+				if (otherBuffersCache.get(getCurrentKey()) != null && !isInsertFromLeft.value()) {
 					otherBuffersCache.get(getCurrentKey()).remove(timestamp);
 				}
 				break;
@@ -344,7 +344,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 				logger.trace("Removing from right buffer @ {}", timestamp);
 				rightBuffer.remove(timestamp);
 				// update cache if cache right buffer for this key (insert from left)
-				if (isInsertFromLeft.value() ) {
+				if (otherBuffersCache.get(getCurrentKey()) != null && isInsertFromLeft.value()) {
 					otherBuffersCache.get(getCurrentKey()).remove(timestamp);
 				}
 				break;
