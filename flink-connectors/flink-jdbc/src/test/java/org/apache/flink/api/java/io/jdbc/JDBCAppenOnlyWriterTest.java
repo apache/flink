@@ -40,14 +40,13 @@ import static org.mockito.Mockito.doReturn;
  * Test for the {@link AppendOnlyWriter}.
  */
 public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
+
 	private JDBCUpsertOutputFormat format;
 	private String[] fieldNames;
-	private String[] keyFields;
 
 	@Before
 	public void setup() {
 		fieldNames = new String[]{"id", "title", "author", "price", "qty"};
-		keyFields = null;
 	}
 
 	@Test(expected = BatchUpdateException.class)
@@ -58,7 +57,7 @@ public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 				.setTableName(OUTPUT_TABLE)
 				.build())
 			.setFieldNames(fieldNames)
-			.setKeyFields(keyFields)
+			.setKeyFields(null)
 			.build();
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);
 		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
@@ -82,21 +81,20 @@ public class JDBCAppenOnlyWriterTest extends JDBCTestBase {
 		try (Connection conn = DriverManager.getConnection(DB_URL);
 			Statement stat = conn.createStatement()) {
 			stat.execute("ALTER  TABLE " + OUTPUT_TABLE + " DROP COLUMN " + fieldNames[1]);
-			stat.close();
-			conn.close();
 		}
 	}
 
 	@After
 	public void clear() throws Exception {
+		if (format != null) {
+			format.close();
+		}
+		format = null;
 		Class.forName(DRIVER_CLASS);
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
 			Statement stat = conn.createStatement()) {
 			stat.execute("DELETE FROM " + OUTPUT_TABLE);
-
-			stat.close();
-			conn.close();
 		}
 	}
 
