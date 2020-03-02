@@ -40,6 +40,7 @@ import static org.hamcrest.Matchers.hasItemInArray;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 
 /**
  * Tests for classloading and class loader utilities.
@@ -205,5 +206,29 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 			parentClassLoader,
 			new String[0],
 			NOOP_EXCEPTION_HANDLER);
+	}
+
+	@Test
+	public void testClosingOfClassloader() throws Exception {
+		final String className = ClassToLoad.class.getName();
+
+		final ClassLoader parentClassLoader = ClassLoader.getSystemClassLoader().getParent();
+
+		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+
+		final URLClassLoader childClassLoader = createChildFirstClassLoader(childCodePath, parentClassLoader);
+
+		final Class<?> loadedClass = childClassLoader.loadClass(className);
+
+		assertNotSame(ClassToLoad.class, loadedClass);
+
+		childClassLoader.close();
+
+		// after closing, no loaded class should be reachable anymore
+		expectedException.expect(isA(IllegalStateException.class));
+		childClassLoader.loadClass(className);
+	}
+
+	private static class ClassToLoad {
 	}
 }

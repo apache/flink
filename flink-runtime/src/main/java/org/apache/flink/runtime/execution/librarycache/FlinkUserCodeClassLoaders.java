@@ -21,8 +21,14 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Enumeration;
 import java.util.function.Consumer;
 
 /**
@@ -38,7 +44,9 @@ public class FlinkUserCodeClassLoaders {
 			URL[] urls,
 			ClassLoader parent,
 			Consumer<Throwable> classLoadingExceptionHandler) {
-		return new ParentFirstClassLoader(urls, parent, classLoadingExceptionHandler);
+		return new SafetyNetWrapperClassLoader(
+			new ParentFirstClassLoader(urls, parent, classLoadingExceptionHandler),
+			parent);
 	}
 
 	public static URLClassLoader childFirst(
@@ -46,7 +54,9 @@ public class FlinkUserCodeClassLoaders {
 			ClassLoader parent,
 			String[] alwaysParentFirstPatterns,
 			Consumer<Throwable> classLoadingExceptionHandler) {
-		return new ChildFirstClassLoader(urls, parent, alwaysParentFirstPatterns, classLoadingExceptionHandler);
+		return new SafetyNetWrapperClassLoader(
+			new ChildFirstClassLoader(urls, parent, alwaysParentFirstPatterns, classLoadingExceptionHandler),
+			parent);
 	}
 
 	public static URLClassLoader create(
@@ -90,6 +100,70 @@ public class FlinkUserCodeClassLoaders {
 
 		ParentFirstClassLoader(URL[] urls, ClassLoader parent, Consumer<Throwable> classLoadingExceptionHandler) {
 			super(urls, parent, classLoadingExceptionHandler);
+		}
+
+		static {
+			ClassLoader.registerAsParallelCapable();
+		}
+	}
+
+	/**
+	 * Ensures that holding a reference on the context class loader outliving the scope of user code does not prevent
+	 * the user classloader to be garbage collected (FLINK-16245).
+	 *
+	 * <p>This classloader delegates to the actual user classloader. Upon {@link #close()}, the delegate is nulled
+	 * and can be garbage collected. Additional class resolution will be resolved solely through the bootstrap
+	 * classloader and most likely result in ClassNotFound exceptions.
+	 */
+	private static class SafetyNetWrapperClassLoader extends URLClassLoader implements Closeable {
+		private static final Logger LOG = LoggerFactory.getLogger(SafetyNetWrapperClassLoader.class);
+
+		private volatile FlinkUserCodeClassLoader inner;
+
+		SafetyNetWrapperClassLoader(FlinkUserCodeClassLoader inner, ClassLoader parent) {
+			super(new URL[0], parent);
+			this.inner = inner;
+		}
+
+		@Override
+		public void close() {
+			final FlinkUserCodeClassLoader inner = this.inner;
+			if (inner != null) {
+				try {
+					inner.close();
+				} catch (IOException e) {
+					LOG.warn("Could not close user classloader", e);
+				}
+			}
+			this.inner = null;
+		}
+
+		private FlinkUserCodeClassLoader ensureInner() {
+			if (inner == null) {
+				throw new IllegalStateException("Trying to access closed classloader");
+			}
+			return inner;
+		}
+
+		@Override
+		public Class<?> loadClass(String name) throws ClassNotFoundException {
+			return ensureInner().loadClass(name);
+		}
+
+		@Override
+		protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+			// called for dynamic class loading
+			return ensureInner().loadClass(name, resolve);
+		}
+
+		@Override
+		public URL getResource(String name) {
+			return ensureInner().getResource(name);
+		}
+
+		@Override
+		public Enumeration<URL> getResources(String name) throws IOException {
+			return ensureInner().getResources(name);
 		}
 
 		static {
