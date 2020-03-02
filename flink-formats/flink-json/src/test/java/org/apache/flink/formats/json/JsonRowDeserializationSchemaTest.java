@@ -28,7 +28,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
@@ -236,7 +235,7 @@ public class JsonRowDeserializationSchemaTest {
 
 		assertThat(invalidSerializedJson,
 			whenDeserializedWith(deserializationSchema)
-				.failsWithException(hasCause(instanceOf(IOException.class))));
+				.failsWithException(hasCause(instanceOf(JsonRowDeserializationSchema.ParseErrorException.class))));
 	}
 
 	/**
