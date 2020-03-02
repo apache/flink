@@ -392,7 +392,7 @@ public class BootstrapToolsTest extends TestLogger {
 							CheckedSupplier.unchecked(() -> {
 								cyclicBarrier.await();
 
-								return BootstrapTools.startActorSystem(
+								return BootstrapTools.startRemoteActorSystem(
 									new Configuration(),
 									"localhost",
 									"0",
@@ -420,7 +420,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		try {
 			final int port = portOccupier.getLocalPort();
-			BootstrapTools.startActorSystem(new Configuration(), "0.0.0.0", port, LOG);
+			BootstrapTools.startRemoteActorSystem(new Configuration(), "0.0.0.0", String.valueOf(port), LOG);
 			fail("Expected to fail with a BindException");
 		} catch (Exception e) {
 			assertThat(ExceptionUtils.findThrowable(e, BindException.class).isPresent(), is(true));

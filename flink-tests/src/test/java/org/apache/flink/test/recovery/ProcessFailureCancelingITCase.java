@@ -123,7 +123,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.set(TaskManagerOptions.CPU_CORES, 1.0);
 		config.setInteger(RestOptions.PORT, 0);
 
-		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
+		final RpcService rpcService = AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
 		final int jobManagerPort = rpcService.getPort();
 		config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 

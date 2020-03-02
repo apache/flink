@@ -106,6 +106,14 @@ public class MiniClusterConfiguration {
 				configuration.getString(TaskManagerOptions.HOST, "localhost");
 	}
 
+	public String getJobManagerBindPortRange() {
+		return String.valueOf(configuration.getInteger(JobManagerOptions.PORT, 0));
+	}
+
+	public String getTaskManagerBindPortRange() {
+		return configuration.getString(TaskManagerOptions.RPC_PORT);
+	}
+
 	public Time getRpcTimeout() {
 		return AkkaUtils.getTimeoutAsTime(configuration);
 	}

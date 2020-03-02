@@ -282,7 +282,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@Nonnull
 	private RpcService createRpcService(Configuration configuration, String bindAddress, String portRange) throws Exception {
-		return AkkaRpcServiceUtils.createRpcService(bindAddress, portRange, configuration);
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, bindAddress, portRange).createAndStart();
 	}
 
 	/**
