@@ -948,11 +948,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 				return CompletableFuture.completedFuture(transientBlobKey);
 			} else {
-				log.debug("The file {} does not exist on the TaskExecutor {}.", fileName, getResourceID());
+				log.debug("The file {} which type is {} does not exist on the TaskExecutor {}.", fileName, fileType, getResourceID());
 				return FutureUtils.completedExceptionally(new FlinkException("The file " + fileName + " does not exist on the TaskExecutor."));
 			}
 		} else {
-			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileName, getResourceID());
+			log.debug("The file {} which type is {} unavailable on the TaskExecutor {}.", fileName, fileType, getResourceID());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileName + " is not available on the TaskExecutor."));
 		}
 	}

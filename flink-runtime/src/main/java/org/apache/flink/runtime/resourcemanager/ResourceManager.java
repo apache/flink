@@ -583,12 +583,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, String fileName, Time timeout) {
-		log.debug("Request file {} upload from TaskExecutor {}.", fileName, taskManagerId);
+		log.debug("Request file {} which type is {}  upload from TaskExecutor {}.", fileName, fileType, taskManagerId);
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Requested file {} upload from unregistered TaskExecutor {}.", fileName, taskManagerId);
+			log.debug("Requested file {} which type is {} upload from unregistered TaskExecutor {}.", fileName, fileType, taskManagerId);
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestFileUpload(fileType, fileName, timeout);
