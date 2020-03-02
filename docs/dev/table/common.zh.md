@@ -123,7 +123,7 @@ table_env.execute("python_job")
 </div>
 </div>
 
-**注意：** Table API 和 SQL 查询可以很容易地集成并嵌入到 DataStream 或DataSet 程序中。 请参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api) 章节了解如何将 DataSet 和 DataStream 与表之间的相互转化。
+**注意：** Table API 和 SQL 查询可以很容易地集成并嵌入到 DataStream 或 DataSet 程序中。 请参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api) 章节了解如何将 DataSet 和 DataStream 与表之间的相互转化。
 
 {% top %}
 
@@ -856,10 +856,10 @@ TableEnvironment 和 StreamTableEnvironment 翻译查询的方式不同。
 与 DataStream 和 DataSet API 结合
 -------------------------------------------
 
-在DataStream方面两种计划器都可以与 `DataStream` API 结合。只有原版计划器可以与 `DataSet API` 结合。在批处理方面，Blink 计划器不能同两种计划器中的任何一个结合。  
+在 DataStream 方面两种计划器都可以与 `DataStream` API 结合。只有原版计划器可以与 `DataSet API` 结合。在批处理方面，Blink 计划器不能同两种计划器中的任何一个结合。  
 **注意：** The `DataSet` API discussed below is only relevant for the old planner on batch.
 
-Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.baseurl }}/zh/dev/datastream_api.html) 和 [DataSet]({{ site.baseurl }}/zh/dev/batch) 程序中。例如，可以查询外部表（例如从 RDBMS），进行一些预处理，例如过滤，投影，聚合或与元数据 join，然后使用 DataStream 或 DataSet API（以及在这些 API 之上构建的任何库，例如 CEP 或 Gelly）。相反，也可以将 Table API 或 SQL 查询应用于DataStream或 DataSet 程序的结果。
+Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.baseurl }}/zh/dev/datastream_api.html) 和 [DataSet]({{ site.baseurl }}/zh/dev/batch) 程序中。例如，可以查询外部表（例如从 RDBMS），进行一些预处理，例如过滤，投影，聚合或与元数据 join，然后使用 DataStream 或 DataSet API（以及在这些 API 之上构建的任何库，例如 CEP 或 Gelly）。相反，也可以将 Table API 或 SQL 查询应用于 DataStream 或 DataSet 程序的结果。
 
 这种交互可以通过 `DataStream` 或 `DataSet` 与 `Table` 的相互转化实现。本节我们会介绍这些转化是如何实现的。
 
@@ -867,7 +867,7 @@ Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.b
 
 Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
 
-### 通过DataSet或DataStream创建`视图`
+### 通过 DataSet 或 DataStream 创建`视图`
 
 在 `TableEnvironment` 中可以将 `DataStream` 或 `DataSet` 注册成视图。结果视图的 schema 取决于注册的 `DataStream` 或 `DataSet` 的数据类型。请参阅文档 [数据类型到 table schema 的映射](#mapping-of-data-types-to-table-schema)获取详细信息。
 
@@ -1029,7 +1029,7 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 
 #### 将表转换成 DataSet
 
-将 `Table` 转换成`DataSet`的过程如下：
+将 `Table` 转换成 `DataSet` 的过程如下：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1210,7 +1210,7 @@ val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 
 #### Tuple类型（Scala 和 Java）和 Case Class类型（仅 Scala）
 
-Flink 支持 Scala 的内置 tuple 类型并给 Java 提供自己的 tuple 类型。两种 tuple 的DataStream和DataSet都能被转换成表。可以通过提供所有字段名称来重命名字段（基于位置映射）。如果没有指明任何字段名称，则会使用默认的字段名称。如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...，对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
+Flink 支持 Scala 的内置 tuple 类型并给 Java 提供自己的 tuple 类型。两种 tuple 的 DataStream 和 DataSet 都能被转换成表。可以通过提供所有字段名称来重命名字段（基于位置映射）。如果没有指明任何字段名称，则会使用默认的字段名称。如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...，对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
