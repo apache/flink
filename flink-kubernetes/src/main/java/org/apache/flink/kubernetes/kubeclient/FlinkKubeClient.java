@@ -57,15 +57,6 @@ public interface FlinkKubeClient extends AutoCloseable {
 	void stopAndCleanupCluster(String clusterId);
 
 	/**
-	 * Get the kubernetes internal service of the given flink clusterId.
-	 *
-	 * @param clusterId cluster id
-	 * @return Return the internal service of the specified cluster id. Return null if the service does not exist.
-	 */
-	@Nullable
-	KubernetesService getInternalService(String clusterId);
-
-	/**
 	 * Get the kubernetes rest service of the given flink clusterId.
 	 *
 	 * @param clusterId cluster id
