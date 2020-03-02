@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.IntColumnVector;
+import org.apache.flink.table.dataformat.vector.writable.WritableIntVector;
+
+import java.util.Arrays;
 
 /**
  * This class represents a nullable int column vector.
  */
-public class HeapIntVector extends AbstractHeapVector implements IntColumnVector {
+public class HeapIntVector extends AbstractHeapVector implements WritableIntVector {
 
 	private static final long serialVersionUID = -2749499358889718254L;
 
@@ -46,5 +48,46 @@ public class HeapIntVector extends AbstractHeapVector implements IntColumnVector
 		} else {
 			return dictionary.decodeToInt(dictionaryIds.vector[i]);
 		}
+	}
+
+	@Override
+	public void setInt(int i, int value) {
+		if (i >= vector.length) {
+			throw new RuntimeException();
+		}
+		vector[i] = value;
+	}
+
+	@Override
+	public void setIntsFromBinary(int rowId, int count, byte[] src, int srcIndex) {
+		if (LITTLE_ENDIAN) {
+			UNSAFE.copyMemory(src, BYTE_ARRAY_OFFSET + srcIndex, vector,
+					INT_ARRAY_OFFSET + rowId * 4L, count * 4L);
+		} else {
+			long srcOffset = srcIndex + BYTE_ARRAY_OFFSET;
+			for (int i = 0; i < count; ++i, srcOffset += 4) {
+				vector[i + rowId] = Integer.reverseBytes(UNSAFE.getInt(src, srcOffset));
+			}
+		}
+	}
+
+	@Override
+	public void setInts(int rowId, int count, int value) {
+		if (rowId + count - 1 >= vector.length) {
+			throw new RuntimeException();
+		}
+		for (int i = 0; i < count; ++i) {
+			vector[i + rowId] = value;
+		}
+	}
+
+	@Override
+	public void setInts(int rowId, int count, int[] src, int srcIndex) {
+		System.arraycopy(src, srcIndex, vector, rowId, count);
+	}
+
+	@Override
+	public void fill(int value) {
+		Arrays.fill(vector, value);
 	}
 }

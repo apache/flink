@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.dataformat.vector.heap;
 
-import org.apache.flink.table.dataformat.vector.LongColumnVector;
+import org.apache.flink.table.dataformat.vector.writable.WritableLongVector;
+
+import java.util.Arrays;
 
 /**
  * This class represents a nullable long column vector.
  */
-public class HeapLongVector extends AbstractHeapVector implements LongColumnVector {
+public class HeapLongVector extends AbstractHeapVector implements WritableLongVector {
 
 	private static final long serialVersionUID = 8534925169458006397L;
 
@@ -46,5 +48,28 @@ public class HeapLongVector extends AbstractHeapVector implements LongColumnVect
 		} else {
 			return dictionary.decodeToLong(dictionaryIds.vector[i]);
 		}
+	}
+
+	@Override
+	public void setLong(int i, long value) {
+		vector[i] = value;
+	}
+
+	@Override
+	public void setLongsFromBinary(int rowId, int count, byte[] src, int srcIndex) {
+		if (LITTLE_ENDIAN) {
+			UNSAFE.copyMemory(src, BYTE_ARRAY_OFFSET + srcIndex, vector,
+					LONG_ARRAY_OFFSET + rowId * 8L, count * 8L);
+		} else {
+			long srcOffset = srcIndex + BYTE_ARRAY_OFFSET;
+			for (int i = 0; i < count; ++i, srcOffset += 8) {
+				vector[i + rowId] = Long.reverseBytes(UNSAFE.getLong(src, srcOffset));
+			}
+		}
+	}
+
+	@Override
+	public void fill(long value) {
+		Arrays.fill(vector, value);
 	}
 }

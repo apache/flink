@@ -16,36 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.dataformat.vector;
+package org.apache.flink.table.dataformat.vector.writable;
+
+import org.apache.flink.table.dataformat.vector.BytesColumnVector;
 
 /**
- * Bytes column vector to get {@link Bytes}, it include original data and offset and length.
- * The data in {@link Bytes} maybe reuse.
+ * Writable {@link BytesColumnVector}.
  */
-public interface BytesColumnVector extends ColumnVector {
-	Bytes getBytes(int i);
+public interface WritableBytesVector extends WritableColumnVector, BytesColumnVector {
 
 	/**
-	 * Bytes data.
+	 * Set byte[] at rowId with the provided value.
 	 */
-	class Bytes {
-		public final byte[] data;
-		public final int offset;
-		public final int len;
+	void appendBytes(int rowId, byte[] value, int offset, int length);
 
-		public Bytes(byte[] data, int offset, int len) {
-			this.data = data;
-			this.offset = offset;
-			this.len = len;
-		}
-
-		public byte[] getBytes() {
-			if (offset == 0 && len == data.length) {
-				return data;
-			}
-			byte[] res = new byte[len];
-			System.arraycopy(data, offset, res, 0, len);
-			return res;
-		}
-	}
+	/**
+	 * Fill the column vector with the provided value.
+	 */
+	void fill(byte[] value);
 }
