@@ -40,11 +40,9 @@ public interface ResultSubpartitionView {
 	 * <p><strong>Important</strong>: The consumer has to make sure that each
 	 * buffer instance will eventually be recycled with {@link Buffer#recycleBuffer()}
 	 * after it has been consumed.
-	 *
-	 * @param isLocalChannel whether we are getting buffers from a local input channel or not.
 	 */
 	@Nullable
-	BufferAndBacklog getNextBuffer(boolean isLocalChannel) throws IOException, InterruptedException;
+	BufferAndBacklog getNextBuffer() throws IOException, InterruptedException;
 
 	void notifyDataAvailable();
 

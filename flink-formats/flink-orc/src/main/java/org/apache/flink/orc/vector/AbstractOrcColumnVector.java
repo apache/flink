@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
@@ -59,7 +60,7 @@ public abstract class AbstractOrcColumnVector implements
 		throw new UnsupportedOperationException();
 	}
 
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVector(
+	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {
 			return new OrcLongColumnVector((LongColumnVector) vector);
@@ -79,9 +80,9 @@ public abstract class AbstractOrcColumnVector implements
 	/**
 	 * Create flink vector by hive vector from constant.
 	 */
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVectorFromConstant(
+	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVectorFromConstant(
 			LogicalType type, Object value, int batchSize) {
-		return createVector(createHiveVectorFromConstant(type, value, batchSize));
+		return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
 	}
 
 	/**
@@ -111,6 +112,9 @@ public abstract class AbstractOrcColumnVector implements
 			case DOUBLE:
 				return createDoubleVector(batchSize, value);
 			case DATE:
+				if (value instanceof LocalDate) {
+					value = Date.valueOf((LocalDate) value);
+				}
 				return createLongVector(batchSize, dateToInternal((Date) value));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return createTimestampVector(batchSize, value);

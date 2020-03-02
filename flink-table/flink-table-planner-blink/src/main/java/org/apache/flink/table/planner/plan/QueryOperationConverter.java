@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
@@ -33,7 +32,6 @@ import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -110,8 +108,8 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
@@ -127,15 +125,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 	private final FlinkRelBuilder relBuilder;
 	private final SingleRelVisitor singleRelVisitor = new SingleRelVisitor();
-	private final LookupCallResolver callResolver;
 	private final ExpressionConverter expressionConverter;
 	private final AggregateVisitor aggregateVisitor = new AggregateVisitor();
 	private final TableAggregateVisitor tableAggregateVisitor = new TableAggregateVisitor();
 	private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
 
-	public QueryOperationConverter(FlinkRelBuilder relBuilder, FunctionLookup functionCatalog) {
+	public QueryOperationConverter(FlinkRelBuilder relBuilder) {
 		this.relBuilder = relBuilder;
-		this.callResolver = new LookupCallResolver(functionCatalog);
 		this.expressionConverter = new ExpressionConverter(relBuilder);
 	}
 
@@ -179,7 +175,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			List<FlinkRelBuilder.PlannerNamedWindowProperty> windowProperties = windowAggregate
 					.getWindowPropertiesExpressions()
 					.stream()
-					.map(expr -> convertToWindowProperty(expr.accept(callResolver), windowReference))
+					.map(expr -> convertToWindowProperty(expr, windowReference))
 					.collect(toList());
 			GroupKey groupKey = relBuilder.groupKey(groupings);
 			return relBuilder.windowAggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
@@ -295,12 +291,14 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
 
+			// TODO use relBuilder.functionScan() once we remove TableSqlFunction
 			return LogicalTableFunctionScan.create(
 					relBuilder.peek().getCluster(),
 					Collections.emptyList(),
-					relBuilder.call(sqlFunction, parameters),
+					relBuilder.getRexBuilder()
+						.makeCall(function.getRowType(typeFactory), sqlFunction, parameters),
 					function.getElementType(null),
-					function.getRowType(typeFactory, null, null),
+					function.getRowType(typeFactory),
 					null);
 		}
 
@@ -546,7 +544,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 				Expression aggregate = unresolvedCall.getChildren().get(0);
 				if (isFunctionOfKind(aggregate, AGGREGATE)) {
-					return aggregate.accept(callResolver).accept(
+					return aggregate.accept(
 							new AggCallVisitor(relBuilder, expressionConverter, aggregateName, false));
 				}
 			}
@@ -647,6 +645,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	}
 
 	private RexNode convertExprToRexNode(Expression expr) {
-		return expr.accept(callResolver).accept(expressionConverter);
+		return expr.accept(expressionConverter);
 	}
 }

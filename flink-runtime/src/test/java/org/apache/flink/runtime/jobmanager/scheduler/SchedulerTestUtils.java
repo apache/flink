@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.ArrayList;
@@ -48,10 +49,13 @@ public class SchedulerTestUtils {
 		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
+
+		final JobVertexID jobVertexID = new JobVertexID();
+		when(vertex.getID()).thenReturn(new ExecutionVertexID(jobVertexID, 0));
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
-		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
+		when(vertex.getJobvertexId()).thenReturn(jobVertexID);
 
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
@@ -78,12 +82,14 @@ public class SchedulerTestUtils {
 		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
+		final JobVertexID jobVertexID = new JobVertexID();
+		when(vertex.getID()).thenReturn(new ExecutionVertexID(jobVertexID, 0));
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
 		when(vertex.getPreferredLocations()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
-		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
+		when(vertex.getJobvertexId()).thenReturn(jobVertexID);
 
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
@@ -97,6 +103,8 @@ public class SchedulerTestUtils {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
 		when(executionJobVertex.getSlotSharingGroup()).thenReturn(slotSharingGroup);
+
+		when(vertex.getID()).thenReturn(new ExecutionVertexID(jid, taskIndex));
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(Collections.emptyList());
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
@@ -132,6 +140,7 @@ public class SchedulerTestUtils {
 			preferredLocationFutures.add(CompletableFuture.completedFuture(location));
 		}
 
+		when(vertex.getID()).thenReturn(new ExecutionVertexID(jid, taskIndex));
 		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());

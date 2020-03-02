@@ -19,14 +19,14 @@
 package org.apache.flink.yarn.executors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.AbstractJobClusterExecutor;
-import org.apache.flink.core.execution.Executor;
+import org.apache.flink.client.deployment.executors.AbstractJobClusterExecutor;
+import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.yarn.YarnClusterClientFactory;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 /**
- * The {@link Executor} to be used when executing a job in isolation.
+ * The {@link PipelineExecutor} to be used when executing a job in isolation.
  * This executor will start a cluster specifically for the job at hand and
  * tear it down when the job is finished either successfully or due to an error.
  */

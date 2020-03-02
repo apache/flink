@@ -28,13 +28,9 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityContext;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -50,26 +46,12 @@ import java.util.Map;
  */
 public class YarnEntrypointUtils {
 
-	public static SecurityContext installSecurityContext(
-			Configuration configuration,
-			String workingDirectory) throws Exception {
-
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-
-		SecurityUtils.install(sc);
-
-		return SecurityUtils.getInstalledContext();
-	}
-
-	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env, Logger log) {
+	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env) {
 		Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
 
 		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 
 		final String zooKeeperNamespace = env.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
-
-		final Map<String, String> dynamicProperties = FlinkYarnSessionCli.getDynamicProperties(
-			env.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
 
 		final String hostname = env.get(ApplicationConstants.Environment.NM_HOST.key());
 		Preconditions.checkState(
@@ -79,15 +61,6 @@ public class YarnEntrypointUtils {
 
 		configuration.setString(JobManagerOptions.ADDRESS, hostname);
 		configuration.setString(RestOptions.ADDRESS, hostname);
-
-		// TODO: Support port ranges for the AM
-//		final String portRange = configuration.getString(
-//			ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-//			ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
-
-		for (Map.Entry<String, String> property : dynamicProperties.entrySet()) {
-			configuration.setString(property.getKey(), property.getValue());
-		}
 
 		if (zooKeeperNamespace != null) {
 			configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zooKeeperNamespace);

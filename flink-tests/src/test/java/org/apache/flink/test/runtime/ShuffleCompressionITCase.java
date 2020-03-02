@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -55,7 +56,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /**
- * Tests pipeline/blocking shuffle when data compression is enabled.
+ * Tests network shuffle when data compression is enabled.
  */
 @RunWith(Parameterized.class)
 public class ShuffleCompressionITCase {
@@ -69,7 +70,11 @@ public class ShuffleCompressionITCase {
 	/** We plus 1 to guarantee that the last buffer contains no more than one record and can not be compressed. */
 	private static final int NUM_RECORDS_TO_SEND = NUM_BUFFERS_TO_SEND * BUFFER_SIZE / BYTES_PER_RECORD + 1;
 
-	private static final int PARALLELISM = 2;
+	private static final int NUM_TASKMANAGERS = 2;
+
+	private static final int NUM_SLOTS = 4;
+
+	private static final int PARALLELISM = NUM_TASKMANAGERS * NUM_SLOTS;
 
 	private static final LongValue RECORD_TO_SEND = new LongValue(4387942071694473832L);
 
@@ -82,25 +87,19 @@ public class ShuffleCompressionITCase {
 	}
 
 	@Test
-	public void testDataCompressionForPipelineShuffle() throws Exception {
-		executeTest(createJobGraph(ScheduleMode.EAGER, ResultPartitionType.PIPELINED, ExecutionMode.PIPELINED));
-	}
-
-	@Test
 	public void testDataCompressionForBlockingShuffle() throws Exception {
 		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
 	}
 
 	private void executeTest(JobGraph jobGraph) throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(TaskManagerOptions.TOTAL_FLINK_MEMORY, "1g");
+		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
-		configuration.setBoolean(NettyShuffleEnvironmentOptions.PIPELINED_SHUFFLE_COMPRESSION_ENABLED, true);
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
-			.setNumTaskManagers(PARALLELISM)
-			.setNumSlotsPerTaskManager(1)
+			.setNumTaskManagers(NUM_TASKMANAGERS)
+			.setNumSlotsPerTaskManager(NUM_SLOTS)
 			.build();
 
 		try (MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration)) {

@@ -41,11 +41,6 @@ of the Elasticsearch installation:
   </thead>
   <tbody>
     <tr>
-        <td>flink-connector-elasticsearch2{{ site.scala_version_suffix }}</td>
-        <td>1.0.0</td>
-        <td>2.x</td>
-    </tr>
-    <tr>
         <td>flink-connector-elasticsearch5{{ site.scala_version_suffix }}</td>
         <td>1.3.0</td>
         <td>5.x</td>
@@ -82,7 +77,7 @@ Elasticsearch cluster.
 The example below shows how to configure and create a sink:
 
 <div class="codetabs" markdown="1">
-<div data-lang="java, Elasticsearch 2.x / 5.x" markdown="1">
+<div data-lang="java, 5.x" markdown="1">
 {% highlight java %}
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -189,7 +184,7 @@ esSinkBuilder.setRestClientFactory(
 input.addSink(esSinkBuilder.build());
 {% endhighlight %}
 </div>
-<div data-lang="scala, Elasticsearch 2.x / 5.x" markdown="1">
+<div data-lang="scala, 5.x" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.datastream.DataStream

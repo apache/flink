@@ -1,7 +1,7 @@
 ---
 title: "配置"
 nav-parent_id: tableapi
-nav-pos: 150
+nav-pos: 110
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -104,3 +104,7 @@ The following options can be used to tune the performance of the query execution
 The following options can be used to adjust the behavior of the query optimizer to get a better execution plan.
 
 {% include generated/optimizer_config_configuration.html %}
+
+### Python Options
+
+{% include generated/python_configuration.html %}

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.HeaderlessChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -73,15 +72,15 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 	// We will only read one spilled file at the same time.
 	private static final int READ_BUFFER = 2;
 
-	private final MemoryManager memoryManager;
 	private final IOManager ioManager;
-	private final List<MemorySegment> memory;
+	private final LazyMemorySegmentPool pool;
 	private final BinaryRowSerializer binaryRowSerializer;
 	private final InMemoryBuffer inMemoryBuffer;
-	private long spillSize;
 
 	// The size of each segment
-	private int segmentSize;
+	private final int segmentSize;
+
+	private long spillSize;
 
 	// The length of each row, if each row is of fixed length
 	private long rowLength;
@@ -101,25 +100,21 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 	private boolean addCompleted;
 
 	public ResettableExternalBuffer(
-		MemoryManager memoryManager,
 		IOManager ioManager,
-		List<MemorySegment> memory,
+		LazyMemorySegmentPool pool,
 		AbstractRowSerializer serializer,
 		boolean isRowAllInFixedPart) {
-		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
-		this.memory = memory;
+		this.pool = pool;
 
 		this.binaryRowSerializer = serializer instanceof BinaryRowSerializer ?
 				(BinaryRowSerializer) serializer.duplicate() :
 				new BinaryRowSerializer(serializer.getArity());
 
-		this.inMemoryBuffer = new InMemoryBuffer(serializer);
+		this.segmentSize = pool.pageSize();
 
 		this.spilledChannelIDs = new ArrayList<>();
 		this.spillSize = 0;
-
-		this.segmentSize = memory.get(0).size();
 
 		this.spilledChannelRowOffsets = new ArrayList<>();
 		this.numRows = 0;
@@ -130,6 +125,8 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 		this.isRowAllInFixedPart = isRowAllInFixedPart;
 		this.rowLength = isRowAllInFixedPart ? binaryRowSerializer.getSerializedRowFixedPartLength() : -1;
 		this.addCompleted = false;
+
+		this.inMemoryBuffer = new InMemoryBuffer(serializer);
 	}
 
 	@Override
@@ -182,8 +179,8 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 	@Override
 	public void close() {
 		clearChannels();
-		memoryManager.release(memory);
 		inMemoryBuffer.close();
+		pool.close();
 	}
 
 	private void throwTooBigException(BaseRow row) throws IOException {
@@ -225,7 +222,7 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 	}
 
 	private int memorySize() {
-		return memory.size() * segmentSize;
+		return pool.freePages() * segmentSize;
 	}
 
 	public long getUsedMemoryInBytes() {
@@ -567,8 +564,6 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 	 */
 	private class InMemoryBuffer implements Closeable {
 
-		private final int segmentSize;
-		private final ArrayList<MemorySegment> freeMemory;
 		private final AbstractRowSerializer serializer;
 		private final ArrayList<MemorySegment> recordBufferSegments;
 		private final SimpleCollectingOutputView recordCollector;
@@ -581,13 +576,11 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 		private int recordCount;
 
 		private InMemoryBuffer(AbstractRowSerializer serializer) {
-			this.segmentSize = memory.get(0).size();
-			this.freeMemory = new ArrayList<>(memory);
 			// serializer has states, so we must duplicate
 			this.serializer = (AbstractRowSerializer) serializer.duplicate();
-			this.recordBufferSegments = new ArrayList<>(memory.size());
-			this.recordCollector = new SimpleCollectingOutputView(this.recordBufferSegments,
-					new ListMemorySegmentSource(this.freeMemory), this.segmentSize);
+			this.recordBufferSegments = new ArrayList<>();
+			this.recordCollector = new SimpleCollectingOutputView(
+					this.recordBufferSegments, pool, segmentSize);
 			this.recordCount = 0;
 		}
 
@@ -595,16 +588,18 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 			this.currentDataBufferOffset = 0;
 			this.recordCount = 0;
 
-			// reset free and record segments.
-			this.freeMemory.addAll(this.recordBufferSegments);
-			this.recordBufferSegments.clear();
+			returnToSegmentPool();
 
 			this.recordCollector.reset();
 		}
 
 		@Override
 		public void close() {
-			this.freeMemory.clear();
+			returnToSegmentPool();
+		}
+
+		private void returnToSegmentPool() {
+			pool.returnAll(this.recordBufferSegments);
 			this.recordBufferSegments.clear();
 		}
 
@@ -645,7 +640,7 @@ public class ResettableExternalBuffer implements ResettableRowBuffer {
 			checkArgument(offset >= 0, "`offset` can't be negative!");
 
 			RandomAccessInputView recordBuffer = new RandomAccessInputView(
-					this.recordBufferSegments, this.segmentSize, numBytesInLastBuffer);
+					this.recordBufferSegments, segmentSize, numBytesInLastBuffer);
 			return new InMemoryBufferIterator(recordCount, beginRow, offset, recordBuffer);
 		}
 

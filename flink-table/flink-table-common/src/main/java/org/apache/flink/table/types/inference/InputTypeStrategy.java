@@ -19,21 +19,25 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
+import java.util.List;
+import java.util.Optional;
+
 /**
- * Strategy for inferring missing or incomplete input argument data types in a function call.
+ * Strategy for inferring and validating input arguments in a function call.
  *
- * <p>This interface has two responsibilities:
+ * <p>This interface has three responsibilities during the {@link TypeInference} process:
  *
- * <p>In the {@link TypeInference} process, it is called before the validation of input arguments and
- * can help in resolving the type of untyped {@code NULL} literals.
+ * <p>It can help in resolving the type of untyped {@code NULL} literals.
  *
- * <p>During the planning process, it can help in resolving the actual {@link DataType} including the
+ * <p>It validates the types of the input arguments.
+ *
+ * <p>During the planning process, it can help in resolving the complete {@link DataType}, i.e., the
  * conversion class that a function implementation expects from the runtime. This requires that a
- * strategy can also be called on already validated arguments without affecting the logical type. This
- * is different from Calcite where unknown types are resolved first and might be overwritten by more
- * concrete types if available.
+ * strategy can also be called on already validated arguments without affecting the logical type.
  *
  * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link Object#equals(Object)}.
  *
@@ -43,7 +47,29 @@ import org.apache.flink.table.types.DataType;
 public interface InputTypeStrategy {
 
 	/**
-	 * Infers the argument types of a function call.
+	 * Initial input validation based on the number of arguments.
 	 */
-	void inferInputTypes(MutableCallContext callContext);
+	ArgumentCount getArgumentCount();
+
+	/**
+	 * Main logic for inferring and validating the input arguments. Returns a list of argument data types that
+	 * are valid for the given call. If the returned types differ from {@link CallContext#getArgumentDataTypes()},
+	 * a casting operation can be inserted. An empty result means that the given input is invalid.
+	 *
+	 * @param callContext provides details about the function call
+	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
+	 *                       with a meaningful exception in case the inference is not successful or
+	 *                       if this function should simply return an empty result.
+	 * @return three-state result for either "true, same data types as arguments", "true, but arguments
+	 *         must be casted to returned data types", or "false, no inferred data types could be found"
+	 * @see CallContext#newValidationError(String, Object...)
+	 */
+	Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure);
+
+	/**
+	 * Returns a summary of the function's expected signatures.
+	 *
+	 * @param definition the function definition that defines the function currently being called.
+	 */
+	List<Signature> getExpectedSignatures(FunctionDefinition definition);
 }

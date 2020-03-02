@@ -32,11 +32,9 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 
@@ -101,7 +99,8 @@ class StreamExecSink[T](
             // Now we pick shortest one to sink
             // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
             val tableKeys = {
-              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner) match {
+              val sinkFieldNames = upsertSink.getTableSchema.getFieldNames
+              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner, sinkFieldNames) match {
                 case Some(keys) => keys.sortBy(_.length).headOption
                 case None => None
               }
@@ -210,24 +209,22 @@ class StreamExecSink[T](
     } else {
       parTransformation.getOutputType
     }
+
     val resultDataType = sink.getConsumedDataType
-    val resultType = TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(resultDataType)
     if (CodeGenUtils.isInternalClass(resultDataType)) {
       parTransformation.asInstanceOf[Transformation[T]]
     } else {
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
-        convType.asInstanceOf[BaseRowTypeInfo],
-        "SinkConversion",
-        None,
+        convType.asInstanceOf[BaseRowTypeInfo].toRowType,
+        sink,
         withChangeFlag,
-        resultType,
-        sink
+        "SinkConversion"
       )
       new OneInputTransformation(
         parTransformation,
-        s"SinkConversionTo${resultType.getTypeClass.getSimpleName}",
+        s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
         converterOperator,
         outputTypeInfo,
         parTransformation.getParallelism)

@@ -99,6 +99,10 @@ public class StreamRecordUtils {
 			Object value = fields[j];
 			if (value == null) {
 				writer.setNullAt(j);
+			} else if (value instanceof Byte) {
+				writer.writeByte(j, (Byte) value);
+			} else if (value instanceof Short) {
+				writer.writeShort(j, (Short) value);
 			} else if (value instanceof Integer) {
 				writer.writeInt(j, (Integer) value);
 			} else if (value instanceof String) {

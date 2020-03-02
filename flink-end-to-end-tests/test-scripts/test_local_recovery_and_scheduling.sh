@@ -78,7 +78,7 @@ function run_local_recovery_test {
     create_ha_config
 
     # Enable debug logging
-    sed -i -e 's/log4j.rootLogger=.*/log4j.rootLogger=DEBUG, file/' "$FLINK_DIR/conf/log4j.properties"
+    sed -i -e 's/rootLogger.level = .*/rootLogger.level = DEBUG/' "$FLINK_DIR/conf/log4j.properties"
 
     # Enable local recovery
     set_config_key "state.backend.local-recovery" "true"

@@ -497,7 +497,19 @@ public class KinesisDataFetcher<T> {
 					Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS)));
 
 			// run record emitter in separate thread since main thread is used for discovery
-			Thread thread = new Thread(this.recordEmitter);
+			Runnable recordEmitterRunnable = new Runnable() {
+				@Override
+				public void run() {
+					try {
+						recordEmitter.run();
+					} catch (Throwable error) {
+						// report the error that terminated the emitter loop to source thread
+						stopWithError(error);
+					}
+				}
+			};
+
+			Thread thread = new Thread(recordEmitterRunnable);
 			thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
 			thread.setDaemon(true);
 			thread.start();

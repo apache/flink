@@ -86,26 +86,12 @@ public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<
 	 * @return The base statistics for the input, or null, if not available.
 	 */
 	BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException;
-	
-	/**
-	 * Creates the different splits of the input that can be processed in parallel.
-	 * <p>
-	 * When this method is called, the input format it guaranteed to be configured.
-	 * 
-	 * @param minNumSplits The minimum desired number of splits. If fewer are created, some parallel
-	 *                     instances may remain idle.
-	 * @return The splits of this input that can be processed in parallel. 
-	 * 
-	 * @throws IOException Thrown, when the creation of the splits was erroneous.
-	 */
+
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	T[] createInputSplits(int minNumSplits) throws IOException;
-	
-	/**
-	 * Gets the type of the input splits that are processed by this input format.
-	 * 
-	 * @return The type of the input splits.
-	 */
+
 	@Override
 	InputSplitAssigner getInputSplitAssigner(T[] inputSplits);
 	

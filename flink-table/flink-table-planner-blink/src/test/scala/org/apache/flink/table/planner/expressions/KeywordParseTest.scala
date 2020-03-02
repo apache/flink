@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.expressions.ExpressionParser
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{lookupCall, unresolvedCall, unresolvedRef}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{lookupCall, unresolvedCall, unresolvedRef}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
 import org.junit.Assert.assertEquals

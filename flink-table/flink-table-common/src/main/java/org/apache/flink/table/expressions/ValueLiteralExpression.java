@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -74,6 +75,9 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
 	/**
 	 * Returns the value (excluding null) as an instance of the given class.
+	 *
+	 * <p>Note to implementers: Whenever we add a new class here, make sure to also update the planner
+	 * for supporting the class via {@link CallContext#getArgumentValue(int, Class)}.
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> Optional<T> getValueAs(Class<T> clazz) {
@@ -150,6 +154,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
 		// we can offer more conversions in the future, these conversions must not necessarily
 		// comply with the logical type conversions
+
 		return Optional.ofNullable((T) convertedValue);
 	}
 

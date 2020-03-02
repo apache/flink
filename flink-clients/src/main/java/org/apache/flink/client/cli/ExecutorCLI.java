@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutor;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -30,13 +32,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A generic implementation of the {@link CustomCommandLine} that only expects
  * the execution.target parameter to be explicitly specified and simply forwards the
- * rest of the options specified with -D to the corresponding {@link org.apache.flink.core.execution.Executor}
+ * rest of the options specified with -D to the corresponding {@link PipelineExecutor}
  * for further parsing.
  */
 @Internal
@@ -44,21 +47,24 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutorCLI.class);
 
-	private static final String ID = "Executor-CLI";
+	private static final String ID = "executor";
 
 	private final Option executorOption = new Option("e", "executor", true,
-			"The name of the executor to be used for executing the given job, e.g. \"local\"." +
-					" This is equivalent to the \"" + DeploymentOptions.TARGET.key() + "\" config option.");
+			"The name of the executor to be used for executing the given job, which is equivalent " +
+					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
+					"currently available executors are: " + getExecutorFactoryNames() + ".");
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.shuffle.min=536346624</tt>.
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>.
 	 */
 	private final Option dynamicProperties = Option.builder("D")
 			.argName("property=value")
 			.numberOfArgs(2)
 			.valueSeparator('=')
-			.desc("use value for given property")
+			.desc("Generic configuration options for execution/deployment and for the configured " +
+					"executor. The available options can be found at " +
+					"https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
 			.build();
 
 	private final Configuration baseConfiguration;
@@ -118,5 +124,11 @@ public class ExecutorCLI implements CustomCommandLine {
 						effectiveConfiguration.setString(key, "true");
 					}
 				});
+	}
+
+	private static String getExecutorFactoryNames() {
+		return DefaultExecutorServiceLoader.INSTANCE.getExecutorNames()
+				.map(name -> String.format("\"%s\"", name))
+				.collect(Collectors.joining(", "));
 	}
 }

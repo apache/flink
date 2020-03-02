@@ -24,6 +24,7 @@ if [ -z "$END_TO_END_DIR" ] ; then
     # to the script (e.g. permissions re-evaled after suid)
     exit 1  # fail
 fi
+HADOOP_INTEGRATION=${1-with-hadoop}
 
 export END_TO_END_DIR
 
@@ -47,6 +48,11 @@ run_test "Wordcount on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scr
 run_test "Running Kerberized YARN on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
 run_test "Running Kerberized YARN on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh dummy-fs"
 run_test "Run kubernetes test" "$END_TO_END_DIR/test-scripts/test_kubernetes_embedded_job.sh"
+run_test "Run kubernetes session test" "$END_TO_END_DIR/test-scripts/test_kubernetes_session.sh"
+if [[ "${HADOOP_INTEGRATION}" = "with-hadoop" ]]; then
+    run_test "Run Mesos WordCount test" "$END_TO_END_DIR/test-scripts/test_mesos_wordcount.sh"
+    run_test "Run Mesos multiple submission test" "$END_TO_END_DIR/test-scripts/test_mesos_multiple_submissions.sh"
+fi
 
 printf "\n[PASS] All tests passed\n"
 exit 0

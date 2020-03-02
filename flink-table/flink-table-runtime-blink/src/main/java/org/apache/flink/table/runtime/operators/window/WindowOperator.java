@@ -234,6 +234,8 @@ public abstract class WindowOperator<K, W extends Window>
 	public void open() throws Exception {
 		super.open();
 
+		functionsClosed = false;
+
 		collector = new TimestampedCollector<>(output);
 		collector.eraseTimestamp();
 
@@ -385,6 +387,10 @@ public abstract class WindowOperator<K, W extends Window>
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
+		if (functionsClosed) {
+			return;
+		}
+
 		setCurrentKey(timer.getKey());
 
 		triggerContext.window = timer.getNamespace();
@@ -629,7 +635,6 @@ public abstract class WindowOperator<K, W extends Window>
 			}
 		}
 	}
-
 
 	// ------------------------------------------------------------------------------
 	// Visible For Testing

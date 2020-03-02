@@ -131,7 +131,7 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 
 		@Override
 		public int read(byte[] b, int off, int len) throws IOException {
-			// note that any bounds checking on "byte[] b" happend anyways by the
+			// note that any bounds checking on "byte[] b" happened anyways by the
 			// System.arraycopy() call below, so we don't add extra checks here
 
 			final int bytesLeft = data.length - index;

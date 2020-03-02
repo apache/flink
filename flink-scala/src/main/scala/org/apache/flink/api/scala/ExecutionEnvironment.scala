@@ -17,8 +17,6 @@
  */
 package org.apache.flink.api.scala
 
-import java.util.concurrent.CompletableFuture
-
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
@@ -31,8 +29,8 @@ import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.execution.{JobClient, JobListener}
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.core.execution.{JobClient, JobListener, PipelineExecutor}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
@@ -192,6 +190,23 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def registerType(typeClass: Class[_]) {
     javaEnv.registerType(typeClass)
+  }
+
+  /**
+   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
+   * [[org.apache.flink.configuration.PipelineOptions#CACHED_FILES]]. It will reconfigure
+   * [[ExecutionEnvironment]] and [[ExecutionConfig]].
+   *
+   * It will change the value of a setting only if a corresponding option was set in the
+   * `configuration`. If a key is not present, the current value of a field will remain
+   * untouched.
+   *
+   * @param configuration a configuration to read the values from
+   * @param classLoader   a class loader to use when loading classes
+   */
+  @PublicEvolving
+  def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
+    javaEnv.configure(configuration, classLoader)
   }
 
   /**
@@ -562,7 +577,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates the program's [[org.apache.flink.api.common.Plan]].
    * The plan is a description of all data sources, data sinks,
    * and operations and how they interact, as an isolated unit that can be executed with an
-   * [[org.apache.flink.core.execution.Executor]]. Obtaining a plan and starting it with an
+   * [[PipelineExecutor]]. Obtaining a plan and starting it with an
    * executor is an alternative way to run a program and is only possible if the program only
    * consists of distributed operations.
    */

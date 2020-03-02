@@ -27,6 +27,7 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -39,7 +40,10 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -91,7 +95,13 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			}
 
 			try {
-				return new RestClusterClient<>(configuration, clusterId);
+				// Flink client will always use Kubernetes service to contact with jobmanager. So we have a pre-configured web
+				// monitor address. Using StandaloneClientHAServices to create RestClusterClient is reasonable.
+				return new RestClusterClient<>(
+					configuration,
+					clusterId,
+					new StandaloneClientHAServices(HighAvailabilityServicesUtils.getWebMonitorAddress(
+						configuration, HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION)));
 			} catch (Exception e) {
 				client.handleException(e);
 				throw new RuntimeException(new ClusterRetrieveException("Could not create the RestClusterClient.", e));
@@ -148,25 +158,23 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		flinkConfig.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entryPoint);
 
 		// Rpc, blob, rest, taskManagerRpc ports need to be exposed, so update them to fixed values.
-		if (KubernetesUtils.parsePort(flinkConfig, BlobServerOptions.PORT) == 0) {
-			flinkConfig.setString(BlobServerOptions.PORT, String.valueOf(Constants.BLOB_SERVER_PORT));
-			LOG.warn(
-				"Kubernetes service requires a fixed port. Configuration {} will be set to {}",
-				BlobServerOptions.PORT.key(),
-				Constants.BLOB_SERVER_PORT);
-		}
-
-		if (KubernetesUtils.parsePort(flinkConfig, TaskManagerOptions.RPC_PORT) == 0) {
-			flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
-			LOG.warn(
-				"Kubernetes service requires a fixed port. Configuration {} will be set to {}",
-				TaskManagerOptions.RPC_PORT.key(),
-				Constants.TASK_MANAGER_RPC_PORT);
-		}
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, BlobServerOptions.PORT, Constants.BLOB_SERVER_PORT);
+		KubernetesUtils.checkAndUpdatePortConfigOption(
+			flinkConfig,
+			TaskManagerOptions.RPC_PORT,
+			Constants.TASK_MANAGER_RPC_PORT);
 
 		// Set jobmanager address to namespaced service name
 		final String nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
 		flinkConfig.setString(JobManagerOptions.ADDRESS, clusterId + "." + nameSpace);
+
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+			flinkConfig.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
+			KubernetesUtils.checkAndUpdatePortConfigOption(
+				flinkConfig,
+				HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,
+				flinkConfig.get(JobManagerOptions.PORT));
+		}
 
 		try {
 			final KubernetesService internalSvc = client.createInternalService(clusterId).get();

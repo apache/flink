@@ -66,6 +66,8 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -115,6 +117,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	CloseableRegistry closableRegistry;
 
+	private final TaskMailbox taskMailbox;
+
 	// use this as default for tests
 	protected StateBackend stateBackend = new MemoryStateBackend();
 	private CheckpointStorage checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
@@ -156,7 +160,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				SimpleOperatorFactory.of(operator),
 				new MockEnvironmentBuilder()
 						.setTaskName("MockTask")
-						.setMemorySize(3 * 1024 * 1024)
+						.setManagedMemorySize(3 * 1024 * 1024)
 						.setInputSplitProvider(new MockInputSplitProvider())
 						.setBufferSize(1024)
 						.setMaxParallelism(maxParallelism)
@@ -197,7 +201,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				factory,
 				new MockEnvironmentBuilder()
 						.setTaskName("MockTask")
-						.setMemorySize(3 * 1024 * 1024)
+						.setManagedMemorySize(3 * 1024 * 1024)
 						.setInputSplitProvider(new MockInputSplitProvider())
 						.setBufferSize(1024)
 						.setMaxParallelism(maxParallelism)
@@ -247,6 +251,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			wasFailedExternally = true;
 		};
 
+		this.taskMailbox = new TaskMailboxImpl();
+
 		mockTask = new MockStreamTaskBuilder(env)
 			.setCheckpointLock(checkpointLock)
 			.setConfig(config)
@@ -256,6 +262,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			.setCheckpointStorage(checkpointStorage)
 			.setTimerService(processingTimeService)
 			.setHandleAsyncException(handleAsyncException)
+			.setTaskMailbox(taskMailbox)
 			.build();
 	}
 
@@ -278,6 +285,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * @deprecated Checkpoint lock in {@link StreamTask} is replaced by {@link org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor StreamTaskActionExecutor}.
+	 */
+	@Deprecated
 	public Object getCheckpointLock() {
 		return mockTask.getCheckpointLock();
 	}
@@ -350,9 +361,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 			if (operator == null) {
 				this.operator = StreamOperatorFactoryUtil.createOperator(factory, mockTask, config,
-						new MockOutput(outputSerializer));
-			} else if (operator instanceof SetupableStreamOperator) {
-				((SetupableStreamOperator) operator).setup(mockTask, config, new MockOutput(outputSerializer));
+						new MockOutput(outputSerializer)).f0;
+			} else {
+				if (operator instanceof AbstractStreamOperator) {
+					((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
+				}
+				if (operator instanceof SetupableStreamOperator) {
+					((SetupableStreamOperator) operator).setup(mockTask, config, new MockOutput(outputSerializer));
+				}
 			}
 			setupCalled = true;
 			this.mockTask.init();
@@ -606,6 +622,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		mockTask.cleanup();
 	}
 
+	public AbstractStreamOperator<OUT> getOperator() {
+		return (AbstractStreamOperator<OUT>) operator;
+	}
+
+	public StreamOperatorFactory<OUT> getOperatorFactory() {
+		return factory;
+	}
+
 	public void setProcessingTime(long time) throws Exception {
 		processingTimeService.setCurrentTime(time);
 	}
@@ -652,6 +676,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	@VisibleForTesting
 	public StreamStatus getStreamStatus() {
 		return mockTask.getStreamStatusMaintainer().getStreamStatus();
+	}
+
+	@VisibleForTesting
+	public TaskMailbox getTaskMailbox() {
+		return taskMailbox;
 	}
 
 	private class MockOutput implements Output<StreamRecord<OUT>> {

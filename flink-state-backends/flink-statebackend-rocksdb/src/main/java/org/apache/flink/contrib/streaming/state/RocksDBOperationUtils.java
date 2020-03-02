@@ -24,18 +24,16 @@ import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
 
-import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-import org.rocksdb.LRUCache;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteBufferManager;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -83,6 +81,10 @@ public class RocksDBOperationUtils {
 		} catch (RocksDBException e) {
 			IOUtils.closeQuietly(columnFamilyOptions);
 			columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
+
+			// improve error reporting on Windows
+			throwExceptionIfPathLengthExceededOnWindows(path, e);
+
 			throw new IOException("Error while opening RocksDB instance.", e);
 		}
 
@@ -190,11 +192,8 @@ public class RocksDBOperationUtils {
 		final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
 		final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
 
-		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) -> {
-			final Cache cache = new LRUCache(size, -1, false, highPriorityPoolRatio);
-			final WriteBufferManager wbm = new WriteBufferManager((long) (writeBufferRatio * size), cache);
-			return new RocksDBSharedResources(cache, wbm);
-		};
+		final LongFunctionWithException<RocksDBSharedResources, Exception> allocator = (size) ->
+			RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(size, writeBufferRatio, highPriorityPoolRatio);
 
 		try {
 			if (memoryConfig.isUsingFixedMemoryPerSlot()) {
@@ -211,6 +210,18 @@ public class RocksDBOperationUtils {
 		}
 		catch (Exception e) {
 			throw new IOException("Failed to acquire shared cache resource for RocksDB", e);
+		}
+	}
+
+	private static void throwExceptionIfPathLengthExceededOnWindows(String path, Exception cause) throws IOException {
+		// max directory path length on Windows is 247.
+		// the maximum path length is 260, subtracting one file name length (12 chars) and one NULL terminator.
+		final int maxWinDirPathLen = 247;
+
+		if (path.length() > maxWinDirPathLen && OperatingSystem.isWindows()) {
+			throw new IOException(String.format(
+				"The directory path length (%d) is longer than the directory path length limit for Windows (%d): %s",
+				path.length(), maxWinDirPathLen, path), cause);
 		}
 	}
 }

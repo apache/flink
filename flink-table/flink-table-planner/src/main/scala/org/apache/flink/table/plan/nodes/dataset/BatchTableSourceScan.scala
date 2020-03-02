@@ -18,41 +18,54 @@
 
 package org.apache.flink.table.plan.nodes.dataset
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
-import org.apache.flink.table.api.{BatchQueryConfig, TableException, Types}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.{BatchQueryConfig, TableException, TableSchema, Types}
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.sources._
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
+import org.apache.flink.table.utils.TypeMappingUtils
 import org.apache.flink.types.Row
+
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+
+import java.util.function.{Function => JFunction}
+
+import scala.collection.JavaConverters._
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
+    tableSchema: TableSchema,
     tableSource: TableSource[_],
     selectedFields: Option[Array[Int]])
-  extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource, selectedFields)
+  extends PhysicalTableSourceScan(
+    cluster,
+    traitSet,
+    table,
+    tableSchema,
+    tableSource,
+    selectedFields)
   with BatchScan {
 
   override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      selectedFields,
-      streaming = false,
-      flinkTypeFactory)
+    val baseRowType = table.getRowType
+    selectedFields.map(idxs => {
+      val fields = baseRowType.getFieldList
+      val builder = cluster.getTypeFactory.builder()
+      idxs.map(fields.get).foreach(builder.add)
+      builder.build()
+    }).getOrElse(baseRowType)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -65,6 +78,7 @@ class BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
+      tableSchema,
       tableSource,
       selectedFields
     )
@@ -78,6 +92,7 @@ class BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
+      tableSchema,
       tableSource,
       selectedFields
     )
@@ -86,11 +101,6 @@ class BatchTableSourceScan(
   override def translateToPlan(
       tableEnv: BatchTableEnvImpl,
       queryConfig: BatchQueryConfig): DataSet[Row] = {
-
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      isStreamTable = false,
-      selectedFields)
 
     val config = tableEnv.getConfig
     val inputDataSet = tableSource match {
@@ -108,8 +118,6 @@ class BatchTableSourceScan(
       case _ => throw new TableException("Only BatchTableSource and InputFormatTableSource are " +
         "supported in BatchTableEnvironment.")
     }
-    val outputSchema = new RowSchema(this.getRowType)
-
     val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType)
     val producedDataType = tableSource.getProducedDataType
 
@@ -121,18 +129,36 @@ class BatchTableSourceScan(
         s"Please validate the implementation of the TableSource.")
     }
 
-    // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val nameMapping: JFunction[String, String] = tableSource match {
+      case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+          new JFunction[String, String] {
+            override def apply(t: String): String = mapping.getFieldMapping.get(t)
+          }
+      case _ => JFunction.identity()
+    }
+
+    val fieldIndexes = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
-      selectedFields,
-      cluster,
-      tableEnv.getRelBuilder,
-      Types.SQL_TIMESTAMP
+      selectedFields.map(_.map(tableSchema.getTableColumn(_).get()).toList.asJava)
+        .getOrElse(tableSchema.getTableColumns),
+      false,
+      nameMapping
     )
+
+    val rowtimeExpression = TableSourceUtil.getRowtimeAttributeDescriptor(
+        tableSource,
+        selectedFields)
+      .map(desc => TableSourceUtil.getRowtimeExtractionExpression(
+        desc.getTimestampExtractor,
+        producedDataType,
+        TypeConversions.fromLegacyInfoToDataType(Types.SQL_TIMESTAMP()),
+        tableEnv.getRelBuilder,
+        nameMapping
+      ))
 
     // ingest table and convert and extract time attributes if necessary
     convertToInternalRow(
-      outputSchema,
+      new RowSchema(getRowType),
       inputDataSet,
       fieldIndexes,
       config,

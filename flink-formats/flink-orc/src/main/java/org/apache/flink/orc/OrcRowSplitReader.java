@@ -19,9 +19,11 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
 
 import java.io.IOException;
@@ -30,7 +32,7 @@ import java.util.List;
 /**
  * {@link OrcSplitReader} to read ORC files into {@link Row}.
  */
-public class OrcRowSplitReader extends OrcSplitReader<Row> {
+public class OrcRowSplitReader extends OrcSplitReader<Row, VectorizedRowBatch> {
 
 	private final TypeDescription schema;
 	private final int[] selectedFields;
@@ -46,7 +48,7 @@ public class OrcRowSplitReader extends OrcSplitReader<Row> {
 			Path path,
 			long splitStart,
 			long splitLength) throws IOException {
-		super(conf, schema, selectedFields, conjunctPredicates, batchSize, path, splitStart, splitLength);
+		super(OrcShim.defaultShim(), conf, schema, selectedFields, conjunctPredicates, batchSize, path, splitStart, splitLength);
 		this.schema = schema;
 		this.selectedFields = selectedFields;
 		// create and initialize the row batch
@@ -58,7 +60,7 @@ public class OrcRowSplitReader extends OrcSplitReader<Row> {
 
 	@Override
 	protected int fillRows() {
-		return OrcBatchReader.fillRows(rows, schema, rowBatch, selectedFields);
+		return OrcBatchReader.fillRows(rows, schema, rowBatchWrapper.getBatch(), selectedFields);
 	}
 
 	@Override

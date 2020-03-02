@@ -147,7 +147,7 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 Testing the functionality of a user-defined function, which makes use of managed state or timers is more difficult because it involves testing the interaction between the user code and Flink's runtime.
 For this Flink comes with a collection of so called test harnesses, which can be used to test such user-defined functions as well as custom operators:
 
-* `OneInputStreamOperatorTestHarness` (for operators on `DataStreams`s)
+* `OneInputStreamOperatorTestHarness` (for operators on `DataStream`s)
 * `KeyedOneInputStreamOperatorTestHarness` (for operators on `KeyedStream`s)
 * `TwoInputStreamOperatorTestHarness` (for operators of `ConnectedStreams` of two `DataStream`s)
 * `KeyedTwoInputStreamOperatorTestHarness` (for operators on `ConnectedStreams` of two `KeyedStream`s)
@@ -332,6 +332,90 @@ Many more examples for the usage of these test harnesses can be found in the Fli
 
 <span class="label label-info">Note</span> Be aware that `AbstractStreamOperatorTestHarness` and its derived classes are currently not part of the public API and can be subject to change.
 
+#### Unit Testing ProcessFunction
+
+Given its importance, in addition to the previous test harnesses that can be used directly to test a `ProcessFunction`, Flink provides a test harness factory named `ProcessFunctionTestHarnesses` that allows for easier test harness instantiation. Considering this example:
+
+<span class="label label-info">Note</span> Be aware that to use this test harness, you also need to introduce the dependencies mentioned in the last section.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public static class PassThroughProcessFunction extends ProcessFunction<Integer, Integer> {
+
+	@Override
+	public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+        out.collect(value);
+	}
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class PassThroughProcessFunction extends ProcessFunction[Integer, Integer] {
+
+    @throws[Exception]
+    override def processElement(value: Integer, ctx: ProcessFunction[Integer, Integer]#Context, out: Collector[Integer]): Unit = {
+      out.collect(value)
+    }
+}
+{% endhighlight %}
+</div>
+</div>
+
+It is very easy to unit test such a function with `ProcessFunctionTestHarnesses` by passing suitable arguments and verifying the output.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class PassThroughProcessFunctionTest {
+
+    @Test
+    public void testPassThrough() throws Exception {
+
+        //instantiate user-defined function
+        PassThroughProcessFunction processFunction = new PassThroughProcessFunction();
+
+        // wrap user defined function into a the corresponding operator
+        OneInputStreamOperatorTestHarness<Integer, Integer> harness = ProcessFunctionTestHarnesses
+        	.forProcessFunction(processFunction);
+
+        //push (timestamped) elements into the operator (and hence user defined function)
+        harness.processElement(1, 10);
+
+        //retrieve list of emitted records for assertions
+        assertEquals(harness.extractOutputValues(), Collections.singletonList(1));
+    }
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class PassThroughProcessFunctionTest extends FlatSpec with Matchers {
+
+  "PassThroughProcessFunction" should "forward values" in {
+
+    //instantiate user-defined function
+    val processFunction = new PassThroughProcessFunction
+
+    // wrap user defined function into a the corresponding operator
+    val harness = ProcessFunctionTestHarnesses.forProcessFunction(processFunction)
+
+    //push (timestamped) elements into the operator (and hence user defined function)
+    harness.processElement(1, 10)
+
+    //retrieve list of emitted records for assertions
+    harness.extractOutputValues() should contain (1)
+  }
+}
+{% endhighlight %}
+</div>
+</div>
+
+For more examples on how to use the `ProcessFunctionTestHarnesses` in order to test the different flavours of the `ProcessFunction`, e.g. `KeyedProcessFunction`, `KeyedCoProcessFunction`, `BroadcastProcessFunction`, etc, the user is encouraged to look at the `ProcessFunctionTestHarnessesTest`.
+
 ## Testing Flink Jobs
 
 ### JUnit Rule `MiniClusterWithClientResource`
@@ -494,7 +578,7 @@ A few remarks on integration testing with `MiniClusterWithClientResource`:
 Communicating with operators instantiated by a local Flink mini cluster via static variables is one way around this issue.
 Alternatively, you could write the data to files in a temporary directory with your test sink.
 
-* You can implement a custom *parallel* source function for emitting watermarks if your job uses event timer timers.
+* You can implement a custom *parallel* source function for emitting watermarks if your job uses event time timers.
 
 * It is recommended to always test your pipelines locally with a parallelism > 1 to identify bugs which only surface for the pipelines executed in parallel.
 

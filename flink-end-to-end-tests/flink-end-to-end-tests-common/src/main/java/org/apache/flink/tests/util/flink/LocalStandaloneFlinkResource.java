@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -71,10 +72,8 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
 	@Override
 	public ClusterController startCluster(int numTaskManagers) throws IOException {
-		distribution.startJobManager();
-		for (int x = 0; x < numTaskManagers; x++) {
-			distribution.startTaskManager();
-		}
+		distribution.setTaskExecutorHosts(Collections.nCopies(numTaskManagers, "localhost"));
+		distribution.startFlinkCluster();
 
 		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor())) {
 			for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
@@ -130,6 +129,11 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 			final JobID run = distribution.submitJob(job);
 
 			return new StandaloneJobController(run);
+		}
+
+		@Override
+		public void submitSQLJob(SQLJobSubmission job) throws IOException {
+			distribution.submitSQLJob(job);
 		}
 
 		@Override

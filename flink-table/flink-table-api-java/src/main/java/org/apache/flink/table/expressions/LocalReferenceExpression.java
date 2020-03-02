@@ -39,7 +39,7 @@ public class LocalReferenceExpression implements ResolvedExpression {
 
 	private final DataType dataType;
 
-	public LocalReferenceExpression(String name, DataType dataType) {
+	LocalReferenceExpression(String name, DataType dataType) {
 		this.name = Preconditions.checkNotNull(name);
 		this.dataType = Preconditions.checkNotNull(dataType);
 	}

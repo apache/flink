@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.utils;
 
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -29,6 +30,8 @@ import java.util.Optional;
  * {@link CallContext} mock for testing purposes.
  */
 public class CallContextMock implements CallContext {
+
+	public DataTypeFactory typeFactory;
 
 	public List<DataType> argumentDataTypes;
 
@@ -42,9 +45,11 @@ public class CallContextMock implements CallContext {
 
 	public String name;
 
+	public Optional<DataType> outputDataType;
+
 	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return argumentDataTypes;
+	public DataTypeFactory getDataTypeFactory() {
+		return typeFactory;
 	}
 
 	@Override
@@ -71,5 +76,15 @@ public class CallContextMock implements CallContext {
 	@Override
 	public String getName() {
 		return name;
+	}
+
+	@Override
+	public List<DataType> getArgumentDataTypes() {
+		return argumentDataTypes;
+	}
+
+	@Override
+	public Optional<DataType> getOutputDataType() {
+		return outputDataType;
 	}
 }

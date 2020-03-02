@@ -29,10 +29,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class FailoverStrategyFactoryLoader {
 
-	/** Config name for the {@link RestartAllStrategy}. */
+	/** Config name for the {@link RestartAllFailoverStrategy}. */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartPipelinedRegionStrategy}. */
+	/** Config name for the {@link RestartPipelinedRegionFailoverStrategy}. */
 	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
 
 	private FailoverStrategyFactoryLoader() {
@@ -57,10 +57,10 @@ public final class FailoverStrategyFactoryLoader {
 
 		switch (strategyParam.toLowerCase()) {
 			case FULL_RESTART_STRATEGY_NAME:
-				return new RestartAllStrategy.Factory();
+				return new RestartAllFailoverStrategy.Factory();
 
 			case PIPELINED_REGION_RESTART_STRATEGY_NAME:
-				return new RestartPipelinedRegionStrategy.Factory();
+				return new RestartPipelinedRegionFailoverStrategy.Factory();
 
 			default:
 				throw new IllegalConfigurationException("Unknown failover strategy: " + strategyParam);

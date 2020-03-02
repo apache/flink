@@ -24,6 +24,7 @@ under the License.
 
 Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine.
 Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.
+And please also note that Hive connector only works with blink planner.
 
 * This will be replaced by the TOC
 {:toc}
@@ -110,6 +111,13 @@ __________ __________
 
 {% endhighlight %}
 
+### Querying Hive views
+
+If you need to query Hive views, please note:
+
+1. You have to use the Hive catalog as your current catalog before you can query views in that catalog. It can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
+2. Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals. Make sure the view's query is compatible with Flink grammar.
+
 ## Writing To Hive
 
 Similarly, data can be written into hive using an `INSERT` clause.
@@ -137,21 +145,44 @@ Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08'
 Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 {% endhighlight %}
 
+
 ## Formats
 
 We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
 
-# ------ ORC Vectorized Optimization ------ 
+
+## Optimizations
+
+### Partition Pruning
+
+Flink uses partition pruning as a performance optimization to limits the number of files and partitions
+that Flink reads when querying Hive tables. When your data is partitioned, Flink only reads a subset of the partitions in 
+a Hive table when a query matches certain filter criteria.
+
+### Projection Pushdown
+
+Flink leverages projection pushdown to minimize data transfer between Flink and Hive tables by omitting 
+unnecessary fields from table scans.
+
+It is especially beneficial when a table contains many columns.
+
+### Limit Pushdown
+
+For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
+amount of data transferred across network.
+
+### ORC Vectorized Optimization upon Read
+
 Optimization is used automatically when the following conditions are met:
 
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
-- Hive version greater than or equal to version 2.0.0.
 
 This feature is turned on by default. If there is a problem, you can use this config option to close ORC Vectorized Optimization:
 
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
 {% endhighlight %}
+
 
 ## Roadmap
 

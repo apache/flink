@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.MapView
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateFieldAccess, generateInputAccess}
@@ -34,9 +34,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
-
 import org.apache.calcite.tools.RelBuilder
-
 import java.lang.{Long => JLong}
 
 /**
@@ -384,6 +382,7 @@ class DistinctAggCodeGen(
     // the key expression of MapView
     if (fieldExprs.length > 1) {
       val keyTerm = newName(DISTINCT_KEY_TERM)
+      val outRowWriter = newName(DEFAULT_OUT_RECORD_WRITER_TERM)
       val valueType = RowType.of(
         fieldExprs.map(_.resultType): _*)
 
@@ -391,8 +390,9 @@ class DistinctAggCodeGen(
       generator.generateResultExpression(
         fieldExprs,
         valueType,
-        classOf[GenericRow],
+        classOf[BinaryRow],
         outRow = keyTerm,
+        outRowWriter = Some(outRowWriter),
         reusedOutRow = false)
     } else {
       val fieldExpr = fieldExprs.head

@@ -24,7 +24,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, _to_java_type
 from pyflink.util import utils
 
-__all__ = ['FunctionContext', 'ScalarFunction', 'udf']
+__all__ = ['FunctionContext', 'ScalarFunction', 'TableFunction', 'udf', 'udtf']
 
 
 class FunctionContext(object):
@@ -86,6 +86,20 @@ class ScalarFunction(UserDefinedFunction):
         pass
 
 
+class TableFunction(UserDefinedFunction):
+    """
+    Base interface for user-defined table function. A user-defined table function creates zero, one,
+    or multiple rows to a new row value.
+    """
+
+    @abc.abstractmethod
+    def eval(self, *args):
+        """
+        Method which defines the logic of the table function.
+        """
+        pass
+
+
 class DelegatingScalarFunction(ScalarFunction):
     """
     Helper scalar function implementation for lambda expression and python function. It's for
@@ -99,14 +113,27 @@ class DelegatingScalarFunction(ScalarFunction):
         return self.func(*args)
 
 
+class DelegationTableFunction(TableFunction):
+    """
+    Helper table function implementation for lambda expression and python function. It's for
+    internal use only.
+    """
+
+    def __init__(self, func):
+        self.func = func
+
+    def eval(self, *args):
+        return self.func(*args)
+
+
 class UserDefinedFunctionWrapper(object):
     """
-    Wrapper for Python user-defined function. It handles things like converting lambda
+    Base Wrapper for Python user-defined function. It handles things like converting lambda
     functions to user-defined functions, creating the Java user-defined function representation,
     etc. It's for internal use only.
     """
 
-    def __init__(self, func, input_types, result_type, deterministic=None, name=None):
+    def __init__(self, func, input_types, deterministic=None, name=None):
         if inspect.isclass(func) or (
                 not isinstance(func, UserDefinedFunction) and not callable(func)):
             raise TypeError(
@@ -122,14 +149,8 @@ class UserDefinedFunctionWrapper(object):
                     "Invalid input_type: input_type should be DataType but contains {}".format(
                         input_type))
 
-        if not isinstance(result_type, DataType):
-            raise TypeError(
-                "Invalid returnType: returnType should be DataType but is {}".format(result_type))
-
         self._func = func
         self._input_types = input_types
-        self._result_type = result_type
-        self._judf_placeholder = None
         self._name = name or (
             func.__name__ if hasattr(func, '__name__') else func.__class__.__name__)
 
@@ -142,7 +163,26 @@ class UserDefinedFunctionWrapper(object):
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
 
-    def _judf(self, is_blink_planner, table_config):
+    def java_user_defined_function(self, is_blink_planner, table_config):
+        pass
+
+
+class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
+    """
+    Wrapper for Python user-defined scalar function.
+    """
+
+    def __init__(self, func, input_types, result_type, deterministic, name):
+        super(UserDefinedScalarFunctionWrapper, self).__init__(
+            func, input_types, deterministic, name)
+
+        if not isinstance(result_type, DataType):
+            raise TypeError(
+                "Invalid returnType: returnType should be DataType but is {}".format(result_type))
+        self._result_type = result_type
+        self._judf_placeholder = None
+
+    def java_user_defined_function(self, is_blink_planner, table_config):
         if self._judf_placeholder is None:
             self._judf_placeholder = self._create_judf(is_blink_planner, table_config)
         return self._judf_placeholder
@@ -183,6 +223,69 @@ class UserDefinedFunctionWrapper(object):
         return j_scalar_function
 
 
+class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
+    """
+    Wrapper for Python user-defined table function.
+    """
+
+    def __init__(self, func, input_types, result_types, deterministic=None, name=None):
+        super(UserDefinedTableFunctionWrapper, self).__init__(
+            func, input_types, deterministic, name)
+
+        if not isinstance(result_types, collections.Iterable):
+            result_types = [result_types]
+
+        for result_type in result_types:
+            if not isinstance(result_type, DataType):
+                raise TypeError(
+                    "Invalid result_type: result_type should be DataType but contains {}".format(
+                        result_type))
+
+        self._result_types = result_types
+        self._judtf_placeholder = None
+
+    def java_user_defined_function(self, is_blink_planner, table_config):
+        if self._judtf_placeholder is None:
+            self._judtf_placeholder = self._create_judtf(is_blink_planner, table_config)
+        return self._judtf_placeholder
+
+    def _create_judtf(self, is_blink_planner, table_config):
+        func = self._func
+        if not isinstance(self._func, UserDefinedFunction):
+            func = DelegationTableFunction(self._func)
+
+        import cloudpickle
+        serialized_func = cloudpickle.dumps(func)
+
+        gateway = get_gateway()
+        j_input_types = utils.to_jarray(gateway.jvm.TypeInformation,
+                                        [_to_java_type(i) for i in self._input_types])
+
+        j_result_types = utils.to_jarray(gateway.jvm.TypeInformation,
+                                         [_to_java_type(i) for i in self._result_types])
+        if is_blink_planner:
+            PythonTableUtils = gateway.jvm \
+                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+            j_table_function = PythonTableUtils \
+                .createPythonTableFunction(table_config,
+                                           self._name,
+                                           bytearray(serialized_func),
+                                           j_input_types,
+                                           j_result_types,
+                                           self._deterministic,
+                                           _get_python_env())
+        else:
+            PythonTableUtils = gateway.jvm.PythonTableUtils
+            j_table_function = PythonTableUtils \
+                .createPythonTableFunction(self._name,
+                                           bytearray(serialized_func),
+                                           j_input_types,
+                                           j_result_types,
+                                           self._deterministic,
+                                           _get_python_env())
+        return j_table_function
+
+
 # TODO: support to configure the python execution environment
 def _get_python_env():
     gateway = get_gateway()
@@ -191,7 +294,11 @@ def _get_python_env():
 
 
 def _create_udf(f, input_types, result_type, deterministic, name):
-    return UserDefinedFunctionWrapper(f, input_types, result_type, deterministic, name)
+    return UserDefinedScalarFunctionWrapper(f, input_types, result_type, deterministic, name)
+
+
+def _create_udtf(f, input_types, result_types, deterministic, name):
+    return UserDefinedTableFunctionWrapper(f, input_types, result_types, deterministic, name)
 
 
 def udf(f=None, input_types=None, result_type=None, deterministic=None, name=None):
@@ -225,8 +332,8 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
                           this function is guaranteed to always return the same result given the
                           same parameters. (default True)
     :type deterministic: bool
-    :return: UserDefinedFunctionWrapper or function.
-    :rtype: UserDefinedFunctionWrapper or function
+    :return: UserDefinedScalarFunctionWrapper or function.
+    :rtype: UserDefinedScalarFunctionWrapper or function
     """
     # decorator
     if f is None:
@@ -234,3 +341,44 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
                                  deterministic=deterministic, name=name)
     else:
         return _create_udf(f, input_types, result_type, deterministic, name)
+
+
+def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=None):
+    """
+    Helper method for creating a user-defined table function.
+
+    Example:
+        ::
+
+            >>> @udtf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
+            ...      result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()])
+            ... def range_emit(s, e):
+            ...     for i in range(e):
+            ...         yield s, i
+
+            >>> class MultiEmit(TableFunction):
+            ...     def eval(self, i):
+            ...         return range(i)
+            >>> multi_emit = udtf(MultiEmit(), DataTypes.BIGINT(), DataTypes.BIGINT())
+
+    :param f: user-defined table function.
+    :type f: function or UserDefinedFunction or type
+    :param input_types: the input data types.
+    :type input_types: list[DataType] or DataType
+    :param result_types: the result data types.
+    :type result_types: list[DataType] or DataType
+    :param name: the function name.
+    :type name: str
+    :param deterministic: the determinism of the function's results. True if and only if a call to
+                          this function is guaranteed to always return the same result given the
+                          same parameters. (default True)
+    :type deterministic: bool
+    :return: UserDefinedTableFunctionWrapper or function.
+    :rtype: UserDefinedTableFunctionWrapper or function
+    """
+    # decorator
+    if f is None:
+        return functools.partial(_create_udtf, input_types=input_types, result_types=result_types,
+                                 deterministic=deterministic, name=name)
+    else:
+        return _create_udtf(f, input_types, result_types, deterministic, name)

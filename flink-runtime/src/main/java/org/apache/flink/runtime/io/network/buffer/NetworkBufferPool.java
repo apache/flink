@@ -92,11 +92,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
 	public NetworkBufferPool(
-		int numberOfSegmentsToAllocate,
-		int segmentSize,
-		int numberOfSegmentsToRequest,
-		Duration requestSegmentsTimeout) {
-
+			int numberOfSegmentsToAllocate,
+			int segmentSize,
+			int numberOfSegmentsToRequest,
+			Duration requestSegmentsTimeout) {
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 
@@ -506,8 +505,8 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 						"You can increase this number by setting the configuration keys '%s', '%s', and '%s'",
 				totalNumberOfMemorySegments,
 				memorySegmentSize,
-				TaskManagerOptions.SHUFFLE_MEMORY_FRACTION.key(),
-				TaskManagerOptions.SHUFFLE_MEMORY_MIN.key(),
-				TaskManagerOptions.SHUFFLE_MEMORY_MAX.key());
+				TaskManagerOptions.NETWORK_MEMORY_FRACTION.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MIN.key(),
+				TaskManagerOptions.NETWORK_MEMORY_MAX.key());
 	}
 }

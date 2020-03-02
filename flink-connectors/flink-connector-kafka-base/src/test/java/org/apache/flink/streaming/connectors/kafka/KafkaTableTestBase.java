@@ -72,7 +72,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		// TODO: use DDL to register Kafka once FLINK-15282 is fixed.
 		//  we have to register into Catalog manually because it will use Calcite's ParameterScope
 		TableSchema schema = TableSchema.builder()
-			.field("price", DataTypes.DECIMAL(10, 2))
+			.field("computed-price", DataTypes.DECIMAL(38, 18), "price + 1.0")
+			.field("price", DataTypes.DECIMAL(38, 18))
 			.field("currency", DataTypes.STRING())
 			.field("log_ts", DataTypes.TIMESTAMP(3))
 			.field("ts", DataTypes.TIMESTAMP(3), "log_ts + INTERVAL '1' SECOND")
@@ -101,7 +102,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 
 		// TODO: use the following DDL instead of the preceding code to register Kafka
 //		String ddl = "CREATE TABLE kafka (\n" +
-//			"  price DECIMAL(10, 2),\n" +
+//			"  computed-price as price + 1.0,\n" +
+//			"  price DECIMAL(38, 18),\n" +
 //			"  currency STRING,\n" +
 //			"  log_ts TIMESTAMP(3),\n" +
 //			"  ts AS log_ts + INTERVAL '1' SECOND,\n" +
@@ -138,7 +140,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			"  CAST(TUMBLE_END(ts, INTERVAL '5' SECOND) AS VARCHAR),\n" +
 			"  CAST(MAX(ts) AS VARCHAR),\n" +
 			"  COUNT(*),\n" +
-			"  MAX(price)\n" +
+			"  CAST(MAX(price) AS DECIMAL(10, 2))\n" +
 			"FROM kafka\n" +
 			"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
 
@@ -158,8 +160,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		}
 
 		List<String> expected = Arrays.asList(
-			"2019-12-12 00:00:05,2019-12-12 00:00:04.004,3,50.00",
-			"2019-12-12 00:00:10,2019-12-12 00:00:06.006,2,5.33");
+			"2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00",
+			"2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33");
 
 		assertEquals(expected, TestingSinkFunction.rows);
 

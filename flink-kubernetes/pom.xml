@@ -35,6 +35,17 @@ under the License.
 		<kubernetes.client.version>4.5.2</kubernetes.client.version>
 	</properties>
 
+	<!-- Set dependency version for transitive dependencies -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp</artifactId>
+				<version>3.12.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 
 		<!-- core dependencies  -->
@@ -57,54 +68,13 @@ under the License.
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
 			<version>${kubernetes.client.version}</version>
-			<!-- exclude for dependency convergence and use fixed version -->
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.9.8</version>
-		</dependency>
-		<dependency>
-			<groupId>com.squareup.okhttp3</groupId>
-			<artifactId>okhttp</artifactId>
-			<version>3.12.1</version>
 		</dependency>
 
 		<!-- test dependencies -->
-
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-server-mock</artifactId>
 			<version>${kubernetes.client.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
 			<scope>test</scope>
 		</dependency>
 
@@ -187,27 +157,27 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.okhttp3</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.okhttp3</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.okio</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.okio</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.yaml</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.org.yaml</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.mifmif</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.com.mifmif</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.com.mifmif</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>dk.brics.automaton</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.dk.brics.automaton</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.dk.brics.automaton</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

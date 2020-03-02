@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.MemoryArchitecture;
+import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -62,8 +62,6 @@ public class ResultPartitionFactory {
 
 	private final boolean blockingShuffleCompressionEnabled;
 
-	private final boolean pipelinedShuffleCompressionEnabled;
-
 	private final String compressionCodec;
 
 	public ResultPartitionFactory(
@@ -76,7 +74,6 @@ public class ResultPartitionFactory {
 		int networkBufferSize,
 		boolean forcePartitionReleaseOnConsumption,
 		boolean blockingShuffleCompressionEnabled,
-		boolean pipelinedShuffleCompressionEnabled,
 		String compressionCodec) {
 
 		this.partitionManager = partitionManager;
@@ -88,7 +85,6 @@ public class ResultPartitionFactory {
 		this.networkBufferSize = networkBufferSize;
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
 		this.compressionCodec = compressionCodec;
 	}
 
@@ -113,8 +109,7 @@ public class ResultPartitionFactory {
 			int maxParallelism,
 			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 		BufferCompressor bufferCompressor = null;
-		if (type.isBlocking() && blockingShuffleCompressionEnabled
-			|| type.isPipelined() && pipelinedShuffleCompressionEnabled) {
+		if (type.isBlocking() && blockingShuffleCompressionEnabled) {
 			bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
 		}
 
@@ -225,12 +220,11 @@ public class ResultPartitionFactory {
 	}
 
 	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
-		switch (MemoryArchitecture.get()) {
+		switch (ProcessorArchitecture.getMemoryAddressSize()) {
 			case _64_BIT:
 				return BoundedBlockingSubpartitionType.FILE_MMAP;
 			case _32_BIT:
 				return BoundedBlockingSubpartitionType.FILE;
-			case UNKNOWN:
 			default:
 				LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
 				return BoundedBlockingSubpartitionType.FILE;

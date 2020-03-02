@@ -31,7 +31,7 @@ Get a local Flink cluster up and running in a few simple steps.
 ## Setup: Download and Start Flink
 
 Flink runs on __Linux, Mac OS X, and Windows__.
-To be able to run Flink, the only requirement is to have a working __Java 8.x__ installation.
+To be able to run Flink, the only requirement is to have a working __Java 8 or 11__ installation.
 
 You can check the correct installation of Java by issuing the following command:
 
@@ -152,9 +152,9 @@ This error occurs because git is automatically transforming UNIX line endings to
 
 2. Determine your home directory by entering
 
-    {% highlight bash %}
-    cd; pwd
-    {% endhighlight %}
+{% highlight bash %}
+cd; pwd
+{% endhighlight %}
 
     This will return a path under the Cygwin root path.
 
