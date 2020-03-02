@@ -101,6 +101,20 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
+function use_zookeeper_34() {
+  if [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.5* ]; then
+    mv "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.5* "${FLINK_DIR}/opt"
+    mv "${FLINK_DIR}"/opt/flink-shaded-zookeeper-3.4* "${FLINK_DIR}/lib"
+  fi
+}
+
+function use_zookeeper_35() {
+  if [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.4* ]; then
+    mv "${FLINK_DIR}"/lib/flink-shaded-zookeeper-3.4* "${FLINK_DIR}/opt"
+    mv "${FLINK_DIR}"/opt/flink-shaded-zookeeper-3.5* "${FLINK_DIR}/lib"
+  fi
+}
+
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
