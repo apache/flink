@@ -43,7 +43,7 @@ public abstract class FlinkUserCodeClassLoader extends URLClassLoader {
 	}
 
 	@Override
-	protected final Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+	public final Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
 		try {
 			return loadClassWithoutExceptionHandling(name, resolve);
 		} catch (Throwable classLoadingException) {
