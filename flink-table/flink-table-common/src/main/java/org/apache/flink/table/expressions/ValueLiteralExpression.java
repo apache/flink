@@ -93,11 +93,6 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			convertedValue = clazz.cast(value);
 		}
 
-		else if (valueClass == Integer.class && clazz == Long.class) {
-			final Integer integer = (Integer) value;
-			convertedValue = integer.longValue();
-		}
-
 		else if (valueClass == Duration.class && clazz == Long.class) {
 			final Duration duration = (Duration) value;
 			convertedValue = duration.toMillis();
@@ -148,14 +143,35 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			convertedValue = java.sql.Timestamp.valueOf(dateTime);
 		}
 
-		else if (Number.class.isAssignableFrom(valueClass) && clazz == BigDecimal.class) {
-			convertedValue = new BigDecimal(String.valueOf(value));
+		else if (Number.class.isAssignableFrom(valueClass) && Number.class.isAssignableFrom(clazz)) {
+			convertedValue = convertNumeric(clazz);
 		}
 
 		// we can offer more conversions in the future, these conversions must not necessarily
 		// comply with the logical type conversions
 
 		return Optional.ofNullable((T) convertedValue);
+	}
+
+	private @Nullable <T> Object convertNumeric(Class<T> toClazz) {
+		BigDecimal bigDecimal = new BigDecimal(String.valueOf(value));
+		if (toClazz == Byte.class) {
+			return bigDecimal.byteValue();
+		} else if (toClazz == Short.class) {
+			return bigDecimal.shortValue();
+		} else if (toClazz == Integer.class) {
+			return bigDecimal.intValue();
+		} else if (toClazz == Long.class) {
+			return bigDecimal.longValue();
+		} else if (toClazz == Float.class) {
+			return bigDecimal.floatValue();
+		} else if (toClazz == Double.class) {
+			return bigDecimal.doubleValue();
+		} else if (toClazz == BigDecimal.class) {
+			return bigDecimal;
+		}
+
+		return null;
 	}
 
 	@Override
