@@ -351,7 +351,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		LOG.info("Starting TaskManager with ResourceID: {}", resourceID);
 
-		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
+		InetAddress externalAddress = InetAddress.getByName(rpcService.getAddress());
 
 		final TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 
@@ -359,13 +359,13 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			TaskManagerServicesConfiguration.fromConfiguration(
 				configuration,
 				resourceID,
-				remoteAddress,
+				externalAddress,
 				localCommunicationOnly,
 				taskExecutorResourceSpec);
 
 		Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
-			TaskManagerLocation.getHostName(remoteAddress),
+			TaskManagerLocation.getHostName(externalAddress),
 			resourceID,
 			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
