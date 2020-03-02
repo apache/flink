@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -31,6 +29,8 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
