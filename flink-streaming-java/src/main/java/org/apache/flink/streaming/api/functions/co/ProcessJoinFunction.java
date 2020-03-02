@@ -39,6 +39,12 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 
 	private static final long serialVersionUID = -2444626938039012398L;
 
+	protected boolean skipLeftJoin = false;
+
+	public boolean isSkipLeftJoin() {
+		return skipLeftJoin;
+	}
+
 	/**
 	 * This method is called for each joined pair of elements. It can output zero or more elements
 	 * through the provided {@link Collector} and has access to the timestamps of the joined elements

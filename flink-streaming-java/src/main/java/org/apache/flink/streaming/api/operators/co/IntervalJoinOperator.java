@@ -121,6 +121,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 	private transient Map<Object, SortedMap<Long, List<BufferEntry<Object>>>> otherBuffersCache;
 
+	private final boolean skipLeftJoin;
+
 	/**
 	 * Creates a new IntervalJoinOperator.
 	 *
@@ -154,6 +156,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
+		this.skipLeftJoin = udf.isSkipLeftJoin();
 	}
 
 	@Override
@@ -248,11 +251,23 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			isInsertFromLeft.update(!isLeft);
 		}
 
+		addToBuffer(ourBuffer, ourValue, ourTimestamp);
+
+		if (isLeft && skipLeftJoin) {
+			long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
+			if (isLeft) {
+				internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
+			} else {
+				internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
+			}
+			return;
+		}
+
 		if (isInsertFromLeft.value() != isLeft) {
 			// clean up buffers of current key
 			otherBuffersCache.remove(getCurrentKey());
 
-			// build in memory sortedMap
+			// build in memory sortedMap to expediate lookup
 			SortedMap<Long, List<BufferEntry<Object>>> newBucket = new TreeMap<>();
 			for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
 				List<BufferEntry<Object>> items = new ArrayList<>();
@@ -264,8 +279,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			otherBuffersCache.put(getCurrentKey(), newBucket);
 			isInsertFromLeft.update(isLeft);
 		}
-
-		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
 		for (Map.Entry<Long, List<BufferEntry<Object>>> bucket:
 			otherBuffersCache.get(getCurrentKey()).subMap(
