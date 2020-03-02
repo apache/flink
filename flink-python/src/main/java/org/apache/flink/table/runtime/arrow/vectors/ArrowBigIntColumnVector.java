@@ -48,9 +48,4 @@ public final class ArrowBigIntColumnVector implements LongColumnVector {
 	public boolean isNullAt(int i) {
 		return bigIntVector.isNull(i);
 	}
-
-	@Override
-	public void reset() {
-		bigIntVector.reset();
-	}
 }

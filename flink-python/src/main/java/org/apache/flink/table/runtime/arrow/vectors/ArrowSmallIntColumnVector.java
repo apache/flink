@@ -45,9 +45,4 @@ public final class ArrowSmallIntColumnVector implements ShortColumnVector {
 	public boolean isNullAt(int i) {
 		return smallIntVector.isNull(i);
 	}
-
-	@Override
-	public void reset() {
-		smallIntVector.reset();
-	}
 }

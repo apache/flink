@@ -45,9 +45,4 @@ public final class ArrowIntColumnVector implements IntColumnVector {
 	public boolean isNullAt(int i) {
 		return intVector.isNull(i);
 	}
-
-	@Override
-	public void reset() {
-		intVector.reset();
-	}
 }
