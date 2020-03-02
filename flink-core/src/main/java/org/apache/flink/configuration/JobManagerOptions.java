@@ -55,6 +55,16 @@ public class JobManagerOptions {
 			" leader from potentially multiple standby JobManagers.");
 
 	/**
+	 * The local address of the network interface that the job manager binds to.
+	 */
+	public static final ConfigOption<String> BIND_HOST =
+		key("jobmanager.bind-host")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The local address of the network interface that the job manager binds to. If not" +
+				" configured, '0.0.0.0' will be used.");
+
+	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
 	 *
@@ -77,6 +87,16 @@ public class JobManagerOptions {
 			" This config option is not used in many high-availability setups, when a" +
 			" leader-election service (like ZooKeeper) is used to elect and discover the JobManager" +
 			" leader from potentially multiple standby JobManagers.");
+
+	/**
+	 * The local port that the job manager binds to.
+	 */
+	public static final ConfigOption<Integer> RPC_BIND_PORT =
+		key("jobmanager.rpc.bind-port")
+			.intType()
+			.noDefaultValue()
+			.withDescription("The local RPC port that the JobManager binds to. If not configured, the external port" +
+				" (configured by '" + PORT.key() + "') will be used.");
 
 	/**
 	 * JVM heap size for the JobManager with memory size.

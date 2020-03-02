@@ -15,6 +15,12 @@
             <td>Dictionary for JobManager to store the archives of completed jobs.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.bind-host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The local address of the network interface that the job manager binds to. If not configured, '0.0.0.0' will be used.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>
@@ -37,6 +43,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The config parameter defining the network address to connect to for communication with the job manager. This value is only interpreted in setups where a single JobManager with static name or address exists (simple standalone setups, or container setups with dynamic service name resolution). It is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The local RPC port that the JobManager binds to. If not configured, the external port (configured by 'jobmanager.rpc.port') will be used.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.rpc.port</h5></td>
