@@ -45,9 +45,4 @@ public final class ArrowTinyIntColumnVector implements ByteColumnVector {
 	public boolean isNullAt(int i) {
 		return tinyIntVector.isNull(i);
 	}
-
-	@Override
-	public void reset() {
-		tinyIntVector.reset();
-	}
 }

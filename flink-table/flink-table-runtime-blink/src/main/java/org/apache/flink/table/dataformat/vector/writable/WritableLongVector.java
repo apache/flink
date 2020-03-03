@@ -16,36 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.dataformat.vector;
+package org.apache.flink.table.dataformat.vector.writable;
+
+import org.apache.flink.table.dataformat.vector.LongColumnVector;
 
 /**
- * Bytes column vector to get {@link Bytes}, it include original data and offset and length.
- * The data in {@link Bytes} maybe reuse.
+ * Writable {@link LongColumnVector}.
  */
-public interface BytesColumnVector extends ColumnVector {
-	Bytes getBytes(int i);
+public interface WritableLongVector extends WritableColumnVector, LongColumnVector {
 
 	/**
-	 * Bytes data.
+	 * Set long at rowId with the provided value.
 	 */
-	class Bytes {
-		public final byte[] data;
-		public final int offset;
-		public final int len;
+	void setLong(int rowId, long value);
 
-		public Bytes(byte[] data, int offset, int len) {
-			this.data = data;
-			this.offset = offset;
-			this.len = len;
-		}
+	/**
+	 * Set longs from binary, need use UNSAFE to copy.
+	 *
+	 * @param rowId set start rowId.
+	 * @param count count for long, so the bytes size is count * 8.
+	 * @param src source binary.
+	 * @param srcIndex source binary index, it is the index for byte index.
+	 */
+	void setLongsFromBinary(int rowId, int count, byte[] src, int srcIndex);
 
-		public byte[] getBytes() {
-			if (offset == 0 && len == data.length) {
-				return data;
-			}
-			byte[] res = new byte[len];
-			System.arraycopy(data, offset, res, 0, len);
-			return res;
-		}
-	}
+	/**
+	 * Fill the column vector with the provided value.
+	 */
+	void fill(long value);
 }

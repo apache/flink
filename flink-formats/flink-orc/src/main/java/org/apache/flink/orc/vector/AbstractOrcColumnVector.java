@@ -55,11 +55,6 @@ public abstract class AbstractOrcColumnVector implements
 		return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
 	}
 
-	@Override
-	public void reset() {
-		throw new UnsupportedOperationException();
-	}
-
 	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {

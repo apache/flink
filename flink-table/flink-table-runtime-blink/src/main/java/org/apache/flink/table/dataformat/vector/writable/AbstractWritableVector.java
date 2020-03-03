@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.dataformat.vector;
+package org.apache.flink.table.dataformat.vector.writable;
+
+import org.apache.flink.table.dataformat.vector.ColumnVector;
+import org.apache.flink.table.dataformat.vector.Dictionary;
 
 import java.io.Serializable;
 
@@ -24,9 +27,9 @@ import java.io.Serializable;
  * Contains the shared structure for {@link ColumnVector}s, including NULL information and dictionary.
  * NOTE: if there are some nulls, must set {@link #noNulls} to false.
  */
-public abstract class AbstractColumnVector implements ColumnVector, Serializable {
+public abstract class AbstractWritableVector implements WritableColumnVector, Serializable {
 
-	private static final long serialVersionUID = 5340018531388047747L;
+	private static final long serialVersionUID = 1L;
 
 	// If the whole column vector has no nulls, this is true, otherwise false.
 	protected boolean noNulls = true;
@@ -40,22 +43,15 @@ public abstract class AbstractColumnVector implements ColumnVector, Serializable
 	/**
 	 * Update the dictionary.
 	 */
+	@Override
 	public void setDictionary(Dictionary dictionary) {
 		this.dictionary = dictionary;
 	}
 
 	/**
-	 * Reserve a integer column for ids of dictionary.
-	 * DictionaryIds maybe inconsistent with {@link #setDictionary}. Suppose a ColumnVector's data
-	 * comes from two pages. Perhaps one page uses a dictionary and the other page does not use a
-	 * dictionary. The first page that uses a field will have dictionaryIds, which requires
-	 * decoding the first page (Out batch does not support a mix of dictionary).
-	 */
-	public abstract IntColumnVector reserveDictionaryIds(int capacity);
-
-	/**
 	 * Returns true if this column has a dictionary.
 	 */
+	@Override
 	public boolean hasDictionary() {
 		return this.dictionary != null;
 	}

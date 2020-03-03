@@ -57,7 +57,7 @@ public class VectorizedColumnBatchTest {
 		HeapBytesVector col1 = new HeapBytesVector(VECTOR_SIZE);
 		for (int i = 0; i < VECTOR_SIZE; i++) {
 			byte[] bytes = String.valueOf(i).getBytes(StandardCharsets.UTF_8);
-			col1.setVal(i, bytes, 0, bytes.length);
+			col1.appendBytes(i, bytes, 0, bytes.length);
 		}
 
 		HeapByteVector col2 = new HeapByteVector(VECTOR_SIZE);
@@ -107,11 +107,6 @@ public class VectorizedColumnBatchTest {
 			}
 
 			@Override
-			public void reset() {
-
-			}
-
-			@Override
 			public SqlTimestamp getTimestamp(int i, int precision) {
 				return SqlTimestamp.fromEpochMillis(vector8[i]);
 			}
@@ -132,11 +127,6 @@ public class VectorizedColumnBatchTest {
 			@Override
 			public boolean isNullAt(int i) {
 				return false;
-			}
-
-			@Override
-			public void reset() {
-
 			}
 		};
 
@@ -191,11 +181,6 @@ public class VectorizedColumnBatchTest {
 			public boolean isNullAt(int i) {
 				return false;
 			}
-
-			@Override
-			public void reset() {
-
-			}
 		};
 
 		long[] vector11 = new long[VECTOR_SIZE];
@@ -204,10 +189,6 @@ public class VectorizedColumnBatchTest {
 			@Override
 			public boolean isNullAt(int i) {
 				return false;
-			}
-
-			@Override
-			public void reset() {
 			}
 
 			@Override
@@ -252,8 +233,6 @@ public class VectorizedColumnBatchTest {
 		}
 
 		assertEquals(VECTOR_SIZE, batch.getNumRows());
-		batch.reset();
-		assertEquals(0, batch.getNumRows());
 	}
 
 	@Test
@@ -291,10 +270,10 @@ public class VectorizedColumnBatchTest {
 	public void testDictionary() {
 		// all null
 		HeapIntVector col = new HeapIntVector(VECTOR_SIZE);
-		int[] dict = new int[2];
+		Integer[] dict = new Integer[2];
 		dict[0] = 1998;
 		dict[1] = 9998;
-		col.setDictionary(new TestDictionary(dict));
+		col.setDictionary(new ColumnVectorTest.TestDictionary(dict));
 		HeapIntVector heapIntVector = col.reserveDictionaryIds(VECTOR_SIZE);
 		for (int i = 0; i < VECTOR_SIZE; i++) {
 			heapIntVector.vector[i] = i % 2 == 0 ? 0 : 1;
@@ -309,39 +288,6 @@ public class VectorizedColumnBatchTest {
 			} else {
 				assertEquals(row.getInt(0), 9998);
 			}
-		}
-	}
-
-	private final class TestDictionary implements Dictionary {
-		private int[] intDictionary;
-
-		public TestDictionary(int[] dictionary) {
-			this.intDictionary = dictionary;
-		}
-
-		@Override
-		public int decodeToInt(int id) {
-			return intDictionary[id];
-		}
-
-		@Override
-		public long decodeToLong(int id) {
-			throw new UnsupportedOperationException("Dictionary encoding does not support float");
-		}
-
-		@Override
-		public float decodeToFloat(int id) {
-			throw new UnsupportedOperationException("Dictionary encoding does not support float");
-		}
-
-		@Override
-		public double decodeToDouble(int id) {
-			throw new UnsupportedOperationException("Dictionary encoding does not support double");
-		}
-
-		@Override
-		public byte[] decodeToBinary(int id) {
-			throw new UnsupportedOperationException("Dictionary encoding does not support String");
 		}
 	}
 }
