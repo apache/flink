@@ -48,8 +48,7 @@ public abstract class UpsertWriter implements JDBCWriter {
 		String tableName,
 		String[] fieldNames,
 		int[] fieldTypes,
-		String[] keyFields,
-		boolean objectReuse) {
+		String[] keyFields) {
 
 		checkNotNull(keyFields);
 
@@ -62,10 +61,10 @@ public abstract class UpsertWriter implements JDBCWriter {
 		Optional<String> upsertSQL = dialect.getUpsertStatement(tableName, fieldNames, keyFields);
 		return upsertSQL.map((Function<String, UpsertWriter>) sql ->
 				new UpsertWriterUsingUpsertStatement(
-						fieldTypes, pkFields, pkTypes, objectReuse, deleteSQL, sql))
+						fieldTypes, pkFields, pkTypes, deleteSQL, sql))
 				.orElseGet(() ->
 						new UpsertWriterUsingInsertUpdateStatement(
-								fieldTypes, pkFields, pkTypes, objectReuse, deleteSQL,
+								fieldTypes, pkFields, pkTypes, deleteSQL,
 								dialect.getRowExistsStatement(tableName, keyFields),
 								dialect.getInsertIntoStatement(tableName, fieldNames),
 								dialect.getUpdateStatement(tableName, fieldNames, keyFields)));
@@ -75,17 +74,15 @@ public abstract class UpsertWriter implements JDBCWriter {
 	final int[] pkTypes;
 	private final int[] pkFields;
 	private final String deleteSQL;
-	private final boolean objectReuse;
 
 	private transient Map<Row, Tuple2<Boolean, Row>> keyToRows;
 	private transient PreparedStatement deleteStatement;
 
-	private UpsertWriter(int[] fieldTypes, int[] pkFields, int[] pkTypes, String deleteSQL, boolean objectReuse) {
+	private UpsertWriter(int[] fieldTypes, int[] pkFields, int[] pkTypes, String deleteSQL) {
 		this.fieldTypes = fieldTypes;
 		this.pkFields = pkFields;
 		this.pkTypes = pkTypes;
 		this.deleteSQL = deleteSQL;
-		this.objectReuse = objectReuse;
 	}
 
 	@Override
@@ -94,11 +91,9 @@ public abstract class UpsertWriter implements JDBCWriter {
 		this.deleteStatement = connection.prepareStatement(deleteSQL);
 	}
 
-	public void addRecord(Tuple2<Boolean, Row> record) throws SQLException {
-		// we don't need perform a deep copy, because jdbc field are immutable object.
-		Tuple2<Boolean, Row> tuple2 = objectReuse ? new Tuple2<>(record.f0, Row.copy(record.f1)) : record;
+	public void addRecord(Tuple2<Boolean, Row> record) {
 		// add records to buffer
-		keyToRows.put(getPrimaryKey(tuple2.f1), tuple2);
+		keyToRows.put(getPrimaryKey(record.f1), record);
 	}
 
 	@Override
@@ -153,10 +148,9 @@ public abstract class UpsertWriter implements JDBCWriter {
 			int[] fieldTypes,
 			int[] pkFields,
 			int[] pkTypes,
-			boolean objectReuse,
 			String deleteSQL,
 			String upsertSQL) {
-			super(fieldTypes, pkFields, pkTypes, deleteSQL, objectReuse);
+			super(fieldTypes, pkFields, pkTypes, deleteSQL);
 			this.upsertSQL = upsertSQL;
 		}
 
@@ -202,12 +196,11 @@ public abstract class UpsertWriter implements JDBCWriter {
 			int[] fieldTypes,
 			int[] pkFields,
 			int[] pkTypes,
-			boolean objectReuse,
 			String deleteSQL,
 			String existSQL,
 			String insertSQL,
 			String updateSQL) {
-			super(fieldTypes, pkFields, pkTypes, deleteSQL, objectReuse);
+			super(fieldTypes, pkFields, pkTypes, deleteSQL);
 			this.existSQL = existSQL;
 			this.insertSQL = insertSQL;
 			this.updateSQL = updateSQL;

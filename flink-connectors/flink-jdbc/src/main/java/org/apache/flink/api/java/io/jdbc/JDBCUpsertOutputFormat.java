@@ -62,6 +62,7 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 	private transient JDBCWriter jdbcWriter;
 	private transient int batchCount = 0;
 	private transient volatile boolean closed = false;
+	private transient boolean objectReuse;
 
 	private transient ScheduledExecutorService scheduler;
 	private transient ScheduledFuture scheduledFuture;
@@ -97,13 +98,13 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			establishConnection();
+			objectReuse = getRuntimeContext().getExecutionConfig().isObjectReuseEnabled();
 			if (keyFields == null || keyFields.length == 0) {
 				String insertSQL = dialect.getInsertIntoStatement(tableName, fieldNames);
 				jdbcWriter = new AppendOnlyWriter(insertSQL, fieldTypes);
 			} else {
 				jdbcWriter = UpsertWriter.create(
-					dialect, tableName, fieldNames, fieldTypes, keyFields,
-					getRuntimeContext().getExecutionConfig().isObjectReuseEnabled());
+					dialect, tableName, fieldNames, fieldTypes, keyFields);
 			}
 			jdbcWriter.open(connection);
 		} catch (SQLException sqe) {
@@ -141,7 +142,8 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		checkFlushException();
 
 		try {
-			jdbcWriter.addRecord(tuple2);
+			Tuple2<Boolean, Row> record = objectReuse ? new Tuple2<>(tuple2.f0, Row.copy(tuple2.f1)) : tuple2;
+			jdbcWriter.addRecord(record);
 			batchCount++;
 			if (batchCount >= flushMaxSize) {
 				flush();
