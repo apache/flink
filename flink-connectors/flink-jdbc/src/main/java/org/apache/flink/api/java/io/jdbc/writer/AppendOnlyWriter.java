@@ -24,6 +24,8 @@ import org.apache.flink.types.Row;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -38,6 +40,7 @@ public class AppendOnlyWriter implements JDBCWriter {
 	private final String insertSQL;
 	private final int[] fieldTypes;
 
+	private transient List<Row> cachedRows;
 	private transient PreparedStatement statement;
 
 	public AppendOnlyWriter(String insertSQL, int[] fieldTypes) {
@@ -47,19 +50,26 @@ public class AppendOnlyWriter implements JDBCWriter {
 
 	@Override
 	public void open(Connection connection) throws SQLException {
+		this.cachedRows = new ArrayList<>();
 		this.statement = connection.prepareStatement(insertSQL);
 	}
 
 	@Override
-	public void addRecord(Tuple2<Boolean, Row> record) throws SQLException {
+	public void addRecord(Tuple2<Boolean, Row> record) {
 		checkArgument(record.f0, "Append mode can not receive retract/delete message.");
-		setRecordToStatement(statement, fieldTypes, record.f1);
-		statement.addBatch();
+		cachedRows.add(record.f1);
 	}
 
 	@Override
 	public void executeBatch() throws SQLException {
-		statement.executeBatch();
+		if (cachedRows.size() > 0) {
+			for (Row row : cachedRows) {
+				setRecordToStatement(statement, fieldTypes, row);
+				statement.addBatch();
+			}
+			statement.executeBatch();
+			cachedRows.clear();
+		}
 	}
 
 	@Override
