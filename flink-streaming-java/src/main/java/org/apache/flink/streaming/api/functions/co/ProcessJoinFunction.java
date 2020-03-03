@@ -41,8 +41,41 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 
 	protected boolean skipLeftJoin = false;
 
+	protected long relativeEarlyRightEvictionBound = Long.MAX_VALUE;
+
+	protected long cacheSize = 1L;
+
+	protected long expireMs = Long.MAX_VALUE;
+	/**
+	 * This method indicates if IntervalJoinOperator skip intervaljoin scan from  {@link IN1}.
+	 * @return if skip intervaljoin scan from {@link IN1}.
+	 */
 	public boolean isSkipLeftJoin() {
 		return skipLeftJoin;
+	}
+
+	/**
+	 * This method indicates how early IntervalJoinOperator can intervaljoin evict records from {@link IN2}.
+	 * @return how early intervaljoin evict records from {@link IN2}
+	 */
+	public long getRelativeEarlyRightEvictionBound() {
+		return relativeEarlyRightEvictionBound;
+	}
+
+	/**
+	 * This method indicates size of one side cache used in intervaljoinoperator.
+	 * @return size of in memory cache used in intervaljoinoperator
+	 */
+	public long getCacheSize() {
+		return cacheSize;
+	}
+
+	/**
+	 * This method indicates expiration time after cache last time read.
+	 * @return expiration time after cache read
+	 */
+	public long getExpireMs() {
+		return expireMs;
 	}
 
 	/**
