@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -96,7 +97,7 @@ class HeapMapState<K, N, UK, UV>
 
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		if (userMap == null) {
-			userMap = new HashMap<>();
+			userMap = new LinkedHashMap<>();
 			stateTable.put(currentNamespace, userMap);
 		}
 

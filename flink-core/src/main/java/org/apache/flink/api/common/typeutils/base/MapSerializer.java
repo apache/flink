@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /**
  * A serializer for {@link Map}. The serializer relies on a key serializer and a value serializer
@@ -143,7 +144,7 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	public Map<K, V> deserialize(DataInputView source) throws IOException {
 		final int size = source.readInt();
 
-		final Map<K, V> map = new HashMap<>(size);
+		final Map<K, V> map = new LinkedHashMap<>(size);
 		for (int i = 0; i < size; ++i) {
 			K key = keySerializer.deserialize(source);
 
