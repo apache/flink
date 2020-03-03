@@ -263,6 +263,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		if (isLeft && skipLeftJoin) {
 			long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
+			otherSideCache.invalidate(getCurrentKey());
 			return;
 		}
 
