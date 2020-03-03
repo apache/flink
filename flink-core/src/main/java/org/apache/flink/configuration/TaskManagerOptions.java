@@ -415,7 +415,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_METASPACE =
 		key("taskmanager.memory.jvm-metaspace.size")
 			.memoryType()
-			.defaultValue(MemorySize.parse("96m"))
+			.defaultValue(MemorySize.parse("256m"))
 			.withDescription("JVM Metaspace Size for the TaskExecutors.");
 
 	/**
