@@ -34,7 +34,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<properties>
-		<dropwizard.version>3.1.5</dropwizard.version>
+		<dropwizard.version>3.2.6</dropwizard.version>
 	</properties>
 
 	<modules>
