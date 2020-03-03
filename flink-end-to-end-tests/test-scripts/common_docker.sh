@@ -32,3 +32,9 @@ function containers_health_check() {
     fi
   done
 }
+
+function build_image_with_jar() {
+    local job_artifacts=$1
+    local image_name=${2:-flink-job}
+    ./build.sh --from-local-dist --job-artifacts ${job_artifacts} --image-name ${image_name}
+}
